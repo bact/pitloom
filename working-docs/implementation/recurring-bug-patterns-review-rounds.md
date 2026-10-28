@@ -1,12 +1,12 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: review rounds of PR #300, #305, #306, #311 to #315, #317 and path keys
+# Recurring bug patterns: review rounds of PR #300, #305, #306, #311 to #315, #317, #359 to #362 and path keys
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
@@ -354,3 +354,52 @@ Field-note version, with the measured context:
   across library, `generate()` and both CLI commands found it only because it
   compared warnings as well as the SBOM.
 
+## From PR #359, #361 and #362 (0.21.0: licenseid.resolve, release sweep, live tests)
+
+- **A binding returns a default for a field the file does not store.** After
+  `fasttext.load_model`, `getArgs().lr` is 0.05 whatever the training value was
+  (`lr=0.77` came back 0.05), and `minCountLabel` 0: `Args::save` writes neither.
+  `maxn` is stored, but the loader resets it to 0 for a version 11 *supervised*
+  model only; the first gate dropped it for every model below version 12, and a
+  fresh review caught that with a skipgram file rewritten to version 11. Read the
+  format's source for what is written and for version-dependent resets; test with
+  a file of each kind, not a mock without the model type.
+- **A cache keyed on a file stamp needs more than the mtime.** The licence
+  answer cache of #359 was keyed on `(mtime, size)`; a rebuilt database of the
+  same size within the clock's granularity would have kept stale answers. It now
+  adds the inode, takes a lock, and stores an answer only if the stamp is the
+  same after the lookup (a lookup that straddles `licenseid update` is dropped).
+- **A static import that closes a cycle fails pylint R0401, even inside a
+  function.** `_license_resolve` needed `_license`, which imports the classifier
+  that imports it. `importlib.import_module("pkg.mod")` with an annotated result
+  keeps mypy's types and passes pylint. Splitting the module is the cleaner fix.
+- **A fallback that asks git directly turns a slow host into a bare 3xx.** The
+  redirect probe timed out on Savannah and labs.etsi.org, git (which follows no
+  redirect) reported `returned error: 301/302`, and the live test failed. The test
+  now skips only when the probe failed and the error is a bare redirect; the
+  classifier also knows git's GnuTLS wording (`gnutls_handshake() failed`).
+- **One marker for two things.** `network` covered 68 tests that only use a
+  server the test starts and about 53 that reach real hosts. `loopback` (local
+  server, guarded in-process) now runs everywhere; `network` stays out of the
+  default job (`-m "not network"`) and runs in the release gate, `live-tests.yml`
+  and by hand. The guard covers in-process `connect`/`connect_ex` only, not DNS,
+  UDP or a subprocess; a review found a `loopback` test that still asked DNS for
+  `evil.example`.
+- **A validator's findings come back in hash order.** `spdx3-validate` findings,
+  and the values of a SHACL `not in list [...]` message, differed between runs
+  (`PYTHONHASHSEED`). Sorted by (source, kind, message) and with the list values
+  sorted through `ast.literal_eval`, six seeds gave one output.
+- **Sweeps that verified their own claims still shipped defects.** Three agents
+  swept docs, comments and skills and each ran the CLI to verify; a fresh review
+  of the same diff then found: an over-broad statement ("an invalid `--sbom` is
+  refused" was true for SPDX 3 only), a false message when the validator was
+  missing, wrong dates and links, and the `maxn` gate. Schedule a fresh-context
+  review of the combined diff before merge, and give it the diff, not the
+  author's summary.
+- **Tooling slips that cost a commit or a command.** `uv sync` wrote a 4,835-line
+  `uv.lock` into the checkout and `git add -A` committed it (set
+  `UV_PROJECT_ENVIRONMENT`; read `git status`). `pkill -f "uvicorn app.main"`
+  matched its own shell and killed the command (write `[u]vicorn`). A bot commit
+  (`CITATION.cff` from `codemeta.json`) made a push fail: merge it, do not rebase.
+  PyPI's JSON endpoint served the old latest version for a minute after
+  publishing: ask for the version URL.

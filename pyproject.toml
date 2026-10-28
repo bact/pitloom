@@ -337,7 +337,7 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
     "network: reaches a real remote host, directly or via a subprocess/library; skips on a network failure (opts out of conftest's default socket block); not run in the default CI job",
-    "loopback: talks only to a server the test starts on this machine; runs everywhere (a connection to any other host is refused)",
+    "loopback: talks only to a server the test starts on this machine; runs everywhere (an in-process connection to any other host is refused)",
 ]
 # OpenSSF Best Practices "warnings_strict": promote every runtime warning
 # (DeprecationWarning, ResourceWarning, pytest's own internal warnings,

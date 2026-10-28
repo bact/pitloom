@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -222,3 +222,30 @@ Ways a test passes, fails or floods the log for the wrong reason.
   mutation run found it (#306).
   Do: for `A and B`, one test where only `A` fails and one where only `B`
   fails.
+- **A live host that is slow turns a fallback into a failure.** Pitloom probes
+  a Git URL for a redirect and, if the probe fails, asks git directly; git
+  follows no redirect, so a slow Savannah or labs.etsi.org gave
+  `returned error: 301` or `302` (three red runs of one PR, 2026-10-28), and a
+  TLS drop gave `gnutls_handshake() failed`. The live test now skips only when
+  the probe failed *and* the error is a bare redirect, and the network classifier
+  knows git's GnuTLS wording.
+  Do: classify a failure by the cause the code logged (the probe failed), not by
+  the final message alone; add each new wording to the classifier with a test
+  row.
+- **Two kinds of test shared one marker.** `network` covered 68 tests that use
+  only a server the test starts and about 53 that reach real hosts, so
+  excluding the flaky ones from default CI would have dropped the reliable ones.
+  A `loopback` marker (guarded: in-process `connect` and `connect_ex` refuse any
+  other address) separates them; `network` runs in the release gate, a weekly
+  workflow and by hand. A review found the guard's limits: DNS lookups, UDP and
+  subprocesses pass it, and one `loopback` test still asked DNS for
+  `evil.example`.
+  Do: when a marker's meaning splits, split it, and name in the docs what the
+  guard does not cover.
+- **A validator's output order can depend on the hash seed.** `spdx3-validate`
+  findings, and the values inside a SHACL `not in list [...]` message, changed
+  between runs with `PYTHONHASHSEED`; six seeds gave six outputs. Sorting the
+  findings by (source, kind, message) and the list values (through
+  `ast.literal_eval`, since a value can hold a quote or a bracket) gave one.
+  Do: run a command under several seeds and hash its output before calling it
+  deterministic.

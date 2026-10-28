@@ -5,6 +5,7 @@
 
 """Shared pytest fixtures and configuration."""
 
+import ipaddress
 import json
 import logging
 import socket
@@ -110,7 +111,16 @@ def _blocked_socket(*_args: Any, **_kwargs: Any) -> None:
     )
 
 
-_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+def _is_local(host: str) -> bool:
+    """Whether *host* is this machine: ``localhost`` or a loopback address."""
+    if host == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    mapped = getattr(address, "ipv4_mapped", None)
+    return address.is_loopback or bool(mapped and mapped.is_loopback)
 
 
 def _loopback_only(real_connect: Callable[..., Any]) -> Callable[..., Any]:
@@ -118,7 +128,7 @@ def _loopback_only(real_connect: Callable[..., Any]) -> Callable[..., Any]:
 
     def connect(self: socket.socket, address: Any, *args: Any) -> Any:
         host = address[0] if isinstance(address, tuple) else None
-        if host is not None and host not in _LOOPBACK_HOSTS:
+        if isinstance(host, str) and not _is_local(host):
             raise _NetworkBlockedError(
                 f"A loopback test reached {host!r}. Use only a local server, or "
                 "mark the test @pytest.mark.network if it needs a real host."
@@ -201,10 +211,16 @@ def _block_network_access(
     live network call: slow, flaky, and broken in offline/CI-sandboxed
     runs. Tests that genuinely need a live socket opt out via the
     ``network`` marker. A ``loopback`` test may open sockets, but only to this
-    machine (a server the test starts).
+    machine (a server the test starts): the in-process ``connect`` and
+    ``connect_ex`` refuse any other address. A DNS lookup, a UDP send and a
+    subprocess are not covered.
     """
     if "network" in request.keywords:
         return
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",
+        lambda name, version: None,
+    )
     if "loopback" in request.keywords:
         monkeypatch.setattr(
             socket.socket, "connect", _loopback_only(socket.socket.connect)
@@ -213,10 +229,6 @@ def _block_network_access(
             socket.socket, "connect_ex", _loopback_only(socket.socket.connect_ex)
         )
         return
-    monkeypatch.setattr(
-        "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",
-        lambda name, version: None,
-    )
     monkeypatch.setattr(socket, "socket", _blocked_socket)
 
 

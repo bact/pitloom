@@ -102,6 +102,10 @@ Data and semantics:
 Code shape:
 
 - **Warning/error/log wording drifts across sibling modules**: one shared helper; check siblings when adding a check.
+- **A binding returns a default for a field the file does not store** (fastText `lr` 0.05 after any training; `maxn` reset only for a v11 supervised model): read the format's source for what is written and for version resets; an unstored field is absent, not a default.
+- **A cache keyed on a file stamp** keys on mtime, size and inode, under a lock, and stores no answer computed across a change.
+- **A static import closing a cycle fails pylint R0401 even inside a function**: `importlib.import_module("pkg.mod")` with an annotated result.
+- **A fresh-context review of the combined diff runs before merge, after any sweep**; agents' own checks of their sweeps missed real defects in 0.21.0. Detail: [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
 - **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows and `repr(str)` doubles backslashes. `loggable()` every interpolated value, test with a newline, and test each emitter with a repeated input (said once).
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
@@ -123,7 +127,7 @@ Tests, platform and CI:
 - **For `A and B` in a derived rule, one test where only `A` fails and one where only `B` fails**; mutation testing finds the missing one.
 - **Mutation testing lies two ways**: an equivalent mutant proves nothing (reinstate the exact pre-fix shape); an assertion on a lazily installed side effect observes nothing.
 - **A test helper that normalises what it captures hides the bug class** (`text=True` turns CRLF into LF): decode bytes yourself; mutation-test shell/CI changes.
-- **A test reaching the network via a subprocess/library bypasses the socket block**: mark it `network`, route through `tests/_network.py`. `network` means a real remote host and stays out of the default CI job (`-m "not network"`); it runs in the release gate, `live-tests.yml` (weekly, on demand) and with `pytest -m network`. A test that talks only to a server it starts is `loopback` and runs everywhere (the socket guard refuses any other host).
+- **A test reaching the network via a subprocess/library bypasses the socket block**: mark it `network`, route through `tests/_network.py`. `network` means a real remote host and stays out of the default CI job (`-m "not network"`); it runs in the release gate, `live-tests.yml` (weekly, on demand) and with `pytest -m network`. A test that talks only to a server it starts is `loopback` and runs everywhere (an in-process connection to any other host is refused; subprocesses and DNS are not covered).
 - **Patching a function on a shared stdlib module (`mod.time.sleep`) patches it for every thread**: import the name into the module under test and patch that.
 - **A logging handler bound to `sys.stderr` under `capsys` outlives the capture stream**: `tests/conftest.py` restores the `pitloom` logger per test; new process-global state a test mutates needs the same.
 - **A long `parametrize` value becomes the test id** (Windows `PYTEST_CURRENT_TEST` cap 32,767 chars): short `ids=`; conftest fails ids over 1,000.

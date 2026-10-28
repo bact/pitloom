@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -148,3 +148,19 @@ work, #306
   Do: build a fixture with the field set, for every field a mapping reads
   (the same lesson as `domain` above), and write the comma caveat into the
   test.
+- **A loaded fastText model reports defaults for what the file does not store.**
+  `Args::save` writes `dim`, `ws`, `epoch`, `minCount`, `neg`, `wordNgrams`,
+  `loss`, `model`, `bucket`, `minn`, `maxn`, `lrUpdateRate` and `t`; the loader
+  builds a fresh `Args()` and reads only those. After training with `lr=0.77`
+  and `minCountLabel=2`, `getArgs()` gave `lr` 0.05 and `minCountLabel` 0
+  (measured with fastText on 2026-10-28, #361). Pitloom had recorded both as
+  hyperparameters, and the sentimentdemo example then warned about a conflict
+  between the true `lr` in a fragment and the made-up one. The file header holds a
+  version (an int32 after the magic 793712314); for version 11 the loader resets
+  `maxn` to 0, but only for a supervised model. A first gate that dropped `maxn`
+  for every file below version 12 was wrong for cbow and skipgram models (a
+  reviewer rewrote a skipgram file's header to version 11 and `maxn=5` survived).
+  Do: for each field a binding exposes, check in the format's source that the
+  file stores it and whether the loader overrides it by version or model type;
+  record only what is stored. Test with one file of each kind, not a mock that
+  lacks the model type.

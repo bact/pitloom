@@ -246,7 +246,7 @@ def test_every_hop_is_checked_before_it_is_requested() -> None:
         "ftp://example.org/x/info/refs",
         "ssh://example.org/x/info/refs",
         "http://127.0.0.1/a b/info/refs",
-        "//evil.example/x/info/refs",
+        "//127.0.0.1:{port}/x/info/refs",
     ],
     ids=["file", "ftp", "ssh", "space", "protocol-relative"],
 )
@@ -257,7 +257,8 @@ def test_a_redirect_that_is_not_an_http_repository_is_not_followed_or_requested(
     ``check_url``); a protocol-relative or odd target reaches the check as an
     absolute URL or the walk stops, quietly."""
     checked: list[str] = []
-    with _server({"/g/p/info/refs": lambda _p: location}) as base:
+    routes: Routes = {"/g/p/info/refs": lambda port: location.format(port=port)}
+    with _server(routes) as base:
         result = resolve_git_url(base + "/g/p", checked.append)
     if location.startswith(("//", "http://127.0.0.1/a")):
         assert len(checked) == 1 and checked[0].startswith("http://")

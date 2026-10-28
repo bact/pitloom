@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -257,3 +257,20 @@ file group; the rules file (46 KB) was compacted by hand.
   British-spelling request produced a pass limited to prose: field names, code
   spans, quoted standard titles and CLI terms ("Analyzed") stayed; a changed
   heading means updating every link to its anchor.
+- **A sweep that verified its own claims still shipped defects.** For 0.21.0 three
+  agents swept docs, code comments and skills, each running the CLI to check what
+  it wrote. A fresh-context review of the combined diff (code: five findings, two
+  of them medium; docs and skills: eleven, one high) then found an over-broad
+  statement (an invalid `--sbom` file is refused: true for SPDX 3 only), a false
+  "is not valid" message when the validator was missing, release dates that
+  disagreed between files, and the over-broad fastText `maxn` gate above. All were
+  fixed before merge. **[observation]** The sweeps checked what they changed; the
+  reviewer checked what the change implied elsewhere.
+  Do: review the combined diff with a new context after any sweep, giving the
+  reviewer the diff and the acceptance criteria, not the author's summary.
+- **The same pattern in the cache of #359.** Review rounds 2 and 3 found, one after
+  the other, a stale answer after a rebuilt database, a shared mutable answer, and
+  a stamp without the inode and without a lock; each was invisible to the tests the
+  previous round had added.
+  Do: for a cache, list its invalidation keys and its writers, then write one
+  test per key and one for a lookup that straddles a change.

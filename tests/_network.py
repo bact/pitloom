@@ -22,9 +22,10 @@ Setting ``PITLOOM_REQUIRE_NETWORK`` to a true value makes the same network
 failure a test *failure* naming the cause instead, and turns any skipped
 ``network`` test into a failure (``pytest_runtest_makereport`` and
 ``pytest_make_collect_report`` below, wired into ``tests/conftest.py``): the
-release workflow (``.github/workflows/pypi-publish.yml``) sets it so an unreachable host
-blocks publishing rather than being skipped. Accepted values (case-
-insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
+release workflow (``.github/workflows/pypi-publish.yml``) and the live-host
+workflow (``.github/workflows/live-tests.yml``) set it, so an unreachable host
+blocks publishing, or shows as a red run, rather than being skipped. Accepted
+values (case-insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
 ``false``/``no``/``off`` lenient. Any other value is a usage error.
 
 See also: tests/_network_classify.py (classification),

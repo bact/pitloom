@@ -364,7 +364,9 @@ the move.
   still fail the job when all of them hit the network, PR #259.) The default CI
   job leaves `network` tests out (`-m "not network"`: a slow Savannah or
   labs.etsi.org failed three runs of one PR) and runs the local-server tests
-  as `loopback`; `live-tests.yml` runs the `network` ones weekly and on demand.
+  as `loopback` (lenient: a missing `git http-backend` skips them quietly, also on
+  Windows, where `tests/_git_http_server.py` looks for it without `.exe`);
+  `live-tests.yml` runs the `network` ones weekly and on demand.
   The release workflow is a strict gate: its `network-quality-gate` job sets
   `PITLOOM_REQUIRE_NETWORK=1` (a network failure, or any skipped
   `network` test, fails the job), and its `build` job runs
