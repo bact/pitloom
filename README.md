@@ -60,8 +60,8 @@ pip install "pitloom[content-type]"    # content type detection (Magika)
 
 ## Usage
 
-Pitloom produces the same SBOM for the same target on every surface. Pick the
-one that fits how you work:
+Pitloom produces the same kind of SBOM for the same target on every surface.
+Pick the one that fits how you work:
 
 | Surface | Reach for this when... |
 | :--- | :--- |

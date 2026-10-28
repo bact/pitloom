@@ -54,8 +54,8 @@ packages = ["src/sentimentdemo"]
 #   1. Extracts project metadata from this pyproject.toml (PEP 621
 #      ``[project]`` table, dynamic version from ``__about__.py``).
 #   2. Merges in every SBOM fragment listed in ``fragments`` below.
-#   3. Writes a single composite ``sentimentdemo.spdx3.json`` into the
-#      wheel under ``.dist-info/sboms/`` (PEP 770).
+#   3. Writes a single composite ``sentimentdemo-<version>.spdx3.json``
+#      into the wheel under ``.dist-info/sboms/`` (PEP 770).
 # ---------------------------------------------------------------------------
 [tool.hatch.build.hooks.pitloom]
 enabled = true

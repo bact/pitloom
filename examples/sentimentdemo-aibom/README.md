@@ -91,11 +91,14 @@ found`), so those pins start with no hash and hit any content (`... matched a
 pin without SHA-256; content not checked`). The next run's stage 0 adopts the
 digest of the data the first run wrote (`... pin now gated by its SHA-256`) and
 keeps the ids. The committed file is that steady state: a run from it, on a
-checkout without `data/processed/`, leaves it unchanged. Starting from an empty
+checkout without `data/processed/`, leaves it unchanged where fastText writes
+the same model bytes. Another platform or fastText build can write a different
+model file, which then gets a new id (`INFO: ID registry: content changed for
+models/sentimentdemo.bin; minting a new spdxId`). Starting from an empty
 registry, the first run also logs an `untracked file` `WARNING:` for the two
 `data/processed/` files (they do not exist when stage 0, `id generate`, runs);
-later runs log no `WARNING:`, only `INFO:` lines. Training uses one thread so
-the model, and so its registry entry, is identical on every run.
+later runs do not. Training uses one thread so the model, and so its registry
+entry, is identical on every run on one machine.
 
 The rest of this document walks through what each stage does, what it
 records, and how the pieces fit together.
@@ -298,7 +301,7 @@ in `pyproject.toml`:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.21.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -306,6 +309,7 @@ enabled = true
 
 [tool.pitloom]
 pretty = true
+id-registry = "loom-id-registry.json"
 
 [tool.pitloom.fragment]
 files = [
@@ -378,12 +382,12 @@ for t, n in sorted(by_type.items()):
 PY
 ```
 
-A successful run typically prints something like:
+A run with `SOURCE_DATE_EPOCH` set prints something like:
 
 ```text
-Total elements: 80
+Total elements: 79
   Annotation: 20
-  CreationInfo: 4
+  CreationInfo: 3
   LifecycleScopedRelationship: 5
   Person: 4
   Relationship: 22
@@ -398,11 +402,12 @@ Total elements: 80
   software_Sbom: 2
 ```
 
-The 20 `Annotation` elements and 4 `CreationInfo` elements (vs. 1 apiece
-in earlier Pitloom versions) are metadata provenance -- where each field
-came from and, for enrichment runs, what changed and why. Exact counts will drift release to release as more
-fields gain native SPDX 3 constructs or provenance coverage; treat this
-as illustrative, not a golden output.
+The 20 `Annotation` elements are metadata provenance: where each field came
+from. There is one `CreationInfo` per distinct creation time and creator;
+without `SOURCE_DATE_EPOCH` each stage stamps its own time, so there are more
+(5). Exact counts drift from release to release as more fields gain native
+SPDX 3 constructs or provenance coverage; treat this as illustrative, not a
+golden output.
 
 ---
 

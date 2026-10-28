@@ -8,7 +8,8 @@
 that record a rewrite.
 
 See also: :mod:`pitloom.extract._license` (detection, re-exports these
-names) and :mod:`pitloom.assemble.spdx3._license_elements` (the element
+names), :mod:`pitloom.extract._license_resolve` (a value only ``licenseid``
+reads) and :mod:`pitloom.assemble.spdx3._license_elements` (the element
 builder).
 """
 
@@ -439,7 +440,9 @@ def tag_license_normalization(
 ) -> str:
     """Append a note to *provenance* when normalization changed the value;
     *normalizer* false leaves out the parser's version (no parse was
-    involved, as for ``UNKNOWN`` -> ``NOASSERTION``)."""
+    involved, as for ``UNKNOWN`` -> ``NOASSERTION``). A value only
+    ``licenseid`` read also gets its resolution keys
+    (:func:`~pitloom.extract._license_resolve.resolution_notes`)."""
     if raw.strip() == normalized:
         return provenance
     note = f"{provenance} | Normalized-From: {raw.strip()}"

@@ -10,8 +10,8 @@ for anything else, and for ``NOASSERTION``/``NONE`` no element at all: the
 :func:`pitloom.extract._license.classify_license`).
 
 Every surface reaches it through :mod:`pitloom.assemble.spdx3.deps_license`:
-dependencies, the main package, a wheel's ``License-Expression``, AI models
-and per-file ``SPDX-License-Identifier`` tags.
+dependencies, the main package, a wheel's ``License-Expression``, AI models,
+datasets and per-file ``SPDX-License-Identifier`` tags.
 
 See also: :mod:`pitloom.assemble.spdx3.deps_license` (relationships).
 """

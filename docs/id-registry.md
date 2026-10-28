@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,8 +65,9 @@ Windows drive path works, as in
 `:`, a `TYPE` with white space around it, a control character (a newline) or a
 blank `NAME` is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
-absolute IRI without `#`; default: the project name and a random UUID4); an
-existing registry with another namespace is one `ERROR:`, exit 1. A
+absolute IRI without `#`; default: the project directory's name and a
+random UUID4); an existing registry with another namespace is one `ERROR:`,
+exit 1. A
 registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
 is not a non-empty string, does not load. `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid

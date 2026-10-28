@@ -7,7 +7,8 @@
 one ``INFO:`` each (the flags of the same names warn).
 
 See also: tests/core/test_inert_options.py (the table) and
-tests/plugins/test_hatch_build.py (the Hatchling hook, same wording).
+tests/extract/project/test_hatch_hook_real_build.py (the Hatchling hook,
+same wording).
 """
 
 from __future__ import annotations

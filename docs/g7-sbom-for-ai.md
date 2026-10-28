@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -237,7 +237,7 @@ the package was built (`builtTime`), because it runs during a build.
 
 Tiers apply only to AI model file formats and Python build backends. A known gap
 there is listed below with what it needs and a target date. A gap not closed by
-its date stays listed with that date missed. As of 0.21.0 (2026-10-23) all three
+its date stays listed with that date missed. As of 0.21.0 (2026-10-28) all three
 dates below are missed and the gaps are open.
 
 | Gap | Where | Needs | Target date (missed) |

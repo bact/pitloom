@@ -31,7 +31,7 @@ from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
 # Guards the handlers.clear()/addHandler() swap below (see
 # configure_logging()'s docstring) and the _WARNED_ONCE read-then-write in
-# warn_once() -- one lock for all shared mutable state in this module.
+# log_once() -- one lock for all shared mutable state in this module.
 _CONFIG_LOCK = threading.Lock()
 
 # The environment variable a bare configure_logging() (debug=None)
@@ -58,7 +58,8 @@ _OVER_CAP_ATTR = "pitloom_over_cap"
 #: the file, through :func:`loggable`.
 LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
 
-#: Keys already surfaced once via :func:`warn_once` in this process.
+#: Keys already surfaced once via :func:`log_once` (and :func:`warn_once`)
+#: in this process.
 #: Keyed by ``(logger.name, key)`` so two independent call sites can't
 #: collide by picking the same short key string.
 _WARNED_ONCE: set[tuple[str, str]] = set()
