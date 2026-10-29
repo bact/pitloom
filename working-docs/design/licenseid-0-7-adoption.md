@@ -14,7 +14,8 @@ when licenseid 0.7.0 is released (see "What to re-check").
 See also: [license-resolution-categories.md](license-resolution-categories.md),
 [roadmap.md](roadmap.md), licenseid `working-docs/design/resolver-0-7-plan.md`
 (tasks T13 and T14 are this work),
-[known-bugs.md](known-bugs.md) ("licenseid 0.6.0 gives Pitloom no operands").
+[known-bugs.md](known-bugs.md) ("licenseid 0.6.0 gives Pitloom no operands"),
+[licence-resolution-provenance.md](licence-resolution-provenance.md) (T14).
 
 ## 1. What exists today
 
