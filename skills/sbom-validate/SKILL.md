@@ -77,7 +77,7 @@ Claude Code plugin; the syntax depends on the client, e.g.
 specific file when a project has more than one SBOM; omit it to let the
 agent find the one to validate.
 
-See `references/examples.md` for copy-paste recipes.
+For copy-paste recipes, read `references/examples.md`.
 
 ## Requirements
 
@@ -222,7 +222,7 @@ asked for `embed-wheel --allow-build`, always pass an explicit
 
 ## See also
 
-- `references/examples.md` -- copy-paste recipes, including multi-file
+- Read `references/examples.md` for copy-paste recipes, including multi-file
   and merged-graph validation.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/references/examples.md>
 - The sibling `sbom-generate` skill -- produces the SBOM this validates.

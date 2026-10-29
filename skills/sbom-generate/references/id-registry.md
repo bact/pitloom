@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,25 @@ Companion to `../SKILL.md`'s "Pinning element ids" section, which holds the
 rule that matters most: a registry is used **only when declared**. This
 file is the detail behind it. Full reference:
 [Loom ID registry](https://bact.github.io/pitloom/id-registry/).
+
+## Declaring a registry
+
+Element ids are content-addressed: rerunning on unchanged source
+reproduces them with no registry. A registry (format version 3, a JSON
+file) pins ids across runs whose inputs differ -- e.g. a fragment written
+today, merged into next week's regeneration after the source changed (see
+`sbom-enrich`), or a `loom.run` script's datasets and models.
+
+A registry is used **only when declared**, never searched for:
+`--id-registry FILE` (relative to the current directory), else
+`id-registry` in the applicable config -- a `--config FILE` (relative
+to that file's directory; replaces the project config), or the
+project's own `[tool.pitloom]`/`[tool:pitloom]` (relative to the
+project). Wheel, env and model-file targets, and `enrich`/`embed-wheel`
+without `--project-dir`, read no project config; an sdist's own key is
+ignored. Nothing declared: no registry, silently. Declared but missing,
+invalid or an old version 2 file: one `ERROR:`, exit 1. Generating runs also
+add newly minted ids to a declared registry; no run ever creates one.
 
 ## What a registry pins
 
