@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypedDict
 
 from pitloom.core.file_hash import FileDigests, HexDigests
+from pitloom.core.lfs_pointer import LfsPointer
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ def is_sdist_archive(path: Path) -> bool:
 
 
 @dataclass
+# pylint: disable-next=too-many-instance-attributes
 class ProjectFile:
     """A file included in the project distribution.
 
@@ -60,10 +62,12 @@ class ProjectFile:
         digest_sha256: Hex-encoded SHA-256 digest of the file contents.
             ``None`` when discovered via
             ``pitloom.core._models_wheel.get_wheel_files(skip_merkle_root=True)``,
-            which skips per-file hashing entirely.
+            which skips per-file hashing entirely. For a Git LFS pointer
+            in a checkout, the pointer's ``oid``: the content's SHA-256
+            as the pointer states it (see :func:`digest_fields`).
         digest_sha512: Hex-encoded SHA-512 digest of the same read;
-            ``None`` exactly when ``digest_sha256`` is (see
-            :func:`digest_fields`).
+            ``None`` when ``digest_sha256`` is, and for a pointer whose
+            ``oid`` stands in (no SHA-512 of the content was read).
         copyright_text: The file's own declared copyright text, from an
             ``SPDX-FileCopyrightText:`` tag or a bare ``Copyright (c) ...``
             fallback line in its header. ``None`` when neither is present
@@ -90,6 +94,12 @@ class ProjectFile:
         built: Extracted from a just-built wheel (``--allow-build``), so
             ``physical_path`` is an absolute temp path and there is no
             project path.
+        lfs_pointer: What the file states when its bytes are a Git LFS
+            pointer (an LFS-tracked file in a checkout made with LFS off),
+            on every route, whichever digests were recorded; ``None`` for
+            any other file or one not hashed. Its header and content are
+            not read: the header and content-type fields stay empty, but
+            for a ``config_override`` content type.
     """
 
     physical_path: str
@@ -104,6 +114,7 @@ class ProjectFile:
     content_type: str | None = None
     content_type_method: str | None = None
     built: bool = False
+    lfs_pointer: LfsPointer | None = None
 
     def hex_digests(self) -> HexDigests | None:
         """This file's digests as its ``verifiedUsing`` states them;
@@ -112,21 +123,45 @@ class ProjectFile:
             return None
         return HexDigests(self.digest_sha256, self.digest_sha512)
 
+    def stated_sha256(self) -> str | None:
+        """The SHA-256 of the content this file stands for: a Git LFS
+        pointer's ``oid`` on every route (an archive records the pointer
+        text's own digest in ``digest_sha256``), else ``digest_sha256``.
+        The same before and after ``git lfs pull``."""
+        if self.lfs_pointer is not None:
+            return self.lfs_pointer.oid
+        return self.digest_sha256
+
 
 class DigestFields(TypedDict):
     """The digest fields of a :class:`ProjectFile`, from one read
     (:func:`digest_fields`); a :class:`PhantomDependency` takes the two
-    fields from its file one by one."""
+    digests from its file one by one."""
 
     digest_sha256: str
-    digest_sha512: str
+    digest_sha512: str | None
+    lfs_pointer: LfsPointer | None
 
 
-def digest_fields(digests: FileDigests) -> DigestFields:
+def digest_fields(digests: FileDigests, *, bytes_as_is: bool = False) -> DigestFields:
     """*digests* as the keyword arguments of a :class:`ProjectFile`: every
-    constructor that hashed the file's bytes sets both through here."""
+    constructor that hashed the file's bytes sets them through here.
+
+    A Git LFS pointer records its ``oid`` as the SHA-256 and no SHA-512
+    (the content was not read), unless *bytes_as_is*: an archive, or a
+    build that packages the tree, ships the pointer text itself, so its
+    own digests stay (they match the wheel's ``RECORD``). Either way
+    ``lfs_pointer`` says what the pointer states.
+    """
+    pointer = digests.lfs_pointer
+    if pointer is not None and not bytes_as_is:
+        return DigestFields(
+            digest_sha256=pointer.oid, digest_sha512=None, lfs_pointer=pointer
+        )
     return DigestFields(
-        digest_sha256=digests.sha256.hex(), digest_sha512=digests.sha512.hex()
+        digest_sha256=digests.sha256.hex(),
+        digest_sha512=digests.sha512.hex(),
+        lfs_pointer=pointer,
     )
 
 

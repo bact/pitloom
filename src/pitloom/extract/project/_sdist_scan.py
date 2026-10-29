@@ -197,7 +197,9 @@ def _scan(
     :data:`ROOT_MEMBERS` basename, archive order deciding a tie between
     two top-level directories, and the licence sources of
     :func:`_licence_member_names` (one over the cap warned about, as
-    *archive*:name, and left out). Repeats of one name never get here:
+    *archive*:name, and left out; a Git LFS pointer left out quietly). A
+    file keeps its own digests, a pointer's too, as the archive holds it,
+    flagged (``lfs_pointer``). Repeats of one name never get here:
     :func:`~pitloom.core.archive_member_names.file_members` keeps the
     last, as unpacking leaves it. With *root_only*, open only the root
     members and list no files or licence sources. Files come in archive
@@ -229,14 +231,14 @@ def _scan(
             members.root[basename] = content
         elif isinstance(content, Cap):
             warn_over_cap(log, content, f"{archive}:{name}", once=True)
-        elif content is not None:
+        elif content is not None and digest.lfs_pointer is None:
             members.licence[basename] = content
         if not root_only:
             members.files.append(
                 ProjectFile(
                     physical_path=_project_path(name, strip_top),
                     distribution_path=name,
-                    **digest_fields(digest),
+                    **digest_fields(digest, bytes_as_is=True),
                 )
             )
     if not root_only:

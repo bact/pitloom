@@ -227,13 +227,15 @@ class FileScanConfig(NamedTuple):
     ``parse_header``/``detect_content`` are ``None`` when their
     respective scan (``scan_file_headers``/``detect_content_type``) is
     off -- see :func:`~pitloom.core._models_wheel._resolve_file_header_extras`,
-    the sole consumer.
+    the sole consumer. ``bytes_as_is``: record a Git LFS pointer's own
+    digests, not its ``oid`` (see :func:`~pitloom.core.project.digest_fields`).
     """
 
     parse_header: Callable[[bytes], FileHeaderMetadata | None] | None
     detect_content: Callable[[bytes, str, str], tuple[str | None, str | None]] | None
     content_type_overrides: tuple[ContentTypeOverride, ...]
     content_type_method: str
+    bytes_as_is: bool = False
 
 
 class FileHeaderExtras(TypedDict):

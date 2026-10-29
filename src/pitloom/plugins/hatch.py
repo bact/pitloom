@@ -174,6 +174,8 @@ def _build_document_model(
         # Skips get_wheel_files()'s pyproject.toml re-parse and backend
         # detection.
         assume_backend="hatchling",
+        # The wheel ships a Git LFS pointer's text: its RECORD hashes that.
+        bytes_as_is=True,
         exclude_path=registry_file_path(registry),
     )
     _cleanup()
