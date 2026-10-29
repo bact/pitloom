@@ -22,7 +22,12 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import evidence_provenance, pointer_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
-from pitloom.core.evidence import MEASURED_STAT, NOT_MEASURED, OVER_CAP
+from pitloom.core.evidence import (
+    BYTE_SIZE_FIELD,
+    MEASURED_STAT,
+    NOT_MEASURED,
+    OVER_CAP,
+)
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.extract.dataset.values import stated_count
 from pitloom.id_registry import (
@@ -183,7 +188,7 @@ def _bounded_size(
     """*size* and its provenance at the evidence *level* (``None``: none);
     over the largest integer canonical JSON writes, no size and
     ``not_measured``, with the over-cap ``WARNING:`` of every byte size."""
-    if stated_count(size, label, "byte_size") is None:
+    if stated_count(size, label, BYTE_SIZE_FIELD) is None:
         return None, evidence_provenance(label, NOT_MEASURED, OVER_CAP)
     return size, None if level is None else evidence_provenance(label, level)
 
@@ -200,6 +205,6 @@ def record_size(
     size stands with its own provenance."""
     if evidence.size is not None:
         package.dataset_datasetSize = evidence.size
-        provenance.pop("byte_size", None)
-    if evidence.size_provenance is not None and "byte_size" not in provenance:
-        provenance["byte_size"] = evidence.size_provenance
+        provenance.pop(BYTE_SIZE_FIELD, None)
+    if evidence.size_provenance is not None and BYTE_SIZE_FIELD not in provenance:
+        provenance[BYTE_SIZE_FIELD] = evidence.size_provenance

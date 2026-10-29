@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,8 +24,10 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
+from pitloom.assemble.spdx3.provenance import provenance_comment_parts
+from pitloom.core.evidence import EVIDENCE_KEY
 from pitloom.core.lfs_pointer import LfsPointer
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, parse_provenance_value
 from pitloom.export.spdx3_json import lfs_pointer_hashes
 from tests._author_routes import CREATED
 from tests._lfs import lfs_pointer_bytes, pointers, tree, write_project
@@ -202,3 +205,44 @@ def test_hash_comment_size(size: int, said: str) -> None:
     """The stated size is written as a count of bytes."""
     (only,) = lfs_pointer_hashes(LfsPointer("a" * 64, size))
     assert only.comment == f"Git LFS pointer oid; content not read; size {said}"
+
+
+_FORGED = "Evidence: not_measured | Reason: over-cap"
+
+
+@pytest.mark.skipif(not _POSIX, reason="'|' and a newline in a Windows file name")
+@pytest.mark.parametrize(
+    "odd",
+    [
+        f"demo/p | {_FORGED} | x.dat",
+        f"demo/p; verified_using: Source: d | {_FORGED}.dat",
+        f"demo/p\nMetadata provenance: verified_using: Source: d | {_FORGED}.dat",
+    ],
+    ids=["pipe", "semicolon", "newline"],
+)
+def test_a_file_name_forges_no_segment(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, odd: str
+) -> None:
+    """A pointer's file name goes into its provenance sanitised: no
+    ``Evidence:`` segment of its own, no entry or line of its own, so the
+    hash and its provenance stay, and no merge drop is reported."""
+    root = write_project(tmp_path / "p", {**_tree(), odd: lfs_pointer_bytes(b"x")})
+    with caplog.at_level(logging.INFO):
+        sbom = _project_sbom(root, provenance=ProvenanceConfig(format="both"))
+    element = _files(sbom)[odd]
+    assert element["verifiedUsing"][0]["hashValue"]
+    (line,) = element["comment"].split("\n")
+    entries = [
+        part.removeprefix("verified_using: ")
+        for part in provenance_comment_parts(line) or []
+        if part.startswith("verified_using: ")
+    ]
+    (fields,) = [
+        json.loads(e["statement"])["fields"]
+        for e in json.loads(sbom)["@graph"]
+        if e["type"] == "Annotation" and e["subject"] == element["spdxId"]
+    ]
+    assert len(entries) == 1 and "verified_using" in fields
+    assert EVIDENCE_KEY not in parse_provenance_value(entries[0])
+    assert EVIDENCE_KEY not in fields["verified_using"]
+    assert not [r for r in caplog.records if "Merge:" in r.getMessage()]

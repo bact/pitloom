@@ -240,8 +240,9 @@ this):
   '<yours>'.` (the same for any `ai_hyperparameter`/`ai_metric` key). The merge adds Pitloom's count note itself: do not type it
   into the `comment`; say in the package's own provenance `comment` that
   the entry is the card's figure, not a sum of tensor elements. A
-  `comment` on a restated package is appended to the base's, after a
-  semicolon.
+  `comment` on a restated package is appended to the base's, after `; `,
+  or on a new line when either side's adjoining line is a
+  `Metadata provenance:` line.
 - A restated `spdxId` the base no longer has (the source changed after the
   fragment was drafted) adds a second `ai_AIPackage`, with no warning, and
   the result still validates. Before registering the fragment, list its

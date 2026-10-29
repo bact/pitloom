@@ -25,6 +25,7 @@ from pitloom.assemble.spdx3._document_file_hits import FileHits
 from pitloom.assemble.spdx3.deps_license import build_file_declared_license
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.document import DocumentModel
+from pitloom.core.evidence import VERIFIED_USING_FIELD
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.models import build_relationship, generate_spdx_id
@@ -36,6 +37,7 @@ from pitloom.export.spdx3_json import (
     lfs_pointer_hashes,
     require_spdx_id,
 )
+from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._license import warn_unless_expression
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
@@ -142,8 +144,12 @@ def _emit_file_header_metadata(
     # output" invariant) even though the file's own content is
     # unchanged. distribution_path is always deterministic, so use it
     # instead whenever physical_path isn't project-relative.
-    file_path = project_relative_or_fallback(
-        package_file.physical_path, package_file.distribution_path
+    # A file name is untrusted text: a "|" in it would forge a segment
+    # (an "Evidence: not_measured" that a merge then acts on).
+    file_path = sanitize_provenance_text(
+        project_relative_or_fallback(
+            package_file.physical_path, package_file.distribution_path
+        )
     )
     field_provenance: dict[str, str] = {}
     summary_entries: list[tuple[str, str]] = []
@@ -182,7 +188,7 @@ def _emit_file_header_metadata(
         field_provenance["content_type"] = f"Source: {file_path} | {segment}"
 
     if _stand_in_pointer(package_file) is not None:
-        field_provenance["verified_using"] = (
+        field_provenance[VERIFIED_USING_FIELD] = (
             f"Source: {file_path} | Method: {LFS_POINTER_METHOD}"
         )
 

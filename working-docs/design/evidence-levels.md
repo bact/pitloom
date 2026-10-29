@@ -18,9 +18,11 @@ codes used below).
 
 Status: design, revised 2026-10-29 after an Opus review against the code.
 Built so far: Git LFS pointers (#378), flags for both size ceilings (#381),
-the dataset-size unit fix (#382), and step 1, sizes under a cap for a
-single-file dataset (#387; `core/evidence.py` holds the levels and the
-writer). Everything else below is unbuilt.
+the dataset-size unit fix (#382); the `evidence_segment` helper, `minimal`
+keeping an entry with `Evidence:`, and the merge drop of a superseded
+`not_measured` entry with the comment-join fix it needs (#386); and step 1,
+sizes under a cap for a single-file dataset (#387). Everything else below is
+unbuilt.
 
 ## Principle
 
@@ -124,10 +126,10 @@ so the SBOM does not fill with "this source had nothing".
   the transparent list. A negative entry from a transparent source (for example
   `Source: hugging face hub | Reason: network-failed`) is dropped in `minimal`,
   which is the default. One line in `_is_high_signal`: keep any entry that has
-  `evidence`.
-- One helper (for example `core/evidence.py`, `evidence_segment(...)`) is the
-  only writer: it checks the reason against the catalogue and sanitises every
-  value.
+  `evidence` (built, #386).
+- One helper (`core/evidence.py`, `evidence_segment(...)`) is the only writer:
+  it checks the reason against the catalogue and sanitises every value
+  (built, #386).
 - One entry per element and field, as a segment of the field's own entry (no new
   Annotation, no new ids). Where there is no element (an unreadable project file
   is skipped whole), the entry rides on the main package with `Count:`, and its
@@ -187,8 +189,9 @@ count is no longer read (no SPDX 3.0.1 property; FG-12). A byte size from
    hash carries `Evidence: not_measured | Reason: over-cap` through the existing
    `hash_provenance` slot. Directories wait: pointer files in them stat at about
    130 bytes, so one sum would mix levels, and the walk budget is undecided.
-2. **The value type and the helper** (`core/evidence.py`), then models, the Hub
-   and unreadable files; hashes move onto it.
+2. **The value type and the helper** (`core/evidence.py`; the helper is built,
+   #386, the value type is not), then models, the Hub and unreadable files;
+   hashes move onto it.
 3. **The catalogue codes** in the provenance, once `lfs-pointer` and `over-cap`
    exist.
 4. **With the SPDX 3.1 binding:** `byteSize` for files and models.
@@ -200,8 +203,9 @@ For every fact: `measured_stat`, `measured_read`, `declared`, `lower_bound`,
 huge with tiny content; a pointer stating 100 GB (hashed normally); a size above
 2^53-1. A file that grows between `stat()` and the read (hash omitted, size from
 `stat()`, no contradiction). `minimal` against `full` with a transparent source;
-a fragment that supplies the missing hash or size (the negative entry goes);
-the comment merge followed by a drop. The document uuid does not change when an
+a fragment that supplies the missing hash or size (the negative entry goes) and
+the comment merge followed by a drop (both covered by
+`tests/assemble/test_fragments_evidence.py`). The document uuid does not change when an
 entry is added. Byte-for-byte output across two runs and two listing orders.
 Under the caps the output is identical to HEAD (a before and after sweep). A
 reason outside the catalogue is rejected; injected `|`, `;` and a newline are
@@ -210,16 +214,21 @@ escaped.
 ## Risks, worst first
 
 1. ~~The unit clash~~ (fixed, #382).
-2. A negative entry dropped in `minimal`.
-3. A merged SBOM that shows a hash and `not_measured` side by side: the merge
-   must drop the entry when the merged element gains the property.
+2. ~~A negative entry dropped in `minimal`~~ (fixed, #386).
+3. ~~A merged SBOM that shows a hash and `not_measured` side by side: the merge
+   must drop the entry when the merged element gains the property~~ (fixed,
+   #386).
 4. Evidence text reaching the document uuid.
 5. Output that depends on the machine (a time budget, a partial sum).
 6. A pointer's `stat()` size passed off as the content's.
 7. A repeated key, or `provenance.update`, overwriting an entry.
-8. After a comment merge the second `Metadata provenance:` block is not found
-   by the drop helpers (they strip the prefix only at the start of a line).
+8. ~~After a comment merge the second `Metadata provenance:` block is not found
+   by the drop helpers (they strip the prefix only at the start of a line)~~
+   (fixed, #386).
 9. Drift in `docs/metadata-provenance.md` and the skills.
+10. A file name forging an evidence segment (a `|` in it read as a segment
+    separator, so the merge drop acted on a forged `Evidence: not_measured`)
+    (fixed: sanitised, #386).
 
 ## The `AGENTS.md` rule
 
@@ -251,5 +260,6 @@ Decided 2026-10-29 unless marked. Each took the recommended answer.
    `Evidence: declared`.
 6. **Segment, not a separate Annotation.**
 7. **Merge:** generalise the drop helpers so a `not_measured` entry goes when
-   the merged element gains the property; fix the comment-merge problem first.
+   the merged element gains the property; fix the comment-merge problem first
+   (built, #386).
 8. **Release placement of steps 0 and 1:** 0.22.0. Step 0 is done. [proposed]

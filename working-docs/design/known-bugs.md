@@ -438,12 +438,15 @@ From the Git LFS pointer work. Open:
 
 ## Found 2026-10-29 (evidence-levels review)
 
-From an Opus review of the provenance code against `evidence-levels.md`. Open:
+From an Opus review of the provenance code against `evidence-levels.md`:
 
-- [ ] **After a comment merge the second `Metadata provenance:` block is not
-  found by the drop helpers (S).** `_merge_comment` joins comments with `"; "`
-  (`_fragments_props.py`); `provenance_comment_parts` strips the prefix only at
-  the start of a line.
+- [x] **After a comment merge the second `Metadata provenance:` block is not
+  found by the drop helpers (S), fixed (#386).** `_merge_comment`
+  joined comments with `"; "` (`_fragments_props.py`);
+  `provenance_comment_parts` strips the prefix only at the start of a line. A
+  provenance line now starts a line of its own on either side of the join, and
+  a `not_measured` entry goes when the merged element gains the value
+  (`_fragments_evidence.py`).
 - [ ] **An unreadable project file is logged with the raw exception (S).** The
   skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
   `OSError` text can hold an absolute path.
@@ -451,3 +454,19 @@ From an Opus review of the provenance code against `evidence-levels.md`. Open:
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
   and logs DEBUG only, so no `failed` entry is possible there without the 404
   check `huggingface_dataset.py` already has.
+- [ ] **Provenance `Source:` strings built from a file or label name outside
+  `assemble/spdx3` are not sanitised (S).** A `|` or `;` in the name adds a
+  segment (a forged `Evidence:` or `Method:`). Seen, not exploited:
+  `extract/project/_setup_cfg_directives.py:127,151`, `pyproject_dynamic.py:241`,
+  `reader.py:242`, `_pyproject_license.py:77`, `_license_detect.py:189`,
+  `copyright_notices.py:201`, `extract/dataset/{croissant,card,licence}.py`
+  (`src_label`), `extract/lock/cascade.py:255`, `_setuptools_options.py:313`,
+  `_optional_dependencies.py:62`. Route them through one helper
+  (`sanitize_provenance_text`); `assemble/spdx3` (#386) is done.
+- [ ] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S).**
+  `core/lfs_pointer.py` does not use `quote_source` for a path with `|` or a
+  space.
+- [ ] **A base element holding both a value and a `not_measured` entry loses the
+  entry when a fragment folds into it for an unrelated field (S).** Needs a
+  forged entry, which sanitising now blocks; ruling it out means tracking which
+  side of each fold supplied the entry.

@@ -34,6 +34,7 @@ from pitloom.assemble.spdx3.deps_installed import (
     _resolve_dependency_with_conflict,
     _resolve_version,
     merge_conflict_candidates,
+    package_provenance_source,
 )
 from pitloom.assemble.spdx3.deps_license import (
     WeakLicense,
@@ -139,7 +140,7 @@ def _enrich_from_pypi(
             repo_url=repo_url,
             provenance_config=provenance_config,
             encoder=encoder,
-            provenance_source=f"Source: PyPI JSON API | Package: {dep_name}",
+            provenance_source=package_provenance_source("PyPI JSON API", dep_name),
             offline=offline,
             content_type_method=content_type_method,
         ):
@@ -147,7 +148,7 @@ def _enrich_from_pypi(
 
     if "license" not in already_filled:
         license_id, license_source = _extract_pypi_license(
-            info, f"Source: PyPI JSON API | Package: {dep_name}"
+            info, package_provenance_source("PyPI JSON API", dep_name)
         )
         if _apply_license(
             license_id,

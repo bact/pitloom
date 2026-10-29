@@ -24,7 +24,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.core.evidence import evidence_segment
+from pitloom.core.evidence import VERIFIED_USING_FIELD, evidence_segment
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.provenance import ProvenanceConfig
@@ -50,7 +50,7 @@ LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 #: The provenance field of a package's ``verifiedUsing``: a hash copied from
 #: a Git LFS pointer's ``oid`` (:func:`pointer_provenance`), or why there is
 #: none (:func:`evidence_provenance`).
-HASH_PROVENANCE_FIELD = "verified_using"
+HASH_PROVENANCE_FIELD = VERIFIED_USING_FIELD
 
 #: Pitloom's own modules on the stack of a loom call; caller provenance
 #: names the first frame outside them.
