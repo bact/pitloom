@@ -10,6 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [roadmap.md](roadmap.md) (the summary bullet),
 [sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-11),
+[the taxonomy](generation-gaps-extraction-and-recording.md) this extends,
 [known-bugs.md](known-bugs.md),
 [git-lfs-pointers.md](../implementation/git-lfs-pointers.md) (the first case),
 and `message-catalogue-and-skills.md` in this folder once it is merged (the
@@ -86,6 +87,36 @@ bytes are absent as the provenance of the missing `measured` value.
 7. **The same code in both places.** The provenance names the catalogue code the
    warning carries, so the SBOM, stderr and the skills' explanation agree.
 
+## Provenance of absence
+
+Provenance has meant "where this value came from". It now also says where a
+value *could* have come from and could not, and why. The taxonomy grows from one
+winning source per field to an account of the sources considered:
+
+| Outcome of a source | Recorded? | Example |
+| - | - | - |
+| `used` | yes, as today | the value read from `config.json` |
+| `unavailable`: the source has nothing | no (absent data stays quiet) | a bare Safetensors file has no version |
+| `refused`: policy stopped the read | yes | over the read, download or time cap |
+| `failed`: the read or fetch broke | yes | a timeout, a refused connection, a vanished file |
+| `declared_only`: only a statement of it reached us | yes, as the value, with its source | a pointer's oid and size |
+
+Only the `refused`, `failed` and `declared_only` outcomes are written down: they
+are deviations, while `unavailable` is not, so the SBOM does not fill with "this
+source had nothing". The entry carries a closed `Reason:` code (the catalogue
+code), never raw server or exception text, which is attacker text. Rules:
+
+1. **One entry per field and reason**, not per file: "model_author: 3 files
+   `not_measured` (over-cap)" beats three lines.
+2. **A negative entry survives the minimal detail level** where the fact it
+   replaces would have: a reader of a minimal SBOM must still see that a hash is
+   missing on purpose.
+3. **It is machine-readable:** the same `Source:`, `Field:`, `Method:` segments,
+   with `Method: not_measured` and `Reason: <code>`; the sanitiser for untrusted
+   text applies to every segment.
+4. **The order of sources is part of the record** when more than one was
+   considered, so a reader can see the cascade, not only its winner.
+
 ## Where each level lands in SPDX
 
 - **Datasets:** `dataset_datasetSize` exists in SPDX 3.0.1.
@@ -140,3 +171,5 @@ under the caps.
 4. Release placement of step 1, and whether the remote `declared` sources (Hub
    API sizes, `Content-Length`) are in the first step or the second.
 5. Whether a declared hash may sit in `verifiedUsing` at all (FG-10).
+6. Whether a negative entry is a separate annotation or a segment of the
+   field's existing provenance string, and how it behaves in `minimal` detail.
