@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Evidence levels: measured, declared or not recorded
 
 See also: [roadmap.md](roadmap.md) (the summary bullet),
-[sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-12),
+[sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-13),
 [the taxonomy](generation-gaps-extraction-and-recording.md) this extends,
 [known-bugs.md](known-bugs.md),
 [git-lfs-pointers.md](../implementation/git-lfs-pointers.md) (the first case),
