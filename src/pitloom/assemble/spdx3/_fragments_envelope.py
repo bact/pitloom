@@ -29,9 +29,9 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
+from pitloom.core.file_hash import sha256_digest
 from pitloom.core.models import PITLOOM_NS, _clear_doc_counters, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import sha256_file
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +43,14 @@ _NO_CREATED = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def _merged_doc_uuid(fragments_dir: Path, names: list[str]) -> str:
-    """UUIDv5 of each fragment's name (relative, POSIX) with its SHA-256,
-    sorted by name: the names decide which equal element survives. An
-    unreadable fragment counts by nothing (the merge reports it)."""
+    """UUIDv5 of each fragment's name (relative, POSIX) with the SHA-256 of
+    its bytes (raw, whatever they are), sorted by name: the names decide
+    which equal element survives. An unreadable fragment counts by nothing
+    (the merge reports it)."""
     entries: list[str] = []
     for name in sorted(names):
         try:
-            entries.append(f"{name}\x00{sha256_file(fragments_dir / name)}")
+            entries.append(f"{name}\x00{sha256_digest(fragments_dir / name).hex()}")
         except OSError:
             continue
     return str(uuid5(PITLOOM_NS, "\x01".join(entries)))

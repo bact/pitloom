@@ -98,7 +98,9 @@ def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
 def _model_file_digests(model_path: Path) -> HexDigests | None:
     """The SHA-256 and SHA-512 of the model file at *model_path* (its
     ``verifiedUsing``), from one chunked read; ``None`` and one ``WARNING:``
-    when it cannot be read."""
+    when it cannot be read. Called after :func:`_read_local_model` only, so
+    the file is a confirmed model, never a Git LFS pointer (the gate refuses
+    that unhashed): its raw and its stated digest are one."""
     try:
         return file_digests(model_path).hex()
     except OSError as exc:
