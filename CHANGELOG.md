@@ -20,6 +20,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.1...HEAD>
 
+## [Unreleased]
+
+### Added
+
+- Safetensors `modelspec.license` and GGUF `general.license.name` (when
+  `general.license` is blank or `other`) are read as the model licence ([#376])
+
+[#376]: https://github.com/bact/pitloom/pull/376
+
 ## [0.21.1] - 2026-10-28
 
 ### Changed
