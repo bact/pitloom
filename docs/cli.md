@@ -245,9 +245,11 @@ loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 `id import` roots a new registry at `--project-dir` (default: the current
 directory), the directory the SBOM's file names are relative to; run from above
 the project without it, a later run of the project finds no file ids. `id
-generate` also takes `--namespace IRI` and `-e NAME[:TYPE]` (a file, model
+generate` also takes `--namespace IRI`, `-e NAME[:TYPE]` (a file, model
 or dataset that exists below `--project-dir` is stored by its path with its
-content hash, else by name), and both
+content hash, else by name) and `--max-dataset-hash-bytes BYTES` (the most
+bytes read to hash one dataset; default: the project's own
+`max-dataset-hash-bytes`, else 4 GiB), and both
 commands write only a changed registry. The file is JSON (`version: 3`); a
 version 2 file from an earlier release is an `ERROR:` (exit 1) on every
 command: delete it and re-run. Format, flags and log lines:
