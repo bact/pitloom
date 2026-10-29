@@ -39,8 +39,8 @@ Measured 2026-10-29 on the Git LFS branch (#378):
 - The same condition has several shapes. The LFS refusal prints
   `ERROR: model command failed: ...`, `ERROR: SBOM generation failed: ...` or
   `ERROR: enrichment fragment generation failed: ...` for one sentence. The
-  advice differs by source (`run 'git lfs pull'` for a directory, `clone with git
-  lfs` for a Git URL).
+  advice differs by source: `run 'git lfs pull'` for a directory, `clone with
+  git lfs` for a Git URL.
 - `SKILL.md` bodies are 24.5 KB (about 480 lines, roughly 6,000 tokens): under
   our byte test, above the Agent Skills guidance of about 5,000 tokens.
 
