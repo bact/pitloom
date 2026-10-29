@@ -133,9 +133,10 @@ The three build backends give the same result for the same project.
   A dataset's provenance and statistics (collection, bias) reach a model SBOM
   only through the library (`loom` with a Croissant file); its size in bytes,
   for a single-file `loom` dataset (the bytes hashed, or its `stat()` size
-  when over `max-dataset-hash-bytes`, which satisfies `DP-007`) or when a
-  library caller sets `DatasetMetadata.byte_size`. A dataset named
-  in a local model card gets only its name.
+  when over `max-dataset-hash-bytes`, which satisfies `DP-007`), unless it is
+  an unpulled Git LFS pointer (or an over-cap file under 1,024 bytes), or when
+  a library caller sets `DatasetMetadata.byte_size`. A dataset named in a
+  local model card gets only its name.
 - **Licence IDs are kept as read** when the `licenseid` database is not built.
 - **A setuptools project ships a model only when `package-data` lists it**, and
   the SBOM describes what would ship.

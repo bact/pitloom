@@ -144,9 +144,10 @@ class DigestEvidence:
             ``None`` for a hash read in full and for no hash.
         size: Its ``dataset_datasetSize``, in bytes; ``None`` when none.
         size_provenance: The provenance of *size* (``byte_size``):
-            ``measured_stat``, or ``not_measured`` over the largest integer
-            canonical JSON writes; ``None`` for a size read in full and for
-            no size.
+            ``measured_stat``, or ``not_measured`` (a file's size withheld
+            over the cap, or over the largest integer canonical JSON
+            writes); ``None`` for a size read in full and
+            for no size.
     """
 
     hash_provenance: str | None = None
@@ -160,14 +161,18 @@ def digest_evidence(found: DatasetDigest, label: str) -> DigestEvidence:
     beside the hash: the one place its evidence level is decided. A Git LFS
     pointer: the pointer's provenance and no size (the pointer's own is not
     the content's). Over the cap: the hash ``not_measured``, and a file's
-    ``stat()`` size when known. Hashed: the size read (no provenance). Else
-    (not hashed for any other reason) nothing. A directory has no size."""
+    ``stat()`` size when known; a file with none (it may be a pointer) gets
+    a ``not_measured`` size. Hashed: the size read (no provenance). Else
+    (not hashed for any other reason) nothing. A directory has no size and
+    no size entry."""
     if found.lfs_pointers:
         return DigestEvidence(pointer_provenance(label))
     if found.omitted == OVER_CAP:
         unread = evidence_provenance(label, NOT_MEASURED, OVER_CAP)
         if found.size is None:
-            return DigestEvidence(unread)
+            return DigestEvidence(
+                unread, None, unread if found.kind == "file" else None
+            )
         return DigestEvidence(unread, *_bounded_size(found.size, label, MEASURED_STAT))
     if found.hex_digest is not None:
         return _read_size(found, label)

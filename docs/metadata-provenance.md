@@ -147,18 +147,19 @@ fact Pitloom measured by reading the content, which is nearly every entry.
 
 `Reason` is a short code, never free text: `over-cap`, `timeout`,
 `network-failed`, `lfs-pointer`, `unreadable-file` or `unlistable-dir`.
-Today only `over-cap` is written, for a single-file dataset in `loom`
-(the [Python API](python-api.md#tracking-decorator)):
+Today only `over-cap` is written, for a dataset in `loom` (a file or a
+directory; the [Python API](python-api.md#tracking-decorator)):
 
 - A file over `max-dataset-hash-bytes` has no hash, and its
   `verified_using` entry reads `Source: data.csv | Evidence: not_measured
   | Reason: over-cap`. Its size is recorded from `stat()`, and `byte_size`
   reads `Source: data.csv | Evidence: measured_stat`.
 - A file hashed in full has its size, the bytes read, and no entry.
-- A directory, a Git LFS pointer, an over-cap file under 1,024 bytes (it
-  might be a pointer, and Pitloom never reads past the cap to tell) and a
-  size above 2^53-1 get no size; the last has `byte_size: Evidence:
-  not_measured | Reason: over-cap`.
+- A directory over the cap: the same `verified_using` entry, and no size.
+- An over-cap file under 1,024 bytes (it might be a Git LFS pointer, and
+  Pitloom never reads past the cap to tell) and a size above 2^53-1 get no
+  size, and `byte_size` reads `Evidence: not_measured | Reason: over-cap`.
+- A Git LFS pointer gets no size (its own is not the content's).
 
 With `detail = "minimal"` (the default), an entry that has an `Evidence`
 segment is kept, even from a source that is otherwise left out.

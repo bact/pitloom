@@ -176,6 +176,20 @@ def test_a_directory_over_the_cap_says_why_and_states_no_size(
     assert "byte_size" not in fields
 
 
+def test_a_small_file_over_the_cap_says_why_it_has_no_size(project: Path) -> None:
+    """Under 1,024 bytes it may be a Git LFS pointer, whose size is not the
+    content's: no size, and ``byte_size`` is ``not_measured`` like the hash."""
+    (project / "s.bin").write_bytes(b"s" * 300)
+    with loom.run(project / "o.json", max_dataset_hash_bytes=100):
+        loom.add_dataset("s.bin")
+    graph: Graph = json.loads((project / "o.json").read_text("utf-8"))["@graph"]
+    assert "dataset_datasetSize" not in _package(graph, "s.bin")
+    fields = _fields(graph, "s.bin")
+    assert fields["verified_using"] == {"source": "s.bin", **_NOT_MEASURED}
+    assert fields["byte_size"] == {"source": "s.bin", **_NOT_MEASURED}
+    assert_spdx3_valid(project / "o.json")
+
+
 def test_a_repeat_declaration_keeps_the_first_size(project: Path) -> None:
     """The file grows between two declarations (still over the ceiling, so
     one package): the size the first one measured."""

@@ -45,9 +45,10 @@ log = logging.getLogger(__name__)
 #: Provenance field -> the property (binding name) holding its value.
 MEASURED_PROPERTIES: Final[dict[str, str]] = {
     # The hash provenance field (the file entries of ``_document_files``,
-    # ``loom`` pointer provenance).
+    # ``loom`` pointer provenance and its over-cap entry, ``digest_evidence``).
     VERIFIED_USING_FIELD: "verifiedUsing",
-    # ``DatasetMetadata.byte_size``, written by ``dataset.set_dataset_fields``.
+    # ``DatasetMetadata.byte_size``, written by ``dataset.set_dataset_fields``
+    # and by ``loom``'s ``record_size``.
     BYTE_SIZE_FIELD: "dataset_datasetSize",
 }
 

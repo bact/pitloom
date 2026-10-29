@@ -27,7 +27,7 @@ import pytest
 from pitloom import loom
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
-from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING
+from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING, read_croissant
 from tests._spdx3_validate import assert_spdx3_valid
 from tests._symlink import CAN_SYMLINK
 from tests.core._loom_dataset_sources_shared import (
@@ -321,6 +321,7 @@ def test_a_croissant_total_items_is_not_a_size(
     read), has no provenance and no warning, and the fragment is valid
     SPDX 3."""
     croissant_file(project / "c.json", license="MIT", **fields)
+    assert read_croissant(project / "c.json").byte_size is None
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         graph = run_graph(
             project / "out.json", lambda: loom.add_dataset("t.txt", croissant="c.json")

@@ -10,7 +10,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - Design docs: `working-docs/design/` -- future work, plans, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` -- what WAS built: decisions, why, paths rejected in service of it, revisions.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
-- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, else `archive/`) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
+- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, `archive/` if worth keeping) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
 - Paper notes (sourced raw material for a write-up): `working-docs/implementation/sbom-generator-field-notes/` (start at `README.md`) and `working-docs/implementation/ai-model-scan-security-lessons.md` (entry page; findings in `-*` parts). Add findings worth publishing.
 - Test fixtures: `tests/fixtures/README.md`
 - `working-docs/` is internal notes only -- content can change without notice. The user-facing website (`docs/`) must never link into it; reference a PR or issue number instead.
@@ -51,7 +51,7 @@ Pitloom runs from several surfaces: CLI, the Hatchling hook, the library API, th
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
 - **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction.
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
-- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model, project, lock, Hub readers) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, network fetches) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
 - **Caps bound reading, never reporting; every fact has an evidence level.**
   A size or time cap is for security and hangs only. Record the first
   available: **measured** (`stat()`, or a read within the caps);
@@ -149,7 +149,7 @@ Tests, platform and CI:
 - **Fail-fast CI hides legs**: read the cancelled jobs.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
-- **A Markdown line starting with `<tag>` is an HTML block, even inside a wrapped code span**: never start such a line with `<`.
+- **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
 - **Parallel agents**: fence file ownership in writing, announce a reversed rule, gate after all land, clean stray files and `pytest-of-*` dirs.
 
 ## CLI output
@@ -158,7 +158,7 @@ Unix philosophy: consistent, predictable, parseable.
 
 - Default: line-delimited, one data point per line. A data point is one record/entity, not one field: a record with several attributes keeps its `KEY=VALUE` pairs on one space-separated line; one line per record.
 - Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -` (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details go to stderr as `INFO:`. A value that may hold a space goes last.
-- `KEY=VALUE`: uppercase KEY, no spaces around `=`; several pairs on one line only for one data point (`FORMAT=%s FILE=%s: ...`).
+- `KEY=VALUE`: uppercase KEY, no spaces around `=`; several pairs on one line only for one data point.
 - Three levels reach stderr, each line starting with exactly one of `ERROR: `, `WARNING: `, `INFO: ` plus a short description; no second tag, no untagged continuation line.
   - `ERROR:` -- via the CLI's own `print(..., file=sys.stderr)` (`cli_error_handler` in `cli/commands/utils.py` adds it to any raised exception); fatal to the operation.
   - `WARNING:` -- a "no silent deviations" decision or a recovered non-fatal problem; `logging.warning()` gets the prefix automatically.

@@ -167,8 +167,9 @@ carries it).
 | - | - | - |
 | File hash, project files | `measured_read` | none |
 | Git LFS pointer hash and size | `declared` (#378) | the provenance says `Method: lfs_pointer`, not the level |
-| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file; a directory has no entry yet |
-| Dataset size | a single-file `loom` dataset: the bytes hashed, or the `stat()` size over the cap (`measured_stat`), since #387; else what the library caller supplies (`DatasetMetadata.byte_size`). No size for a directory, an LFS pointer, an over-cap file under 1,024 bytes or above 2^53-1; a Croissant item count is not recorded (#382) | a directory's size (the walk budget is undecided) |
+| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file or directory; no `unreadable-file` entry yet |
+| Dataset size | a single-file `loom` dataset: the bytes hashed, or the `stat()` size over the cap (`measured_stat`), since #387; else what the library caller supplies (`DatasetMetadata.byte_size`). No size for a directory, an LFS pointer, an over-cap file under 1,024 bytes or above 2^53-1 (the
+last two say `not_measured`); a Croissant item count is not recorded (#382) | a directory's size (the walk budget is undecided) |
 | Hashed file sizes | measured (`FileDigests.size`) and discarded; `ProjectFile` has no size | kept for 3.1 `byteSize` |
 | Model over `max-model-extract-bytes` (flag since #381) | wheel route: a stub with a warning; the declared ZIP size is in memory and unused. A local or project model has a `stat()` size | name the declared size |
 | Directory size | the walk already `stat()`s every file with no budget, and throws the sum away | an entries budget, and the LFS caveat |
@@ -207,7 +208,9 @@ a fragment that supplies the missing hash or size (the negative entry goes) and
 the comment merge followed by a drop (both covered by
 `tests/assemble/test_fragments_evidence.py`). The document uuid does not change when an
 entry is added. Byte-for-byte output across two runs and two listing orders.
-Under the caps the output is identical to HEAD (a before and after sweep). A
+Under the caps the output is identical to HEAD, except the new
+`dataset_datasetSize` of a hashed single-file dataset (a before and after
+sweep). A
 reason outside the catalogue is rejected; injected `|`, `;` and a newline are
 escaped.
 
