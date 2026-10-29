@@ -55,6 +55,18 @@ _DIR = f"/tmp/{CHECKOUT_DIR_PREFIX}v6mrrlyz"
             f"url https://h/o/{CHECKOUT_DIR_PREFIX}tools.git failed",
         ),
         (f"{_DIR}x/a", f"{_DIR}x/a"),
+        # an address is not a path: https, scp-style, with a path repeated
+        (
+            f"git@host:o/{CHECKOUT_DIR_PREFIX}abcd1234 refused",
+            f"git@host:o/{CHECKOUT_DIR_PREFIX}abcd1234 refused",
+        ),
+        (
+            f"https://h/{CHECKOUT_DIR_PREFIX}abcd1234/{CHECKOUT_DIR_PREFIX}wxyz9876/",
+            f"https://h/{CHECKOUT_DIR_PREFIX}abcd1234/{CHECKOUT_DIR_PREFIX}wxyz9876/",
+        ),
+        # a path after a query's `=` or a backtick is a path
+        (f"http://h/a?p={_DIR}", "http://h/a?p=<checkout>"),
+        (f"see `{_DIR}/a`", "see `<checkout>/a`"),
         # text glued to the path stays
         (f"PATH={_DIR}/a,{_DIR}/b", "PATH=<checkout>/a,<checkout>/b"),
         (f"{CHECKOUT_DIR_PREFIX} alone", f"{CHECKOUT_DIR_PREFIX} alone"),
@@ -71,6 +83,10 @@ _DIR = f"/tmp/{CHECKOUT_DIR_PREFIX}v6mrrlyz"
         "worktree-name",
         "url",
         "longer-name",
+        "scp-address",
+        "url-with-two",
+        "query-value",
+        "backticks",
         "glued",
         "prefix-alone",
         "empty",
@@ -102,8 +118,14 @@ def test_a_stderr_line_names_no_temporary_directory(
 
 @pytest.mark.parametrize(
     "text",
-    ["a" * 1_000_000, f"{CHECKOUT_DIR_PREFIX}" * 50_000, f"x{_DIR} " * 20_000],
-    ids=["long-no-token", "token-prefix-repeated", "many-paths"],
+    [
+        "a" * 1_000_000,
+        f"{CHECKOUT_DIR_PREFIX}" * 50_000,
+        f"x{_DIR} " * 20_000,
+        "https://h/" + f"{CHECKOUT_DIR_PREFIX}abcd1234/" * 200_000,
+        f"{_DIR}/" * 200_000,
+    ],
+    ids=["long-no-token", "token-prefix-repeated", "many-paths", "one-url", "one-path"],
 )
 def test_masking_is_linear(text: str) -> None:
     started = time.monotonic()

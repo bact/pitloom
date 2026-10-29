@@ -100,9 +100,15 @@ def test_git_runs_without_lfs_and_with_a_clean_environment(
     [
         "remote: boom\nERROR: forged line\n::error::x \x1b[31mred",
         "Cloning into '/tmp/pitloom-git-ab12'...\nfatal: boom\n",
+        "fatal: no work tree '/tmp/pitloom-git-ab12cd34/x' boom\n",
         "\x1b[31m::error::x\nERROR: forged",
     ],
-    ids=["server-lines", "checkout-path-and-progress", "no-error-line"],
+    ids=[
+        "server-lines",
+        "checkout-path-and-progress",
+        "checkout-path-in-error",
+        "no-error-line",
+    ],
 )
 def test_git_stderr_becomes_one_plain_line(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stderr: str
@@ -119,6 +125,7 @@ def test_git_stderr_becomes_one_plain_line(
     assert not message.startswith(("ERROR", "::"))
     assert "pitloom-git-" not in message
     assert ("boom" in message) == ("boom" in stderr)
+    assert ("<checkout>/x" in message) == ("pitloom-git-ab12cd34" in stderr)
 
 
 @posix_only

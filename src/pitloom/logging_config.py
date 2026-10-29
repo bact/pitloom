@@ -22,6 +22,7 @@ import re
 import sys
 import threading
 import traceback
+from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any, TextIO, cast
@@ -151,33 +152,37 @@ CHECKOUT_PLACEHOLDER = "<checkout>"
 _CHECKOUT_DIR = re.compile(
     re.escape(CHECKOUT_DIR_PREFIX) + r"[a-z0-9_]{8}(?![a-z0-9_])"
 )
-#: Characters that end a path in a message: where it is quoted, bracketed, or
-#: follows ``KEY=``.
-_PATH_ENDS = frozenset("'\"()[]<>=,;")
+#: A word of a message: a run without a space, quote, bracket, backtick, ``=``,
+#: ``,`` or ``;`` (where a path ends in a message that quotes, brackets or
+#: follows ``KEY=``).
+_WORD = re.compile(r"[^\s'\"`()\[\]<>=,;]+")
+#: ``user@host:path``, the scp-style address of a repository.
+_SCP_ADDRESS = re.compile(r"[\w.+-]+@[\w.-]+:")
+
+
+def _mask_word(found: re.Match[str]) -> str:
+    word = found.group(0)
+    if (
+        CHECKOUT_DIR_PREFIX not in word
+        or "://" in word
+        or _SCP_ADDRESS.match(word) is not None
+    ):
+        return word
+    last = deque(_CHECKOUT_DIR.finditer(word), maxlen=1)
+    return CHECKOUT_PLACEHOLDER + word[last[0].end() :] if last else word
 
 
 def mask_checkout(text: str) -> str:
     """*text* with the temporary checkout of a Git URL written as
-    ``<checkout>``: the directory (``pitloom-git-`` and its eight random
-    characters) and the path before it up to a space, quote, bracket or ``=``.
-    A path below it keeps its tail (``<checkout>/setup.cfg``). A URL that
-    holds the prefix (``https://host/o/pitloom-git-abcdefgh``) is not a path
-    and is kept. One pass; text without the prefix is returned as it is."""
+    ``<checkout>``: each word that is a path holding the directory
+    (``pitloom-git-`` and its eight random characters) becomes ``<checkout>``
+    and what follows the directory, so a path below it keeps its tail
+    (``<checkout>/setup.cfg``). A word that is an address (``https://host/o/
+    pitloom-git-abcdefgh``, ``git@host:o/pitloom-git-abcdefgh``) is kept. One
+    pass over the words; text without the prefix is returned as it is."""
     if CHECKOUT_DIR_PREFIX not in text:
         return text
-    parts: list[str] = []
-    end = 0
-    for found in _CHECKOUT_DIR.finditer(text):
-        start = found.start()
-        while start > end and not (
-            text[start - 1].isspace() or text[start - 1] in _PATH_ENDS
-        ):
-            start -= 1
-        if "://" in text[start : found.start()]:
-            continue
-        parts += [text[end:start], CHECKOUT_PLACEHOLDER]
-        end = found.end()
-    return "".join(parts) + text[end:]
+    return _WORD.sub(_mask_word, text)
 
 
 def escape_controls(text: str) -> str:
