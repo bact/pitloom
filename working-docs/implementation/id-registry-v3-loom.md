@@ -77,11 +77,15 @@ rewritten file (new digest) is a new element.
   `id_registry.sha256_file` also uses). Nothing is loaded whole.
 - **Ceiling: `max-dataset-hash-bytes`**, default 4 GiB (4294967296),
   counting the total bytes hashed, for directory and single-file datasets
-  alike. A config key only: no CLI flag, so no `_matrix_plan.py` entry and
-  no INERT row. It reaches loom through `loom.Run(pitloom_config=...)`
-  (D14), is validated at use (a positive `int`; `bool` and `0` rejected)
-  by one validator generalised from `require_max_model_extract_bytes`, and
-  gets a `docs/configuration.md` row. The size is checked from `stat()`
+  alike. Cascade: `loom.Run(max_dataset_hash_bytes=)` >
+  `pitloom_config` (D14) > default; `loom id generate -e` takes
+  `--max-dataset-hash-bytes` > the project's own key > default (read only
+  for a dataset without the flag). The flag is on `id generate` alone: on
+  the shared SBOM parser it would be inert on every other command, and no
+  Action step hashes a dataset, so there is no input or env var. Validated
+  at use by `require_positive_ceiling` (a positive `int`; `bool` and `0`
+  rejected); it has a `docs/configuration.md` row and a
+  `_matrix_plan.py` entry. The size is checked from `stat()`
   first, so nothing over the limit is opened; a file that grows during the
   read is caught by a byte budget. Over the ceiling: no hash and one
   `WARNING:` naming the path and the limit.

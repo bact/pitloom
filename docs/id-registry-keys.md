@@ -167,7 +167,9 @@ Any other `software_File` or `ai_AIPackage` name is stored by name with
 the project root`, `not a regular file`; an `ai_AIPackage` name applies only to
 a model with no file, a Hugging Face id). A dataset that is missing, outside
 the root or cannot be hashed is stored by name with no hash, with `INFO: ID
-registry: dataset <name> pinned without SHA-256: <reason>`. A
+registry: dataset <name> pinned without SHA-256: <reason>`; one
+over the hash ceiling (`--max-dataset-hash-bytes`, else the project's
+`max-dataset-hash-bytes`, else 4 GiB) is such a dataset, as in `loom.Run`. A
 `software_Package` and the other types are stored verbatim. A script that runs
 from `scripts/` and declares `../data/t.txt` is looked up as `data/t.txt`:
 pin `-e data/t.txt:dataset_DatasetPackage`, the path from the project root.

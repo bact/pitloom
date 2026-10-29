@@ -43,13 +43,13 @@ def _entities(
 
 
 def _entries(
-    registry_path: Path, proj: Path, spec: str
+    registry_path: Path, proj: Path, spec: str, *flags: str
 ) -> tuple[list[tuple[tuple[str, str], str | None]], int]:
-    """Run ``id generate -e SPEC``; the non-file entries saved (key, sha256),
-    as loaded back, and the exit code."""
+    """Run ``id generate -e SPEC`` with *flags*; the non-file entries saved
+    (key, sha256), as loaded back, and the exit code."""
     args = _build_parser().parse_args(
         ["id", "generate", "--project-dir", str(proj), "-o", str(registry_path)]
-        + ["-e", spec]
+        + ["-e", spec, *flags]
     )
     code = _run_id_command(args)
     loaded = IdRegistry.load(registry_path)
@@ -173,13 +173,12 @@ def test_entity_dataset_unhashed_is_a_hashless_pin(
     (proj / "data").mkdir(parents=True)
     (proj / "empty").mkdir()
     (proj / "data" / "t.txt").write_bytes(b"x\n")
-    if case == "ceiling":
-        monkeypatch.setattr("pitloom.cli._id_entity._pin_hash_ceiling", lambda: 1)
-    elif case == "warns-yet-hashes":
+    flags = ("--max-dataset-hash-bytes", "1") if case == "ceiling" else ()
+    if case == "warns-yet-hashes":
         monkeypatch.setattr("pitloom.cli._id_entity.dataset_digest", _warns_yet_hashes)
 
     with caplog.at_level(logging.INFO, logger="pitloom"):
-        entries, code = _entries(tmp_path / "reg.json", proj, f"./{name}{_DS}")
+        entries, code = _entries(tmp_path / "reg.json", proj, f"./{name}{_DS}", *flags)
 
     assert code == 0
     pinned = [(n, sha) for (_, n), sha in entries]

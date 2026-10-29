@@ -220,7 +220,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   adds its own.
 - The same input gives the same SBOM for the same settings;
   `--trust-wheel-model`, `max-model-extract-bytes`, `--scan-model-usage`,
-  `--allow-build` and (for `loom.Run`) `max-dataset-hash-bytes` each change
+  `--allow-build` and (for `loom.Run` and `loom id generate -e`) `max-dataset-hash-bytes` each change
   what is recorded, so do not compare SBOMs made with different ones. The
   last drops a dataset's hash, with a `WARNING:`, when its bytes pass the
   cap.

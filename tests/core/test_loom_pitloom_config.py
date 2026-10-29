@@ -20,6 +20,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 
 from pitloom import loom
@@ -106,6 +107,76 @@ def test_config_ceiling_reaches_dataset_hashing(
     graph = json.loads(output.read_text(encoding="utf-8"))["@graph"]
     files = [e for e in graph if e["type"] == "software_File"]
     assert len(files) == int(hashed)
+
+
+@pytest.mark.parametrize(
+    ("keyword", "config_ceiling", "hashed"),
+    [
+        (None, None, True),
+        (None, 4, False),
+        (4, None, False),
+        (5, 4, True),
+        (4, 5, False),
+        (np.int64(5), 4, True),
+    ],
+    ids=[
+        "default",
+        "config",
+        "keyword",
+        "keyword-loosens",
+        "keyword-tightens",
+        "numpy",
+    ],
+)
+def test_keyword_beats_config_beats_default(
+    project: Path, keyword: object, config_ceiling: int | None, hashed: bool
+) -> None:
+    """``max_dataset_hash_bytes=`` wins over the config's key, which wins
+    over the 4 GiB default; the 5-byte file is hashed only at 5 or more."""
+    config = (
+        PitloomConfig()
+        if config_ceiling is None
+        else PitloomConfig(max_dataset_hash_bytes=config_ceiling)
+    )
+    output = project / "out.json"
+
+    with loom.run(
+        output,
+        pitloom_config=config,
+        max_dataset_hash_bytes=keyword,  # type: ignore[arg-type]
+    ):
+        loom.add_dataset("t.txt")
+
+    assert ("verifiedUsing" in _package(output)) is hashed
+
+
+@pytest.mark.parametrize(
+    ("keyword", "needle"),
+    [
+        (0, "must be a positive integer, got 0"),
+        (-1, "must be a positive integer, got -1"),
+        (True, "must be an integer, got bool"),
+        (5.0, "must be an integer, got float"),
+        ("5", "must be an integer, got str"),
+    ],
+    ids=["zero", "negative", "bool", "float", "str"],
+)
+def test_bad_keyword_fails_before_the_run(
+    project: Path, keyword: object, needle: str
+) -> None:
+    """A keyword that is not a positive integer raises ``ValueError``
+    naming it on entering the run (``0`` is an error, not "unlimited")."""
+    output = project / "out.json"
+
+    with pytest.raises(ValueError, match=f"max_dataset_hash_bytes {needle}"):
+        with loom.run(
+            output,
+            max_dataset_hash_bytes=keyword,  # type: ignore[arg-type]
+        ):
+            pass  # pragma: no cover - never entered
+
+    assert not output.exists()
+    assert loom._active_run is None  # pylint: disable=protected-access
 
 
 @pytest.mark.parametrize(

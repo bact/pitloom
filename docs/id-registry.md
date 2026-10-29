@@ -54,6 +54,9 @@ explicit entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`). A
 file, model or dataset `NAME` that exists below the project root is stored
 under its path key with its content hash, other names by name, each with an
 `INFO:` ([`-e` rules](id-registry-keys.md#-e-nametype)).
+`--max-dataset-hash-bytes BYTES` (an integer of at least 1; `0` is a usage
+error) caps the bytes read to hash one dataset, else the project's own
+`max-dataset-hash-bytes`, else 4 GiB.
 `--entity NAME:software_Package` pins a dependency's, or the project's own,
 package id. The string splits on its last colon: the suffix is a `TYPE` only
 when it is a known registry type (`software_File`, `software_Package`,
