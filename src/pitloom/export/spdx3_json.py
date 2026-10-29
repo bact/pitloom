@@ -10,7 +10,7 @@ from __future__ import annotations
 import io
 import json
 from collections import defaultdict
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -20,6 +20,9 @@ from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
+
+if TYPE_CHECKING:
+    from pitloom.core.lfs_pointer import LfsPointer
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
@@ -85,6 +88,15 @@ def file_hashes(digests: HexDigests) -> list[spdx3.Hash]:
     if digests.sha512 is not None:
         hashes.append(sha512_hash(digests.sha512))
     return hashes
+
+
+def lfs_pointer_hashes(pointer: LfsPointer) -> list[spdx3.Hash]:
+    """The ``verifiedUsing`` of a checkout's Git LFS pointer, whose content
+    Pitloom did not read: the ``oid`` as the SHA-256, no SHA-512, and a
+    comment saying so with the stated size (SPDX 3 has no file size)."""
+    unit = "byte" if pointer.size == 1 else "bytes"
+    comment = f"Git LFS pointer oid; content not read; size {pointer.size} {unit}"
+    return [sha256_hash(pointer.oid, comment=comment)]
 
 
 def _hash(algorithm: str, hex_digest: str, comment: str | None) -> spdx3.Hash:
