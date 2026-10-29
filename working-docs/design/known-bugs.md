@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,12 +29,10 @@ Size: S under half a day, M about a day.
   project` writes `Foo.Bar-Baz-1.0+local.spdx3.json` unescaped; the
   Hatchling hook uses the raw name; embed's escaper skips `*?"<>|`.
   Decided: PEP 427 escaping everywhere, its own PR.
-- [ ] **Git LFS pointers outside AI models (M, decided; known limitation of
-  0.21.0, planned for 0.22.0).** A dataset or
-  any other file that is an unfetched pointer is listed with the
-  pointer's SHA-256 and no warning. Decided: one shared detector, one
-  summary `WARNING:` per run, one line per file at `--debug`. Registry v3
-  shipped without it; loom `path=` should reuse it.
+- [x] **Git LFS pointers outside AI models (M), built for 0.22.0.** One
+  detector, one summary `WARNING:` per SBOM, a checkout pointer listed by its
+  `oid`, loom `path=` reuses it. See
+  [git-lfs-pointers.md](../implementation/git-lfs-pointers.md).
 - [x] **A fragment value may lose to an extracted one (S-M, own PR).**
   Confirmed 2026-10-23 and fixed: a fragment's value replaces one Pitloom
   generated from the file's format (`Method: generated_from_labels`,
@@ -372,3 +370,28 @@ From the 0.21.0 release review. Open:
   declared (the warning stays when none is declared or for a value that needed
   licenseid's reading). Fixed for good when Pitloom 0.22.0 reads declared
   values through `licenseid` 0.7.0 (plan: #368).
+
+## Found 2026-10-29
+
+From the Git LFS pointer work. Open:
+
+- [ ] **The model-cap and dataset-hash ceilings have no flag (S-M, decided).**
+  `max-source-metadata-bytes` has a flag, a key, a kwarg and an Action input;
+  `max-model-extract-bytes` and the dataset-hash ceiling have the key only.
+  Decided: a separate PR adds `--max-model-extract-bytes` (parent parser,
+  Action input), `--max-dataset-hash-bytes` (`loom id generate` only) and
+  `loom.Run(max_dataset_hash_bytes=)`; `0` stays an error.
+- [ ] **The clone cap is missing from `generate()`, the CLI, config and the
+  Action (S-M),** and its over-cap message is outside the shared wording.
+  Only the library's Git entry point takes `max_bytes=` (#339).
+- [ ] **`loom id -e` ignores the project's dataset ceiling (S).** It uses the
+  default; the project key should apply (part of the ceiling-flag PR).
+- [ ] **The blob-filter docs say "10 MB"; git's `10m` is 10 MiB (S).**
+  `BLOB_LIMIT` in `extract/remote/git.py`; fix `docs/git-urls.md`.
+- [ ] **A dataset's identity can change from a hash to omitted after a pull
+  (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated
+  sizes above the ceiling mean no hash. The SHA-256 is otherwise unchanged.
+- [ ] **Archive-route registry ids differ from checkout ids for LFS files
+  (S).** The archive keys by the pointer-text digest, a checkout by the `oid`.
+- [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
+  server the Git URL guard does not cover; reuse the clone cap if built.

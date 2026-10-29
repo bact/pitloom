@@ -106,9 +106,9 @@ loom model path/to/model.gguf --pretty
 A model whose read fails (truncated, a bound exceeded, a missing extra) is
 still written as a format-only entry, with one `WARNING:` and exit 0, as a
 project scan lists it. A file that is not a model (empty, an unknown format, a
-header contradicting the suffix such as a Git LFS pointer), absent or
-unreadable is an `ERROR:` and exit 1. See [AI model scan
-limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+header contradicting the suffix, or a Git LFS pointer, whose `ERROR:` gives
+the `oid`, the stated size and `git lfs pull`), absent or unreadable is an
+`ERROR:` and exit 1. See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Or pass a Hugging Face Hub URL or model ID, with no local file (needs `pip
 install pitloom[huggingface_hub]`):

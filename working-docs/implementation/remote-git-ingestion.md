@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,6 +125,9 @@ lookup (as with the earlier Lumina code); no cap on the size of a clone beyond
 the 10-minute deadline (the 10 MB blob filter is only a request to the server).
 
 ## Not built
+
+- Git LFS content: pointers are listed by `oid` and never fetched; see
+  [git-lfs-pointers.md](git-lfs-pointers.md).
 
 - Tokens and private repositories (`GITHUB_TOKEN`, `--token`): `git`'s own
   credential helpers apply; nothing is prompted.

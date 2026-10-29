@@ -26,6 +26,9 @@ and this project adheres to
 
 - Safetensors `modelspec.license` and GGUF `general.license.name` (when
   `general.license` is blank or `other`) are read as the model licence ([#376])
+- A Git LFS pointer file in a checkout is listed with its `oid` as SHA-256 (no
+  SHA-512), one `WARNING:` per SBOM, in loom datasets and models too; the ID
+  registry keys it by `oid`; `loom model` names `git lfs pull` ([#378])
 
 ### Fixed
 
@@ -37,6 +40,7 @@ and this project adheres to
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
 [#376]: https://github.com/bact/pitloom/pull/376
+[#378]: https://github.com/bact/pitloom/pull/378
 
 ## [0.21.1] - 2026-10-28
 

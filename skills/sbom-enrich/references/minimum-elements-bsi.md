@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,3 +49,10 @@ it covered.
 | COMP-015 | Effective licence (optional) | `hasConcludedLicense` | as COMP-006 (they pass or fail together) | yes |
 | COMP-016 | Hash of the source code (optional) | -- | SPDX 3.0.1 has no link the mapping names | no |
 | COMP-017 | security.txt URL (optional) | `externalRef` of type `securityPolicy`/`securityOther` | **user must supply** | yes |
+
+**Git LFS pointers (COMP-007).** A pointer file in a checkout or Git URL scan
+has the content's SHA-256 (the `oid`) only, and a hash comment saying the
+content was not read. For a SHA-512 on that file, run `git lfs pull` in a local
+checkout and regenerate (Pitloom never fetches LFS content). Ask: "Pull the LFS
+files and regenerate?" Non-interactive: leave the SHA-512 out and report the
+pointer count from the `WARNING:`. After a pull the SHA-256 is unchanged.

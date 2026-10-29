@@ -74,8 +74,7 @@ from the server's own branches and tags, longest match first.
   and `www.` forms) is not a Git repository for Pitloom: `loom model` reads it,
   and `loom project` refuses it with a message naming `loom model`. A **Space**
   or **dataset** (`huggingface.co/spaces/...`, `.../datasets/...`) is a Git
-  repository and is fetched like any other (Git LFS files stay pointers: Pitloom
-  switches LFS off). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
+  repository and is fetched like any other (Git LFS files stay pointers; see below). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
   has no Python project to read, and says so.
 - Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
@@ -154,13 +153,17 @@ HTTP (`git http-backend`) that answers like GitLab does.
   with only the http(s) transports, git-lfs off (a repository's LFS settings
   could name another host; LFS files are not downloaded) and without
   `GIT_DIR`-style variables of the calling environment.
-- **Git LFS is a limitation, planned to be fixed in 0.22.0.** A file kept in LFS
-  is a small pointer file in the checkout, because LFS is off. A pointer named
-  like an AI model (`.onnx`, `.gguf`, ...) is recognised as a pointer and not
-  read as a model, so the SBOM has no AI package for it. Any other file in LFS
-  (a dataset, an image) is listed with the SHA-256 of the pointer text, not of
-  the file, and no warning says so. Most model repositories on Hugging Face, and
-  many on GitLab and Codeberg, keep their weights in LFS.
+- **Git LFS files are pointers.** LFS is off, so a file kept in LFS is a small
+  pointer file in the checkout, and Pitloom never fetches its content. The SBOM
+  lists it with the pointer's `oid` as its SHA-256 (no SHA-512; the hash
+  comment says the content was not read, and the file's provenance is `Method:
+  lfs_pointer`), so the hash is the same after `git lfs pull`. The stated size
+  is only recorded in that comment. A pointer named like an AI model (`.onnx`,
+  `.gguf`, ...) is listed as a file only, with no AI package. No content type,
+  licence or copyright comes from the pointer text. One `WARNING:` per SBOM
+  names the first pointer and the count; for the content, clone with `git lfs`
+  and run `loom project` on the directory. Most model repositories on Hugging
+  Face, and many on GitLab and Codeberg, keep their weights in LFS.
 - **No size limit by default.** The command line sets none, so a very large
   repository is fetched in full (blobs over 10 MB excepted, on a server that
   supports partial clone). The library API can stop a fetch once the checkout

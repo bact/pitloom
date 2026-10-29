@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,7 +98,9 @@ surface, whatever its read outcome. Code: `read_model_candidate()` in
   for it (the longest opening line, CRLF included; one tiny bounded read). The reason is `header is a Git LFS pointer`, through
   `NotAModel.reason`, so the CLI errors carry it. A `.bin`/`.zip` pointer
   names no format: one `WARNING:` without `FORMAT=` (round 2; round 1 left it
-  silent). `read_ai_model()` itself gives the same reason (and `file is
+  silent). Since the LFS work a whole, valid pointer gets no per-file warning
+  (one summary per SBOM, [git-lfs-pointers.md](git-lfs-pointers.md)); the
+  per-file warning stays for a file that only opens like a pointer. `read_ai_model()` itself gives the same reason (and `file is
   empty`) instead of "unsupported format" for a supported suffix; both it and
   `NotAModel` take it from `refusal_reason()`, so a surface cannot word it
   differently (round 3), and `read_ai_model()` refuses a non-regular path

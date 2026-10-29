@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -100,9 +100,11 @@ entry `Source: <model file> | Field: ...`; its `name` is the file's stem
   not read` is a fixed bound. Lists past 1000 entries are cut with one
   `WARNING:`. Never raise a ceiling on your own.
 - `... header is not <fmt>; not listed as an AI model`, `... header is a Git
-  LFS pointer; not listed as an AI model` (any candidate suffix, `.bin`
-  included) -- no model, no `ai_AIPackage`; for a pointer run `git lfs pull`
-  and regenerate. `loom model FILE` and `loom enrich` (any suffix) and `loom
+  LFS pointer; not listed as an AI model` (a file that only opens like a
+  pointer) -- no model, no `ai_AIPackage`. A whole pointer file (any suffix)
+  is listed by its `oid` as SHA-256 and counted in one `WARNING: FILE=<first>:
+  Git LFS pointer, content not read (N files); run 'git lfs pull' for the
+  content`; pull and regenerate for the content (no SHA-512 until then). `loom model FILE` and `loom enrich` (any suffix) and `loom
   generate FILE` (model suffixes only; a `.zip` goes to the sdist route)
   refuse such a file with `ERROR: ... failed: <path>: <reason>` (exit 1).
 

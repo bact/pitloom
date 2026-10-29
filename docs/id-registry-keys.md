@@ -53,6 +53,12 @@ but records no, or another, hash; `id generate` and `loom.Run` say `content
 changed` instead ([log lines](#fallbacks-print-info)). An entry with no hash
 never matches a model.
 
+A **Git LFS pointer** in a checkout is gated by its `oid`, the SHA-256 of the
+content it stands for, so its id survives `git lfs pull`. A wheel, an sdist or
+the Hatchling hook ships the pointer text itself, so those routes gate by the
+digest of that text and get a different id for the same file. `id import` and
+`id generate` record SHA-256 only for a pointer.
+
 A **dataset package** has a hybrid gate:
 
 - An entry with a SHA-256 is content-gated: the file's SHA-256, or a

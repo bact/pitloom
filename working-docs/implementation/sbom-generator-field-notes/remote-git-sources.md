@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -93,6 +93,14 @@ Each was reproduced first; each has a test that fails on the earlier tree.
   `GIT_LFS_SKIP_SMUDGE=1`, and `GIT_ALLOW_PROTOCOL` set from the same constant
   as the scheme check. A check on the URL does not cover every client that
   the tool starts.
+- **With LFS off, the pointer is the identity.** A pointer states the content's
+  SHA-256 (`oid`), so a tool that never fetches can still name the file and
+  keep the name across `git lfs pull`; an archive that ships the pointer text
+  must keep the hash of those bytes, to match its `RECORD`. Parse the pointer
+  strictly and probe the real `git lfs pointer --check` on a matrix of
+  variants: git-lfs's decoder accepts forms it never writes (blank lines,
+  `size +5`, upper-case hex). Pitloom is stricter and accepts nothing git-lfs
+  refuses. See [git-lfs-pointers.md](../git-lfs-pointers.md).
 - **Server text is attacker text.** A smart-HTTP server answered with the
   pkt-line `ERR boom\nERROR: forged line\n::error::x \x1b[31m`: the CLI printed
   a forged `ERROR:` line, a GitHub Actions workflow command and a terminal
