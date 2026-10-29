@@ -27,6 +27,12 @@ and this project adheres to
 - Safetensors `modelspec.license` and GGUF `general.license.name` (when
   `general.license` is blank or `other`) are read as the model licence ([#376])
 
+### Fixed
+
+- `embed-wheel --sbom` refuses invalid JSON, a non-object and a `.spdx3.json`
+  that is not SPDX 3, before the wheel is written ([#374])
+
+[#374]: https://github.com/bact/pitloom/pull/374
 [#376]: https://github.com/bact/pitloom/pull/376
 
 ## [0.21.1] - 2026-10-28

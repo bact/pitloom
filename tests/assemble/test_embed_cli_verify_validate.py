@@ -179,11 +179,12 @@ def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
     )
 
     wheel_path = _make_dummy_wheel(tmp_path, "sharedlookup", "1.0.0")
-    sbom_file = tmp_path / "sbom.spdx3.json"
-    # Unrecognized format so --validate WARN-and-skips rather than reaching
-    # spdx3_validate's network-dependent schema fetch -- this test is about
-    # the shared-lookup property, not content validation.
-    sbom_file.write_text("not valid spdx3 json-ld", encoding="utf-8")
+    sbom_file = tmp_path / "sbom.json"
+    # Unrecognized format (valid JSON, not named .spdx3.json) so --validate
+    # WARN-and-skips rather than reaching spdx3_validate's network-dependent
+    # schema fetch -- this test is about the shared-lookup property, not
+    # content validation.
+    sbom_file.write_text('{"foo": "bar"}', encoding="utf-8")
 
     monkeypatch.setattr(
         sys,
@@ -234,11 +235,12 @@ def test_cli_embed_wheel_verify_validate_share_one_format_detection(
     )
 
     wheel_path = _make_dummy_wheel(tmp_path, "sharedformat", "1.0.0")
-    sbom_file = tmp_path / "sbom.spdx3.json"
-    # Unrecognized format so --validate WARN-and-skips rather than reaching
-    # spdx3_validate's network-dependent schema fetch -- this test is about
-    # the shared-detection property, not content validation.
-    sbom_file.write_text("not valid spdx3 json-ld", encoding="utf-8")
+    sbom_file = tmp_path / "sbom.json"
+    # Unrecognized format (valid JSON, not named .spdx3.json) so --validate
+    # WARN-and-skips rather than reaching spdx3_validate's network-dependent
+    # schema fetch -- this test is about the shared-detection property, not
+    # content validation.
+    sbom_file.write_text('{"foo": "bar"}', encoding="utf-8")
 
     monkeypatch.setattr(
         sys,
@@ -304,7 +306,7 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     for its (unrecognized) format WARNs and skips -- that's not the same
     as failing, so the command still exits 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "skipflag", "1.0.0")
-    sbom_file = tmp_path / "notspdx3.spdx3.json"
+    sbom_file = tmp_path / "notspdx3.json"
     sbom_file.write_text('{"foo": "bar"}', encoding="utf-8")
 
     monkeypatch.setattr(

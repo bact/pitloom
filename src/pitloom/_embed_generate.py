@@ -26,6 +26,7 @@ from pitloom._embed_build_sbom import (
     EmbedFileCache,
     _build_sbom_from_project_and_wheel,
 )
+from pitloom._sbom_format import refuse_unusable_given_sbom
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.core.build_options import (
     EXTERNAL_SBOM_REASON,
@@ -81,7 +82,9 @@ def _read_external_sbom(sbom_path: Path | str) -> str:
     ``WARNING:`` (RFC 8259 section 8.1: JSON text must not carry one).
 
     Raises:
-        ValueError: The file is not valid UTF-8.
+        ValueError: The file is not valid UTF-8 or JSON, is not a JSON object,
+            or is named ``.spdx3.json`` and is not SPDX 3 JSON-LD
+            (:func:`~pitloom._sbom_format.refuse_unusable_given_sbom`).
     """
     raw = Path(sbom_path).read_bytes()
     if raw.startswith(codecs.BOM_UTF8):
@@ -91,11 +94,13 @@ def _read_external_sbom(sbom_path: Path | str) -> str:
         )
         raw = raw[len(codecs.BOM_UTF8) :]
     try:
-        return raw.decode("utf-8")
+        text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError(
             f"SBOM {quote_source(sbom_path)} is not valid UTF-8 (byte {exc.start})"
         ) from exc
+    refuse_unusable_given_sbom(sbom_path, text)
+    return text
 
 
 def _resolve_embed_registry(

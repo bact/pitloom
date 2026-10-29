@@ -326,11 +326,19 @@ From the combined review of #352 to #357. Open:
 
 From the 0.21.0 release review. Open:
 
-- [ ] **`embed-wheel --sbom FILE` embeds a file it cannot parse or read as SPDX 3
-  (S).** Malformed JSON named `x.spdx3.json` is embedded with a skip
+- [x] **`embed-wheel --sbom FILE` embeds a file it cannot parse or read as SPDX 3
+  (S).** Fixed in the next release: `pitloom._sbom_format.refuse_unusable_given_sbom`
+  refuses invalid JSON, a non-object and a `.spdx3.json` that is not SPDX 3
+  before the wheel is written. Malformed JSON named `x.spdx3.json` was embedded with a skip
   `WARNING:` (exit 0), where `fragment validate` says `ERROR: Invalid JSON`; a
-  CycloneDX file is embedded under a `.spdx3.json` name. Parse failure of a
+  CycloneDX file named `.spdx3.json` is now refused too. Parse failure of a
   file the user named should be an error before the wheel is written.
+- [ ] **`embed-wheel --sbom FILE` stores another format under a `.spdx3.json`
+  name (S).** A valid CycloneDX `bom.cdx.json` is embedded as
+  `<basename>.spdx3.json` (with the cross-check `WARNING:`):
+  `_derive_wheel_sbom_filename` and `sbom_file_name` always add the SPDX 3
+  extension. Decide: refuse a format Pitloom cannot name, or store it under its
+  recommended extension (`.cdx.json`, PEP 770 allows any name).
 - [x] **A one-character Hub model name is a URL but not an id (S).**
   Fixed in #365: `_HF_ID_RE` takes a one-character name, as `_HF_URL_RE` does.
   `https://hf.co/o/m` logged "read as https://huggingface.co/o/m", then
