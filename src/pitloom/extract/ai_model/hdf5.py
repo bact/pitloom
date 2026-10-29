@@ -64,9 +64,9 @@ from pitloom.core.ai_metadata import (
     source_metadata,
     value_text,
 )
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.hdf5_config import (
     RAW_CONFIG_CHARS,
     log_attribute_problem,

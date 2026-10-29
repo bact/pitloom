@@ -26,10 +26,10 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names_cut,
 )
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
-    sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library

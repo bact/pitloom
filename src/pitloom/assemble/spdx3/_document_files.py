@@ -30,14 +30,13 @@ from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     file_hashes,
     lfs_pointer_hashes,
     require_spdx_id,
 )
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._license import warn_unless_expression
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a

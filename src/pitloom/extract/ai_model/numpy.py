@@ -28,8 +28,8 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.reader_requirements import require_library

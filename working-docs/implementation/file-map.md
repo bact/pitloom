@@ -196,7 +196,7 @@ pitloom/
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── requirements.py  # Requires-Dist strings of a built wheel: names canonicalised, extras tagged
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
-│       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
+│       │   ├── provenance.py       # ProvenanceConfig, provenance-string parser, builders and sanitiser
 │       │   ├── scalar_text.py  # The one spelling of a scalar as text
 │       │   ├── purl.py             # pkg:huggingface and pkg:generic package URLs
 │       │   ├── untrusted_text.py  # Untrusted text shown to a reader, invisible controls made visible
@@ -222,7 +222,7 @@ pitloom/
 │       │   ├── _core_metadata.py  # Shared RFC 822 Core-Metadata parsing helpers
 │       │   ├── _interrupt_hold.py  # Bounded waiting for the undo of a capture block
 │       │   ├── _json_io.py  # Shared raw-bytes JSON-file read
-│       │   ├── _extract_utils.py   # Shared extraction utilities (incl. provenance sanitization)
+│       │   ├── _extract_utils.py   # Shared extraction utilities
 │       │   ├── _file_headers.py    # SPDX-File* comment-header scanner
 │       │   ├── _license_classify.py  # Classify a licence value; provenance notes for a rewrite
 │       │   ├── _license.py         # License normalization and resolution facade

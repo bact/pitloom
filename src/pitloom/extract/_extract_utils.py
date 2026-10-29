@@ -21,38 +21,14 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
-from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.logging_config import Cap
 
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw
     #: text (``email``), or :mod:`importlib.metadata`'s view of it.
     CoreMetadata = email.message.Message[str, str] | PackageMetadata
-
-
-def sanitize_provenance_text(text: str) -> str:
-    """Escape ``|`` and the invisible and bidi controls in untrusted text
-    destined for a provenance string.
-
-    :func:`~pitloom.core.provenance.parse_provenance_value` splits a
-    provenance string on ``|`` to find its ``Source:``/``Field:``/``Method:``
-    segments. Any untrusted text interpolated into a provenance string --
-    a model filename, a binary artifact's internal key name -- can contain
-    ``|`` and inject a fake segment when the string is later re-parsed (e.g.
-    misattributing the source to a transparent manifest, which silently drops
-    the entry in minimal detail mode). Apply this to every untrusted string
-    *before* it is embedded in a ``"Source: ..."`` / ``"Field: ..."`` string,
-    not just to dict keys passed to :func:`record_dict_field_provenance` --
-    the same untrusted filename also flows directly into scalar-field
-    provenance (``name``, ``version``, ...) built without that helper.
-
-    A provenance string is shown to a reader (an Annotation ``statement``,
-    the element's ``comment``), so the controls are written as text, as in
-    every other display string
-    (:func:`~pitloom.core.untrusted_text.escape_display_controls`).
-    """
-    return escape_display_controls(text.replace("|", "/"))
 
 
 def record_dict_field_provenance(
@@ -79,8 +55,9 @@ def record_dict_field_provenance(
     GGUF kv key, the safetensors ``__metadata__`` key, ...).
 
     *keys* come from the metadata artifact itself, not from Pitloom -- see
-    :func:`sanitize_provenance_text` for why they (and *source*, when a
-    caller hasn't already sanitized it) are escaped before interpolation.
+    :func:`~pitloom.core.provenance.sanitize_provenance_text` for why they
+    (and *source*, when a caller hasn't already sanitized it) are escaped
+    before interpolation.
 
     Args:
         provenance: The metadata object's provenance map, updated in place.

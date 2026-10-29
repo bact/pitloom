@@ -23,11 +23,11 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
-    sanitize_provenance_text,
 )
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence

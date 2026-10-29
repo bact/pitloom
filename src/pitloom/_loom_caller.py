@@ -27,9 +27,8 @@ from pitloom.__about__ import __version__
 from pitloom.core.evidence import VERIFIED_USING_FIELD, evidence_segment
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
 from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,

@@ -38,10 +38,10 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.pep440 import parse_specifier_set, specifier_contains
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
-from pitloom.extract._extract_utils import pkg_meta_get, sanitize_provenance_text
+from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract.lock.common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")

@@ -26,8 +26,8 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
     source_metadata,
 )
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
 from pitloom.extract.ai_model.archive_member import (

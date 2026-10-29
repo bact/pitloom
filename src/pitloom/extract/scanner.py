@@ -44,7 +44,7 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
-from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract._scanner_messages import detail, scrub
 from pitloom.extract.ai_model import (

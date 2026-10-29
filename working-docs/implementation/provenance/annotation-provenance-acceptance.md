@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,7 +136,8 @@ found and fixed two real gaps:
   `parse_provenance_value` re-parses as if the field came from a transparent
   manifest -- misattributing the source and, in the default minimal-detail
   mode, silently dropping the entry entirely. Fixed with a shared
-  `sanitize_provenance_text()` (`_extract_utils.py`) that escapes `|`,
+  `sanitize_provenance_text()` (`_extract_utils.py`, since moved to
+  `core/provenance.py`) that escapes `|`,
   applied both inside `record_dict_field_provenance` (the key) and at every
   `source = f"Source: {model_path.name}"` construction site (the filename) --
   the first fix (key-only) was caught as incomplete by a follow-up

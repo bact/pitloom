@@ -27,8 +27,8 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
