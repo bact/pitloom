@@ -38,6 +38,7 @@ CONDITIONS: Final = frozenset(
         "left-out",
         "lfs-pointer",
         "licence",
+        "malformed",
         "mismatch",
         "missing-library",
         "moved",
@@ -62,7 +63,33 @@ CONDITIONS: Final = frozenset(
     }
 )
 
-_CODE_RE: Final = re.compile(CODE_PATTERN)
+#: One part of a code: lower-case ASCII words joined by single hyphens.
+_PART: Final = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+#: A catalogued code: a family, optionally ``/`` and a variant.
+CODE_GRAMMAR: Final = rf"{_PART}(?:/{_PART})?"
+#: The longest code.
+LONGEST_CODE: Final = 40
+#: Names no family takes: they name tools and formats, kept free for a
+#: producer namespace (no printed code carries one).
+RESERVED_FAMILIES: Final = frozenset(
+    {"bom", "licenseid", "lumina", "pitloom", "sarif", "sbom", "spdx"}
+)
+
+_CODE_RE: Final = re.compile(CODE_GRAMMAR)
+_READ_RE: Final = re.compile(CODE_PATTERN)
+
+
+def _code_problem(code: str) -> str | None:
+    """Why *code* is not a catalogued code, or ``None``."""
+    if (
+        len(code) > LONGEST_CODE
+        or _CODE_RE.fullmatch(code) is None
+        or _READ_RE.fullmatch(code) is None
+    ):
+        return f"message code {code!r} is not a code"
+    if code.partition("/")[0] in RESERVED_FAMILIES:
+        return f"message code {code!r} takes a reserved family name"
+    return None
 
 
 @dataclass(frozen=True)
@@ -76,7 +103,7 @@ class Message:
     """
 
     #: The stable code printed as `` [code]``: the family, or
-    #: ``<family>.<sub-code>``.
+    #: ``<family>/<variant>`` (:data:`CODE_GRAMMAR`).
     code: str
     #: The group of messages this one belongs to.
     family: str
@@ -98,9 +125,10 @@ class Message:
 
     def __post_init__(self) -> None:
         """Check the entry against the catalogue's rules."""
-        if _CODE_RE.fullmatch(self.code) is None:
-            raise ValueError(f"message code {self.code!r} is not a code")
-        if self.code != self.family and not self.code.startswith(self.family + "."):
+        problem = _code_problem(self.code)
+        if problem is not None:
+            raise ValueError(problem)
+        if self.code.partition("/")[0] != self.family:
             raise ValueError(f"message code {self.code!r} is not in {self.family!r}")
         if self.condition not in CONDITIONS:
             raise ValueError(f"{self.code}: unknown condition {self.condition!r}")

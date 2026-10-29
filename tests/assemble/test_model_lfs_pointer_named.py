@@ -91,7 +91,7 @@ def test_a_lookalike_keeps_the_plain_reason(
     message = str(caught.value)
     assert message.endswith(_PLAIN)
     assert "content not pulled" not in message and _PULL not in message
-    assert code_of(caught.value) == "lfs-pointer.malformed"
+    assert code_of(caught.value) == "lfs-pointer-malformed"
 
 
 @pytest.mark.parametrize("command", ["model", "enrich", "generate"])
@@ -111,6 +111,6 @@ def test_the_cli_exits_1_with_one_error_line(
     err = capsys.readouterr().err
     (line,) = error_lines(err)
     assert ("oid sha256:" in line and _PULL in line) == (case == "real")
-    code = "lfs-pointer" if case == "real" else "lfs-pointer.malformed"
+    code = "lfs-pointer" if case == "real" else "lfs-pointer-malformed"
     assert line.endswith(f" [{code}]") and trusted_message(line) is MESSAGES[code]
     assert "WARNING:" not in err and not out.exists()

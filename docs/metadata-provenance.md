@@ -146,7 +146,7 @@ fact Pitloom measured by reading the content, which is nearly every entry.
 | `not_measured` | Not read, and nothing declared; always with a `Reason`. |
 
 `Reason` is a short code, never free text: `over-cap`, `timeout`,
-`network-failed`, `lfs-pointer`, `unreadable-file` or `unlistable-dir`.
+`network-failed`, `lfs-pointer`, `file-unreadable` or `dir-unlistable`.
 Today only `over-cap` is written, for a dataset in `loom` (a file or a
 directory; the [Python API](python-api.md#tracking-decorator)):
 

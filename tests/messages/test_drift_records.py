@@ -53,7 +53,7 @@ def _record(
             _record(
                 logging.INFO,
                 "FILE=%s: Git LFS pointer shipped; the build did not pull LFS content",
-                "lfs-pointer.shipped",
+                "lfs-pointer/shipped",
                 "a",
             ),
             "not the",
@@ -85,7 +85,7 @@ def test_the_records_of_a_real_emitter_pass_the_check(
     coded = [r for r in caplog.records if hasattr(r, CODE_ATTR)]
     assert [getattr(r, CODE_ATTR) for r in coded] == [
         "lfs-pointer",
-        "lfs-pointer.shipped",
+        "lfs-pointer/shipped",
     ]
     assert [record_problem(r) for r in coded] == [None, None]
 

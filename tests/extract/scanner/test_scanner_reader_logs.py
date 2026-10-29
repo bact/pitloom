@@ -177,7 +177,7 @@ def test_a_reader_records_code_is_kept_when_relogged(
     relayed = [(r.name, getattr(r, CODE_ATTR, None)) for r in caplog.records]
     scanner = "pitloom.extract.scanner"
     assert relayed == [
-        (scanner, "lfs-pointer.malformed"),
+        (scanner, "lfs-pointer-malformed"),
         (scanner, None),
         (scanner, None),
     ]

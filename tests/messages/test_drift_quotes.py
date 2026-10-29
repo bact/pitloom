@@ -25,7 +25,10 @@ from tests._docs_scan import CLI_DOC_FILES, read
 from tests._message_drift import quote_matches, relative
 
 #: The text that marks a quote as saying a family's message.
-_MARKERS = {"lfs-pointer": "Git LFS pointer"}
+_MARKERS = {
+    "lfs-pointer": "Git LFS pointer",
+    "lfs-pointer-malformed": "Git LFS pointer",
+}
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).
 #: Shrink only.
@@ -35,17 +38,18 @@ _SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
 _FENCE = re.compile(r"^[ \t]*```.*?^[ \t]*```", re.DOTALL | re.MULTILINE)
 
 
-def _quotes() -> list[tuple[str, str, str]]:
-    """(file, family, quote) for each inline code span, wrapped lines joined,
-    that holds a family's marker."""
+def _quotes() -> list[tuple[str, tuple[str, ...], str]]:
+    """(file, families, quote) for each inline code span, wrapped lines
+    joined, that holds a family's marker: the families whose marker it
+    holds, one of which it must say."""
     found = []
     for path in CLI_DOC_FILES:
         text = _FENCE.sub("", read(path))
         for span in _SPAN.finditer(text):
             quote = " ".join(span.group(2).split())
-            for family, marker in _MARKERS.items():
-                if marker in quote and (relative(path), quote) not in _EXTERNAL:
-                    found.append((relative(path), family, quote))
+            families = tuple(f for f, marker in _MARKERS.items() if marker in quote)
+            if families and (relative(path), quote) not in _EXTERNAL:
+                found.append((relative(path), families, quote))
     return found
 
 
@@ -66,14 +70,14 @@ def test_the_scan_found_quotes() -> None:
 
 
 @pytest.mark.parametrize(
-    ("file", "family", "quote"),
+    ("file", "families", "quote"),
     _QUOTES,
     ids=[f"{file}:{quote[:40]}" for file, _, quote in _QUOTES],
 )
 def test_a_quote_is_a_piece_of_the_catalogue(
-    file: str, family: str, quote: str
+    file: str, families: tuple[str, ...], quote: str
 ) -> None:
-    assert quote_matches(quote, family), f"{file}: {quote!r}"
+    assert any(quote_matches(quote, f) for f in families), f"{file}: {quote!r}"
 
 
 @pytest.mark.parametrize(
@@ -87,7 +91,7 @@ def test_a_quote_is_a_piece_of_the_catalogue(
             "(oid sha256:<oid>, size <N> byte(s)); run 'git lfs pull'",
             True,
         ),
-        ("Git LFS pointer, content not read [lfs-pointer.shipped]", False),
+        ("Git LFS pointer, content not read [lfs-pointer/shipped]", False),
         ("INFO: Git LFS pointer shipped; the build did not pull LFS content", False),
         ("WARNING: Git LFS pointer, content unread", False),
         ("Git LFS pointer is skipped", False),

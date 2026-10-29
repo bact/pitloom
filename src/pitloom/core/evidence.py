@@ -69,8 +69,8 @@ REASON_CODES: frozenset[str] = frozenset(
         "timeout",
         "network-failed",
         "lfs-pointer",
-        "unreadable-file",
-        "unlistable-dir",
+        "file-unreadable",
+        "dir-unlistable",
     }
 )
 

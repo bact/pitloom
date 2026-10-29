@@ -39,16 +39,26 @@ from pitloom.messages._lfs_pointer import (
     LFS_POINTER_SHIPPED,
 )
 from pitloom.messages._lines import LINE_RE, trusted_message
-from pitloom.messages._types import CONDITIONS, LEVELS, Message
+from pitloom.messages._types import (
+    CODE_GRAMMAR,
+    CONDITIONS,
+    LEVELS,
+    LONGEST_CODE,
+    RESERVED_FAMILIES,
+    Message,
+)
 
 __all__ = [
+    "CODE_GRAMMAR",
     "CONDITIONS",
     "LEVELS",
     "LFS_POINTER",
     "LFS_POINTER_MALFORMED",
     "LFS_POINTER_SHIPPED",
     "LINE_RE",
+    "LONGEST_CODE",
     "MESSAGES",
+    "RESERVED_FAMILIES",
     "CodedValueError",
     "Message",
     "code_extra",

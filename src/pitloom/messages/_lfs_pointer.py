@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The ``lfs-pointer`` family: a Git LFS pointer met instead of its content.
+"""The ``lfs-pointer`` family (a Git LFS pointer met instead of its content)
+and ``lfs-pointer-malformed`` (a file that only opens like one).
 
 See also: :mod:`pitloom.core.lfs_pointer` (the summary warning),
 :mod:`pitloom.extract.scanner` (a pointer that is not whole) and
@@ -47,7 +48,7 @@ LFS_POINTER: Final = Message(
 
 #: Pointers a built artefact (a wheel, the build hook's wheel) holds as files.
 LFS_POINTER_SHIPPED: Final = Message(
-    code=f"{_FAMILY}.shipped",
+    code=f"{_FAMILY}/shipped",
     family=_FAMILY,
     condition="lfs-pointer",
     levels=frozenset({"WARNING"}),
@@ -63,11 +64,12 @@ LFS_POINTER_SHIPPED: Final = Message(
     ),
 )
 
-#: A file that opens like a pointer but is not a whole, valid one.
+#: A file that opens like a pointer but is not a whole, valid one: its own
+#: family, since its condition is another.
 LFS_POINTER_MALFORMED: Final = Message(
-    code=f"{_FAMILY}.malformed",
-    family=_FAMILY,
-    condition="invalid",
+    code="lfs-pointer-malformed",
+    family="lfs-pointer-malformed",
+    condition="malformed",
     levels=frozenset({"WARNING", "ERROR"}),
     subject="FILE (after FORMAT= when the suffix names one), or the model file named",
     summary="A file opens with a Git LFS pointer line, but the rest is not a "

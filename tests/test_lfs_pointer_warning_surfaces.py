@@ -131,11 +131,11 @@ _SURFACES: dict[str, tuple[Callable[..., str], str, str]] = {
     "lib-project": (_lib_project, _CHECKOUT, "lfs-pointer"),
     "cli-git-url": (_cli_git_url, _CLONE, "lfs-pointer"),
     "lib-git-url": (_lib_git_url, _CLONE, "lfs-pointer"),
-    "hook": (_hook, _SHIPPED, "lfs-pointer.shipped"),
-    "cli-wheel": (_cli_wheel, _SHIPPED, "lfs-pointer.shipped"),
-    "lib-wheel": (_lib_wheel, _SHIPPED, "lfs-pointer.shipped"),
-    "cli-embed-wheel": (_cli_embed, _SHIPPED, "lfs-pointer.shipped"),
-    "lib-embed-wheel": (_lib_embed, _SHIPPED, "lfs-pointer.shipped"),
+    "hook": (_hook, _SHIPPED, "lfs-pointer/shipped"),
+    "cli-wheel": (_cli_wheel, _SHIPPED, "lfs-pointer/shipped"),
+    "lib-wheel": (_lib_wheel, _SHIPPED, "lfs-pointer/shipped"),
+    "cli-embed-wheel": (_cli_embed, _SHIPPED, "lfs-pointer/shipped"),
+    "lib-embed-wheel": (_lib_embed, _SHIPPED, "lfs-pointer/shipped"),
 }
 _FIRST = "demo/crlf.dat"
 

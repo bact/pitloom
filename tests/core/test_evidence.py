@@ -105,8 +105,8 @@ def test_reason_codes_are_the_starting_set() -> None:
         "timeout",
         "network-failed",
         "lfs-pointer",
-        "unreadable-file",
-        "unlistable-dir",
+        "file-unreadable",
+        "dir-unlistable",
     }
 
 

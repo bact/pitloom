@@ -54,10 +54,13 @@ OVER_CAP_WARNING = "%s=%s: %s; %s"
 _OVER_CAP_ATTR = "pitloom_over_cap"
 
 #: The LogRecord attribute holding a catalogued message's code
-#: (:mod:`pitloom.messages`), printed as a trailing `` [code]``.
+#: (:mod:`pitloom.messages`), printed as a trailing `` [code]``; an exception
+#: carries its code in an attribute of the same name.
 CODE_ATTR = "pitloom_code"
-#: What a code is; one that does not match whole is never printed.
-CODE_PATTERN = r"[a-z][a-z0-9.-]*"
+#: What a reader takes for a code (``family`` or ``family/variant``); one
+#: that does not match whole is never printed. The catalogue's own grammar is
+#: stricter (:data:`pitloom.messages.CODE_GRAMMAR`).
+CODE_PATTERN = r"[a-z][a-z0-9/-]*"
 _CODE_RE = re.compile(CODE_PATTERN)
 
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),

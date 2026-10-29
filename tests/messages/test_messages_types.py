@@ -41,8 +41,8 @@ def test_every_entry_is_keyed_by_its_own_code() -> None:
     )
 
 
-def test_the_vocabulary_is_closed_at_35_condition_words() -> None:
-    assert len(CONDITIONS) == 35
+def test_the_vocabulary_is_closed_at_36_condition_words() -> None:
+    assert len(CONDITIONS) == 36
     assert {m.condition for m in MESSAGES.values()} <= CONDITIONS
 
 
@@ -50,6 +50,13 @@ def test_the_lfs_pointer_code_is_the_evidence_reason() -> None:
     """One condition, one code: the warning's code and the provenance's
     ``Reason: lfs-pointer`` stay equal."""
     assert LFS_POINTER.code in REASON_CODES
+
+
+@pytest.mark.parametrize(
+    "code", ["lfs-pointer/" + "a" * 28, "lfs-pointer/x1-2", "lfs-pointer/shipped"]
+)
+def test_a_family_slash_variant_up_to_40_characters_is_a_code(code: str) -> None:
+    assert dataclasses.replace(LFS_POINTER, code=code).code == code
 
 
 def test_a_code_catalogued_twice_is_refused() -> None:
@@ -62,8 +69,17 @@ def test_a_code_catalogued_twice_is_refused() -> None:
     [
         ({"code": "LFS"}, "is not a code"),
         ({"code": "lfs-pointer x"}, "is not a code"),
+        ({"code": "lfs-pointer.shipped"}, "is not a code"),
+        ({"code": "lfs-pointer/a/b"}, "is not a code"),
+        ({"code": "lfs--pointer"}, "is not a code"),
+        ({"code": "lfs-pointer-"}, "is not a code"),
+        ({"code": "lfs-pointer/"}, "is not a code"),
+        ({"code": "lfs-pointer/-a"}, "is not a code"),
+        ({"code": "lfs-pointer/" + "a" * 29}, "is not a code"),
         ({"code": "lfs-pointerx"}, "is not in"),
-        ({"code": "other.shipped"}, "is not in"),
+        ({"code": "other/shipped"}, "is not in"),
+        ({"code": "sbom", "family": "sbom"}, "reserved"),
+        ({"code": "pitloom/x", "family": "pitloom"}, "reserved"),
         ({"condition": "broken"}, "unknown condition"),
         ({"levels": frozenset()}, "levels"),
         ({"levels": frozenset({"DEBUG"})}, "levels"),

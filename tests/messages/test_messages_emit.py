@@ -44,8 +44,10 @@ _LOG = logging.getLogger("pitloom.test_messages_emit")
     ("code", "suffix"),
     [
         ("lfs-pointer", " [lfs-pointer]"),
-        ("lfs-pointer.shipped", " [lfs-pointer.shipped]"),
+        ("lfs-pointer/shipped", " [lfs-pointer/shipped]"),
         ("a", " [a]"),
+        ("git.too-large", ""),
+        ("tool.poetry.dependencies", ""),
         ("", ""),
         ("lfs pointer", ""),
         ("lfs-pointer\n", ""),
@@ -99,7 +101,7 @@ def test_a_library_users_own_handler_reads_the_code() -> None:
         emit(_LOG, LFS_POINTER_SHIPPED, logging.WARNING, "FILE=%s: y", "w.bin")
     finally:
         _LOG.removeHandler(handler)
-    assert seen == [("FILE=w.bin: y", "lfs-pointer.shipped")]
+    assert seen == [("FILE=w.bin: y", "lfs-pointer/shipped")]
 
 
 def test_a_repeat_said_once_is_debug_without_its_code(

@@ -346,7 +346,7 @@ def test_percent_in_annotation_text_is_escaped(
     ("file", "code", "eol"),
     [
         ("m.bin", "lfs-pointer", "\\n"),
-        ("x [lfs-pointer]", "lfs-pointer.shipped", "\\n"),
+        ("x [lfs-pointer]", "lfs-pointer/shipped", "\\n"),
         ("100%%25 m", "lfs-pointer", "\\r\\n"),
     ],
     ids=["plain", "hostile-name", "percent-crlf"],

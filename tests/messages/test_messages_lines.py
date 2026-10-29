@@ -38,13 +38,6 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 _LOG = logging.getLogger("pitloom.test_messages_lines")
 _HOSTILE = "x [lfs-pointer]"
 
-#: Uncatalogued string constants ending in a token :data:`LINE_RE` reads as a
-#: code, as (module, token). Shrink only.
-_KNOWN_CODE_LIKE_ENDINGS = {
-    # Not a line end: "<table> has moved to <this>. Update your config."
-    ("core/_config_legacy.py", "[tool.pitloom.content-type]"),
-}
-
 
 @pytest.mark.parametrize(
     ("line", "expected"),
@@ -56,12 +49,12 @@ _KNOWN_CODE_LIKE_ENDINGS = {
         ),
         (
             f"WARNING: FILE={_HOSTILE}: Git LFS pointer shipped (2 files); "
-            "the build did not pull LFS content [lfs-pointer.shipped]",
+            "the build did not pull LFS content [lfs-pointer/shipped]",
             LFS_POINTER_SHIPPED,
         ),
         (
             "ERROR: model command failed: 'm.gguf': header is a Git LFS pointer "
-            "[lfs-pointer.malformed]",
+            "[lfs-pointer-malformed]",
             LFS_POINTER_MALFORMED,
         ),
         # a catalogued code after an uncatalogued text: a value, not a code
@@ -69,7 +62,7 @@ _KNOWN_CODE_LIKE_ENDINGS = {
         # a level the entry is not said at, an uncatalogued code, no code
         (
             "INFO: FILE=a: Git LFS pointer shipped; the build did not pull LFS "
-            "content [lfs-pointer.shipped]",
+            "content [lfs-pointer/shipped]",
             None,
         ),
         ("ERROR: too large [git.too-large]", None),
@@ -147,8 +140,9 @@ def _string_ends(tree: ast.AST) -> list[str]:
 
 
 def test_no_uncatalogued_template_ends_in_a_code() -> None:
-    """A line ending in `` [word.word]`` reads as a code: every such ending
-    in the source is a known one."""
+    """A line ending in `` [word]`` or `` [word/word]`` reads as a code: no
+    string in the source ends so (a dotted TOML table does not read as
+    one)."""
     ending = re.compile(rf" (\[{CODE_PATTERN}\])$")
     root = _SRC / "pitloom"
     found = {
@@ -157,4 +151,4 @@ def test_no_uncatalogued_template_ends_in_a_code() -> None:
         for text in _string_ends(ast.parse(path.read_bytes()))
         for token in ending.findall(text.rstrip())
     }
-    assert found == _KNOWN_CODE_LIKE_ENDINGS
+    assert not found

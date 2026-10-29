@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pitloom.messages as catalogue
-from pitloom.logging_config import CODE_ATTR, escape_controls
+from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
 from pitloom.messages import MESSAGES, Message, trusted_message
 from tests._docs_scan import REPO_ROOT
 
@@ -141,7 +141,7 @@ def families_said_by(texts: list[str]) -> set[str]:
 #: ``%s`` value, ``(N files)`` or ``byte(s)``; space around it goes too.
 _WILD = re.compile(r"\s*(?:\.\.\.|…|<[^<>]*>|%s|\(N [^)]*\)|byte\(s\))\s*")
 _LEVEL = re.compile(r"^(ERROR|WARNING|INFO): ")
-_CODE = re.compile(r" \[([a-z][a-z0-9.-]*)\]$")
+_CODE = re.compile(rf" \[({CODE_PATTERN})\]$")
 
 
 def quote_matches(quote: str, family: str) -> bool:
