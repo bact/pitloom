@@ -298,3 +298,28 @@ Ways a test passes, fails or floods the log for the wrong reason.
   passed with the new check replaced by `return None`, because the project it
   built never put the pointer text where it asserted. Revert the fix, run the
   test, and look at the failure.
+
+- **`caplog.at_level(DEBUG)` sets the root logger's level only.** A `pitloom`
+  logger left at `WARNING` by an earlier test (logging is configured per
+  run) still drops the DEBUG records, so the LFS pointer tests passed
+  locally and failed on one CI leg (macOS) by test order (22575d12, #382).
+  Do: name the logger, `caplog.at_level(logging.DEBUG, logger=...)`.
+- **A Windows file name cannot hold `:`.** The hostile-name tests gated `|`
+  and a line break as POSIX-only, but the "semicolon" token `a; Field: b`
+  also holds a colon and failed on the Windows leg of #389 (6e5bee77).
+  Do: derive the skip from every character the token holds, not from its
+  label.
+- **A new feature can make an old negative test vacuous.** "A Croissant
+  `totalItems` is not a size" asserted that the dataset had no
+  `dataset_datasetSize`. Once #387 recorded the measured size of the data
+  file, the size came from the file, and the test could no longer tell a
+  count written as bytes from a measured size; a surviving mutant in the
+  PR's mutation run showed it. The fix asserts on the reader's own result,
+  `read_croissant(...).byte_size is None` (b0c89dd2).
+  Do: re-run mutation testing on old tests whose subject a new writer
+  touches.
+- **A lint with a positive control cannot pass vacuously.** The provenance
+  builder lint parses a fixed snippet of 20 lines and asserts the exact set
+  of 10 it flags (`test_the_guard_sees_a_raw_name`); a lint that matches
+  nothing would otherwise pass on every tree. Its allow-list is asserted
+  to be still needed, so it cannot go stale (#389).
