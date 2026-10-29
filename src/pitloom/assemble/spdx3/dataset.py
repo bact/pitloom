@@ -22,6 +22,7 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_merge import merge_dataset_references
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.evidence import BYTE_SIZE_FIELD
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.purl import build_generic_purl
@@ -100,7 +101,7 @@ def set_dataset_fields(
     name, types, creator and licence: version, description, download
     location (and its PURL), and the dataset profile and privacy fields."""
     _set_package_fields(dataset_pkg, meta)
-    byte_size = stated_count(meta.byte_size, meta.name, "byte_size")
+    byte_size = stated_count(meta.byte_size, meta.name, BYTE_SIZE_FIELD)
     if byte_size is not None:
         dataset_pkg.dataset_datasetSize = byte_size
     if meta.data_collection_process:
@@ -136,7 +137,7 @@ def written_provenance(meta: DatasetMetadata) -> dict[str, str]:
     size when it is not a count."""
     unwritten = UNWRITTEN_DATASET_FIELDS
     if not is_stated_count(meta.byte_size):
-        unwritten = unwritten | {"byte_size"}
+        unwritten = unwritten | {BYTE_SIZE_FIELD}
     return {k: v for k, v in meta.provenance.items() if k not in unwritten}
 
 

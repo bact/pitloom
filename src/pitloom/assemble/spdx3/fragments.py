@@ -11,7 +11,9 @@ digest conflicts: :mod:`~pitloom.assemble.spdx3._fragments_hashes`; ids:
 :mod:`~pitloom.assemble.spdx3._fragments_ids`; licences:
 :mod:`~pitloom.assemble.spdx3._fragments_licenses`; a base model's name:
 :mod:`~pitloom.assemble.spdx3._fragments_model_names`; the values Pitloom
-generated for it: :mod:`~pitloom.assemble.spdx3._fragments_generated`),
+generated for it: :mod:`~pitloom.assemble.spdx3._fragments_generated`; a
+superseded ``not_measured`` entry:
+:mod:`~pitloom.assemble.spdx3._fragments_evidence`),
 :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
 and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
 document envelope.
@@ -409,7 +411,10 @@ def merge_fragments(
     (an earlier SBOM of the same project) is skipped with a ``WARNING:``,
     as a missing one is. An ``ai_AIPackage`` of the exporter's takes the
     name the fragments unifying with it agree on, with one ``INFO:`` (see
-    :mod:`pitloom.assemble.spdx3._fragments_model_names`).
+    :mod:`pitloom.assemble.spdx3._fragments_model_names`). A
+    ``not_measured`` provenance entry of a field the merged element now
+    holds goes, with one ``INFO:`` each (see
+    :mod:`pitloom.assemble.spdx3._fragments_evidence`).
 
     Raises :class:`FragmentMergeError` if any ``required=True`` fragment
     (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
@@ -453,7 +458,7 @@ def merge_fragments(
         profiles |= _declared_profiles(fragment_set)
         roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
 
-    index.model_names.finish()
+    index.finish()
     _dedupe_relationships(exporter)
 
     if main_doc is not None:

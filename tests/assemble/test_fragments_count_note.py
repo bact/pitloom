@@ -62,10 +62,10 @@ def _count(pkg: spdx3.ai_AIPackage) -> list[str]:
         (
             _pkg(f"{_NOTE}\n{_PROV}", "7"),
             _pkg(f"{_NOTE}\nMetadata provenance: lr: Source: b", "9"),
-            f"{_NOTE}\n{_PROV}; Metadata provenance: lr: Source: b",
+            f"{_NOTE}\n{_PROV}\nMetadata provenance: lr: Source: b",
             ["7"],
         ),
-        (_pkg(f"{_NOTE}\n{_PROV}", "7"), _pkg("x", "9"), f"{_NOTE}\n{_PROV}; x", ["7"]),
+        (_pkg(f"{_NOTE}\n{_PROV}", "7"), _pkg("x", "9"), f"{_NOTE}\n{_PROV}\nx", ["7"]),
         # A note with no `parameters` entry anywhere goes
         (_pkg(_PROV), _pkg(_NOTE), _PROV, []),
         (_pkg(None), _pkg(f"x; {_NOTE}; y"), "x; y", []),

@@ -35,6 +35,8 @@ and this project adheres to
 
 - `DatasetMetadata.dataset_size` is `byte_size` (bytes); no reader sets it
   ([#382])
+- Merged provenance comments start a new line; a `not_measured` entry is dropped
+  when a merge supplies the value ([#386])
 
 ### Fixed
 
@@ -44,6 +46,8 @@ and this project adheres to
   path ([#375])
 - A Croissant `totalItems` count no longer fills `dataset_datasetSize` (bytes);
   it is not recorded ([#382])
+- A `|` in a project file name no longer adds a segment to its provenance
+  ([#386])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -51,6 +55,7 @@ and this project adheres to
 [#378]: https://github.com/bact/pitloom/pull/378
 [#381]: https://github.com/bact/pitloom/pull/381
 [#382]: https://github.com/bact/pitloom/pull/382
+[#386]: https://github.com/bact/pitloom/pull/386
 
 ## [0.21.1] - 2026-10-28
 

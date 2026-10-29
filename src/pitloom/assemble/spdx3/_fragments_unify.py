@@ -10,9 +10,10 @@ orchestration), :mod:`pitloom.assemble.spdx3._fragments_props` (property
 merging), :mod:`pitloom.assemble.spdx3._fragments_hashes` (digest conflicts),
 :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification),
 :mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge),
-:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name) and
+:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name),
 :mod:`pitloom.assemble.spdx3._fragments_generated` (the values Pitloom
-generated for it).
+generated for it) and :mod:`pitloom.assemble.spdx3._fragments_evidence` (a
+``not_measured`` entry a merged value supersedes).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_evidence import drop_superseded_absences
 from pitloom.assemble.spdx3._fragments_generated import GeneratedValues
 from pitloom.assemble.spdx3._fragments_hashes import (
     hash_conflict,
@@ -143,6 +145,9 @@ class _MergeIndex:
         self.model_names = ModelNames(exporter, exporter.object_set.objects)
         #: The properties of those models that Pitloom generated.
         self.generated = GeneratedValues(self.model_names, exporter.object_set.objects)
+        #: Every element a fragment folded into, by object id: the only ones
+        #: whose ``not_measured`` provenance a merge can supersede.
+        self.folded: dict[int, spdx3.SHACLObject] = {}
         for obj in sorted(exporter.object_set.objects, key=_canonical_merge_key):
             self._index(obj)
 
@@ -154,6 +159,14 @@ class _MergeIndex:
                 self.by_hash.setdefault((type(obj).__name__, digest), element)
         if isinstance(obj, _STRUCTURAL_TYPES):
             self.structural.setdefault(type(obj), []).append(obj)
+
+    def finish(self) -> None:
+        """Settle what needs every fragment folded: the base models' names
+        (:meth:`ModelNames.finish`), then the ``not_measured`` provenance a
+        merged value supersedes (:func:`drop_superseded_absences`) on the
+        elements a fragment folded into."""
+        self.model_names.finish()
+        drop_superseded_absences(self.exporter, self.folded.values())
 
     def note_source(self, source: str, objects: Iterable[spdx3.SHACLObject]) -> None:
         """Record that *source* (the base document, ``""``, or a fragment
@@ -383,6 +396,7 @@ def _merge_fragment_set(
         if not isinstance(obj, _ENVELOPE_TYPES):
             _to_id_refs(obj, id_map, seen)
     for survivor, obj in folds:
+        index.folded.setdefault(id(survivor), survivor)
         index.generated.replace(survivor, obj)
         _merge_properties(
             _as_element(survivor),
