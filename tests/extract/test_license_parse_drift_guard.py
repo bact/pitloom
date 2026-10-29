@@ -76,7 +76,8 @@ def test_an_accepted_answer_names_only_listed_ids(raw: str) -> None:
     got = classify_license(raw, warn=False)
     assert got is not None
 
-    assert _unknown_ids(got.value) == []
+    unknown = _unknown_ids(got.value)
+    assert not unknown, unknown
 
 
 def test_the_guard_sees_an_id_the_library_lacks() -> None:
