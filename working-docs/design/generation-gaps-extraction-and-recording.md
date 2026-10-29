@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,13 +41,15 @@ different tests, and the docs mixed them.
 ## Extraction gaps
 
 The value is not in a source Pitloom reads, is in one it does not read yet, is
-in several that disagree, or needs a judgement.
+in several that disagree, needs a judgement, or is in a source Pitloom was not
+allowed or not able to get (a cap, a timeout, a failed fetch).
 
 | Kind | Example (checked against the code, 2026-10-23) | Where it is fixed | Meanwhile |
 | --- | --- | --- | --- |
 | The source never carries it | A bare Safetensors file has no version, producer or time | Nowhere: a fragment or the user supplies it | Absent; no `WARNING:` (absent data is not an error) |
 | The source carries it; no reader | Hub `config.json` fields no reader maps; a Hub model's file hash (a request per file) | The extractor: [model-metadata-extraction.md](model-metadata-extraction.md), [known-bugs.md](known-bugs.md) | Absent |
 | Sources disagree | A fragment against a value read from the file; two fragments; a lock file against an installed version | The merge rules: [docs/fragments.md](../../docs/fragments.md), issue [#150](https://github.com/bact/pitloom/issues/150), provenance in the SBOM | The earlier element wins, with a `WARNING:`; a value Pitloom only generated yields to a fragment's (#349) |
+| The source carries it; the read was refused or the bytes never arrived | A model over the read cap; a clone stopped at the size cap; an unpulled Git LFS file; a fetch that timed out | [evidence-levels.md](evidence-levels.md): declared value if one exists, else `not_measured` with the reason | Absent from the property; a `WARNING:` and a provenance entry saying why |
 | Needs judgement | A person or an organisation; what a parameter count means; a modality from a tensor signature | The `sbom-enrich` skill or a fragment, each recording its own provenance | The weaker form (a generic `Agent`) |
 | Not an artefact fact | Data flow, security controls, infrastructure, KPIs | Out of Pitloom's scope | Absent |
 
