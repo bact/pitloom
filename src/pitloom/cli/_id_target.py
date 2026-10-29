@@ -14,11 +14,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple
 
+from pitloom.core.config import PitloomConfig
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
+from pitloom.id_registry import DATASET_PACKAGE_TYPE
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -43,21 +46,21 @@ class _ConfigSlot(NamedTuple):
     has_key: bool
 
 
-def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]:
-    """The project's own configured ``id-registry``, and which table it
-    would live in -- resolved the same way
+def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
+    """The project's own ``[tool.pitloom]``/``[tool:pitloom]`` config, and
+    which table it would live in -- resolved the same way
     :func:`pitloom.extract.project.read_project` selects between
     ``pyproject.toml``'s ``[tool.pitloom]`` and ``setup.cfg``'s
     ``[tool:pitloom]`` for every other Pitloom surface (see
     ``CLAUDE.md``'s "Usage surfaces": a hand-rolled pyproject.toml-only
     read here would silently diverge from that selection).
 
-    Returns ``(None, _PYPROJECT_TABLE)`` when *project_dir* has no
+    Returns the defaults and ``_PYPROJECT_TABLE`` when *project_dir* has no
     ``pyproject.toml``/``setup.cfg``/``setup.py`` at all -- nothing to
     read, not an error.
     """
     if not any(os.path.isfile(project_dir / name) for name in PROJECT_FILES):
-        return None, _PYPROJECT_TABLE
+        return PitloomConfig(), _PYPROJECT_TABLE
     _metadata, pitloom_config, config_path = read_project(
         project_dir,
         include_locked_dependencies=False,
@@ -69,7 +72,30 @@ def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]
         if config_path is not None and config_path.name == "setup.cfg"
         else _PYPROJECT_TABLE
     )
+    return pitloom_config, table
+
+
+def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]:
+    """The project's own configured ``id-registry`` and its table (see
+    :func:`_read_project_config`, which it raises like)."""
+    pitloom_config, table = _read_project_config(project_dir)
     return pitloom_config.id_registry, table
+
+
+def resolve_dataset_hash_ceiling(
+    flag: int | None, project_dir: Path, entity_types: Iterable[str]
+) -> int:
+    """The most bytes ``id generate -e`` reads to hash a dataset: *flag*
+    (``--max-dataset-hash-bytes``), else the project's own
+    ``max-dataset-hash-bytes``, else the default. The project is read only
+    without a *flag* and when *entity_types* holds a dataset (an unreadable
+    config then raises like :func:`_project_configured_id_registry`);
+    otherwise nothing is hashed and the default stands in."""
+    if flag is not None:
+        return flag
+    if DATASET_PACKAGE_TYPE not in entity_types:
+        return PitloomConfig().max_dataset_hash_bytes
+    return _read_project_config(project_dir)[0].max_dataset_hash_bytes
 
 
 def _normalized_absolute(path: Path) -> Path:

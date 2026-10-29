@@ -9,7 +9,9 @@ bash with ``PATH`` limited to stubs (POSIX only), so the tests cover the
 argument handling, output/annotation capture and exit-code propagation
 without installing Pitloom.
 
-See also: :mod:`tests.scripts.action.test_generate_step_id_registry`
+See also: :mod:`tests.scripts.action.test_generate_step_inputs` (the
+inputs' wiring and the byte caps),
+:mod:`tests.scripts.action.test_generate_step_id_registry`
 (the ``id-registry``/``update-id-registry`` input tests, split out to
 keep this file under this repo's file-size guidance) -- both share the
 ``generate`` fixture and wheel-building helpers from

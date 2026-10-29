@@ -280,6 +280,17 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("1", "exit:2", "--max-source-metadata-bytes", "1"),
         _v("-1", "exit:2", "--max-source-metadata-bytes", "-1"),
     ],
+    # Live on `wheel`, whose safetensors model is then listed without
+    # metadata; inert on every other cell (embed-wheel has --project-dir).
+    "--max-model-extract-bytes": [
+        _v("1", "any", "--max-model-extract-bytes", "1"),
+        _v("0", "exit:2", "--max-model-extract-bytes", "0"),
+        _v("-1", "exit:2", "--max-model-extract-bytes", "-1"),
+    ],
+    ("wheel", "--max-model-extract-bytes"): [
+        _v("1", "changes", "--max-model-extract-bytes", "1"),
+        _v("0", "exit:2", "--max-model-extract-bytes", "0"),
+    ],
     "-v": [_v("-v", "same", "-v")],
     "--id-registry": [
         # r.json is never created for this cell -- a declared but missing
@@ -348,6 +359,13 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--fail-on-mismatch": [_v("--fail-on-mismatch", "same", "--fail-on-mismatch")],
     "--no-merge": [_v("--no-merge", "same", "--no-merge")],
     "-e": [_v("entity", "changes", "-e", "matrix-entity")],
+    # `id generate` only. No cell pins a dataset, so a cap changes nothing;
+    # what it does is check 24 (id generate -e vs loom.run).
+    "--max-dataset-hash-bytes": [
+        _v("1", "same", "--max-dataset-hash-bytes", "1"),
+        _v("0", "exit:2", "--max-dataset-hash-bytes", "0"),
+        _v("-1", "exit:2", "--max-dataset-hash-bytes", "-1"),
+    ],
     "--namespace": [
         _v("IRI", f"contains:{_NAMESPACE}", "--namespace", _NAMESPACE),
         _v("relative", "exit:2", "--namespace", "relative/ns"),

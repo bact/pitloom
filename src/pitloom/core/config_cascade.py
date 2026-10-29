@@ -49,6 +49,7 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
+from pitloom.core.model_extract_limit import require_positive_ceiling
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
@@ -59,6 +60,7 @@ __all__ = [
     "ConfigOverrides",
     "apply_overrides",
     "load_config_file",
+    "require_model_extract_override",
     "resolve_standalone_config",
 ]
 
@@ -84,6 +86,12 @@ class ConfigOverrides:
             value. Checked by
             :func:`~pitloom.core.provenance.require_max_source_metadata_bytes`:
             ``0`` or at least 8, else ``ValueError``.
+        max_model_extract_bytes: ``--max-model-extract-bytes``: the
+            per-model ceiling of a wheel's AI model scan (the wheel's budget
+            is four times it). Only a standalone wheel embed reads it; any
+            other embed warns. Checked by
+            :func:`require_model_extract_override` even there: at least 1,
+            else ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
@@ -117,8 +125,19 @@ class ConfigOverrides:
     describe_relationship: bool | None = None
     update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
+    max_model_extract_bytes: int | None = None
     trust_wheel_model: bool | None = None
     build_options: BuildOptions = BuildOptions()
+
+
+def require_model_extract_override(value: object) -> int:
+    """A ``max_model_extract_bytes`` keyword or override, checked by
+    :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`.
+
+    Raises:
+        ValueError: *value* is not an integer of at least 1.
+    """
+    return require_positive_ceiling(value, "max_model_extract_bytes")
 
 
 def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
@@ -177,6 +196,21 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
     )
 
 
+#: The :class:`ConfigOverrides` fields copied as given, each to its
+#: :class:`~pitloom.core.config.PitloomConfig` field.
+_PLAIN_OVERRIDES = {
+    "enrich": "enrich_local",
+    "extract_file_header": "extract_file_header",
+    "scan_model_usage": "scan_model_usage",
+    "content_type": "content_type_enabled",
+    "content_type_method": "content_type_method",
+    "offline": "offline",
+    "pretty": "pretty",
+    "describe_relationship": "describe_relationship",
+    "update_id_registry": "update_id_registry",
+}
+
+
 def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomConfig:
     """Layer one run's explicit overrides onto *cfg*.
 
@@ -202,27 +236,17 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
             changes[f"provenance_{prov_field.name}"] = getattr(
                 overrides.provenance, prov_field.name
             )
-    if overrides.enrich is not None:
-        changes["enrich_local"] = overrides.enrich
-    if overrides.extract_file_header is not None:
-        changes["extract_file_header"] = overrides.extract_file_header
-    if overrides.scan_model_usage is not None:
-        changes["scan_model_usage"] = overrides.scan_model_usage
-    if overrides.content_type is not None:
-        changes["content_type_enabled"] = overrides.content_type
-    if overrides.content_type_method is not None:
-        changes["content_type_method"] = overrides.content_type_method
-    if overrides.offline is not None:
-        changes["offline"] = overrides.offline
-    if overrides.pretty is not None:
-        changes["pretty"] = overrides.pretty
-    if overrides.describe_relationship is not None:
-        changes["describe_relationship"] = overrides.describe_relationship
-    if overrides.update_id_registry is not None:
-        changes["update_id_registry"] = overrides.update_id_registry
+    for name, config_name in _PLAIN_OVERRIDES.items():
+        value = getattr(overrides, name)
+        if value is not None:
+            changes[config_name] = value
     if overrides.max_source_metadata_bytes is not None:
         changes["provenance_max_source_metadata_bytes"] = (
             require_max_source_metadata_bytes(overrides.max_source_metadata_bytes)
+        )
+    if overrides.max_model_extract_bytes is not None:
+        changes["max_model_extract_bytes"] = require_model_extract_override(
+            overrides.max_model_extract_bytes
         )
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)

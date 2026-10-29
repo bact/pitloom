@@ -51,6 +51,7 @@ def generate_wheel_sbom(
     content_type_method: str | None = None,
     update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
+    max_model_extract_bytes: int | None = None,
     scan_model_usage: bool | None = None,
     trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
@@ -80,9 +81,10 @@ def generate_wheel_sbom(
 
     AI models inside the wheel are found; *scan_model_usage* also records
     which Python files in it reference them. One model file is copied out
-    of the wheel at a time, each up to the config's
-    ``max-model-extract-bytes`` (no parameter: configuration only) and four
-    times that in all, counting bytes copied and bytes read from archive
+    of the wheel at a time, each up to *max_model_extract_bytes*
+    (``--max-model-extract-bytes``; else the config's
+    ``max-model-extract-bytes``, 512 MiB by default) and four times that in
+    all, counting bytes copied and bytes read from archive
     members; a model beyond either limit is listed without metadata. Models
     in a format whose reader a hostile file can crash or hang (fastText,
     GGUF, HDF5, ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata
@@ -99,7 +101,8 @@ def generate_wheel_sbom(
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
-            one holds a NUL.
+            one holds a NUL; or *max_model_extract_bytes* is not an
+            integer of at least 1.
         FileNotFoundError: *project_dir* is given and is not a directory.
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
@@ -115,6 +118,7 @@ def generate_wheel_sbom(
         content_type_method=content_type_method,
         update_id_registry=update_id_registry,
         max_source_metadata_bytes=max_source_metadata_bytes,
+        max_model_extract_bytes=max_model_extract_bytes,
         scan_model_usage=scan_model_usage,
         trust_wheel_model=trust_wheel_model,
         pitloom_config=pitloom_config,
@@ -135,6 +139,7 @@ def generate_wheel_sbom_with_metadata(
     content_type_method: str | None = None,
     update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
+    max_model_extract_bytes: int | None = None,
     scan_model_usage: bool | None = None,
     trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
@@ -148,7 +153,8 @@ def generate_wheel_sbom_with_metadata(
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
-            one holds a NUL.
+            one holds a NUL; or *max_model_extract_bytes* is not an
+            integer of at least 1.
         FileNotFoundError: *project_dir* is given and is not a directory.
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
@@ -164,6 +170,7 @@ def generate_wheel_sbom_with_metadata(
             describe_relationship=describe_relationship,
             update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            max_model_extract_bytes=max_model_extract_bytes,
             scan_model_usage=scan_model_usage,
         ),
     )

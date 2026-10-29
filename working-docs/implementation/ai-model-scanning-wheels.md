@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -134,14 +134,23 @@ Hatchling hook scans its project directory, never a wheel.
   nothing to clean up. A leftover directory is named by its basename only,
   "in the system temp directory" (`mkdtemp`'s default): a full path is a
   machine-specific string in a log.
-- **Config.** `max-model-extract-bytes` (default 512 MiB) is a config key
-  only: no flag, no keyword. It applies to wheel targets and comes from
-  `--config`/`pitloom_config=`. `<= 0` is a one-line config error; unlike
+- **Config.** `max-model-extract-bytes` (default 512 MiB) applies to wheel
+  targets: `--max-model-extract-bytes` (argparse type
+  `positive_byte_ceiling`) or the `max_model_extract_bytes=` keyword
+  (`generate()`, the wheel generators, `ConfigOverrides`), else the
+  `--config`/`pitloom_config=` key, else the default; the Action input
+  appends the flag. It follows `max-source-metadata-bytes` (one
+  `ConfigOverrides` field, one `apply_overrides` line, an embed batch
+  validates once before its inert warning), but with `trust_wheel_model`'s
+  INERT rows: every non-wheel kind warns. `generate()` validates it before
+  dispatching, so a bad value is an error on an inert target too; the project
+  generator takes no such parameter, and its callers settle it with
+  `forward_options` and `project_target_kind`. `<= 0` is an error; unlike
   `max-source-metadata-bytes`, zero is not "unlimited", because this is a
-  safety ceiling. A library caller's `PitloomConfig` is never parsed, so the
-  scan entry runs the same validator
-  (`require_max_model_extract_bytes()`, a `bool`/non-`int`/`<= 0` is the same
-  one-line error) before it touches the wheel.
+  safety ceiling. Every surface shares `require_positive_ceiling()` (a
+  `bool`/non-integer/`<= 0` is one line naming the surface), and the scan
+  entry runs it again on a library `PitloomConfig`, never parsed, before it
+  touches the wheel.
 - **Bounds** (inner-member read cap, header and opcode bounds, entry caps,
   ZIP central directory, the audit that every cut is reported, what is left
   open): [ai-model-scan-bounds.md](ai-model-scan-bounds.md).

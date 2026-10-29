@@ -128,7 +128,7 @@ nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
 loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
-# more: --project-dir DIR (both; import from above the project needs it)  --namespace IRI  -e NAME[:TYPE] (repeatable, generate only)
+# more: --project-dir DIR (both; import from above the project needs it)  --namespace IRI  -e NAME[:TYPE] (repeatable, generate only)  --max-dataset-hash-bytes BYTES (generate only; caps a -e dataset's hashing)
 ```
 
 - `-o`/`--id-registry` is required unless the project config already
@@ -258,7 +258,8 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
 - `id_registry=` takes a path (relative to the current directory) or an
   `IdRegistry`; without it the registry comes from `pitloom_config=` (a path to
   a config file or a `PitloomConfig`; its `id-registry`, `update-id-registry`
-  and `max-dataset-hash-bytes` are the only keys loom reads). No
+  and `max-dataset-hash-bytes` are the only keys loom reads; the keyword
+  `max_dataset_hash_bytes=` beats the last). No
   `[tool.pitloom]` is read implicitly; a missing `pitloom_config` file is a
   `ValueError`. With neither, no registry.
 - `set_model()`/`use_model()` take `path=`; the model resolves when the block

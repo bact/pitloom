@@ -116,6 +116,17 @@ inputs:
       (unbounded) by default. 0 or at least 8; anything else is an error.
     required: false
     default: ""
+  max-model-extract-bytes:
+    description: >-
+      With embed-wheel and an empty project-path, read an AI model file
+      inside the wheel only up to this many bytes (four times it for the
+      whole wheel); a larger one is listed without metadata. A positive
+      integer; anything else is an error. Empty (default) defers to
+      [tool.pitloom] max-model-extract-bytes in config, which is 512 MiB by
+      default. No effect outside embed-wheel mode, or with a project-path
+      (the models are then read from the project): Pitloom warns.
+    required: false
+    default: ""
   config:
     description: >-
       Path to a TOML file whose [tool.pitloom] table replaces the
@@ -287,6 +298,7 @@ runs:
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
         PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
+        PL_MAX_MODEL_EXTRACT_BYTES: ${{ inputs.max-model-extract-bytes }}
         PL_CONFIG: ${{ inputs.config }}
         PL_OFFLINE: ${{ inputs.offline }}
         PL_USE_LOCKFILE: ${{ inputs.use-lockfile }}
@@ -385,6 +397,9 @@ runs:
         fi
         if [ -n "${PL_MAX_SOURCE_METADATA_BYTES}" ]; then
           loom_args+=("--max-source-metadata-bytes" "${PL_MAX_SOURCE_METADATA_BYTES}")
+        fi
+        if [ -n "${PL_MAX_MODEL_EXTRACT_BYTES}" ]; then
+          loom_args+=("--max-model-extract-bytes" "${PL_MAX_MODEL_EXTRACT_BYTES}")
         fi
         if [ -n "${PL_CONFIG}" ]; then
           loom_args+=("--config" "${PL_CONFIG}")

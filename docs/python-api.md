@@ -151,6 +151,12 @@ Other arguments that mirror a CLI flag or config key:
   `project_dir=`): `--trust-wheel-model`, for a wheel you trust only. It has no
   config key, so a config cannot opt in. Other targets warn that it has no
   effect.
+- `max_model_extract_bytes=` (`generate()`, `generate_wheel_sbom()`;
+  `ConfigOverrides.max_model_extract_bytes` for `embed_wheel_sbom()` without
+  `project_dir=`): `--max-model-extract-bytes`, the per-model ceiling of a
+  wheel's model scan; it wins over `pitloom_config=`'s `max-model-extract-bytes`.
+  Other targets warn that it has no effect; a value that is not an integer of
+  at least 1 (`True` included) raises `ValueError` on every target.
 - `id_registry=`: `--id-registry`; see [Loom ID registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an
   sdist, `generate()` on either): `--project-dir` of `wheel`/`project`, the
@@ -165,7 +171,7 @@ Other arguments that mirror a CLI flag or config key:
 What `scan_model_usage` records, and which wheel models are listed without
 metadata and why: [Configuration](configuration.md) and [AI model scan
 limits](ai-model-scan-limits.md#formats-gated-in-wheels). For a wheel, a bad
-`max-model-extract-bytes` in `pitloom_config=` raises `ValueError`.
+`max-model-extract-bytes` in `pitloom_config=` raises `ValueError` too.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()` (and
 `generate_wheel_sbom_with_metadata()`, which returns `(json, metadata)`: the
@@ -310,8 +316,10 @@ and content, its `comment` saying so, and no file elements. Below a dataset
 directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)
 and symbolic links to directories are left out of the root, as is the
 declared registry file. A missing or remote dataset name gets no hash.
-Hashing one dataset reads at most `max-dataset-hash-bytes` (4 GiB by
-default); over it, the dataset gets no hash and one `WARNING:`.
+Hashing one dataset reads at most `max_dataset_hash_bytes=` (else the
+config's `max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets
+no hash and one `WARNING:`. The keyword is an integer of at least 1:
+`0` and a `bool` raise `ValueError` as the run begins.
 A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the
 hash of the file it replaces. One name holding one content is one package per
@@ -461,7 +469,8 @@ work happens.
 relative to the current directory) to set `id-registry`,
 `update-id-registry` or `max-dataset-hash-bytes`; no other key has an
 effect there.
-`id_registry=` wins over the config's `id-registry`. A config file that is
+`id_registry=` wins over the config's `id-registry`, and
+`max_dataset_hash_bytes=` over its `max-dataset-hash-bytes`. A config file that is
 missing, unreadable or invalid raises `ValueError` as the run begins.
 
 The merge itself (`pitloom.assemble.merge_fragments`, run by

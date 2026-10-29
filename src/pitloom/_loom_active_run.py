@@ -36,7 +36,10 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.lfs_pointer import UnreadPointers
-from pitloom.core.model_extract_limit import require_max_dataset_hash_bytes
+from pitloom.core.model_extract_limit import (
+    require_max_dataset_hash_bytes,
+    require_positive_ceiling,
+)
 from pitloom.core.models import build_relationship
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -98,18 +101,25 @@ class _ActiveRun:
         id_registry: str | Path | IdRegistry | None = None,
         *,
         pitloom_config: PitloomConfig | str | Path | None = None,
+        max_dataset_hash_bytes: int | None = None,
     ):
         # First: a declared-and-bad config or registry must fail before
         # _active_run is set (its caller assigns this constructor's result
         # directly to the module global -- an exception here means that
         # assignment never happens). Of the config, loom reads only the
         # registry (the id_registry argument wins), its update switch and
-        # the dataset hash ceiling.
+        # the dataset hash ceiling (the max_dataset_hash_bytes argument wins).
         configure_logging()
         config = loom_config(pitloom_config)
         resolved = resolve_registry(id_registry, config.id_registry, Path.cwd())
-        max_hash_bytes = require_max_dataset_hash_bytes(
-            config.max_dataset_hash_bytes, "pitloom_config"
+        max_hash_bytes = (
+            require_max_dataset_hash_bytes(
+                config.max_dataset_hash_bytes, "pitloom_config"
+            )
+            if max_dataset_hash_bytes is None
+            else require_positive_ceiling(
+                max_dataset_hash_bytes, "max_dataset_hash_bytes"
+            )
         )
         self.update_id_registry: bool = config.update_id_registry
         self.output_file = output_file
