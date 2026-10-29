@@ -424,3 +424,26 @@ From the Git LFS pointer work. Open:
   `loom project`; file ids are shared (the registry holds the `oid`).
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.
+
+## Found 2026-10-29 (evidence-levels review)
+
+From an Opus review of the provenance code against `evidence-levels.md`. Open:
+
+- [ ] **`dataset_datasetSize` holds a record count (M).** A Croissant
+  `cr:totalItems` becomes `dataset_size`, which becomes `dataset_datasetSize`
+  (`extract/dataset/croissant.py`, `assemble/spdx3/dataset.py`); SPDX defines
+  the property in bytes, and `dataset_metadata.py` and
+  `skills/sbom-enrich/references/minimum-elements-datasets.md` say "record
+  count". Silently wrong data; move the count to a comment and an FG entry
+  before any byte size is written to the property.
+- [ ] **After a comment merge the second `Metadata provenance:` block is not
+  found by the drop helpers (S).** `_merge_comment` joins comments with `"; "`
+  (`_fragments_props.py`); `provenance_comment_parts` strips the prefix only at
+  the start of a line.
+- [ ] **An unreadable project file is logged with the raw exception (S).** The
+  skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
+  `OSError` text can hold an absolute path.
+- [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
+  `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
+  and logs DEBUG only, so no `failed` entry is possible there without the 404
+  check `huggingface_dataset.py` already has.
