@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,17 +29,25 @@ and this project adheres to
 - A Git LFS pointer in a checkout is listed by its `oid` (SHA-256 only) with one
   `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
 
+### Changed
+
+- `DatasetMetadata.dataset_size` is `byte_size` (bytes); no reader sets it
+  ([#382])
+
 ### Fixed
 
 - `embed-wheel --sbom` refuses invalid JSON, a non-object and a `.spdx3.json`
   that is not SPDX 3, before the wheel is written ([#374])
 - A Git URL's messages show the temporary checkout as `<checkout>`, not a random
   path ([#375])
+- A Croissant `totalItems` count no longer fills `dataset_datasetSize` (bytes);
+  it is not recorded ([#382])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
 [#376]: https://github.com/bact/pitloom/pull/376
 [#378]: https://github.com/bact/pitloom/pull/378
+[#382]: https://github.com/bact/pitloom/pull/382
 
 ## [0.21.1] - 2026-10-28
 

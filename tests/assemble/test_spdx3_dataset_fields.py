@@ -15,17 +15,24 @@ relationship types and dataset-profile conformance.
 from __future__ import annotations
 
 import json
+import logging
+from pathlib import Path
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.dataset import (
     _build_dataset_package,
     add_datasets_for_model,
 )
+from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.models import _clear_doc_counters, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract.dataset.croissant import read_croissant
+from tests._author_routes import CREATED
+from tests._spdx3_validate import assert_spdx3_valid
 
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_meta
 
@@ -97,12 +104,68 @@ def test_build_dataset_package_unknown_type_skipped() -> None:
     assert len(pkg.dataset_datasetType) == 1
 
 
-def test_build_dataset_package_dataset_size() -> None:
+_MAX_SIZE = 2**53 - 1
+_BYTES = "Source: caller | Field: byte_size"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (10000, 10000),
+        (0, 0),
+        (_MAX_SIZE, _MAX_SIZE),
+        (None, None),
+        (-1, None),
+        (True, None),
+        (_MAX_SIZE + 1, None),
+        (1.5, None),
+    ],
+    ids=["size", "zero", "largest", "absent", "negative", "bool", "over", "fraction"],
+)
+def test_byte_size_reaches_dataset_size_when_it_is_a_count(
+    value: object, expected: int | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A library caller's ``byte_size`` is ``dataset_datasetSize`` (bytes);
+    a value that is no count gives none, with one ``WARNING:``, and the
+    provenance the caller gave it goes too."""
     _clear_doc_counters(_DOC_UUID)
-    pkg = _build_dataset_package(
-        _make_meta(dataset_size=10000), _make_ci(), _DOC_NAME, _DOC_UUID
+    exporter = _make_exporter()
+    meta = _make_meta(byte_size=value, provenance={"byte_size": _BYTES})
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        add_datasets_for_model(
+            generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID),
+            [DatasetReference(role="trainedOn", metadata=meta)],
+            _make_ci(),
+            _DOC_NAME,
+            _DOC_UUID,
+            exporter,
+            ai_model=AiModelMetadata(),
+        )
+    graph = json.loads(exporter.to_json())["@graph"]
+    package = next(e for e in graph if e.get("type") == "dataset_DatasetPackage")
+    assert package.get("dataset_datasetSize") == expected
+    noted = [e for e in graph if e.get("type") == "Annotation"]
+    stated = any("byte_size" in a["statement"] for a in noted)
+    assert stated is (expected is not None)
+    assert len(caplog.records) == (value is not None and expected is None)
+
+
+@pytest.mark.parametrize("name", ["full.json", "prefixed.json"])
+def test_a_croissant_count_gives_a_valid_deterministic_sbom_without_size(
+    tmp_path: Path, name: str
+) -> None:
+    """The fixtures state ``totalItems``: the SBOM has no size, is valid
+    SPDX 3 and is the same bytes when built again."""
+    meta = read_croissant(Path(__file__).parents[1] / "fixtures" / "croissant" / name)
+    model = AiModelMetadata(
+        name="m", datasets=[DatasetReference(role="trainedOn", metadata=meta)]
     )
-    assert pkg.dataset_datasetSize == 10000
+    first, second = (build_model(model, CREATED).to_json() for _ in range(2))
+    assert first == second
+    assert "datasetSize" not in first
+    sbom = tmp_path / "m.spdx3.json"
+    sbom.write_text(first, encoding="utf-8")
+    assert_spdx3_valid(sbom)
 
 
 def test_build_dataset_package_data_collection_process() -> None:

@@ -130,9 +130,10 @@ The three build backends give the same result for the same project.
 - **A dataset's licence, description, version and owner come only from what
   its source states.** For a Hugging Face model, Pitloom reads the Hub card and
   repository of each listed dataset (up to 20), only when it looks the model up.
-  A dataset's provenance and statistics (size, collection, bias) reach a model
-  SBOM only through the library (`loom` with a Croissant file). A dataset
-  named in a local model card gets only its name.
+  A dataset's provenance and statistics (collection, bias) reach a model SBOM
+  only through the library (`loom` with a Croissant file); its size in bytes,
+  only when a library caller sets `DatasetMetadata.byte_size`. A dataset named
+  in a local model card gets only its name.
 - **Licence IDs are kept as read** when the `licenseid` database is not built.
 - **A setuptools project ships a model only when `package-data` lists it**, and
   the SBOM describes what would ship.
@@ -155,6 +156,7 @@ when a place is a workaround:
 | Input and output | A labelled JSON text in `ai_informationAboutApplication`; the checker counts the property as present, which is not a statement of intended use |
 | A model's known biases | Text in the package comment |
 | A model's own file metadata | An annotation, preserved and not interpreted |
+| A dataset's record count | Not recorded: `dataset_datasetSize` is a size in bytes, and a Croissant file has no standard key for a count |
 
 A value that has no honest place at all is left out, and the same `INFO:` line
 names it. SPDX 3.1 adds some of what is missing, such as a tool version.

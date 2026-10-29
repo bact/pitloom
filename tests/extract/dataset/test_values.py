@@ -19,11 +19,11 @@ import pytest
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
 from pitloom.extract.dataset.values import (
     MAX_VERSION_DIGITS,
+    is_stated_count,
     stated_count,
     stated_name,
     stated_text,
     stated_texts,
-    stated_total,
     stated_version,
 )
 
@@ -182,36 +182,12 @@ def test_stated_count(
 
 
 @pytest.mark.parametrize(
-    ("values", "expected", "warnings"),
-    [
-        ([], None, 0),
-        ([2, 3], 5, 0),
-        ([10, None, None], None, 0),
-        ([10, "abc"], None, 1),
-        ([-5, "x", 2], None, 1),
-        ([10**63] * 20, None, 1),
-        ([MAX_SAFE_INTEGER, 1], None, 1),
-        ([-5, MAX_SAFE_INTEGER, 1], None, 1),
-    ],
-    ids=[
-        "none",
-        "sum",
-        "partly-absent",
-        "partly-bad",
-        "refused-items",
-        "items-over-cap",
-        "sum-over-cap",
-        "bad-and-over-cap",
-    ],
+    "value",
+    [None, 0, 7, "12", 3.0, True, -1, 1.9, MAX_SAFE_INTEGER, MAX_SAFE_INTEGER + 1],
+    ids=repr,
 )
-def test_stated_total(
-    caplog: pytest.LogCaptureFixture,
-    values: list[object],
-    expected: int | None,
-    warnings: int,
+def test_is_stated_count_agrees_with_stated_count_and_is_silent(
+    caplog: pytest.LogCaptureFixture, value: object
 ) -> None:
-    """A total only when every item states a count: one ``WARNING:`` for
-    the items stating a bad one, however many, one for a sum canonical JSON
-    cannot write, and none for an item stating nothing."""
-    assert stated_total(values, _SRC, "size") == expected
-    assert len(_warned(caplog)) == warnings
+    assert is_stated_count(value) is (stated_count(value, _SRC, "size") is not None)
+    assert len(_warned(caplog)) == int(not is_stated_count(value) and value is not None)

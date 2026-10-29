@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -143,7 +143,7 @@ Written onto the package (through `set_dataset_fields`,
 `add_dataset_creator_agent` and `add_dataset_license`, factored out of
 `assemble/spdx3/dataset.py` and shared with the model path): version,
 description, download URL and its PURL, creator (`publishedBy` Agent),
-licence, dataset size, collection process, preprocessing, known bias,
+licence, collection process, preprocessing, known bias,
 sensitive personal information (the fields `read_croissant` fills). Not
 written: Croissant's name and dataset types (the call's win), keywords (no
 SPDX 3.0.1 dataset property; the model path does not write them either).
@@ -171,12 +171,12 @@ through `_loom_dataset_meta._optional_card`, which skips it with one
 `WARNING:` on any failure, as `enrich.run_enrichers` does for a model card;
 `read_croissant` (a file the caller named) turns any failure into a
 `ValueError` naming the file. Inside them: the `dataType` walk uses an
-explicit stack (2000 levels raised `RecursionError`); a size or count is at
-most `MAX_SAFE_INTEGER` (2^53 - 1, `core.canonical_json`), the largest
-integer RFC 8785 writes (`2**53` failed the whole fragment in
-`_graph_sort_key` at run end), as one value or as the record sets' sum
-(`stated_total`: only when every record set states one; one `WARNING:` per
-field, not per record set); a card
+explicit stack (2000 levels raised `RecursionError`); a size in
+bytes a library caller gives (`byte_size`) is at most `MAX_SAFE_INTEGER`
+(2^53 - 1, `core.canonical_json`), the largest integer RFC 8785 writes
+(`2**53` failed the whole fragment in `_graph_sort_key` at run end), and
+else left out with one `WARNING:`; a Croissant `totalItems` is not read
+(not a Croissant term, and a count is not bytes: FG-12); a card
 `version` must be quoted text (YAML 1.1 reads `1:1:1` as 3661, `0x1F` as
 31, `010` as 8, and the source spelling cannot be recovered), while a JSON
 integer version stays accepted; card tags and Croissant data types go

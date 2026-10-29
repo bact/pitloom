@@ -82,8 +82,9 @@ class DatasetMetadata:
             ``numeric``, ``other``, ``sensor``, ``structured``, ``syntactic``,
             ``text``, ``timeseries``, ``timestamp``, ``video``.
             Maps to SPDX 3: ``dataset_datasetType``.
-        dataset_size: Number of records or items.
-            Maps to SPDX 3: ``dataset_datasetSize``.
+        byte_size: Size in bytes. Maps to SPDX 3.0.1
+            ``dataset_datasetSize`` (3.1: ``byteSize``). No reader sets it
+            yet: a library caller supplies it. A record count is not a size.
         data_collection_process: Free-text description of how data was collected.
             Maps to SPDX 3: ``dataset_dataCollectionProcess``.
         data_preprocessing: List of preprocessing steps applied.
@@ -115,7 +116,7 @@ class DatasetMetadata:
 
     # SPDX Dataset profile fields
     dataset_types: list[str] = field(default_factory=list)
-    dataset_size: int | None = None
+    byte_size: int | None = None
     data_collection_process: str | None = None
     data_preprocessing: list[str] = field(default_factory=list)
     known_bias: list[str] = field(default_factory=list)

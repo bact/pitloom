@@ -44,14 +44,6 @@ def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
 @pytest.mark.parametrize(
     ("fields", "attribute", "expected"),
     [
-        ({"cr:totalItems": -5}, "dataset_size", None),
-        (
-            {"recordSet": [{"cr:totalItems": -5}, {"cr:totalItems": 2}]},
-            "dataset_size",
-            None,
-        ),
-        ({"cr:totalItems": True}, "dataset_size", None),
-        ({"cr:totalItems": 1.9}, "dataset_size", None),
         ({"version": 1.1}, "version", None),
         ({"description": ["a", "b"]}, "description", None),
         ({"creator": 7}, "creator", None),
@@ -66,10 +58,6 @@ def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
         ),
     ],
     ids=[
-        "negative-size",
-        "negative-record-set",
-        "bool-size",
-        "fractional-size",
         "float-version",
         "several-descriptions",
         "number-creator",
@@ -101,8 +89,6 @@ def test_read_croissant_refuses_a_value_of_the_wrong_shape(
 @pytest.mark.parametrize(
     ("fields", "attribute", "expected"),
     [
-        ({"cr:totalItems": 3.0}, "dataset_size", 3),
-        ({"cr:totalItems": "12"}, "dataset_size", 12),
         ({"description": {"@value": "d", "@language": "en"}}, "description", "d"),
         ({"description": [{"@value": "d"}]}, "description", "d"),
         ({"creator": {"name": "  "}}, "creator", None),
@@ -115,7 +101,7 @@ def test_read_croissant_refuses_a_value_of_the_wrong_shape(
         ),
         ({_RAI_PII: False}, _PII, "no"),
     ],
-    ids=["integral-float", "digits", "literal", "literal-list", "blank-creator",
+    ids=["literal", "literal-list", "blank-creator",
          "int-version", "types-in-order", "bool-sensitivity"],
 )  # fmt: skip
 def test_read_croissant_accepts_each_spelling(
@@ -131,18 +117,6 @@ def test_read_croissant_accepts_each_spelling(
         meta = read_croissant(path)
     assert getattr(meta, attribute) == expected
     assert not caplog.records
-
-
-def test_read_croissant_an_infinite_size_is_absent(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """``1e400`` reads as an infinity: no size, one ``WARNING:``, and no
-    ``OverflowError`` out of a reader whose contract is ``ValueError``."""
-    path = tmp_path / "ds.json"
-    path.write_bytes(b'{"name": "ds", "cr:totalItems": 1e400}')
-    with caplog.at_level(logging.WARNING, logger="pitloom"):
-        assert read_croissant(path).dataset_size is None
-    assert len(caplog.records) == 1
 
 
 @pytest.mark.parametrize(

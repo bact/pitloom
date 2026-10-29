@@ -38,11 +38,11 @@ __all__ = [
     "NOT_TEXT_WARNING",
     "UNQUOTED_VERSION_WARNING",
     "is_placeholder",
+    "is_stated_count",
     "stated_count",
     "stated_name",
     "stated_text",
     "stated_texts",
-    "stated_total",
     "stated_url",
     "stated_version",
     "text_of",
@@ -275,23 +275,6 @@ def stated_count(value: object, source: str, field: str) -> int | None:
     return count
 
 
-def stated_total(values: list[object], source: str, field: str) -> int | None:
-    """The sum of the counts *values* state (each read as
-    :func:`stated_count` reads one); ``None`` unless every one states a
-    count, as a sum over part of them would understate the total. Items
-    stating a bad count, and a sum over the largest integer canonical JSON
-    can write, are one ``WARNING:`` each for the field, not one per item; an
-    item stating none (``None``) is silent.
-    """
-    read = [_count_of(value) for value in values]
-    reasons = [reason for _, reason in read if reason is not None]
-    if reasons:
-        _warn_count(reasons[0], source, field)
-    counts = [count for count, _ in read]
-    if not counts or None in counts:
-        return None
-    total = sum(count for count in counts if count is not None)
-    if total > _COUNT_CAP.limit:
-        _warn_count("cap", source, field)
-        return None
-    return total
+def is_stated_count(value: object) -> bool:
+    """Whether *value* states a count :func:`stated_count` keeps; silent."""
+    return _count_of(value)[0] is not None

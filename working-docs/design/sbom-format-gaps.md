@@ -240,3 +240,21 @@ declined or fixed entry with its outcome.
   (`test_pull_keeps_the_sha256`)
 - Status: noted
 - Date: 2026-10-29
+
+### FG-12 A dataset's record count has no property
+
+- Format and version: SPDX 3.0.1, Dataset profile (also 3.1-dev)
+- Element or property: `dataset_DatasetPackage`; nearest is
+  `dataset_datasetSize`, which is a size in bytes (3.1: `byteSize`)
+- Fact to record: the number of records or items a dataset states
+- Pitloom today: not recorded. Croissant has no standard key for it
+  (`totalItems` is not a Croissant term), and writing a count into
+  `dataset_datasetSize` would be a false size in bytes
+- Why imprecise: no property
+- Proposal: a `counts` property in SPDX 3.1 [maintainer to add link and
+  wording]
+- Evidence: `tests/extract/dataset/test_croissant.py`
+  (`test_read_croissant_ignores_total_items`),
+  `tests/conformance/test_g7ai_dataset_size.py`
+- Status: noted
+- Date: 2026-10-29
