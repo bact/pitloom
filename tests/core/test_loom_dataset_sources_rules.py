@@ -28,6 +28,7 @@ from pitloom import loom
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING
+from tests._spdx3_validate import assert_spdx3_valid
 from tests._symlink import CAN_SYMLINK
 from tests.core._loom_dataset_sources_shared import (
     EXPRESSION,
@@ -117,17 +118,14 @@ def test_a_declared_licence_not_a_string_raises(project: Path, value: object) ->
 
 def test_each_field_from_the_first_source_stating_it(project: Path) -> None:
     """A source leaving a field at its default (``[]``) does not hide a
-    later source's value; a zero size is a value."""
-    croissant_file(
-        project / "c.json", **{"rai:dataBiases": ["biased"], "cr:totalItems": 0}
-    )
+    later source's value."""
+    croissant_file(project / "c.json", **{"rai:dataBiases": ["biased"]})
     graph = run_graph(
         project / "out.json",
         lambda: loom.add_dataset("t.txt", croissant="c.json", declared_license="MIT"),
     )
     package = package_of(graph, "t.txt")
     assert package["dataset_knownBias"] == ["biased"]
-    assert package["dataset_datasetSize"] == 0
     assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
 
 
@@ -303,29 +301,35 @@ def test_an_unusable_card_is_one_warning(
 @pytest.mark.parametrize(
     "fields",
     [
+        {"cr:totalItems": 5000},
+        {"totalItems": "1500"},
+        {"cr:totalItems": 0},
         {"cr:totalItems": -5},
-        {"cr:totalItems": 1e400},
         {"cr:totalItems": True},
-        {"cr:totalItems": 2**53},
         {"cr:totalItems": 10**20},
         {"recordSet": [{"cr:totalItems": 10**63}] * 20},
     ],
-    ids=["negative", "infinite", "bool", "2-53", "10-20", "record-sets"],
+    ids=["count", "bare", "zero", "negative", "bool", "huge", "record-sets"],
 )
-def test_an_unusable_croissant_size_is_one_warning(
-    project: Path, caplog: pytest.LogCaptureFixture, fields: dict[str, object]
+def test_a_croissant_total_items_is_not_a_size(
+    project: Path,
+    caplog: pytest.LogCaptureFixture,
+    fields: dict[str, object],
 ) -> None:
-    """A size the dataset cannot hold is not written (``-5`` failed the run
-    when it ended), with one ``WARNING:``."""
+    """``totalItems`` is a record count, not Croissant's and not bytes: it is
+    not written as ``dataset_datasetSize``, has no provenance and no warning,
+    and the fragment is valid SPDX 3."""
     croissant_file(project / "c.json", license="MIT", **fields)
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         graph = run_graph(
-            project / "out.json",
-            lambda: loom.add_dataset("t.txt", croissant="c.json"),
+            project / "out.json", lambda: loom.add_dataset("t.txt", croissant="c.json")
         )
     assert "dataset_datasetSize" not in package_of(graph, "t.txt")
+    raw = (project / "out.json").read_bytes()
+    assert not [word for word in (b"totalItems", b"byte_size") if word in raw]
     assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
-    assert len(warnings_of(caplog)) == 1
+    assert not warnings_of(caplog)
+    assert_spdx3_valid(project / "out.json")
 
 
 def test_a_card_that_fails_to_read_is_skipped(
@@ -388,7 +392,7 @@ def test_a_deep_croissant_is_read_or_refused_by_its_cap(
 def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:
     croissant_file(project / "c.json", license="MIT")
     with patch(
-        "pitloom.extract.dataset.croissant._extract_dataset_size",
+        "pitloom.extract.dataset.croissant._extract_croissant_rai_fields",
         side_effect=RecursionError("deep"),
     ):
         with pytest.raises(

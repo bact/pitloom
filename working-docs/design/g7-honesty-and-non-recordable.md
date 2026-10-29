@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,6 +51,7 @@ Checked against the code.
 | Give a model file a version, producer or time | A bare file often carries none | Left out; the checker reports the rule `missing` |
 | Hash a Hub model | Needs a request per file, and a repository has many files | `verifiedUsing` is written only for a local file |
 | Canonicalise a licence without the `licenseid` database | The database is built separately | The licence is kept as read; one warning per process |
+| Record a dataset's record count | `dataset_datasetSize` is bytes; Croissant has no standard count key (`totalItems` is not Croissant); SPDX 3.0.1 has no property (FG-12) | Not recorded; `DP-007` is met only by a size in bytes (a library caller's `byte_size`) or known biases |
 | Separate a system from its model | A model SBOM's one root is the AI package | The checker reads the System rules from that package (`systemJudgedByModel`); a project's own package is its system |
 
 ## G7 elements SPDX 3.0.1 has no property for
