@@ -267,6 +267,8 @@ _PAIRINGS = [
     (inert_options.MODEL_FILE, "generate_model_sbom"),
     (inert_options.ENRICH, "enrich_model"),
     (inert_options.GIT, "generate_git_project_sbom"),
+    (inert_options.PROJECT, "generate_project_sbom"),
+    (inert_options.SDIST, "generate_project_sbom"),
 ]
 _NOT_OPTIONS = {"target", "project_target", "build_options", "check_url"}
 
@@ -326,6 +328,8 @@ _CALLERS = [
     ("loom model", inert_options.MODEL_FILE, "generate_model_sbom"),
     ("loom model", inert_options.HF, "generate_model_sbom"),
     ("loom enrich", inert_options.ENRICH, "enrich_model"),
+    ("loom project", inert_options.PROJECT, "generate_project_sbom"),
+    ("loom project", inert_options.SDIST, "generate_project_sbom"),
 ]
 
 
@@ -333,7 +337,13 @@ def _caller_options(caller: str) -> list[str]:
     if caller == "generate()":
         return _generate_options()
     command = caller.split()[1]
-    targets = {"wheel": ["x.whl"], "env": [], "model": ["m.onnx"], "enrich": ["m.onnx"]}
+    targets = {
+        "wheel": ["x.whl"],
+        "env": [],
+        "model": ["m.onnx"],
+        "enrich": ["m.onnx"],
+        "project": ["."],
+    }
     return _cli_options([command, *targets[command]])
 
 
@@ -363,17 +373,27 @@ def test_every_option_reaches_or_is_declared_inert(
 
 def test_generate_options_cover_every_cli_option() -> None:
     """``loom generate`` passes every shared CLI option to ``generate()``,
-    and ``generate()`` hands a project target all of them unfiltered."""
+    and a project target takes all but the wheel-only cap, which both of
+    its kinds declare inert."""
     cli_options = set(_cli_options(["generate", "."]))
     assert cli_options <= set(_generate_options())
     project_params = set(inspect.signature(assemble.generate_project_sbom).parameters)
-    assert set(_generate_options()) <= project_params
+    assert set(_generate_options()) - project_params == {"max_model_extract_bytes"}
+    for kind in (inert_options.PROJECT, inert_options.SDIST):
+        assert "max_model_extract_bytes" in inert_options.INERT[kind]
 
 
 #: Options a delegate accepts and settles itself (warning through
 #: ``settle_inert`` before it acts), so they are declared for the kind
 #: without being stale. Every other accepted option must not be declared.
-_SETTLES_ITSELF = {"generate_model_sbom": {"offline", "enrich", "id_registry"}}
+_SETTLES_ITSELF = {
+    "generate_model_sbom": {"offline", "enrich", "id_registry"},
+    "generate_project_sbom": {
+        *inert_options.INERT[inert_options.SDIST],
+        *inert_options.INERT[inert_options.PROJECT],
+    }
+    - {"max_model_extract_bytes"},
+}
 
 
 @pytest.mark.parametrize(

@@ -102,6 +102,7 @@ def test_every_config_overrides_field_is_accounted_for() -> None:
         "provenance",
         "content_type_method",
         "max_source_metadata_bytes",
+        "max_model_extract_bytes",
         "build_options",
         "trust_wheel_model",  # no config key, like build_options
     }

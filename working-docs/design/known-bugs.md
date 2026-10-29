@@ -403,17 +403,16 @@ From the Git LFS pointer work. Open:
   tracked in
   [id-registry-followups.md](id-registry-followups.md#harvest-rewrites-per-document-entities-env-root-is-never-looked-up),
   allow-listed in the order checks).
-- [ ] **The model-cap and dataset-hash ceilings have no flag (S-M, decided).**
-  `max-source-metadata-bytes` has a flag, a key, a kwarg and an Action input;
-  `max-model-extract-bytes` and the dataset-hash ceiling have the key only.
-  Decided: a separate PR adds `--max-model-extract-bytes` (parent parser,
-  Action input), `--max-dataset-hash-bytes` (`loom id generate` only) and
-  `loom.Run(max_dataset_hash_bytes=)`; `0` stays an error.
+- [x] **The two size ceilings have no flag (S-M), built in the ceilings PR.**
+  `--max-model-extract-bytes` (every wheel surface, inert elsewhere; Action
+  input) and `--max-dataset-hash-bytes` (`loom id generate`;
+  `loom.Run(max_dataset_hash_bytes=)`; no Action input, since no Action step
+  hashes a dataset); `0` stays an error.
 - [ ] **The clone cap is missing from `generate()`, the CLI, config and the
   Action (S-M),** and its over-cap message is outside the shared wording.
   Only the library's Git entry point takes `max_bytes=` (#339).
-- [ ] **`loom id -e` ignores the project's dataset ceiling (S).** It uses the
-  default; the project key should apply (part of the ceiling-flag PR).
+- [x] **`loom id -e` ignored the project's dataset ceiling (S), fixed in the
+  ceilings PR.** Flag, then the project's own key, then the default.
 - [ ] **The blob-filter docs say "10 MB"; git's `10m` is 10 MiB (S).**
   `BLOB_LIMIT` in `extract/remote/git.py`; fix `docs/git-urls.md`.
 - [ ] **A dataset's identity can change from a hash to omitted after a pull

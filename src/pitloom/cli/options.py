@@ -37,6 +37,7 @@ from pitloom.cli.options_resolve import (
 )
 from pitloom.core._models_wheel_types import parse_build_timeout
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.model_extract_limit import require_positive_ceiling
 from pitloom.core.provenance import require_max_source_metadata_bytes
 
 __all__ = [
@@ -239,6 +240,19 @@ def byte_budget(text: str) -> int:
         raise argparse.ArgumentTypeError(f"invalid int value: {text!r}") from None
     try:
         return require_max_source_metadata_bytes(value, "")
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
+def positive_byte_ceiling(text: str) -> int:
+    """A byte ceiling: a plain integer of at least 1, as
+    :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid int value: {text!r}") from None
+    try:
+        return require_positive_ceiling(value, "")
     except ValueError as exc:
         raise argparse.ArgumentTypeError(str(exc)) from None
 
