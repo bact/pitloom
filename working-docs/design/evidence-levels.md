@@ -62,7 +62,7 @@ artefact the bytes may never arrive:
 | Wait too long | a network timeout, a slow server | `timeout` |
 | Not reachable | a refused or failed fetch | `network-failed` |
 | Not resolved | an unpulled Git LFS file (only the pointer arrived) | `lfs-pointer` |
-| Not readable | a permission error, a vanished file | `unreadable-file` |
+| Not readable | a permission error, a vanished file | `file-unreadable` |
 
 The declared route stays open: a remote API or a pointer often states the size
 and hash of something Pitloom did not download (the Hub API lists each LFS
@@ -170,7 +170,7 @@ carries it).
 | - | - | - |
 | File hash, project files | `measured_read` | none |
 | Git LFS pointer hash and size | `declared` (#378) | the provenance says `Method: lfs_pointer`, not the level |
-| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file or directory; no `unreadable-file` entry yet |
+| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file or directory; no `file-unreadable` entry yet |
 | Dataset size | a single-file `loom` dataset: the bytes hashed, or the `stat()` size over the cap (`measured_stat`), since #387; else what the library caller supplies (`DatasetMetadata.byte_size`). No size for a directory, an LFS pointer, an over-cap file under 1,024 bytes or above 2^53-1 (the
 last two say `not_measured`); a Croissant item count is not recorded (#382) | a directory's size (the walk budget is undecided) |
 | Hashed file sizes | measured (`FileDigests.size`) and discarded; `ProjectFile` has no size | kept for 3.1 `byteSize` |

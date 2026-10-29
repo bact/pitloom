@@ -51,3 +51,7 @@ SPDX-License-Identifier: CC0-1.0
     - Real Git LFS pointers from the Hugging Face Hub (pointer text only),
       for Git LFS pointer detection testing
     - [Details](./lfs-pointers/README.md)
+13. Message inventory baseline (`message-inventory/`)
+    - Uncoded message sites per module in `src/pitloom`, for the message
+      ratchet in `tests/test_message_ratchet.py`
+    - [Details](./message-inventory/README.md)

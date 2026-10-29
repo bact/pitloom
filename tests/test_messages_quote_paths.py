@@ -49,9 +49,12 @@ _LOGGERS = frozenset({"log", "logger", "logging", "_log", "_logger"})
 #: Calls that log through a helper: the message is the first argument.
 _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 
-#: Calls that take a path and quote it inside, or only count paths.
+#: Calls that take a path and quote it inside, or only count paths. The
+#: catalogue's CodedValueError writes each value through its field (a
+#: ``path`` in quotes, a ``file`` through loggable).
 _QUOTING_CALLS = frozenset(
     {
+        "CodedValueError",
         "_interpolation_error",
         "_missing_fragment_message",
         "_fragment_read_failure_message",

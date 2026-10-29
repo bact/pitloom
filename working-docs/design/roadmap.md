@@ -217,8 +217,10 @@ unless the linked doc says so.
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
-  (decided 2026-10-29): design done (#379); skill size cap built (#385); next
-  (0.22.0): catalogue in code, grammar ratchet; `--report` in 0.23.0. See
+  (decided 2026-10-29): design done (#379); skill size cap built (#385);
+  catalogue in code, schema and ratchet with the `lfs-pointer` families in
+  review (#390); next (0.22.0): `over-cap`, then the migration order there;
+  `--report` in 0.23.0. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under

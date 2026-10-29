@@ -228,9 +228,9 @@ wheel, an sdist or a build keeps the hashes of its own text and gets `WARNING:
 FILE=<first>: Git LFS pointer shipped (N files); the build did not pull LFS
 content`; the fix is in the build, not `git lfs pull`. A file that only opens
 like a pointer (a malformed rest, or 1 KiB or more) keeps `FILE=<path>: header
-is a Git LFS pointer; not listed as an AI model` (a `.bin`, `.model` or `.zip`
-one has no `FORMAT=`). A `.pt` or `.pth` that is path-configuration text is
-silent.
+looks like a Git LFS pointer but is not a valid one; not listed as an AI model`
+(a `.bin`, `.model` or `.zip` one has no `FORMAT=`). A `.pt` or `.pth` that is
+path-configuration text is silent.
 This also catches a rare real file that fails its signature (a Safetensors
 header of more than 100 MB, a ZIP with data before it). `loom id generate`
 registers a model under its file's path key by the same rule (the suffix

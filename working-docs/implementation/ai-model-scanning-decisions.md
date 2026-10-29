@@ -95,16 +95,21 @@ surface, whatever its read outcome. Code: `read_model_candidate()` in
   `.h5`/`.hdf5` included (the suffix table would otherwise admit it).
   The line must be complete, ending `\n` or `\r\n` as git-lfs compares the
   whole value (`/spec/v1x` is no pointer). `SNIFF_BYTES` grew from 9 to 44
-  for it (the longest opening line, CRLF included; one tiny bounded read). The reason is `header is a Git LFS pointer`, through
-  `NotAModel.reason`, so the CLI errors carry it. A `.bin`/`.zip` pointer
-  names no format: one `WARNING:` without `FORMAT=` (round 2; round 1 left it
-  silent). Since the LFS work a whole, valid pointer gets no per-file warning
-  (one summary per SBOM, [git-lfs-pointers.md](git-lfs-pointers.md)); the
-  per-file warning stays for a file that only opens like a pointer. `read_ai_model()` itself gives the same reason (and `file is
-  empty`) instead of "unsupported format" for a supported suffix; both it and
-  `NotAModel` take it from `refusal_reason()`, so a surface cannot word it
-  differently (round 3), and `read_ai_model()` refuses a non-regular path
-  (`not an AI model file ...`) rather than run a reader on a directory.
+  for it (the longest opening line, CRLF included; one tiny bounded read).
+  The reason is `header is a Git LFS pointer`, through `NotAModel.reason`, so
+  the CLI errors carried it; since #390 a surface naming the file refuses a
+  pointer in the catalogue's words instead (`refuse_named_pointer()`:
+  `lfs-pointer`, or `lfs-pointer-malformed` for an invalid one). A
+  `.bin`/`.zip` pointer names no format: one `WARNING:` without `FORMAT=`
+  (round 2; round 1 left it silent). Since the LFS work a whole, valid pointer
+  gets no per-file warning (one summary per SBOM,
+  [git-lfs-pointers.md](git-lfs-pointers.md)); the per-file warning stays for
+  a file that only opens like a pointer. `read_ai_model()` itself refuses a
+  pointer the same way (and gives `file is empty`) instead of "unsupported
+  format" for a supported suffix; both it and `NotAModel` take the reason from
+  `refusal_reason()`, so a surface cannot word it differently (round 3), and
+  `read_ai_model()` refuses a non-regular path (`not an AI model file ...`)
+  rather than run a reader on a directory.
   An empty ZIP (`PK\x05\x06`, `np.savez(f)` with no array) counts as a ZIP.
 - **D5 HDF5:** one `WARNING:` per unparsable attribute (`model_config`,
   `training_config`); any part that is not an object (`config`, a layer,

@@ -28,7 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.core.lfs_pointer import LFS_OPENING_BYTES, opens_lfs_pointer
+from pitloom.core.lfs_pointer import (
+    LFS_OPENING_BYTES,
+    opens_lfs_pointer,
+    refuse_named_pointer,
+)
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.crfsuite import read_crfsuite
 from pitloom.extract.ai_model.fasttext import read_fasttext
@@ -336,7 +340,12 @@ class NotAModel(Exception):
             of an unknown format, which does not.
         message: The text of the exception, which every surface that refuses
             the file prints (:func:`refusal_reason`,
-            else ``not an AI model file of a supported format``).
+            else ``not an AI model file of a supported format``), but for a
+            Git LFS pointer: a surface naming the file refuses that in the
+            catalogue's words
+            (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`), and a
+            scan warns of a malformed one only
+            (:data:`~pitloom.messages.LFS_POINTER_MALFORMED`).
     """
 
     def __init__(
@@ -403,12 +412,20 @@ def read_ai_model(
 
 def _unsupported_message(model_path: Path) -> str:
     """Why *model_path* is not read: :func:`refusal_reason`, else its suffix
-    is not a supported one."""
+    is not a supported one. A file that opens like a Git LFS pointer is
+    refused here instead, in the words ``loom model`` uses
+    (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
+
+    Raises:
+        pitloom.messages.CodedValueError: It opens like a pointer.
+    """
     try:
         header = read_ai_model_header(model_path)
     except OSError:
         header = b""
     reason = refusal_reason(header, model_path.name, is_file=True)
+    if reason == LFS_POINTER_REASON:
+        refuse_named_pointer(model_path)
     if reason is not None:
         return f"{quote_source(model_path)}: {reason}"
     return (

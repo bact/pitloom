@@ -38,6 +38,8 @@ from pitloom.extract.scanner import (
     discover_ai_models,
 )
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import LFS_POINTER_MALFORMED, emit
 from tests._wheel_models import write_model_wheel
 from tests.warning_helpers import logged_warnings
 
@@ -156,6 +158,34 @@ def test_reader_records_are_relogged_under_the_stable_prefix(
     assert "0.pt" not in relayed
     assert "\n" not in relayed
     assert failed.startswith("FORMAT=pytorch FILE=demo/real.pt: failed to extract")
+
+
+def test_a_reader_records_code_is_kept_when_relogged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def reader(path: Path, **_kwargs: Any) -> Any:
+        log = logging.getLogger("pitloom.extract.ai_model.pytorch")
+        for _ in range(2):  # the repeat is DEBUG: its code is not relayed
+            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=path.name, once="r")
+        log.warning("plain")
+        raise ValueError("boom")
+
+    with patch(_READ, reader), caplog.at_level(logging.DEBUG, logger="pitloom"):
+        discover_ai_models(
+            [_candidate(Path(tempfile.gettempdir()) / "0.pt", Mock(return_value=_PT))]
+        )
+    relayed = [
+        (r.name, r.levelno, getattr(r, CODE_ATTR, None))
+        for r in caplog.records
+        if r.name == "pitloom.extract.scanner" and "Discovered" not in r.getMessage()
+    ]
+    scanner = "pitloom.extract.scanner"
+    assert relayed == [
+        (scanner, logging.WARNING, "lfs-pointer-malformed"),
+        (scanner, logging.DEBUG, None),
+        (scanner, logging.WARNING, None),
+        (scanner, logging.WARNING, None),
+    ]
 
 
 def test_a_reader_debug_record_is_relogged_scrubbed_and_unprefixed(

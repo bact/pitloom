@@ -342,6 +342,34 @@ def test_percent_in_annotation_text_is_escaped(
     assert "::warning::100%2525 x%250Ay\n" in result.output
 
 
+@pytest.mark.parametrize(
+    ("file", "code", "eol"),
+    [
+        ("m.bin", "lfs-pointer", "\\n"),
+        ("x [lfs-pointer]", "lfs-pointer/shipped", "\\n"),
+        ("100%%25 m", "lfs-pointer", "\\r\\n"),
+    ],
+    ids=["plain", "hostile-name", "percent-crlf"],
+)
+def test_a_catalogued_code_ends_the_annotation_after_the_fence(
+    generate: Callable[..., _Result], file: str, code: str, eol: str
+) -> None:
+    """``::warning::<text> [code]``: the annotation carries the code as the
+    last token, is emitted after the closing ``::<token>::`` fence (the raw
+    line, with its ``WARNING:`` prefix, inside it) and the code survives the
+    ``%`` escaping and a Windows carriage return."""
+    text = f"FILE={file}: Git LFS pointer, content not read; run 'git lfs pull'"
+    result = generate(LOOM_STDERR=f"WARNING: {text} [{code}]{eol}")
+    lines = result.output.splitlines()
+    stop = next(line for line in lines if line.startswith("::stop-commands::"))
+    resume = f"::{stop.removeprefix('::stop-commands::')}::"
+    escaped = text.replace("%%", "%").replace("%", "%25")
+    annotation = f"::warning::{escaped} [{code}]"
+    assert lines.index(annotation) > lines.index(resume) > lines.index(stop)
+    raw = [line.rstrip("\r") for line in lines[lines.index(stop) : lines.index(resume)]]
+    assert f"WARNING: {text.replace('%%', '%')} [{code}]" in raw
+
+
 def test_last_stderr_line_is_annotated_after_a_slow_loom(
     stub_bin: "StubBin", generate: Callable[..., _Result]
 ) -> None:

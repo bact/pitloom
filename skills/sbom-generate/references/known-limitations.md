@@ -102,27 +102,14 @@ entry `Source: <model file> | Field: ...`; its `name` is the file's stem
   `WARNING:`. Never raise a ceiling on your own.
 - `... header is not <fmt>; not listed as an AI model` -- the file is no model
   and gets no `ai_AIPackage`.
-- Git LFS messages. A pointer is a small placeholder file that stands in for
-  the real content in a repository. Pitloom lists it by the SHA-256 the
-  placeholder states and never reads or downloads the content. You explain
-  and relay; you do not run the fix.
-  - `WARNING: FILE=<first>: Git LFS pointer, content not read (N files); run
-    'git lfs pull' for the content` (local directory) or `...; clone with git
-    lfs, then run on the directory` (Git URL): the repository holds
-    placeholders instead of the real files. They carry the SHA-256 only (no
-    SHA-512, no content type) and no `ai_AIPackage`. Tell the user the
-    message's advice is theirs to follow outside Pitloom, then rerun.
-  - `WARNING: FILE=<first>: Git LFS pointer shipped (N files); the build did
-    not pull LFS content`: a wheel, sdist or build contains placeholders. It
-    is a build problem; the SBOM keeps the placeholder text's hashes.
-  - `ERROR: <command> failed: '<path>': header is a Git LFS pointer, content
-    not pulled (oid sha256:<oid>, size <N> bytes); run 'git lfs pull'` (exit
-    1; the words before the path name the command, e.g. `model command
-    failed`, `SBOM generation failed`, `enrichment fragment generation
-    failed`): the named file is a placeholder; no SBOM was written. Relay the
-    advice and rerun.
-  - `... header is a Git LFS pointer; not listed as an AI model` (no `oid`):
-    the file only looks like a placeholder; it is not usable as a model.
+- A line ending in a `[code]` is catalogued: read `messages.md` for what it
+  means, what Pitloom did and what to tell the user. The Git LFS pointer lines
+  are there (`[lfs-pointer]`, `[lfs-pointer/shipped]`,
+  `[lfs-pointer-malformed]`). A Git LFS pointer is a small placeholder file
+  that stands in for the real content in a repository: Pitloom lists it by the
+  SHA-256 the placeholder states (no SHA-512, no content type), never reads or
+  downloads the content, and adds no `ai_AIPackage`. You explain and relay the
+  advice; you do not run the fix.
 
 A model whose read fails is a stub, never dropped, with the same `WARNING:`
 from a scan and from `loom model FILE` (exit 0). Beyond that:

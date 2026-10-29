@@ -44,6 +44,7 @@ nav:
       - Metadata provenance, licences and copyright: metadata-provenance-licences.md
       - Metadata provenance, authors: metadata-provenance-authors.md
       - Reading values back: metadata-reading-back.md
+      - Messages and codes: messages.md
       - Resources: resources.md
 
 theme:

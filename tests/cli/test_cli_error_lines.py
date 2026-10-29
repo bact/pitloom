@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A newline in a path argument never starts a second, forged line on stderr:
-every command's error stays one tagged line.
+every command's error stays one tagged line, ending in its catalogued code.
 
-See also: tests/test_logging_config.py (the formatter and `print_error`).
+See also: tests/test_logging_config.py (the formatter and `print_error`),
+tests/messages/test_messages_emit.py (the code a line ends in).
 """
 
 from __future__ import annotations
@@ -17,6 +18,14 @@ from pathlib import Path
 import pytest
 
 from pitloom.__main__ import main
+from pitloom.cli.commands.utils import cli_error_handler, report_error_line
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.messages import (
+    LFS_POINTER_MALFORMED,
+    CodedValueError,
+    Message,
+    trusted_message,
+)
 
 _HOSTILE = "a\nWARNING: forged"
 
@@ -61,3 +70,38 @@ def test_a_hostile_path_cannot_forge_a_line(
         line.startswith(("ERROR: ", "WARNING: ", "INFO: ", "usage: ", " "))
         for line in lines
     )
+
+
+_LOOKS = "'m': header looks like a Git LFS pointer but is not a valid one"
+
+
+@pytest.mark.parametrize(
+    ("raised", "tail", "trusted"),
+    [
+        (
+            CodedValueError(LFS_POINTER_MALFORMED, path="m"),
+            f"{_LOOKS} [lfs-pointer-malformed]",
+            LFS_POINTER_MALFORMED,
+        ),
+        (RemoteSourceError("git.too-large", "x"), "x", None),
+    ],
+    ids=["catalogued", "uncatalogued"],
+)
+def test_an_error_line_ends_in_a_catalogued_code_only(
+    capsys: pytest.CaptureFixture[str],
+    raised: Exception,
+    tail: str,
+    trusted: Message | None,
+) -> None:
+    """Both CLI error reporters, the per-wheel line and the command wrapper
+    (its frame ``model command failed: ``), end in the code, trusted."""
+
+    @cli_error_handler("model command failed")
+    def _fail(_args: object) -> int:
+        raise raised
+
+    report_error_line(raised)
+    assert _fail(object()) == 1
+    lines = capsys.readouterr().err.splitlines()
+    assert lines == [f"ERROR: {tail}", f"ERROR: model command failed: {tail}"]
+    assert [trusted_message(line) for line in lines] == [trusted, trusted]

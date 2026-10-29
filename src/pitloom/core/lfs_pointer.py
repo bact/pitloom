@@ -39,6 +39,16 @@ from typing import Final
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
+from pitloom.messages import (
+    LFS_CLONE_LINE,
+    LFS_POINTER,
+    LFS_POINTER_MALFORMED,
+    LFS_POINTER_SHIPPED,
+    LFS_PULL_LINE,
+    CodedValueError,
+    emit,
+    size_text,
+)
 
 __all__ = [
     "LFS_OPENING_BYTES",
@@ -52,6 +62,7 @@ __all__ = [
     "parse_lfs_pointer",
     "read_lfs_pointer",
     "reading_remote_clone",
+    "refuse_named_pointer",
     "size_text",
     "warn_pointers_not_read",
 ]
@@ -60,7 +71,7 @@ __all__ = [
 LFS_POINTER_METHOD: Final = "lfs_pointer"
 
 #: A pointer is shorter than this many bytes (git-lfs's own cut-off); a
-#: longer file is content, however it opens.
+#: file of this size or larger is content, however it opens.
 LFS_POINTER_MAX_BYTES: Final = 1024
 
 # The spec URLs of the ``version`` line: the current one and the two earlier
@@ -101,9 +112,6 @@ _log = logging.getLogger(__name__)
 _REMOTE_CLONE: Final[contextvars.ContextVar[bool]] = contextvars.ContextVar(
     "pitloom_lfs_remote_clone", default=False
 )
-_ADVICE_PULL: Final = "run 'git lfs pull' for the content"
-_ADVICE_CLONE: Final = "clone with git lfs, then run on the directory"
-_ADVICE_SHIPPED: Final = "the build did not pull LFS content"
 
 
 @contextlib.contextmanager
@@ -169,6 +177,30 @@ def read_lfs_pointer(path: str | os.PathLike[str]) -> LfsPointer | None:
         return parse_lfs_pointer(_read_at_most(handle, LFS_POINTER_MAX_BYTES))
 
 
+def refuse_named_pointer(
+    path: str | os.PathLike[str], cause: BaseException | None = None
+) -> None:
+    """Refuse a file named on its own (``loom model``, ``read_ai_model()``)
+    whose header is a Git LFS pointer's opening line, in the catalogue's
+    words: ``lfs-pointer``, with the ``oid`` and size it states, when the
+    whole file is a pointer, else ``lfs-pointer-malformed``. Returns when the
+    file cannot be read again, so the caller's own reason stands.
+
+    Raises:
+        pitloom.messages.CodedValueError: It opens like a pointer (*cause*
+            as its cause).
+    """
+    try:
+        pointer = read_lfs_pointer(path)
+    except OSError:
+        return
+    if pointer is None:
+        raise CodedValueError(LFS_POINTER_MALFORMED, path=path) from cause
+    raise CodedValueError(
+        LFS_POINTER, path=path, oid=pointer.oid, size=pointer.size
+    ) from cause
+
+
 def _read_at_most(handle: io.RawIOBase, limit: int) -> bytes:
     """Up to *limit* bytes from *handle*, across short reads."""
     data = bytearray()
@@ -184,7 +216,7 @@ class PrefixCapture:
     """The leading bytes of a stream fed chunk by chunk, for a reader that
     hashes a file in one pass: holds at most :data:`LFS_POINTER_MAX_BYTES`
     bytes, however much is fed. Holding the cut-off itself, not one byte
-    less, is what tells a longer stream from a pointer."""
+    less, is what tells a stream of the cut-off or more from a pointer."""
 
     def __init__(self) -> None:
         self._prefix = bytearray()
@@ -206,11 +238,6 @@ class PrefixCapture:
         return parse_lfs_pointer(bytes(self._prefix))
 
 
-def size_text(size: int) -> str:
-    """*size* as every message and comment states it: ``1 byte``, ``N bytes``."""
-    return f"{size} byte" if size == 1 else f"{size} bytes"
-
-
 def log_pointer_not_read(path: str, pointer: LfsPointer) -> None:
     """The per-file line of a pointer left unread (``--debug`` only)."""
     _log.debug(
@@ -229,13 +256,12 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     checkout is to clone with Git LFS."""
     if not paths:
         return
-    count = f" ({len(paths)} files)" if len(paths) > 1 else ""
+    first, count = min(paths), len(paths)
     if archive:
-        advice = _ADVICE_SHIPPED
+        emit(_log, LFS_POINTER_SHIPPED, logging.WARNING, file=first, count=count)
     else:
-        advice = _ADVICE_CLONE if _REMOTE_CLONE.get() else _ADVICE_PULL
-    what = "Git LFS pointer shipped" if archive else "Git LFS pointer, content not read"
-    _log.warning("FILE=%s: %s%s; %s", loggable(min(paths)), what, count, advice)
+        line = LFS_CLONE_LINE if _REMOTE_CLONE.get() else LFS_PULL_LINE
+        emit(_log, LFS_POINTER, logging.WARNING, line=line, file=first, count=count)
 
 
 class UnreadPointers:

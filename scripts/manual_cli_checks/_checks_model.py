@@ -47,6 +47,8 @@ _POINTERS = (_LFS, _LFS_BIN, _LFS_ONNX, _LFS_MODEL)
 _CRF_TRUNCATED = "trunc.crfsuite"
 _FILE = re.compile(r"FILE=(\S+): ")
 _POINTER = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"
+#: What a scan and ``loom model`` say of it: it only opens like a pointer.
+_LOOKS = "header looks like a Git LFS pointer but is not a valid one"
 _CRFSUITE = (
     REPO_ROOT / "tests" / "fixtures" / "aimodels" / "crfsuite" / "complete.crfsuite"
 )
@@ -112,7 +114,8 @@ def check_model_outcome_parity(ctx: Context) -> None:
         )
     for pointer in _POINTERS:
         expect(
-            "header is a Git LFS pointer" in expected[pointer][0],
+            _LOOKS in expected[pointer][0]
+            and expected[pointer][0].endswith(" [lfs-pointer-malformed]"),
             f"pointer: {expected[pointer]}",
         )
 
@@ -137,7 +140,10 @@ def check_model_outcome_parity(ctx: Context) -> None:
             result.returncode == 1, f"loom model {pointer}: exit {result.returncode}"
         )
         expect(len(errors) == 1, f"loom model {pointer}: want one ERROR:, got {errors}")
-        expect("Git LFS pointer" in errors[0], f"loom model {pointer}: {errors}")
+        expect(
+            _LOOKS in errors[0] and errors[0].endswith(" [lfs-pointer-malformed]"),
+            f"loom model {pointer}: {errors}",
+        )
         expect(not refused.exists(), f"loom model {pointer}: output written")
     ctx.note("project, wheel and loom model: one entry per confirmed model")
 

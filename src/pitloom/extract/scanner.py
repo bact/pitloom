@@ -64,7 +64,8 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import Cap, loggable, over_cap_of, warn_over_cap
+from pitloom.logging_config import CODE_ATTR, Cap, loggable, over_cap_of, warn_over_cap
+from pitloom.messages import LFS_POINTER_MALFORMED, RELAY_FRAME, emit, relay_extra
 
 log = logging.getLogger(__name__)
 
@@ -227,11 +228,15 @@ def _relog_reader_records(
     path: Path,
 ) -> None:
     """Log what a reader logged, as the scanner's own messages: the stable
-    ``FORMAT=``/``FILE=`` prefix on a warning, the text escaped, the
-    temporary copy's path and name replaced by the model's. An over-cap
-    warning is said again through the shared helper, naming the model."""
+    ``FORMAT=``/``FILE=`` prefix on a warning (the catalogue's
+    :data:`~pitloom.messages.RELAY_FRAME`), the text escaped, the temporary
+    copy's path and name replaced by the model's. An over-cap warning is
+    said again through the shared helper, naming the model. A record's
+    catalogued code is kept while the new text is still one of its
+    message's lines (:func:`~pitloom.messages.relay_extra`)."""
     dist_name = PurePosixPath(candidate.distribution_path).name
     copied = provenance_source(path.name)
+    prefix = RELAY_FRAME.render({"format": fmt, "file": candidate.physical_path})
     for record in records:
         over = over_cap_of(record)
         if over is not None:  # a reader warns over a cap once per read
@@ -243,15 +248,10 @@ def _relog_reader_records(
             text = text.replace(copied, provenance_source(dist_name))
         text = scrub(text, path, candidate.physical_path)
         if record.levelno >= logging.WARNING:
-            log.log(
-                record.levelno,
-                "FORMAT=%s FILE=%s: %s",
-                fmt,
-                loggable(candidate.physical_path),
-                text,
-            )
-        else:
-            log.log(record.levelno, "%s", text)
+            text = prefix + text
+        code = getattr(record, CODE_ATTR, None)
+        extra = relay_extra(code, record.levelname, text)
+        log.log(record.levelno, "%s", text, extra=extra)
 
 
 def _read_materialized(
@@ -376,23 +376,32 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
         )
     except NotAModel as e:
         if e.reason is not None:
-            # A pointer named x.bin has no format to name.
-            key = "" if e.model_format is None else f"FORMAT={e.model_format} "
-            # A whole, valid pointer is said once for the run (the document
-            # build); an opening whose rest does not parse is a defect.
-            level = (
-                logging.DEBUG
-                if e.reason == LFS_POINTER_REASON and _is_whole_pointer(candidate)
-                else logging.WARNING
-            )
-            log.log(
-                level,
-                "%sFILE=%s: %s; not listed as an AI model",
-                key,
-                loggable(candidate.physical_path),
-                e.reason,
-            )
+            _say_not_a_model(e, candidate)
     return None
+
+
+def _say_not_a_model(refusal: NotAModel, candidate: ModelCandidate) -> None:
+    """The line for a file whose header contradicts its model suffix: a
+    whole, valid Git LFS pointer is said once for the run (the document
+    build), so here only with ``--debug``; an opening whose rest does not
+    parse is a defect (``lfs-pointer-malformed``). A pointer named
+    ``x.bin`` has no format to name."""
+    where, fmt = candidate.physical_path, refusal.model_format
+    pointer = refusal.reason == LFS_POINTER_REASON
+    if pointer and not _is_whole_pointer(candidate):
+        if fmt is None:
+            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=where)
+        else:
+            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, format=fmt, file=where)
+        return
+    key = "" if fmt is None else f"FORMAT={fmt} "
+    log.log(
+        logging.DEBUG if pointer else logging.WARNING,
+        "%sFILE=%s: %s; not listed as an AI model",
+        key,
+        loggable(where),
+        refusal.reason,
+    )
 
 
 def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMetadata]:

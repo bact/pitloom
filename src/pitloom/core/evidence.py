@@ -29,6 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
+from pitloom.core.internal_error import InternalError
 from pitloom.core.provenance import (
     parse_provenance_value,
     provenance_source,
@@ -69,8 +70,8 @@ REASON_CODES: frozenset[str] = frozenset(
         "timeout",
         "network-failed",
         "lfs-pointer",
-        "unreadable-file",
-        "unlistable-dir",
+        "file-unreadable",
+        "dir-unlistable",
     }
 )
 
@@ -80,20 +81,21 @@ def evidence_segment(level: str, reason: str | None = None) -> str:
     or ``"Evidence: not_measured | Reason: <code>"``. The only writer.
 
     Raises:
-        ValueError: *level* is not one of the levels, *reason* is not in
-            :data:`REASON_CODES`, a *reason* comes with any level but
-            ``not_measured``, or ``not_measured`` comes without one.
+        pitloom.core.internal_error.InternalError: *level* is not one of the
+            levels, *reason* is not in :data:`REASON_CODES`, a *reason* comes
+            with any level but ``not_measured``, or ``not_measured`` comes
+            without one.
     """
     if level not in EVIDENCE_LEVELS:
-        raise ValueError(f"unknown evidence level: {level!r}")
+        raise InternalError(f"unknown evidence level: {level!r}")
     if reason is None:
         if level == NOT_MEASURED:
-            raise ValueError("evidence level not_measured needs a reason")
+            raise InternalError("evidence level not_measured needs a reason")
         return f"Evidence: {level}"
     if level != NOT_MEASURED:
-        raise ValueError(f"a reason belongs to not_measured, not {level}")
+        raise InternalError(f"a reason belongs to not_measured, not {level}")
     if reason not in REASON_CODES:
-        raise ValueError(f"unknown evidence reason: {reason!r}")
+        raise InternalError(f"unknown evidence reason: {reason!r}")
     return f"Evidence: {level} | Reason: {reason}"
 
 
@@ -127,7 +129,8 @@ class Fact(Generic[T]):
             for every other level.
 
     Raises:
-        ValueError: The fields do not fit together as above.
+        pitloom.core.internal_error.InternalError: The fields do not fit
+            together as above.
     """
 
     value: T | None
@@ -137,12 +140,14 @@ class Fact(Generic[T]):
 
     def __post_init__(self) -> None:
         if self.level not in _RANK or self.level == LOWER_BOUND:
-            raise ValueError(f"no fact at evidence level {self.level!r}")
+            raise InternalError(f"no fact at evidence level {self.level!r}")
         evidence_segment(self.level, self.reason)  # raises on a misfit reason
         if (self.value is None) != (self.level == NOT_MEASURED):
-            raise ValueError(f"a {self.level} fact: only not_measured has no value")
+            raise InternalError(f"a {self.level} fact: only not_measured has no value")
         if (self.source is None) != (self.level == MEASURED_READ):
-            raise ValueError(f"a {self.level} fact: only measured_read has no source")
+            raise InternalError(
+                f"a {self.level} fact: only measured_read has no source"
+            )
         if self.source is not None:
             object.__setattr__(self, "source", sanitize_provenance_text(self.source))
 
@@ -184,15 +189,16 @@ def count_fact(value: int, level: str, source: str, field: str) -> Fact[int]:
     a ``measured_read`` fact's file in that warning and fallback only.
 
     Raises:
-        ValueError: *value* is not an ``int`` of zero or more (a ``bool``
-            is not), or *level* is ``not_measured``.
+        pitloom.core.internal_error.InternalError: *value* is not an ``int``
+            of zero or more (a ``bool`` is not), or *level* is
+            ``not_measured``.
     """
     # extract sits above core.
     # pylint: disable-next=import-outside-toplevel
     from pitloom.extract.dataset.values import stated_count
 
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"a count is a whole number of zero or more, not {value!r}")
+        raise InternalError(f"a count is a whole number of zero or more, not {value!r}")
     if stated_count(value, source, field) is None:
         return Fact.not_measured(source, OVER_CAP)
     return Fact(value, level, None if level == MEASURED_READ else source)

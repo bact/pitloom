@@ -218,6 +218,22 @@ def test_a_raising_run_warns_of_nothing(
     ]
 
 
+def test_the_run_warning_carries_its_code(
+    project: Path,
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The record holds the code (a library user's handler reads it), the
+    printed line ends in it, and the message text is unchanged."""
+    with caplog.at_level(logging.WARNING):
+        _run(project / "o.json", lambda: loom.add_dataset("corpus"))
+    (record,) = [r for r in caplog.records if "Git LFS" in r.getMessage()]
+    assert getattr(record, "pitloom_code", None) == "lfs-pointer"
+    text = f"FILE={_A_BIN}: Git LFS pointer, content not read; {_PULL_HINT}"
+    assert record.getMessage() == text
+    assert f"WARNING: {text} [lfs-pointer]" in capsys.readouterr().err.splitlines()
+
+
 def test_a_pointer_script_records_its_oid(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

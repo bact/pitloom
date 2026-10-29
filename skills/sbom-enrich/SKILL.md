@@ -272,8 +272,10 @@ licence-`NOASSERTION` recipe and its no-automatable-path list;
 
 `loom enrich`/`project`/`generate`/`merge` log to stderr with the convention in
 `sbom-generate`'s "Check stderr" section: scan it after every call and mention
-any hit, even on exit 0. Expect the dangling-reference `WARNING:` plus `ERROR:`
-above. After an ambiguous-name pin (`sbom-generate`'s
+any hit, even on exit 0. When a line ends in a `[code]`, read
+`references/messages.md` for what it means and what to tell the user; relay
+its advice, never run the fix. Expect the dangling-reference `WARNING:` plus
+`ERROR:` above. After an ambiguous-name pin (`sbom-generate`'s
 `references/id-registry.md`), a `WARNING: ID registry: ... is registered for
 both` line on every run is expected. `ERROR: ID registry file ...: version 2,
 expected 3` means an old-format registry: never delete or rewrite it from this

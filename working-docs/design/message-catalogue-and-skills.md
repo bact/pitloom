@@ -15,9 +15,11 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 `git-lfs-pointers.md` in `../implementation/` once #378 is merged (the case
 that showed the gap).
 
-Status: decided 2026-10-29 (the four decisions at the end); scope split
-between 0.22.0 and 0.23.0 below. The inventory (step 1) is done; its results
-and the printed form it settled are in "Inventory results".
+Status: decided 2026-10-29 (the four decisions, then decisions A to L of
+the review of #390, at the end); scope split between 0.22.0 and 0.23.0
+below. The inventory (step 1) is done; its results and the printed form it
+settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
+the plumbing, schema and ratchet, is #390 (in review).
 
 ## Core idea
 
@@ -111,9 +113,10 @@ into the repo with the first catalogue PR.)
   `str(exc)` 49, KEY=VALUE data 16, DEBUG 46, reader-detail raises 97 (their
   text is the detail of a catalogued line), `loom.*` library raises 19, one
   traceback.
-- **Printed form: a trailing ` [code]`**, parsed by `^(ERROR|WARNING|INFO): (.*)
-  \[([a-z][a-z0-9.-]*)\]$`. Example: `WARNING: FILE=demo/model.gguf: Git LFS
-  pointer, content not read; run 'git lfs pull' for the content [lfs-pointer]`.
+- **Printed form: a trailing `[code]`**, after a space, parsed by
+  `^(ERROR|WARNING|INFO): (.*) \[([a-z][a-z0-9/-]*)\]$` (dots dropped by
+  decision A). Example: `WARNING: FILE=demo/model.gguf: Git LFS pointer,
+  content not read; run 'git lfs pull' for the content [lfs-pointer]`.
   The message text is unchanged, so the 453 `in caplog` and 46 `caplog.messages
   ==` assertions and all 46 matched skill quotes still pass; about 47 full-line
   stderr tests can break, one family at a time. Rejected: a `CODE=` pair after
@@ -135,18 +138,25 @@ into the repo with the first catalogue PR.)
   licenseid 0.7.0 adoption; 5 licence-file-read sites probably survive it.
 
 **Migration order** (cost against benefit; one family per PR, code first,
-wording later):
+wording later; revised by the #390 review, family names after decisions B
+and C):
 
-1. `lfs-pointer` (5 sites, 3 edit points): builds the plumbing (record code,
-  exception code, the wrapper, the scanner's re-wrap).
-2. `over-cap` (36 sites, 8 edit points).
-3. `unreadable-file` and `unlistable-dir` (32 sites, two shared constants).
-4. `option-no-effect` (7 sites, 2 edit points).
-5. `registry-file-invalid` (24 sites, one builder).
-
-Then `lock-entry-skipped` 40, `lock-file-ignored` 28, `project-value-ignored`
-22, and the free-text families that need a helper first: `config-invalid` 46,
-`input-not-found` 25, `model-unreadable` 18.
+1. `lfs-pointer`, `lfs-pointer/shipped`, `lfs-pointer-malformed`: the
+   plumbing, the schema and the ratchet (#390).
+2. `over-cap` (36 sites, 8 edit points; `warn_over_cap` moves into
+   `pitloom.messages` with it).
+3. The model-stub causes in `extract/scanner.py`: `model-unreadable`,
+   `library-missing`, `model-gated`, `not-a-model` (condition
+   `wrong-format`).
+4. `file-unreadable` and `dir-unlistable`, paired with the evidence reasons of
+   the same names.
+5. `option-no-effect`: the first entry whose actor is the `caller`.
+6. Frames: the uniform `loom <command>:` prefix of an `ERROR:` (its own PR;
+   the `FRAMES` table holds today's strings).
+7. The registry file codes, then `input-not-found` (a helper first).
+8. `lock-file-*`, then `lock-entry-*`; then `config-*`; then `timeout` and
+   `network-failed`.
+9. The licence families, after the `licenseid` 0.7.0 adoption.
 
 **Ratchet.** A runtime check on every captured stderr line (one tag, one line,
 no trailing period, no "Please", a `[code]` must be in the catalogue) plus a
@@ -180,7 +190,7 @@ nested shape is real, not guessed.
 | 0 | Finish #378, then the ceilings PR | in progress | 0.22.0 |
 | 1 | Inventory and outlier report (read-only): **done 2026-10-29** | Sonnet extract, Opus classify | 0.22.0 |
 | 2 | Skill size PR: move detail to references, conditional pointers | Sonnet, Opus review | 0.22.0 |
-| 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test): **queued** | Opus design, Sonnet | 0.22.0 |
+| 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test), then the #390 review's schema (decisions A to L): **in review (#390)** | Opus design, Sonnet | 0.22.0 |
 | 3b | Remaining families in the migration order above, grammar ratchet, generated skills reference | Opus design, Sonnet | 0.22.0 |
 | 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
 | 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.23.0 |
@@ -197,8 +207,9 @@ resolver JSON deferred to 0.23.0):
    [code]` (settled by the inventory; see the results) so `LEVEL:` stays first
    and the existing text is unchanged. A message without a token is "not
    catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will give
-   every record a code, `uncatalogued` where there is none. A code may hold
-   dots, because `RemoteSourceError` codes already do (`git.too-large`).
+   every record a code, `uncatalogued` where there is none. (A code was first
+   to hold dots, as `RemoteSourceError` codes do, `git.too-large`; decision A
+   replaced them with `/`.)
 2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
    `message`, a location from `FILE=`); SARIF export and the licence
    resolver's nested result follow. All 0.23.0.
@@ -209,25 +220,69 @@ resolver JSON deferred to 0.23.0):
    the line; docs and the skills' message reference are generated; the drift
    test checks that every message a skill quotes matches an entry.
 
+Decided 2026-10-29 by the maintainer on the #390 review ("go with your
+recommendations"; SARIF and `licenseid` codes get room only, no scheme):
+
+- **A. Variant separator `/`.** A code is a family or `family/variant`; each
+  part kebab ASCII, `[a-z][a-z0-9]*(-[a-z0-9]+)*`; at most one `/`; at most 40
+  characters. A reader takes `[a-z][a-z0-9/-]*`, so a dotted TOML table
+  (`[tool.poetry.dependencies]`) never reads as a code.
+- **B. Subject first.** `[subject-]condition` (`file-unreadable`,
+  `dir-unlistable`); the bare condition when it does not depend on the
+  subject (`over-cap`, `timeout`, `network-failed`, `lfs-pointer`,
+  `not-a-model`, `interrupted`).
+- **C. Name by cause**, never by Pitloom's response (`skipped`, `ignored`,
+  `new-id`, `left-out`) or by a module.
+- **D. Split a code only when the advice or the SBOM effect differs**
+  (`over-cap` stays one code).
+- **E. One code for ERROR and WARNING** of one condition; the reference
+  states the ERROR outcome by rule (the command stops for that input and
+  writes nothing for it, exit 1); each printed line carries its level. One
+  condition per family; a variant never changes it.
+- **F. Causes only** in the condition vocabulary (23 words): `malformed`,
+  `timeout`, `network-failed`, `needs-build`, `not-recordable`, `ambiguous`,
+  `unsafe`, `missing` added; `refused`/`rejected`, `not-this-format`/
+  `not-a-model` (now `wrong-format`), `id-collision`/`mismatch` (now
+  `conflict`) merged; `decision`, `summary`, `usage`, `wrapper` and `licence`
+  moved out (a message kind, an actor, a frame, a domain).
+- **G. Advice by actor.** `user`: an agent relays it ("Tell the user ... Do
+  not ... for them"); `caller`: the program that ran the command may fix
+  its own command.
+- **H. Named values owned by the catalogue.** A line is `%(name)s`
+  templates; `emit(..., file=..., count=...)` and `CodedValueError(M,
+  path=...)` write each value through its field (a quoted path, an escaped
+  `FILE=`, `N bytes`), each with a tight shape (an `oid` is 64 hex digits).
+- **I. Frames** are a table (`FRAMES`): the CLI handler's and the hook's
+  `<what> failed:`, and the relay's `FORMAT=... FILE=...:`. The uniform
+  `loom <command>:` frame is its own PR.
+- **J. Ratchet**: per module and in total, falls only; a programming error
+  is out of scope by its class (`InternalError`), never by raising a count;
+  a reader's raise is detail.
+- **K.** `warn_over_cap` moves into `pitloom.messages` with the `over-cap`
+  family PR, deferred: moving it alone touches 24 modules (35 calls) and
+  prints nothing new, since the line has no code yet.
+- **L. Stability.** A code is stable from the release that first prints it:
+  never renamed, reused or removed while its condition can occur; variants
+  may appear in any release; a code that can no longer occur is marked
+  retired and stays; after a release a rename carries `replaces` for one
+  minor release. Tool names are reserved family names (`pitloom`,
+  `licenseid`, `lumina`, `spdx`, `sbom`, `sarif`, `bom`); no producer prefix
+  in a printed code.
+
+**Room for SARIF and `licenseid`** (a note, no design): the charset keeps the
+door open; a `/` variant maps to a SARIF hierarchical `ruleId`
+(`CA5350/md5`); a family is a `rule.id`, a code a `result.ruleId`, the
+reference's section of a code a `helpUri`; `Message` is keyword-only, so
+`rule_id` or `tags` can be added. Lumina's SARIF ingest refuses a rule id
+that does not start `BOM-`: Pitloom and `licenseid` diagnostics reach it
+through its Notification path instead.
+
 ## The `AGENTS.md` rule
 
-The rule below goes into `AGENTS.md` with the first implementing PR (the
-`lfs-pointer` family), not before: it binds every agent session, and the
-catalogue does not exist in code yet.
-
-```text
-- **The message catalogue is the contract between Pitloom and the skills.**
-  A skill reads our output and explains it, so a message's level, subject,
-  condition and advice are an interface, not prose. Change a message, the
-  catalogue and what a skill quotes together; new messages follow `LEVEL:
-  [SUBJECT=value: ]CONDITION[; ACTION]`. Plan:
-  [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
-```
-
-In the same change, reword the "Within one subsystem" bullet of "CLI output":
-replace "No global schema across subsystems; the `LEVEL:` tag is the one prefix
-every consumer keys on." by "The `LEVEL:` tag is the one prefix every consumer
-keys on until the catalogue is built."
+Added with #390 ("CLI output"): the catalogue is the contract; a message is
+said through `pitloom.messages`, its code rides on the record and on any
+exception as `pitloom_code`, and a message, the catalogue, the generated
+reference and what a skill quotes change together.
 
 ## Risks
 

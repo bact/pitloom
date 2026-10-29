@@ -44,7 +44,8 @@ def _cand(dist: str, phys: str | None = None, header: bytes = b"") -> ModelCandi
 
 
 _LFS = b"version https://git-lfs.github.com/spec/v1\n"
-_LFS_WARNING = "%sFILE=src/%s: header is a Git LFS pointer; "
+_LOOKS = "header looks like a Git LFS pointer but is not a valid one"
+_LFS_WARNING = f"%sFILE=src/%s: {_LOOKS}; "
 _NOT_FMT_WARNING = "FORMAT=gguf FILE=src/m.gguf: header is not gguf; "
 
 
@@ -112,4 +113,5 @@ def test_a_whole_valid_pointer_is_said_by_the_run_not_per_file(
     with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
         assert not discover_ai_models([candidate])
     assert len(logged_warnings(caplog)) == warnings
-    assert "header is a Git LFS pointer" in caplog.text
+    said = "header is a Git LFS pointer;" if whole == "valid" else _LOOKS
+    assert said in caplog.text
