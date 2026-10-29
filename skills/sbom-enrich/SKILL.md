@@ -185,9 +185,8 @@ Steps:
      the model stays a stub. (A wheel's gate, ceiling and budget do not apply
      to a local file.) Only `ERROR: enrichment fragment generation failed:
      ... not an AI model ...`, `header is not <fmt>` or `header is a Git LFS
-     pointer, ...` means the file is not a model (an unpulled LFS file): skip
-     this step for it (`git lfs pull` in a local checkout; a Git URL:
-     clone with git lfs first).
+     pointer, ...` means the file is not a model: skip this step for it and
+     relay Pitloom's own advice.
    - The fragment attaches only if the base has an `ai_AIPackage` for that
      model (the model file is among the build's files); if not, say so
      instead of merging.
@@ -210,8 +209,7 @@ Steps:
      metadata` -- the file has a model's header but could not be parsed
      (truncated or corrupt), so check the file; `header is not <fmt>; not
      listed as an AI model` or `Git LFS pointer, content not read` -- the
-     file is no model and has no `ai_AIPackage` (an unpulled LFS file: pull as
-     above, regenerate; BSI: `references/minimum-elements-bsi.md`). On
+     file is no model and has no `ai_AIPackage`; relay Pitloom's advice. On
      a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
      max-model-extract-bytes cap; metadata not read`, or `... per-wheel
      model-scan budget cap; ...` -- tell the user; never add the flag or raise
