@@ -340,7 +340,12 @@ class NotAModel(Exception):
             of an unknown format, which does not.
         message: The text of the exception, which every surface that refuses
             the file prints (:func:`refusal_reason`,
-            else ``not an AI model file of a supported format``).
+            else ``not an AI model file of a supported format``), but for a
+            Git LFS pointer: a surface naming the file refuses that in the
+            catalogue's words
+            (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`), and a
+            scan warns of a malformed one only
+            (:data:`~pitloom.messages.LFS_POINTER_MALFORMED`).
     """
 
     def __init__(
