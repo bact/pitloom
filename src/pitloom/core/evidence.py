@@ -52,7 +52,8 @@ EVIDENCE_LEVELS: frozenset[str] = frozenset(
 EVIDENCE_KEY = "evidence"
 REASON_KEY = "reason"
 
-#: The reason code of a fact over a read cap.
+#: The reason code of a fact over a read cap: the code of the catalogue's
+#: ``over-cap`` message too (:data:`pitloom.messages.OVER_CAP`).
 OVER_CAP = "over-cap"
 
 #: Provenance field names of the facts a ``not_measured`` entry stands in
@@ -61,9 +62,10 @@ OVER_CAP = "over-cap"
 VERIFIED_USING_FIELD = "verified_using"
 BYTE_SIZE_FIELD = "byte_size"
 
-#: Why a fact is ``not_measured``. The starting set the future message
-#: catalogue adopts; a code is never free text, so it cannot carry untrusted
-#: input into an SBOM.
+#: Why a fact is ``not_measured``; a code is never free text, so it cannot
+#: carry untrusted input into an SBOM. A reason the message catalogue has a
+#: message for is that message's code (``lfs-pointer``, ``over-cap``), kept a
+#: literal here (``tests/messages/test_drift_sources.py`` holds them equal).
 REASON_CODES: frozenset[str] = frozenset(
     {
         OVER_CAP,

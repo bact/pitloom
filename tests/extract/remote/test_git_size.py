@@ -26,6 +26,7 @@ from tests._symlink import CAN_SYMLINK
     ("count", "text"),
     [
         (0, "0 bytes"),
+        (1, "1 byte"),
         (1023, "1023 bytes"),
         (1024, "1 KiB"),
         (1025, "1025 bytes"),

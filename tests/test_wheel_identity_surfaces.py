@@ -35,6 +35,7 @@ from pitloom import __main__
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.core import wheel_dist_info
 from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
+from pitloom.messages import OVER_CAP, trusted_message
 from tests._wheel_damage import (
     METADATA,
     central_name_damaged_wheel,
@@ -448,13 +449,15 @@ def test_the_embed_does_not_read_and_warn_about_metadata_twice(
 
     _IDENTITY_READERS[surface](wheel, monkeypatch)
 
-    said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
+    err = capsys.readouterr().err.splitlines()
+    said = [x for x in err if x.endswith("unknown [over-cap]")]
     assert len(said) == 1, said
     # The cap is what made it unknown.
     assert said[0].endswith(
         ".whl:demo-1.0.dist-info/METADATA: larger than the 2-header header-block"
-        " cap; identity unknown"
+        " cap; identity unknown [over-cap]"
     )
+    assert trusted_message(said[0]) is OVER_CAP
     with zipfile.ZipFile(wheel) as archive:
         sboms = [n for n in archive.namelist() if "/sboms/" in n]
     assert sboms == ["demo-1.0.dist-info/sboms/demo-1.0.spdx3.json"]

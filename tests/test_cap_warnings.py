@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import logging_config
+from pitloom.core.ai_metadata import model_cap
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES, read_license_members
 from pitloom.messages import Cap, over_cap_of, warn_over_cap
 
@@ -44,14 +45,14 @@ _LOG = logging.getLogger("pitloom.test_cap_warnings")
             " expansion cap; skipped",
         ),
         (
-            Cap(4, "level", "GGUF-array-nesting").after("FORMAT=gguf"),
+            model_cap(Cap(4, "level", "GGUF-array-nesting"), "gguf"),
             "m.gguf",
             True,
             "FORMAT=gguf FILE=m.gguf: larger than the 4-level GGUF-array-nesting"
             " cap; skipped",
         ),
     ],
-    ids=["file", "field-escaped-once", "keys-after"],
+    ids=["file", "field-escaped-once", "model"],
 )
 def test_warn_over_cap(
     caplog: pytest.LogCaptureFixture,
@@ -316,6 +317,7 @@ def test_every_cap_warns_through_the_shared_helper() -> None:
     modules = {
         path.relative_to(_SRC).as_posix(): ast.parse(path.read_text(encoding="utf-8"))
         for path in sorted(_SRC.rglob("*.py"))
+        if path.relative_to(_SRC).parts[0] != "messages"  # the catalogue's own
     }
     carriers, holders = _flow(list(modules.values()))
     unrouted: set[str] = set()

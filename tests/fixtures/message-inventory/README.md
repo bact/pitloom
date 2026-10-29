@@ -52,3 +52,9 @@ never by raising a count.
   or reason, a fact whose fields do not fit, an unknown provenance segment
   key) are programming errors, now `InternalError`, out of scope. The 3 had
   been raised by hand for the segment-key raise; no count rose.
+- 2026-10-29 (#396): `pitloom.extract.project.sdist` 4 to 3 and
+  `pitloom.extract.remote._git_run` 7 to 5: the sdist's over-cap config file
+  and a Git URL's over-cap checkout and `git` output raise with the
+  `over-cap` code. The 33 `warn_over_cap` call sites (one through
+  `warn_field_cap`) come into scope with the helper's move into
+  `pitloom.messages`, coded: no count rose.

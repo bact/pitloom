@@ -31,6 +31,7 @@ from tests._message_drift import quote_matches, relative
 _MARKERS = {
     "lfs-pointer": "Git LFS pointer",
     "lfs-pointer-malformed": "Git LFS pointer",
+    "over-cap": " cap;",
 }
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).
@@ -68,8 +69,11 @@ def test_the_scan_found_quotes() -> None:
     assert {
         "docs/ai-model-scan-limits.md",
         "skills/sbom-enrich/references/deterministic-pass.md",
+        "skills/sbom-enrich/references/model-stub-diagnosis.md",
         "skills/sbom-generate/references/git-url.md",
+        "skills/sbom-generate/references/known-limitations.md",
     } <= files
+    assert {f for _, families, _ in _QUOTES for f in families} == set(_MARKERS)
 
 
 @pytest.mark.parametrize(
@@ -123,3 +127,38 @@ def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
     quote: str, expected: bool
 ) -> None:
     assert quote_matches(quote, "lfs-pointer", _MARKERS["lfs-pointer"]) is expected
+
+
+@pytest.mark.parametrize(
+    ("quote", "expected"),
+    [
+        ("... larger than the 10000-byte .npy-header cap; metadata not read", True),
+        (
+            "WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget",
+            True,
+        ),
+        ("WARNING: ... model-scan budget cap; ...", True),
+        (
+            "WARNING: FORMAT=<fmt> FILE=<path>:<member>: larger than the "
+            "8388608-byte archive-member cap; metadata not read",
+            True,
+        ),
+        ("FILE=<path>: larger than the 10-byte usage-scan limit cap; skipped", True),
+        (
+            "ERROR: config file '<path>': larger than the <limit>-byte config-member "
+            "cap; not read [over-cap]",
+            True,
+        ),
+        # the wording, a value's shape, the level or the code differs
+        ("WARNING: FILE=<path>: larger than 10 bytes cap; skipped", False),
+        ("WARNING: FILE=<path>: over the 10-byte usage-scan cap; skipped", False),
+        ("FILE=<path>: larger than the 10-megabyte usage-scan cap; skipped", False),
+        ("FILE=<path>: larger than the 10-byte a b c d cap; skipped", False),
+        ("ERROR: FILE=<path>: larger than the 10-byte usage-scan cap; skipped", False),
+        ("INFO: FILE=<path>: larger than the 10-byte usage-scan cap; skipped", False),
+        ("FILE=<p>: larger than the 10-byte usage-scan cap; x [lfs-pointer]", False),
+    ],
+    ids=lambda v: str(v)[:24],
+)
+def test_the_matcher_reads_the_values_of_a_cap_line(quote: str, expected: bool) -> None:
+    assert quote_matches(quote, "over-cap", _MARKERS["over-cap"]) is expected

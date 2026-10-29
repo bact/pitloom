@@ -28,11 +28,16 @@ import pytest
 
 from tests._message_inventory import REPO_ROOT, load
 
-#: Sites already coded: (file, emitter) of the Git LFS pointer families.
-LFS_SITES = [
+#: Sites already coded: (file, emitter) of the Git LFS pointer families and of
+#: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises).
+CODED_SITES = [
     ("src/pitloom/core/lfs_pointer.py", "emit"),
     ("src/pitloom/core/lfs_pointer.py", "raise"),
     ("src/pitloom/extract/scanner.py", "emit"),
+    ("src/pitloom/extract/scanner.py", "warn_over_cap"),
+    ("src/pitloom/extract/authors.py", "warn_field_cap"),
+    ("src/pitloom/extract/project/sdist.py", "raise"),
+    ("src/pitloom/extract/remote/_git_run.py", "raise"),
 ]
 
 
@@ -52,14 +57,35 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
 
 
 @pytest.mark.parametrize(
-    ("file", "emitter"), LFS_SITES, ids=["emit", "raise", "scanner-emit"]
+    ("file", "emitter"),
+    CODED_SITES,
+    ids=[
+        "emit",
+        "raise",
+        "scanner-emit",
+        "over-cap",
+        "over-cap-wrapper",
+        "over-cap-sdist",
+        "over-cap-git",
+    ],
 )
-def test_the_tool_sees_the_lfs_pointer_sites_as_coded(
+def test_the_tool_sees_the_catalogued_sites_as_coded(
     records: list[dict[str, Any]], file: str, emitter: str
 ) -> None:
     sites = [r for r in records if r["file"] == file and r["emitter"] == emitter]
     assert any(r["coded"] for r in sites)
     assert any(load().in_scope(r) for r in sites if r["coded"])
+
+
+def test_every_over_cap_call_is_a_coded_site_in_scope(
+    records: list[dict[str, Any]],
+) -> None:
+    """The catalogue's helper says ``over-cap`` at every call, a wrapper's
+    call too: each is a site the ratchet counts, and coded, so no count
+    rose when the helper moved into the catalogue."""
+    sites = [r for r in records if r["helper"] in ("warn_over_cap", "warn_field_cap")]
+    assert len(sites) > 30  # the scan finds them
+    assert all(r["coded"] and load().in_scope(r) for r in sites)
 
 
 @pytest.mark.parametrize(

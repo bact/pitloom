@@ -32,6 +32,7 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer`](#lfs-pointer) | ERROR, WARNING | A file is a Git LFS pointer: a small text file standing in for content the checkout does not have (made or cloned without Git LFS). | 0.22.0 |
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
+| [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 
 A line may start with one prefix before its text:
 
@@ -52,12 +53,20 @@ A line may start with one prefix before its text:
 
 | Value | What it is |
 | --- | --- |
+| `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
+| `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<file>` | a path as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
+| `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
+| `<limit>` | the cap, in its unit |
+| `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<oid>` | the SHA-256 the pointer states, in hex |
+| `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `'<path>'` | a path in quotes |
-| `<size>` | a size the pointer states (`1 byte`, `N bytes`) |
+| `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
+| `<size>` | a size in bytes (`1 byte`, `N bytes`) |
+| `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 
 ### `lfs-pointer`
 
@@ -120,5 +129,34 @@ A line may start with one prefix before its text:
 
   ```text
   WARNING: FILE=<file>: Git LFS pointer shipped<count>; the build did not pull LFS content [lfs-pointer/shipped]
+  ```
+
+### `over-cap`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: An input is larger than a cap Pitloom puts on what it reads or
+  records, so that a crafted or unusually large input cannot exhaust time,
+  memory or disk.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Kept what fits the cap and left the rest out, or did not read
+  the input; the text after the semicolon says which.
+- **Tell the user**: which input was over which cap and what the SBOM lacks for
+  it. Three caps are settings, which they can raise for an input they trust and
+  then generate again: max-model-extract-bytes (and with it the per-wheel
+  model-scan budget, four times it) by --max-model-extract-bytes or its
+  [tool.pitloom] key; max-dataset-hash-bytes by its key, by
+  --max-dataset-hash-bytes of loom id generate or by the max_dataset_hash_bytes
+  argument of loom.Run; a Git URL's checkout by the max_clone_bytes argument of
+  the library call. Every other cap is fixed. Do not raise a cap or generate
+  again for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: <key>=<name>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
+  WARNING: FORMAT=<format> FILE=<file>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
+  ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
+  ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
+  ERROR: git <command> produced more than <size> [over-cap]
   ```
 <!-- END GENERATED -->

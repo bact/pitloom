@@ -287,23 +287,57 @@ class CallSites:
             helper=name,
             site_kind="helper_call",
             templates=[f"{subject}={where}: {reason}; {outcome}"],
-            extra={"cap_resolution": how, "template_source": "OVER_CAP_WARNING"},
+            extra={
+                "cap_resolution": how,
+                "template_source": "OVER_CAP",
+                **self._over_cap_def(mod, call),
+            },
         )
 
+    def _over_cap_def(self, mod: Module, call: ast.Call) -> Record:
+        """The ``helper_def`` of an over-cap call: the catalogue's
+        ``warn_over_cap`` writes its line (a catalogue helper's callers
+        count, :func:`~._scope.in_scope`) and codes it. A wrapper's call
+        (``warn_field_cap``) is the ``warn_over_cap`` call in its body, which
+        is counted here, at its callers: the wrapper's ``coded`` and
+        ``forwards_code`` are that call's."""
+        found = self.idx.lookup(mod, call.func)
+        if found is None:
+            return {}
+        dmod, dfn = found
+        if callee_name(call) == "warn_over_cap":
+            return {"helper_def": f"{dmod.rel}:{dfn.lineno}"}
+        for sub in ast.walk(dfn):
+            if isinstance(sub, ast.Call) and callee_name(sub) == "warn_over_cap":
+                inner = self.idx.lookup(dmod, sub.func)
+                if inner is not None:
+                    imod, ifn = inner
+                    kind = self.coder.body_kind(imod, ifn)
+                    return {
+                        "helper_def": f"{imod.rel}:{ifn.lineno}",
+                        **code_fields(kind),
+                    }
+        return {}
+
     def cap_info(self, mod: Module, node: ast.expr | None) -> tuple[str, str, str]:
-        """(subject, reason, how it was resolved) of an over-cap call's cap."""
+        """(subject, reason, how it was resolved) of an over-cap call's cap:
+        ``model_cap(cap, fmt)`` names the model's format first."""
         dflt = ("{cap.subject}", "{cap.reason}", "unresolved")
         if node is None:
             return dflt
         prefix = ""
         if (
             isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "after"
+            and callee_name(node) == "model_cap"
+            and node.args
         ):
-            keys = self.idx.render(node.args[0], mod, None, None) if node.args else None
-            prefix = (keys[0] + " ") if keys else "{keys} "
-            node = node.func.value
+            fmt = (
+                self.idx.render(node.args[1], mod, None, None)
+                if node.args[1:]
+                else None
+            )
+            prefix = f"FORMAT={fmt[0]} " if fmt else "FORMAT={fmt} "
+            node = node.args[0]
         cap: ast.expr | None = node
         if isinstance(node, ast.Name):
             cap = self.idx.const_node(mod, node.id)

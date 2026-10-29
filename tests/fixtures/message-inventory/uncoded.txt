@@ -148,13 +148,13 @@ pitloom.extract.project.pdm 2
 pitloom.extract.project.poetry 3
 pitloom.extract.project.pyproject 7
 pitloom.extract.project.reader 3
-pitloom.extract.project.sdist 4
+pitloom.extract.project.sdist 3
 pitloom.extract.project.setuptools 2
 pitloom.extract.project.setuptools_cfg 7
 pitloom.extract.project.setuptools_py 4
 pitloom.extract.remote._git_folder 1
 pitloom.extract.remote._git_redirect 5
-pitloom.extract.remote._git_run 7
+pitloom.extract.remote._git_run 5
 pitloom.extract.remote.git 11
 pitloom.extract.remote.git_url 3
 pitloom.extract.remote.huggingface 3

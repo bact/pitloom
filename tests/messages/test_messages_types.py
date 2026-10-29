@@ -195,11 +195,19 @@ def test_line_for_refuses_when_it_cannot_tell(
 
 
 @pytest.mark.parametrize(
-    "first", ["pitloom.messages", "pitloom.logging_config", "pitloom.core.lfs_pointer"]
+    "first",
+    [
+        "pitloom.messages",
+        "pitloom.logging_config",
+        "pitloom.core.lfs_pointer",
+        "pitloom.core.ai_metadata",
+        "pitloom.messages._over_cap_warning",
+    ],
 )
 def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:
-    """Each order of the two modules (and the warning's own module first)
-    loads both, with no cycle. ``pitloom`` is an empty package, so the
+    """Each order of the two modules (and a warning's own module, or a
+    module the cap helper's ``Cap`` is built in, first) loads both, with no
+    cycle. ``pitloom`` is an empty package, so the
     module named first is reached through its own imports only."""
     code = "\n".join(
         [
@@ -223,7 +231,9 @@ def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:
     assert run.stdout.decode("ascii").strip() == "lfs-pointer"
 
 
-@pytest.mark.parametrize("module", ["logging_config.py", "core/quote_source.py"])
+@pytest.mark.parametrize(
+    "module", ["logging_config.py", "core/quote_source.py", "core/internal_error.py"]
+)
 def test_what_the_catalogue_imports_never_imports_it(module: str) -> None:
     source = (Path(_SRC) / "pitloom" / module).read_text("utf-8")
     imported = {

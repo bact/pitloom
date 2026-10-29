@@ -40,6 +40,8 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     split_ref,
 )
+from pitloom.messages import OVER_CAP
+from tests._message_drift import raised_as
 
 posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="a shell script stands in for git"
@@ -448,6 +450,7 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
         ) as excinfo:
             runner.run(["clone"], "clone", echo=False, watch=str(watched))
         assert excinfo.value.code == "git.too-large"
+        assert raised_as(excinfo.value, OVER_CAP)
         assert time.monotonic() - started < 30
     else:
         assert runner.run(["clone"], "clone", echo=False, watch=str(watched)) == ""
@@ -489,6 +492,7 @@ def test_a_repository_over_the_cap_is_not_read(tmp_path: Path, limit: int) -> No
             with fetch_git_project(f"file://{root}", max_bytes=limit):
                 pytest.fail("too large")
         assert excinfo.value.code == "git.too-large"
+        assert raised_as(excinfo.value, OVER_CAP)
     else:
         with fetch_git_project(f"file://{root}", max_bytes=limit) as checkout:
             assert (Path(checkout.folder) / "big.bin").is_file()

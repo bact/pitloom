@@ -17,7 +17,7 @@ See also: :mod:`pitloom.messages` (the catalogue) and
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
@@ -33,13 +33,15 @@ def emit(
     *,
     line: Line | None = None,
     once: str | None = None,
+    extra: Mapping[str, object] | None = None,
     **values: object,
 ) -> None:
     """Log *message* at *level* on *log*, its code on the record: its line
     at that level that names *values* (*line*, when several do), each value
     written by its field. *once*: through
     :func:`~pitloom.logging_config.log_once` with that key (``DEBUG``, and
-    no printed code, after the first time).
+    no printed code, after the first time). *extra*: more attributes for
+    the record; the code is the message's own, whatever *extra* holds.
 
     Raises:
         ValueError: No line of *message* at *level* names *values* (or
@@ -48,11 +50,11 @@ def emit(
     shape = message.line_for(logging.getLevelName(level), values, line)
     texts = written(shape.template, values)
     args: tuple[object, ...] = (texts,) if texts else ()
-    extra = {CODE_ATTR: message.code}
+    attrs = {**(extra or {}), CODE_ATTR: message.code}
     if once is None:
-        log.log(level, shape.template, *args, extra=extra)
+        log.log(level, shape.template, *args, extra=attrs)
     else:
-        log_once(log, level, once, shape.template, *args, extra=extra)
+        log_once(log, level, once, shape.template, *args, extra=attrs)
 
 
 def relay_extra(code: object, level: str, text: str) -> dict[str, object] | None:

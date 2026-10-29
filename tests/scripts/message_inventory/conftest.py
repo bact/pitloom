@@ -105,6 +105,36 @@ def warn_coded(path):
 def warn_plain(path):
     _log.warning("FILE=%s: odd", path)
 """,
+    # The catalogue's over-cap helper: its body is the mechanism too.
+    "messages/_over_cap_warning.py": """\
+from pitloom.messages._emit import emit
+
+
+def warn_over_cap(log, cap, where, outcome="skipped", *, once=False, key=None):
+    emit(log, cap, 30, name=where, outcome=outcome)
+""",
+    # The helper's call and a wrapper's call (coded, in scope; the wrapper's
+    # own call is counted at its callers), and a raise naming the code by its
+    # pitloom_code keyword (coded).
+    "caps.py": """\
+import logging
+
+from pitloom.messages import OVER_CAP
+from pitloom.messages._over_cap_warning import warn_over_cap
+from pitloom.remote_errors import RemoteSourceError
+
+_log = logging.getLogger(__name__)
+
+
+def warn_field_cap(field, key, cap, read):
+    warn_over_cap(_log, cap, key, read)
+
+
+def check(path, cap):
+    warn_over_cap(_log, cap, path)
+    warn_field_cap("a b", "authors", cap, None)
+    raise RemoteSourceError("git.too-large", "too large", pitloom_code=OVER_CAP.code)
+""",
     # A call of each helper, and a raise with text.
     "callers.py": """\
 from pitloom.helpers import refuse, warn_coded, warn_plain

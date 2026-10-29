@@ -21,7 +21,9 @@ from pitloom.__main__ import main
 from pitloom.cli.commands.utils import cli_error_handler, report_error_line
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import (
+    CONFIG_MEMBER_LINE,
     LFS_POINTER_MALFORMED,
+    OVER_CAP,
     CodedValueError,
     Message,
     trusted_message,
@@ -73,6 +75,8 @@ def test_a_hostile_path_cannot_forge_a_line(
 
 
 _LOOKS = "'m': header looks like a Git LFS pointer but is not a valid one"
+_CONFIG = "config file 's.tar.gz:setup.cfg': larger than the 1-byte config-member cap"
+_CLONE = "the repository is larger than 1 KiB; git clone was stopped"
 
 
 @pytest.mark.parametrize(
@@ -83,9 +87,26 @@ _LOOKS = "'m': header looks like a Git LFS pointer but is not a valid one"
             f"{_LOOKS} [lfs-pointer-malformed]",
             LFS_POINTER_MALFORMED,
         ),
+        (
+            CodedValueError(
+                OVER_CAP,
+                line=CONFIG_MEMBER_LINE,
+                path="s.tar.gz:setup.cfg",
+                limit=1,
+                unit="byte",
+                purpose="config-member",
+            ),
+            f"{_CONFIG}; not read [over-cap]",
+            OVER_CAP,
+        ),
+        (
+            RemoteSourceError("git.too-large", _CLONE, pitloom_code="over-cap"),
+            f"{_CLONE} [over-cap]",
+            OVER_CAP,
+        ),
         (RemoteSourceError("git.too-large", "x"), "x", None),
     ],
-    ids=["catalogued", "uncatalogued"],
+    ids=["catalogued", "over-cap-config", "over-cap-remote", "uncatalogued"],
 )
 def test_an_error_line_ends_in_a_catalogued_code_only(
     capsys: pytest.CaptureFixture[str],

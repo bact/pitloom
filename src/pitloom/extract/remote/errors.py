@@ -22,12 +22,18 @@ class RemoteSourceError(Exception):
     ``git.path-not-found``, ``git.too-many-redirects``,
     ``git.output-too-large``, ``git.too-large``, ``git.no-project``, and any
     code a caller's own URL check raises through :class:`RemoteSourceError`);
-    the message is for the user.
+    the message is for the user. *pitloom_code* is the catalogued code of
+    the condition when it has one (``over-cap`` for ``git.too-large`` and
+    ``git.output-too-large``), read by :func:`pitloom.messages.code_of`.
     """
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(
+        self, code: str, message: str, *, pitloom_code: str | None = None
+    ) -> None:
         super().__init__(message)
         self.code = code
+        #: The catalogued code of the condition, or ``None``.
+        self.pitloom_code = pitloom_code
 
     def __reduce__(
         self,

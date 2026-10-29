@@ -22,7 +22,14 @@ from pathlib import Path
 
 import pitloom.messages as catalogue
 from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
-from pitloom.messages import FIELDS, FRAMES, MESSAGES, Message, trusted_message
+from pitloom.messages import (
+    FIELDS,
+    FRAMES,
+    MESSAGES,
+    Message,
+    code_of,
+    trusted_message,
+)
 from pitloom.messages._fields import PLACEHOLDER
 from tests._docs_scan import REPO_ROOT
 
@@ -34,12 +41,20 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
+    "amount": "512 MiB",
+    "command": "clone",
     "count": 2,
     "file": "m/a.bin",
     "format": "gguf",
+    "key": "FIELD",
+    "limit": 1024,
+    "name": "a.txt",
     "oid": "0f" * 32,
+    "outcome": "skipped",
     "path": "m.gguf",
+    "purpose": "per-wheel model-scan budget",
     "size": 3,
+    "unit": "byte",
 }
 
 
@@ -63,6 +78,14 @@ def record_problem(record: logging.LogRecord) -> str | None:
     if trusted_message(line) is not MESSAGES[code]:
         return f"{line!r} is not the text or level of {code!r}"
     return None
+
+
+def raised_as(exc: BaseException, message: Message) -> bool:
+    """Whether *exc* says *message*: it carries the code
+    (:func:`~pitloom.messages.code_of`), and its text, printed as the
+    command line prints an error, is one of the entry's ``ERROR`` lines."""
+    printed = f"ERROR: {escape_controls(str(exc))} [{message.code}]"
+    return code_of(exc) == message.code and trusted_message(printed) is message
 
 
 def family_names() -> dict[str, tuple[str, ...]]:

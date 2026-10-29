@@ -31,9 +31,7 @@ from tests._message_drift import (
 
 #: Evidence reasons with no catalogued message yet. Shrink only: a reason
 #: moves to the catalogue (its code equals the reason), never back.
-PENDING = frozenset(
-    {"over-cap", "timeout", "network-failed", "file-unreadable", "dir-unlistable"}
-)
+PENDING = frozenset({"timeout", "network-failed", "file-unreadable", "dir-unlistable"})
 
 #: Modules that hold a catalogued family's text but say nothing: module path
 #: under ``src/pitloom``, with why. Shrink only.

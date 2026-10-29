@@ -29,15 +29,36 @@ def _pickled(exc: RemoteSourceError) -> RemoteSourceError:
     return again
 
 
+_CLONE = "the repository is larger than 1 KiB; git clone was stopped"
+
+
+def _set(exc: RemoteSourceError) -> RemoteSourceError:
+    setattr(exc, CODE_ATTR, "lfs-pointer")
+    return exc
+
+
 @pytest.mark.parametrize(
     "again", [copy.copy, copy.deepcopy, _pickled], ids=["copy", "deepcopy", "pickle"]
 )
+@pytest.mark.parametrize(
+    ("exc", "code"),
+    [
+        (
+            RemoteSourceError("git.too-large", _CLONE, pitloom_code="over-cap"),
+            "over-cap",
+        ),
+        (_set(RemoteSourceError("git.too-large", _CLONE)), "lfs-pointer"),
+        (RemoteSourceError("git.timeout", "git clone exceeded 1s"), None),
+    ],
+    ids=["given", "set", "none"],
+)
 def test_a_remote_source_error_survives_a_copy_and_a_pickle(
     again: Callable[[RemoteSourceError], RemoteSourceError],
+    exc: RemoteSourceError,
+    code: str | None,
 ) -> None:
-    exc = RemoteSourceError("git.too-large", "the repository is larger than 1 KiB")
-    setattr(exc, CODE_ATTR, "lfs-pointer")
+    """The code given to it, or set on it later, survives with the rest."""
     back = again(exc)
     assert back is not exc and type(back) is RemoteSourceError
     assert (back.code, str(back), back.args) == (exc.code, str(exc), exc.args)
-    assert code_of(back) == "lfs-pointer"
+    assert code_of(back) == code_of(exc) == code

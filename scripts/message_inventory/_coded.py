@@ -8,7 +8,8 @@ message, so its line ends in `` [code]``.
 A call has a *static* code when it
 
 - is ``emit(...)`` or ``CodedValueError(...)``, or
-- passes ``code=`` a string or a ``pitloom.messages`` constant, or
+- passes ``code=`` (or ``pitloom_code=``, as an exception class's own
+  keyword) a string or a ``pitloom.messages`` constant, or
 - passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
 - passes a ``pitloom.messages`` constant (an upper-case name imported from
   that package) as an argument.
@@ -95,7 +96,7 @@ def call_code_kind(call: ast.Call, mod: Module) -> str | None:
     if name in FORWARD_CALLS:
         kinds.add(FORWARD)
     for kw in call.keywords:
-        if kw.arg == "code":
+        if kw.arg in ("code", CODE_KEY):
             kinds.add(_code_kwarg_kind(kw.value, mod))
         elif kw.arg == "extra":
             kinds.add(_extra_kind(kw.value))

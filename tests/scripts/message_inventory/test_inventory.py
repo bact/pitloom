@@ -41,6 +41,9 @@ SITES = [
     ("pitloom.uncoded", 13, False, False),  # print_error(code=None)
     ("pitloom.uncoded", 14, False, True),  # print_error(code=code_of(exc))
     ("pitloom.relay", 9, False, True),  # extra=relay_extra(...)
+    ("pitloom.caps", 15, True, False),  # warn_over_cap(...)
+    ("pitloom.caps", 16, True, False),  # a wrapper of it
+    ("pitloom.caps", 17, True, False),  # raise ...(pitloom_code=M.code)
 ]
 IDS = [f"{m.rsplit('.', 1)[-1]}:{n}" for m, n, _, _ in SITES]
 
@@ -69,6 +72,10 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
     assert not mi.in_scope(_site(records, "pitloom.callers", 6))
     assert not mi.in_scope(_site(records, "pitloom.messages._emit", 2))
     assert mi.in_scope(_site(records, "pitloom.coded", 9))
+    # A catalogue helper's call counts, coded; a wrapper's own call of it is
+    # counted at the wrapper's callers.
+    assert all(mi.in_scope(_site(records, "pitloom.caps", n)) for n in (15, 16, 17))
+    assert not [r for r in records if r["module"] == "pitloom.caps" and r["line"] == 11]
     assert mi.uncoded_counts(records) == {
         "pitloom.callers": 1,
         "pitloom.helpers": 1,
@@ -77,7 +84,7 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (13, 5)
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (16, 8)
     assert counts["IN_SCOPE_UNCODED"] == 8 == sum(mi.uncoded_counts(records).values())
 
 
