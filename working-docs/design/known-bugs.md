@@ -202,9 +202,14 @@ Size: S under half a day, M about a day.
   `version` and a wheel `METADATA` `Version`: none is checked for an
   over-long number (not probed).
 
-- [ ] **Safetensors licence keys are not mapped (S).** They stay in the
-  verbatim annotation only; classify them like GGUF `general.license` (mapped
-  in #294). GGUF `general.license.name`/`.link` are also unread.
+- [x] **Safetensors licence keys are not mapped (S).** Fixed in the next
+  release: `modelspec.license` (the only licence key in 9 real headers read on
+  2026-10-28) is the model licence, as written; GGUF `general.license.name`
+  stands in when `general.license` is blank or a placeholder (`other`...).
+  `general.license.link` stays unread: `AiModelMetadata` has no licence-URL
+  field, though SPDX 3.0.1 has `ExternalRefType` `license` for it (a Pitloom
+  gap, not a format gap). Safetensors files
+  with `license`/`license_name` keys were not seen; add them if one turns up.
 
 - [x] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
   gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools

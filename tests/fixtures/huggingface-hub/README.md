@@ -271,7 +271,7 @@ unrecognized values.
 
 #### Vague license values
 
-`_VAGUE_LICENSE_VALUES` = `{"other", "custom", "proprietary", "unknown", "unlicensed"}`.
+`VAGUE_LICENSE_VALUES` = `{"other", "custom", "proprietary", "unknown", "unlicensed"}`.
 When the card YAML `license` field matches one of these, the extractor:
 
 1. Saves the raw value in `extra_data["hf.license_raw"]`
@@ -721,7 +721,7 @@ come from `config.json`.
 | `airesearch/WangchanX-Legal-ThaiCCL-Retriever` | Base_model finetune, MIT, dataset ref | Fine-tuned from BAAI/bge-m3; xlm-roberta arch; Thai legal |
 | `jinaai/jina-embeddings-v4` | visual-document-retrieval domain, no license | 131 072 token context; `language=["multilingual"]` keyword preserved; `license=None` |
 | `HuggingFaceFW/fineweb-edu-classifier` | text-classification, base_model finetune | Fine-tuned from Snowflake arctic-embed; educational quality 0–5 |
-| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` verbatim | `openrail++` ∉ `_VAGUE_LICENSE_VALUES`; not recognized by licenseid → recorded verbatim; 20 value categories |
+| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` verbatim | `openrail++` ∉ `VAGUE_LICENSE_VALUES`; not recognized by licenseid → recorded verbatim; 20 value categories |
 | `nlp-chula/aspect-finnlp-th` | text-classification, Thai financial, no license | CamemBERT-based; fine-tuned from wangchanberta; `license=None` |
 | `openai/privacy-filter` | token-classification, 128 K context | `hf.tokenizer_max_length=128000` captured; custom arch |
 | `line-corporation/line-distilbert-base-japanese` | fill-mask, DistilBERT (6 layers) | Japanese BERT distilled to 6 layers; `DistilBertForMaskedLM`; Apache-2.0 |

@@ -410,6 +410,18 @@ def warn_unless_expression(value: str | None, field: str) -> None:
     )
 
 
+#: What a model card or file puts in a licence field for "a licence, not
+#: named here" (the name is in another field): a placeholder, not a claim.
+VAGUE_LICENSE_VALUES: frozenset[str] = frozenset(
+    {"other", "custom", "proprietary", "unknown", "unlicensed"}
+)
+
+
+def is_vague_license_value(value: str | None) -> bool:
+    """Whether *value* is one of :data:`VAGUE_LICENSE_VALUES`, in any case."""
+    return value is not None and value.strip().lower() in VAGUE_LICENSE_VALUES
+
+
 def is_weak_licence(value: str | None) -> bool:
     """Whether *value* is a placeholder (``NOASSERTION``/``UNKNOWN``, any
     case), not a claim. ``NONE`` is a statement, not weak."""

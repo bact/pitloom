@@ -100,7 +100,7 @@ def test_hunyuan_mt_no_license() -> None:
 
 
 def test_blip_vqa_bsd_license_normalized() -> None:
-    # bsd-3-clause not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated.
+    # bsd-3-clause not in VAGUE_LICENSE_VALUES; the card value is recorded as stated.
     with _patch_blip_vqa():
         meta = read_huggingface("Salesforce/blip-vqa-base")
     assert meta.license == "bsd-3-clause"
@@ -189,7 +189,7 @@ def test_hermes_3_llama_3b_finetune_and_license() -> None:
 
 
 def test_deberta_human_value_openrail_license() -> None:
-    # openrail++ is not in _VAGUE_LICENSE_VALUES -- passed through as-is.
+    # openrail++ is not in VAGUE_LICENSE_VALUES -- passed through as-is.
     with _patch_deberta_human_value():
         meta = read_huggingface("tum-nlp/Deberta_Human_Value_Detector")
     assert meta.license == "openrail++"
@@ -239,7 +239,7 @@ def test_sealion_27b_it_sea_languages_gemma_license() -> None:
 
 
 def test_qwen3_235b_qwen_license_passthrough() -> None:
-    # "qwen" not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated
+    # "qwen" not in VAGUE_LICENSE_VALUES; the card value is recorded as stated
     with _patch_qwen3_235b():
         meta = read_huggingface("Qwen/Qwen3-235B-A22B")
     assert meta.license == "qwen"
@@ -252,7 +252,7 @@ def test_qwen35_27b_apache_license() -> None:
 
 
 def test_kanana_15v_license_passthrough() -> None:
-    # "kanana-license" not in _VAGUE_LICENSE_VALUES; the card value is recorded as
+    # "kanana-license" not in VAGUE_LICENSE_VALUES; the card value is recorded as
     # stated; no file detection triggered
     with _patch_kanana_15v():
         meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
@@ -345,7 +345,7 @@ def test_tildeopen_30b_64k_cc_by_license() -> None:
 
 
 def test_bloom_custom_license_passthrough() -> None:
-    # "bigscience-bloom-rail-1.0" is not in _VAGUE_LICENSE_VALUES: the card
+    # "bigscience-bloom-rail-1.0" is not in VAGUE_LICENSE_VALUES: the card
     # value is recorded as stated.
     with _patch_bloom():
         meta = read_huggingface("bigscience/bloom")
@@ -412,7 +412,7 @@ def test_hy_motion_vague_license_with_license_name() -> None:
 
 
 def test_apple_sharp_apple_amlr_license_passthrough() -> None:
-    # apple-amlr not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated
+    # apple-amlr not in VAGUE_LICENSE_VALUES; the card value is recorded as stated
     with _patch_apple_sharp():
         meta = read_huggingface("apple/Sharp")
     assert meta.license == "apple-amlr"

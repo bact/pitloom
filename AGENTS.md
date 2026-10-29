@@ -31,18 +31,18 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.project.hatchling.metadata_from_hatchling()`.
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
-- **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/`-layout project. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a determinism-sensitive string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
-- **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) share them: a source-only artefact (`poetry.lock`) must not leak into the build stage.
+- **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/` layout. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a deterministic string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
+- **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
 
 ### Usage surfaces
 
-Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others, since each surface's own tests keep passing. Skills/plugin have no test suite: when changing a command/flag/output shape a `SKILL.md` documents, grep `skills/` and update it in the same change.
+Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
 - **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads (`--debug` -> the `PITLOOM_DEBUG` env var), not per-call-site updates.
-- **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library functions) before trusting or writing it.
+- **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
 - **A pattern hand-copied across 3+ call sites drifts** (e.g. a `WARNING:` naming the skipped SBOM field): factor it into one helper/constant.
 - **A test on one surface doesn't cover the others**: for behaviour that must hold across CLI, library, hook and Action, or every subcommand, test each.
-- **A skill is discovered through its frontmatter `description` only**; a body section does not make a command triggerable. On a CLI command/flag add or rename, check the `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep *verify* (structural) vs *validate* (schema/SHACL) explicit; give combined asks ("generate SBOM meeting CISA") a hand-off in both skills and every follow-up question a non-interactive fallback. Try a skill's check or recipe on a legitimate input where it should do nothing. Audit: [skills-trigger-coverage.md](working-docs/implementation/skills-trigger-coverage.md).
+- **A skill is discovered through its frontmatter `description` only**; a body section does not make a command triggerable. On a CLI command/flag add/rename, check `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep *verify* (structural) vs *validate* (schema/SHACL) explicit; give combined asks ("generate SBOM meeting CISA") a hand-off in both skills, every follow-up question a non-interactive fallback. Try a skill's check or recipe on a legitimate input where it should do nothing. Audit: [skills-trigger-coverage.md](working-docs/implementation/skills-trigger-coverage.md).
 
 ## Design principles
 
@@ -51,7 +51,7 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
 - **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction (`np.lib.format`, stream loading for fickling/pickle).
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
-- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, Hub/network fetches) degrades gracefully: a field the source does not carry stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's own marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, Hub/network fetches) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
 
 ## Code health and continuous refactoring
 
@@ -94,6 +94,7 @@ Data and semantics:
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
 - **A doc/docstring claim about "how this mechanism decides" is re-verified against the code before it is trusted or restated.**
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
+- **A model reader records what the file stores, not what a binding defaults** (fastText `lr`), and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
 - **`Path.relative_to` does not collapse `..`**: `normpath` lexically first, `realpath` only as fallback.
 - **An alias rule must test that the shorter key names no real file**: else two real files with equal bytes alias; look up a few built candidate keys, never scan the table.
@@ -106,7 +107,7 @@ Code shape:
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively; prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
-- **A check on the URL does not cover every client a fetch starts**: list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where the message is built (test `user:SECRET@`). A fallback names its condition. Detail: [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
+- **A check on the URL does not cover every client a fetch starts**: list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where built (test `user:SECRET@`). A fallback names its condition. Detail: [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
 - **A circular-import claim needs a live interpreter test** (both import orders).
 - **A guard for one direction of a symmetric hazard leaves the mirror open**: enumerate both; reproduce a concurrency claim with a timeout-bounded run.
 - **A context manager whose `__exit__` can be interrupted resets shared state in `__enter__`.**
@@ -136,12 +137,12 @@ Tests, platform and CI:
 - **A textual "under the project" check misses on a case-insensitive file system**: fall back to a `(st_dev, st_ino)` ancestor match (`st_ino == 0` = no identity).
 - **Coverage counts one leg (Linux, Python 3.14)**: a branch only another OS/Python reaches shows as missing; cover each `except` portably.
 - **Python 3.14 reports a temp file closed by `__del__` (`urllib.error.HTTPError`) as unraisable**: `with exc:`, and `gc.collect()` in the test. **`os.killpg` on an exited, unreaped group is `ESRCH` (Linux) or `EPERM` (macOS)**: catch both. Wait for a condition, never a fixed sleep.
-- **Run the whole suite before a PR**: a new target kind adds rows to registries area tests never touch.
-- **Fail-fast CI hides other legs**: read which jobs were cancelled.
+- **Run the whole suite before a PR**: a new target kind adds registry rows that area tests miss.
+- **Fail-fast CI hides legs**: read the cancelled jobs.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
-- **Parallel agents**: fence file ownership in writing, tell running agents when a rule is reversed, gate after all land, clean stray files and `pytest-of-*` dirs.
+- **Parallel agents**: fence file ownership in writing, announce a reversed rule, gate after all land, clean stray files and `pytest-of-*` dirs.
 
 ## CLI output
 

@@ -30,6 +30,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract._license import warn_unless_expression
+from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -44,6 +45,7 @@ _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
 _GGUF_LICENSE_KEY = "general.license"
+_GGUF_LICENSE_NAME_KEY = "general.license.name"
 # Producer names, in the order they are read
 _GGUF_ORIGINATOR_KEYS = ("general.author", "general.organization")
 _GGUF_SPLIT_COUNT_KEY = "split.count"
@@ -290,13 +292,24 @@ def _read_gguf_license(
     """Return ``general.license`` (an SPDX expression by the GGUF spec), if
     it is a non-blank string; a value of another type stays in
     ``properties`` only. One that is no SPDX expression (``llama3.1``) is
-    text, with a ``WARNING:``."""
+    text, with a ``WARNING:``. With no ``general.license``, or a placeholder
+    (``other``, ``custom``, ...), ``general.license.name`` (the licence's name:
+    free text, no field warning) stands in; ``general.license.link`` is not
+    read."""
     license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
-    if not license_expr:
+    name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
+    # llama.cpp's converter writes a card's ``license: other`` with its
+    # ``license_name`` as ``general.license.name``: a placeholder (``other``,
+    # ``NOASSERTION``, ...) gives way to it; ``NONE`` is a statement and stays.
+    placeholder = is_vague_license_value(license_expr) or is_weak_licence(license_expr)
+    if license_expr and not (name and placeholder):
+        warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
+        provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
+        return license_expr
+    if not name:
         return None
-    warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
-    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
-    return license_expr
+    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_NAME_KEY}"
+    return name
 
 
 def _originators(

@@ -33,6 +33,10 @@ from pitloom.logging_config import Cap, loggable
 
 log = logging.getLogger(__name__)
 
+#: The ModelSpec key stable-diffusion-xl-base-1.0 and stable-cascade write the
+#: licence in; no other licence key appears in the files measured.
+_LICENSE_KEY = "modelspec.license"
+
 #: Longest JSON header the format allows: ``safetensors``' own
 #: ``MAX_HEADER_SIZE``, inclusive. It decides whether a file is Safetensors
 #: at all (``reader.detect_ai_model_format_from_header``).
@@ -132,6 +136,21 @@ def _originators(
     return names
 
 
+def _license(
+    metadata: dict[str, str], source: str, provenance: dict[str, str]
+) -> str | None:
+    """The model licence of ``modelspec.license`` (a licence name or an SPDX
+    expression, as written), if it is non-blank. Free text, so this reader
+    calls no SPDX-only warning; the assembler's own classification still
+    reports a value that looks like a broken expression. The format has no
+    licence key of its own."""
+    value = (metadata.get(_LICENSE_KEY) or "").strip()
+    if not value:
+        return None
+    provenance["license"] = f"{source} | Field: __metadata__.{_LICENSE_KEY}"
+    return value
+
+
 def read_safetensors(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Safetensors model file.
 
@@ -152,6 +171,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     - ``modelspec.description`` or ``description`` -> description
     - ``modelspec.precision`` -> quantization (e.g. "fp16", "bf16")
     - ``modelspec.author`` -> one originator (not split on commas)
+    - ``modelspec.license`` -> the licence, as written
 
     ``parameter_count`` is the sum of the elements of every tensor, from the
     header's shapes. A model sharded over several files gets each file's own
@@ -241,6 +261,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         quantization=quantization,
         parameter_count=parameter_count,
         originators=_originators(metadata, source, provenance),
+        license=_license(metadata, source, provenance),
         properties=properties,
         **raw,
         # The keys _stable_metadata cut (every value is a string, so
