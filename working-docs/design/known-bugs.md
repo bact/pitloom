@@ -278,8 +278,11 @@ From the combined review of #352 to #357. Open:
   different path each run. Git's own output is masked as `<checkout>`
   (`_git_run.py`), these messages are not. Show a checkout-relative path or
   the URL, through one helper.
-- [ ] **A failed setuptools file discovery is followed by a second, wrong
-  warning (S).** After `Setuptools file discovery failed for ...` (any cause,
+- [x] **A failed setuptools file discovery is followed by a second, wrong
+  warning (S).** Fixed in 0.21.1 (#365): a per-thread flag set by every
+  discoverer that logs a failure (`warn_discovery_failed`,
+  `mark_discovery_failed`) makes the fallback line say the discovery failed.
+  Was: after `Setuptools file discovery failed for ...` (any cause,
   e.g. a bad `%` in `[flake8]`), `_models_wheel_dispatch` also says `No static
   setuptools config resolvable ... (packages only resolvable via an
   imperative setup.py build)`, as if the config were absent. Found in the
@@ -348,6 +351,7 @@ From the 0.21.0 release review. Open:
   (`licenseid update --source packaged`, offline) into a location of its own,
   not the user's cache, or keeps the single warning and says why. Today the
   same value gives different SBOM bytes with and without a database.
-  Mitigated in the next release: a missing database is `INFO:` when a licence
-  is declared (the warning stays when none is declared or for a value that
-  needed licenseid's reading).
+  Mitigated in 0.21.1 (#364): a missing database is `INFO:` when a licence is
+  declared (the warning stays when none is declared or for a value that needed
+  licenseid's reading). Fixed for good when Pitloom 0.22.0 reads declared
+  values through `licenseid` 0.7.0 (plan: #368).
