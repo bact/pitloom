@@ -18,7 +18,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - **Naming and grouping**: kebab-case, topic-first filenames; 3+ closely related files go in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
 - Every commit needs a sign-off line (DCO) in the commit message.
-- **CHANGELOG entries** (`CHANGELOG.md`; `CHANGELOG-archive.md` is frozen): concise, no rationale, link the PR; ~160 chars per bullet (more only for a complex PR). Merge related PRs into one entry (`[#1], [#2]`); sort per section by lowest PR number; skip docs/version-bump/CI-only noise.
+- **CHANGELOG entries** (`CHANGELOG.md`; `CHANGELOG-archive.md` is frozen): concise, no rationale, link the PR; ~160 chars per bullet (more only for a complex PR). Merge related PRs into one entry; sort per section by lowest PR number; skip docs/version-bump/CI-only noise.
 
 ### SBOM output
 
@@ -50,8 +50,8 @@ Pitloom runs from several surfaces: CLI, the Hatchling hook, the library API, th
 - **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction. A rejected input (URL, scheme, ref) is logged as well as raised.
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
 - **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction.
-- **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
-- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, network fetches) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Explicit pin beats local environment**: a version pinned by its own data source is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
+- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
 - **Caps bound reading, never reporting; every fact has an evidence level.**
   A size or time cap is for security and hangs only. Record the first
   available: **measured** (`stat()`, or a read within the caps);
@@ -81,12 +81,12 @@ fuller wording:
 Data and semantics:
 
 - **`None`/absent vs `[]`/`{}` (empty-but-present) are different signals**: absent = try the next source; empty-but-real = authoritative, stop. Watch truthiness checks, `dict.get(k, [])`, provenance gated on the resolved value not the raw key, presence lost across a merge, a fix applied to one field but not its siblings.
-- **Compare identifiers the ecosystem's way**: PEP 503 names, PEP 440 versions (never SemVer: `"1.0"` == `"1.0.0"`), in code, docstrings and lock-file conflict detection.
+- **Compare identifiers the ecosystem's way**: PEP 503 names, PEP 440 versions, in code, docstrings and lock-file conflict detection.
 - **A placeholder (`UNKNOWN`, `N/A`) is not a claim**: keep it weak in a cascade (skip while a later source may know better, emit with provenance only if nothing better); a real "none" ends it; held state is per item.
 - **A source that can resolve to zero entries needs its own "is this really a file of this format" check** in a priority cascade.
 - **A presence-only check misfires when a key is genuinely boolean**.
 - **`dict.get(key, default)` guards absence, not a wrong type**: `isinstance`-check values from external files.
-- **A parse helper catching only the format's exception (`TOMLDecodeError`, `JSONDecodeError`) can still die on a bare `UnicodeDecodeError`.**
+- **A parse helper catching only the format's exception can still die on a bare `UnicodeDecodeError`.**
 - **`json.loads(bytes)` strips a UTF-8 BOM; `json.loads(str)` after `.decode()` raises on it**: pass raw bytes where a binary parse matches.
 - **Picking one candidate from an unordered collection needs an explicit stable tie-break**; choose a merge survivor from counts over all inputs (reversed input order must give the same ids).
 - **A dedup/conflict-exclusion fix must cover every path that can produce the same identity**; a conflict branch must skip itself, not the whole cascade.
@@ -137,7 +137,7 @@ Tests, platform and CI:
 - **A long `parametrize` value becomes the test id** (Windows `PYTEST_CURRENT_TEST` cap 32,767 chars): short `ids=`; conftest fails ids over 1,000.
 - **A `skipif` condition runs at import time on every platform**: use one short-circuited module constant; same for POSIX-only names in decorators and `parametrize`.
 - **A hardcoded POSIX path in a test skips the "absolute" branch on Windows**: build it from `tempfile.gettempdir()`.
-- **A test making case-variant paths (`Org/`, `org/`) probes the file system first** (`mkdir Probe`, test `probe`, skip, then create).
+- **A test making case-variant paths probes the file system first** (`mkdir Probe`, test `probe`, skip, then create).
 - **A bit-for-bit POSIX permission assertion is unwinnable on Windows**: spy `os.chmod` arguments; keep the real assertion on POSIX.
 - **`Path.write_text("x\n")` writes CRLF on Windows**: `write_bytes` when a digest is asserted.
 - **`Path.exists()`/`is_file()` swallow only some errnos** (`PermissionError` propagates on 3.10-3.13, `False` on 3.14): use `os.path.isfile`/`isdir` for "never raises"; gate a test by version, plus a version-independent probe.
@@ -165,14 +165,14 @@ Unix philosophy: consistent, predictable, parseable.
   - `logging.debug()` is developer-only: never prefixed, never on stderr normally.
   - `pitloom.logging_config.configure_logging()` wires all three identically; every CLI command, the hook and every public library-API entry point must call it first. Skipping it is a bug.
 - Within one subsystem use a shared literal sub-prefix (`ID registry: ...`) and match a sibling's wording before inventing one. The `LEVEL:` tag is the one prefix every consumer keys on until the catalogue is built.
-- **The message catalogue is the contract between Pitloom and the skills.** A skill reads our output and explains it, so a message's level, subject, condition and advice are an interface, not prose. Change a message, the catalogue and what a skill quotes together; new messages follow `LEVEL: [SUBJECT=value: ]CONDITION[; ACTION]`. Plan: [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
+- **The message catalogue is the contract between Pitloom and the skills.** A skill reads our output and explains it, so a message's level, condition, lines and advice are an interface, not prose. Say a catalogued message through `pitloom.messages` (`emit(..., file=...)`, `CodedValueError(M, path=...)`), which writes its line; its code (`family[/variant]`, named by cause) rides on the record and any exception as `pitloom_code`. Change a message, the catalogue, the generated reference (`scripts/generate_message_reference.py`) and what a skill quotes together; new messages follow `LEVEL: [SUBJECT=value: ]CONDITION[; ACTION]`. A programming error raises `InternalError`. Plan: [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
 
 ## Python
 
 - Min version 3.10: no later syntax/features unless via `__future__`; no `A | B` unions outside `TYPE_CHECKING` blocks.
 - Verify types with mypy (strict=true); pyright/pytype as second opinions.
 - **Untyped third-party dependency**: before an `ignore_missing_imports` override (mypy, pyrefly), look on PyPI for a trusted typeshed `types-<package>` stub package and add it to the `typecheck` group; suppress only if none exists. Why: [rationale](working-docs/implementation/agents-md-rationale.md#python).
-- Fully qualified names in docstrings for non-stdlib types (`numpy.ndarray`).
+- Fully qualified names in docstrings for non-stdlib types.
 - No `assert` in production (tests only). No wildcard imports. All config in `pyproject.toml` where possible.
 - **Import order**: stdlib -> third-party -> local, alphabetical within each; do not reorder imports that a comment says must stay in order (circular import/init). `ruff check --fix --select I` automates it.
 - Type completeness: annotate all visible class/instance vars, methods, params and returns; give generic bases type args (except simple literals, enum members, standard dunders).
@@ -250,7 +250,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 
 ## Naming
 
-- **Python module leading underscore** (`_common.py`) when nothing outside its package directory imports it; none (`wheel.py`) when something does.
+- **Python module leading underscore** when nothing outside its package directory imports it; none when something does.
 - Consult Schema.org, NIEM Model, FIBO and OBO Foundry for ontology naming.
 
 ## SPDX / Output Specifics
@@ -261,7 +261,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 
 ## Writing style
 
-- British English for docs, comments and text. American spelling only for code identifiers and for field, key, type or file-format names a specification fixes exactly (`license`, `licenseConcluded`, `Organization`, `graph.initializer`).
+- British English for docs, comments and text. American spelling only for code identifiers and for field, key, type or file-format names a specification fixes exactly.
 - IETF verbal forms (RFC 2119/8174) for internet/web/semantic-web projects; ISO verbal forms for SPDX docs.
 - Code comments are direct, concise and about the current implementation; no history. Legitimate current behaviour vs an alternative design is fine.
 - **PR text defaults** (an explicit limit overrides): title <= 60 chars, no markdown; summary <= 280 chars, concise bullets, markdown allowed; description <= 600 chars, structured, with a short rationale. Count characters; use code blocks.

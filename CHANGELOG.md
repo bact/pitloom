@@ -32,8 +32,9 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
-- Catalogued messages end in a stable `[code]` (Git LFS pointer ones first);
-  log records and exceptions carry it as `pitloom_code` ([#390])
+- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones
+  first), also on log records and exceptions as `pitloom_code`; see
+  `docs/messages.md` ([#390])
 
 ### Changed
 
@@ -41,6 +42,8 @@ and this project adheres to
   ([#382])
 - Merged provenance comments start a new line; a `not_measured` entry is dropped
   when a merge supplies the value ([#386])
+- A file that only opens like a Git LFS pointer is said to "look like" one, not
+  to be one; `read_ai_model()` refuses a pointer as `loom model` does ([#390])
 
 ### Fixed
 
