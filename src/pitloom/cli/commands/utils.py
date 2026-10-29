@@ -30,6 +30,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
+from pitloom.messages import code_of
 
 
 def cli_error_handler(
@@ -44,7 +45,7 @@ def cli_error_handler(
                 return func(args, *pargs, **kwargs)
             # pylint: disable-next=broad-exception-caught
             except Exception as e:
-                print_error(f"{error_msg}: {e}")
+                print_error(f"{error_msg}: {e}", code=code_of(e))
                 if getattr(args, "verbose", False):
                     print_traceback()
                 return 1
@@ -135,7 +136,7 @@ def report_error_line(exc: Exception) -> None:
     """Print one ``ERROR: <message>`` line to stderr -- the same shape for
     every per-wheel check, so one bad wheel of a batch never aborts the
     others."""
-    print_error(str(exc))
+    print_error(str(exc), code=code_of(exc))
 
 
 def refuse_non_wheel(path: Path) -> bool:

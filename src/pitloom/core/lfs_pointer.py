@@ -39,6 +39,7 @@ from typing import Final
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
+from pitloom.messages import LFS_POINTER, LFS_POINTER_SHIPPED, emit
 
 __all__ = [
     "LFS_OPENING_BYTES",
@@ -235,7 +236,17 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     else:
         advice = _ADVICE_CLONE if _REMOTE_CLONE.get() else _ADVICE_PULL
     what = "Git LFS pointer shipped" if archive else "Git LFS pointer, content not read"
-    _log.warning("FILE=%s: %s%s; %s", loggable(min(paths)), what, count, advice)
+    message = LFS_POINTER_SHIPPED if archive else LFS_POINTER
+    emit(
+        _log,
+        message,
+        logging.WARNING,
+        "FILE=%s: %s%s; %s",
+        loggable(min(paths)),
+        what,
+        count,
+        advice,
+    )
 
 
 class UnreadPointers:

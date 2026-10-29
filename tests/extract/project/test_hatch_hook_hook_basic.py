@@ -30,6 +30,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.messages import LFS_POINTER, CodedValueError
+from pitloom.plugins.hatch import PitloomBuildHook
 
 from ..conftest import (
     make_hook,
@@ -394,3 +396,32 @@ def test_hook_refuses_an_sbom_name_already_placed(
         assert len(errors) == 1
         assert errors[0].getMessage().startswith("SBOM generation failed: ")
         assert configured in errors[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    ("raised", "tail"),
+    [
+        (CodedValueError(LFS_POINTER, "'m.bin': x"), "'m.bin': x [lfs-pointer]"),
+        (ValueError("'m.bin': x"), "'m.bin': x"),
+    ],
+    ids=["coded", "plain"],
+)
+def test_hook_failure_line_ends_in_a_catalogued_code(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    raised: ValueError,
+    tail: str,
+) -> None:
+    """The one ``ERROR:`` of a failed build ends in the exception's code, as
+    the CLI's does; a plain exception prints as before."""
+
+    def _fail(*_args: object) -> None:
+        raise raised
+
+    monkeypatch.setattr(PitloomBuildHook, "_generate", _fail)
+    hook = make_hook(str(tmp_path), {})
+    with pytest.raises(ValueError):
+        hook.initialize("standard", {})
+    err = capsys.readouterr().err.splitlines()
+    assert err == [f"ERROR: SBOM generation failed: {tail}"]

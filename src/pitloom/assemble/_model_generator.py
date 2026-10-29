@@ -58,6 +58,12 @@ from pitloom.logging_config import (
     one_line,
     sanitize_url,
 )
+from pitloom.messages import (
+    LFS_POINTER,
+    LFS_POINTER_MALFORMED,
+    CodedValueError,
+    Message,
+)
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +80,8 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     Raises:
         FileNotFoundError: *model_path* does not exist.
         ValueError: The file is not a model of a supported format (an empty
-            file, an unknown format, a header that contradicts the suffix).
+            file, an unknown format, a header that contradicts the suffix);
+            a :class:`~pitloom.messages.CodedValueError` for a Git LFS pointer.
         OSError: The header cannot be read.
     """
     if not model_path.exists():
@@ -82,27 +89,31 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     try:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
-        where = quote_source(model_path)
-        reason = _refusal_text(e, model_path)
-        raise ValueError(f"{where}: {reason}") from e
+        reason, message = _refusal_text(e, model_path)
+        text = f"{quote_source(model_path)}: {reason}"
+        if message is None:
+            raise ValueError(text) from e
+        raise CodedValueError(message, text) from e
 
 
-def _refusal_text(refusal: NotAModel, model_path: Path) -> str:
-    """*refusal* as said for a named file: a file that is a whole Git LFS
-    pointer states its ``oid`` and size and the command that pulls the content;
-    one that only opens like a pointer keeps the plain reason."""
-    if refusal.reason == LFS_POINTER_REASON:
-        try:
-            pointer = read_lfs_pointer(model_path)
-        except OSError:
-            pointer = None
-        if pointer is not None:
-            return (
-                f"{LFS_POINTER_REASON}, content not pulled "
-                f"(oid sha256:{pointer.oid}, size {size_text(pointer.size)}); "
-                "run 'git lfs pull'"
-            )
-    return str(refusal)
+def _refusal_text(refusal: NotAModel, model_path: Path) -> tuple[str, Message | None]:
+    """*refusal* as said for a named file, and the catalogued message it is: a
+    file that is a whole Git LFS pointer states its ``oid`` and size and the
+    command that pulls the content; one that only opens like a pointer keeps
+    the plain reason (``None`` when the pointer cannot be read again)."""
+    if refusal.reason != LFS_POINTER_REASON:
+        return str(refusal), None
+    try:
+        pointer = read_lfs_pointer(model_path)
+    except OSError:
+        return str(refusal), None
+    if pointer is None:
+        return str(refusal), LFS_POINTER_MALFORMED
+    return (
+        f"{LFS_POINTER_REASON}, content not pulled "
+        f"(oid sha256:{pointer.oid}, size {size_text(pointer.size)}); "
+        "run 'git lfs pull'"
+    ), LFS_POINTER
 
 
 #: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model

@@ -64,7 +64,8 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import Cap, loggable, over_cap_of, warn_over_cap
+from pitloom.logging_config import CODE_ATTR, Cap, loggable, over_cap_of, warn_over_cap
+from pitloom.messages import LFS_POINTER_MALFORMED, code_extra
 
 log = logging.getLogger(__name__)
 
@@ -229,7 +230,8 @@ def _relog_reader_records(
     """Log what a reader logged, as the scanner's own messages: the stable
     ``FORMAT=``/``FILE=`` prefix on a warning, the text escaped, the
     temporary copy's path and name replaced by the model's. An over-cap
-    warning is said again through the shared helper, naming the model."""
+    warning is said again through the shared helper, naming the model. A
+    record's catalogued code is kept."""
     dist_name = PurePosixPath(candidate.distribution_path).name
     copied = f"Source: {sanitize_provenance_text(path.name)}"
     for record in records:
@@ -244,6 +246,7 @@ def _relog_reader_records(
                 copied, f"Source: {sanitize_provenance_text(dist_name)}"
             )
         text = scrub(text, path, candidate.physical_path)
+        extra = {CODE_ATTR: getattr(record, CODE_ATTR, None)}
         if record.levelno >= logging.WARNING:
             log.log(
                 record.levelno,
@@ -251,9 +254,10 @@ def _relog_reader_records(
                 fmt,
                 loggable(candidate.physical_path),
                 text,
+                extra=extra,
             )
         else:
-            log.log(record.levelno, "%s", text)
+            log.log(record.levelno, "%s", text, extra=extra)
 
 
 def _read_materialized(
@@ -382,17 +386,15 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
             key = "" if e.model_format is None else f"FORMAT={e.model_format} "
             # A whole, valid pointer is said once for the run (the document
             # build); an opening whose rest does not parse is a defect.
-            level = (
-                logging.DEBUG
-                if e.reason == LFS_POINTER_REASON and _is_whole_pointer(candidate)
-                else logging.WARNING
-            )
+            whole = e.reason == LFS_POINTER_REASON and _is_whole_pointer(candidate)
+            malformed = e.reason == LFS_POINTER_REASON and not whole
             log.log(
-                level,
+                logging.DEBUG if whole else logging.WARNING,
                 "%sFILE=%s: %s; not listed as an AI model",
                 key,
                 loggable(candidate.physical_path),
                 e.reason,
+                extra=code_extra(LFS_POINTER_MALFORMED) if malformed else None,
             )
     return None
 

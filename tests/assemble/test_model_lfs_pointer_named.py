@@ -24,6 +24,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_model_sbom
 from pitloom.core.lfs_pointer import read_lfs_pointer
+from pitloom.messages import MESSAGES, code_of, trusted_message
 from tests._lfs import lfs_pointer_bytes, pointer_fixture
 from tests.warning_helpers import error_lines
 
@@ -74,6 +75,7 @@ def test_the_library_states_the_pointer_and_the_pull(
     assert "\n" not in message and text in message and _PULL in message
     assert f"oid sha256:{pointer.oid}" in message
     assert f"size {pointer.size} bytes" in message
+    assert code_of(caught.value) == "lfs-pointer"
     assert not (tmp_path / "out.json").exists()
 
 
@@ -89,6 +91,7 @@ def test_a_lookalike_keeps_the_plain_reason(
     message = str(caught.value)
     assert message.endswith(_PLAIN)
     assert "content not pulled" not in message and _PULL not in message
+    assert code_of(caught.value) == "lfs-pointer.malformed"
 
 
 @pytest.mark.parametrize("command", ["model", "enrich", "generate"])
@@ -108,4 +111,6 @@ def test_the_cli_exits_1_with_one_error_line(
     err = capsys.readouterr().err
     (line,) = error_lines(err)
     assert ("oid sha256:" in line and _PULL in line) == (case == "real")
+    code = "lfs-pointer" if case == "real" else "lfs-pointer.malformed"
+    assert line.endswith(f" [{code}]") and trusted_message(line) is MESSAGES[code]
     assert "WARNING:" not in err and not out.exists()
