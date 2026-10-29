@@ -293,13 +293,15 @@ def _resolve_license(
     raw_revision = hub_info.get("sha")
     revision = str(raw_revision) if raw_revision else None
     raw_license = card_data.get("license")
-    raw_license_str: str | None = str(raw_license) if raw_license else None
+    raw_license_str: str | None = (
+        (str(raw_license).strip() or None) if raw_license else None
+    )
 
     if raw_license_str and not is_vague_license_value(raw_license_str):
         provenance["license"] = (
             "Source: Hugging Face Hub | Field: model card YAML (license)"
         )
-        return raw_license_str.strip(), None
+        return raw_license_str, None
 
     vague_raw = (
         raw_license_str

@@ -211,6 +211,22 @@ def test_general_license_is_the_model_licence(
             "general.license.name",
         ),
         ({b"general.license": "other"}, "other", "general.license"),
+        # a weak placeholder gives way; NONE is a statement and stays
+        (
+            {b"general.license": "NOASSERTION", b"general.license.name": "Foo Terms"},
+            "Foo Terms",
+            "general.license.name",
+        ),
+        (
+            {b"general.license": "unknown", b"general.license.name": "Foo Terms"},
+            "Foo Terms",
+            "general.license.name",
+        ),
+        (
+            {b"general.license": "NONE", b"general.license.name": "Foo Terms"},
+            "NONE",
+            "general.license",
+        ),
         ({b"general.license.name": "   "}, None, None),
         ({b"general.license.link": "https://example.org/terms"}, None, None),
     ],
@@ -221,6 +237,9 @@ def test_general_license_is_the_model_licence(
         "other-then-name",
         "other-case-trimmed",
         "other-alone",
+        "noassertion-then-name",
+        "unknown-then-name",
+        "none-stays",
         "blank-name",
         "link-unread",
     ],
@@ -242,3 +261,21 @@ def test_general_license_name_is_the_licence_when_no_id_is_stated(
         assert "license" not in meta.provenance
     else:
         assert meta.provenance["license"].endswith(f"Field: {field}")
+
+
+def test_a_name_that_replaces_a_placeholder_raises_no_spdx_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``other`` is not read as a broken expression when the name replaces it:
+    the SPDX-only warning belongs to ``general.license`` alone."""
+    body = kv(b"general.license", STRING, string("other")) + kv(
+        b"general.license.name", STRING, string("Gemma Terms")
+    )
+    path = tmp_path / "m.gguf"
+    path.write_bytes(gguf_file(0, 2, body))
+
+    with caplog.at_level("WARNING"):
+        meta = read_ai_model(path)
+
+    assert meta.license == "Gemma Terms"
+    assert not [r for r in caplog.records if "SPDX" in r.getMessage()]

@@ -148,6 +148,21 @@ def test_unknown_card_license_is_kept_when_detection_finds_nothing(raw: str) -> 
     assert meta.extra_data.get("hf.license_raw") == raw
 
 
+@pytest.mark.parametrize("raw", [" unknown ", "\nUnknown\t"])
+def test_a_padded_unknown_is_still_the_card_saying_it_does_not_know(raw: str) -> None:
+    with _patch_hf_calls(card_data=_make_card_data(license=raw)):
+        meta = read_huggingface("org/model")
+    assert meta.license == raw.strip()
+    assert meta.extra_data.get("hf.license_raw") == raw.strip()
+
+
+@pytest.mark.parametrize("raw", [" other ", "\nCustom\t", " proprietary"])
+def test_a_padded_placeholder_is_vague_too(raw: str) -> None:
+    with _patch_hf_calls(card_data=_make_card_data(license=raw)):
+        meta = read_huggingface("org/model")
+    assert meta.license is None
+
+
 def test_unknown_card_license_loses_to_a_detected_licence() -> None:
     with _patch_hf_calls(card_data=_make_card_data(license="unknown")):
         with patch(
@@ -225,7 +240,7 @@ def test_kokoro_license() -> None:
 
 
 def test_starcoder2_non_standard_license_passed_through() -> None:
-    # "bigcode-openrail-m" is not in _VAGUE_LICENSE_VALUES -> used directly
+    # "bigcode-openrail-m" is not in VAGUE_LICENSE_VALUES -> used directly
     with _patch_starcoder2():
         meta = read_huggingface("bigcode/starcoder2-3b")
     assert meta.license == "bigcode-openrail-m"
@@ -250,7 +265,7 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
 
 
 def test_gemma_proprietary_license_used_directly() -> None:
-    # "gemma" is not in _VAGUE_LICENSE_VALUES - used as-is
+    # "gemma" is not in VAGUE_LICENSE_VALUES - used as-is
     with _patch_gemma():
         meta = read_huggingface("google/gemma-2b")
     assert meta.license == "gemma"
@@ -258,7 +273,7 @@ def test_gemma_proprietary_license_used_directly() -> None:
 
 
 def test_llama_custom_license_used_directly() -> None:
-    # "llama3.2" is not in _VAGUE_LICENSE_VALUES, so it is taken from the card.
+    # "llama3.2" is not in VAGUE_LICENSE_VALUES, so it is taken from the card.
     # The card value is recorded as stated.
     with _patch_llama():
         meta = read_huggingface("meta-llama/Llama-3.2-1B")
@@ -316,7 +331,7 @@ def test_inkubalm_no_license_when_gated() -> None:
 
 
 def test_depth_pro_non_standard_license() -> None:
-    # "apple-amlr" is not in _VAGUE_LICENSE_VALUES - passed through as-is.
+    # "apple-amlr" is not in VAGUE_LICENSE_VALUES - passed through as-is.
     with _patch_depth_pro():
         meta = read_huggingface("apple/DepthPro-hf")
     assert meta.license == "apple-amlr"

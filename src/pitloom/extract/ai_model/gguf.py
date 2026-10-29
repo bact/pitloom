@@ -30,7 +30,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract._license import warn_unless_expression
-from pitloom.extract._license_classify import is_vague_license_value
+from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -299,8 +299,10 @@ def _read_gguf_license(
     license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
     name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
     # llama.cpp's converter writes a card's ``license: other`` with its
-    # ``license_name`` as ``general.license.name``: a placeholder gives way to it.
-    if license_expr and not (name and is_vague_license_value(license_expr)):
+    # ``license_name`` as ``general.license.name``: a placeholder (``other``,
+    # ``NOASSERTION``, ...) gives way to it; ``NONE`` is a statement and stays.
+    placeholder = is_vague_license_value(license_expr) or is_weak_licence(license_expr)
+    if license_expr and not (name and placeholder):
         warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
         provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
         return license_expr

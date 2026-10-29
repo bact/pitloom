@@ -36,10 +36,10 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 
 ### Usage surfaces
 
-Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no test suite: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
+Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
 - **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads (`--debug` -> the `PITLOOM_DEBUG` env var), not per-call-site updates.
-- **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) first.
+- **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
 - **A pattern hand-copied across 3+ call sites drifts** (e.g. a `WARNING:` naming the skipped SBOM field): factor it into one helper/constant.
 - **A test on one surface doesn't cover the others**: for behaviour that must hold across CLI, library, hook and Action, or every subcommand, test each.
 - **A skill is discovered through its frontmatter `description` only**; a body section does not make a command triggerable. On a CLI command/flag add/rename, check `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep *verify* (structural) vs *validate* (schema/SHACL) explicit; give combined asks ("generate SBOM meeting CISA") a hand-off in both skills, every follow-up question a non-interactive fallback. Try a skill's check or recipe on a legitimate input where it should do nothing. Audit: [skills-trigger-coverage.md](working-docs/implementation/skills-trigger-coverage.md).
@@ -138,7 +138,7 @@ Tests, platform and CI:
 - **Coverage counts one leg (Linux, Python 3.14)**: a branch only another OS/Python reaches shows as missing; cover each `except` portably.
 - **Python 3.14 reports a temp file closed by `__del__` (`urllib.error.HTTPError`) as unraisable**: `with exc:`, and `gc.collect()` in the test. **`os.killpg` on an exited, unreaped group is `ESRCH` (Linux) or `EPERM` (macOS)**: catch both. Wait for a condition, never a fixed sleep.
 - **Run the whole suite before a PR**: a new target kind adds registry rows that area tests miss.
-- **Fail-fast CI hides legs**: read which jobs were cancelled.
+- **Fail-fast CI hides legs**: read the cancelled jobs.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
