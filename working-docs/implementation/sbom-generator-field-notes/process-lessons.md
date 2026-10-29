@@ -382,6 +382,14 @@ counts and durations.
   became: store the `oid` on every route, look up the `oid`. State the
   compatibility policy in every design brief.
 
+- **A read-through for Windows predicted the CI failure exactly.** The dry-run
+  reviewer (Sonnet, reading the diff and emulating paths with `ntpath`) named
+  two loom tests that expected `corpus/a.bin` where Windows writes
+  `corpus\a.bin`. The Windows 3.11 CI leg of #378 then failed those two tests,
+  and only those two, with that diff (16,101 passed). Cost of the review: about
+  248 k tokens and 9 minutes; the fix was one line each. Do: keep the dry-run in
+  every review brief, and ask for path-separator and `ntpath` emulation by name.
+
 | Step | Model | Tokens | Minutes |
 | - | - | - | - |
 | Explore code, docs | Sonnet, Sonnet | 61 k, 79 k | 1, 1 |
