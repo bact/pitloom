@@ -49,9 +49,11 @@ from pitloom.messages._lfs_pointer import (
 )
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
 from pitloom.messages._types import (
+    ACTOR_HEADINGS,
     ACTORS,
     CODE_GRAMMAR,
     CONDITIONS,
+    EFFECT_MEANINGS,
     EFFECTS,
     LEVELS,
     LONGEST_CODE,
@@ -62,9 +64,11 @@ from pitloom.messages._types import (
 
 __all__ = [
     "ACTORS",
+    "ACTOR_HEADINGS",
     "CODE_GRAMMAR",
     "CONDITIONS",
     "EFFECTS",
+    "EFFECT_MEANINGS",
     "FIELDS",
     "FRAMES",
     "HANDLER_FRAMES",

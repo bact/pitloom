@@ -3,10 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The message reference in ``docs/messages.md`` and in the skills'
-``known-limitations.md`` is generated from the catalogue by
+"""The message reference in ``docs/messages.md`` and in each skill's
+``references/messages.md`` is generated from the catalogue by
 ``scripts/generate_message_reference.py``: the files hold exactly what the
-script renders (bytes, LF), and the script rewrites only its block.
+script renders (bytes, LF), the script rewrites only its block, and the block
+has a section per code that says every line of it, in Markdown that lints
+clean (no line over 80 characters outside a table or a code block, none that
+starts with ``<``).
 
 See also: tests/messages/test_drift_quotes.py (quotes elsewhere).
 """
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
@@ -22,7 +26,7 @@ from types import ModuleType
 
 import pytest
 
-from pitloom.messages import MESSAGES
+from pitloom.messages import FRAMES, MESSAGES
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _ROOT / "scripts" / "generate_message_reference.py"
@@ -38,7 +42,10 @@ def _load() -> ModuleType:
 
 
 gen = _load()
-_TARGETS = [pytest.param(path, id=path.name) for path in gen.TARGETS]
+_TARGETS = [
+    pytest.param(path, id=path.relative_to(_ROOT).parent.as_posix())
+    for path in gen.TARGETS
+]
 
 
 @pytest.mark.parametrize("path", _TARGETS)
@@ -52,10 +59,82 @@ def test_a_target_holds_what_the_script_renders(path: Path) -> None:
     assert b"\r" not in current
 
 
-def test_the_table_has_a_row_per_code_in_order() -> None:
-    rows = [r for r in gen.render().splitlines() if r.startswith("| `")]
+def _sections() -> dict[str, list[str]]:
+    """The lines of each code's section, by code."""
+    found: dict[str, list[str]] = {}
+    for line in gen.render().splitlines():
+        if line.startswith("### `"):
+            found[line.split("`")[1]] = []
+        elif found:
+            found[next(reversed(found))].append(line)
+    return found
+
+
+def test_the_index_and_the_sections_list_every_code_in_order() -> None:
+    rows = [r for r in gen.render().splitlines() if r.startswith("| [`")]
     assert [r.split("`")[1] for r in rows] == sorted(MESSAGES)
-    assert {r.count(" | ") for r in rows} == {5}
+    assert {r.count(" | ") for r in rows} == {3}
+    assert list(_sections()) == sorted(MESSAGES)
+    for code in MESSAGES:
+        assert f"](#{gen.slug(code)})" in gen.render()
+    assert gen.slug("lfs-pointer/shipped") == "lfs-pointershipped"
+
+
+@pytest.mark.parametrize("code", sorted(MESSAGES), ids=str)
+def test_a_section_says_what_its_code_means_and_every_line(code: str) -> None:
+    message = MESSAGES[code]
+    text = "\n".join(_sections()[code])
+    for bullet in ("Level", "Means", "SBOM effect", "Pitloom did", "Lines"):
+        assert f"- **{bullet}**: " in text or f"- **{bullet}**:\n" in text
+    assert "- **Tell the user**: " in text  # every entry's actor is the user
+    assert (gen.ERROR_RULE.split()[0] in text) is ("ERROR" in message.levels)
+    for line in message.lines:
+        assert f"  {line.level}: {line.shown} [{code}]" in text.splitlines()
+
+
+def test_the_prefixes_are_the_catalogues_frames() -> None:
+    rows = [r for r in gen.render().splitlines() if "<text>` |" in r]
+    assert len(rows) == len(FRAMES)
+    for frame in FRAMES:
+        head = f"| `{frame.shown}<text>` |"
+        assert any(r.startswith(head) and frame.surface in r for r in rows), head
+
+
+def test_the_block_lints_clean() -> None:
+    """Outside code blocks: no code span with a space at an edge; outside
+    tables too, no line over 80 characters and none starting with ``<``
+    (an HTML block)."""
+    fenced = False
+    for line in gen.render().splitlines():
+        if line.strip().startswith("```"):
+            fenced = not fenced
+        if fenced:
+            continue
+        assert all(span == span.strip() for span in re.findall(r"`([^`]+)`", line))
+        if line.startswith(("|", "<!--")):
+            continue
+        assert len(line) <= gen.WIDTH, line
+        assert not line.lstrip().startswith(("<", "`<")), line
+
+
+@pytest.mark.parametrize(
+    ("text", "first", "rest"),
+    [
+        ("word " * 40, "- **Means**: ", "  "),
+        ("a " + "x" * 72 + " <file> and " + "y" * 70 + " `<file>` and more", "", ""),
+    ],
+    ids=["fill", "angle"],
+)
+def test_wrap_fills_to_80_and_never_starts_a_line_with_an_angle(
+    text: str, first: str, rest: str
+) -> None:
+    lines = gen.wrap(text, first, rest)
+    assert len(lines) > 1 and lines[0].startswith(first)
+    assert all(ln.startswith(rest) for ln in lines[1:])
+    assert " ".join(" ".join(lines).split()) == " ".join(f"{first}{text}".split())
+    for line in lines[1:]:
+        assert not line[len(rest) :].startswith(("<", "`<")), line
+    assert all(len(ln) <= gen.WIDTH for ln in lines)
 
 
 def test_a_pipe_in_a_cell_is_escaped() -> None:

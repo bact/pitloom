@@ -7,4 +7,5 @@ tests/fixtures/spdx-model/** -text
 tests/fixtures/conformance/** -text
 tests/fixtures/lfs-pointers/** -text
 docs/messages.md text eol=lf
-skills/sbom-generate/references/known-limitations.md text eol=lf
+skills/sbom-enrich/references/messages.md text eol=lf
+skills/sbom-generate/references/messages.md text eol=lf

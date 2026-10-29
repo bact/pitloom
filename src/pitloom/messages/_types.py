@@ -15,10 +15,17 @@ from __future__ import annotations
 import re
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Final
 
 from pitloom.logging_config import CODE_PATTERN
-from pitloom.messages._fields import FIELDS, PLACEHOLDER, render, template_names
+from pitloom.messages._fields import (
+    FIELDS,
+    PLACEHOLDER,
+    render,
+    shown,
+    template_names,
+)
 
 #: The levels a catalogued message is printed at (``DEBUG`` lines carry no
 #: code).
@@ -58,15 +65,25 @@ CONDITIONS: Final = frozenset(
     }
 )
 
-#: What the condition does to the SBOM, as a ``WARNING:``: nothing; it says
-#: less (``thinner``); what it says is less sure (``weaker``); or no SBOM is
-#: written for that input (``not-written``).
-EFFECTS: Final = frozenset({"none", "thinner", "weaker", "not-written"})
+#: What the condition does to the SBOM, as a ``WARNING:``, and what each
+#: effect means.
+EFFECT_MEANINGS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "none": "the SBOM states what the input holds",
+        "thinner": "the SBOM says less than reading the input would",
+        "weaker": "what the SBOM says is less sure",
+        "not-written": "no SBOM is written for the input",
+    }
+)
+EFFECTS: Final = frozenset(EFFECT_MEANINGS)
 
 #: Who acts on the advice: the ``user`` (an agent relays it and does not
 #: act), the ``caller`` (the program or agent that ran the command may fix
-#: its own command), or ``none``.
-ACTORS: Final = frozenset({"user", "caller", "none"})
+#: its own command), or ``none``; with the heading the reference gives it.
+ACTOR_HEADINGS: Final[Mapping[str, str]] = MappingProxyType(
+    {"user": "Tell the user", "caller": "The caller may fix", "none": "Nothing to do"}
+)
+ACTORS: Final = frozenset(ACTOR_HEADINGS)
 
 #: One part of a code: lower-case ASCII words joined by single hyphens.
 _PART: Final = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
@@ -161,7 +178,7 @@ class Line:
     def shown(self) -> str:
         """The template as the reference shows it, each value as
         :attr:`~pitloom.messages._fields.Field.shown` (``<file>``)."""
-        return PLACEHOLDER.sub(lambda m: FIELDS[m.group(1)].shown, self.template)
+        return shown(self.template)
 
     def render(self, values: Mapping[str, object]) -> str:
         """The text printed for *values*, each written by its field.

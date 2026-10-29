@@ -99,13 +99,15 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r"(?: \((?:[2-9]|[1-9][0-9]+) files\))?",
             _count,
             "<count>",
-            "` (N files)` when there are two files or more, else nothing",
+            "the number of files in brackets, `(N files)`, after a space when "
+            "there are two or more; else nothing",
         ),
         "file": Field(
             r".+",
             _file,
             "<file>",
-            "a path as Pitloom names it (escaped when it holds a control character)",
+            "a path as Pitloom names it; in quotes, escaped, when it holds a "
+            "control character",
             free=True,
         ),
         "format": Field(
@@ -181,6 +183,12 @@ def written(template: str, values: Mapping[str, object]) -> dict[str, str]:
             raise ValueError(f"{name}={text!r} is not a {name}")
         texts[name] = text
     return texts
+
+
+def shown(template: str) -> str:
+    """*template* as the reference shows it, each name its field's
+    :attr:`~Field.shown` (``<file>``)."""
+    return PLACEHOLDER.sub(lambda found: FIELDS[found.group(1)].shown, template)
 
 
 def render(template: str, values: Mapping[str, object]) -> str:

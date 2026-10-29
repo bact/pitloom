@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.messages._fields import render, template_names
+from pitloom.messages._fields import render, shown, template_names
 from pitloom.messages._types import LEVELS, template_problem
 
 
@@ -60,6 +60,11 @@ class Frame:
     def fields(self) -> frozenset[str]:
         """The names the template uses."""
         return frozenset(template_names(self.template))
+
+    @property
+    def shown(self) -> str:
+        """The template as the reference shows it (``<file>``)."""
+        return shown(self.template)
 
     def render(self, values: Mapping[str, object]) -> str:
         """The prefix printed for *values*, each written by its field."""

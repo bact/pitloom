@@ -27,7 +27,8 @@ The base run's stderr says why:
   parsed (truncated or corrupt): check the file.
 - `header is not <fmt>; not listed as an AI model` or `Git LFS pointer, content
   not read ... [lfs-pointer]` -- the file is no model and has no
-  `ai_AIPackage`; relay Pitloom's advice.
+  `ai_AIPackage`; relay Pitloom's advice (a code's advice is in
+  `messages.md`).
 - On a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
   max-model-extract-bytes cap; metadata not read`, or `... per-wheel
   model-scan budget cap; ...` -- tell the user; never add the flag or raise the

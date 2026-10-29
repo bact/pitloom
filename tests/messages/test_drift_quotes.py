@@ -63,8 +63,8 @@ _QUOTES = _quotes()
 def test_the_scan_found_quotes() -> None:
     files = {file for file, _, _ in _QUOTES}
     assert {
-        "docs/messages.md",
-        "skills/sbom-generate/references/known-limitations.md",
+        "docs/ai-model-scan-limits.md",
+        "skills/sbom-enrich/references/deterministic-pass.md",
         "skills/sbom-generate/references/git-url.md",
     } <= files
 
