@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-18
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -195,3 +195,5 @@ runs confirmed the Windows and macOS legs.
   version as a trailing comment (`actions/checkout@<sha> # v7.0.1`,
   `actions/setup-python@<sha> # v7.0.0`), not by a mutable major-version
   tag.
+- Hardening still open: hash-pinned transitive dependencies, an isolated venv
+  option, lint `scripts/` in CI, `args` edge cases.
