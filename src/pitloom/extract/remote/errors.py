@@ -28,3 +28,11 @@ class RemoteSourceError(Exception):
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
+
+    def __reduce__(
+        self,
+    ) -> tuple[type[RemoteSourceError], tuple[str, str], dict[str, object]]:
+        """Copied and pickled by its code and message, and every attribute
+        set on it: ``args`` holds the message only, so the default would call
+        ``__init__`` without the code."""
+        return (type(self), (self.code, str(self)), dict(self.__dict__))
