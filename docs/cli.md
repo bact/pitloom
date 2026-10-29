@@ -401,7 +401,8 @@ line, and the embed record is an `INFO:` line. Others: `verify-`/
 `validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`; `fragment
 validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`. A
 value with a non-printable character (tab, NBSP, ZWJ) prints quoted,
-ASCII-escaped.
+ASCII-escaped. A catalogued stderr line ends in a stable `[code]`: see
+[Messages and codes](messages.md).
 
 ### Default output file names
 

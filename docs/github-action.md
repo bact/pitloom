@@ -126,6 +126,9 @@ in the raw log. A failing `loom` invocation still fails the step/job
 (its `ERROR:` line is annotated first); this doesn't change the action's
 exit behaviour.
 
+A catalogued message keeps its `[code]` at the end of the annotation text
+(see [Messages and codes](messages.md)).
+
 `-v` in `args` logs each effective option as an `INFO:` line, so each
 becomes a `::notice::` annotation; GitHub caps how many a step shows.
 

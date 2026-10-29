@@ -40,9 +40,10 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
   the list) and rerun with that folder's page URL.
 - Read the `INFO:` lines: each redirect followed (`Git source: <url>
   redirected to <url>`), and the repository, branch and folder used.
-- A `WARNING: ... Git LFS pointer, content not read ...` is common here (most
-  Hugging Face model repositories keep weights in LFS). Explain it from the
-  list in `known-limitations.md`; relay the message's advice.
+- A `WARNING: ... Git LFS pointer, content not read ... [lfs-pointer]` is
+  common here (most Hugging Face model repositories keep weights in LFS).
+  Explain it from the list in `known-limitations.md`; relay the message's
+  advice.
 - A relative `--id-registry` is relative to where `loom` runs, not to the
   checkout. The output file is named as for a local project
   (`<name>-<version>.spdx3.json`).

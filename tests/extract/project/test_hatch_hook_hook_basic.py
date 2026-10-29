@@ -406,6 +406,7 @@ def test_hook_refuses_an_sbom_name_already_placed(
     ],
     ids=["coded", "plain"],
 )
+@pytest.mark.usefixtures("odd_message_text")
 def test_hook_failure_line_ends_in_a_catalogued_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

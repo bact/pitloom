@@ -36,8 +36,8 @@ not the scan's project-relative one), and the model stays a stub. (A wheel's
 gate, ceiling and budget do not apply to a local file.)
 
 Only `ERROR: enrichment fragment generation failed: ... not an AI model ...`,
-`header is not <fmt>` or `header is a Git LFS pointer, ...` means the file is
-not a model: skip the step for it and relay Pitloom's own advice.
+`header is not <fmt>` or `header is a Git LFS pointer, ... [lfs-pointer]` means
+the file is not a model: skip the step for it and relay Pitloom's own advice.
 
 ## Attaching
 

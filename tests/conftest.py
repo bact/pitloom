@@ -20,6 +20,7 @@ import pytest
 from pitloom.extract._license import _get_matcher, clear_resolution_cache
 from pitloom.logging_config import _WARNED_ONCE
 from tests._environ import environ_restored
+from tests._message_drift import record_problem
 
 # pylint: disable-next=unused-import
 from tests._network import (  # noqa: F401
@@ -176,6 +177,42 @@ def _restore_pitloom_logger() -> Iterator[None]:
     yield
     logger.handlers = handlers
     logger.setLevel(level)
+
+
+@pytest.fixture
+def odd_message_text() -> None:
+    """Opt a test out of ``_catalogued_records_are_valid``: it hands a
+    catalogued code a text no pattern says, on purpose (a stand-in
+    exception text)."""
+
+
+@pytest.fixture(autouse=True)
+def _catalogued_records_are_valid(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    """Fail a test during which any log record carried a ``pitloom_code``
+    that is uncatalogued, at a level or with a text its entry does not say
+    (:func:`tests._message_drift.record_problem`). Hooked on ``Logger.handle``
+    so every record counts, whatever the handlers. A logger named
+    ``pitloom.test_*`` is a test's own, and a test using
+    ``odd_message_text`` opts out; neither is checked."""
+    if "odd_message_text" in request.fixturenames:
+        yield
+        return
+    problems: list[str] = []
+    handle = logging.Logger.handle
+
+    def watching(self: logging.Logger, record: logging.LogRecord) -> None:
+        problem = record_problem(record)
+        if problem is not None:
+            problems.append(problem)
+        handle(self, record)
+
+    monkeypatch.setattr(logging.Logger, "handle", watching)
+    yield
+    monkeypatch.undo()
+    if problems:
+        pytest.fail("catalogued record: " + "; ".join(problems), pytrace=False)
 
 
 @pytest.fixture(autouse=True)

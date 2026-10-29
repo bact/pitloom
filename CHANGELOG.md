@@ -32,6 +32,8 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
+- Catalogued messages end in a stable `[code]` (Git LFS pointer ones first),
+  also on log records (`pitloom_code`) and exceptions (`.code`) ([#390])
 
 ### Changed
 
@@ -59,6 +61,7 @@ and this project adheres to
 [#382]: https://github.com/bact/pitloom/pull/382
 [#386]: https://github.com/bact/pitloom/pull/386
 [#387]: https://github.com/bact/pitloom/pull/387
+[#390]: https://github.com/bact/pitloom/pull/390
 
 ## [0.21.1] - 2026-10-28
 
