@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.evidence import EVIDENCE_KEY
 from pitloom.core.provenance import parse_provenance_value
 
 #: Transparent, re-readable manifest sources.
@@ -59,10 +60,13 @@ def _source_name(entry: dict[str, str]) -> str:
 def _is_high_signal(entry: dict[str, str]) -> bool:
     """Return whether a parsed field-provenance entry carries high signal: a
     method, a normalisation, a non-manifest source, or a value read from a
-    field other than its own (a licence from the ``classifiers``). A source
-    naming several manifests (``setup.py, setup.cfg``) is a manifest read."""
+    field other than its own (a licence from the ``classifiers``), or an
+    ``Evidence:`` segment (a fact that was not measured or only declared, which
+    must survive even from a transparent source). A source naming several
+    manifests (``setup.py, setup.cfg``) is a manifest read."""
     if (
         entry.get("method")
+        or EVIDENCE_KEY in entry
         or entry.get("normalized-from")
         or entry.get("deprecated-license-id")
         or "classifier" in entry.get("location", "").lower()

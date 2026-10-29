@@ -20,13 +20,19 @@ import rfc8785
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
-#: Segment-key normalization for "Key: value | Key: value" strings.
+#: Segment-key normalization for "Key: value | Key: value" strings. The
+#: grammar's segment order is Source | Field | Method | Evidence | Reason;
+#: ``Evidence`` and ``Reason`` are written only by
+#: :func:`pitloom.core.evidence.evidence_segment`. A key not listed passes
+#: through lower-cased.
 _KEY_MAP = {
     "source": "source",
     "field": "location",
     "method": "method",
     "package": "package",
     "role": "role",
+    "evidence": "evidence",
+    "reason": "reason",
 }
 
 #: Provenance ``Method`` values of a field Pitloom made from a file's own format
