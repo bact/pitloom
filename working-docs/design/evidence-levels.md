@@ -9,15 +9,16 @@ SPDX-License-Identifier: CC0-1.0
 # Evidence levels: measured, declared or not recorded
 
 See also: [roadmap.md](roadmap.md) (the summary bullet),
-[sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-11),
+[sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-12),
 [the taxonomy](generation-gaps-extraction-and-recording.md) this extends,
 [known-bugs.md](known-bugs.md),
 [git-lfs-pointers.md](../implementation/git-lfs-pointers.md) (the first case),
-and `message-catalogue-and-skills.md` in this folder once it is merged (the
+and [message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the
 codes used below).
 
-Status: draft 2026-10-29, revised after an Opus review against the code; the
-decisions at the end are open, each with a recommended answer.
+Status: design, revised 2026-10-29 after an Opus review against the code.
+Built so far: Git LFS pointers (#378), flags for both size ceilings (#381),
+the dataset-size unit fix (#382). Everything else below is unbuilt.
 
 ## Principle
 
@@ -161,11 +162,11 @@ carries it).
 | Fact | Today | Gap |
 | - | - | - |
 | File hash, project files | `measured_read` | none |
-| Git LFS pointer hash and size | `declared` | the provenance says `Method: lfs_pointer`, not the level |
-| Dataset hash | `measured_read`; over the cap: omitted with a warning | no negative entry |
+| Git LFS pointer hash and size | `declared` (#378) | the provenance says `Method: lfs_pointer`, not the level |
+| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning | no negative entry |
 | Dataset size | only what the library caller supplies (`DatasetMetadata.byte_size`, bytes); a Croissant item count is not recorded (#382) | `stat()` already runs for the cap check and its size is discarded |
 | Hashed file sizes | measured (`FileDigests.size`) and discarded; `ProjectFile` has no size | kept for 3.1 `byteSize` |
-| Model over the cap | wheel route: a stub with a warning; the declared ZIP size is in memory and unused. A local or project model has a `stat()` size | name the declared size |
+| Model over `max-model-extract-bytes` (flag since #381) | wheel route: a stub with a warning; the declared ZIP size is in memory and unused. A local or project model has a `stat()` size | name the declared size |
 | Directory size | the walk already `stat()`s every file with no budget, and throws the sum away | an entries budget, and the LFS caveat |
 | Git source, clone over the cap | the run aborts (`git.too-large`); no SBOM | stderr only |
 | Hub source, file size and hash | not read from the API | the API states them: `declared` |
@@ -206,7 +207,7 @@ escaped.
 
 ## Risks, worst first
 
-1. The unit clash (silently wrong data today).
+1. ~~The unit clash~~ (fixed, #382).
 2. A negative entry dropped in `minimal`.
 3. A merged SBOM that shows a hash and `not_measured` side by side: the merge
    must drop the entry when the merged element gains the property.
@@ -237,17 +238,16 @@ and no code follows it yet.
 
 ## Decisions
 
-Recommended answers; none is decided.
+Decided 2026-10-29 unless marked. Each took the recommended answer.
 
-1. **Words:** `Evidence:` and `Reason:` segments, not `Method:`. [yes]
+1. **Words:** `Evidence:` and `Reason:` segments, not `Method:`.
 2. **`lower_bound`:** in the SBOM as provenance only, carrying the budget.
-   [yes]
-3. **Walk budget:** entries only, one config key. [yes]
+3. **Walk budget:** entries only, one config key.
 4. **byteSize:** adopt with the 3.1 binding; the value type carries the size
-   now. [yes]
+   now (`DatasetMetadata.byte_size` exists since #382).
 5. **Declared hash:** stays in `verifiedUsing` with the comment and
-   `Evidence: declared`. [yes]
-6. **Segment, not a separate Annotation.** [yes] 7. **Merge:** generalise the
-   drop helpers so a `not_measured` entry goes when the merged element gains the
-   property; fix the comment-merge problem first. [yes]
-8. **Release placement of steps 0 and 1:** 0.22.0. [proposed]
+   `Evidence: declared`.
+6. **Segment, not a separate Annotation.**
+7. **Merge:** generalise the drop helpers so a `not_measured` entry goes when
+   the merged element gains the property; fix the comment-merge problem first.
+8. **Release placement of steps 0 and 1:** 0.22.0. Step 0 is done. [proposed]
