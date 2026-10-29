@@ -27,7 +27,12 @@ from pitloom.__about__ import __version__
 from pitloom.core.evidence import VERIFIED_USING_FIELD, evidence_segment
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
-from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_segment,
+    provenance_source,
+    sanitize_provenance_text,
+)
 from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -88,19 +93,12 @@ def _get_caller_info() -> str:
         for frame_info in inspect.stack():
             frame_path = Path(frame_info.filename)
             if frame_path.name not in _SKIPPED_LOOM_FILENAMES:
-                filename = cwd_relative_label(frame_info.filename)
-
-                func_name = frame_info.function
-                if func_name == "<module>":
-                    return (
-                        f"Source: {filename} | "
-                        f"Method: inspect_caller (tool: pitloom.loom, "
-                        f"function: <module>)"
-                    )
-                return (
-                    f"Source: {filename} | "
-                    f"Method: inspect_caller (tool: pitloom.loom, "
-                    f"function: {func_name})"
+                source = provenance_source(cwd_relative_label(frame_info.filename))
+                return provenance_segment(
+                    source,
+                    "Method",
+                    "inspect_caller (tool: pitloom.loom, "
+                    f"function: {frame_info.function})",
                 )
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

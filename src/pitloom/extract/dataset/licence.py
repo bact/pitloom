@@ -28,6 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_classify import is_weak_licence
 from pitloom.extract.dataset.values import (
     NOT_TEXT_WARNING,
@@ -99,6 +100,14 @@ def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]
     return (parts[0][1], [parts[0][0]]) if parts else ("", [])
 
 
+def field_provenance(source: str, field: str) -> str:
+    """``"Source: <source> | Field: <field>"``, *source* (a label read from
+    the caller or a file) and *field* through
+    :func:`~pitloom.core.provenance.sanitize_provenance_text`: the
+    provenance of one dataset field, for every dataset reader."""
+    return provenance_segment(provenance_source(source), "Field", field)
+
+
 def _listed_licences(
     value: list[object], where: str, lister: str, provenance: str
 ) -> DatasetLicence | None:
@@ -112,7 +121,7 @@ def _listed_licences(
     if not texts:
         return None
     further = FurtherLicences(tuple(texts[1:]), lister) if len(texts) > 1 else None
-    return DatasetLicence(texts[0], f"{provenance}{LICENSE_FIELD}", further)
+    return DatasetLicence(texts[0], provenance, further)
 
 
 # pylint: disable-next=too-many-arguments
@@ -136,7 +145,10 @@ def dataset_licence(
     shown = source if where is None else where
     if isinstance(value, list) and len(value) > 1:
         return _listed_licences(
-            value, shown, lister, f"Source: {source} | Field: {field_prefix}"
+            value,
+            shown,
+            lister,
+            field_provenance(source, f"{field_prefix}{LICENSE_FIELD}"),
         )
     text = stated_text(value, shown, LICENSE_FIELD)
     if text is None or _is_weak(text):
@@ -148,5 +160,5 @@ def dataset_licence(
             return None
         fields += named
     return DatasetLicence(
-        text, f"Source: {source} | Field: {field_prefix}{', '.join(fields)}"
+        text, field_provenance(source, f"{field_prefix}{', '.join(fields)}")
     )

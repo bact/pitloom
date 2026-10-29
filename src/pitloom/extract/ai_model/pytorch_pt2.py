@@ -29,7 +29,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_segment, sanitize_provenance_text
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
@@ -325,7 +325,9 @@ def _read_pt2_format_version(
                 .strip()
             )
             if arch_ver:
-                return arch_ver, f"{source} | Field: {prefix}archive_version"
+                return arch_ver, provenance_segment(
+                    source, "Field", f"{prefix}archive_version"
+                )
         except ModelLimitExceeded:
             raise
         # pylint: disable-next=broad-exception-caught
