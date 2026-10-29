@@ -209,6 +209,26 @@ resolver JSON deferred to 0.23.0):
    the line; docs and the skills' message reference are generated; the drift
    test checks that every message a skill quotes matches an entry.
 
+## The `AGENTS.md` rule
+
+The rule below goes into `AGENTS.md` with the first implementing PR (the
+`lfs-pointer` family), not before: it binds every agent session, and the
+catalogue does not exist in code yet.
+
+```text
+- **The message catalogue is the contract between Pitloom and the skills.**
+  A skill reads our output and explains it, so a message's level, subject,
+  condition and advice are an interface, not prose. Change a message, the
+  catalogue and what a skill quotes together; new messages follow `LEVEL:
+  [SUBJECT=value: ]CONDITION[; ACTION]`. Plan:
+  [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
+```
+
+In the same change, reword the "Within one subsystem" bullet of "CLI output":
+replace "No global schema across subsystems; the `LEVEL:` tag is the one prefix
+every consumer keys on." by "The `LEVEL:` tag is the one prefix every consumer
+keys on until the catalogue is built."
+
 ## Risks
 
 - A message rewrite breaks tests that pin wording. Touch a family at a time.

@@ -11,7 +11,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - Implementation docs and progress reports: `working-docs/implementation/` -- what WAS built: decisions, why, paths rejected in service of it, revisions.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
 - **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, `archive/` if abandoned but worth keeping) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
-- Paper notes (sourced raw material): `working-docs/implementation/sbom-generator-field-notes/` (start at `README.md`) and `working-docs/implementation/ai-model-scan-security-lessons.md` (entry page; findings in `-*` parts). Add findings worth publishing.
+- Paper notes (sourced raw material for a write-up): `working-docs/implementation/sbom-generator-field-notes/` (start at `README.md`) and `working-docs/implementation/ai-model-scan-security-lessons.md` (entry page; findings in `-*` parts). Add findings worth publishing.
 - Test fixtures: `tests/fixtures/README.md`
 - `working-docs/` is internal notes only -- content can change without notice. The user-facing website (`docs/`) must never link into it; reference a PR or issue number instead.
 - **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines (~30KB), for ALL files (source, tests, docs). Split before crossing.
@@ -31,14 +31,13 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.project.hatchling.metadata_from_hatchling()`.
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
-- **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge in a `src/` layout. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a deterministic string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
+- **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/` layout. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a deterministic string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
 - **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
 
 ### Usage surfaces
 
-Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others. Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
+Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
-- **The message catalogue is the contract between Pitloom and the skills.** A skill reads our output and explains it, so a message's level, subject, condition and advice are an interface, not prose. Change a message, the catalogue and what a skill quotes together; new messages follow `LEVEL: [SUBJECT=value: ]CONDITION[; ACTION]`. Plan: [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
 - **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads (`--debug` -> the `PITLOOM_DEBUG` env var), not per-call-site updates.
 - **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
 - **A pattern hand-copied across 3+ call sites drifts** (e.g. a `WARNING:` naming the skipped SBOM field): factor it into one helper/constant.
@@ -50,9 +49,9 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 - **Honour user intent over silent fallbacks**: no implicit fallback that contradicts the user's explicit instruction.
 - **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction. A rejected input (URL, scheme, ref) is logged as well as raised.
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
-- **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction.
+- **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction (`np.lib.format`, stream loading for fickling/pickle).
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
-- **Absent source data is not an error; a read/access failure is.** Every extractor or metadata source degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable or truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, Hub/network fetches) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
 
 ## Code health and continuous refactoring
 
@@ -115,7 +114,7 @@ Code shape:
 - **A version floor asserted in many places drifts and no script checks it**: keep it at the verified minimum; on change grep every spelling (requirement/example move; history stays).
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
-- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): use an `Any` view plus `cast`; check the lowest supported version (`mypy --python-executable`).
+- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
 - **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.5.0 or later); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
 
 Tests, platform and CI:
@@ -149,7 +148,7 @@ Tests, platform and CI:
 
 Unix philosophy: consistent, predictable, parseable.
 
-- Default: line-delimited, one data point per line. A data point is one record, not one field: a record with several attributes keeps its `KEY=VALUE` pairs on one space-separated line (`PATH=... ROLE=... EXISTS=...`).
+- Default: line-delimited, one data point per line. A data point is one record/entity, not one field: a record with several attributes keeps its `KEY=VALUE` pairs on one space-separated line (`PATH=... ROLE=... REQUIRED=... EXISTS=...`); one line per record.
 - Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -` (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details go to stderr as `INFO:`. A value that may hold a space goes last.
 - `KEY=VALUE`: uppercase KEY, no spaces around `=`; several pairs on one line only for one data point (`FORMAT=%s FILE=%s: ...`).
 - Three levels reach stderr, each line starting with exactly one of `ERROR: `, `WARNING: `, `INFO: ` plus a short description; no second tag, no untagged continuation line.
@@ -158,7 +157,7 @@ Unix philosophy: consistent, predictable, parseable.
   - `INFO:` -- a normal status update; `logging.info()` gets it automatically.
   - `logging.debug()` is developer-only: never prefixed, never on stderr normally.
   - `pitloom.logging_config.configure_logging()` wires all three identically; every CLI command, the hook and every public library-API entry point must call it first. Skipping it is a bug.
-- Within one subsystem use a shared literal sub-prefix (`ID registry: ...`) and match a sibling's wording before inventing one. The `LEVEL:` tag is the one prefix every consumer keys on until the catalogue is built.
+- Within one subsystem use a shared literal sub-prefix (`ID registry: ...`) and match a sibling's wording before inventing one. No global schema across subsystems; the `LEVEL:` tag is the one prefix every consumer keys on.
 - Trim messages.
 
 ## Python
