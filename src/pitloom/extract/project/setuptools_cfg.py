@@ -26,6 +26,7 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._requirements_files import (
     ListedFiles,
@@ -139,7 +140,7 @@ setup_cfg_requirement_lines`), or the files its ``file:`` directive lists
 
 
 def _cfg_source(field: str) -> str:
-    return f"Source: setup.cfg | Field: {field}"
+    return provenance_segment(provenance_source("setup.cfg"), "Field", field)
 
 
 def _str_or_none(value: str) -> str | None:

@@ -36,6 +36,7 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     stated_parameter_count,
 )
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.purl import commit_hash
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
@@ -141,6 +142,11 @@ class _InfoTagData(NamedTuple):
     arxiv_ids: list[str]
     doi_val: str | None
     info_dataset_ids: list[str]
+
+
+def _hub_field_provenance(field: str) -> str:
+    """``"Source: Hugging Face Hub | Field: <field>"``."""
+    return provenance_segment(provenance_source("Hugging Face Hub"), "Field", field)
 
 
 def _extract_description(
@@ -274,7 +280,7 @@ def _extract_datasets(
     else:
         return []
     cap = model_cap(CARD_DATASETS_CAP, "huggingface")
-    source = f"Source: Hugging Face Hub | Field: {field}"
+    source = _hub_field_provenance(field)
     provenance["datasets"] = source
     return [
         DatasetReference(
@@ -353,8 +359,7 @@ def hub_producer_and_count(
         return HubProducer(originators, supplier, None)
     if count is not None:
         provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
-            f"Source: Hugging Face Hub | Field: model_info {field}"
-            + TENSOR_ELEMENT_SUM_METHOD
+            _hub_field_provenance(f"model_info {field}") + TENSOR_ELEMENT_SUM_METHOD
         )
     return HubProducer(originators, supplier, count)
 

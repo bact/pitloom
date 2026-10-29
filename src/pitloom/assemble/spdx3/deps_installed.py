@@ -38,10 +38,14 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.pep440 import parse_specifier_set, specifier_contains
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
-from pitloom.extract._extract_utils import pkg_meta_get, sanitize_provenance_text
+from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract.lock.common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
@@ -64,7 +68,7 @@ def package_provenance_source(source: str, dep_name: str) -> str:
     """``"Source: <source> | Package: <dep_name>"``, the provenance of a
     dependency's metadata. *dep_name* can be requirement text that did not
     parse (:func:`_parse_dep_name`): sanitised, so it adds no segment."""
-    return f"Source: {source} | Package: {sanitize_provenance_text(dep_name)}"
+    return provenance_segment(provenance_source(source), "Package", dep_name)
 
 
 def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:

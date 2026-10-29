@@ -29,7 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import parse_provenance_value, sanitize_provenance_text
 
 T = TypeVar("T")
 
@@ -140,10 +140,6 @@ class Fact(Generic[T]):
         if (self.source is None) != (self.level == MEASURED_READ):
             raise ValueError(f"a {self.level} fact: only measured_read has no source")
         if self.source is not None:
-            # Moving to pitloom.core.provenance; extract sits above core.
-            # pylint: disable-next=import-outside-toplevel
-            from pitloom.extract._extract_utils import sanitize_provenance_text
-
             object.__setattr__(self, "source", sanitize_provenance_text(self.source))
 
     @classmethod

@@ -340,3 +340,14 @@ narrowed to its typical case, a "relay, do not run" instruction, a fact
 paraphrased wrongly (one flag scope, one exit code) and a vague pointer. Check
 those four on the next move. The `sbomcheck` recipe lives in step 7 and in the
 minimum-elements steps, not in step 7 only.
+
+### Licence database preflight (2026-10-29)
+
+`sbom-generate` prepares the `licenseid` database before the first run
+(`licenseid update --source packaged`), not after a `WARNING:`: a run without
+it is thinner, and the agent that fixed it afterwards ran twice. Probed:
+packaged update needs no network, creates a missing database, prints
+`Database is already at version <v>. Skipping update.` on a current one (file
+sha256 unchanged), and refuses a snapshot older than the database. With an ID
+registry the thin run rewrites the licence entry; file and package ids hold.
+`sbom-enrich` step 9 points at it (its re-run must match the base run).

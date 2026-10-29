@@ -192,7 +192,9 @@ Steps:
    ```
 
 9. Re-run **the exact command that produced the base SBOM** (step 1) so the
-   merged SBOM is written (`loom generate` without `-o` exits 1).
+   merged SBOM is written (`loom generate` without `-o` exits 1). If either
+   run reads licences, prepare the licence database before both, as
+   `sbom-generate`'s Requirements say: a run without it has other licence ids.
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
     `<merged-sbom-file>` -- a valid fragment can still miss a required property
     or use the wrong relationship type, which only shape/SHACL validation

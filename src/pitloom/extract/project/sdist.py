@@ -32,6 +32,7 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
@@ -341,7 +342,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
     if isinstance(raw_pkg_info, bytes):
         metadata = _parse_pkg_info(
             raw_pkg_info.decode("utf-8", errors="replace"),
-            f"Source: sdist PKG-INFO | File: {sdist_path.name}",
+            provenance_source("sdist PKG-INFO", file=sdist_path.name),
             quiet_authors=declared_authors is not None,
         )
     elif pyproject is not None:

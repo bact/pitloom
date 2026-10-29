@@ -4,19 +4,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Provenance settings (:class:`ProvenanceConfig`) and the provenance-string
-helpers :func:`parse_provenance_value` and
-:func:`escape_provenance_comment_part`.
+helpers: the parser :func:`parse_provenance_value`, the builders
+:func:`provenance_source` and :func:`provenance_segment` with their sanitiser
+:func:`sanitize_provenance_text`, and :func:`escape_provenance_comment_part`.
 
-``extract`` and ``assemble`` both read provenance strings, so the parser sits
-below both and neither imports the other for it.
+``extract`` and ``assemble`` both write and read provenance strings, so the
+helpers sit below both and neither imports the other for them.
 """
 
 from __future__ import annotations
 
 import operator
+import re
 from dataclasses import dataclass
 
 import rfc8785
+
+from pitloom.core.untrusted_text import escape_display_controls, escape_lone_surrogates
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
@@ -108,6 +112,82 @@ def escape_provenance_comment_part(text: str, *, field: bool = False) -> str:
     or a file name read from a model cannot then forge or split an entry;
     a usual key (``properties.general.name``) is unchanged."""
     return text.translate(_COMMENT_FIELD_ESCAPES if field else _COMMENT_SOURCE_ESCAPES)
+
+
+#: The keys :func:`provenance_segment` writes a value under, as spelled in
+#: the string. ``Source`` is :func:`provenance_source`'s (one per string);
+#: ``Evidence`` and ``Reason`` are
+#: :func:`pitloom.core.evidence.evidence_segment`'s, a fixed vocabulary.
+PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
+    {
+        "Deprecated-License-Id",
+        "Field",
+        "File",
+        "Method",
+        "Normalized-From",
+        "Normalizer",
+        "Note",
+        "Package",
+        "Role",
+        "Tool",
+    }
+)
+
+#: The numbered keys of a licence value's resolution steps
+#: (``Resolution-1``, ``Expansion-1``).
+_NUMBERED_SEGMENT_KEY = re.compile(r"(?:Resolution|Expansion)-[1-9][0-9]*")
+
+
+def sanitize_provenance_text(text: str) -> str:
+    """*text*, untrusted, made safe to write into a provenance string.
+
+    :func:`parse_provenance_value` splits a provenance string on ``|`` to
+    find its ``Source:``/``Field:``/``Method:`` segments, so a ``|`` in a
+    file name or a key read from a model would forge a segment (an
+    ``Evidence: not_measured`` a merge acts on, a ``Source:`` that drops
+    the entry in minimal detail mode). It becomes ``/``: ``a|b`` and
+    ``a/b`` then read the same in provenance text, which never serves as
+    an identity (registry keys come from
+    :func:`pitloom.id_registry.keys.file_lookup_key`).
+
+    The string is shown to a reader (an Annotation ``statement``, the
+    element's ``comment``), so each code point of
+    :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is written as
+    ``\\uXXXX`` (:func:`~pitloom.core.untrusted_text.escape_display_controls`),
+    and each lone surrogate (a non-UTF-8 POSIX file name, ``b"\\xff"`` read
+    as ``"\\udcff"``), which no UTF-8 output can hold, too
+    (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
+
+    Left as they are: LF, CR and TAB (the comment writer,
+    :func:`escape_provenance_comment_part`, escapes ``;``, CR and LF, and
+    JSON escapes the Annotation); ``;``, ``,`` and ``:`` (a name with a
+    comma reads like a joined source list; only the first ``:`` of a
+    segment ends its key). No length cap. Clean text comes back unchanged.
+    """
+    return escape_display_controls(escape_lone_surrogates(text.replace("|", "/")))
+
+
+def provenance_source(label: str, *, file: str | None = None) -> str:
+    """``"Source: <label>"``, plus ``" | File: <file>"`` when *file* is
+    given, both through :func:`sanitize_provenance_text`: the first part of
+    a provenance string."""
+    source = f"Source: {sanitize_provenance_text(label)}"
+    return source if file is None else provenance_segment(source, "File", file)
+
+
+def provenance_segment(base: str, key: str, value: str) -> str:
+    """*base*, a provenance string, with ``" | <key>: <value>"`` appended,
+    *value* through :func:`sanitize_provenance_text`; *base* is taken as
+    built (by :func:`provenance_source` or this function).
+
+    Raises:
+        ValueError: *key* is neither in :data:`PROVENANCE_SEGMENT_KEYS` nor
+            a numbered ``Resolution-<n>``/``Expansion-<n>`` key (a
+            programming error).
+    """
+    if key not in PROVENANCE_SEGMENT_KEYS and not _NUMBERED_SEGMENT_KEY.fullmatch(key):
+        raise ValueError(f"unknown provenance segment key: {key!r}")
+    return f"{base} | {key}: {sanitize_provenance_text(value)}"
 
 
 def parse_provenance_value(value: str) -> dict[str, str]:

@@ -41,6 +41,7 @@ from pitloom.core.dataset_names import (
     distinct_dataset_names,
 )
 from pitloom.core.frontmatter import opens_frontmatter, split_frontmatter
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
@@ -250,7 +251,9 @@ class ReadmeEnricher:
             log.warning(LONE_SURROGATES_WARNING, "", loggable(str(card_path)))
         license_value, datasets_value = read["license"], read["datasets"]
 
-        source = f"Source: {card_path.name} | Method: yaml_frontmatter"
+        source = provenance_segment(
+            provenance_source(card_path.name), "Method", "yaml_frontmatter"
+        )
         changed: list[EnrichedField] = []
 
         if (

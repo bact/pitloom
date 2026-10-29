@@ -25,7 +25,6 @@ from pitloom.extract._extract_utils import (
     fetch_json,
     filename_from_url,
     json_nests_over,
-    sanitize_provenance_text,
 )
 from pitloom.logging_config import Cap, sanitize_url, sanitize_url_credentials
 from tests._bounded import run_bounded_in_child
@@ -148,11 +147,6 @@ def test_sanitize_url_credentials_masks_up_to_the_last_at_of_the_authority(
     text: str, expected: str
 ) -> None:
     assert sanitize_url_credentials(text) == expected
-
-
-def test_sanitize_provenance_text() -> None:
-    assert sanitize_provenance_text("foo|bar|baz") == "foo/bar/baz"
-    assert sanitize_provenance_text("clean text") == "clean text"
 
 
 def test_fetch_json_local_file(tmp_path: Path) -> None:

@@ -20,6 +20,7 @@ from pathlib import Path
 from pitloom.core.lfs_pointer import log_pointer_not_read, parse_lfs_pointer
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.logging_config import Cap, loggable, one_line, warn_once, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -154,6 +155,16 @@ def _license_from_codemeta_json(raw: bytes) -> str | None:
     return value if _looks_like_spdx_license_id(value) else None
 
 
+def member_source(label: str, archive: str | None, *, field: str | None = None) -> str:
+    """The provenance of what *label*, a project file, held: ``Source:
+    <label>``, then ``File: <archive>`` when it was read from the archive
+    named *archive*, then ``Field: <field>`` when given. The names are
+    untrusted and go through
+    :func:`~pitloom.core.provenance.provenance_source`."""
+    source = provenance_source(label, file=archive)
+    return source if field is None else provenance_segment(source, "Field", field)
+
+
 def license_candidates_from_members(
     members: Mapping[str, bytes], archive: str | None = None
 ) -> list[tuple[str, str]]:
@@ -167,12 +178,13 @@ def license_candidates_from_members(
     See also: :func:`collect_license_candidates`, the directory adapter.
     """
     candidates: list[tuple[str, str]] = []
-    within = "" if archive is None else f" | File: {archive}"
 
     cff = members.get(CITATION_CFF)
     cff_id = _license_from_citation_cff(cff) if cff is not None else None
     if cff_id:
-        candidates.append((cff_id, f"Source: {CITATION_CFF}{within} | Field: license"))
+        candidates.append(
+            (cff_id, member_source(CITATION_CFF, archive, field="license"))
+        )
 
     codemeta = members.get(CODEMETA_JSON)
     codemeta_id = (
@@ -180,13 +192,13 @@ def license_candidates_from_members(
     )
     if codemeta_id:
         candidates.append(
-            (codemeta_id, f"Source: {CODEMETA_JSON}{within} | Field: license")
+            (codemeta_id, member_source(CODEMETA_JSON, archive, field="license"))
         )
 
     for name in pick_license_names(members):
         text = decode_text(members[name], errors="replace")
         if text.strip():
-            candidates.append((text, f"Source: {name}{within}"))
+            candidates.append((text, member_source(name, archive)))
 
     return candidates
 
