@@ -438,12 +438,15 @@ From the Git LFS pointer work. Open:
 
 ## Found 2026-10-29 (evidence-levels review)
 
-From an Opus review of the provenance code against `evidence-levels.md`. Open:
+From an Opus review of the provenance code against `evidence-levels.md`:
 
-- [ ] **After a comment merge the second `Metadata provenance:` block is not
-  found by the drop helpers (S).** `_merge_comment` joins comments with `"; "`
-  (`_fragments_props.py`); `provenance_comment_parts` strips the prefix only at
-  the start of a line.
+- [x] **After a comment merge the second `Metadata provenance:` block is not
+  found by the drop helpers (S), fixed (PR to follow).** `_merge_comment`
+  joined comments with `"; "` (`_fragments_props.py`);
+  `provenance_comment_parts` strips the prefix only at the start of a line. A
+  provenance line now starts a line of its own on either side of the join, and
+  a `not_measured` entry goes when the merged element gains the value
+  (`_fragments_evidence.py`).
 - [ ] **An unreadable project file is logged with the raw exception (S).** The
   skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
   `OSError` text can hold an absolute path.

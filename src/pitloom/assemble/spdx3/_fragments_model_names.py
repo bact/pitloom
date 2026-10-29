@@ -47,8 +47,12 @@ from pitloom.assemble.spdx3.provenance import (
     provenance_comment_parts,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.evidence import EVIDENCE_KEY
 from pitloom.core.model_parameters import with_parameter_count_note
-from pitloom.core.provenance import escape_provenance_comment_part
+from pitloom.core.provenance import (
+    escape_provenance_comment_part,
+    parse_provenance_value,
+)
 from pitloom.export.spdx3_describe import describe_element, describe_value
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -81,16 +85,36 @@ class _BaseModel:
     dropped: dict[str, None] = field(default_factory=dict)
 
 
-def drop_comment_provenance(comment: str | None, field_name: str) -> str | None:
+def _at_level(entry: object, evidence: str | None) -> bool:
+    """True when *evidence* is ``None`` (any entry) or the parsed provenance
+    *entry* (a ``fields`` value, or a comment entry's source text) states it
+    as its ``Evidence:``."""
+    if evidence is None:
+        return True
+    if isinstance(entry, str):
+        entry = parse_provenance_value(entry)
+    return isinstance(entry, dict) and entry.get(EVIDENCE_KEY) == evidence
+
+
+def drop_comment_provenance(
+    comment: str | None, field_name: str, *, evidence: str | None = None
+) -> str | None:
     """*comment* less *field_name*'s entry in each provenance line
     (:func:`~pitloom.assemble.spdx3.provenance.build_provenance_comment`'s
-    escaping keeps ``"; "`` a separator); a line left empty goes."""
+    escaping keeps ``"; "`` a separator), only one of *evidence* when given;
+    a line left empty goes."""
     entry = escape_provenance_comment_part(field_name, field=True) + ": "
     lines: list[str] = []
     for line in (comment or "").split("\n"):
         body = provenance_comment_parts(line)
         if body is not None:
-            kept = [part for part in body if not part.startswith(entry)]
+            kept = [
+                part
+                for part in body
+                if not (
+                    part.startswith(entry) and _at_level(part[len(entry) :], evidence)
+                )
+            ]
             if not kept:
                 continue
             line = provenance_comment_line(kept)
@@ -99,12 +123,17 @@ def drop_comment_provenance(comment: str | None, field_name: str) -> str | None:
 
 
 def _drop_annotation_field(
-    annotation: spdx3.Annotation, field_name: str
+    annotation: spdx3.Annotation, field_name: str, evidence: str | None = None
 ) -> spdx3.Annotation | None:
     """*annotation* less *field_name* when it is a ``fields`` provenance
-    statement naming it; ``None`` when nothing is left of it."""
+    statement naming it (at *evidence*, when given); ``None`` when nothing
+    is left of it."""
     parsed = annotation_fields_statement(annotation)
-    if parsed is None or field_name not in parsed[1]:
+    if (
+        parsed is None
+        or field_name not in parsed[1]
+        or not _at_level(parsed[1][field_name], evidence)
+    ):
         return annotation
     statement, fields = parsed
     del fields[field_name]
@@ -119,20 +148,29 @@ def drop_annotation_provenance(
     annotations: Iterable[spdx3.Annotation],
     spdx_id: str,
     field_name: str,
-) -> None:
-    """Drop *field_name*'s provenance from those of *annotations* that are
-    ``fields`` provenance Annotations of *spdx_id*; an Annotation left with
-    no field goes."""
-    emptied = [
-        annotation
-        for annotation in annotations
-        if _endpoint_id(annotation.subject) == spdx_id
-        and _drop_annotation_field(annotation, field_name) is None
-    ]
+    *,
+    evidence: str | None = None,
+) -> bool:
+    """Drop *field_name*'s provenance (only one of *evidence* when given)
+    from those of *annotations* that are ``fields`` provenance Annotations
+    of *spdx_id*; an Annotation left with no field goes. True when any
+    entry was dropped."""
+    dropped = False
+    emptied: list[spdx3.Annotation] = []
+    for annotation in annotations:
+        if _endpoint_id(annotation.subject) != spdx_id:
+            continue
+        statement = annotation.statement
+        if _drop_annotation_field(annotation, field_name, evidence) is None:
+            emptied.append(annotation)
+        elif annotation.statement == statement:
+            continue
+        dropped = True
     if emptied:
         object_set = exporter.object_set
         object_set.objects.difference_update(emptied)
         object_set.create_index()
+    return dropped
 
 
 class ModelNames:

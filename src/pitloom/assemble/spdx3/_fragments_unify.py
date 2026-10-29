@@ -10,9 +10,10 @@ orchestration), :mod:`pitloom.assemble.spdx3._fragments_props` (property
 merging), :mod:`pitloom.assemble.spdx3._fragments_hashes` (digest conflicts),
 :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification),
 :mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge),
-:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name) and
+:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name),
 :mod:`pitloom.assemble.spdx3._fragments_generated` (the values Pitloom
-generated for it).
+generated for it) and :mod:`pitloom.assemble.spdx3._fragments_evidence` (a
+``not_measured`` entry a merged value supersedes).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_evidence import drop_superseded_absences
 from pitloom.assemble.spdx3._fragments_generated import GeneratedValues
 from pitloom.assemble.spdx3._fragments_hashes import (
     hash_conflict,
@@ -154,6 +156,13 @@ class _MergeIndex:
                 self.by_hash.setdefault((type(obj).__name__, digest), element)
         if isinstance(obj, _STRUCTURAL_TYPES):
             self.structural.setdefault(type(obj), []).append(obj)
+
+    def finish(self) -> None:
+        """Settle what needs every fragment folded: the base models' names
+        (:meth:`ModelNames.finish`), then the ``not_measured`` provenance a
+        merged value supersedes (:func:`drop_superseded_absences`)."""
+        self.model_names.finish()
+        drop_superseded_absences(self.exporter)
 
     def note_source(self, source: str, objects: Iterable[spdx3.SHACLObject]) -> None:
         """Record that *source* (the base document, ``""``, or a fragment

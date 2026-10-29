@@ -18,6 +18,7 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._fragments_equal import same_json
+from pitloom.assemble.spdx3.provenance import provenance_comment_parts
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
     is_parameter_count_text,
@@ -126,13 +127,26 @@ def _merge_scalar(
         )
 
 
+def _comment_separator(first: str, second: str) -> str:
+    """What joins two comments: a line break when a provenance line
+    (:func:`~pitloom.assemble.spdx3.provenance.provenance_comment_parts`)
+    would otherwise share a line with the other comment, ``"; "`` else."""
+    if (
+        provenance_comment_parts(first.rpartition("\n")[2]) is not None
+        or provenance_comment_parts(second) is not None
+    ):
+        return "\n"
+    return "; "
+
+
 def _merge_comment(canonical: spdx3.Element, canonical_val: Any, dup_val: Any) -> None:
     if _is_empty(canonical_val):
         if not _is_empty(dup_val):
             canonical.comment = dup_val
         return
     if not _is_empty(dup_val) and dup_val != canonical_val:
-        canonical.comment = f"{canonical_val}; {dup_val}"
+        separator = _comment_separator(str(canonical_val), str(dup_val))
+        canonical.comment = f"{canonical_val}{separator}{dup_val}"
 
 
 def _merge_list(
