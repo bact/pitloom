@@ -27,9 +27,12 @@ from pitloom.__about__ import __version__
 from pitloom.core.evidence import VERIFIED_USING_FIELD, evidence_segment
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -89,19 +92,12 @@ def _get_caller_info() -> str:
         for frame_info in inspect.stack():
             frame_path = Path(frame_info.filename)
             if frame_path.name not in _SKIPPED_LOOM_FILENAMES:
-                filename = cwd_relative_label(frame_info.filename)
-
-                func_name = frame_info.function
-                if func_name == "<module>":
-                    return (
-                        f"Source: {filename} | "
-                        f"Method: inspect_caller (tool: pitloom.loom, "
-                        f"function: <module>)"
-                    )
-                return (
-                    f"Source: {filename} | "
-                    f"Method: inspect_caller (tool: pitloom.loom, "
-                    f"function: {func_name})"
+                source = provenance_source(cwd_relative_label(frame_info.filename))
+                return provenance_segment(
+                    source,
+                    "Method",
+                    "inspect_caller (tool: pitloom.loom, "
+                    f"function: {frame_info.function})",
                 )
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -166,8 +162,9 @@ def _record_hyperparameter_provenance(
 ) -> None:
     """Record exact per-key provenance for hyperparameters, in key order."""
     for key in sorted(hyperparameters):
-        safe_key = sanitize_provenance_text(str(key))
-        provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
+        provenance[f"hyperparameters.{key}"] = provenance_segment(
+            caller_info, "Field", str(key)
+        )
 
 
 #: What a loom message calls an element of each registry type.
@@ -264,7 +261,7 @@ def pointer_provenance(label: str) -> str:
     """The provenance of a hash copied from the Git LFS pointer *label*
     names (:func:`cwd_relative_label`, taken when the path was given), for
     :data:`HASH_PROVENANCE_FIELD`."""
-    return f"Source: {_source(label)} | Method: {LFS_POINTER_METHOD}"
+    return provenance_segment(provenance_source(label), "Method", LFS_POINTER_METHOD)
 
 
 def evidence_provenance(label: str, level: str, reason: str | None = None) -> str:
@@ -272,9 +269,4 @@ def evidence_provenance(label: str, level: str, reason: str | None = None) -> st
     (:func:`cwd_relative_label`) at the evidence *level*, with *reason* for
     ``not_measured`` (:func:`~pitloom.core.evidence.evidence_segment`, which
     raises ``ValueError`` on a level or reason it does not know)."""
-    return f"Source: {_source(label)} | {evidence_segment(level, reason)}"
-
-
-def _source(label: str) -> str:
-    """*label* as a provenance ``Source:`` writes it."""
-    return sanitize_provenance_text(label)
+    return f"{provenance_source(label)} | {evidence_segment(level, reason)}"

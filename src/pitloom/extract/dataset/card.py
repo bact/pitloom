@@ -29,6 +29,7 @@ from pitloom.extract.dataset.licence import (
     LICENSE_NAME_FIELD,
     apply_dataset_licence,
     dataset_licence,
+    field_provenance,
 )
 from pitloom.extract.dataset.values import stated_text, stated_texts, stated_version
 from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
@@ -68,7 +69,7 @@ def read_dataset_card(
     provenance: dict[str, str] = {}
     pretty_name = stated_text(read["pretty_name"], source, "pretty_name")
     if pretty_name:
-        provenance["name"] = f"Source: {source} | Field: pretty_name"
+        provenance["name"] = field_provenance(source, "pretty_name")
     licence = dataset_licence(
         read[LICENSE_FIELD],
         source=source,
@@ -80,9 +81,9 @@ def read_dataset_card(
         provenance["license"] = licence.provenance
     version = stated_version(read["version"], source, numbers=False)
     if version:
-        provenance["version"] = f"Source: {source} | Field: version"
+        provenance["version"] = field_provenance(source, "version")
     if tags:
-        provenance["keywords"] = f"Source: {source} | Field: tags"
+        provenance["keywords"] = field_provenance(source, "tags")
     meta = DatasetMetadata(
         name=pretty_name or directory.name,
         version=version,

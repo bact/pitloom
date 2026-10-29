@@ -57,14 +57,17 @@ pip install "pitloom>=0.21.0"
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
-## Licence database (once per user)
+## Licence database (first command of a run)
 
-Without it, licences stay as written and one `WARNING: licenseid database
-cannot be used: ...` line says so (`known-limitations.md`):
+Run it before the first `loom` call of a session that reads licences. No
+network, skips when current, safe to repeat. Without it, licences stay as
+written and one `WARNING: licenseid database cannot be used: ...` line says so
+(`known-limitations.md`):
 
 ```bash
-licenseid update                     # from an install of pitloom
-uvx --from "licenseid>=0.6.0" licenseid update --source packaged  # no install; the list licenseid ships
+licenseid update --source packaged   # from an install of pitloom
+uvx --from "licenseid>=0.6.0" licenseid update --source packaged  # no install
+loom project . -o sbom.spdx3.json    # then generate
 ```
 
 ## Built Wheel SBOM

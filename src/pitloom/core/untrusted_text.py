@@ -22,7 +22,7 @@ below writes them in the spelling its context needs:
 
 The same set is used by :func:`pitloom.core.iri.iri_segment` (percent-encoded
 in a minted ``spdxId``) and by
-:func:`pitloom.extract._extract_utils.sanitize_provenance_text` (a file or
+:func:`pitloom.core.provenance.sanitize_provenance_text` (a file or
 key name in a provenance string). :func:`pitloom.logging_config.loggable`
 and :func:`pitloom.core.file_names.escape_file_name_part` cover it too.
 

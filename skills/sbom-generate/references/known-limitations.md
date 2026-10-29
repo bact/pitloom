@@ -301,20 +301,41 @@ does not name. It is not a model bound.
 
 ## Licence detection unavailable
 
+Prepare the database before the first run of a session that reads licences:
+`licenseid update --source packaged` (without an install, `uvx --from
+"licenseid>=0.6.0" licenseid update --source packaged`). It uses the copy in
+the `licenseid` wheel: no network. On a missing database it creates it
+(`Update complete. Database updated at <path>`); on a current one it prints
+`Database is already at version <v>. Skipping update.` and changes nothing, so
+run it again without checking first. It may print `WARNING: popularity.csv:
+missing` (no ranking data offline): harmless, not a Pitloom line. A packaged
+copy older than the database is refused (`older than the database`): the
+database is kept and the preflight counts as failed. The database is per user,
+`~/.local/share/licenseid/licenses.db` (a platform directory on Windows), so
+any environment's Pitloom reads it.
+
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
 and license id reading skipped` (once per run; the reason ends `run 'licenseid
-update'` when the file is missing or empty): the `licenseid` SPDX database is missing
-or empty. `licenseid update` builds it (network; `licenseid update --source
-packaged` uses the copy in the `licenseid` wheel, no network; without an
-install, `uvx --from "licenseid>=0.6.0" licenseid update`: the database is per
-user, `~/.local/share/licenseid/licenses.db`, so any environment's Pitloom reads
-it). Licences are then taken as written: no
-`LICENSE` text is matched to an id and no respelt id (`Apache2`) is read as the
-id it names. Report the line and the command. When the declared licence is
-already an SPDX expression and the file is only missing, the line is `INFO:
-licenseid database not found: <path> -- license text detection skipped; run
-'licenseid update --source packaged'` (0.21.1 and later): the declared value
-is recorded as written and only the `LICENSE` file is not matched.
+update'` when the file is missing or empty): the `licenseid` SPDX database is
+missing or empty, so the preflight was skipped or failed. Licences are taken as
+written: no `LICENSE` text is matched to an id and no respelt id (`Apache2`) is
+read as the id it names, so the SBOM is thinner. Report the line and the
+command. When the declared licence is already an SPDX expression and the file
+is only missing, the line is `INFO: licenseid database not found: <path> --
+license text detection skipped; run 'licenseid update --source packaged'`
+(0.21.1 and later): the declared value is recorded as written and only the
+`LICENSE` file is not matched.
+
+If the preflight failed, generate anyway and report the line. Do not run a
+network `licenseid update` or regenerate unasked: ask; non-interactive: report
+only. A regenerate after fixing needs the same `-o`, `--config` and target.
+With an ID registry, file, package and model ids are unchanged (keyed by path
+or name), but the licence, relationship and annotation ids can change, and a
+run updates the declared registry unless `--no-update-id-registry` is given (a
+thin run stores a `SimpleLicensingText` entry that the later run replaces by a
+`LicenseExpression` one).
+Ask before regenerating over a registry the user pinned; non-interactive:
+report only.
 
 ## A licence that looks like a broken expression
 

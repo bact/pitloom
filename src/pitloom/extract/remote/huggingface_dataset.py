@@ -51,6 +51,7 @@ from pitloom.extract.dataset.licence import (
     LICENSE_NAME_FIELD,
     apply_dataset_licence,
     dataset_licence,
+    field_provenance,
 )
 from pitloom.extract.remote._card_description import card_description
 from pitloom.logging_config import (
@@ -157,11 +158,11 @@ def _apply_card(
     description = card_description(text) if text else None
     if description:
         meta.description = description
-        meta.provenance["description"] = f"Source: {_SOURCE} | Field: dataset card"
+        meta.provenance["description"] = field_provenance(_SOURCE, "dataset card")
     keywords = card_tags(card.get("tags"), where)
     if keywords:
         meta.keywords = keywords
-        meta.provenance["keywords"] = f"Source: {_SOURCE} | Field: {_CARD_FIELD}tags"
+        meta.provenance["keywords"] = field_provenance(_SOURCE, f"{_CARD_FIELD}tags")
 
 
 def _apply_info(meta: DatasetMetadata, info: dict[str, Any]) -> None:
@@ -169,12 +170,12 @@ def _apply_info(meta: DatasetMetadata, info: dict[str, Any]) -> None:
     version = commit_hash(info.get("sha"))
     if version:
         meta.version = version
-        meta.provenance["version"] = f"Source: {_SOURCE} | Field: dataset_info sha"
+        meta.provenance["version"] = field_provenance(_SOURCE, "dataset_info sha")
     owners = originator_names(info.get("author"))
     if owners:
         meta.creator = owners[0]
         meta.provenance["creator"] = (
-            f"Source: {_SOURCE} | Field: dataset_info author" + REPOSITORY_OWNER_METHOD
+            field_provenance(_SOURCE, "dataset_info author") + REPOSITORY_OWNER_METHOD
         )
 
 

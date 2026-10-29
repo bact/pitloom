@@ -454,18 +454,34 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
   and logs DEBUG only, so no `failed` entry is possible there without the 404
   check `huggingface_dataset.py` already has.
-- [ ] **Provenance `Source:` strings built from a file or label name outside
-  `assemble/spdx3` are not sanitised (S).** A `|` or `;` in the name adds a
-  segment (a forged `Evidence:` or `Method:`). Seen, not exploited:
-  `extract/project/_setup_cfg_directives.py:127,151`, `pyproject_dynamic.py:241`,
-  `reader.py:242`, `_pyproject_license.py:77`, `_license_detect.py:189`,
-  `copyright_notices.py:201`, `extract/dataset/{croissant,card,licence}.py`
-  (`src_label`), `extract/lock/cascade.py:255`, `_setuptools_options.py:313`,
-  `_optional_dependencies.py:62`. Route them through one helper
-  (`sanitize_provenance_text`); `assemble/spdx3` (#386) is done.
-- [ ] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S).**
-  `core/lfs_pointer.py` does not use `quote_source` for a path with `|` or a
-  space.
+- [x] **Provenance `Source:` strings built from a file or label name outside
+  `assemble/spdx3` were not sanitised (S), fixed (#389).** A `|` in the name
+  added a segment (a forged `Evidence:` or `Method:`). Every provenance
+  string is now built by `provenance_source`/`provenance_segment`
+  (`core/provenance.py`): the setup.cfg/pyproject directives, the installed
+  dist-info label, licence and copyright file and archive names, the dataset
+  labels (Croissant, card, licence), the lock-file cascade, the merged
+  setuptools and optional-dependency sources, `Normalized-From` and the
+  `Resolution-1`/`Expansion-1` steps, a dependency marker in
+  `declared_constraint` (a real forge: `os_name == "x | Evidence: ..."`),
+  the loom caller and the AI-model readers. The pdm, Poetry, setuptools,
+  Hugging Face and README-card sites interpolated constants only (defence in
+  depth). `tests/test_provenance_builders_lint.py` keeps it so.
+- [x] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S),
+  decided: kept.** The path goes through `loggable`, as in every sibling
+  `FILE=` line: a newline is escaped (one record), `|` is inert in a log
+  line, and a bare space is family-wide. A quoted `FILE=` would be one PR for
+  the whole family; characterised in `tests/core/test_lfs_pointer_warning.py`.
+- [ ] **A project file whose name is not valid UTF-8 crashes generation (S).**
+  For `src/demo/\xff.py` the provenance Annotation now passes (the
+  sanitiser escapes the lone surrogate), but
+  `export/spdx3_json.py::_graph_sort_key` raises an `rfc8785` error on the
+  element's own `name`. Needs its own fix and an end-to-end regression test.
+- [ ] **A plain-text provenance value with a `:` reads as a key (S).**
+  `declared_constraint` holds requirement text, but `emit_provenance` parses
+  every value as `Key: value`: `pkg @ https://x/p.whl` gives the key
+  `pkg @ https`, and a marker holding a `:` gives one too. Such a value should
+  be written as a `note`.
 - [ ] **A base element holding both a value and a `not_measured` entry loses the
   entry when a fragment folds into it for an unrelated field (S).** Needs a
   forged entry, which sanitising now blocks; ruling it out means tracking which

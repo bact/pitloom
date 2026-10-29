@@ -60,7 +60,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
 )
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.extract.lock.common import is_same_version
@@ -422,7 +422,11 @@ def add_dependencies(
         )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
-            "declared_constraint": " | ".join(sorted(declared_constraints)),
+            # A marker's string literal can hold a "|": each one is
+            # sanitised, so only the joins separate notes.
+            "declared_constraint": " | ".join(
+                sanitize_provenance_text(dep) for dep in sorted(declared_constraints)
+            ),
         }
         if version_note:
             dep_provenance_fields["version"] = version_note

@@ -25,6 +25,7 @@ import rfc8785
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.file_names import escape_file_name_part
 from pitloom.core.iri import iri_segment
+from pitloom.core.provenance import sanitize_provenance_text
 from pitloom.core.untrusted_text import (
     DISPLAY_CONTROLS,
     escape_display_controls,
@@ -33,7 +34,6 @@ from pitloom.core.untrusted_text import (
     escape_lone_surrogates,
     escape_lone_surrogates_in,
 )
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.logging_config import loggable
 
 _ESCAPED = [

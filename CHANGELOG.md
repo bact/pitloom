@@ -50,8 +50,8 @@ and this project adheres to
   path ([#375])
 - A Croissant `totalItems` count no longer fills `dataset_datasetSize` (bytes);
   it is not recorded ([#382])
-- A `|` in a project file name no longer adds a segment to its provenance
-  ([#386])
+- A `|` in a file, label, archive or licence name, or a dependency marker, no
+  longer adds a segment to its provenance ([#386], [#389])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -61,6 +61,7 @@ and this project adheres to
 [#382]: https://github.com/bact/pitloom/pull/382
 [#386]: https://github.com/bact/pitloom/pull/386
 [#387]: https://github.com/bact/pitloom/pull/387
+[#389]: https://github.com/bact/pitloom/pull/389
 [#390]: https://github.com/bact/pitloom/pull/390
 
 ## [0.21.1] - 2026-10-28

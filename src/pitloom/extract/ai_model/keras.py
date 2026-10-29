@@ -37,10 +37,10 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
-    sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
@@ -143,7 +143,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: The archive or one
             of its members is over a bound.
     """
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     framework_version: str | None = None
     name: str | None = None
     type_of_model: str | None = None

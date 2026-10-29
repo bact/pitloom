@@ -35,7 +35,11 @@ from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import (
+    parse_provenance_value,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.core.requirements import (
     NOT_PEP_508,
     add_marker,
@@ -310,7 +314,9 @@ def _joint_source(options: list[SetupOption]) -> str:
             fields.append(entry["location"])
     names = [name for name in (SETUP_PY, SETUP_CFG) if name in by_file]
     fields = [field for name in names for field in by_file[name]]
-    return f"Source: {', '.join(names)} | Field: {', '.join(fields)}"
+    return provenance_segment(
+        provenance_source(", ".join(names)), "Field", ", ".join(fields)
+    )
 
 
 def _provenance(merged: SetupOptions) -> dict[str, str]:

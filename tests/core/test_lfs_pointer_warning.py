@@ -49,6 +49,22 @@ def test_summary_is_one_line_naming_the_first_path(
     assert "\n" not in record.getMessage()
 
 
+def test_a_hostile_path_is_one_record_in_the_plain_file_form(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Characterisation, kept on purpose: the path goes through ``loggable``
+    as its sibling ``FILE=`` lines do, not ``quote_source``. A newline is
+    escaped (the value then quoted), so one record; ``|`` is inert in a log
+    line; a space stays bare, as in every ``FILE=`` line of the family."""
+    with caplog.at_level(logging.WARNING):
+        warn_pointers_not_read(["a b|c\nWARNING: x"])
+        warn_pointers_not_read(["a b|c"])
+    hostile, plain = (record.getMessage() for record in caplog.records)
+    assert "\n" not in hostile
+    assert hostile.startswith("FILE='a b|c\\nWARNING: x': Git LFS pointer")
+    assert plain.startswith("FILE=a b|c: Git LFS pointer")
+
+
 def test_no_pointer_is_silent_and_debug_line_names_the_oid(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

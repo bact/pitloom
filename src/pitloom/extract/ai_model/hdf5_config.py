@@ -24,6 +24,7 @@ from typing import Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.logging_config import field_loss_suffix, one_line
 
@@ -266,7 +267,7 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
         name_field = f"model_config.config.{key}"
         done.name = _member_text(config, key, name_field)
         if done.name:
-            provenance["name"] = f"{source} | Field: {name_field}"
+            provenance["name"] = provenance_segment(source, "Field", name_field)
             break
     done.lost.remove("name")
 

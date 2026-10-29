@@ -29,6 +29,7 @@ from pitloom.core.project import (
     is_sdist_archive,
     merge_project_metadata,
 )
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
@@ -239,7 +240,7 @@ def _apply_installed_metadata(
     candidate = _discover_candidate(project_path, metadata.name, quiet=quiet)
     if candidate is None:
         return metadata
-    source_label = f"Source: {candidate.label} | File: {candidate.marker_path.name}"
+    source_label = provenance_source(candidate.label, file=candidate.marker_path.name)
     installed = _parse_installed_metadata(candidate.message, source_label)
     return reconcile_installed_metadata(
         metadata, installed, candidate.label, project_path, quiet=quiet
