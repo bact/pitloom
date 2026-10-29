@@ -269,8 +269,8 @@ means it did not apply to that target: drop it next time.
 For `Build: ...` lines from an `--allow-build` run, read
 `references/build-timeout.md`; for `ID registry: ...` lines (which are
 expected), `references/id-registry.md`. When a line ends in a `[code]`
-(`[lfs-pointer]`), read `references/messages.md` for what it means and what to
-tell the user; relay its advice, never run the fix.
+(`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
+means and what to tell the user; relay its advice, never run the fix.
 
 ## Known limitations -- say so, don't paper over it
 

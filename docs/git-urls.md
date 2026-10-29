@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -171,7 +171,8 @@ HTTP (`git http-backend`) that answers like GitLab does.
   repository is fetched in full (blobs over 10 MB excepted, on a server that
   supports partial clone). The library API can stop a fetch once the checkout
   takes more disk than a limit you give (`max_clone_bytes=`, error code
-  `git.too-large`): [Python API](python-api.md).
+  `git.too-large`, message code [`over-cap`](messages.md#over-cap)):
+  [Python API](python-api.md).
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.

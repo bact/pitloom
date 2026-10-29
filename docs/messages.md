@@ -50,7 +50,7 @@ hyphens, `[a-z][a-z0-9]*(-[a-z0-9]+)*`, and a code has at most 40 characters.
 
 - A family names one condition by its cause, never by what Pitloom did about
   it: subject first (`file-unreadable`), or the condition alone when it does
-  not depend on the subject (`lfs-pointer`).
+  not depend on the subject (`lfs-pointer`, `over-cap`).
 - A variant is the same condition where the advice or what the SBOM records
   differs (`lfs-pointer/shipped`: the pointer is inside a built artefact).
 - One code covers its condition at every level. As an `ERROR`, the command
@@ -138,6 +138,9 @@ except Exception as exc:
   catalogued code, and `None` for anything else. An exception's own `code`
   (an HTTP status, an exit status, `git.too-large` of a remote-source error)
   is never read.
+- A Git URL's checkout over `max_clone_bytes`, or a `git` call's output over
+  its cap, raises a `RemoteSourceError` whose `code` is `git.too-large` or
+  `git.output-too-large` and whose `pitloom_code` is `over-cap`.
 
 The command line prints the code of the exception it reports at the end of its
 `ERROR:` line.

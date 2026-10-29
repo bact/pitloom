@@ -29,10 +29,11 @@ The base run's stderr says why:
   not read ... [lfs-pointer]` -- the file is no model and has no
   `ai_AIPackage`; relay Pitloom's advice (a code's advice is in
   `messages.md`).
-- On a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
-  max-model-extract-bytes cap; metadata not read`, or `... per-wheel
-  model-scan budget cap; ...` -- tell the user; never add the flag or raise the
-  cap yourself (flag or key).
+- On a wheel base, the gate `INFO:` naming `--trust-wheel-model` -- tell the
+  user; never add the flag yourself.
+- A line ending in `[over-cap]` (`... max-model-extract-bytes cap; metadata
+  not read`, `... per-wheel model-scan budget cap; ...`) -- read `messages.md`
+  for what to tell the user; never raise a cap yourself.
 - Any other `...; metadata not read` -- a fixed bound.
 - `... identity unknown` is the wheel's own name/version, not a model: see
   `sbom-generate`.
