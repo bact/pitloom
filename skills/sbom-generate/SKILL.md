@@ -74,11 +74,17 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
   `pyproject.toml` extras:
   <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
   `--allow-build` needs `build`; `--content-type` needs `content-type`.
-- Licence reading needs the per-user `licenseid` (>= 0.6.0) database:
-  `licenseid update` once (ephemeral: `uvx --from "licenseid>=0.6.0"
-  licenseid update`; `--source packaged`: no network). Without it: one
-  `WARNING: licenseid database cannot be used: ...` and licences stay as
-  written (`INFO:` if only the `LICENSE` check is lost).
+- **Prepare the licence database before the first `loom` run** of a session
+  that reads licences (project, wheel, sdist, model, Git URL): run
+  `licenseid update --source packaged` (ephemeral: `uvx --from
+  "licenseid>=0.6.0" licenseid update --source packaged`; one command per line
+  in PowerShell). No network, skips when current, safe to repeat. Do not
+  generate first and fix after: without the database licences stay as written.
+  If it fails, say so once, generate anyway and report the resulting
+  `WARNING:`/`INFO:` line; never run a network `licenseid update` or
+  regenerate unasked (ask; non-interactive: report only). If the preflight
+  fails or that line appears, read "Licence detection unavailable" in
+  `references/known-limitations.md`.
 
 ## Run without installing anything persistent
 
