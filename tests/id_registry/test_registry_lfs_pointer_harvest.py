@@ -7,7 +7,9 @@
 on, not the pointer text's digest an archive's SBOM states; every reader of
 an element's hash (``_own_sha256``, ``_stale``, ``unique_file_keys``) takes
 it from one helper, ``harvest_sha256``, so they agree. A project with no
-pointer harvests and states exactly what it did before.
+pointer harvests and states exactly what it did before. A merged
+fragment's element stating the ``oid`` at the pointer's path is the same
+content (its twin): the run's element is written.
 
 See also: test_registry_lfs_pointer_order.py (the route-and-order matrix),
 tests/core/test_file_hash_stated.py (``ProjectFile.registry_sha256``).
@@ -18,6 +20,7 @@ tests/core/test_file_hash_stated.py (``ProjectFile.registry_sha256``).
 from __future__ import annotations
 
 import hashlib
+import logging
 from pathlib import Path
 
 import pytest
@@ -25,9 +28,13 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.project import ProjectFile
 from pitloom.export.hashes import sha256_of
-from pitloom.id_registry import FILE_TYPE, IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from pitloom.id_registry._ambiguous import harvest_sha256, unique_file_keys
-from pitloom.id_registry._harvest import _own_sha256, _stale
+from pitloom.id_registry._harvest import (
+    _harvest_elements,
+    _own_sha256,
+    content_gate_message,
+)
 from tests._lfs import lfs_pointer_bytes
 from tests.id_registry._registry_harvest_shared import (
     _CI,
@@ -87,20 +94,95 @@ def test_a_recorded_hash_applies_to_a_file_only() -> None:
     assert harvest_sha256(package, _HASHES) == _TEXT_SHA == sha256_of(package)
 
 
-@pytest.mark.parametrize(
-    ("fragment_sha", "stale"), [(_OID, False), ("d" * 64, True)], ids=["oid", "older"]
-)
-def test_a_fragment_of_the_pointer_is_stale_only_for_other_content(
-    fragment_sha: str, stale: bool
+_OTHER_PTR_ID = f"{_NS}#File-4"
+_OTHER_KEY = "demo/b.bin"
+
+
+def _twin_case(case: str) -> tuple[list[spdx3.software_File], dict[str, str]]:
+    """The run's pointer (states the text's digest) and a merged fragment's
+    element of its path (*case*: ``oid`` its twin; ``other`` a pointer
+    replaced by other content; ``unhashed`` no hash; ``plain`` the run's
+    file is no pointer, stating the fragment's hash, a pointer at another
+    path; ``two-paths`` a second pointer of the one ``oid`` with its own
+    twin); the hashes the run recorded."""
+    pointer, hashes = _elements()["pointer"], dict(_HASHES)
+    twin_sha: str | None = {"other": "d" * 64, "unhashed": None}.get(case, _OID)
+    if case == "plain":
+        pointer, twin_sha = _file(_KEY, _POINTER_ID, _PLAIN_SHA), _PLAIN_SHA
+        hashes = {}
+    objects = [pointer, _file(_KEY, _FRAGMENT_ID, twin_sha)]
+    if case in ("plain", "two-paths"):
+        hashes[_OTHER_PTR_ID] = _OID
+        objects.append(_file(_OTHER_KEY, _OTHER_PTR_ID, _TEXT_SHA))
+    if case == "two-paths":
+        objects.append(_file(_OTHER_KEY, f"{_NS}#File-8", _OID))
+    return objects, hashes
+
+
+#: Per case: the file entries harvest writes, and its ``INFO:`` lines.
+_TWIN_WANT = {
+    "oid": ({_KEY: (_POINTER_ID, _OID)}, []),
+    "other": (
+        {_KEY: (_POINTER_ID, _OID)},
+        [
+            content_gate_message(
+                (FILE_TYPE, _KEY), _FRAGMENT_ID, _POINTER_ID, older=True
+            )
+        ],
+    ),
+    # Ambiguous, as any two elements of one path: content unknown, or no
+    # pointer.
+    "unhashed": ({}, []),
+    "plain": ({_OTHER_KEY: (_OTHER_PTR_ID, _OID)}, []),
+    "two-paths": (
+        {_KEY: (_POINTER_ID, _OID), _OTHER_KEY: (_OTHER_PTR_ID, _OID)},
+        [],
+    ),
+}
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["run-first", "twin-first"])
+@pytest.mark.parametrize("case", _TWIN_WANT)
+def test_a_fragment_twin_of_a_pointer_leaves_the_run_element_written(
+    caplog: pytest.LogCaptureFixture, case: str, reverse: bool
 ) -> None:
-    """The run's pointer reads its ``oid``, as the fragment's element
-    states it: the two are one content, so the fragment is not stale (read
-    as the text's digest, it would be, and harvest would skip it)."""
-    pointer = _elements()["pointer"]
-    fragment = _file(_KEY, _FRAGMENT_ID, fragment_sha)
-    found = _stale([pointer, fragment], _KEYS, _HASHES)
-    assert (_FRAGMENT_ID in found) is stale
-    assert _FRAGMENT_ID in _stale([pointer, fragment], _KEYS, None)
+    """A merged fragment's element stating a pointer's ``oid`` at its path
+    is the run's own content: never written (its id reserved, no
+    ``older SHA-256`` line), so the run's element is, with the ``oid``.
+    Other content stays stale; a twin of a file that is no pointer, or of
+    another path, changes nothing."""
+    objects, hashes = _twin_case(case)
+    keys = {
+        str(o.spdxId): (FILE_TYPE, str(o.name))
+        for o in objects
+        if str(o.spdxId) in (_POINTER_ID, _OTHER_PTR_ID)
+    }
+    registry = IdRegistry.new("proj", namespace=_NS)
+    caplog.set_level(logging.INFO, logger="pitloom.id_registry")
+    order = objects[::-1] if reverse else objects
+    _harvest_elements(registry, order, imported=False, keys=keys, hashes=hashes)
+    entries, infos = _TWIN_WANT[case]
+    assert {
+        name: (e.spdx_id, e.sha256) for (_, name), e in registry.elements.items()
+    } == entries
+    assert [r.getMessage() for r in caplog.records] == infos
+    assert registry.register(FILE_TYPE, "n") == f"{_NS}#File-10"  # 9 reserved
+
+
+@pytest.mark.parametrize("twin", [False, True], ids=["alone", "with-twin"])
+def test_a_fragment_model_of_a_pointer_is_keyed_by_its_file(twin: bool) -> None:
+    """A merged fragment's model of a pointer's ``oid`` is written under the
+    pointer's key, a twin of the pointer beside it or not (the two are one
+    file, not two holding the SHA-256)."""
+    model = spdx3.ai_AIPackage(spdxId=f"{_NS}#AIPackage-9", name="m", creationInfo=_CI)
+    model.verifiedUsing = _hash(_OID)
+    objects = [_elements()["pointer"], model]
+    if twin:
+        objects.append(_file(_KEY, _FRAGMENT_ID, _OID))
+    registry = IdRegistry.new("proj", namespace=_NS)
+    registry.harvest(_object_set(*objects), keys=_KEYS, hashes=_HASHES)
+    entry = registry.get(AI_PACKAGE_TYPE, _KEY)
+    assert entry and entry.spdx_id == f"{_NS}#AIPackage-9" and entry.sha256 == _OID
 
 
 @pytest.mark.parametrize(

@@ -22,22 +22,25 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.id_registry._ambiguous import (
+    GATED_TYPES,
     MODEL_NOT_RECORDED_INFO,
+    TWIN_DEBUG,
     DerivedKeys,
     KeptPairs,
     RecordedHashes,
     RecordedKeys,
     WrittenKey,
     _ambiguous_keys,
+    _stale,
     _written_key,
     ambiguous_keys_message,
     harvest_sha256,
+    pointer_twins,
     unique_file_keys,
 )
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
     RegistryEntry,
     is_utf8_text,
     unencodable_message,
@@ -49,15 +52,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("pitloom.id_registry")
 
-#: The types a lookup always gates on content: the only ones a run's harvest
-#: records a SHA-256 for. Any other type's hash is ignored (a package's
-#: Merkle root differs between a project and its wheel, and would flip the
-#: entry).
-_GATED_TYPES = frozenset({AI_PACKAGE_TYPE, FILE_TYPE})
 #: The types whose recorded SHA-256 an unhashed element of the same id
 #: keeps: the gated ones, and a dataset package (its hash is recorded by
 #: ``id import`` and ``id generate -e`` only, never by a run's harvest).
-_HASH_KEPT_TYPES = _GATED_TYPES | {DATASET_PACKAGE_TYPE}
+_HASH_KEPT_TYPES = GATED_TYPES | {DATASET_PACKAGE_TYPE}
 
 __all__ = [
     "_SpdxIdIndex",
@@ -270,35 +268,6 @@ def _model_file_keys(
     return passed, DerivedKeys({**(keys or {}), **derived}, recorded=recorded)
 
 
-def _stale(
-    objects: list[Any],
-    keys: RecordedKeys | None,
-    hashes: RecordedHashes | None = None,
-) -> dict[str, tuple[tuple[str, str], str]]:
-    """spdxId -> (written key, the other element's id) of each hashed
-    :data:`_GATED_TYPES` element with no recorded key whose key an element
-    with a recorded key and another SHA-256 is written under: the run's
-    own lookup is the current content, so the other is never written and
-    blocks nothing. Hashes are read with *hashes*
-    (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`)."""
-    current: dict[tuple[str, str], tuple[str | None, str]] = {}
-    unrecorded = []
-    for obj in objects:
-        written = _written_key(obj, keys)
-        if written is None or written.key[0] not in _GATED_TYPES:
-            continue
-        sha = harvest_sha256(obj, hashes)
-        if written.recorded:
-            current.setdefault(written.key, (sha, str(obj.spdxId)))
-        elif sha is not None:
-            unrecorded.append((str(obj.spdxId), written.key, sha))
-    return {
-        spdx_id: (key, current[key][1])
-        for spdx_id, key, sha in unrecorded
-        if key in current and current[key][0] != sha
-    }
-
-
 def _harvest_elements(
     registry: IdRegistry,
     sorted_objects: Iterable[Any],
@@ -309,8 +278,10 @@ def _harvest_elements(
 ) -> frozenset[tuple[str, str]]:
     """Harvest every element of *sorted_objects* into *registry*, leaving
     each :func:`~pitloom.id_registry._ambiguous._ambiguous_keys` key
-    untouched; an element R-keep skips (:func:`_r_kept`) or a stale one
-    (:func:`_stale`) neither counts toward nor blocks one. *imported*: ``id
+    untouched; an element R-keep skips (:func:`_r_kept`), a stale one or a
+    Git LFS pointer's twin (:func:`~pitloom.id_registry._ambiguous._stale`,
+    :func:`~pitloom.id_registry._ambiguous.pointer_twins`: never written,
+    its id reserved) neither counts toward nor blocks one. *imported*: ``id
     import`` (see :func:`_import_sbom_element`), else a run's auto-harvest,
     which first keys its fragment models (:func:`_model_file_keys`).
     *keys*: the keys the run's lookups recorded, or (``id import``) the
@@ -328,15 +299,21 @@ def _harvest_elements(
     if not imported:
         objects, keys = _model_file_keys(registry, objects, keys, hashes)
     stale = _stale(objects, keys, hashes)
-    state = _Pass.of(registry, objects, keys, {(i, k) for i, (k, _) in stale.items()})
+    skipped = pointer_twins(objects, keys, hashes) | stale
+    state = _Pass.of(registry, objects, keys, {(i, k) for i, (k, _) in skipped.items()})
     if state.ambiguous:
         log.debug("%s", ambiguous_keys_message("not harvested", state.ambiguous))
     for obj in objects:
         spdx_id = str(getattr(obj, "spdxId", None))
-        if spdx_id in stale:
+        if spdx_id in skipped:
             registry.reserve_id(spdx_id)
-            key, current = stale[spdx_id]
-            log.info("%s", content_gate_message(key, spdx_id, current, older=True))
+            key, current = skipped[spdx_id]
+            if spdx_id in stale:
+                log.info("%s", content_gate_message(key, spdx_id, current, older=True))
+            else:
+                log.debug(
+                    TWIN_DEBUG, key[0], key[1], loggable(spdx_id), loggable(current)
+                )
             continue
         _import_sbom_element(
             registry, obj, state, imported=imported, keys=keys, hashes=hashes
@@ -401,9 +378,9 @@ def _own_sha256(
 ) -> str | None:
     """The SHA-256 of *obj* harvest records
     (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`, with *hashes*):
-    for a :data:`_GATED_TYPES` element, and on ``id import`` for a dataset
-    package too; else none."""
-    types = _HASH_KEPT_TYPES if imported else _GATED_TYPES
+    for a :data:`~pitloom.id_registry._ambiguous.GATED_TYPES` element, and
+    on ``id import`` for a dataset package too; else none."""
+    types = _HASH_KEPT_TYPES if imported else GATED_TYPES
     return harvest_sha256(obj, hashes) if type_name in types else None
 
 
@@ -422,7 +399,8 @@ def _import_sbom_element(
     type other than ``"object"`` is written under the key *keys* holds for
     it (its run's lookup recorded it, or ``id import`` derived it), else
     its type and name (:func:`~pitloom.id_registry._ambiguous._written_key`).
-    A :data:`_GATED_TYPES` entry gets the element's SHA-256
+    A :data:`~pitloom.id_registry._ambiguous.GATED_TYPES` entry gets the
+    element's SHA-256
     (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`: *hashes*'s
     for a file whose run recorded one), or none, and so does an
     imported dataset package; any other type never gets one of its own.
