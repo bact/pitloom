@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -265,16 +265,46 @@ other tool reads. A consumer cannot tell "no hash known" from "hash skipped
 over the read cap" from SPDX alone. See
 [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md).
 
-*Open:* are catalogue codes the right unit for SARIF `ruleId`s? The
-0.23.0 plan maps a code to `ruleId`, but a code names a condition
-(`lfs-pointer`) shared by several subjects and surfaces, while a SARIF rule
-usually names one check. Not reviewed.
+*Partly answered:* are catalogue codes the right unit for SARIF `ruleId`s?
+The #390 review left room without a scheme: a family is a SARIF rule `id`,
+a code a hierarchical `ruleId` (`lfs-pointer/shipped`, hence `/` and not
+`.` for a variant), a code's reference section its help link. Still open:
+a code names a condition (`lfs-pointer`) shared by several subjects and
+surfaces, while a SARIF rule usually names one check; no SARIF output is
+built (0.23.0). See
+[message-catalogue-decisions.md](message-catalogue-decisions.md),
+section 1.
 
-*Open:* how do you version a message contract whose consumers are AI agents?
-A code is promised stable and the wording is not, but a skill quotes
-wording, and an agent may key on either. The ratchet and the drift test
-hold the code and the skills' quotes to the catalogue; nothing measures
-whether an agent still behaves the same after a wording change.
+*Partly answered:* how do you version a message contract whose consumers
+are AI agents? Decision L promises a code stable from the release that
+first prints it (never renamed, reused or removed while its condition can
+occur; a retired code stays; a rename carries `replaces` for one minor
+release), and the wording is not promised. The skills now point to a
+reference generated from the catalogue rather than quoting wording by hand,
+and the ratchet and the drift test hold code, reference and quotes
+together. Still open: a skill body still quotes some wording, an agent may
+key on either, and nothing measures whether an agent behaves the same after
+a wording change, or after a new variant appears.
+
+*Open:* a shared contract across Pitloom, `licenseid` and the conformance
+checker that Lumina runs. `licenseid` words its diagnostics
+`LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]` with its own closed set of
+conditions (`not found`, `download failed`) and no code; the checker's
+notification ids are dotted (`spdx.parsing-error`); Pitloom's codes are
+kebab words with `/` and no producer prefix, with tool names reserved as
+families so a namespace stays possible. Lumina's SARIF ingest reads only
+`BOM-` rule ids, so the other tools' diagnostics reach it as notifications.
+Whether the three share one condition vocabulary, and how a code is
+namespaced when one tool's diagnostic reaches the user through another, is
+not designed; *session record:* the maintainer has the
+`licenseid` 0.8.0 release in mind for it.
+
+*Open:* does an agent that reads a `[code]` and the generated reference
+behave better than one reading free text? Static tests hold the code, the
+reference and the skill pointers together; none measures the agent. A
+candidate evaluation: the same Pitloom output with and without codes, the
+same scenarios, scored on whether the agent states the SBOM effect, relays
+the advice to the right actor and does not run the fix itself.
 
 *Open:* how do you measure whether progressive disclosure in a skill loses
 behaviour? Static tests check size, orphan references and that each pointer
