@@ -24,45 +24,37 @@ from pitloom.messages._fields import FIELDS, PLACEHOLDER, render, template_names
 #: code).
 LEVELS: Final = frozenset({"ERROR", "WARNING", "INFO"})
 
-#: The closed condition vocabulary: what happened, in one word.
+#: The closed condition vocabulary: the cause, in one word, never Pitloom's
+#: response to it (``skipped``, ``ignored``): ``[subject-]condition`` names
+#: a family (``file-unreadable``), a bare condition one whose cause does not
+#: depend on its subject (``over-cap``). What kind of message it is (a
+#: decision, a summary, a usage error), who acts and the frame around it are
+#: not conditions; nor is a domain (licences).
 CONDITIONS: Final = frozenset(
     {
+        "ambiguous",
         "build-failed",
         "conflict",
-        "decision",
-        "escaped",
-        "fallback",
-        "fetch-failed",
-        "id-collision",
-        "ignored",
         "interrupted",
         "invalid",
-        "left-behind",
-        "left-out",
         "lfs-pointer",
-        "licence",
         "malformed",
-        "mismatch",
-        "missing-library",
+        "missing",
         "moved",
-        "new-id",
+        "needs-build",
+        "network-failed",
         "no-effect",
-        "not-a-model",
         "not-found",
-        "not-saved",
-        "not-this-format",
+        "not-recordable",
         "over-cap",
-        "refused",
-        "rejected",
-        "skipped",
-        "split",
-        "summary",
+        "timeout",
         "unknown-key",
+        "unlistable",
         "unpinned",
         "unreadable",
+        "unsafe",
         "unusable",
-        "usage",
-        "wrapper",
+        "wrong-format",
     }
 )
 

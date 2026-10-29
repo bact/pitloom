@@ -46,16 +46,21 @@ LFS_POINTER: Final = Message(
             "(oid sha256:%(oid)s, size %(size)s); run 'git lfs pull'",
         ),
     ),
-    summary="A file is a Git LFS pointer: the checkout holds the pointer "
-    "text, not the content.",
-    did="Recorded each pointer by the oid (content SHA-256) and size it "
-    "states, without reading the content or listing an AI model; a model "
-    "file named on its own is refused and nothing is written.",
+    summary="A file is a Git LFS pointer: a small text file standing in for "
+    "content the checkout does not have (made or cloned without Git LFS).",
+    did="Listed each pointer file by the SHA-256 the pointer states for its "
+    "content, with the stated size in the hash comment (no SHA-512, no "
+    "content type); did not read the content or list it as an AI model. One "
+    "warning names the first file in sorted order and, for more than one, "
+    "how many.",
     effect="thinner",
     actor="user",
-    advice="Tell the user to run 'git lfs pull' in the checkout (for a Git "
-    "URL, to clone it with Git LFS and run Pitloom on the directory), then "
-    "to generate the SBOM again. Do not pull or clone for them.",
+    advice="Tell the user the SBOM still identifies each file by its "
+    "content's SHA-256 but lacks what reading it gives (AI model details, "
+    "SHA-512). If they want them, they run 'git lfs pull' in the checkout "
+    "(for a Git URL: clone it with Git LFS and run Pitloom on that "
+    "directory) and generate again. Do not pull, clone or regenerate for "
+    "them; ask first, and with nobody to ask, report it only.",
     subject_key="FILE",
 )
 
@@ -70,14 +75,16 @@ LFS_POINTER_SHIPPED: Final = Message(
             "the build did not pull LFS content",
         ),
     ),
-    summary="A built artefact ships Git LFS pointer files instead of the "
-    "content they stand for.",
-    did="Recorded each pointer file with the hashes of the bytes it holds.",
+    summary="A built wheel or sdist holds Git LFS pointer files where the "
+    "content belongs: it was built from a checkout without the LFS content.",
+    did="Listed each file as the artefact holds it, with the hashes of the "
+    "pointer text.",
     effect="none",
     actor="user",
-    advice="Tell the user the artefact was built without the LFS content: "
-    "to run 'git lfs pull' before building if the content belongs in it, "
-    "and to rebuild. Do not rebuild for them.",
+    advice="Tell the user the artefact is probably broken: whoever installs "
+    "it gets pointer text, not the files. If the content belongs in it, they "
+    "run 'git lfs pull' before building and build again, before publishing. "
+    "Do not rebuild for them.",
     subject_key="FILE",
 )
 
@@ -100,15 +107,14 @@ LFS_POINTER_MALFORMED: Final = Message(
         ),
         Line(level="ERROR", template=f"%(path)s: {_LOOKS}"),
     ),
-    summary="A file opens with a Git LFS pointer line, but the rest is not a "
-    "valid pointer (damaged, cut short or over 1 KiB).",
-    did="Did not list the file as an AI model; a model file named on its own "
-    "is refused and nothing is written.",
+    summary="A file starts with the Git LFS pointer line but is not a valid "
+    "pointer: damaged, cut short, or 1 KiB or larger.",
+    did="Listed it as an ordinary file, hashed as it is, not as an AI model.",
     effect="thinner",
     actor="user",
-    advice="Tell the user the file is neither a model nor a valid pointer: "
-    "to check it out again, or to replace it with the content. Do not change "
-    "the file for them.",
+    advice="Tell the user the file is neither its content nor a valid "
+    "pointer: they check it out again or replace it with the real content, "
+    "then generate again. Do not change the file for them.",
     subject_key="FILE",
 )
 

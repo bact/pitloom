@@ -49,9 +49,42 @@ def test_every_entry_is_keyed_by_its_own_code() -> None:
     )
 
 
-def test_the_vocabulary_is_closed_at_36_condition_words() -> None:
-    assert len(CONDITIONS) == 36
+def test_the_vocabulary_is_closed_at_23_cause_words() -> None:
+    """Causes only: a response (``skipped``), a kind of message
+    (``summary``), a domain (``licence``) or a merged synonym is not one."""
+    assert len(CONDITIONS) == 23
     assert {m.condition for m in MESSAGES.values()} <= CONDITIONS
+    assert {
+        "ambiguous",
+        "missing",
+        "needs-build",
+        "network-failed",
+        "not-recordable",
+        "timeout",
+        "unsafe",
+        "wrong-format",
+    } <= CONDITIONS
+    assert CONDITIONS.isdisjoint(
+        {
+            "decision",
+            "fetch-failed",
+            "id-collision",
+            "ignored",
+            "left-out",
+            "licence",
+            "mismatch",
+            "missing-library",
+            "new-id",
+            "not-a-model",
+            "not-this-format",
+            "refused",
+            "rejected",
+            "skipped",
+            "summary",
+            "usage",
+            "wrapper",
+        }
+    )
 
 
 def test_the_lfs_pointer_code_is_the_evidence_reason() -> None:
@@ -80,6 +113,13 @@ def test_a_family_slash_variant_up_to_40_characters_is_a_code(code: str) -> None
 def test_a_code_catalogued_twice_is_refused() -> None:
     with pytest.raises(ValueError, match="catalogued twice"):
         _by_code([LFS_POINTER, LFS_POINTER])
+
+
+def test_a_variant_never_changes_its_familys_condition() -> None:
+    odd = dataclasses.replace(LFS_POINTER_SHIPPED, condition="malformed")
+    with pytest.raises(ValueError, match="its family's is 'lfs-pointer'"):
+        _by_code([LFS_POINTER, odd])
+    assert len(_by_code([LFS_POINTER, LFS_POINTER_MALFORMED])) == 2
 
 
 @pytest.mark.parametrize(

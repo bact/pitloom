@@ -22,12 +22,19 @@ def _by_code(entries: Iterable[Message]) -> Mapping[str, Message]:
     """*entries* keyed by code, read-only.
 
     Raises:
-        ValueError: Two entries share a code.
+        ValueError: Two entries share a code, or two of one family name
+            different conditions (a variant never changes the condition).
     """
     found: dict[str, Message] = {}
+    conditions: dict[str, str] = {}
     for entry in entries:
         if entry.code in found:
             raise ValueError(f"message code {entry.code!r} is catalogued twice")
+        held = conditions.setdefault(entry.family, entry.condition)
+        if held != entry.condition:
+            raise ValueError(
+                f"{entry.code}: condition {entry.condition!r}, its family's is {held!r}"
+            )
         found[entry.code] = entry
     return MappingProxyType(found)
 

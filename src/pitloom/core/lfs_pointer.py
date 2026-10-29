@@ -71,7 +71,7 @@ __all__ = [
 LFS_POINTER_METHOD: Final = "lfs_pointer"
 
 #: A pointer is shorter than this many bytes (git-lfs's own cut-off); a
-#: longer file is content, however it opens.
+#: file of this size or larger is content, however it opens.
 LFS_POINTER_MAX_BYTES: Final = 1024
 
 # The spec URLs of the ``version`` line: the current one and the two earlier
@@ -216,7 +216,7 @@ class PrefixCapture:
     """The leading bytes of a stream fed chunk by chunk, for a reader that
     hashes a file in one pass: holds at most :data:`LFS_POINTER_MAX_BYTES`
     bytes, however much is fed. Holding the cut-off itself, not one byte
-    less, is what tells a longer stream from a pointer."""
+    less, is what tells a stream of the cut-off or more from a pointer."""
 
     def __init__(self) -> None:
         self._prefix = bytearray()
