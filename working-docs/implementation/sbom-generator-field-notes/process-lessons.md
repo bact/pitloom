@@ -390,6 +390,14 @@ counts and durations.
   248 k tokens and 9 minutes; the fix was one line each. Do: keep the dry-run in
   every review brief, and ask for path-separator and `ntpath` emulation by name.
 
+- **A review of the fix of the fix is still worth running.** The registry change
+  (R1-lite) was reviewed read-only by Opus (274 k tokens, 28 minutes) with a
+  brief to try five mutants of its own and to compare non-pointer output with
+  `main` byte for byte over 4 projects and 12 steps. It found one confirmed
+  defect (a fragment twin, above) and confirmed the rest. The fix then took 283
+  k tokens and 45 minutes, with 9 mutants killed. Keep the brief narrow, and
+  give the reviewer the byte-identity baseline.
+
 | Step | Model | Tokens | Minutes |
 | - | - | - | - |
 | Explore code, docs | Sonnet, Sonnet | 61 k, 79 k | 1, 1 |

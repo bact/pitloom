@@ -508,6 +508,24 @@ Field-note version, with the measured context:
   test expected `quote_source` to use single quotes around a temporary path; a
   Windows user name with an apostrophe changes that. Derive the expected text
   from `quote_source`.
+- **Two elements for one file turn a fix into a silent loss.** With a loom
+  fragment merged into a built SBOM, a pointer appeared twice: the document's
+  element (text digest) and the fragment's (`oid`). Once harvest read both as
+  the `oid`, the key was ambiguous and nothing was recorded, so the id changed
+  at the next checkout run. The rule that fixed it is separate from `_stale`
+  (`pointer_twins`): an element with no recorded key is a twin when a recorded
+  file under the same key has the same hash. It reserves the twin's id and logs
+  one DEBUG line, and it leaves the existing "older SHA-256" INFO alone. Do:
+  when a change makes two readers agree, check every place where one of them
+  used to disagree on purpose.
+- **A mutant can survive because the test case is too plain.** Dropping the "id
+  is in `hashes`" restriction survived until the plain-file case got a pointer
+  at another path: its `hashes` was empty, so the restriction was never
+  exercised. Give each case the state the condition guards.
+- **A new rule goes beside the old one, not into it.** Changing `_stale` to drop
+  its `!= sha` check fixed the sequence and broke `held-key-rewritten`. A
+  separate rule with its own scope left every old branch as it was; the harvest
+  tests assert what is written, and what is logged, in both element orders.
 - **A mask added to a shared sanitiser rewrites data as well as messages.** The
   Git checkout mask (#375) sat in `loggable()`, which the CLI also uses for
   `KEY=VALUE` stdout that the Action reads back. It moved to `escape_controls`,
