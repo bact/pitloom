@@ -15,6 +15,15 @@ adoption; this is T14),
 `evidence-levels.md` and `message-catalogue-and-skills.md` in this folder once
 merged, [sbom-format-gaps.md](sbom-format-gaps.md) (FG-6 to FG-8).
 
+**Renames (licenseid maintainer, 2026-10-29).** In licenseid 0.7.0 the
+current `match()` (long text; finds the licence inside it) becomes `detect()`,
+and `resolve()` (an expression or short prose to a licence ID) becomes
+`match()`. This document says `resolve()` and the old `match()` throughout, as
+the code and licenseid `origin/main` do today. Re-read the full API at the
+0.7.0 release before the adoption (T13) and this mapping (T14); the rename
+touches every `licenseid` call in `src/pitloom/extract/` and
+`assemble/spdx3/deps_license.py`.
+
 Status: design, 2026-10-29. Facts were read in the code of `main` b18e2cce
 and licenseid `origin/main` 1dd6b38 (T0 to T4 built, T5 onwards not), and
 probed with licenseid 0.6.0 and SPDX License List 3.29.0. "Planned" means a
