@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -228,3 +228,29 @@ otherwise); the decisions, rejected options and lessons are in
 [id-registry-path-keys.md](../id-registry-path-keys.md) and
 [path-keys-lessons.md](path-keys-lessons.md).
 *Unverified:* how often users rename data files after pinning ids.
+
+## Git LFS pointers: identity and the hook (#378)
+
+*Open:* a project that contains an LFS pointer gets one document id from the
+Hatchling hook (Merkle leaf = pointer-text hash, to match `RECORD`) and another
+from `loom project` (leaf = oid). Does any flow combine the two, for example
+enriching with fragments made from `loom project` output and then embedding the
+hook's SBOM? An id derived from stated hashes on every route would also survive
+`git lfs pull`, at the cost of a second identity input.
+
+*Unverified:* how often real pointers use the older `hawser` or `git-media` URLs
+or extension lines (none in five Hub samples), and whether a registry made on a
+checkout is later used by archive routes often enough to matter.
+
+*Open:* is a SHA-512 required where a pointer is listed? BSI TR-03183-2 hash
+checks may want one; the sbom-enrich skill tells the user to pull and
+regenerate.
+
+*Open:* the registry key for a pointer. If the stored key is the `oid` on every
+  route, an archive SBOM (which states the pointer-text digest) cannot be
+  harvested back to the key without the file. Either the archive route also
+  states the `oid` somewhere harvest can read, or harvest is given the project
+  files. Not decided.
+*Unverified:* the claim that `os.path.normcase` does nothing on macOS was
+  checked against the Python documentation ("no effect under POSIX"), not on a
+  Mac.

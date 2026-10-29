@@ -339,6 +339,11 @@ unless the linked doc says so.
   `licenseid` 0.6.0): partly built in #359; operands, Q4 and Q5 open. Which
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
+- [ ] **Message catalogue as the contract between Pitloom and the skills**
+  (decided 2026-10-29): 0.22.0: catalogue in code, grammar ratchet, better
+  message language, skill bodies to 16 KB / 400 lines (inventory queued after
+  #378); 0.23.0: `--report` JSON Lines, SARIF, resolver detail. See
+  [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete about 250
   lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan: see
   [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
