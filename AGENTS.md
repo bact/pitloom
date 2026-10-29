@@ -10,7 +10,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - Design docs: `working-docs/design/` -- future work, plans, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` -- what WAS built: decisions, why, paths rejected in service of it, revisions.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
-- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, `archive/` if abandoned but worth keeping) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
+- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, else `archive/`) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
 - Paper notes (sourced raw material for a write-up): `working-docs/implementation/sbom-generator-field-notes/` (start at `README.md`) and `working-docs/implementation/ai-model-scan-security-lessons.md` (entry page; findings in `-*` parts). Add findings worth publishing.
 - Test fixtures: `tests/fixtures/README.md`
 - `working-docs/` is internal notes only -- content can change without notice. The user-facing website (`docs/`) must never link into it; reference a PR or issue number instead.
@@ -22,7 +22,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 
 ### SBOM output
 
-- Deterministic: bit-for-bit identical across builds when input/environment unchanged. The timestamp (SPDX requires `created`) comes from `--creation-datetime`, else `SOURCE_DATE_EPOCH`, else the clock; a reproducible build or a test pins one of the first two.
+- Deterministic: bit-for-bit identical across builds when input/environment unchanged. The timestamp comes from `--creation-datetime`, else `SOURCE_DATE_EPOCH`, else the clock; a reproducible build or a test pins one of the first two.
 - Idempotent: no other non-deterministic data (random UUIDs, set/dict order, absolute temp paths).
 - Schema compliance: validate every SBOM against the primary spec (SPDX) and serialisation format before finalisation.
 
@@ -32,11 +32,11 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
 - **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/` layout. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a deterministic string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
-- **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
+- **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller and a build-stage caller share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
 
 ### Usage surfaces
 
-Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
+Pitloom runs from several surfaces: CLI, the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
 - **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads (`--debug` -> the `PITLOOM_DEBUG` env var), not per-call-site updates.
 - **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
@@ -49,16 +49,24 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 - **Honour user intent over silent fallbacks**: no implicit fallback that contradicts the user's explicit instruction.
 - **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction. A rejected input (URL, scheme, ref) is logged as well as raised.
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
-- **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction (`np.lib.format`, stream loading for fickling/pickle).
+- **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction.
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
-- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model readers, project parsers, lock readers, Hub/network fetches) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Absent source data is not an error; a read/access failure is.** Every extractor/metadata source (model, project, lock, Hub readers) degrades gracefully: a field the source lacks stays `None`/empty/absent, silently (no `WARNING:`/`ERROR:`, no exception). Reserve those and raising for real disruption: corruption, an unreadable/truncated archive, a network error or timeout, a parse failure on data the format's marker says is well-formed. "Had an opinion and failed to deliver it" logs/raises; "never had this data" is quiet. Why: [rationale](working-docs/implementation/agents-md-rationale.md#design-principles).
+- **Caps bound reading, never reporting; every fact has an evidence level.**
+  A size or time cap is for security and hangs only. Record the first
+  available: **measured** (`stat()`, or a read within the caps);
+  **declared** (archive header, LFS pointer, API) with its source, never
+  passed off as measured; a **lower bound** (provenance only); else nothing,
+  with provenance `not_measured` and why. A declared value never gates a cap
+  or a read. Plan:
+  [evidence-levels.md](working-docs/design/evidence-levels.md).
 
 ## Code health and continuous refactoring
 
 - **Boy Scout Rule**: leave the codebase cleaner than you found it; refactor during small changes.
-- **Prevent monoliths**: extract cohesive pieces into modules/subpackages early (`parser.py`, `__main__.py`); split *before* the ~400-500 line soft limit.
+- **Prevent monoliths**: extract cohesive pieces into modules/subpackages early; split *before* the ~400-500 line soft limit.
 - **Consolidate patterns**: extract duplicated logic into shared utilities, constants or decorators at once.
-- **Reuse/dedup is a defensiveness strategy**: two independent implementations of one operation (a hash, a type check, a message string, a cascade rule) can silently disagree later; reuse the shared helper even for a small duplicate.
+- **Reuse/dedup is a defensiveness strategy**: two independent implementations of one operation (a hash, a message string) can silently disagree later; reuse the shared helper even for a small duplicate.
 
 ## Recurring bug patterns
 
@@ -114,8 +122,8 @@ Code shape:
 - **A version floor asserted in many places drifts and no script checks it**: keep it at the verified minimum; on change grep every spelling (requirement/example move; history stays).
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
-- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
-- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.5.0 or later); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
+- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another: an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
+- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.5.0 or later); without it tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
 
 Tests, platform and CI:
 
@@ -141,14 +149,14 @@ Tests, platform and CI:
 - **Fail-fast CI hides legs**: read the cancelled jobs.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
-- **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
+- **A Markdown line starting with `<tag>` is an HTML block, even inside a wrapped code span**: never start such a line with `<`.
 - **Parallel agents**: fence file ownership in writing, announce a reversed rule, gate after all land, clean stray files and `pytest-of-*` dirs.
 
 ## CLI output
 
 Unix philosophy: consistent, predictable, parseable.
 
-- Default: line-delimited, one data point per line. A data point is one record/entity, not one field: a record with several attributes keeps its `KEY=VALUE` pairs on one space-separated line (`PATH=... ROLE=... REQUIRED=... EXISTS=...`); one line per record.
+- Default: line-delimited, one data point per line. A data point is one record/entity, not one field: a record with several attributes keeps its `KEY=VALUE` pairs on one space-separated line; one line per record.
 - Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -` (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details go to stderr as `INFO:`. A value that may hold a space goes last.
 - `KEY=VALUE`: uppercase KEY, no spaces around `=`; several pairs on one line only for one data point (`FORMAT=%s FILE=%s: ...`).
 - Three levels reach stderr, each line starting with exactly one of `ERROR: `, `WARNING: `, `INFO: ` plus a short description; no second tag, no untagged continuation line.
@@ -164,7 +172,7 @@ Unix philosophy: consistent, predictable, parseable.
 
 - Min version 3.10: no later syntax/features unless via `__future__`; no `A | B` unions outside `TYPE_CHECKING` blocks.
 - Verify types with mypy (strict=true); pyright/pytype as second opinions.
-- **Untyped third-party dependency**: before an `ignore_missing_imports` override (mypy, pyrefly, ...), look on PyPI for a trusted typeshed `types-<package>` stub package and add it to the `typecheck` group; suppress only if none exists. Why: [rationale](working-docs/implementation/agents-md-rationale.md#python).
+- **Untyped third-party dependency**: before an `ignore_missing_imports` override (mypy, pyrefly), look on PyPI for a trusted typeshed `types-<package>` stub package and add it to the `typecheck` group; suppress only if none exists. Why: [rationale](working-docs/implementation/agents-md-rationale.md#python).
 - Fully qualified names in docstrings for non-stdlib types (`numpy.ndarray`).
 - No `assert` in production (tests only). No wildcard imports. All config in `pyproject.toml` where possible.
 - **Import order**: stdlib -> third-party -> local, alphabetical within each; do not reorder imports that a comment says must stay in order (circular import/init). `ruff check --fix --select I` automates it.
@@ -173,7 +181,7 @@ Unix philosophy: consistent, predictable, parseable.
 ## Cross-platform compatibility
 
 - Must work on Windows, macOS and Linux. Use `pathlib.Path` for paths. `/tmp/` and POSIX directories do not exist on Windows.
-- **Dry-run Windows when you cannot run it**: read each path test as Windows would: `/` in an expected path, `Path ==` on names differing only in case, a `skipif`/constant naming a POSIX-only API, `..` collapsed by Win32 before the open, a symlink needing privilege. Emulate with `PureWindowsPath`/`ntpath`; put it in every review agent's brief (macOS green is not Windows green).
+- **Dry-run Windows when you cannot run it**: read each path test as Windows would: `/` in an expected path, `Path ==` on names differing only in case, a `skipif`/constant naming a POSIX-only API, `..` collapsed by Win32 before the open, a symlink needing privilege. Emulate with `PureWindowsPath`/`ntpath`; put it in every review agent's brief.
 
 ## Linting and formatting
 
@@ -192,7 +200,7 @@ flake8
 
 - pylint needs `tests/*/` too (it does not descend into subfolders without `__init__.py`); pass directories, not single files (a file loses its dotted name: false E0402).
 - Avoid ambiguous variable names (E741). Max line length 88 (prefer 80). Remove unused imports and trailing whitespace. Non-ASCII only in human-language messages and diagrams.
-- Complexity targets: Returns<=6, Args<=5, Locals<=15, Nesting<=5, Branches<=20, Statements<=80, McCabe<=10, Cognitive<=15. Enforced ceilings (`pyproject.toml`, `.flake8`) are interim ratchets (`max-args=6`, `max-locals=17`, McCabe=14, Cognitive=20); backlog: `working-docs/design/complexity-and-file-size-roadmap.md`.
+- Complexity targets: Returns<=6, Args<=5, Locals<=15, Nesting<=5, Branches<=20, Statements<=80, McCabe<=10, Cognitive<=15. Enforced ceilings (`pyproject.toml`, `.flake8`) are interim ratchets; backlog: `working-docs/design/complexity-and-file-size-roadmap.md`.
 - Pylint suppressions go on the preceding line as `# pylint: disable-next=<msg>` (a bare `# pylint: disable=` before an `except` stopped working in pylint 4.1).
 
 ## File headers
@@ -226,7 +234,7 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 
 ### Manual CLI integration checks (post-pytest, pre-commit)
 
-pytest runs in-process and misses the `loom` entry point, argv parsing, real filesystem/archive I/O and CLI/library/hook/skills drift. `.venv/bin/python scripts/manual_cli_checks` covers them (numbered checks, CLI matrix, command sequences; `--only` takes ids/globs, `--network` adds network ones). When to run:
+pytest runs in-process and misses the `loom` entry point, argv parsing, real filesystem/archive I/O and CLI/library/hook/skills drift. `.venv/bin/python scripts/manual_cli_checks` covers them (`--only` takes ids/globs, `--network` adds network ones). When to run:
 
 - docs-, tests- or `working-docs/`-only change: skip;
 - each round touching `assemble/`, `extract/`, `core/`, `embed.py`, `__main__.py` or `plugins/hatch.py`: the checks for that area via `--only` ([manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md#when-to-run));
@@ -239,7 +247,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 - Account for GNU/BSD/macOS tool differences; defensive variable expansion; quote paths and variables.
 - **Composite-action scripts** (`scripts/action/`, tested by `tests/scripts/action/`): CI lints only `examples/ src/ tests/`; run the linters, `shellcheck -x` and `actionlint` on `scripts/` by hand. Notes: [github-action.md](working-docs/implementation/github-action.md).
 - **Windows Git Bash / macOS bash 3.2**: Windows Python ends lines with CR that `$(...)` keeps; Git Bash has no `/dev/stderr`; bash 3.2 has no `readarray` and is quadratic on `${x//pat/}`. Normalise `GITHUB_ACTION_PATH` backslashes; keep `*.sh`, `action.yml` LF.
-- **Never let a step log tool output raw**: a `::` line runs as a workflow command. Fence the echo with `::stop-commands::<random token>`; fence, echo and annotations must share one stream (the runner does not order stdout against stderr).
+- **Never let a step log tool output raw**: a `::` line runs as a workflow command. Fence the echo with `::stop-commands::<random token>`; fence, echo and annotations must share one stream.
 
 ## Naming
 
@@ -249,7 +257,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 ## SPDX / Output Specifics
 
 - SPDX 3 JSON: canonical serialisation and RFC 8785. JSON-LD: RDF canonicalization. Dates: ISO 8601, UTC+0.
-- **Format gaps go in a ledger**: when a format or mapping cannot record a fact precisely (no property, a stretched or ambiguous property, a mapping reading another property), add an entry to `working-docs/design/sbom-format-gaps.md` in the same change, for proposals to SPDX (and CycloneDX). Never work around a gap silently.
+- **Format gaps go in a ledger**: when a format or mapping cannot record a fact precisely (no property, a stretched or ambiguous one, a mapping reading another), add an entry to `working-docs/design/sbom-format-gaps.md` in the same change, for proposals to SPDX (and CycloneDX). Never work around a gap silently.
 - **`spdx3` vocabulary terms are plain `str`**: `spdx3.RelationshipType`/`RelationshipCompleteness` members are `str`-valued IRIs, not enum instances. Type a parameter as `str`, never as the class (`spdx3.RelationshipCompleteness | None` fails mypy).
 
 ## Writing style

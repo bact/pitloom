@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -152,7 +152,7 @@ changes the models' entries, except where you asked for the change yourself:
 | `--max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
 | `--scan-model-usage` | `hasDataFile` edges from `.py` files to models exist or not | Without the setting given, one `INFO:` naming the flag |
 | `--allow-build` | The file list comes from a real build, so the models found, and their paths, can differ from the static list | None when the build succeeds; a `WARNING:` and the static list when it fails. See [Building a project](allow-build.md) |
-| `max-dataset-hash-bytes` (`loom.Run`; `loom id generate` with `-e`) | A dataset over it has no hash | One `WARNING:` naming the key, per dataset; see [Configuration](configuration.md) |
+| `max-dataset-hash-bytes` (`loom.Run`; `loom id generate` with `-e`) | A dataset over it has no hash, and its provenance says why; a file's size is still recorded | One `WARNING:` naming the key, per dataset; see [Configuration](configuration.md) |
 | The 1000-entry cap | Which entries are kept: the first 1000 in file order, or in sorted key order for Safetensors `__metadata__` | One `WARNING:` per model naming the fields cut, in a scan and in `loom model FILE` (not for a Hugging Face model) |
 | A project directory, not its built wheel | Models are read in place: no ceiling, no gate | None; see [Which scans apply which limits](#which-scans-apply-which-limits) |
 

@@ -30,6 +30,8 @@ and this project adheres to
   `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
 - `--max-model-extract-bytes` and `--max-dataset-hash-bytes` (`loom id generate`)
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
+- `loom` records a single-file dataset's byte size; a hash omitted over the cap
+  says why ([#387])
 
 ### Changed
 
@@ -51,6 +53,7 @@ and this project adheres to
 [#378]: https://github.com/bact/pitloom/pull/378
 [#381]: https://github.com/bact/pitloom/pull/381
 [#382]: https://github.com/bact/pitloom/pull/382
+[#387]: https://github.com/bact/pitloom/pull/387
 
 ## [0.21.1] - 2026-10-28
 

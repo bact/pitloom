@@ -18,7 +18,9 @@ codes used below).
 
 Status: design, revised 2026-10-29 after an Opus review against the code.
 Built so far: Git LFS pointers (#378), flags for both size ceilings (#381),
-the dataset-size unit fix (#382). Everything else below is unbuilt.
+the dataset-size unit fix (#382), and step 1, sizes under a cap for a
+single-file dataset (#387; `core/evidence.py` holds the levels and the
+writer). Everything else below is unbuilt.
 
 ## Principle
 
@@ -163,8 +165,8 @@ carries it).
 | - | - | - |
 | File hash, project files | `measured_read` | none |
 | Git LFS pointer hash and size | `declared` (#378) | the provenance says `Method: lfs_pointer`, not the level |
-| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning | no negative entry |
-| Dataset size | only what the library caller supplies (`DatasetMetadata.byte_size`, bytes); a Croissant item count is not recorded (#382) | `stat()` already runs for the cap check and its size is discarded |
+| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file; a directory has no entry yet |
+| Dataset size | a single-file `loom` dataset: the bytes hashed, or the `stat()` size over the cap (`measured_stat`), since #387; else what the library caller supplies (`DatasetMetadata.byte_size`). No size for a directory, an LFS pointer, an over-cap file under 1,024 bytes or above 2^53-1; a Croissant item count is not recorded (#382) | a directory's size (the walk budget is undecided) |
 | Hashed file sizes | measured (`FileDigests.size`) and discarded; `ProjectFile` has no size | kept for 3.1 `byteSize` |
 | Model over `max-model-extract-bytes` (flag since #381) | wheel route: a stub with a warning; the declared ZIP size is in memory and unused. A local or project model has a `stat()` size | name the declared size |
 | Directory size | the walk already `stat()`s every file with no budget, and throws the sum away | an entries budget, and the LFS caveat |

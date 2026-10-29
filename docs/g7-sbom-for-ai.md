@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,7 +132,9 @@ The three build backends give the same result for the same project.
   repository of each listed dataset (up to 20), only when it looks the model up.
   A dataset's provenance and statistics (collection, bias) reach a model SBOM
   only through the library (`loom` with a Croissant file); its size in bytes,
-  only when a library caller sets `DatasetMetadata.byte_size`. A dataset named
+  for a single-file `loom` dataset (the bytes hashed, or its `stat()` size
+  when over `max-dataset-hash-bytes`, which satisfies `DP-007`) or when a
+  library caller sets `DatasetMetadata.byte_size`. A dataset named
   in a local model card gets only its name.
 - **Licence IDs are kept as read** when the `licenseid` database is not built.
 - **A setuptools project ships a model only when `package-data` lists it**, and
