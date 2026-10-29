@@ -42,6 +42,7 @@ __all__ = [
     "LFS_POINTER_METHOD",
     "LfsPointer",
     "PrefixCapture",
+    "UnreadPointers",
     "log_pointer_not_read",
     "opens_lfs_pointer",
     "parse_lfs_pointer",
@@ -203,3 +204,30 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     )
     what = "Git LFS pointer shipped" if archive else "Git LFS pointer, content not read"
     _log.warning("FILE=%s: %s%s; %s", loggable(min(paths)), what, count, advice)
+
+
+class UnreadPointers:
+    """The Git LFS pointers one run recorded by their ``oid``: the per-file
+    ``DEBUG`` line (:func:`log_pointer_not_read`) when a file is first
+    noted, and the one summary ``WARNING:`` (:func:`warn_pointers_not_read`)
+    when the run ends. A file is one file however it is spelled."""
+
+    def __init__(self) -> None:
+        # Real path -> the path as first noted (for the messages).
+        self._paths: dict[str, str] = {}
+
+    def note(self, path: str, pointer: LfsPointer, shown: str | None = None) -> None:
+        """Note the pointer file at *path* (absolute, or from the current
+        directory), stating *pointer*; the messages name it *shown*
+        (default: *path*)."""
+        key = os.path.realpath(path)
+        if key not in self._paths:
+            self._paths[key] = path if shown is None else shown
+            log_pointer_not_read(self._paths[key], pointer)
+
+    def warn(self) -> None:
+        """The summary warning for the files noted so far (none: silent),
+        which are then forgotten, so it is said once."""
+        paths = list(self._paths.values())
+        self._paths.clear()
+        warn_pointers_not_read(paths)

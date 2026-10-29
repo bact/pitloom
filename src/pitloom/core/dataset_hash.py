@@ -17,6 +17,12 @@ Leaves are sorted by *relpath* bytes and combined by
 renamed file changes the root, and a one-file directory's root is not that
 file's own hash.
 
+A Git LFS pointer file (a checkout made with LFS off) stands in by its
+``oid``, the SHA-256 of the content: as the file's hash, and as the
+*digest* of its leaf, so the hash is the same after ``git lfs pull``; only
+the pointer is read. The ceiling still compares the bytes on disk, never
+the size a pointer states.
+
 See also: :mod:`pitloom.core.file_hash` (the reader),
 :mod:`pitloom.core.walk_rules` (the pruned names) and
 :mod:`pitloom._loom_dataset` (the caller).
@@ -33,11 +39,8 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Literal
 
-from pitloom.core.file_hash import (
-    ReadBudgetExceeded,
-    file_digests,
-    sha256_digest_and_size,
-)
+from pitloom.core.file_hash import ReadBudgetExceeded, file_digests, sha256_read
+from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.model_extract_limit import MAX_DATASET_HASH_BYTES_KEY
 from pitloom.core.models import merkle_root
 from pitloom.core.path_probe import (
@@ -52,13 +55,15 @@ from pitloom.logging_config import Cap, loggable, one_line, warn_over_cap
 
 log = logging.getLogger(__name__)
 
-__all__ = ["DatasetDigest", "hash_dataset"]
+__all__ = ["DatasetDigest", "PointerAt", "hash_dataset"]
 
 _OMITTED = "dataset hash omitted"
 _PURPOSE = "for dataset hashing"
 
 #: A sorted member: its leaf name bytes, its path, its size.
 _Member = tuple[bytes, str, int]
+#: A Git LFS pointer hashed by its ``oid``: its path, what it states.
+PointerAt = tuple[str, LfsPointer]
 
 
 @dataclass(frozen=True)
@@ -75,7 +80,11 @@ class DatasetDigest:
             left it out, whether or not a root came of it.
         hex_sha512: The file's SHA-512 from the same read, lowercase hex,
             when :func:`hash_dataset` was asked for it (*sha512*); never
-            for a directory (a Merkle root is SHA-256 only).
+            for a directory (a Merkle root is SHA-256 only) or a Git LFS
+            pointer (its content was not read).
+        lfs_pointers: The Git LFS pointers among the files *hex_digest*
+            covers, in leaf order, each hashed by its ``oid``; empty when
+            not hashed.
     """
 
     kind: Literal["file", "dir"] | None
@@ -83,6 +92,7 @@ class DatasetDigest:
     file_count: int = 0
     excluded: bool = False
     hex_sha512: str | None = None
+    lfs_pointers: tuple[PointerAt, ...] = ()
 
 
 class _Unlistable(Exception):
@@ -175,11 +185,12 @@ def _hash_file(where: str, max_bytes: int, *, sha512: bool) -> DatasetDigest:
             _warn_over_ceiling("FILE", where, max_bytes)
             return DatasetDigest("file")
         if sha512:
-            digests = file_digests(where, max_bytes=max_bytes).hex()
-            hex_digest, hex_sha512 = digests.sha256, digests.sha512
+            digests = file_digests(where, max_bytes=max_bytes)
+            (hex_digest, hex_sha512), pointer = digests.stated(), digests.lfs_pointer
         else:
-            hex_digest = sha256_digest_and_size(where, max_bytes=max_bytes)[0].hex()
-            hex_sha512 = None
+            read = sha256_read(where, max_bytes=max_bytes)
+            hex_digest, hex_sha512 = read.stated_sha256().hex(), None
+            pointer = read.lfs_pointer
     except ReadBudgetExceeded:
         _warn_over_ceiling("FILE", where, max_bytes)
         return DatasetDigest("file")
@@ -188,7 +199,10 @@ def _hash_file(where: str, max_bytes: int, *, sha512: bool) -> DatasetDigest:
             return DatasetDigest(None)
         _warn_unreadable(where, exc)
         return DatasetDigest("file")
-    return DatasetDigest("file", hex_digest, 1, hex_sha512=hex_sha512)
+    pointers = () if pointer is None else ((where, pointer),)
+    return DatasetDigest(
+        "file", hex_digest, 1, hex_sha512=hex_sha512, lfs_pointers=pointers
+    )
 
 
 @dataclass
@@ -250,24 +264,31 @@ def _listed(top: str, exclude: Path | None) -> tuple[list[_Member] | None, bool]
     return None, walk.excluded
 
 
-def _leaves(top: str, members: list[_Member], max_bytes: int) -> list[bytes] | None:
-    """The Merkle leaves of *members*, read within *max_bytes* in all; a
-    leaf binds a file's path to its content. ``None`` after the warning
-    when a file grew past what is left or cannot be read."""
+def _leaves(
+    top: str, members: list[_Member], max_bytes: int
+) -> tuple[list[bytes], tuple[PointerAt, ...]] | None:
+    """The Merkle leaves of *members*, read within *max_bytes* in all, and
+    the Git LFS pointers among them; a leaf binds a file's path to its
+    content (a pointer's ``oid``). ``None`` after the warning when a file
+    grew past what is left or cannot be read."""
     leaves: list[bytes] = []
+    pointers: list[PointerAt] = []
     spent = 0
     for leaf_name, member, _size in members:
         try:
-            digest, read = sha256_digest_and_size(member, max_bytes=max_bytes - spent)
+            read = sha256_read(member, max_bytes=max_bytes - spent)
         except ReadBudgetExceeded:
             _warn_over_ceiling("DIR", top, max_bytes)
             return None
         except OSError as exc:
             _warn_unreadable(member, exc)
             return None
-        spent += read
+        spent += read.size
+        if read.lfs_pointer is not None:
+            pointers.append((member, read.lfs_pointer))
+        digest = read.stated_sha256()
         leaves.append(hashlib.sha256(leaf_name + b"\x00" + digest).digest())
-    return leaves
+    return leaves, tuple(pointers)
 
 
 def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDigest:
@@ -279,7 +300,10 @@ def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDi
     if sum(size for _, _, size in members) > max_bytes:
         _warn_over_ceiling("DIR", top, max_bytes)
         return unhashed
-    leaves = _leaves(top, members, max_bytes)
-    if leaves is None:
+    read = _leaves(top, members, max_bytes)
+    if read is None:
         return unhashed
-    return DatasetDigest("dir", merkle_root(leaves), len(leaves), excluded)
+    leaves, pointers = read
+    return DatasetDigest(
+        "dir", merkle_root(leaves), len(leaves), excluded, lfs_pointers=pointers
+    )
