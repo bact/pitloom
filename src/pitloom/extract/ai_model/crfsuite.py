@@ -34,7 +34,7 @@ from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
 from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

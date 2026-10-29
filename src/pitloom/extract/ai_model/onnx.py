@@ -33,7 +33,8 @@ from pitloom.extract._extract_utils import (
 )
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import loggable, one_line, warn_over_cap
+from pitloom.logging_config import loggable, one_line
+from pitloom.messages import warn_over_cap
 
 log = logging.getLogger(__name__)
 

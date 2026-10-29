@@ -70,7 +70,7 @@ from pitloom.extract._author_warnings import (
     warn_not_addresses,
     warn_project_authors_unread,
 )
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 if TYPE_CHECKING:
     #: A name/address pair; either part may be None.

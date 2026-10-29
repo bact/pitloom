@@ -55,7 +55,7 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

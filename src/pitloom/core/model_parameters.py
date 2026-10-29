@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 #: The largest count recorded: 16 digits, so ``str()`` is safe on every Python.
 MAX_PARAMETER_COUNT = 10**15

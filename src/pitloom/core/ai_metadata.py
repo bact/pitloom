@@ -22,7 +22,7 @@ from typing import Any, TypedDict
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 # Provenance of a name derived from the model's file name
 FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"

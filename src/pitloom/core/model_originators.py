@@ -17,7 +17,7 @@ import re
 from collections.abc import Iterator
 
 from pitloom.core.ai_metadata import MAX_MODEL_ENTRIES
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 #: The provenance key of the originators: the
 #: :class:`~pitloom.core.ai_metadata.AiModelMetadata` field name.

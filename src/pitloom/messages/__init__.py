@@ -47,6 +47,8 @@ from pitloom.messages._lfs_pointer import (
     LFS_PULL_LINE,
 )
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
+from pitloom.messages._over_cap import Cap
+from pitloom.messages._over_cap_warning import over_cap_of, warn_over_cap
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
     ACTORS,
@@ -83,6 +85,7 @@ __all__ = [
     "MESSAGES",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
+    "Cap",
     "CodedValueError",
     "Field",
     "Frame",
@@ -91,8 +94,10 @@ __all__ = [
     "code_extra_of",
     "code_of",
     "emit",
+    "over_cap_of",
     "relay_extra",
     "says",
     "size_text",
     "trusted_message",
+    "warn_over_cap",
 ]

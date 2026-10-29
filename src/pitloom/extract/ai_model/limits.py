@@ -35,7 +35,8 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.unrecordable import notice_unrecordable
-from pitloom.logging_config import LONE_SURROGATES_WARNING, Cap, warn_over_cap
+from pitloom.logging_config import LONE_SURROGATES_WARNING
+from pitloom.messages import Cap, warn_over_cap
 
 __all__ = [
     "MAX_MODEL_ENTRIES",
@@ -72,7 +73,7 @@ class ModelLimitExceeded(Exception):
 
 class ModelOverCap(ModelLimitExceeded):
     """A model file, or a member of its archive, over *cap*; the scanner
-    says so through :func:`~pitloom.logging_config.warn_over_cap`.
+    says so through :func:`~pitloom.messages.warn_over_cap`.
 
     Attributes:
         cap: The cap exceeded.

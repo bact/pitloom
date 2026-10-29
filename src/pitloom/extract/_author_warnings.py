@@ -23,7 +23,8 @@ from collections.abc import Iterator
 from contextvars import ContextVar
 from typing import NamedTuple
 
-from pitloom.logging_config import Cap, excerpt, loggable, one_line, warn_over_cap
+from pitloom.logging_config import excerpt, loggable, one_line
+from pitloom.messages import Cap, warn_over_cap
 
 _logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def shown_list(fields: list[str]) -> str:
 
 def warn_field_cap(field: str, key: str, cap: Cap, read: str | None) -> None:
     """One ``WARNING:`` once per *field* (its whole text) and process
-    (:func:`~pitloom.logging_config.warn_over_cap`) that it is over *cap*:
+    (:func:`~pitloom.messages.warn_over_cap`) that it is over *cap*:
     *key* names the field, *read* what was read (``3 entries``; ``None``:
     nothing)."""
     digest = hashlib.sha256(field.encode("utf-8", "surrogatepass")).hexdigest()

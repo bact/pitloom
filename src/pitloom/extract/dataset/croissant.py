@@ -60,12 +60,8 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import (
-    LONE_SURROGATES_WARNING,
-    Cap,
-    loggable,
-    one_line,
-)
+from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable, one_line
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 

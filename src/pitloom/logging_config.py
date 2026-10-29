@@ -23,7 +23,6 @@ import sys
 import threading
 import traceback
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
 from typing import Any, TextIO, cast
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
@@ -42,15 +41,6 @@ PITLOOM_DEBUG_ENV_VAR = "PITLOOM_DEBUG"
 # Truthy values for the PITLOOM_DEBUG opt-in below; anything else
 # (including unset) leaves DEBUG suppressed.
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
-
-#: The one ``WARNING:`` for an input over a cap, logged by
-#: :func:`warn_over_cap`. Arguments: the key naming the input
-#: (:attr:`Cap.subject`), the input (through :func:`loggable`), the cap
-#: (:attr:`Cap.reason`), and what was and was not read or done.
-OVER_CAP_WARNING = "%s=%s: %s; %s"
-
-# The LogRecord attribute holding (cap, outcome) of an OVER_CAP_WARNING.
-_OVER_CAP_ATTR = "pitloom_over_cap"
 
 #: The LogRecord (and exception) attribute holding a catalogued message's
 #: code (:mod:`pitloom.messages`), printed as a trailing `` [code]``.
@@ -293,64 +283,6 @@ def log_once(
         first_occurrence = dedup_key not in _WARNED_ONCE
         _WARNED_ONCE.add(dedup_key)
     log.log(level if first_occurrence else logging.DEBUG, msg, *args, extra=extra)
-
-
-@dataclass(frozen=True)
-class Cap:
-    """A limit Pitloom puts on an input, as :func:`warn_over_cap` names it:
-    ``<subject>=<where>: larger than the <limit>-<unit> <purpose> cap``."""
-
-    #: The most the input may hold, in *unit*.
-    limit: int
-    #: What *limit* counts, singular (``"byte"``, ``"entry"``).
-    unit: str
-    #: What the cap is for (``"license-detection"``).
-    purpose: str
-    #: The key naming the input, ``"FILE"`` or ``"FIELD"``, after the keys
-    #: of :meth:`after` (``"FORMAT=gguf FILE"``).
-    subject: str = "FILE"
-
-    @property
-    def reason(self) -> str:
-        """What an input over this cap is, the same in a ``WARNING:`` and
-        in an error's text."""
-        return f"larger than the {self.limit}-{self.unit} {self.purpose} cap"
-
-    def after(self, keys: str) -> Cap:
-        """This cap, its input named after *keys* (``"FORMAT=gguf"``,
-        trusted text): the keys a subsystem puts first."""
-        return replace(self, subject=f"{keys} {self.subject}")
-
-
-def warn_over_cap(
-    log: logging.Logger,
-    cap: Cap,
-    where: str,
-    outcome: str = "skipped",
-    *,
-    once: bool = False,
-    key: str | None = None,
-) -> None:
-    """The one ``WARNING:`` for an input over *cap*: *where* names the
-    input (escaped through :func:`loggable`), *outcome* what was read and
-    what was not. *once*: through :func:`warn_once`, once per cap and
-    input in this process, the input known by *key* (default *where*)
-    when two spellings name one input. The record carries *cap* and
-    *outcome* for :func:`over_cap_of`."""
-    args = (cap.subject, loggable(where), cap.reason, outcome)
-    extra = {_OVER_CAP_ATTR: (cap, outcome)}
-    if once:
-        seen = f"over-cap:{cap.purpose}:{where if key is None else key}"
-        warn_once(log, seen, OVER_CAP_WARNING, *args, extra=extra)
-    else:
-        log.warning(OVER_CAP_WARNING, *args, extra=extra)
-
-
-def over_cap_of(record: logging.LogRecord) -> tuple[Cap, str] | None:
-    """The cap and outcome of a record :func:`warn_over_cap` logged, so a
-    caller relaying it can name the input in its own words; else ``None``."""
-    found: tuple[Cap, str] | None = getattr(record, _OVER_CAP_ATTR, None)
-    return found
 
 
 def field_loss_suffix(status: str, *fields: str) -> str:

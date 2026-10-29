@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw

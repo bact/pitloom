@@ -53,7 +53,8 @@ from pitloom.extract.project.poetry import (
     parse_poetry_authors,
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
-from pitloom.logging_config import Cap, field_loss_suffix, warn_over_cap
+from pitloom.logging_config import field_loss_suffix
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

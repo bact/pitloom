@@ -27,7 +27,7 @@ import struct
 from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 #: Budget for the tensors, key/value pairs and array elements (scalar, string
 #: and nested-array, at every depth) a header declares, all together. Real

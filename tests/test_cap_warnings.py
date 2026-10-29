@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The one ``WARNING:`` for an input over a cap
-(:func:`pitloom.logging_config.warn_over_cap`), and a drift guard: every cap
+(:func:`pitloom.messages.warn_over_cap`), and a drift guard: every cap
 Pitloom defines as a module constant is wrapped in a ``Cap`` that its own
 module passes to it, or is listed with why not.
 
@@ -22,7 +22,7 @@ import pytest
 
 from pitloom import logging_config
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES, read_license_members
-from pitloom.logging_config import Cap, over_cap_of, warn_over_cap
+from pitloom.messages import Cap, over_cap_of, warn_over_cap
 
 _LOG = logging.getLogger("pitloom.test_cap_warnings")
 
@@ -247,12 +247,12 @@ def _warned(
 
 def _routed(tree: ast.Module, carriers: set[str], holders: set[str]) -> set[str]:
     """The names in the limit of each ``Cap(...)`` of *tree*, imported from
-    :mod:`pitloom.logging_config`, whose value reaches ``warn_over_cap``
+    :mod:`pitloom.messages`, whose value reaches ``warn_over_cap``
     (:func:`_warned`), given the *carriers* and *holders* of every module
     (:func:`_flow`)."""
     if not any(
         isinstance(node, ast.ImportFrom)
-        and node.module == "pitloom.logging_config"
+        and node.module == "pitloom.messages"
         and any(alias.name == "Cap" for alias in node.names)
         for node in ast.walk(tree)
     ):
@@ -271,7 +271,7 @@ def _routed(tree: ast.Module, carriers: set[str], holders: set[str]) -> set[str]
     }
 
 
-_IMPORT = "from pitloom.logging_config import Cap, over_cap_of, warn_over_cap\n"
+_IMPORT = "from pitloom.messages import Cap, over_cap_of, warn_over_cap\n"
 
 
 @pytest.mark.parametrize(
@@ -309,7 +309,7 @@ def test_routed_needs_the_cap_passed_to_the_helper(
 
 def test_every_cap_warns_through_the_shared_helper() -> None:
     """Each cap constant is wrapped in a ``Cap`` whose value reaches
-    :func:`~pitloom.logging_config.warn_over_cap`, in any module
+    :func:`~pitloom.messages.warn_over_cap`, in any module
     (:func:`_routed`), or is listed with a reason; no listed entry is
     stale. Static: it proves the call is written, not that it is reached
     (each cap's own tests drive the warning)."""

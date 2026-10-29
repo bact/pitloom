@@ -37,7 +37,8 @@ from pitloom.extract.ai_model.archive_member import (
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.stderr_capture import capture_stderr
-from pitloom.logging_config import Cap, field_loss_suffix, loggable, one_line
+from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 

@@ -48,7 +48,8 @@ from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.requirements import NOT_PEP_508, warn_skipped_dependency
-from pitloom.logging_config import Cap, loggable, one_line, warn_over_cap
+from pitloom.logging_config import loggable, one_line
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

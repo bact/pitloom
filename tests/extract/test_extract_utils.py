@@ -25,7 +25,7 @@ from pitloom.extract._extract_utils import (
     filename_from_url,
     json_nests_over,
 )
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.

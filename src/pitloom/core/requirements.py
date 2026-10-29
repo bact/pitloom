@@ -25,7 +25,8 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_marker, parse_requirement
-from pitloom.logging_config import Cap, excerpt, warn_over_cap
+from pitloom.logging_config import excerpt
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
