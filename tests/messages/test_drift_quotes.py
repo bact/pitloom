@@ -9,7 +9,10 @@ and with a code the entry has. Wording changes in the catalogue fail here
 until the quote follows.
 
 A quote may leave text out (``...``), name a value (``<path>``, ``%s``,
-``(N files)``, ``byte(s)``), start with ``LEVEL: `` and end with `` [code]``.
+``(N files)``, ``byte(s)``, ``N-byte``) or give one (``'m.gguf'``,
+``3 bytes``), start with ``LEVEL: `` and end with `` [code]``. A value given
+has its field's shape; a free one (a file name) never holds the family's
+marker, so the marker is the catalogue's wording, not a value.
 
 See also: tests/messages/test_drift_sources.py, test_drift_records.py.
 """
@@ -77,7 +80,9 @@ def test_the_scan_found_quotes() -> None:
 def test_a_quote_is_a_piece_of_the_catalogue(
     file: str, families: tuple[str, ...], quote: str
 ) -> None:
-    assert any(quote_matches(quote, f) for f in families), f"{file}: {quote!r}"
+    assert any(quote_matches(quote, f, _MARKERS[f]) for f in families), (
+        f"{file}: {quote!r}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -95,10 +100,26 @@ def test_a_quote_is_a_piece_of_the_catalogue(
         ("INFO: Git LFS pointer shipped; the build did not pull LFS content", False),
         ("WARNING: Git LFS pointer, content unread", False),
         ("Git LFS pointer is skipped", False),
+        # values given as themselves, or as the reference shows them
+        (
+            "ERROR: 'm.gguf': header is a Git LFS pointer, content not pulled "
+            f"(oid sha256:{'0f' * 32}, size 3 bytes); run 'git lfs pull'",
+            True,
+        ),
+        ("ERROR: '<path>': header is a Git LFS pointer, content not pulled", True),
+        ("WARNING: FILE=m/a.bin: Git LFS pointer, content not read (2 files);", True),
+        # a value without its field's shape, or one holding the marker
+        ("ERROR: m.gguf: header is a Git LFS pointer, content not pulled", False),
+        ("header is a Git LFS pointer, content not pulled (oid sha256:zz,", False),
+        (
+            "Git LFS pointer, content not pulled (oid sha256:<oid>, size 3x bytes)",
+            False,
+        ),
+        ("WARNING: FILE=Git LFS pointer, content not read", False),
     ],
     ids=lambda v: str(v)[:24],
 )
 def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
     quote: str, expected: bool
 ) -> None:
-    assert quote_matches(quote, "lfs-pointer") is expected
+    assert quote_matches(quote, "lfs-pointer", _MARKERS["lfs-pointer"]) is expected
