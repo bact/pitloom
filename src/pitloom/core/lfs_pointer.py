@@ -25,13 +25,16 @@ the model gate) and :mod:`pitloom.core.file_hash` (the chunked hasher).
 from __future__ import annotations
 
 import io
+import logging
 import os
 import re
 import stat
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
 from pitloom.core.path_confine import open_nonblocking
+from pitloom.logging_config import loggable
 
 __all__ = [
     "LFS_OPENING_BYTES",
@@ -39,9 +42,11 @@ __all__ = [
     "LFS_POINTER_METHOD",
     "LfsPointer",
     "PrefixCapture",
+    "log_pointer_not_read",
     "opens_lfs_pointer",
     "parse_lfs_pointer",
     "read_lfs_pointer",
+    "warn_pointers_not_read",
 ]
 
 #: The provenance method of a hash copied from a pointer's ``oid``.
@@ -80,6 +85,9 @@ _POINTER: Final = re.compile(
     rb"oid sha256:(?P<oid>[0-9a-f]{64})(?P=end)"
     rb"size (?P<size>0|[1-9][0-9]{0,18})(?:(?P=end))?"
 )
+
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -168,3 +176,30 @@ class PrefixCapture:
         """The pointer the stream fed so far is, whole; ``None`` once
         :data:`LFS_POINTER_MAX_BYTES` or more bytes were fed."""
         return parse_lfs_pointer(bytes(self._prefix))
+
+
+def log_pointer_not_read(path: str, pointer: LfsPointer) -> None:
+    """The per-file line of a pointer left unread (``--debug`` only)."""
+    _log.debug(
+        "FILE=%s: Git LFS pointer, content not read; oid sha256:%s, %d bytes",
+        loggable(path),
+        pointer.oid,
+        pointer.size,
+    )
+
+
+def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> None:
+    """One ``WARNING:`` for all the pointers a run met (none: silent), naming
+    the first path in sorted order. *archive*: the pointers were shipped in a
+    built artefact (the bytes are recorded as they are), not left by an
+    unpulled checkout."""
+    if not paths:
+        return
+    count = f" ({len(paths)} files)" if len(paths) > 1 else ""
+    advice = (
+        "the build did not pull LFS content"
+        if archive
+        else "run 'git lfs pull' for the content"
+    )
+    what = "Git LFS pointer shipped" if archive else "Git LFS pointer, content not read"
+    _log.warning("FILE=%s: %s%s; %s", loggable(min(paths)), what, count, advice)
