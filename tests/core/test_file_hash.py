@@ -6,11 +6,13 @@
 """Tests for :mod:`pitloom.core.file_hash`, the one chunked reader (SHA-256
 alone, or SHA-256 and SHA-512 in one pass).
 
-See also: tests/core/test_dataset_hash.py (the dataset ceiling built on it).
+See also: tests/core/test_dataset_hash.py (the dataset ceiling built on it);
+tests/core/test_lfs_pointer.py (the pointer grammar the readers apply).
 """
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import os
 from pathlib import Path
@@ -23,12 +25,16 @@ from pitloom.core.file_hash import (
     FileDigests,
     HexDigests,
     ReadBudgetExceeded,
+    Sha256Read,
     file_digests,
     sha256_digest,
     sha256_digest_and_size,
+    sha256_read,
 )
+from pitloom.core.lfs_pointer import LFS_POINTER_MAX_BYTES, parse_lfs_pointer
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.id_registry import sha256_file
+from tests._lfs import lfs_pointer_bytes
 
 _CONTENT = bytes(range(256)) * 79  # 20224 bytes: many small chunks
 _CHUNK = 1000
@@ -132,3 +138,40 @@ def test_the_sha256_reader_computes_no_sha512(
     assert sha256_digest_and_size(path)[1] == len(_CONTENT)
     with pytest.raises(RuntimeError, match="two-digest hasher built"):
         file_digests(path)
+
+
+_POINTER = lfs_pointer_bytes(b"content")
+#: Opens as a pointer, then runs to the cut-off: content, not a pointer.
+_LONG = _POINTER + b"x" * (LFS_POINTER_MAX_BYTES - len(_POINTER))
+
+
+@pytest.mark.parametrize("chunk", [1, 7, 8192])
+@pytest.mark.parametrize(
+    ("data", "is_pointer"), [(_POINTER, True), (_LONG, False)], ids=["pointer", "1k"]
+)
+def test_every_reader_says_whether_the_bytes_are_an_lfs_pointer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    chunk: int,
+    data: bytes,
+    is_pointer: bool,
+) -> None:
+    """Fed in any slices, the hasher and both file readers state the
+    pointer from the same read as the digests, and none for a file of
+    the cut-off size that opens like one."""
+    expected = parse_lfs_pointer(_POINTER) if is_pointer else None
+    assert (expected is not None) is is_pointer
+    hasher = DigestHasher()
+    for start in range(0, len(data), chunk):
+        hasher.update(data[start : start + chunk])
+    assert hasher.digests() == dataclasses.replace(
+        _expected(data), lfs_pointer=expected
+    )
+    monkeypatch.setattr(file_hash, "CHUNK_BYTES", chunk)
+    path = tmp_path / "data.bin"
+    path.write_bytes(data)
+    assert file_digests(path).lfs_pointer == expected
+    assert sha256_read(path) == Sha256Read(
+        hashlib.sha256(data).digest(), len(data), expected
+    )
+    assert sha256_digest_and_size(path) == sha256_read(path)[:2]

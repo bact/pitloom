@@ -109,7 +109,7 @@ def run_remote_project(args: argparse.Namespace, url: str) -> int:
     with fetch_git_project(url, offline=offline) as checkout:
         if explicit is None:
             log.info(CONFIG_IGNORED_INFO)
-        with checkout.explaining_failures():
+        with checkout.reading():
             output = generate_project_from_args(
                 args,
                 Path(checkout.folder),

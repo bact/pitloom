@@ -28,7 +28,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import same_path
-from pitloom.id_registry._ambiguous import RecordedKeys
+from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
     MAX_ID_NUMBER,
     RESERVE_CEILING,
@@ -461,11 +461,14 @@ class IdRegistry:
         self,
         object_set: spdx3.SHACLObjectSet,
         keys: RecordedKeys | None = None,
+        hashes: RecordedHashes | None = None,
     ) -> tuple[int, bool]:
         """A run's auto-harvest: every named element in *object_set*, each
         under the key *keys* (spdxId -> (compact type, key), what the run's
         lookups recorded) holds for it when of its type, else its type and
         name (see :func:`~pitloom.id_registry._harvest._harvest_elements`).
+        A file in *hashes* (spdxId -> SHA-256: a Git LFS pointer's ``oid``)
+        records that hash, not the one its element states.
 
         Returns ``(new_ids, changed)``: *new_ids* counts the distinct
         spdxIds new to the registry under keys new to it too (a replaced or
@@ -475,7 +478,11 @@ class IdRegistry:
         self._reserve_held()
         before, counters = dict(self.elements), dict(self.id_counters)
         _harvest_elements(
-            self, _sorted_by_spdx_id(object_set), imported=False, keys=keys
+            self,
+            _sorted_by_spdx_id(object_set),
+            imported=False,
+            keys=keys,
+            hashes=hashes,
         )
         changed = self.elements != before or self.id_counters != counters
         return added_ids(before, self.elements), changed

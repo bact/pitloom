@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -170,3 +170,6 @@ See also: [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
   listed with the hash of the bytes really there; one summary `WARNING:`
   per run (the event is "this checkout was not pulled"), one line per file
   at `--debug`; a wheel that ships a pointer is a build bug, same rule.
+  Built as decided, with one change: a checkout pointer takes the `oid` as
+  its hash (identity survives a pull), an archive keeps the bytes' hash
+  (matches `RECORD`); see [git-lfs-pointers.md](git-lfs-pointers.md).

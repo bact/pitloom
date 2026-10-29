@@ -380,3 +380,14 @@ def test_scan_tie_break_uses_stable_physical_path(tmp_path: Path) -> None:
     for order in (files, files[::-1]):
         found = _scan(tmp_path, *order)
         assert [m.format_info.physical_path for m in found] == ["a/w.gguf", "b/w.gguf"]
+
+
+def test_the_pointer_reader_of_a_candidate_that_cannot_be_read_finds_none(
+    tmp_path: Path,
+) -> None:
+    """The reader never raises: a missing file or a directory is no pointer."""
+    (tmp_path / "dir").mkdir()
+    candidates = project_candidates(tmp_path, [_pf("gone.bin"), _pf("dir")])
+    for candidate in candidates:
+        assert candidate.pointer is not None
+        assert candidate.pointer() is None

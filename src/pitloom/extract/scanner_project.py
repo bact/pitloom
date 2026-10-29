@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import IO
 
 from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
 from pitloom.extract.scanner import ModelCandidate, UsageSource, scan_ai_models
@@ -32,6 +33,16 @@ def _sniffer(path: Path) -> Callable[[], bytes]:
         return read_ai_model_header(path)
 
     return _sniff
+
+
+def _pointer_reader(path: Path) -> Callable[[], LfsPointer | None]:
+    def _pointer() -> LfsPointer | None:
+        try:
+            return read_lfs_pointer(path)
+        except OSError:
+            return None
+
+    return _pointer
 
 
 def _materializer(path: Path) -> Callable[[], AbstractContextManager[Path]]:
@@ -77,6 +88,7 @@ def project_candidates(
             sniff=_sniffer(path),
             materialize=_materializer(path),
             read_path=path,
+            pointer=_pointer_reader(path),
         )
 
 

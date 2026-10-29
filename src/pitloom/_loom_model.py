@@ -24,7 +24,9 @@ is registered when the registry has a file and ``update-id-registry`` is
 not false; :meth:`LoomModels.persist` saves it after the fragment is written.
 Without a usable ``path=`` (none, not a file at exit, unreadable), the
 model is looked up by name only, an entry recording a SHA-256 is a miss (no
-content vouches for it), and nothing is registered.
+content vouches for it), and nothing is registered. A Git LFS pointer file
+stands in by its ``oid`` (no SHA-512; its ``Hash`` and provenance say so),
+so a model keeps its id and lineage after ``git lfs pull``.
 
 See also: :mod:`pitloom._loom_active_run` (the run),
 :mod:`pitloom._loom_dataset` (datasets) and
@@ -43,20 +45,25 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import (
     LOOM_PROVENANCE_CONFIG,
+    POINTER_PROVENANCE_FIELD,
     _record_hyperparameter_provenance,
+    cwd_relative_label,
+    pointer_provenance,
     registry_miss_callback,
+    stated_hashes,
     warn_registry_miss,
 )
 from pitloom._loom_dataset import name_key_reason
 from pitloom.assemble.spdx3.provenance import emit_provenance
-from pitloom.core.file_hash import HexDigests, file_digests
+from pitloom.core.file_hash import FileDigests, file_digests
+from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.path_probe import (
     UNREADABLE_FILE_WARNING,
     is_missing_errno,
     is_regular_file,
 )
-from pitloom.export.spdx3_json import Spdx3JsonExporter, file_hashes
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     Alias,
@@ -102,6 +109,9 @@ class _Declaration:
     path: str | None
     #: As the caller gave it, for messages.
     given: str
+    #: As provenance names it (:func:`~pitloom._loom_caller.cwd_relative_label`
+    #: at the call); ``""``: no ``path=``.
+    label: str
     annotations: list[spdx3.Annotation] = field(default_factory=list)
 
 
@@ -111,14 +121,14 @@ def _warn_unreadable(given: str, exc: Exception) -> None:
     )
 
 
-def _hash_model_file(name: str, path: str, given: str) -> HexDigests | None:
+def _hash_model_file(name: str, path: str, given: str) -> FileDigests | None:
     """The SHA-256 and SHA-512 of the model file at *path* (one read), or
     ``None`` and one ``WARNING:`` when it is not a regular file at exit
     (gone included) or cannot be read. Read whole in chunks: no ceiling
     applies to a model."""
     try:
         if is_regular_file(Path(path)):
-            return file_digests(path).hex()
+            return file_digests(path)
     except ValueError as exc:  # a NUL: a name, not a path
         _warn_unreadable(given, exc)
         return None
@@ -150,12 +160,14 @@ class LoomModels:
         creation_info: spdx3.CreationInfo,
         doc_uuid: str,
         update_id_registry: bool,
+        pointers: UnreadPointers,
     ) -> None:
         self._session = session
         self._exporter = exporter
         self._creation_info = creation_info
         self._doc_uuid = doc_uuid
         self._update = update_id_registry
+        self._pointers = pointers
         self._declared: list[_Declaration] = []
         #: Ids registered by this run (``None``: a claim collision).
         self._recorded: list[str | None] = []
@@ -191,6 +203,7 @@ class LoomModels:
             generated=generated,
             path=None if path is None else os.path.join(os.getcwd(), os.fspath(path)),
             given="" if path is None else os.fspath(path),
+            label="" if path is None else cwd_relative_label(path),
         )
         self._declared.append(declared)
         self._annotate(declared, provenance, name)
@@ -233,23 +246,32 @@ class LoomModels:
         not minted again. Returns the last declaration's element and
         ``generated`` flag (the run's model), or ``(None, None)``.
         """
-        found: dict[str, HexDigests] = {}
+        found: dict[str, FileDigests] = {}
         digests = [self._digest(declared, found) for declared in self._declared]
         if found:
             self._refresh()
         for declared, digest in zip(self._declared, digests, strict=True):
             element = declared.element
             element.spdxId = self._spdx_id(
-                declared, None if digest is None else digest.sha256
+                declared, None if digest is None else digest.stated().sha256
             )
             if digest is not None:
-                element.verifiedUsing = file_hashes(digest)
+                self._verify(declared, digest)
             for annotation in declared.annotations:
                 annotation.subject = element.spdxId
             self._exporter.add_package(element)
         if not self._declared:
             return None, None
         return self._declared[-1].element, self._declared[-1].generated
+
+    def _verify(self, declared: _Declaration, digest: FileDigests) -> None:
+        """*declared*'s ``verifiedUsing`` from *digest*; a Git LFS pointer's
+        with the provenance saying so."""
+        pointer = digest.lfs_pointer
+        declared.element.verifiedUsing = stated_hashes(digest.stated(), pointer)
+        if pointer is not None:
+            provenance = {POINTER_PROVENANCE_FIELD: pointer_provenance(declared.label)}
+            self._annotate(declared, provenance, declared.name)
 
     def persist(self) -> None:
         """Save the ids this run registered
@@ -262,9 +284,10 @@ class LoomModels:
             persist_registry(registry, len(held.intersection(self._recorded)), True)
 
     def _digest(
-        self, declared: _Declaration, found: dict[str, HexDigests]
-    ) -> HexDigests | None:
-        """*declared*'s ``path=`` digests, each path read once (*found*)."""
+        self, declared: _Declaration, found: dict[str, FileDigests]
+    ) -> FileDigests | None:
+        """*declared*'s ``path=`` digests, each path read once (*found*);
+        a Git LFS pointer is noted for the run's summary."""
         if declared.path is None:
             if self._session.registry is not None:
                 log.warning(NO_PATH_WARNING, declared.name)
@@ -273,6 +296,8 @@ class LoomModels:
             digest = _hash_model_file(declared.name, declared.path, declared.given)
             if digest is None:
                 return None
+            if digest.lfs_pointer is not None:
+                self._pointers.note(declared.path, digest.lfs_pointer, declared.given)
             found[declared.path] = digest
         return found[declared.path]
 

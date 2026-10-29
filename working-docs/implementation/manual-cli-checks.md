@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,8 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
-  | AI model scan, model producer and count | `15,17,19,22,M/model/*` |
+  | AI model scan, model producer and count | `15,17,19,22,23,M/model/*` |
+| Git LFS pointers | `17,20,23` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
@@ -65,7 +66,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`22`, `B1`-`B7`) it runs:
+checks (`1`-`23`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -341,7 +342,9 @@ project with a truncated Safetensors file (a model whose read fails) and Git
 LFS pointers named `.gguf`, `.onnx` and `.bin` (not models; `.onnx` admits any
 other header, `.bin` names no format), besides a good model. `project` and
 `wheel` (of the built project) each give an `ai_AIPackage` for the good and
-the truncated model and none for the pointer, and warn exactly once per file;
+the truncated model and none for the pointer, and warn exactly once per file
+(these pointers are fake, `oid sha256:00`, so only their opening is a pointer's
+and each warns on its own; a real whole pointer is check 23's one summary);
 the two runs' `WARNING:` text is equal once the path is replaced (`failed to
 extract metadata ...` or, without the `safetensors` extra, `required library
 not installed ...`; `header is a Git LFS pointer; not listed as an AI model`). `loom
@@ -362,6 +365,23 @@ cases (a placeholder licence, a non-literal `name=`, a value Pitloom does not
 read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
 `test_setuptools_build_parity.py`. Automated as check 18
 (`scripts/manual_cli_checks/_checks_setuptools.py`).
+
+**23. Git LFS pointers: recorded by `oid`, reported once, refused as models**:
+a project holding the real Hub pointers of `tests/fixtures/lfs-pointers/` (a
+dataset `.parquet`, a model `.bin`, a `.zip`, a `.js`), a normal file and a
+file over 1 KiB that opens like a pointer. `loom project --offline` exits 0
+with exactly one `WARNING:` (`Git LFS pointer, content not read (4 files)`,
+naming `git lfs pull`; the per-file detail is `DEBUG:`), no model warning and
+no `ai_AIPackage`. Each pointer's `software_File` has one SHA-256 equal to
+the fixture's `oid`, no SHA-512 and the comment `Git LFS pointer oid; content
+not read; size N bytes`; the normal and look-alike files keep SHA-256 and
+SHA-512 and no comment. Two runs with `--creation-datetime` are
+byte-identical. `loom model` of the `.bin` pointer exits 1 with one `ERROR:`
+(the `oid`, `git lfs pull`) and writes nothing. `loom wheel` of the built
+project warns once `Git LFS pointer shipped` and records the hashes of the
+pointer texts. Skipped (whole check) without `build` and `hatchling`.
+Automated as check 23
+(`scripts/manual_cli_checks/_checks_lfs.py::check_lfs_pointers`).
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

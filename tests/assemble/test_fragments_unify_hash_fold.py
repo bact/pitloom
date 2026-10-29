@@ -113,14 +113,17 @@ def test_same_bytes_under_another_id_fold_instead_of_a_new_element(
 def test_promoted_survivor_keeps_its_registry_records(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, own: bool
 ) -> None:
-    """The promoted survivor stays a non-reader, and the key its old id
-    recorded moves to its new id, unless that id recorded its own."""
+    """The promoted survivor stays a non-reader, and the key and registry
+    hash (a Git LFS pointer's ``oid``) its old id recorded move to its new
+    id, unless that id recorded its own."""
     old, pinned = f"{_loc(9)}#File-1", f"{_REG}#File-8"
     exporter = _base([_file(old, "p", "c")])
     exporter.registry_non_readers.add(old)
     exporter.registry_keys[old] = (_FILE, "src/p")
+    exporter.registry_hashes[old] = "1" * 64
     if own:
         exporter.registry_keys[pinned] = (_FILE, "own")
+        exporter.registry_hashes[pinned] = "2" * 64
     fragments = [
         [_file(pinned, "p", "c"), _file(f"{_REG}#Filler", "f", "d")],
         [_file(f"{_REG}#Filler2", "g", "e")],
@@ -129,6 +132,7 @@ def test_promoted_survivor_keeps_its_registry_records(
     assert pinned in merged and old not in merged
     assert exporter.registry_non_readers == {pinned}
     assert exporter.registry_keys == {pinned: (_FILE, "own" if own else "src/p")}
+    assert exporter.registry_hashes == {pinned: ("2" if own else "1") * 64}
 
 
 def test_same_relative_path_under_two_base_dirs_is_two_sources(

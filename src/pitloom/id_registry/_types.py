@@ -25,7 +25,7 @@ from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import stated_sha256_hex
 from pitloom.core.path_probe import (
     UNLISTABLE_DIR_WARNING,
     UNREADABLE_FILE_WARNING,
@@ -139,10 +139,13 @@ def registry_file_error(path: Path, reason: str) -> ValueError:
 
 
 def sha256_file(path: Path) -> str:
-    """Return the hex-encoded SHA-256 digest of *path*'s contents, streamed
-    by the shared reader (:func:`~pitloom.core.file_hash.sha256_digest`),
-    never read whole."""
-    return sha256_digest(path).hex()
+    """Return the SHA-256 an SBOM states for the file at *path*, in hex: its
+    contents' digest, or for a Git LFS pointer its ``oid``, so a pointer
+    and the content it stands for share one registry hash
+    (:func:`~pitloom.core.file_hash.stated_sha256_hex`, streamed, never
+    read whole). Not the raw bytes' digest: that is
+    :func:`~pitloom.core.file_hash.sha256_digest`."""
+    return stated_sha256_hex(path)
 
 
 def type_id_prefix(type_name: str) -> str:

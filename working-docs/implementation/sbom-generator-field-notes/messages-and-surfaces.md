@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,8 @@ say).
   reading two archives warns once per archive: `embed-wheel
   --allow-build` names a bad member once plain and once with `Build: `, a
   documented limit (#251). An unfetched Git LFS checkout is one summary
-  line per run (decided; lessons doc 3.10).
+  line per SBOM, built in the document build so every surface agrees
+  ([git-lfs-pointers.md](../git-lfs-pointers.md)).
   Do: name the event first, then decide how many lines it deserves.
 - **A once-only warning turns one false alarm into a hidden failure.**
   `licenseid` 0.4.2 reports every SQLite error on a read as

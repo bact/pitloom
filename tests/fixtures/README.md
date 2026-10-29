@@ -47,3 +47,7 @@ SPDX-License-Identifier: CC0-1.0
       scenario and snapshots of their SPDX 3.0 mappings, for
       `tests/conformance/`
     - [Details](./conformance/README.md)
+12. Git LFS pointer fixtures (`lfs-pointers/`)
+    - Real Git LFS pointers from the Hugging Face Hub (pointer text only),
+      for Git LFS pointer detection testing
+    - [Details](./lfs-pointers/README.md)

@@ -30,6 +30,11 @@ from typing import IO, NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
+from pitloom.core.lfs_pointer import (
+    LFS_POINTER_MAX_BYTES,
+    LfsPointer,
+    parse_lfs_pointer,
+)
 from pitloom.core.model_extract_limit import require_max_model_extract_bytes
 from pitloom.core.temp_dirs import registered_temp_dir
 from pitloom.core.wheel_dist_info import (
@@ -151,6 +156,21 @@ def _sniffer(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> Callable[[], bytes]:
     return _sniff
 
 
+def _pointer_reader(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo
+) -> Callable[[], LfsPointer | None]:
+    def _pointer() -> LfsPointer | None:
+        if info.file_size >= LFS_POINTER_MAX_BYTES:
+            return None
+        try:
+            with zf.open(info) as fh:
+                return parse_lfs_pointer(fh.read(LFS_POINTER_MAX_BYTES))
+        except MEMBER_READ_ERRORS:
+            return None
+
+    return _pointer
+
+
 def _opener(
     zf: zipfile.ZipFile, info: zipfile.ZipInfo
 ) -> Callable[[], AbstractContextManager[IO[bytes]]]:
@@ -237,6 +257,7 @@ def _wheel_candidates(
             sniff=_sniffer(zf, info),
             materialize=_materializer(zf, member, index, scratch),
             gate=gate,
+            pointer=_pointer_reader(zf, info),
         )
 
 

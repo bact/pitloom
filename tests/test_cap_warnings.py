@@ -115,6 +115,8 @@ _ALLOWED = {
     "core/_models_wheel_types.py:_MAX_SIGNIFICANT_DIGITS": "over it: ERROR",
     "core/ai_metadata.py:SOURCE_METADATA_MAX_DEPTH": _SHOWN,
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
+    "core/lfs_pointer.py:LFS_POINTER_MAX_BYTES": "a format rule: longer is content",
+    "core/lfs_pointer.py:_MAX_SIZE": "a format rule: git-lfs states no more",
     "core/pep440.py:MAX_VERSION_NUMBER_DIGITS": (
         "over it: not a version, and the caller's own warning or a string compare"
     ),

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-26
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -193,3 +193,50 @@ declined or fixed entry with its outcome.
 - Evidence: [license-resolution-categories.md](license-resolution-categories.md)
 - Status: noted
 - Date: 2026-10-26
+
+### FG-9 A file has no size property
+
+- Format and version: SPDX 3.0.1, Software profile
+- Element or property: `software_File`; nearest is `dataset_datasetSize`,
+  on `dataset_DatasetPackage` only
+- Fact to record: the size in bytes a Git LFS pointer states for the content
+  it stands in for (the content itself was not read)
+- Pitloom today: the size only in the `Hash` `comment` ("Git LFS pointer
+  oid; content not read; size N bytes")
+- Why imprecise: no property
+- Proposal: an optional byte size on `software_File` (or on `Artifact`)
+- Evidence: `tests/assemble/test_document_files_lfs.py`
+- Status: noted
+- Date: 2026-10-29
+
+### FG-10 A hash copied from a statement looks like a computed one
+
+- Format and version: SPDX 3.0.1, Core profile
+- Element or property: `Hash` in `verifiedUsing`
+- Fact to record: the SHA-256 is a Git LFS pointer's `oid`, copied from the
+  pointer, not computed from bytes Pitloom read
+- Pitloom today: the `oid` as `hashValue`, the `Hash` `comment`, and
+  provenance `Method: lfs_pointer` on the file; no SHA-512
+- Why imprecise: no property says whether a hash was computed or stated, and
+  by whom
+- Proposal: a hash-origin property (computed / stated by a named source)
+- Evidence: `tests/assemble/test_document_files_lfs.py`
+- Status: noted
+- Date: 2026-10-29
+
+### FG-11 Nothing marks a Merkle root built partly from stated hashes
+
+- Format and version: SPDX 3.0.1, Core profile
+- Element or property: the main `software_Package`'s `verifiedUsing` `Hash`
+  (a Merkle root over its files' SHA-256)
+- Fact to record: some leaves are pointer `oid`s, not digests Pitloom
+  computed. The root does not change across `git lfs pull` (an `oid` is the
+  content's SHA-256), but it is only as true as the pointers
+- Pitloom today: the root's `comment` says it is over the payload files,
+  not which leaves were stated
+- Why imprecise: no property (see FG-10, one level up)
+- Proposal: with FG-10, a way to say a digest is built from stated hashes
+- Evidence: `tests/assemble/test_document_files_lfs.py`
+  (`test_pull_keeps_the_sha256`)
+- Status: noted
+- Date: 2026-10-29
