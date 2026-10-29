@@ -16,6 +16,7 @@ and :mod:`tests.extract.scanner.test_scanner_path_config` (``.pth`` text).
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import logging
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -23,7 +24,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.extract.scanner import ModelCandidate, discover_ai_models
+from tests._lfs import lfs_pointer_bytes
 from tests.warning_helpers import logged_warnings
 
 _LOGGER_NAME = "pitloom.extract.scanner"
@@ -63,9 +66,10 @@ _NOT_FMT_WARNING = "FORMAT=gguf FILE=src/m.gguf: header is not gguf; "
         # the header contradicts the suffix: one WARNING
         ("m.gguf", b"plain text", _NOT_FMT_WARNING),
         ("m.crfsuite", b"plain text", _NOT_FMT_WARNING.replace("gguf", "crfsuite")),
-        # a Git LFS pointer is no model under any candidate suffix: a magic
-        # one, one that admits any header, PyTorch's, and one that names no
-        # format (no FORMAT= to give)
+        # an exact pointer opening whose whole file is not known to be a
+        # valid pointer is a defect, said per file, under any candidate
+        # suffix: a magic one, one that admits any header, PyTorch's, and one
+        # that names no format (no FORMAT= to give)
         ("m.gguf", _LFS, _LFS_WARNING % ("FORMAT=gguf ", "m.gguf")),
         ("m.onnx", _LFS, _LFS_WARNING % ("FORMAT=onnx ", "m.onnx")),
         ("m.pt", _LFS, _LFS_WARNING % ("FORMAT=pytorch ", "m.pt")),
@@ -86,3 +90,26 @@ def test_discover_lists_no_entry_for_a_non_model_and_warns_only_on_a_contradicti
     assert len(messages) == (warns is not None)
     if warns is not None:
         assert messages[0] == warns + "not listed as an AI model"
+
+
+@pytest.mark.parametrize(
+    ("whole", "warnings"),
+    [("valid", 0), ("malformed", 1), ("unknown", 1)],
+)
+@pytest.mark.parametrize("dist", ["m.gguf", "m.onnx", "m.bin", "m.model", "m.zip"])
+def test_a_whole_valid_pointer_is_said_by_the_run_not_per_file(
+    caplog: pytest.LogCaptureFixture, dist: str, whole: str, warnings: int
+) -> None:
+    """The per-file line drops to DEBUG only when the whole file parses as a
+    pointer; an opening with a bad rest, or a candidate that cannot say,
+    keeps its WARNING."""
+    data = lfs_pointer_bytes(b"w") if whole == "valid" else _LFS + b"oid x\n"
+    candidate = _cand(dist, header=data[:52])
+    if whole != "unknown":
+        candidate = dataclasses.replace(
+            candidate, pointer=lambda: parse_lfs_pointer(data)
+        )
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
+        assert not discover_ai_models([candidate])
+    assert len(logged_warnings(caplog)) == warnings
+    assert "header is a Git LFS pointer" in caplog.text

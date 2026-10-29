@@ -33,6 +33,7 @@ from pitloom.assemble.spdx3._document_files import (
     _emit_file_header_metadata,
     _magika_version,
 )
+from pitloom.assemble.spdx3._document_lfs import report_lfs_pointers
 from pitloom.assemble.spdx3._document_locked_deps import (
     _dedup_and_locked_versions,
     _deduplicated_locked_dependencies,
@@ -218,6 +219,13 @@ def _with_recorded_keys(
 
 # pylint: disable=too-many-locals
 # pylint: disable-next=too-many-arguments
+def _prepared(doc: DocumentModel) -> DocumentModel:
+    """*doc* with canonical dependencies, its Git LFS pointers reported (once
+    per document: every surface builds through here)."""
+    report_lfs_pointers(doc.project.files)
+    return _with_canonical_dependencies(doc)
+
+
 def build(
     doc: DocumentModel,
     merkle_root: str | None = None,
@@ -252,7 +260,7 @@ def build(
     (given with a *registry*) and returns whether to log it, so a batch logs
     it once.
     """
-    doc = _with_canonical_dependencies(doc)
+    doc = _prepared(doc)
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
