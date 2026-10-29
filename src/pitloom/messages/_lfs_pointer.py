@@ -6,9 +6,9 @@
 """The ``lfs-pointer`` family (a Git LFS pointer met instead of its content)
 and ``lfs-pointer-malformed`` (a file that only opens like one).
 
-See also: :mod:`pitloom.core.lfs_pointer` (the summary warning),
-:mod:`pitloom.extract.scanner` (a pointer that is not whole) and
-:mod:`pitloom.assemble._model_generator` (a model file named on its own).
+See also: :mod:`pitloom.core.lfs_pointer` (the summary warning, and the
+refusal of a model file named on its own) and :mod:`pitloom.extract.scanner`
+(a pointer that is not whole).
 """
 
 from __future__ import annotations

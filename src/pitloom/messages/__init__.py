@@ -23,9 +23,8 @@ the code must be catalogued and the text one of the entry's lines at that
 level, after at most one frame (:data:`FRAMES`), since another program can
 print anything on the same stream.
 
-This package imports only :mod:`pitloom.logging_config` (and, when it
-writes a quoted path, :mod:`pitloom.core.quote_source`), neither of which
-imports it.
+This package imports only :mod:`pitloom.logging_config` and
+:mod:`pitloom.core.quote_source`, neither of which imports it.
 """
 
 from __future__ import annotations

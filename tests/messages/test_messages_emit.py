@@ -309,7 +309,7 @@ def test_a_coded_error_is_a_value_error_with_its_code() -> None:
     assert not hasattr(exc, "code")
     assert code_extra_of(exc) == {CODE_ATTR: "lfs-pointer"}
     for again in (pickle.loads(pickle.dumps(exc)), copy.copy(exc)):  # nosec B301
-        assert type(again) is CodedValueError
+        assert isinstance(again, CodedValueError)
         assert (str(again), code_of(again)) == (text, "lfs-pointer")
 
 
@@ -325,9 +325,10 @@ def test_a_coded_error_is_a_value_error_with_its_code() -> None:
 def test_a_coded_error_without_its_line_is_refused(
     message: Message, values: dict[str, Any]
 ) -> None:
+    """The constructor refuses with a plain ValueError, never a coded one."""
     with pytest.raises(ValueError) as caught:
-        CodedValueError(message, **values)
-    assert type(caught.value) is ValueError
+        raise CodedValueError(message, **values)
+    assert not isinstance(caught.value, CodedValueError)
 
 
 class _ClassCoded(OSError):

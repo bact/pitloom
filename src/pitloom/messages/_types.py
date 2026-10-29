@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.logging_config import CODE_PATTERN
+from pitloom.logging_config import CODE_LIKE_END, CODE_PATTERN
 from pitloom.messages._fields import (
     FIELDS,
     PLACEHOLDER,
@@ -99,7 +99,6 @@ RESERVED_FAMILIES: Final = frozenset(
 
 _CODE_RE: Final = re.compile(CODE_GRAMMAR)
 _READ_RE: Final = re.compile(CODE_PATTERN)
-_CODE_LIKE_END: Final = re.compile(rf" \[{CODE_PATTERN}\]\Z")
 _KEY_RE: Final = re.compile(r"[A-Z][A-Z0-9_]*")
 _RELEASE_RE: Final = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2}")
 
@@ -131,7 +130,7 @@ def template_problem(template: str) -> str | None:
         return f"{template!r}: empty, or white space at its start"
     if "\n" in template or "\r" in template:
         return f"{template!r}: a line break"
-    if _CODE_LIKE_END.search(template):
+    if CODE_LIKE_END.search(template):
         return f"{template!r}: ends in what reads as a code"
     spans = [(m.start(), m.end(), m.group(1)) for m in PLACEHOLDER.finditer(template)]
     for i, (start, end, name) in enumerate(spans):

@@ -223,8 +223,9 @@ def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:
     assert run.stdout.decode("ascii").strip() == "lfs-pointer"
 
 
-def test_logging_config_never_imports_the_catalogue() -> None:
-    source = (Path(_SRC) / "pitloom" / "logging_config.py").read_text("utf-8")
+@pytest.mark.parametrize("module", ["logging_config.py", "core/quote_source.py"])
+def test_what_the_catalogue_imports_never_imports_it(module: str) -> None:
+    source = (Path(_SRC) / "pitloom" / module).read_text("utf-8")
     imported = {
         alias.name if isinstance(node, ast.Import) else node.module or ""
         for node in ast.walk(ast.parse(source))

@@ -370,8 +370,9 @@ read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
 **23. Git LFS pointers: recorded by `oid`, reported once, refused as models**:
 a project holding the real Hub pointers of `tests/fixtures/lfs-pointers/` (a
 dataset `.parquet`, a model `.bin`, a `.zip`, a `.js`), a normal file and a
-file of 1 KiB or more that opens like a pointer. `loom project --offline` exits 0
-with exactly one `WARNING:` (`Git LFS pointer, content not read (4 files)`,
+file of 1 KiB or more that opens like a pointer. `loom project --offline`
+exits 0 with exactly one `WARNING:` (`Git LFS pointer, content not read (4
+files)`,
 naming `git lfs pull`; the per-file detail is `DEBUG:`), no model warning and
 no `ai_AIPackage`. Each pointer's `software_File` has one SHA-256 equal to
 the fixture's `oid`, no SHA-512 and the comment `Git LFS pointer oid; content

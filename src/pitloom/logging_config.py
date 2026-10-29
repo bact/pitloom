@@ -63,7 +63,7 @@ CODE_ATTR = "pitloom_code"
 CODE_PATTERN = r"[a-z][a-z0-9/-]*"
 _CODE_RE = re.compile(CODE_PATTERN)
 #: A `` [x]`` ending a text that would read as a code.
-_CODE_LIKE_END = re.compile(rf" \[({CODE_PATTERN})\]\Z")
+CODE_LIKE_END = re.compile(rf" \[({CODE_PATTERN})\]\Z")
 
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
 #: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
@@ -228,7 +228,7 @@ def _with_code(text: str, code: object) -> str:
     `` [code]`` of a line is always Pitloom's, never a value it printed (a
     file named ``m [lfs-pointer]``)."""
     suffix = _code_suffix(code)
-    return text + suffix if suffix else _CODE_LIKE_END.sub(r" \\x5b\1]", text)
+    return text + suffix if suffix else CODE_LIKE_END.sub(r" \\x5b\1]", text)
 
 
 class _OneLineFormatter(logging.Formatter):

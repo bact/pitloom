@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
 
 
@@ -36,7 +37,8 @@ class Field:
     #: What the value is, for the reference.
     meaning: str
     #: Whether the value can be any text (a file name), so a template may not
-    #: start with it: it would take in whatever comes first.
+    #: start with it or put it beside another field: it would take in what
+    #: lies next to it.
     free: bool = False
 
 
@@ -64,10 +66,6 @@ def _file(value: object) -> str:
 
 def _path(value: object) -> str:
     """A path in quotes, as every message quotes one."""
-    # pitloom.core imports this package (through core.lfs_pointer).
-    # pylint: disable-next=import-outside-toplevel
-    from pitloom.core.quote_source import quote_source
-
     return quote_source(_path_text(value))
 
 
