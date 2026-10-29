@@ -20,6 +20,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.1...HEAD>
 
+## [Unreleased]
+
+### Fixed
+
+- A Git URL's messages show the temporary checkout as `<checkout>`, not a random
+  path ([#375])
+
+[#375]: https://github.com/bact/pitloom/pull/375
+
 ## [0.21.1] - 2026-10-28
 
 ### Changed
