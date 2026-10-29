@@ -289,3 +289,31 @@ def test_an_injected_file_name_is_escaped_in_the_comment(project: Path) -> None:
 def test_nothing_is_recorded_for_a_digest_with_no_hash_or_reason() -> None:
     """Unreadable or missing: no hash and no reason, so nothing."""
     assert digest_evidence(DatasetDigest("file", size=_BIG), "x") == DigestEvidence()
+
+
+def test_a_size_read_past_canonical_json_is_not_measured() -> None:
+    """The bytes read go through the same bound as a ``stat()`` size."""
+    found = DatasetDigest("file", "ab" * 32, 1, size=_MAX_SAFE + 1)
+    evidence = digest_evidence(found, "x")
+    assert evidence.size_provenance == f"Source: x | {_UNREAD}"
+    assert evidence.hash_provenance is None
+
+
+@pytest.mark.parametrize("name", ["big.bin", "p.bin"], ids=["over-cap", "pointer"])
+def test_a_stated_entry_never_replaces_the_hash_evidence(
+    project: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """A source stating ``verified_using`` (none does) cannot replace the
+    entry loom wrote of the hash it did or did not read."""
+
+    def merged(_: DatasetSources, named: str) -> DatasetMetadata:
+        return DatasetMetadata(
+            name=named,
+            version="9",
+            provenance={"version": "Source: c", "verified_using": "Source: c"},
+        )
+
+    monkeypatch.setattr(DatasetSources, "merged", merged)
+    fields = _fields(_run(project / "o.json", name), name)
+    assert fields["version"] == {"source": "c"}
+    assert fields["verified_using"]["source"] == name

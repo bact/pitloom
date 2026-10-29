@@ -82,6 +82,16 @@ in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
 
+**Focus (decided 2026-10-29): two priorities.** (1) CLI, API and skill
+contracts through catalogued messages: the catalogue in code, the grammar
+ratchet and the families that matter most to skills (see
+[message-catalogue-and-skills.md](message-catalogue-and-skills.md)). (2) The
+adoption of `licenseid` 0.7.0 (waits on its release; see
+[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). The items below
+follow, in this order of need; evidence-level work (`Fact` PR-A done) continues
+only where it pairs with a catalogue family (over-cap, unreadable file, Hub
+failure); the rest may move to 0.23.0, with `--report` and SARIF.
+
 Open:
 
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
