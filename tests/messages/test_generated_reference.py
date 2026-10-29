@@ -114,7 +114,7 @@ def test_the_command_line_checks_the_tree() -> None:
     run = subprocess.run(  # nosec B603
         [sys.executable, str(_SCRIPT), "--check"],
         cwd=_ROOT,
-        env={**os.environ, "PYTHONPATH": str(_ROOT / "src")},
+        env={**os.environ, "PYTHONPATH": str(_ROOT / "src"), "PYTHONUTF8": "1"},
         capture_output=True,
         check=False,
         timeout=120,

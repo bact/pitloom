@@ -42,6 +42,7 @@ from pitloom.messages import (
     code_extra_of,
     code_of,
     emit,
+    relay_extra,
 )
 
 _LOG = logging.getLogger("pitloom.test_messages_emit")
@@ -250,6 +251,51 @@ def test_a_coded_line_keeps_a_value_that_ends_like_a_code(
     assert warned.startswith("WARNING: FILE=x [lfs-pointer]: header looks like")
     assert warned.endswith("model [lfs-pointer-malformed]")
     assert error == "ERROR: x [lfs-pointer] [lfs-pointer]"
+
+
+_RELAYED = (
+    "FORMAT=gguf FILE=demo/m.gguf: FILE=m.gguf: header looks like a Git LFS "
+    "pointer but is not a valid one; not listed as an AI model"
+)
+
+
+@pytest.mark.parametrize(
+    ("code", "level", "text", "kept"),
+    [
+        ("lfs-pointer-malformed", "WARNING", _RELAYED, True),
+        (
+            "lfs-pointer-malformed",
+            "WARNING",
+            _RELAYED.replace("FILE=m", "\nFILE=m"),
+            True,
+        ),
+        ("lfs-pointer-malformed", "WARNING", _RELAYED[:-5], False),
+        ("lfs-pointer-malformed", "INFO", _RELAYED, False),
+        ("lfs-pointer-malformed", "DEBUG", _RELAYED, False),
+        ("lfs-pointer", "WARNING", _RELAYED, False),
+        ("git.too-large", "WARNING", _RELAYED, False),
+        (404, "WARNING", _RELAYED, False),
+        (None, "WARNING", _RELAYED, False),
+    ],
+    ids=[
+        "kept",
+        "escaped",
+        "text",
+        "level",
+        "debug",
+        "other-entry",
+        "uncatalogued",
+        "not-a-str",
+        "none",
+    ],
+)
+def test_a_relayed_record_keeps_its_code_only_while_its_text_fits(
+    code: object, level: str, text: str, kept: bool
+) -> None:
+    """The scan's relay of a reader's record: the code survives a frame
+    before the text, not a text its message does not print."""
+    extra = relay_extra(code, level, text)
+    assert extra == ({CODE_ATTR: code} if kept else None)
 
 
 def test_a_coded_error_is_a_value_error_with_its_code() -> None:

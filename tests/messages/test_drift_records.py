@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.core.lfs_pointer import warn_pointers_not_read
 from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import LFS_POINTER_SHIPPED, emit
 from tests._message_drift import record_problem
 
 
@@ -62,8 +63,18 @@ def _record(
             _record(logging.WARNING, "odd", "lfs-pointer", name="pitloom.test_x"),
             None,
         ),
+        (_record(logging.DEBUG, "said once already", "lfs-pointer"), None),
     ],
-    ids=["valid", "no-code", "unknown", "not-a-str", "text", "level", "test-logger"],
+    ids=[
+        "valid",
+        "no-code",
+        "unknown",
+        "not-a-str",
+        "text",
+        "level",
+        "test-logger",
+        "debug",
+    ],
 )
 def test_a_record_is_checked_against_its_entry(
     record: logging.LogRecord, fragment: str | None
@@ -90,7 +101,30 @@ def test_the_records_of_a_real_emitter_pass_the_check(
     assert [record_problem(r) for r in coded] == [None, None]
 
 
+def test_a_message_said_once_repeats_at_debug_unflagged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The repeat of ``emit(..., once=...)`` is a ``DEBUG`` record that keeps
+    the code (it is not printed) and is no problem."""
+    log = logging.getLogger("pitloom.core.lfs_pointer")
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        for _ in range(2):
+            emit(log, LFS_POINTER_SHIPPED, logging.WARNING, file="w", count=1, once="k")
+    first, repeat = caplog.records
+    assert (first.levelno, repeat.levelno) == (logging.WARNING, logging.DEBUG)
+    assert getattr(repeat, CODE_ATTR) == "lfs-pointer/shipped"
+    assert [record_problem(r) for r in caplog.records] == [None, None]
+
+
 def test_the_check_is_hooked_on_every_record() -> None:
     """The autouse fixture of ``tests/conftest.py`` wraps ``Logger.handle``
     for the length of a test."""
+    assert logging.Logger.handle.__name__ == "watching"
+
+
+def test_a_tests_own_undo_keeps_the_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The hook is its own patch: a test undoing its ``monkeypatch`` does not
+    undo the check."""
+    monkeypatch.setattr(logging, "raiseExceptions", logging.raiseExceptions)
+    monkeypatch.undo()
     assert logging.Logger.handle.__name__ == "watching"

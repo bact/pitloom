@@ -31,7 +31,13 @@ imports it.
 from __future__ import annotations
 
 from pitloom.messages._catalogue import MESSAGES
-from pitloom.messages._emit import CodedValueError, code_extra_of, code_of, emit
+from pitloom.messages._emit import (
+    CodedValueError,
+    code_extra_of,
+    code_of,
+    emit,
+    relay_extra,
+)
 from pitloom.messages._fields import FIELDS, Field, size_text
 from pitloom.messages._frames import FRAMES, HANDLER_FRAMES, RELAY_FRAME, Frame
 from pitloom.messages._lfs_pointer import (
@@ -82,6 +88,7 @@ __all__ = [
     "code_extra_of",
     "code_of",
     "emit",
+    "relay_extra",
     "says",
     "size_text",
     "trusted_message",

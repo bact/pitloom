@@ -65,7 +65,7 @@ from pitloom.extract.ai_model.limits import (
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import CODE_ATTR, Cap, loggable, over_cap_of, warn_over_cap
-from pitloom.messages import LFS_POINTER_MALFORMED, RELAY_FRAME, emit
+from pitloom.messages import LFS_POINTER_MALFORMED, RELAY_FRAME, emit, relay_extra
 
 log = logging.getLogger(__name__)
 
@@ -232,7 +232,8 @@ def _relog_reader_records(
     :data:`~pitloom.messages.RELAY_FRAME`), the text escaped, the temporary
     copy's path and name replaced by the model's. An over-cap warning is
     said again through the shared helper, naming the model. A record's
-    catalogued code is kept."""
+    catalogued code is kept while the new text is still one of its
+    message's lines (:func:`~pitloom.messages.relay_extra`)."""
     dist_name = PurePosixPath(candidate.distribution_path).name
     copied = provenance_source(path.name)
     prefix = RELAY_FRAME.render({"format": fmt, "file": candidate.physical_path})
@@ -248,7 +249,8 @@ def _relog_reader_records(
         text = scrub(text, path, candidate.physical_path)
         if record.levelno >= logging.WARNING:
             text = prefix + text
-        extra = {CODE_ATTR: getattr(record, CODE_ATTR, None)}
+        code = getattr(record, CODE_ATTR, None)
+        extra = relay_extra(code, record.levelname, text)
         log.log(record.levelno, "%s", text, extra=extra)
 
 

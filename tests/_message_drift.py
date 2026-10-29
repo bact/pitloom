@@ -44,10 +44,16 @@ SAMPLES: dict[str, object] = {
 
 def record_problem(record: logging.LogRecord) -> str | None:
     """What is wrong with *record* as a catalogued one, or ``None``: it has
-    no :data:`~pitloom.logging_config.CODE_ATTR`, or its code is catalogued,
-    its level is one of the entry's and its text matches a pattern."""
+    no :data:`~pitloom.logging_config.CODE_ATTR`, it is a ``DEBUG`` record
+    (printed without its code: a message said once repeats at ``DEBUG``), or
+    its code is catalogued and its text one of the entry's lines at its
+    level."""
     code = getattr(record, CODE_ATTR, None)
-    if code is None or record.name.startswith(TEST_LOGGER_PREFIX):
+    if (
+        code is None
+        or record.levelno <= logging.DEBUG
+        or record.name.startswith(TEST_LOGGER_PREFIX)
+    ):
         return None
     if not isinstance(code, str) or code not in MESSAGES:
         return f"uncatalogued code {code!r}"

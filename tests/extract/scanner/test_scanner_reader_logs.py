@@ -160,7 +160,6 @@ def test_reader_records_are_relogged_under_the_stable_prefix(
     assert failed.startswith("FORMAT=pytorch FILE=demo/real.pt: failed to extract")
 
 
-@pytest.mark.usefixtures("odd_message_text")
 def test_a_reader_records_code_is_kept_when_relogged(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

@@ -13,10 +13,10 @@ A call has a *static* code when it
 - passes a ``pitloom.messages`` constant (an upper-case name imported from
   that package) as an argument.
 
-It *forwards* a code when the code is read from an exception at run time
-(``code_extra_of(exc)``, ``print_error(..., code=code_of(exc))``): the line
-carries the cause's code, but the site itself states no catalogued message,
-so it is not coded.
+It *forwards* a code when the code is read at run time, from an exception
+(``code_extra_of(exc)``, ``print_error(..., code=code_of(exc))``) or from a
+record it says again (``relay_extra(...)``): the line carries the other's
+code, but the site itself states no catalogued message, so it is not coded.
 
 A site is coded (or forwards) also when it calls an in-package function or
 class whose body holds such a call: a helper wrapping a coded call codes
@@ -41,8 +41,8 @@ STATIC = "static"
 FORWARD = "forward"
 #: Calls that put a fixed catalogued code on a record or an exception.
 STATIC_CALLS = frozenset({"emit", "CodedValueError"})
-#: Calls that read the code from an exception.
-FORWARD_CALLS = frozenset({"code_extra_of"})
+#: Calls that read the code from an exception or a relayed record.
+FORWARD_CALLS = frozenset({"code_extra_of", "relay_extra"})
 #: The ``extra`` key (and its constant) that carries a code on a log record.
 CODE_KEY = "pitloom_code"
 CODE_KEY_NAME = "CODE_ATTR"

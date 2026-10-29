@@ -104,6 +104,7 @@ def test_the_loom_entry_point_prints_the_code(tmp_path: Path) -> None:
     env["PYTHONPATH"] = os.pathsep.join(
         filter(None, [str(_SRC), env.get("PYTHONPATH")])
     )
+    env["PYTHONUTF8"] = "1"  # stderr names a temporary path, maybe not ASCII
     run = subprocess.run(  # nosec B603
         [sys.executable, "-m", "pitloom", "model", str(model), "-o", "o.json"],
         cwd=tmp_path,

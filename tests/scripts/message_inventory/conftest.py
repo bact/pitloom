@@ -55,6 +55,18 @@ def check(path, exc):
     print_error("boom", code=None)
     print_error("boom again", code=code_of(exc))
 """,
+    # A relay that says another record again with its code: it forwards.
+    "relay.py": """\
+import logging
+
+from pitloom.messages import relay_extra
+
+_log = logging.getLogger(__name__)
+
+
+def relay(record, text):
+    _log.warning("FORMAT=x %s", text, extra=relay_extra(record, "WARNING", text))
+""",
     # Two helpers whose body logs: one codes its line, one does not.
     "helpers.py": """\
 import logging

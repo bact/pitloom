@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import os
 import subprocess  # nosec B404
 import sys
 from collections.abc import Collection
@@ -212,7 +213,11 @@ def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:
         ]
     )
     run = subprocess.run(  # nosec B603
-        [sys.executable, "-c", code], capture_output=True, check=False
+        [sys.executable, "-c", code],
+        env={**os.environ, "PYTHONUTF8": "1"},
+        capture_output=True,
+        check=False,
+        timeout=120,
     )
     assert run.returncode == 0, run.stderr.decode("utf-8", "replace")
     assert run.stdout.decode("ascii").strip() == "lfs-pointer"

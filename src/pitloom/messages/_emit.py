@@ -19,9 +19,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from pitloom.logging_config import CODE_ATTR, log_once
+from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
 from pitloom.messages._fields import written
+from pitloom.messages._lines import says
 from pitloom.messages._types import Line, Message
 
 
@@ -52,6 +53,18 @@ def emit(
         log.log(level, shape.template, *args, extra=extra)
     else:
         log_once(log, level, once, shape.template, *args, extra=extra)
+
+
+def relay_extra(code: object, level: str, text: str) -> dict[str, object] | None:
+    """The ``extra`` of a log call that says another record's message again
+    at *level* (``"WARNING"``) with new *text* (a prefix added, a path
+    replaced): the record's *code* only when *text* is still one of that
+    message's lines (a frame before it allowed), else ``None``, so a relayed
+    line never carries a code it would not be trusted with."""
+    message = MESSAGES.get(code) if isinstance(code, str) else None
+    if message is None or not says(message, level, escape_controls(text)):
+        return None
+    return {CODE_ATTR: message.code}
 
 
 def code_of(exc: BaseException) -> str | None:

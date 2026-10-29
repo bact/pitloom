@@ -40,6 +40,7 @@ SITES = [
     ("pitloom.uncoded", 10, False, False),  # logging.warning
     ("pitloom.uncoded", 13, False, False),  # print_error(code=None)
     ("pitloom.uncoded", 14, False, True),  # print_error(code=code_of(exc))
+    ("pitloom.relay", 9, False, True),  # extra=relay_extra(...)
 ]
 IDS = [f"{m.rsplit('.', 1)[-1]}:{n}" for m, n, _, _ in SITES]
 
@@ -71,11 +72,12 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
     assert mi.uncoded_counts(records) == {
         "pitloom.callers": 1,
         "pitloom.helpers": 1,
+        "pitloom.relay": 1,
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (11, 5)
-    assert counts["IN_SCOPE_UNCODED"] == 6 == sum(mi.uncoded_counts(records).values())
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (12, 5)
+    assert counts["IN_SCOPE_UNCODED"] == 7 == sum(mi.uncoded_counts(records).values())
 
 
 def test_output_is_the_same_on_every_run(

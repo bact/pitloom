@@ -18,6 +18,7 @@ See also: ``scripts/message_inventory/`` (the tool and what counts),
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from typing import Any
@@ -64,6 +65,7 @@ def test_the_documented_command_runs_the_ratchet() -> None:
     done = subprocess.run(
         [sys.executable, "-m", "scripts.message_inventory", "--check"],
         cwd=REPO_ROOT,
+        env={**os.environ, "PYTHONUTF8": "1"},
         capture_output=True,
         check=False,
         timeout=120,
