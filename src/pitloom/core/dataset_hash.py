@@ -23,6 +23,9 @@ A Git LFS pointer file (a checkout made with LFS off) stands in by its
 the pointer is read. The ceiling still compares the bytes on disk, never
 the size a pointer states.
 
+A digest's *size* is a file's measured byte count; *omitted* says why a
+hash is missing, as a :data:`~pitloom.core.evidence.REASON_CODES` code.
+
 See also: :mod:`pitloom.core.file_hash` (the reader),
 :mod:`pitloom.core.walk_rules` (the pruned names) and
 :mod:`pitloom._loom_dataset` (the caller).
@@ -37,10 +40,15 @@ import stat
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Literal
+from typing import Final, Literal
 
-from pitloom.core.file_hash import ReadBudgetExceeded, file_digests, sha256_read
-from pitloom.core.lfs_pointer import LfsPointer
+from pitloom.core.file_hash import (
+    HexDigests,
+    ReadBudgetExceeded,
+    file_digests,
+    sha256_read,
+)
+from pitloom.core.lfs_pointer import LFS_POINTER_MAX_BYTES, LfsPointer
 from pitloom.core.model_extract_limit import MAX_DATASET_HASH_BYTES_KEY
 from pitloom.core.models import merkle_root
 from pitloom.core.path_probe import (
@@ -59,6 +67,9 @@ __all__ = ["DatasetDigest", "PointerAt", "hash_dataset"]
 
 _OMITTED = "dataset hash omitted"
 _PURPOSE = "for dataset hashing"
+#: The :data:`~pitloom.core.evidence.REASON_CODES` code of a hash over the
+#: ceiling.
+_OVER_CAP: Final = "over-cap"
 
 #: A sorted member: its leaf name bytes, its path, its size.
 _Member = tuple[bytes, str, int]
@@ -85,6 +96,18 @@ class DatasetDigest:
         lfs_pointers: The Git LFS pointers among the files *hex_digest*
             covers, in leaf order, each hashed by its ``oid``; empty when
             not hashed.
+        size: A regular file's size in bytes: the bytes hashed, or over
+            the ceiling the ``stat()`` size checked against it (unread, so
+            ``measured_stat``). ``None`` for a Git LFS pointer (its own size
+            is not the content's), for a file over the ceiling whose
+            ``stat()`` size is below
+            :data:`~pitloom.core.lfs_pointer.LFS_POINTER_MAX_BYTES` (it may
+            be a pointer, and only the read the ceiling forbids would tell),
+            for a directory, and when not known.
+        omitted: Why *hex_digest* is ``None``, as a
+            :data:`~pitloom.core.evidence.REASON_CODES` code: ``"over-cap"``
+            for the ceiling (at ``stat()`` or a file grown during the read);
+            ``None`` when hashed and for every other reason.
     """
 
     kind: Literal["file", "dir"] | None
@@ -93,6 +116,28 @@ class DatasetDigest:
     excluded: bool = False
     hex_sha512: str | None = None
     lfs_pointers: tuple[PointerAt, ...] = ()
+    size: int | None = None
+    omitted: str | None = None
+
+
+def _unhashed(
+    kind: Literal["file", "dir"] | None,
+    size: int | None,
+    reason: str | None,
+    *,
+    excluded: bool = False,
+) -> DatasetDigest:
+    """A digest with no hash: every one is built here, so each sets its
+    *size* and its *omitted* reason."""
+    return DatasetDigest(kind, excluded=excluded, size=size, omitted=reason)
+
+
+@dataclass(frozen=True)
+class _Failed:
+    """Why :func:`_leaves` gave no leaves: *omitted* as
+    :attr:`DatasetDigest.omitted` has it."""
+
+    omitted: str | None
 
 
 class _Unlistable(Exception):
@@ -168,41 +213,78 @@ def hash_dataset(
         if is_regular_file(path):
             return _hash_file(where, max_bytes, sha512=sha512)
     except ValueError:  # a NUL: a name, not a path
-        return DatasetDigest(None)
+        return _unhashed(None, None, None)
     except OSError as exc:  # present, but stat() fails
         _warn_unreadable(where, exc)
-        return DatasetDigest(None)
+        return _unhashed(None, None, None)
     if os.path.isdir(path):
         return _hash_directory(where, max_bytes, exclude)
-    return DatasetDigest(None)
+    return _unhashed(None, None, None)
 
 
 def _hash_file(where: str, max_bytes: int, *, sha512: bool) -> DatasetDigest:
     """The SHA-256 (with *sha512*, the SHA-512 too) of the regular file
     *where*, within *max_bytes*."""
     try:
-        if _file_size(where) > max_bytes:
-            _warn_over_ceiling("FILE", where, max_bytes)
-            return DatasetDigest("file")
-        if sha512:
-            digests = file_digests(where, max_bytes=max_bytes)
-            (hex_digest, hex_sha512), pointer = digests.stated(), digests.lfs_pointer
-        else:
-            read = sha256_read(where, max_bytes=max_bytes)
-            hex_digest, hex_sha512 = read.stated_sha256().hex(), None
-            pointer = read.lfs_pointer
-    except ReadBudgetExceeded:
-        _warn_over_ceiling("FILE", where, max_bytes)
-        return DatasetDigest("file")
+        size = _file_size(where)
     except OSError as exc:
-        if is_missing_errno(exc):  # gone since it was found
-            return DatasetDigest(None)
-        _warn_unreadable(where, exc)
-        return DatasetDigest("file")
+        return _unreadable_file(where, exc)
+    if size > max_bytes:
+        return _file_over_ceiling(where, max_bytes, size)
+    try:
+        (hex_digest, hex_sha512), pointer, read_size = _read_file(
+            where, max_bytes, sha512=sha512
+        )
+    except ReadBudgetExceeded:
+        return _file_over_ceiling(where, max_bytes, size)
+    except OSError as exc:
+        return _unreadable_file(where, exc)
     pointers = () if pointer is None else ((where, pointer),)
     return DatasetDigest(
-        "file", hex_digest, 1, hex_sha512=hex_sha512, lfs_pointers=pointers
+        "file",
+        hex_digest,
+        1,
+        hex_sha512=hex_sha512,
+        lfs_pointers=pointers,
+        size=read_size if pointer is None else None,
     )
+
+
+def _read_file(
+    where: str, max_bytes: int, *, sha512: bool
+) -> tuple[HexDigests, LfsPointer | None, int]:
+    """The stated digests of *where*
+    (:meth:`pitloom.core.file_hash.FileDigests.stated`), the Git LFS
+    pointer it is, and the bytes read.
+
+    Raises:
+        ReadBudgetExceeded: *where* holds more than *max_bytes*.
+        OSError: *where* could not be read.
+    """
+    if sha512:
+        digests = file_digests(where, max_bytes=max_bytes)
+        return digests.stated(), digests.lfs_pointer, digests.size
+    read = sha256_read(where, max_bytes=max_bytes)
+    return HexDigests(read.stated_sha256().hex()), read.lfs_pointer, read.size
+
+
+def _file_over_ceiling(where: str, max_bytes: int, size: int) -> DatasetDigest:
+    """The warning, and no hash, for the file *where* of ``stat()`` *size*
+    over *max_bytes* (or grown past it during the read). Below
+    :data:`~pitloom.core.lfs_pointer.LFS_POINTER_MAX_BYTES` it may be a
+    pointer, whose size is not the content's: no size."""
+    _warn_over_ceiling("FILE", where, max_bytes)
+    unread = None if size < LFS_POINTER_MAX_BYTES else size
+    return _unhashed("file", unread, _OVER_CAP)
+
+
+def _unreadable_file(where: str, exc: OSError) -> DatasetDigest:
+    """No hash for the file *where* that *exc* stopped: silently when it is
+    gone since it was found, else after the warning."""
+    if is_missing_errno(exc):
+        return _unhashed(None, None, None)
+    _warn_unreadable(where, exc)
+    return _unhashed("file", None, None)
 
 
 @dataclass
@@ -266,11 +348,11 @@ def _listed(top: str, exclude: Path | None) -> tuple[list[_Member] | None, bool]
 
 def _leaves(
     top: str, members: list[_Member], max_bytes: int
-) -> tuple[list[bytes], tuple[PointerAt, ...]] | None:
+) -> tuple[list[bytes], tuple[PointerAt, ...]] | _Failed:
     """The Merkle leaves of *members*, read within *max_bytes* in all, and
     the Git LFS pointers among them; a leaf binds a file's path to its
-    content (a pointer's ``oid``). ``None`` after the warning when a file
-    grew past what is left or cannot be read."""
+    content (a pointer's ``oid``). After the warning, why not: a file grew
+    past what is left (``"over-cap"``), or cannot be read (no code)."""
     leaves: list[bytes] = []
     pointers: list[PointerAt] = []
     spent = 0
@@ -279,10 +361,10 @@ def _leaves(
             read = sha256_read(member, max_bytes=max_bytes - spent)
         except ReadBudgetExceeded:
             _warn_over_ceiling("DIR", top, max_bytes)
-            return None
+            return _Failed(_OVER_CAP)
         except OSError as exc:
             _warn_unreadable(member, exc)
-            return None
+            return _Failed(None)
         spent += read.size
         if read.lfs_pointer is not None:
             pointers.append((member, read.lfs_pointer))
@@ -294,16 +376,22 @@ def _leaves(
 def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDigest:
     """The Merkle root of the directory *top*, within *max_bytes* in all."""
     members, excluded = _listed(top, exclude)
-    unhashed = DatasetDigest("dir", excluded=excluded)
+    # No directory size yet: a pointer below stats at its own size, so one
+    # sum would mix the pointer's bytes with the content's.
     if not members:
-        return unhashed
+        return _unhashed("dir", None, None, excluded=excluded)
     if sum(size for _, _, size in members) > max_bytes:
         _warn_over_ceiling("DIR", top, max_bytes)
-        return unhashed
+        return _unhashed("dir", None, _OVER_CAP, excluded=excluded)
     read = _leaves(top, members, max_bytes)
-    if read is None:
-        return unhashed
+    if isinstance(read, _Failed):
+        return _unhashed("dir", None, read.omitted, excluded=excluded)
     leaves, pointers = read
     return DatasetDigest(
-        "dir", merkle_root(leaves), len(leaves), excluded, lfs_pointers=pointers
+        "dir",
+        merkle_root(leaves),
+        len(leaves),
+        excluded,
+        lfs_pointers=pointers,
+        size=None,
     )

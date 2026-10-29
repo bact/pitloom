@@ -64,7 +64,7 @@ def test_a_pointer_file_hashes_to_its_oid(
     pointer = parse_lfs_pointer(data)
     assert pointer is not None
     assert hash_dataset(path, max_bytes=_BIG, sha512=sha512) == DatasetDigest(
-        "file", pointer.oid, 1, lfs_pointers=((str(path), pointer),)
+        "file", pointer.oid, 1, lfs_pointers=((str(path), pointer),), size=None
     )
 
 
