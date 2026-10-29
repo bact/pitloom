@@ -71,6 +71,7 @@ from pitloom._loom_dataset_meta import (
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest
 from pitloom.core.dataset_names import dataset_key, log_one_dataset
+from pitloom.core.evidence import record_fact, record_stated
 from pitloom.core.file_hash import FileDigests, HexDigests, file_digests
 from pitloom.core.lfs_pointer import LfsPointer, UnreadPointers
 from pitloom.core.models import build_relationship, generate_spdx_id
@@ -280,8 +281,12 @@ class LoomElements:
             package = detail.package
             evidence = detail.evidence
             provenance = {"package": detail.caller_info}
-            if evidence.hash_provenance is not None:
-                provenance[HASH_PROVENANCE_FIELD] = evidence.hash_provenance
+            record_fact(
+                provenance,
+                HASH_PROVENANCE_FIELD,
+                evidence.hash,
+                entry=evidence.hash_provenance,
+            )
             written: list[tuple[str, spdx3.Element]] = []
             meta = detail.sources.merged(str(package.name))
             if meta is not None:
@@ -291,8 +296,8 @@ class LoomElements:
                     doc,
                     preprocessing_declared=id(package) in self._preprocessing_declared,
                 )
-                provenance.update(stated)
-            # Last, so no stated value replaces the measured one.
+                record_stated(provenance, stated)
+            # After the statements, so a measured size replaces a stated one.
             record_size(package, provenance, evidence)
             emit_provenance(
                 subject=package,

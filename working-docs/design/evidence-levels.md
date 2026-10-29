@@ -21,8 +21,11 @@ Built so far: Git LFS pointers (#378), flags for both size ceilings (#381),
 the dataset-size unit fix (#382); the `evidence_segment` helper, `minimal`
 keeping an entry with `Evidence:`, and the merge drop of a superseded
 `not_measured` entry with the comment-join fix it needs (#386); and step 1,
-sizes under a cap for a single-file dataset (#387). Everything else below is
-unbuilt.
+sizes under a cap for a single-file dataset (#387); and step 2's value type
+(`Fact`, `count_fact`, `record_fact`, `record_stated` in `core/evidence.py`;
+the loom dataset digest's hash and size moved onto it, output unchanged; a
+source's statement no longer replaces loom's own entry, Risk 7). Everything
+else below is unbuilt.
 
 ## Principle
 
@@ -191,7 +194,7 @@ count is no longer read (no SPDX 3.0.1 property; FG-12). A byte size from
    `hash_provenance` slot. Directories wait: pointer files in them stat at about
    130 bytes, so one sum would mix levels, and the walk budget is undecided.
 2. **The value type and the helper** (`core/evidence.py`; the helper is built,
-   #386, the value type is not), then models, the Hub and unreadable files;
+   #386, and so is the value type), then models, the Hub and unreadable files;
    hashes move onto it.
 3. **The catalogue codes** in the provenance, once `lfs-pointer` and `over-cap`
    exist.
