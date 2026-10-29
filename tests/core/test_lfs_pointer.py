@@ -13,6 +13,7 @@ tests/extract/ai_model/test_ai_model_header.py (the model gate).
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -251,6 +252,40 @@ def test_read_lfs_pointer_reads_at_most_the_cut_off(
     assert read_lfs_pointer(path) == expected
     assert sum(got for _, got in reads) == most
     assert all(0 <= asked <= LFS_POINTER_MAX_BYTES for asked, _ in reads)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="no named pipes")
+def test_read_lfs_pointer_refuses_a_named_pipe_holding_a_pointer(
+    tmp_path: Path,
+) -> None:
+    """A FIFO is not a regular file: refused once open, even when a writer
+    has already put a whole pointer in it (the open never waits for one)."""
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+    # O_RDWR opens a FIFO without blocking and keeps the data readable.
+    held = os.open(fifo, os.O_RDWR)
+    try:
+        os.write(held, _HELLO_BYTES)
+        assert read_lfs_pointer(fifo) is None
+    finally:
+        os.close(held)
+
+
+@pytest.mark.parametrize(
+    ("size", "limit", "wanted"),
+    [(10, LFS_POINTER_MAX_BYTES, 10), (3000, LFS_POINTER_MAX_BYTES, 1024)],
+    ids=["shorter-than-the-limit", "longer-than-the-limit"],
+)
+def test_read_at_most_stops_at_the_end_or_at_the_limit(
+    tmp_path: Path, size: int, limit: int, wanted: int
+) -> None:
+    """A file shorter than its stated size ends the loop at the empty read;
+    a longer one at the limit."""
+    path = tmp_path / "f"
+    path.write_bytes(b"x" * size)
+    with path.open("rb", buffering=0) as handle:
+        # pylint: disable-next=protected-access
+        assert len(lfs_pointer._read_at_most(handle, limit)) == wanted
 
 
 def test_read_lfs_pointer_raises_when_it_cannot_open(tmp_path: Path) -> None:

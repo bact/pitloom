@@ -53,3 +53,20 @@ def test_the_refusal_states_the_size_in_the_singular_for_one(
     path.write_bytes(lfs_pointer_bytes(content))
     with pytest.raises(ValueError, match=rf"size {said}\)"):
         generate_model_sbom(path)
+
+
+def test_a_pointer_that_cannot_be_read_again_keeps_the_plain_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The refusal is said before the pointer is re-read for its ``oid``; a
+    read that then fails still refuses, without the ``oid`` and size."""
+    path = tmp_path / "model.gguf"
+    path.write_bytes(lfs_pointer_bytes(b"weights"))
+
+    def unreadable(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(_model_generator, "read_lfs_pointer", unreadable)
+    with pytest.raises(ValueError, match="header is a Git LFS pointer") as caught:
+        generate_model_sbom(path)
+    assert "content not pulled" not in str(caught.value)
