@@ -340,10 +340,15 @@ unless the linked doc says so.
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
-  (decided 2026-10-29): 0.22.0: catalogue in code, grammar ratchet, better
-  message language, skill bodies to 16 KB / 400 lines (inventory queued after
-  #378); 0.23.0: `--report` JSON Lines, SARIF, resolver detail. See
+  (decided 2026-10-29; inventory done): 0.22.0: catalogue in code, grammar
+  ratchet, better message language, skill bodies to 16 KB / 400 lines, first
+  family `lfs-pointer`; 0.23.0: `--report` JSON Lines, SARIF, resolver detail. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
+- [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
+  reading, never reporting; a size, hash or property is recorded as measured,
+  declared (with its source), a lower bound, or not measured (with the reason).
+  First step: sizes under a cap. See
+  [evidence-levels.md](evidence-levels.md).
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete about 250
   lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan: see
   [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
