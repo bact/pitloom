@@ -6,7 +6,7 @@
 random temporary directory it was cloned into: two runs print the same text,
 while a local project directory keeps its real path.
 
-See also: tests/test_checkout_mask.py (the masking itself).
+See also: tests/core/test_url_masking.py (the masking itself).
 """
 
 from __future__ import annotations

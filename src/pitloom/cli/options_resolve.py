@@ -39,12 +39,13 @@ from pitloom.core.creation import (
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
     sdist_config_source,
 )
-from pitloom.logging_config import print_error, sanitize_url
+from pitloom.logging_config import print_error
 
 #: An ``http(s):`` URL a path normalisation turned into a path (``https:/h``,
 #: ``https:\\h`` on Windows).

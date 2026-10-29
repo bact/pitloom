@@ -10,7 +10,6 @@ from __future__ import annotations
 import io
 import os
 import threading
-import time
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -26,71 +25,11 @@ from pitloom.extract._extract_utils import (
     filename_from_url,
     json_nests_over,
 )
-from pitloom.logging_config import Cap, sanitize_url, sanitize_url_credentials
+from pitloom.logging_config import Cap
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("https://h/r?private_token=S&h=main", "https://h/r?private_token=***&h=main"),
-        ("https://h/r?a=1&Access_Token=S#f", "https://h/r?a=1&Access_Token=***#f"),
-        ("https://h/r#access_token=S", "https://h/r#access_token=***"),
-        (
-            "https://h/r?to%6Ben=S&db-password=P",
-            "https://h/r?to%6Ben=***&db-password=***",
-        ),
-        # Names that only contain a secret word, and text that is no URL.
-        ("https://h/r?author=1&monkey=2&design=3&tokenizer=4", None),
-        ("https://h/r?id=abc&path=/key", None),
-        ("pkg &key=value ;keyboard=1", None),
-    ],
-    ids=[
-        "private",
-        "mixed-case",
-        "fragment",
-        "encoded-name",
-        "lookalikes",
-        "plain",
-        "no-url",
-    ],
-)
-def test_a_secret_named_query_value_is_redacted(
-    text: str, expected: str | None
-) -> None:
-    """The name is matched whole (or by its ending), not as a substring, and
-    only inside a URL."""
-    assert sanitize_url_credentials(text) == (expected or text)
-
-
-def test_the_query_secret_match_is_linear() -> None:
-    """A server's stderr is sanitised after git exits, so its time is not
-    bounded by the git timeout: a 400 KB name must not take quadratic time."""
-    start = time.monotonic()
-    sanitize_url_credentials("https://h/?" + "token" * 80_000)
-    assert time.monotonic() - start < 5
-
-
-def test_sanitize_url_credentials_redacts_user_and_password() -> None:
-    assert (
-        sanitize_url_credentials("https://user:password123@example.com/repo.git")
-        == "https://***:***@example.com/repo.git"
-    )
-    assert (
-        sanitize_url_credentials("git+ssh://token@gitlab.com/repo.git")
-        == "git+ssh://***:***@gitlab.com/repo.git"
-    )
-    assert (
-        sanitize_url_credentials("Error fetching https://token:secret@pypi.org/simple")
-        == "Error fetching https://***:***@pypi.org/simple"
-    )
-    assert (
-        sanitize_url_credentials("https://example.com/plain/url")
-        == "https://example.com/plain/url"
-    )
 
 
 def test_filename_from_url_extracts_basename() -> None:
@@ -115,38 +54,6 @@ def test_filename_from_url_windows_path() -> None:
     )
     assert filename_from_url("https://example.com/a\\b\\pkg-1.0.whl") == "pkg-1.0.whl"
     assert filename_from_url("https://example.com/dir\\") is None
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("https://u:p@ss@h/x", "https://***:***@h/x"),
-        ("https://u:p@ss@h", "https://***:***@h"),
-        ("https://:pw@h/x", "https://***:***@h/x"),
-        (
-            "see https://u:a@b@h/p and mail me@x.org",
-            "see https://***:***@h/p and mail me@x.org",
-        ),
-        ("https://h/p@q?x=a@b#f@g", "https://h/p@q?x=a@b#f@g"),
-        ("https://h:8080/x", "https://h:8080/x"),
-        ("https://u:p?ss@h/", "https://***:***@h/"),
-        ("https://u:p#ss@h/", "https://***:***@h/"),
-    ],
-    ids=[
-        "at-in-password",
-        "no-path",
-        "empty-user",
-        "text-around",
-        "at-after-path",
-        "port",
-        "question-mark-in-password",
-        "hash-in-password",
-    ],
-)
-def test_sanitize_url_credentials_masks_up_to_the_last_at_of_the_authority(
-    text: str, expected: str
-) -> None:
-    assert sanitize_url_credentials(text) == expected
 
 
 def test_fetch_json_local_file(tmp_path: Path) -> None:
@@ -358,14 +265,3 @@ def test_quote_source_escapes_only_what_would_break_a_line(
 ) -> None:
     """Control characters and lone surrogates are escaped; text is not."""
     assert quote_source(source) == expected
-
-
-@pytest.mark.parametrize(
-    "path",
-    [r"D:\a\https:\user:SECRET@huggingface.co\o\m", "/cwd/https:/user:SECRET@h/o/m"],
-    ids=["windows", "posix"],
-)
-def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) -> None:
-    """``https://u:p@h`` becomes ``https:/u:p@h`` (POSIX) or ``https:\\u:p@h``
-    (Windows) when it is read as a path."""
-    assert "SECRET" not in sanitize_url(path)

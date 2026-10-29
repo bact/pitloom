@@ -32,6 +32,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.url_masking import (
+    CHECKOUT_DIR_PREFIX,
+    sanitize_url,
+    sanitize_url_credentials,
+)
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
     checkout_has_file,
@@ -47,12 +52,7 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
-from pitloom.logging_config import (
-    CHECKOUT_DIR_PREFIX,
-    loggable,
-    sanitize_url,
-    sanitize_url_credentials,
-)
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
