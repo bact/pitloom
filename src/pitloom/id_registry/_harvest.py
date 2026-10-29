@@ -21,16 +21,17 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.export.hashes import sha256_of
 from pitloom.id_registry._ambiguous import (
     MODEL_NOT_RECORDED_INFO,
     DerivedKeys,
     KeptPairs,
+    RecordedHashes,
     RecordedKeys,
     WrittenKey,
     _ambiguous_keys,
     _written_key,
     ambiguous_keys_message,
+    harvest_sha256,
     unique_file_keys,
 )
 from pitloom.id_registry._types import (
@@ -234,7 +235,10 @@ class _Pass:
 
 
 def _model_file_keys(
-    registry: IdRegistry, objects: list[Any], keys: RecordedKeys | None
+    registry: IdRegistry,
+    objects: list[Any],
+    keys: RecordedKeys | None,
+    hashes: RecordedHashes | None = None,
 ) -> tuple[list[Any], RecordedKeys | None]:
     """A run's *objects* and *keys*, each hashed ``ai_AIPackage`` with no
     recorded key (a merged fragment's model) keyed by the one file of
@@ -242,13 +246,14 @@ def _model_file_keys(
     (:func:`~pitloom.id_registry._ambiguous.unique_file_keys`), a derived
     key; with none, it is left out: its id reserved, one
     :data:`~pitloom.id_registry._ambiguous.MODEL_NOT_RECORDED_INFO`. Never
-    its name: a pathful model's name entry would outlive a retrain."""
-    files = unique_file_keys(objects, keys)
+    its name: a pathful model's name entry would outlive a retrain. Hashes
+    are read with *hashes* (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`)."""
+    files = unique_file_keys(objects, keys, hashes)
     derived: dict[str, tuple[str, str]] = {}
     passed = []
     for obj in objects:
         written = _written_key(obj, keys)
-        sha = sha256_of(obj)
+        sha = harvest_sha256(obj, hashes)
         if written is None or written.recorded or written.key[0] != AI_PACKAGE_TYPE:
             passed.append(obj)
         elif sha is None:
@@ -266,20 +271,23 @@ def _model_file_keys(
 
 
 def _stale(
-    objects: list[Any], keys: RecordedKeys | None
+    objects: list[Any],
+    keys: RecordedKeys | None,
+    hashes: RecordedHashes | None = None,
 ) -> dict[str, tuple[tuple[str, str], str]]:
     """spdxId -> (written key, the other element's id) of each hashed
     :data:`_GATED_TYPES` element with no recorded key whose key an element
     with a recorded key and another SHA-256 is written under: the run's
     own lookup is the current content, so the other is never written and
-    blocks nothing."""
+    blocks nothing. Hashes are read with *hashes*
+    (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`)."""
     current: dict[tuple[str, str], tuple[str | None, str]] = {}
     unrecorded = []
     for obj in objects:
         written = _written_key(obj, keys)
         if written is None or written.key[0] not in _GATED_TYPES:
             continue
-        sha = sha256_of(obj)
+        sha = harvest_sha256(obj, hashes)
         if written.recorded:
             current.setdefault(written.key, (sha, str(obj.spdxId)))
         elif sha is not None:
@@ -297,6 +305,7 @@ def _harvest_elements(
     *,
     imported: bool,
     keys: RecordedKeys | None = None,
+    hashes: RecordedHashes | None = None,
 ) -> frozenset[tuple[str, str]]:
     """Harvest every element of *sorted_objects* into *registry*, leaving
     each :func:`~pitloom.id_registry._ambiguous._ambiguous_keys` key
@@ -306,6 +315,10 @@ def _harvest_elements(
     which first keys its fragment models (:func:`_model_file_keys`).
     *keys*: the keys the run's lookups recorded, or (``id import``) the
     ones :func:`~pitloom.id_registry.import_keys.import_keys` derived.
+    *hashes*: the SHA-256 a run's lookups gated a file on where it is not
+    the one its element states (a Git LFS pointer's ``oid``), read by every
+    reader through :func:`~pitloom.id_registry._ambiguous.harvest_sha256`;
+    ``id import`` passes none (it records what the SBOM states).
 
     Returns the skipped (ambiguous) keys, logged in one DEBUG record. A
     run's auto-harvest passes no element that never looked the registry up
@@ -313,8 +326,8 @@ def _harvest_elements(
     """
     objects = list(sorted_objects)
     if not imported:
-        objects, keys = _model_file_keys(registry, objects, keys)
-    stale = _stale(objects, keys)
+        objects, keys = _model_file_keys(registry, objects, keys, hashes)
+    stale = _stale(objects, keys, hashes)
     state = _Pass.of(registry, objects, keys, {(i, k) for i, (k, _) in stale.items()})
     if state.ambiguous:
         log.debug("%s", ambiguous_keys_message("not harvested", state.ambiguous))
@@ -325,7 +338,9 @@ def _harvest_elements(
             key, current = stale[spdx_id]
             log.info("%s", content_gate_message(key, spdx_id, current, older=True))
             continue
-        _import_sbom_element(registry, obj, state, imported=imported, keys=keys)
+        _import_sbom_element(
+            registry, obj, state, imported=imported, keys=keys, hashes=hashes
+        )
     return state.ambiguous
 
 
@@ -381,11 +396,15 @@ def _stale_over(
     )
 
 
-def _own_sha256(obj: Any, type_name: str, *, imported: bool) -> str | None:
-    """The SHA-256 of *obj* harvest records: for a :data:`_GATED_TYPES`
-    element, and on ``id import`` for a dataset package too; else none."""
+def _own_sha256(
+    obj: Any, type_name: str, *, imported: bool, hashes: RecordedHashes | None
+) -> str | None:
+    """The SHA-256 of *obj* harvest records
+    (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`, with *hashes*):
+    for a :data:`_GATED_TYPES` element, and on ``id import`` for a dataset
+    package too; else none."""
     types = _HASH_KEPT_TYPES if imported else _GATED_TYPES
-    return sha256_of(obj) if type_name in types else None
+    return harvest_sha256(obj, hashes) if type_name in types else None
 
 
 def _import_sbom_element(
@@ -395,6 +414,7 @@ def _import_sbom_element(
     *,
     imported: bool = False,
     keys: RecordedKeys | None = None,
+    hashes: RecordedHashes | None = None,
 ) -> None:
     """Harvest a single deserialized SBOM element into *registry*.
 
@@ -403,7 +423,8 @@ def _import_sbom_element(
     it (its run's lookup recorded it, or ``id import`` derived it), else
     its type and name (:func:`~pitloom.id_registry._ambiguous._written_key`).
     A :data:`_GATED_TYPES` entry gets the element's SHA-256
-    (:func:`~pitloom.export.hashes.sha256_of`), or none, and so does an
+    (:func:`~pitloom.id_registry._ambiguous.harvest_sha256`: *hashes*'s
+    for a file whose run recorded one), or none, and so does an
     imported dataset package; any other type never gets one of its own.
     The element's own ``.name`` is untouched; only the key is
     canonicalised.
@@ -454,7 +475,7 @@ def _import_sbom_element(
     if (held := state.kept.get((spdx_id, key))) is not None:
         _log_r_kept(written, held, imported=imported)
         return
-    sha256 = _own_sha256(obj, key[0], imported=imported)
+    sha256 = _own_sha256(obj, key[0], imported=imported, hashes=hashes)
     existing = registry.elements.get(key)
     if _stale_over(existing, sha256, written, imported=imported):
         log.info("%s", content_gate_message(key, spdx_id, existing.spdx_id, older=True))

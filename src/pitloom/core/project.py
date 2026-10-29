@@ -123,16 +123,15 @@ class ProjectFile:
             return None
         return HexDigests(self.digest_sha256, self.digest_sha512)
 
-    def registry_hashes(self) -> tuple[str, ...]:
-        """The SHA-256 values an ID registry entry for this file may record,
-        the recorded ``digest_sha256`` first: for a Git LFS pointer kept as
-        its bytes (an archive, the hook), also its ``oid``, which
-        ``id generate`` records for a checkout. Empty when not hashed."""
-        if self.digest_sha256 is None:
-            return ()
-        if self.lfs_pointer is None or self.lfs_pointer.oid == self.digest_sha256:
-            return (self.digest_sha256,)
-        return (self.digest_sha256, self.lfs_pointer.oid)
+    def registry_sha256(self) -> str | None:
+        """The SHA-256 an ID registry entry for this file records, and every
+        lookup of it gates on: for a Git LFS pointer its ``oid`` on every
+        route, whatever ``digest_sha256`` the SBOM states (an archive or the
+        hook states the pointer text's), so the routes share one entry;
+        else ``digest_sha256`` (``None``: not hashed)."""
+        if self.lfs_pointer is not None:
+            return self.lfs_pointer.oid
+        return self.digest_sha256
 
 
 class DigestFields(TypedDict):

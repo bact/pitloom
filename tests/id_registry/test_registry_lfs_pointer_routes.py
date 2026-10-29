@@ -130,29 +130,31 @@ def test_a_checkout_registry_is_hit_by_the_routes_keeping_the_text(
 
 @pytest.mark.parametrize("route", _ROUTES)
 @pytest.mark.parametrize(
-    ("kind", "recorded", "hits"),
+    ("kind", "recorded"),
     [
-        ("pointer", _TEXT_SHA, True),  # an earlier run's own hash
-        ("pointer", _OTHER_SHA, False),  # the gate stays
-        ("look-alike", _OTHER_SHA, False),
+        ("pointer", _TEXT_SHA),  # the text's digest is no registry hash
+        ("pointer", _OTHER_SHA),  # the gate stays
+        ("look-alike", _OTHER_SHA),
     ],
     ids=["text-digest", "pointer-other-hash", "look-alike-other-hash"],
 )
-def test_the_hash_gate_accepts_the_text_or_the_oid_only(
+def test_an_entry_of_another_hash_misses(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     route: str,
     kind: str,
     recorded: str,
-    hits: bool,
 ) -> None:
+    """A pointer is gated by its ``oid`` alone, never by the digest of its
+    text that the route states (a registry written by an earlier build
+    misses once)."""
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     tree = _TREES[kind]
     root, held = _checkout_registry(tmp_path, tree)
     _rekey(root, "demo/data.bin", recorded)
     ids = _ids(_ROUTES[route](root, tmp_path, tree))
     assert ids["demo/__init__.py"] == held["demo/__init__.py"].spdx_id
-    assert (ids["demo/data.bin"] == held["demo/data.bin"].spdx_id) is hits
+    assert ids["demo/data.bin"] != held["demo/data.bin"].spdx_id
 
 
 def test_pointers_of_one_oid_at_two_paths_keep_two_ids(

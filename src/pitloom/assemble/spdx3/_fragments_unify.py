@@ -202,6 +202,9 @@ class _MergeIndex:
         keys = self.exporter.registry_keys
         if old_id in keys:
             keys.setdefault(new_id, keys.pop(old_id))
+        hashes = self.exporter.registry_hashes
+        if old_id in hashes:
+            hashes.setdefault(new_id, hashes.pop(old_id))
         return old_id
 
     def find_by_id(self, spdx_id: str) -> spdx3.SHACLObject | None:

@@ -54,12 +54,17 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
   the `oid` (`_loom_dataset.py`, `_loom_dataset_keys.py`, `_loom_model.py`,
   `core/dataset_hash.py`); a directory's Merkle leaf is the `oid`. The
   dataset-hash ceiling counts real on-disk bytes, never a stated size.
-- **ID registry.** A checkout pointer is keyed by its `oid`
-  (`id_registry.sha256_file` is the stated digest); an archive or hook SBOM
-  states the digest of the pointer text. The file lookup accepts either, the
-  stated one first (`ProjectFile.registry_hashes`), so a registry made by
-  `id generate` on the checkout is hit by every route. `id import` and
-  `id generate` record SHA-256 only.
+- **ID registry: the `oid` on every route.** `ProjectFile.registry_sha256`
+  is the `oid` for a pointer (else `digest_sha256`); the file lookup gates on
+  it once (layout alias included), whatever the SBOM states. Harvest learns
+  it from the `ProjectFile`, not the SBOM: `FileHits.record` passes it to
+  `IdRegistrySession.record_key(sha256=)`, then
+  `exporter.registry_hashes` (spdxId -> `oid`, pointer files only) reaches
+  `IdRegistry.harvest(hashes=)`. Its three readers (`_own_sha256`,
+  `_stale`, `unique_file_keys`) and `_model_file_keys` read through one
+  helper, `_ambiguous.harvest_sha256`, so they cannot disagree. `id
+  generate` and `-e` store the `oid` (`sha256_file`); a loom `path=` looks
+  up the `oid`. `id import` records what the SBOM states.
 
 ## Decisions
 
@@ -73,6 +78,15 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 - The hook keeps the pointer text as the Merkle leaf (`bytes_as_is`: it
   matches the wheel's `RECORD`); `loom project` takes the `oid`. So the two
   document ids differ for a project with pointers; file ids do not.
+- Registry hash (R1-lite). First built as "the stated hash, else the `oid`"
+  (`registry_hashes`, two lookups): the hit was found, but each run's
+  harvest then wrote its own SBOM's hash, so alternating checkout and wheel
+  runs flipped the entry between the `oid` and the text's digest, and an
+  `id generate` after a wheel run minted (`content changed`). Replaced by
+  one registry hash, the `oid`, on every route; the SBOM's stated hash is
+  unchanged. Rejected: stating the `oid` in archive SBOMs (breaks `RECORD`
+  agreement) and union lookups (two answers for one key). No migration
+  (alpha): an entry holding the text's digest misses once.
 - No fetching: it would contact a second server the Git URL guard does not
   cover. A future `--allow-lfs-fetch` could reuse the clone cap.
 - A stated size is never used to read or allocate. The pointer file is read
@@ -89,6 +103,10 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 - The hook's and `loom project`'s package Merkle root (so document id)
   differ for a project with pointers.
 - The ceilings and the clone cap have no flag yet; see known-bugs.
+- `id import` of a wheel or sdist SBOM records the text's digest, so the
+  next run misses once for each pointer. A merged loom fragment's element of
+  a pointer (it states the `oid`) does not unify with the hook's or a wheel's
+  (the text's digest). Both in known-bugs.
 
 ## Lessons and traps
 
@@ -107,6 +125,11 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 `test_document_files_lfs.py`, `test_model_lfs_pointer_named.py`,
 `test_model_generator_lfs_pointer.py`,
 `tests/id_registry/test_registry_lfs_pointer.py`,
+`test_registry_lfs_pointer_routes.py`, `test_registry_lfs_pointer_order.py`
+(the route-and-order matrix: one id and the `oid` held after any sequence,
+no rewrite on alternation, files alike by bytes, look-alikes),
+`test_registry_lfs_pointer_harvest.py` (the harvest readers agree; a project
+without pointers is byte-identical to the stated-hash rule),
 `tests/core/models_wheel/test_models_wheel_lfs_pointer.py`,
 `tests/extract/project/test_hatch_hook_lfs_pointer.py`; per surface (CLI,
 library, hook, Action): `tests/test_lfs_pointer_surfaces.py` and

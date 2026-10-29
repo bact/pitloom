@@ -32,10 +32,10 @@ def _files(root: Path, *, bytes_as_is: bool = False) -> dict[str, ProjectFile]:
 
 
 def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -> None:
-    """One rule: the helper, the registry's hash, ``digest_fields`` and a
-    directory scan agree on every file of the tree; a hook or build scan
-    (``bytes_as_is``) keeps the pointer text's digest but still reports the
-    ``oid`` as its stated one."""
+    """One rule: the helper, ``id generate``'s hash, ``digest_fields``, a
+    directory scan and every route's registry hash agree on every file of
+    the tree; a hook or build scan (``bytes_as_is``) keeps the pointer
+    text's digest but its registry hash is still the ``oid``."""
     contents, stated_pointers = tree(), pointers()
     root = write_project(tmp_path, contents)
     checkout, as_is = _files(root), _files(root, bytes_as_is=True)
@@ -45,8 +45,8 @@ def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -
         assert sha256_file(path) == stated
         assert digest_fields(file_digests(path))["digest_sha256"] == stated
         assert checkout[name].digest_sha256 == stated
-        archived = as_is[name].lfs_pointer
-        assert (archived.oid if archived else as_is[name].digest_sha256) == stated
+        assert checkout[name].registry_sha256() == stated
+        assert as_is[name].registry_sha256() == stated
         if name in stated_pointers:
             assert stated == stated_pointers[name].oid
             # Non-vacuous: the raw digest and the archive record differ.
@@ -54,6 +54,10 @@ def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -
             assert as_is[name].digest_sha256 == sha256_digest(path).hex()
         else:
             assert stated == sha256_digest(path).hex()
+
+
+def test_an_unhashed_file_has_no_registry_hash() -> None:
+    assert ProjectFile("demo/a.bin", "demo/a.bin").registry_sha256() is None
 
 
 def test_a_pulled_file_states_the_pointers_sha256(tmp_path: Path) -> None:

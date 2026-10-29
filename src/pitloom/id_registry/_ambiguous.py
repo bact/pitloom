@@ -24,6 +24,7 @@ __all__ = [
     "NO_UNIQUE_FILE",
     "DerivedKeys",
     "KeptPairs",
+    "RecordedHashes",
     "RecordedKeys",
     "WrittenKey",
     "_ambiguous_keys",
@@ -31,6 +32,7 @@ __all__ = [
     "_element_key_of",
     "_written_key",
     "ambiguous_keys_message",
+    "harvest_sha256",
     "unique_file_keys",
 ]
 
@@ -44,6 +46,10 @@ MODEL_NOT_RECORDED_INFO = f"ID registry: model %s not recorded: {NO_UNIQUE_FILE}
 #: spdxId -> (compact type, raw key) a run's lookups recorded for it
 #: (:meth:`~pitloom.id_registry.IdRegistrySession.recorded_keys`).
 RecordedKeys = Mapping[str, tuple[str, str]]
+#: spdxId -> the SHA-256 a run's harvest records for a file in place of the
+#: one its element states: a Git LFS pointer's ``oid``
+#: (:meth:`~pitloom.id_registry.IdRegistrySession.recorded_hashes`).
+RecordedHashes = Mapping[str, str]
 #: (spdxId, written key) pairs of elements harvest never writes (R-keep).
 KeptPairs = AbstractSet[tuple[str, tuple[str, str]]]
 
@@ -113,16 +119,32 @@ def _written_key(obj: Any, keys: RecordedKeys | None) -> WrittenKey | None:
     )
 
 
+def harvest_sha256(obj: Any, hashes: RecordedHashes | None) -> str | None:
+    """The SHA-256 harvest reads for *obj*: a ``software_File``'s entry in
+    *hashes* (its run recorded one: a Git LFS pointer's ``oid``), else the
+    one *obj* states (:func:`~pitloom.export.hashes.sha256_of`). Every
+    harvest reader of an element's hash goes through here, so they agree."""
+    if hashes and _compact_type_of(obj) == FILE_TYPE:
+        recorded = hashes.get(str(getattr(obj, "spdxId", None)))
+        if recorded is not None:
+            return recorded
+    return sha256_of(obj)
+
+
 def unique_file_keys(
-    objects: Iterable[Any], keys: RecordedKeys | None
+    objects: Iterable[Any],
+    keys: RecordedKeys | None,
+    hashes: RecordedHashes | None = None,
 ) -> dict[str, str]:
-    """SHA-256 -> the :func:`_written_key` (with *keys*) of the one
-    ``software_File`` of *objects* holding it, for each SHA-256 exactly one
-    file holds: the key a model of those bytes is written under."""
+    """SHA-256 (:func:`harvest_sha256`, with *hashes*) -> the
+    :func:`_written_key` (with *keys*) of the one ``software_File`` of
+    *objects* holding it, for each SHA-256 exactly one file holds: the key
+    a model of those bytes is written under."""
     files = [
         (sha, _written_key(obj, keys))
         for obj in objects
-        if _compact_type_of(obj) == FILE_TYPE and (sha := sha256_of(obj)) is not None
+        if _compact_type_of(obj) == FILE_TYPE
+        and (sha := harvest_sha256(obj, hashes)) is not None
     ]
     counts = Counter(sha for sha, _ in files)
     return {

@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A Git LFS pointer in the ID registry: the registry hash of a checkout's
-pointer is its ``oid`` (what the SBOM states), so a file keeps its id
-through ``git lfs pull``, ``id generate``, a run and ``id import`` alike; an
-archive's pointer is keyed by the text's own digest, as its SBOM states it.
+"""A Git LFS pointer in the ID registry: the registry hash of a pointer is
+its ``oid`` on every route, so a file keeps its id through ``git lfs
+pull``, ``id generate``, a run and ``id import`` alike, though an archive's
+SBOM states the pointer text's own digest.
 
 See also: tests/test_lfs_pointer_surfaces.py (the routes' digests),
 tests/core/test_file_hash.py (the stated-digest reader).
@@ -136,12 +136,12 @@ def test_a_model_suffixed_pointer_is_a_file_entry_only(
     assert registry.get(AI_PACKAGE_TYPE, f"demo/m{suffix}") is None
 
 
-def test_an_archive_pointer_is_keyed_by_its_text_and_reuses_its_id(
+def test_an_archive_pointer_is_keyed_by_its_oid_and_reuses_its_id(
     tmp_path: Path,
 ) -> None:
     """An archive's SBOM states the pointer text's digest (it matches the
-    wheel's RECORD), so the registry holds that, not the ``oid``, and a
-    second run hits it."""
+    wheel's RECORD), but the registry holds the ``oid``, and a second run
+    hits it."""
     wheel = write_model_wheel(
         tmp_path / "dist", {"demo/__init__.py": _INIT, _KEY: _POINTER}
     )
@@ -150,6 +150,6 @@ def test_an_archive_pointer_is_keyed_by_its_text_and_reuses_its_id(
     runs = [generate_wheel_sbom(wheel, id_registry=path) for _ in range(2)]
     ids = [_sbom_file(sbom, _KEY)["spdxId"] for sbom in runs]
     assert ids[0] == ids[1] == _held(IdRegistry.load(path))[0]
-    assert (
-        _held(IdRegistry.load(path))[1] == hashlib.sha256(_POINTER).hexdigest() != _OID
-    )
+    assert _held(IdRegistry.load(path))[1] == _OID
+    stated = hashlib.sha256(_POINTER).hexdigest()
+    assert all(f'"{stated}"' in sbom and _OID not in sbom for sbom in runs)

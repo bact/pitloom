@@ -375,6 +375,27 @@ From the 0.21.0 release review. Open:
 
 From the Git LFS pointer work. Open:
 
+- [x] **A pointer's registry entry flipped between routes (M), fixed in
+  #378.** Each harvest wrote its SBOM's hash, the `oid` (checkout) or the
+  pointer text's digest (wheel, sdist, `--allow-build`), so alternating runs
+  rewrote the entry and `id generate` after a wheel run minted. Now the
+  registry holds the `oid` on every route and every lookup uses it.
+- [ ] **`id import` of a wheel or sdist SBOM holds the text's digest (S,
+  decided: kept).** `id import` records what an SBOM states; the next run
+  misses once for each pointer (a new id), then holds.
+- [ ] **A loom fragment's pointer does not unify with the hook's or a
+  wheel's (S-M).** The fragment's element states the `oid`, the archive's
+  the text's digest: a merge keeps two elements for one path, and harvest
+  leaves that key as it is.
+- [ ] **A loom dataset package over a pointer differs from the main
+  document's (S).** Its Merkle root takes the `oid`; the hook's package root
+  takes the text's digest.
+- [ ] **The `Tool`/`SoftwareAgent` "Pitloom" registry entries churn (S).**
+  Their id's document-uuid part flips on each project-then-wheel
+  alternation, so the registry is rewritten each run (not pointer-specific;
+  tracked in
+  [id-registry-followups.md](id-registry-followups.md#harvest-rewrites-per-document-entities-env-root-is-never-looked-up),
+  allow-listed in the order checks).
 - [ ] **The model-cap and dataset-hash ceilings have no flag (S-M, decided).**
   `max-source-metadata-bytes` has a flag, a key, a kwarg and an Action input;
   `max-model-extract-bytes` and the dataset-hash ceiling have the key only.
@@ -394,6 +415,6 @@ From the Git LFS pointer work. Open:
 - [ ] **The hook's and `loom project`'s document ids differ for a project
   with Git LFS pointers (S, decided: kept).** The Merkle leaf of a pointer is
   the pointer text's digest in the hook (it matches `RECORD`) and the `oid` in
-  `loom project`; file ids are shared (the registry accepts either hash).
+  `loom project`; file ids are shared (the registry holds the `oid`).
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.

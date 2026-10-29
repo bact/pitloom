@@ -363,6 +363,11 @@ class Spdx3JsonExporter:
         #: auto-harvest writes each element under its id's key here, else
         #: under its name. Empty when no registry applies.
         self.registry_keys: dict[str, tuple[str, str]] = {}
+        #: spdxId -> the SHA-256 run auto-harvest records for it in place
+        #: of the one its element states (a Git LFS pointer's ``oid``:
+        #: ``IdRegistrySession.recorded_hashes``). Empty when no registry
+        #: applies.
+        self.registry_hashes: dict[str, str] = {}
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.

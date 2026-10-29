@@ -214,6 +214,7 @@ def _with_recorded_keys(
     (:meth:`~pitloom.id_registry.IdRegistrySession.info_layout_alias_hits`)."""
     session.info_layout_alias_hits()
     exporter.registry_keys.update(session.recorded_keys())
+    exporter.registry_hashes.update(session.recorded_hashes())
     return exporter
 
 
