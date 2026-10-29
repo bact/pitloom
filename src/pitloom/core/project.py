@@ -153,15 +153,11 @@ def digest_fields(digests: FileDigests, *, bytes_as_is: bool = False) -> DigestF
     own digests stay (they match the wheel's ``RECORD``). Either way
     ``lfs_pointer`` says what the pointer states.
     """
-    pointer = digests.lfs_pointer
-    if pointer is not None and not bytes_as_is:
-        return DigestFields(
-            digest_sha256=pointer.oid, digest_sha512=None, lfs_pointer=pointer
-        )
+    recorded = digests.hex() if bytes_as_is else digests.stated()
     return DigestFields(
-        digest_sha256=digests.sha256.hex(),
-        digest_sha512=digests.sha512.hex(),
-        lfs_pointer=pointer,
+        digest_sha256=recorded.sha256,
+        digest_sha512=recorded.sha512,
+        lfs_pointer=digests.lfs_pointer,
     )
 
 

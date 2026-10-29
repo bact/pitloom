@@ -26,7 +26,7 @@ import pytest
 
 from pitloom.core import dataset_hash, walk_rules
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
-from pitloom.core.file_hash import sha256_digest_and_size
+from pitloom.core.file_hash import Sha256Read, sha256_read
 from pitloom.core.models import merkle_root
 from tests._symlink import CAN_SYMLINK
 from tests._unreadable import POSIX_NON_ROOT, deny, unlistable
@@ -189,7 +189,7 @@ def test_ceiling_counts_total_bytes_from_stat(
     top = _tree(tmp_path / "d", {"a.txt": b"12345", "b/c.txt": b"678"})
     path, total = (top, 8) if kind == "dir" else (top / "a.txt", 5)
     if over:
-        monkeypatch.setattr(dataset_hash, "sha256_digest_and_size", _no_read)
+        monkeypatch.setattr(dataset_hash, "sha256_read", _no_read)
     with caplog.at_level(logging.WARNING):
         found = hash_dataset(path, max_bytes=total - over)
     assert (found.hex_digest is None) is bool(over)
@@ -222,15 +222,15 @@ def test_file_growing_during_the_read_is_over_the_ceiling(
     read (``a.txt`` grew; ``b.txt`` alone is within the size checked)."""
     top = _tree(tmp_path / "d", files)
     path = top if kind == "dir" else top / "a.txt"
-    real = sha256_digest_and_size
+    real = sha256_read
 
-    def _grow_then_read(member: str, **kwargs: Any) -> tuple[bytes, int]:
+    def _grow_then_read(member: str, **kwargs: Any) -> Sha256Read:
         if os.path.basename(member) == "a.txt":
             with open(member, "ab") as grown:
                 grown.write(b"5")
         return real(member, **kwargs)
 
-    monkeypatch.setattr(dataset_hash, "sha256_digest_and_size", _grow_then_read)
+    monkeypatch.setattr(dataset_hash, "sha256_read", _grow_then_read)
     with caplog.at_level(logging.WARNING):
         assert hash_dataset(path, max_bytes=max_bytes).hex_digest is None
     (warning,) = _warnings(caplog)
@@ -295,10 +295,10 @@ def test_file_gone_after_it_was_found_is_silent(
     assert not caplog.records
 
 
-def _denied_read(target: Path) -> Callable[..., tuple[bytes, int]]:
-    real = sha256_digest_and_size
+def _denied_read(target: Path) -> Callable[..., Sha256Read]:
+    real = sha256_read
 
-    def _read(path: str, **kwargs: Any) -> tuple[bytes, int]:
+    def _read(path: str, **kwargs: Any) -> Sha256Read:
         if os.path.abspath(path) == os.path.abspath(target):
             raise PermissionError(errno.EACCES, "Permission denied", path)
         return real(path, **kwargs)
@@ -317,7 +317,7 @@ def test_excluded_registry_is_reported_without_a_root(
     top = _tree(tmp_path, {**files, "ids.json": b"{}"})
     other = top / "sub" / "t.txt"
     if case == "unreadable":
-        monkeypatch.setattr(dataset_hash, "sha256_digest_and_size", _denied_read(other))
+        monkeypatch.setattr(dataset_hash, "sha256_read", _denied_read(other))
     with deny(other, "stat", monkeypatch) if case == "stat" else nullcontext():
         found = hash_dataset(
             top, max_bytes=1 if case == "over-cap" else _BIG, exclude=top / "ids.json"
@@ -343,9 +343,7 @@ def test_unreadable_file_warns_and_gives_no_hash(
     all -- a root over the other files would be wrong."""
     member = _tree(tmp_path / "d", {"a.txt": b"a", "sub/x.txt": b"x"}) / "sub" / "x.txt"
     if mode == "open":
-        monkeypatch.setattr(
-            dataset_hash, "sha256_digest_and_size", _denied_read(member)
-        )
+        monkeypatch.setattr(dataset_hash, "sha256_read", _denied_read(member))
     with caplog.at_level(logging.WARNING), deny(member, mode, monkeypatch):
         found = hash_dataset(tmp_path / dataset, max_bytes=_BIG)
     stat_failed_on_the_dataset = mode == "stat" and kind == "file"

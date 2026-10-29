@@ -22,7 +22,9 @@ SHA-512, and an aggregate (a Merkle root) is not a file digest at all.
 
 Each reader also keeps the file's first bytes, no more than a Git LFS
 pointer can hold, and says whether the file is one (``lfs_pointer``), so
-no caller reads a file twice to ask.
+no caller reads a file twice to ask. ``stated()`` gives the digests of
+the content a file stands for: a pointer's ``oid`` as the SHA-256 and no
+SHA-512 (the content was not read), else the digests read.
 
 See also: :mod:`pitloom.core.lfs_pointer` (the pointer grammar);
 :mod:`pitloom.core.dataset_hash` (the dataset ceiling) and
@@ -96,6 +98,13 @@ class FileDigests:
         """Both digests as lowercase hex."""
         return HexDigests(self.sha256.hex(), self.sha512.hex())
 
+    def stated(self) -> HexDigests:
+        """The digests of the content the file stands for, as lowercase
+        hex: a pointer's ``oid`` and no SHA-512, else :meth:`hex`."""
+        if self.lfs_pointer is None:
+            return self.hex()
+        return HexDigests(_content_sha256(self.sha256, self.lfs_pointer).hex())
+
 
 class Sha256Read(NamedTuple):
     """One SHA-256-only read of a file (:func:`sha256_read`)."""
@@ -106,6 +115,17 @@ class Sha256Read(NamedTuple):
     size: int
     #: What the bytes state when they are a Git LFS pointer, whole.
     lfs_pointer: LfsPointer | None
+
+    def stated_sha256(self) -> bytes:
+        """The raw SHA-256 of the content the file stands for: a pointer's
+        ``oid``, else :attr:`sha256`."""
+        return _content_sha256(self.sha256, self.lfs_pointer)
+
+
+def _content_sha256(read: bytes, pointer: LfsPointer | None) -> bytes:
+    """The raw SHA-256 of the content: *pointer*'s ``oid`` when the file
+    is a pointer, else *read*, the SHA-256 of the bytes read."""
+    return read if pointer is None else bytes.fromhex(pointer.oid)
 
 
 class DigestHasher:
