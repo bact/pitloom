@@ -37,12 +37,16 @@ _NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _MAX_NAME = 64
 _MAX_DESCRIPTION = 1024
 _MAX_COMPATIBILITY = 500
-# The specification: keep the SKILL.md body under 500 lines (a hard limit
-# here) and about 5,000 tokens (~20 KB).
-_MAX_BODY_LINES = 500
-# Byte ratchet on the body, with headroom over today's largest (~20 KB);
-# lower it towards 20 KB as detail moves to references/, never raise it.
-_MAX_BODY_BYTES = 24 * 1024
+# The specification: keep the SKILL.md body under 500 lines and about 5,000
+# tokens (~20 KB). Ours is tighter, 400 lines and 16 KB; never raise it,
+# move detail to references/ instead.
+_MAX_BODY_LINES = 400
+_MAX_BODY_BYTES = 16 * 1024
+# A body pointer to a reference says when to read it, in the same sentence.
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z*`(\-])|\n\s*\n")
+_CONDITION_RE = re.compile(
+    r"\b(if|when|whenever|before|after|once|read)\b", re.IGNORECASE
+)
 
 _FENCE_RE = re.compile(r"^(```|~~~).*?^\1[ \t]*$", re.DOTALL | re.MULTILINE)
 _SPAN_RE = re.compile(r"`[^`\n]*`")
@@ -185,3 +189,15 @@ class TestSkillReferences:
         body = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
         for ref in sorted((skill_dir / "references").glob("*.md")):
             assert f"references/{ref.name}" in body, f"{ref.name} is orphaned"
+
+    def test_every_body_pointer_says_when_to_read(self, skill_dir: Path) -> None:
+        """A sentence naming ``references/x.md`` states a condition, so the
+        reference is read on demand (a bare link list is read never or always).
+        """
+        body = _body(skill_dir / "SKILL.md")
+        assert "references/" in body, "guard would pass vacuously"
+        for sentence in _SENTENCE_RE.split(_FENCE_RE.sub("", body)):
+            if "references/" in sentence:
+                assert _CONDITION_RE.search(sentence), (
+                    f"no condition near the pointer: {sentence.strip()[:80]!r}"
+                )
