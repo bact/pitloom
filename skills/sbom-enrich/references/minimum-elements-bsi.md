@@ -53,6 +53,7 @@ it covered.
 **Git LFS pointers (COMP-007).** A pointer file in a checkout or Git URL scan
 has the content's SHA-256 (the `oid`) only, and a hash comment saying the
 content was not read. For a SHA-512 on that file, run `git lfs pull` in a local
-checkout and regenerate (Pitloom never fetches LFS content). Ask: "Pull the LFS
+checkout and regenerate; for a Git URL, clone with git lfs first, then run on
+the directory (Pitloom never fetches LFS content). Ask: "Pull the LFS
 files and regenerate?" Non-interactive: leave the SHA-512 out and report the
 pointer count from the `WARNING:`. After a pull the SHA-256 is unchanged.

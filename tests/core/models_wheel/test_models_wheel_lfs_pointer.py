@@ -23,7 +23,8 @@ from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectFile
 from pitloom.extract import _file_headers
-from tests._lfs import TREE, lfs_pointer_bytes, write_project
+from tests._lfs import lfs_pointer_bytes, write_project
+from tests._lfs import tree as demo_tree
 
 _POINTER = lfs_pointer_bytes(b"real content")
 _OPENING, _OID_LINE, _SIZE_LINE = _POINTER.splitlines(keepends=True)
@@ -105,6 +106,6 @@ def test_pointer_text_is_not_scanned_as_content(
 
 def test_a_checkout_with_pointers_scans_deterministically(tmp_path: Path) -> None:
     """Two scans of one tree give the same root and the same files."""
-    first = get_wheel_files(write_project(tmp_path, TREE))[:2]
+    first = get_wheel_files(write_project(tmp_path, demo_tree()))[:2]
     assert first[0] is not None
     assert get_wheel_files(tmp_path)[:2] == first

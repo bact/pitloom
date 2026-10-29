@@ -99,14 +99,18 @@ entry `Source: <model file> | Field: ...`; its `name` is the file's stem
   -- the per-wheel budget (4x the ceiling, one line); any other `...; metadata
   not read` is a fixed bound. Lists past 1000 entries are cut with one
   `WARNING:`. Never raise a ceiling on your own.
-- `... header is not <fmt>; not listed as an AI model`, `... header is a Git
-  LFS pointer; not listed as an AI model` (a file that only opens like a
-  pointer) -- no model, no `ai_AIPackage`. A whole pointer file (any suffix)
-  is listed by its `oid` as SHA-256 and counted in one `WARNING: FILE=<first>:
-  Git LFS pointer, content not read (N files); run 'git lfs pull' for the
-  content`; pull and regenerate for the content (no SHA-512 until then). `loom model FILE` and `loom enrich` (any suffix) and `loom
-  generate FILE` (model suffixes only; a `.zip` goes to the sdist route)
-  refuse such a file with `ERROR: ... failed: <path>: <reason>` (exit 1).
+- `... header is not <fmt>; not listed as an AI model`, `... header is a Git LFS
+  pointer; not listed as an AI model` (a file that only opens like a pointer) --
+  no model, no `ai_AIPackage`. A whole pointer file (any suffix) is listed by
+  its `oid` as SHA-256 and counted in one `WARNING: FILE=<first>: Git LFS
+  pointer, content not read (N files); <advice>`: `run 'git lfs pull' for the
+  content` for a local directory (pull and regenerate; no SHA-512 until then),
+  `clone with git lfs, then run on the directory` for a Git URL. A pointer
+  shipped in a wheel, an sdist or a build keeps its text's hashes and gets
+  `WARNING: FILE=<first>: Git LFS pointer shipped (N files); the build did not
+  pull LFS content`. `loom model FILE` and `loom enrich` (any suffix) and `loom
+  generate FILE` (model suffixes only; a `.zip` goes to the sdist route) refuse
+  such a file with `ERROR: ... failed: <path>: <reason>` (exit 1).
 
 A model whose read fails is a stub, never dropped, with the same `WARNING:`
 from a scan and from `loom model FILE` (exit 0). Beyond that:

@@ -23,7 +23,7 @@ from pitloom.core.file_hash import file_digests, sha256_digest, stated_sha256_he
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectFile, digest_fields
 from pitloom.id_registry import sha256_file
-from tests._lfs import POINTERS, TREE, lfs_pointer_bytes, write_project
+from tests._lfs import lfs_pointer_bytes, pointers, tree, write_project
 
 
 def _files(root: Path, *, bytes_as_is: bool = False) -> dict[str, ProjectFile]:
@@ -36,9 +36,10 @@ def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -
     directory scan agree on every file of the tree; a hook or build scan
     (``bytes_as_is``) keeps the pointer text's digest but still reports the
     ``oid`` as its stated one."""
-    root = write_project(tmp_path, TREE)
+    contents, stated_pointers = tree(), pointers()
+    root = write_project(tmp_path, contents)
     checkout, as_is = _files(root), _files(root, bytes_as_is=True)
-    for name in TREE:
+    for name in contents:
         path = root / name
         stated = stated_sha256_hex(path)
         assert sha256_file(path) == stated
@@ -46,8 +47,8 @@ def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -
         assert checkout[name].digest_sha256 == stated
         archived = as_is[name].lfs_pointer
         assert (archived.oid if archived else as_is[name].digest_sha256) == stated
-        if name in POINTERS:
-            assert stated == POINTERS[name].oid
+        if name in stated_pointers:
+            assert stated == stated_pointers[name].oid
             # Non-vacuous: the raw digest and the archive record differ.
             assert sha256_digest(path).hex() != stated
             assert as_is[name].digest_sha256 == sha256_digest(path).hex()

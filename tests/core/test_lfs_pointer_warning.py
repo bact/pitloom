@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -94,12 +97,12 @@ def test_a_remote_clone_is_told_to_clone_not_to_pull(
 
 
 @pytest.mark.parametrize("folds", [False, True], ids=["case-sensitive", "case-folding"])
-def test_a_file_is_one_file_however_its_case_is_spelled(
+def test_a_file_with_no_identity_is_keyed_by_its_folded_real_path(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, folds: bool
 ) -> None:
-    """On a case-folding file system (``normcase`` folds: Windows, and
-    macOS by volume) ``Data.bin`` and ``data.bin`` are noted once, shown as
-    first given; elsewhere they are two files."""
+    """The fallback key, for a file ``stat()`` gives no identity (here a
+    missing one): where ``normcase`` folds (Windows), ``Data.bin`` and
+    ``data.bin`` are noted once, shown as first given; elsewhere two."""
     monkeypatch.setattr(lfs_pointer, "normcase", str.lower if folds else str)
     pointer = LfsPointer("ab" * 32, 7)
     noted = UnreadPointers()
@@ -110,3 +113,50 @@ def test_a_file_is_one_file_however_its_case_is_spelled(
     warning = caplog.records[-1].getMessage()
     assert ("/p/Data.bin" in warning) and ("(2 files)" in warning) is not folds
     assert len(caplog.records) == (2 if folds else 3)  # debug lines + summary
+
+
+_NO_HARD_LINKS = sys.platform == "win32"
+
+
+def _noted(paths: list[str], caplog: pytest.LogCaptureFixture) -> str:
+    """The summary warning after noting every path in *paths*."""
+    pointer = LfsPointer("ab" * 32, 7)
+    noted = UnreadPointers()
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        for path in paths:
+            noted.note(path, pointer)
+        noted.warn()
+    return caplog.records[0].getMessage()
+
+
+@pytest.mark.parametrize("how", ["hard-link", "dot-dot"])
+def test_two_spellings_of_one_file_are_noted_once(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, how: str
+) -> None:
+    """Identity, not spelling: a hard link (APFS ``Data.bin`` and
+    ``data.bin`` are one inode too) and ``a/../a/x`` collapse to one note."""
+    if how == "hard-link" and _NO_HARD_LINKS:
+        pytest.skip("hard links need privilege on Windows")
+    (tmp_path / "a").mkdir()
+    first = tmp_path / "a" / "x"
+    first.write_bytes(b"p")
+    second = tmp_path / "a" / "y"
+    if how == "hard-link":
+        os.link(first, second)
+    else:
+        second = tmp_path / "a" / ".." / "a" / "x"
+    message = _noted([str(first), str(second)], caplog)
+    assert "files)" not in message
+    other = tmp_path / "a" / "z"
+    other.write_bytes(b"q")
+    assert "(2 files)" in _noted([str(first), str(second), str(other)], caplog)
+
+
+def test_the_folded_key_still_dedupes_when_the_identity_is_unknown(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / "x").write_bytes(b"p")
+    monkeypatch.setattr(lfs_pointer, "file_id", lambda _path: None)
+    spelt = [str(tmp_path / "x"), str(tmp_path / "." / "x")]
+    assert "files)" not in _noted(spelt, caplog)

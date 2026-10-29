@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,8 @@ from tests.registry_helpers import make_registry
 
 _CONTENT = {"data/x.parquet": b"x" * 300, "corpus/a.bin": b"a", "m.bin": b"w" * 9}
 _POINTERS = {name: lfs_pointer_bytes(data) for name, data in _CONTENT.items()}
+#: Native separators, as the messages spell a walked path.
+_A_BIN = os.path.join("corpus", "a.bin")
 _PULL_HINT = "run 'git lfs pull' for the content"
 
 Graph = list[dict[str, Any]]
@@ -164,7 +167,7 @@ def _everything() -> None:
 @pytest.mark.parametrize(
     ("body", "expected", "count"),
     [
-        (_everything, "corpus/a.bin: Git LFS pointer, content not read (3 files)", 3),
+        (_everything, f"{_A_BIN}: Git LFS pointer, content not read (3 files)", 3),
         (lambda: loom.add_dataset("corpus/b.txt"), None, 0),
         (
             lambda: loom.use_model("m", path="m.bin"),
@@ -211,7 +214,7 @@ def test_a_raising_run_warns_of_nothing(
     assert not _pointer_warnings(caplog)
     _run(project / "p.json", lambda: loom.add_dataset("corpus"))
     assert _pointer_warnings(caplog) == [
-        f"FILE=corpus/a.bin: Git LFS pointer, content not read; {_PULL_HINT}"
+        f"FILE={_A_BIN}: Git LFS pointer, content not read; {_PULL_HINT}"
     ]
 
 

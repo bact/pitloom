@@ -82,7 +82,8 @@ its fragment: it reads the model too, and its enrichers read the README or
 model card next to the file). A file that is not a model, an absent one or an
 unreadable one fails instead: one `ERROR:` (`model command failed:`,
 `enrichment fragment generation failed:` or `SBOM generation failed:`, then the
-path and the reason, e.g. `header is a Git LFS pointer, content not pulled (oid sha256:<oid>, size <N> bytes); run 'git lfs pull'`, `header is not gguf`
+path and the reason, e.g. `header is a Git LFS pointer, content not pulled
+(oid sha256:<oid>, size <N> byte(s)); run 'git lfs pull'`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom
 enrich` take a file of any suffix; `loom generate FILE` takes only the
@@ -220,11 +221,16 @@ reads. A file whose header contradicts its model suffix is not listed, with
 one `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an
 AI model`. A file that is a whole Git LFS pointer, under any candidate suffix,
 gets no per-file warning: the SBOM has one `WARNING: FILE=<first>: Git LFS
-pointer, content not read (N files); run 'git lfs pull' for the content` for
-all of them. A file that only opens like a pointer (a malformed rest, or 1 KiB
-or more) keeps `FILE=<path>: header is a Git LFS pointer; not listed as an AI
-model` (a `.bin`, `.model` or `.zip` one has no `FORMAT=`). A `.pt` or `.pth`
-that is path-configuration text is silent.
+pointer, content not read (N files); <advice>` for all of them, where the advice
+is `run 'git lfs pull' for the content` for a local directory and `clone with
+git lfs, then run on the directory` for a Git URL. A pointer shipped inside a
+wheel, an sdist or a build keeps the hashes of its own text and gets `WARNING:
+FILE=<first>: Git LFS pointer shipped (N files); the build did not pull LFS
+content`; the fix is in the build, not `git lfs pull`. A file that only opens
+like a pointer (a malformed rest, or 1 KiB or more) keeps `FILE=<path>: header
+is a Git LFS pointer; not listed as an AI model` (a `.bin`, `.model` or `.zip`
+one has no `FORMAT=`). A `.pt` or `.pth` that is path-configuration text is
+silent.
 This also catches a rare real file that fails its signature (a Safetensors
 header of more than 100 MB, a ZIP with data before it). `loom id generate`
 registers a model under its file's path key by the same rule (the suffix

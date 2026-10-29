@@ -43,11 +43,12 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
 - **Git LFS files are pointers.** LFS is off and never fetched, so an LFS file
   in the checkout is a pointer. The SBOM lists it with the pointer's `oid` as
   its SHA-256 only (no SHA-512; the hash comment says the content was not
-  read), and no AI package for a model-named one. One `WARNING:` per SBOM names
-  the first pointer and the count. Most Hugging Face model repositories keep
-  weights in LFS. Tell the user; `git lfs pull` does not help here (there is no
-  local checkout): for the real files, clone with `git lfs` installed and run
-  `loom project` on the directory. A BSI SHA-512 needs the same.
+  read), and no AI package for a model-named one. One `WARNING:` per SBOM
+  names the first pointer (and the count when more than one). Most Hugging
+  Face model repositories keep weights in LFS. Tell the user; `git lfs pull`
+  does not help here (there is no local checkout): for the real files, clone
+  with `git lfs` installed and run `loom project` on the directory. A BSI
+  SHA-512 needs the same.
 - A relative `--id-registry` is relative to where `loom` runs, not to the
   checkout. The output file is named as for a local project
   (`<name>-<version>.spdx3.json`).

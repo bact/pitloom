@@ -26,9 +26,8 @@ and this project adheres to
 
 - Safetensors `modelspec.license` and GGUF `general.license.name` (when
   `general.license` is blank or `other`) are read as the model licence ([#376])
-- A Git LFS pointer file in a checkout is listed with its `oid` as SHA-256 (no
-  SHA-512), one `WARNING:` per SBOM, in loom datasets and models too; the ID
-  registry keys it by `oid`; `loom model` names `git lfs pull` ([#378])
+- A Git LFS pointer in a checkout is listed by its `oid` (SHA-256 only) with one
+  `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
 
 ### Fixed
 

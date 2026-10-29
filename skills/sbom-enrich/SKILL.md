@@ -186,7 +186,8 @@ Steps:
      to a local file.) Only `ERROR: enrichment fragment generation failed:
      ... not an AI model ...`, `header is not <fmt>` or `header is a Git LFS
      pointer, ...` means the file is not a model (an unpulled LFS file): skip
-     this step for it (`git lfs pull` first).
+     this step for it (`git lfs pull` in a local checkout; a Git URL:
+     clone with git lfs first).
    - The fragment attaches only if the base has an `ai_AIPackage` for that
      model (the model file is among the build's files); if not, say so
      instead of merging.
@@ -208,19 +209,18 @@ Steps:
      installed` -- install `pitloom[ai]` and regenerate; `failed to extract
      metadata` -- the file has a model's header but could not be parsed
      (truncated or corrupt), so check the file; `header is not <fmt>; not
-     listed as an AI model` or `Git LFS pointer, content not read` -- the file is no
-     model and has no `ai_AIPackage` (an unpulled LFS file: `git lfs pull`,
-     regenerate; for BSI SHA-512 see `references/minimum-elements-bsi.md`). On a wheel base,
-     the gate `INFO:` naming `--trust-wheel-model`, `...
+     listed as an AI model` or `Git LFS pointer, content not read` -- the
+     file is no model and has no `ai_AIPackage` (an unpulled LFS file: pull as
+     above, regenerate; BSI: `references/minimum-elements-bsi.md`). On
+     a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
      max-model-extract-bytes cap; metadata not read`, or `... per-wheel
-     model-scan budget cap; ...` -- tell the
-     user; never add the flag or raise `max-model-extract-bytes` yourself.
-     Any other `...; metadata not read` -- a fixed bound. (`... identity
-     unknown` is the wheel's own name/version, not a model: see
-     `sbom-generate`.) Fields the file
-     itself would give (hyperparameters, inputs, outputs, an author, a
-     parameter count) are better read than inferred: tell the user the
-     cause before inferring them from prose.
+     model-scan budget cap; ...` -- tell the user; never add the flag or raise
+     `max-model-extract-bytes` yourself. Any other `...; metadata not read` -- a
+     fixed bound. (`... identity unknown` is the wheel's own name/version, not a
+     model: see `sbom-generate`.) Fields the file itself would give
+     (hyperparameters, inputs, outputs, an author, a parameter count) are better
+     read than inferred: tell the user the cause before inferring them from
+     prose.
    - A name ending `...~<hex>`, a CRFsuite/fastText model with
      `num_labels` but no `labels` or description, or `\uXXXX` in a name or
      description is a Pitloom cap or escape, not a gap to fill from prose:

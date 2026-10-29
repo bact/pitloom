@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -43,21 +44,22 @@ def _tree(top: Path, files: dict[str, bytes]) -> Path:
 
 @pytest.mark.parametrize("sha512", [False, True])
 @pytest.mark.parametrize(
-    "data",
+    "make",
     [
-        lfs_pointer_bytes(b"content"),
-        lfs_pointer_bytes(b"crlf", eol="\r\n"),
-        lfs_pointer_bytes(
+        lambda: lfs_pointer_bytes(b"content"),
+        lambda: lfs_pointer_bytes(b"crlf", eol="\r\n"),
+        lambda: lfs_pointer_bytes(
             b"old", url="http://git-media.io/v/2", trailing_newline=False
         ),
-        pointer_fixture("humaneval-test.parquet").read_bytes(),
+        lambda: pointer_fixture("humaneval-test.parquet").read_bytes(),
     ],
     ids=["lf", "crlf", "git-media-no-eol", "hub"],
 )
 def test_a_pointer_file_hashes_to_its_oid(
-    tmp_path: Path, data: bytes, sha512: bool
+    tmp_path: Path, make: Callable[[], bytes], sha512: bool
 ) -> None:
     """The oid is the file's SHA-256, with no SHA-512 (content not read)."""
+    data = make()
     path = _tree(tmp_path, {"p.parquet": data}) / "p.parquet"
     pointer = parse_lfs_pointer(data)
     assert pointer is not None

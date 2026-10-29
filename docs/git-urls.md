@@ -74,10 +74,12 @@ from the server's own branches and tags, longest match first.
   and `www.` forms) is not a Git repository for Pitloom: `loom model` reads it,
   and `loom project` refuses it with a message naming `loom model`. A **Space**
   or **dataset** (`huggingface.co/spaces/...`, `.../datasets/...`) is a Git
-  repository and is fetched like any other (Git LFS files stay pointers; see below). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
-  has no Python project to read, and says so.
-- Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
-  addresses. These are refused with a message (see below).
+  repository and is fetched like any other (Git LFS files stay pointers; see
+  below). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py` has no
+  Python project to read, and says so.
+- Not read: hosts that need a login, `ssh://`, `git://`, `file://` and
+  scp-style `user@host:path` addresses. These are refused with a message (see
+  below).
 
 ## Verified platforms
 
@@ -161,10 +163,10 @@ HTTP (`git http-backend`) that answers like GitLab does.
   is only recorded in that comment. A pointer named like an AI model (`.onnx`,
   `.gguf`, ...) is listed as a file only, with no AI package. No content type,
   licence or copyright comes from the pointer text. One `WARNING:` per SBOM
-  names the first pointer and the count and says to clone with `git lfs` and
-  run `loom project` on the directory for the content. Most model
-  repositories on Hugging Face, and many on GitLab and Codeberg, keep their
-  weights in LFS.
+  names the first pointer (and, for more than one, the count): `clone with git
+  lfs, then run on the directory`. Run `loom project` on that directory for
+  the content. Most model repositories on Hugging Face, and many on GitLab
+  and Codeberg, keep their weights in LFS.
 - **No size limit by default.** The command line sets none, so a very large
   repository is fetched in full (blobs over 10 MB excepted, on a server that
   supports partial clone). The library API can stop a fetch once the checkout

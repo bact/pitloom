@@ -36,6 +36,7 @@ from dataclasses import dataclass
 from os.path import normcase, realpath
 from typing import Final
 
+from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
 
@@ -244,15 +245,16 @@ class UnreadPointers:
     when the run ends. A file is one file however it is spelled."""
 
     def __init__(self) -> None:
-        # Real path, case-folded where the file system is (macOS, Windows),
-        # -> the path as first noted (for the messages).
-        self._paths: dict[str, str] = {}
+        # File identity (st_dev, st_ino), or the real path case-folded by
+        # the platform when the file has none, -> the path as first noted
+        # (for the messages).
+        self._paths: dict[FileId | str, str] = {}
 
     def note(self, path: str, pointer: LfsPointer, shown: str | None = None) -> None:
         """Note the pointer file at *path* (absolute, or from the current
         directory), stating *pointer*; the messages name it *shown*
         (default: *path*)."""
-        key = normcase(realpath(path))
+        key = file_id(path) or normcase(realpath(path))
         if key not in self._paths:
             self._paths[key] = path if shown is None else shown
             log_pointer_not_read(self._paths[key], pointer)

@@ -32,7 +32,8 @@ from pitloom.assemble import (
 from pitloom.cli.commands import project as mod_project
 from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.remote.git import GitCheckout
-from tests._lfs import POINTERS, TREE, lfs_pointer_bytes, write_project
+from tests._lfs import lfs_pointer_bytes, pointers, write_project
+from tests._lfs import tree as demo_tree
 from tests._raw_archive import METADATA, write_raw_zip
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.extract.conftest import make_hook, staged_sbom
@@ -136,7 +137,12 @@ _SURFACES: dict[str, tuple[Callable[..., str], str]] = {
     "lib-embed-wheel": (_lib_embed, _SHIPPED),
 }
 _FIRST = "demo/crlf.dat"
-_PLAIN = {k: v for k, v in TREE.items() if k not in POINTERS}
+
+
+def _plain() -> dict[str, bytes]:
+    """The tree's files that are not pointers."""
+    stated = pointers()
+    return {k: v for k, v in demo_tree().items() if k not in stated}
 
 
 def _run(
@@ -162,13 +168,13 @@ def test_one_warning_names_all_the_pointers(
 ) -> None:
     """Five pointers (a model-named one among them): one line with the
     count and the first path, no per-file line, every file still listed."""
-    sbom, warnings, err = _run(surface, TREE, tmp_path, monkeypatch, capsys)
+    sbom, warnings, err = _run(surface, demo_tree(), tmp_path, monkeypatch, capsys)
     assert len(warnings) == 1, warnings
     assert f"FILE={_FIRST}: " in warnings[0] and "(5 files)" in warnings[0]
     assert _SURFACES[surface][1] in warnings[0]
     assert "not listed as an AI model" not in err
     names = {e.get("name") for e in json.loads(sbom)["@graph"]}
-    assert set(TREE) <= names
+    assert set(demo_tree()) <= names
 
 
 @pytest.mark.parametrize("surface", ["cli-project", "hook", "cli-wheel"])
@@ -182,16 +188,16 @@ def test_a_debug_line_names_each_pointer(
     warning; without it none."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PITLOOM_DEBUG", "1")
-    _SURFACES[surface][0](TREE, tmp_path, monkeypatch)
+    _SURFACES[surface][0](demo_tree(), tmp_path, monkeypatch)
     err = capsys.readouterr().err
     lines = [
         x
         for x in err.splitlines()
         if x.startswith("DEBUG: ") and "content not read" in x
     ]
-    assert len(lines) == len(POINTERS)
+    assert len(lines) == len(pointers())
     assert len(stderr_warnings(err)) == 1
-    assert all(f"FILE={name}:" in err for name in POINTERS)
+    assert all(f"FILE={name}:" in err for name in pointers())
 
 
 @pytest.mark.parametrize("surface", _SURFACES)
@@ -202,8 +208,9 @@ def test_no_pointer_no_warning(
     surface: str,
 ) -> None:
     """Including a 1 KiB file that only opens like a pointer."""
-    assert "demo/long.dat" in _PLAIN
-    _, warnings, err = _run(surface, _PLAIN, tmp_path, monkeypatch, capsys)
+    plain = _plain()
+    assert "demo/long.dat" in plain
+    _, warnings, err = _run(surface, plain, tmp_path, monkeypatch, capsys)
     assert not warnings, warnings
     assert "Git LFS" not in err
 

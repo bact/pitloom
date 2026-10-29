@@ -19,6 +19,7 @@ from typing import Any
 
 from pyproject_metadata import License
 
+from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._license import stated_license, warn_unless_expression
@@ -54,14 +55,18 @@ def _resolve_license_hint(
     *hint* is the text or string to attempt detection on.  *fallback* is the
     ``(license_id, provenance)`` pair to return when detection finds nothing
     new.  Returns ``hint=None`` when the object format is unrecognised or the
-    referenced file cannot be read (or there is no *project_dir*).
+    referenced file cannot be read (or there is no *project_dir*). A ``text``
+    that is a whole Git LFS pointer is the unpulled ``file`` that
+    ``pyproject-metadata`` read, so it is treated as that unreadable file.
     """
     base = "Source: pyproject.toml | Field: project.license"
     if isinstance(license_obj, str):
         return license_obj, base, (None, None)
-    if hasattr(license_obj, "text") and license_obj.text:
-        hint = license_obj.text
-        return hint, f"{base}.text", (hint, None)
+    text = getattr(license_obj, "text", None)
+    if text and parse_lfs_pointer(text.encode("utf-8")) is None:
+        return text, f"{base}.text", (text, None)
+    if text and (project_dir is None or getattr(license_obj, "file", None) is None):
+        return None, base, (None, None)
     if project_dir is not None and getattr(license_obj, "file", None):
         path = _as_written(Path(license_obj.file), project_dir)
         # No absolute path in the SBOM: it differs between checkouts.

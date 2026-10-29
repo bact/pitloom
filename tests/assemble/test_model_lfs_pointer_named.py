@@ -16,6 +16,7 @@ refusals on the same surfaces).
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -27,15 +28,20 @@ from tests._lfs import lfs_pointer_bytes, pointer_fixture
 from tests.warning_helpers import error_lines
 
 _OPENING = b"version https://git-lfs.github.com/spec/v1\n"
-_REAL = pointer_fixture("bert-tiny-pytorch-model.bin").read_bytes()
+
+
+def _real() -> bytes:
+    return pointer_fixture("bert-tiny-pytorch-model.bin").read_bytes()
+
+
 _PULL = "run 'git lfs pull'"
 _PLAIN = "m.gguf': header is a Git LFS pointer"
 
-#: name, bytes, text every refusal holds
-_CASES = {
-    "real": ("m.bin", _REAL, "content not pulled"),
-    "built": ("m.gguf", lfs_pointer_bytes(b"abc"), "size 3 bytes"),
-    "crlf": ("m.onnx", lfs_pointer_bytes(b"abc", eol="\r\n"), "size 3 bytes"),
+#: name, bytes (made on use: the real one reads a fixture), text every refusal holds
+_CASES: dict[str, tuple[str, Callable[[], bytes], str]] = {
+    "real": ("m.bin", _real, "content not pulled"),
+    "built": ("m.gguf", lambda: lfs_pointer_bytes(b"abc"), "size 3 bytes"),
+    "crlf": ("m.onnx", lambda: lfs_pointer_bytes(b"abc", eol="\r\n"), "size 3 bytes"),
 }
 #: bytes that open like a pointer but are not one
 _LOOKALIKES = {
@@ -56,7 +62,8 @@ def _run(surface: str, path: Path, out: Path) -> None:
 def test_the_library_states_the_pointer_and_the_pull(
     case: str, surface: str, tmp_path: Path
 ) -> None:
-    name, data, text = _CASES[case]
+    name, make, text = _CASES[case]
+    data = make()
     path = tmp_path / name
     path.write_bytes(data)
     pointer = read_lfs_pointer(path)
@@ -94,7 +101,7 @@ def test_the_cli_exits_1_with_one_error_line(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     path = tmp_path / "m.bin"
-    path.write_bytes(_REAL if case == "real" else _LOOKALIKES[case])
+    path.write_bytes(_real() if case == "real" else _LOOKALIKES[case])
     out = tmp_path / "out.json"
     monkeypatch.setattr(sys, "argv", ["loom", command, str(path), "-o", str(out)])
     assert __main__.main() == 1

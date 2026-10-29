@@ -29,21 +29,22 @@ from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.wheel import read_wheel
-from tests._lfs import POINTERS, TREE, lfs_pointer_bytes, write_project
+from tests._lfs import lfs_pointer_bytes, pointers, tree, write_project
 from tests._raw_archive import write_raw_tar, write_raw_zip
 
 
 def _directory(tmp_path: Path, *, bytes_as_is: bool = False) -> list[ProjectFile]:
     _, files, _ = get_wheel_files(
-        write_project(tmp_path, TREE), bytes_as_is=bytes_as_is
+        write_project(tmp_path, tree()), bytes_as_is=bytes_as_is
     )
     return [f for f in files if f.distribution_path != "pyproject.toml"]
 
 
 def _built(tmp_path: Path) -> list[ProjectFile]:
-    write_project(tmp_path / "out", TREE)
+    names = tree()
+    write_project(tmp_path / "out", names)
     included = [
-        IncludedFile(str(tmp_path / "out" / name), name, built=True) for name in TREE
+        IncludedFile(str(tmp_path / "out" / name), name, built=True) for name in names
     ]
     with mock.patch.object(
         _models_wheel,
@@ -58,7 +59,7 @@ def _built(tmp_path: Path) -> list[ProjectFile]:
 def _wheel(tmp_path: Path) -> list[ProjectFile]:
     info = "demo-1.0.dist-info/"
     members = {
-        **TREE,
+        **tree(),
         f"{info}METADATA": b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n",
         f"{info}WHEEL": b"Wheel-Version: 1.0\n",
         f"{info}RECORD": b"",
@@ -71,7 +72,7 @@ def _sdist(tmp_path: Path) -> list[ProjectFile]:
         f"demo-1.0/{name}": data
         for name, data in {
             "PKG-INFO": b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n",
-            **TREE,
+            **tree(),
         }.items()
     }
     files = read_sdist(write_raw_tar(tmp_path / "demo-1.0.tar.gz", members)).files
@@ -96,18 +97,19 @@ def test_every_route_flags_the_same_pointers(tmp_path: Path, route: str) -> None
     """Each route lists the tree and flags exactly its pointers; only the
     checkout takes the ``oid``, every other file is hashed as it is."""
     files = {_key(f): f for f in _ROUTES[route](tmp_path)}
-    assert sorted(files) == sorted(TREE)
+    contents, stated = tree(), pointers()
+    assert sorted(files) == sorted(contents)
     flagged = {name: f.lfs_pointer for name, f in files.items() if f.lfs_pointer}
-    assert flagged == POINTERS and len(flagged) == 5
+    assert flagged == stated and len(flagged) == 5
     for name, project_file in files.items():
-        pointer = POINTERS.get(name)
+        pointer = stated.get(name)
         expected: tuple[str, str | None]
         if route == "directory" and pointer is not None:
             expected = (pointer.oid, None)
         else:
             expected = (
-                hashlib.sha256(TREE[name]).hexdigest(),
-                hashlib.sha512(TREE[name]).hexdigest(),
+                hashlib.sha256(contents[name]).hexdigest(),
+                hashlib.sha512(contents[name]).hexdigest(),
             )
         assert (project_file.digest_sha256, project_file.digest_sha512) == expected
 

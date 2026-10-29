@@ -40,8 +40,9 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 - **One warning per kind per SBOM**, from `assemble/spdx3/_document_lfs.py`
   (called by `document.build()`, so CLI, library, hook, Action and
   `embed-wheel` agree): `FILE=<first, sorted>: Git LFS pointer, content not
-  read (N files); run 'git lfs pull' for the content`. `--debug` adds a line
-  per file. Loom runs warn once at run exit.
+  read (N files); run 'git lfs pull' for the content` (from a Git URL: `clone
+  with git lfs, then run on the directory`). `--debug` adds a line per file.
+  Loom runs warn once at run exit.
 - **Model-named pointers** (`.gguf`, `.onnx`, `.bin`, `.model`, `.zip`, ...)
   are files only, no AI package, and no per-file warning when the whole file
   is a valid pointer. A file that only opens like one (malformed rest, or
