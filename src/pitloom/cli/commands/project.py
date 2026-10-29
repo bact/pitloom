@@ -39,6 +39,7 @@ from pitloom.core.inert_options import (
     settle_inert,
 )
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.remote import (
     fetch_git_project,
     is_git_url,
@@ -46,7 +47,7 @@ from pitloom.extract.remote import (
     is_unsupported_remote_url,
 )
 from pitloom.extract.remote.git import CONFIG_IGNORED_INFO
-from pitloom.logging_config import print_error, sanitize_url
+from pitloom.logging_config import print_error
 
 log = logging.getLogger(__name__)
 

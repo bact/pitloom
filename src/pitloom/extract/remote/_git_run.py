@@ -23,15 +23,15 @@ from dataclasses import dataclass, field
 from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
-from pitloom.extract.remote import git_url
-from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
-from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import (
-    loggable,
+from pitloom.core.url_masking import (
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
 )
+from pitloom.extract.remote import git_url
+from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 

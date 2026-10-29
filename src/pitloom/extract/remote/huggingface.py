@@ -72,6 +72,7 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote.git_url import HUB_HOST_PATTERN
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
@@ -92,7 +93,7 @@ from pitloom.extract.remote.huggingface_field import (
     hub_producer_and_count,
     hub_revision,
 )
-from pitloom.logging_config import loggable, sanitize_url
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 

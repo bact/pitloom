@@ -30,8 +30,8 @@ from dataclasses import dataclass
 from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import sanitize_url
 
 __all__ = [
     "ALLOWED_SCHEMES",

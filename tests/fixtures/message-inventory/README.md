@@ -26,7 +26,18 @@ python -m scripts.message_inventory --write-baseline
 
 It writes falls only: while a module or the total is above the baseline it
 prints the rises and writes nothing. A site that moves to another module (a
-module split) is moved in this file by hand; the total still holds. A
+module split) is moved in this file by hand; the total still holds.
+
+To move a module's uncoded sites to another module:
+
+1. Move the code and run `python -m scripts.message_inventory`: the old module
+   falls and the new one rises, so `--write-baseline` refuses.
+2. Edit this file by hand: lower the old module's line (delete it at 0) and add
+   the new module's line with the count the old one lost.
+3. State the move and why in "Changes" below, and run `--check`: the total
+   must be the one before the move.
+
+Code that has no uncoded site (a masking helper, say) needs no line. A
 programming error is not a message: raise it as
 `pitloom.core.internal_error.InternalError` and it is left out by its class,
 never by raising a count.

@@ -34,6 +34,7 @@ from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel
@@ -52,12 +53,7 @@ from pitloom.id_registry import (
     registry_file_path,
     resolve_registry,
 )
-from pitloom.logging_config import (
-    configure_logging,
-    loggable,
-    one_line,
-    sanitize_url,
-)
+from pitloom.logging_config import configure_logging, loggable, one_line
 
 log = logging.getLogger(__name__)
 

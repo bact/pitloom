@@ -238,8 +238,14 @@ A local model is read as a project scan reads it: one whose read fails
 and `generate_model_sbom()` log the scan's one `WARNING:`, and the model is a
 format-only entry. Both raise `ValueError` for a file that is not a model
 (empty, an unknown format, a header that contradicts the suffix),
-`FileNotFoundError` for an absent one and `OSError` for an unreadable one; see [AI model scan
-limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+`FileNotFoundError` for an absent one and `OSError` for an unreadable one; see
+[AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+
+A file that opens like a Git LFS pointer is refused with the `lfs-pointer`
+code (see [Messages and codes](messages.md)): the `ValueError` carries the
+text `loom model` prints and the attribute `pitloom_code`
+(`pitloom.messages.code_of(exc)`). `read_ai_model()` in
+`pitloom.extract.ai_model.reader` raises the same error.
 
 ## Tracking decorator
 

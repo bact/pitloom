@@ -29,9 +29,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git_url import scheme_allowed
-from pitloom.logging_config import loggable, sanitize_url
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 

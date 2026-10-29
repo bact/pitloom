@@ -59,13 +59,14 @@ from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url_credentials
 from pitloom.extract.lock.common import (
     read_lock_bytes,
     resolve_pinned_dependencies,
     single_exact_pin,
     warn_unreadable_lock_file,
 )
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
