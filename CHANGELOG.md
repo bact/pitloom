@@ -44,6 +44,8 @@ and this project adheres to
   when a merge supplies the value ([#386])
 - A file that only opens like a Git LFS pointer is said to "look like" one, not
   to be one; `read_ai_model()` refuses a pointer as `loom model` does ([#390])
+- A Git LFS pointer refused by `read_ai_model()`, `generate_model_sbom()` or
+  `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
 
 ### Fixed
 
@@ -66,6 +68,7 @@ and this project adheres to
 [#387]: https://github.com/bact/pitloom/pull/387
 [#389]: https://github.com/bact/pitloom/pull/389
 [#390]: https://github.com/bact/pitloom/pull/390
+[#395]: https://github.com/bact/pitloom/pull/395
 
 ## [0.21.1] - 2026-10-28
 
