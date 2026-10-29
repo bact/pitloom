@@ -36,7 +36,7 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 | No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](#size-and-count-caps) (Parameter count) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
 | A field a format cannot carry (no model name in a `.npy`) | Not a limit: the format has no such field | [What cannot be recorded](#what-cannot-be-recorded) |
-| No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer (any candidate suffix, `.bin`, `.model` and `.zip` included, which then have no `FORMAT=`) says `header is a Git LFS pointer` instead | [What is a model](#what-is-a-model) |
+| No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer is no model under any suffix (see below) | [What is a model](#what-is-a-model) |
 | No model at all | Not a detected model, or a target that does not scan models | [What cannot be recorded](#what-cannot-be-recorded) |
 
 A file that is a model by its header gets exactly one entry on every
@@ -82,7 +82,8 @@ its fragment: it reads the model too, and its enrichers read the README or
 model card next to the file). A file that is not a model, an absent one or an
 unreadable one fails instead: one `ERROR:` (`model command failed:`,
 `enrichment fragment generation failed:` or `SBOM generation failed:`, then the
-path and the reason, e.g. `header is a Git LFS pointer`, `header is not gguf`
+path and the reason, e.g. `header is a Git LFS pointer, content not pulled
+(oid sha256:<oid>, size <N> byte(s)); run 'git lfs pull'`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom
 enrich` take a file of any suffix; `loom generate FILE` takes only the
@@ -209,7 +210,7 @@ A file is a candidate when its suffix is a model suffix, or `.bin`,
 | PyTorch (`.pt`, `.pth`) | A ZIP header or a protocol 2 to 5 pickle; a `.pth` is also a Python path-configuration text file, so a text `.pt` or `.pth` is no model and gets no warning (a Git LFS pointer does) |
 | HDF5 | Its magic bytes, whatever the suffix; or, by `.h5`/`.hdf5`, any non-empty header (an HDF5 file may start with a userblock) |
 | ONNX (`.onnx`) | Any non-empty header: no signature at offset 0 |
-| Any | Not a model, under any candidate suffix, when the header opens with the line `version <URL>` of a Git LFS pointer spec (`https://git-lfs.github.com/spec/v1`, or an earlier one's): text in place of a file not fetched (`git lfs pull`) |
+| Any | Not a model, under any candidate suffix, when the header opens with the line `version <URL>` of a Git LFS pointer spec (`https://git-lfs.github.com/spec/v1`, or an earlier one's): text in place of a file not fetched (`git lfs pull`); a scan lists it as a file only and warns once, not per file |
 
 An empty file, an absent one or a directory is never a model, and silent. A
 header that cannot be read (permission denied) is an `ERROR:` for `loom model
@@ -218,11 +219,18 @@ read ... for file scanning`); `FORMAT=<fmt> FILE=<path>: could not read
 header` and no entry appear only when it turns unreadable between the two
 reads. A file whose header contradicts its model suffix is not listed, with
 one `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an
-AI model`. A Git LFS pointer gets `FILE=<path>: header is a Git LFS pointer;
-not listed as an AI model`, under any candidate suffix (a `.bin`, `.model`
-or `.zip` pointer names no format, so it has no `FORMAT=`); a `.pt` or `.pth`
-that is path-configuration text is silent, a pointer under those suffixes is
-not.
+AI model`. A file that is a whole Git LFS pointer, under any candidate suffix,
+gets no per-file warning: the SBOM has one `WARNING: FILE=<first>: Git LFS
+pointer, content not read (N files); <advice>` for all of them, where the advice
+is `run 'git lfs pull' for the content` for a local directory and `clone with
+git lfs, then run on the directory` for a Git URL. A pointer shipped inside a
+wheel, an sdist or a build keeps the hashes of its own text and gets `WARNING:
+FILE=<first>: Git LFS pointer shipped (N files); the build did not pull LFS
+content`; the fix is in the build, not `git lfs pull`. A file that only opens
+like a pointer (a malformed rest, or 1 KiB or more) keeps `FILE=<path>: header
+is a Git LFS pointer; not listed as an AI model` (a `.bin`, `.model` or `.zip`
+one has no `FORMAT=`). A `.pt` or `.pth` that is path-configuration text is
+silent.
 This also catches a rare real file that fails its signature (a Safetensors
 header of more than 100 MB, a ZIP with data before it). `loom id generate`
 registers a model under its file's path key by the same rule (the suffix
@@ -272,7 +280,8 @@ that table:
   extract metadata; <error>` and a stub. A missing optional library gives
   a stub and `required library not installed`.
 - A file whose header contradicts its model suffix, or a Git LFS pointer, is
-  not a model, but is still listed as a `software_File`; see [What is a
+  not a model, but is still listed as a `software_File` (a pointer by its
+  `oid`, as in [Git URLs](git-urls.md)); see [What is a
   model](#what-is-a-model).
 
 ## Known limitations

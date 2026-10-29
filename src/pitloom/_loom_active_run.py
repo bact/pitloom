@@ -35,6 +35,7 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.model_extract_limit import require_max_dataset_hash_bytes
 from pitloom.core.models import build_relationship
 from pitloom.core.quote_source import quote_source
@@ -136,12 +137,16 @@ class _ActiveRun:
             self.exporter.add_agent(agent)
         for tool in tools:
             self.exporter.object_set.add(tool)
+        # One per run (each __enter__ builds a new _ActiveRun): a run that
+        # raised leaves nothing for the next.
+        self.lfs_pointers = UnreadPointers()
         self.elements = LoomElements(
             session=self.session,
             exporter=self.exporter,
             creation_info=self.creation_info,
             doc_uuid=self.doc_uuid,
             max_hash_bytes=max_hash_bytes,
+            pointers=self.lfs_pointers,
         )
         self.models = LoomModels(
             session=self.session,
@@ -149,6 +154,7 @@ class _ActiveRun:
             creation_info=self.creation_info,
             doc_uuid=self.doc_uuid,
             update_id_registry=self.update_id_registry,
+            pointers=self.lfs_pointers,
         )
 
         #: The run's model: ``None`` until :meth:`finalize` resolves it.
@@ -399,7 +405,9 @@ class _ActiveRun:
         """Resolve the declared models, emit the relationships, write the
         fragment, then save the model ids the registry gained: the fragment
         first, so a failed write leaves no entry that no fragment carries.
-        Last, the one ``INFO:`` counting the run's layout-alias hits."""
+        Once the fragment is written, the one ``WARNING:`` for the Git LFS
+        pointers it records by their ``oid``; last, the one ``INFO:``
+        counting the run's layout-alias hits."""
         self.model, self._model_generated = self.models.resolve()
         self._emit_model_dataset_relationships()
         self._emit_output_input_dataset_relationships()
@@ -410,6 +418,7 @@ class _ActiveRun:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         write_text_lf(output_path, self.exporter.to_json(pretty=self.pretty))
+        self.lfs_pointers.warn()
         self.models.persist()
         self.session.info_layout_alias_hits()
 

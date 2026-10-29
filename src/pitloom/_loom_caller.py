@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Caller inspection, provenance and registry-miss helpers for Loom runs.
+"""Caller inspection, provenance, hash and registry-miss helpers for Loom
+runs.
 
 See also: :mod:`pitloom._loom_active_run` for active run lifecycle and graph
 building, :mod:`pitloom._loom_dataset` for dataset and file elements,
@@ -20,8 +21,13 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
+from spdx_python_model.bindings import v3_0_1 as spdx3
+
 from pitloom.__about__ import __version__
+from pitloom.core.file_hash import HexDigests
+from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -40,6 +46,10 @@ log = logging.getLogger("pitloom.loom")
 #: rather than threading a format setting through the whole SDK surface.
 LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 
+#: The provenance field of a ``verifiedUsing`` copied from a Git LFS
+#: pointer's ``oid``; its value is :func:`pointer_provenance`.
+POINTER_PROVENANCE_FIELD = "verified_using"
+
 #: Pitloom's own modules on the stack of a loom call; caller provenance
 #: names the first frame outside them.
 _SKIPPED_LOOM_FILENAMES = frozenset(
@@ -48,6 +58,7 @@ _SKIPPED_LOOM_FILENAMES = frozenset(
         "_loom_active_run.py",
         "_loom_caller.py",
         "_loom_dataset.py",
+        "_loom_dataset_keys.py",
         "_loom_model.py",
     }
 )
@@ -236,3 +247,19 @@ def registry_miss_callback(
         by_path=by_path,
         unhashed=unhashed,
     )
+
+
+def stated_hashes(digests: HexDigests, pointer: LfsPointer | None) -> list[spdx3.Hash]:
+    """The ``verifiedUsing`` of a file loom hashed, or of the package
+    standing for it: *pointer*'s when the file is a Git LFS pointer, else
+    *digests*."""
+    if pointer is not None:
+        return lfs_pointer_hashes(pointer)
+    return file_hashes(digests)
+
+
+def pointer_provenance(label: str) -> str:
+    """The provenance of a hash copied from the Git LFS pointer *label*
+    names (:func:`cwd_relative_label`, taken when the path was given), for
+    :data:`POINTER_PROVENANCE_FIELD`."""
+    return f"Source: {sanitize_provenance_text(label)} | Method: {LFS_POINTER_METHOD}"

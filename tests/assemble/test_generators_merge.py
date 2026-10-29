@@ -20,7 +20,9 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_merged_sbom, generate_project_sbom
-from pitloom.id_registry import sha256_file
+from pitloom.assemble.spdx3._fragments_envelope import _merged_doc_uuid
+from pitloom.core.file_hash import sha256_digest
+from tests._lfs import lfs_pointer_bytes
 from tests._license_graph import fragment_graph, write_fragment
 from tests.assemble.embed_surfaces_shared import demo_project
 
@@ -74,16 +76,28 @@ def test_unhashable_fragment_counts_by_nothing_in_the_id(
     alone = _document(json.loads(generate_merged_sbom(tmp_path / "a"))["@graph"])
     write_fragment(tmp_path / "a" / "g.json", fragment_graph([]))
 
-    def unreadable(path: Path) -> str:
+    def unreadable(path: Path) -> bytes:
         if path.name == "g.json":
             raise PermissionError(path)
-        return sha256_file(path)
+        return sha256_digest(path)
 
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3._fragments_envelope.sha256_file", unreadable
+        "pitloom.assemble.spdx3._fragments_envelope.sha256_digest", unreadable
     )
     both = _document(json.loads(generate_merged_sbom(tmp_path / "a"))["@graph"])
     assert both["spdxId"] == alone["spdxId"]
+
+
+def test_the_document_id_counts_a_fragments_raw_bytes(tmp_path: Path) -> None:
+    """The id follows the bytes: two pointers of one ``oid`` in other line
+    endings are other fragments, though they state one SHA-256."""
+    ids = []
+    for name, eol in (("lf", "\n"), ("crlf", "\r\n")):
+        directory = tmp_path / name
+        directory.mkdir()
+        (directory / "a.json").write_bytes(lfs_pointer_bytes(b"x", eol=eol))
+        ids.append(_merged_doc_uuid(directory, ["a.json"]))
+    assert ids[0] != ids[1]
 
 
 def test_file_names_count_in_the_id(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,6 +52,22 @@ entry records its SHA-256; a new id is used` when an entry exists under the key
 but records no, or another, hash; `id generate` and `loom.Run` say `content
 changed` instead ([log lines](#fallbacks-print-info)). An entry with no hash
 never matches a model.
+
+A **Git LFS pointer** is gated by its `oid`, the SHA-256 of the content it
+stands for, on every route, so its id survives `git lfs pull` and is shared
+by `project`, `--allow-build`, `wheel`, an sdist, the Hatchling hook and
+`id generate`, in any order. The registry records the `oid` for it whatever
+the SBOM states: a wheel, an sdist or the hook ships the pointer text itself,
+so their SBOM states the digest of that text, not the `oid`. `id import`
+records what the SBOM states, so an imported wheel or sdist SBOM holds the
+text's digest, and the next run misses once for each pointer (a new id), then
+holds; a registry written by an earlier Pitloom release does the same. The
+document id, taken from the package's Merkle root, differs between the hook
+and `loom project` for a project with pointers; the file ids do not. A
+merged loom fragment that names the pointer (`loom.add_dataset`) states the
+`oid`: an `--allow-build` or hook SBOM then lists the path twice, the
+fragment's element beside its own, and its own element keeps the
+registry's id.
 
 A **dataset package** has a hybrid gate:
 
@@ -248,4 +264,6 @@ a wheel-only lookup of a file a hatch `sources` remap moved by more than one
 part, and a file named by a raw un-normalised archive member name. A registry
 written by a pre-release v3 build is regenerated (`loom id generate`), and ids
 may renumber once. A retrained model logs `ID registry: content changed for
-...; minting a new spdxId` for the file and for the package.
+...; minting a new spdxId` for the file and for the package. A Git LFS pointer
+whose entry a wheel, sdist or `--allow-build` run wrote with the text's digest
+gets a new id once, then keeps it.

@@ -28,6 +28,7 @@ from pitloom.core.inert_options import (
     SDIST,
     settle_inert,
 )
+from pitloom.core.lfs_pointer import read_lfs_pointer, size_text
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
@@ -35,7 +36,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.extract.ai_model import NotAModel
+from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
@@ -81,7 +82,27 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     try:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
-        raise ValueError(f"{quote_source(model_path)}: {e}") from e
+        where = quote_source(model_path)
+        reason = _refusal_text(e, model_path)
+        raise ValueError(f"{where}: {reason}") from e
+
+
+def _refusal_text(refusal: NotAModel, model_path: Path) -> str:
+    """*refusal* as said for a named file: a file that is a whole Git LFS
+    pointer states its ``oid`` and size and the command that pulls the content;
+    one that only opens like a pointer keeps the plain reason."""
+    if refusal.reason == LFS_POINTER_REASON:
+        try:
+            pointer = read_lfs_pointer(model_path)
+        except OSError:
+            pointer = None
+        if pointer is not None:
+            return (
+                f"{LFS_POINTER_REASON}, content not pulled "
+                f"(oid sha256:{pointer.oid}, size {size_text(pointer.size)}); "
+                "run 'git lfs pull'"
+            )
+    return str(refusal)
 
 
 #: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model
@@ -98,7 +119,9 @@ def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
 def _model_file_digests(model_path: Path) -> HexDigests | None:
     """The SHA-256 and SHA-512 of the model file at *model_path* (its
     ``verifiedUsing``), from one chunked read; ``None`` and one ``WARNING:``
-    when it cannot be read."""
+    when it cannot be read. Called after :func:`_read_local_model` only, so
+    the file is a confirmed model, never a Git LFS pointer (the gate refuses
+    that unhashed): its raw and its stated digest are one."""
     try:
         return file_digests(model_path).hex()
     except OSError as exc:

@@ -99,8 +99,8 @@ project directory with `model:`:
 
 A model whose read fails (truncated, over a bound, a missing extra) still
 gives a format-only entry: the step succeeds and the action surfaces the
-`WARNING:` as an annotation. A file that is not a model (a Git LFS pointer
-included), or is absent or unreadable, fails the step.
+`WARNING:` as an annotation. A file that is not a model (an unpulled Git
+LFS pointer included), or is absent or unreadable, fails the step.
 See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Set `embed-wheel: "dist/*.whl"` (see the quick guide) to embed the SBOM into

@@ -58,6 +58,7 @@ from pathlib import Path
 import _checks_build  # noqa: F401  # pylint: disable=unused-import
 import _checks_config  # noqa: F401  # pylint: disable=unused-import
 import _checks_core  # noqa: F401  # pylint: disable=unused-import
+import _checks_lfs  # noqa: F401  # pylint: disable=unused-import
 import _checks_loom  # noqa: F401  # pylint: disable=unused-import
 import _checks_model  # noqa: F401  # pylint: disable=unused-import
 import _checks_order  # noqa: F401  # pylint: disable=unused-import

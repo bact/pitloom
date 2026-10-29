@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,13 +40,9 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
   the list) and rerun with that folder's page URL.
 - Read the `INFO:` lines: each redirect followed (`Git source: <url>
   redirected to <url>`), and the repository, branch and folder used.
-- **Git LFS is a limitation of this release.** LFS is switched off, so a file
-  kept in LFS is a pointer in the checkout: a pointer named like a model
-  (`.onnx`, `.gguf`, ...) is not read as a model (no `ai_AIPackage` for it), and
-  any other LFS file (a dataset, an image) is hashed as its pointer text, with no
-  warning. Most Hugging Face model repositories keep weights in LFS. Tell the user;
-  `git lfs pull` does not help here (there is no local checkout): for the real
-  files, clone with `git lfs` installed and run `loom project` on the directory.
+- A `WARNING: ... Git LFS pointer, content not read ...` is common here (most
+  Hugging Face model repositories keep weights in LFS). Explain it from the
+  list in `known-limitations.md`; relay the message's advice.
 - A relative `--id-registry` is relative to where `loom` runs, not to the
   checkout. The output file is named as for a local project
   (`<name>-<version>.spdx3.json`).

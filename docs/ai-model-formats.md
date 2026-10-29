@@ -35,7 +35,8 @@ A file is a model when its header confirms a format. The header check comes
 first, so a file named on the command line is read whatever its suffix (a
 `x.dat` with GGUF magic is GGUF); a project or wheel scan only looks at the
 suffixes below. A header that contradicts the suffix (text named `.gguf`)
-is not a model, and a Git LFS pointer is never one; see
+is not a model, and a Git LFS pointer is never one (it is listed as a
+file only); see
 [What is a model](ai-model-scan-limits.md#what-is-a-model).
 
 | Format | Suffixes scanned | Header check | Reads | Library (extra) |

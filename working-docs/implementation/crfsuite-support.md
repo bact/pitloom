@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,11 +120,12 @@ number.
     is today; a `.crfsuite` without `lCRF` warns (a contradicted suffix,
     like `.gguf`). Do not put `.crfsuite` in `_EXTENSION_ADMITS`. **Except
     a Git LFS pointer:** a pointer named `.model` (an unfetched
-    `tokenizer.model`, `spiece.model`, common in Hugging Face repos) gets the
-    existing `header is a Git LFS pointer; not listed as an AI model`
-    warning, as a pointer named `.bin` does today. Decided 2026-10-08:
-    accept that (consistent with `.bin`); the 0.21.0 roadmap item "Git LFS
-    pointers outside AI models" (one summary warning) will quiet both.
+    `tokenizer.model`, `spiece.model`, common in Hugging Face repos) is listed
+    as a file only and counted in the one per-SBOM Git LFS pointer warning,
+    as a pointer named `.bin` is (the per-file `header is a Git LFS pointer`
+    warning stays for a file that only opens like one). Decided 2026-10-08:
+    accept that (consistent with `.bin`); the summary warning of
+    [git-lfs-pointers.md](git-lfs-pointers.md) has since quieted both.
     Test it explicitly so the behaviour is chosen, not accidental.
 11. **A labels list inside `raw_metadata` is one entry** to
     `cap_entries()`; the generic cap never shortens it. The reader caps the

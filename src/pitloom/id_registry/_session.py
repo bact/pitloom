@@ -115,6 +115,9 @@ class IdRegistrySession:
         self._claimed: dict[str, str] = {}
         #: spdxId -> (type name, raw key) it is harvested under.
         self._keys: dict[str, tuple[str, str]] = {}
+        #: spdxId -> the SHA-256 harvest records for it, when not the one
+        #: its element states (a Git LFS pointer's ``oid``).
+        self._hashes: dict[str, str] = {}
         #: (type name, key) whose layout-alias tie was logged.
         self._ties: set[tuple[str, str]] = set()
         #: Claimed hits found through a layout alias.
@@ -262,19 +265,32 @@ class IdRegistrySession:
         if self._alias_hits:
             log.info(LAYOUT_ALIAS_HITS_INFO, self._alias_hits)
 
-    def record_key(self, spdx_id: str, type_name: str, key: str) -> None:
+    def record_key(
+        self, spdx_id: str, type_name: str, key: str, *, sha256: str | None = None
+    ) -> None:
         """Record the raw (never display-escaped) *key* under *type_name*
         that *spdx_id*, minted after a miss, is harvested under. A key
-        recorded by a hit (:meth:`lookup_key`) wins. No-op when no registry
-        is loaded."""
+        recorded by a hit (:meth:`lookup_key`) wins. *sha256*, when given,
+        is the SHA-256 harvest records for *spdx_id* instead of the one its
+        element states (see :meth:`recorded_hashes`). No-op when no
+        registry is loaded."""
         if self._registry is not None:
             self._keys.setdefault(spdx_id, (type_name, key))
+            if sha256 is not None:
+                self._hashes[spdx_id] = sha256
 
     def recorded_keys(self) -> Mapping[str, tuple[str, str]]:
         """A read-only view of spdxId -> (type name, raw key) recorded by
         :meth:`lookup_key` and :meth:`record_key`; an id with no recorded
         key is absent."""
         return MappingProxyType(self._keys)
+
+    def recorded_hashes(self) -> Mapping[str, str]:
+        """A read-only view of spdxId -> the SHA-256 harvest records for it
+        in place of the one its element states, given to :meth:`record_key`
+        (a Git LFS pointer's ``oid``, whatever digest the SBOM states); an
+        id with none is absent."""
+        return MappingProxyType(self._hashes)
 
     def register_id(
         self, claimant: str, type_name: str, name: str, *, sha256: str

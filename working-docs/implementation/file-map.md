@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,6 +76,7 @@ pitloom/
 │       │   │   ├── _document_deployed.py    # Deployed-environment assembly
 │       │   │   ├── _document_file_hits.py  # Registry hits for files and directories, resolved before minting
 │       │   │   ├── _document_files.py       # File-element assembly
+│       │   │   ├── _document_lfs.py         # One WARNING per kind of Git LFS pointer in a document
 │       │   │   ├── _document_locked_deps.py  # Locked-dependency dedup, conflict detection, exact-version pins
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_envelope.py  # SpdxDocument envelope of a merge output
@@ -181,6 +182,7 @@ pitloom/
 │       │   ├── file_identity.py  # Whether two paths are one file, by identity not spelling
 │       │   ├── file_names.py       # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
 │       │   ├── iri.py  # Human name to IRI segment for an SPDX 3 identifier
+│       │   ├── lfs_pointer.py   # Git LFS pointer grammar, bounded read, prefix capture, run summary warning
 │       │   ├── inert_options.py    # INERT: options a target kind can't act on; forward_options()
 │       │   ├── license_individuals.py  # The SPDX 3 named licence individuals Pitloom emits
 │       │   ├── model_extract_limit.py  # Validation of max-model-extract-bytes and max-dataset-hash-bytes
@@ -266,6 +268,7 @@ pitloom/
 │       ├── _loom_dataset.py        # Loom datasets: package plus contained file, hash, registry lookup
 │       ├── _loom_model.py          # Loom models: declared, resolved and recorded at run exit
 │       ├── _loom_dataset_meta.py  # What a loom dataset's own sources state about it
+│       ├── _loom_dataset_keys.py   # Loom dataset registry keys and Hash comments (incl. LFS pointer oid)
 │       ├── _toml_io.py             # Shared tomllib/tomli compat import + raw TOML-file read
 │       ├── _embed_overlay.py  # What an embed takes from its project directory onto the wheel metadata
 │       ├── _sbom_format.py  # SBOM format detection, recommended extensions, name/version cross-check

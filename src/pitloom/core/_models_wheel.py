@@ -45,6 +45,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import DigestHasher, sha256_digest
+from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, stat_if_present
 from pitloom.core.project import (
     ProjectFile,
@@ -62,9 +63,19 @@ def _resolve_file_header_extras(
     filename: str,
     distribution_path: str,
     scan_config: FileScanConfig,
+    *,
+    lfs_pointer: bool = False,
 ) -> FileHeaderExtras:
-    """Resolve the optional per-file header/content-type fields for *raw_bytes*."""
-    header = scan_config.parse_header(raw_bytes) if scan_config.parse_header else None
+    """Resolve the optional per-file header/content-type fields for *raw_bytes*.
+
+    An *lfs_pointer*'s text is not the content: no header is parsed and no
+    content type detected, though a config override still applies (it
+    names the path, not the bytes)."""
+    header = (
+        scan_config.parse_header(raw_bytes)
+        if scan_config.parse_header and not lfs_pointer
+        else None
+    )
     content_type: str | None = None
     resolved_method: str | None = None
     if scan_config.detect_content:
@@ -79,7 +90,7 @@ def _resolve_file_header_extras(
         if override is not None:
             content_type = override.content_type
             resolved_method = "config_override"
-        else:
+        elif not lfs_pointer:
             content_type, resolved_method = scan_config.detect_content(
                 raw_bytes, filename, scan_config.content_type_method
             )
@@ -135,10 +146,13 @@ def _build_project_file_entry(
     (permissions, a TOCTOU race) still raises here, same as a full read
     would, instead of silently producing an entry for an unreadable file.
 
-    Returns the built :class:`ProjectFile` (its SHA-256 and SHA-512 set
-    from one pass over the bytes) and the raw SHA-256 digest bytes (or
-    ``None``, both digests unset, when *skip_merkle_root* left them
-    uncomputed).
+    Returns the built :class:`ProjectFile` (its digests set from one pass
+    over the bytes, through
+    :func:`~pitloom.core.project.digest_fields`) and the raw SHA-256 it
+    records, the Merkle leaf (or ``None``, both digests unset, when
+    *skip_merkle_root* left them uncomputed). A Git LFS pointer's leaf is
+    its ``oid`` unless a build extracted it or *scan_config* keeps bytes
+    as they are.
     """
     distribution_path = included_file.distribution_path
     if need_bytes:
@@ -148,10 +162,20 @@ def _build_project_file_entry(
             pass
         raw_bytes = b""
 
-    digest_bytes: bytes | None = None
+    digests = None
+    if not skip_merkle_root:
+        hasher = DigestHasher()
+        hasher.update(raw_bytes)
+        digests = hasher.digests()
+    # Unhashed, the header and content-type scans still read the bytes.
+    pointer = parse_lfs_pointer(raw_bytes) if digests is None else digests.lfs_pointer
     rel_path = _physical_path(source, project_dir, built=included_file.built)
     extras = _resolve_file_header_extras(
-        raw_bytes, source.name, distribution_path, scan_config
+        raw_bytes,
+        source.name,
+        distribution_path,
+        scan_config,
+        lfs_pointer=pointer is not None,
     )
     project_file = ProjectFile(
         physical_path=rel_path,
@@ -159,13 +183,13 @@ def _build_project_file_entry(
         built=included_file.built,
         **extras,
     )
-    if not skip_merkle_root:
-        hasher = DigestHasher()
-        hasher.update(raw_bytes)
-        digests = hasher.digests()
-        digest_bytes = digests.sha256
-        project_file = dataclasses.replace(project_file, **digest_fields(digests))
-    return project_file, digest_bytes
+    if digests is None:
+        return project_file, None
+    fields = digest_fields(
+        digests, bytes_as_is=included_file.built or scan_config.bytes_as_is
+    )
+    project_file = dataclasses.replace(project_file, **fields)
+    return project_file, bytes.fromhex(fields["digest_sha256"])
 
 
 class _DeclaredRegistry:
@@ -230,6 +254,7 @@ def get_wheel_files(
     content_type_overrides: tuple[ContentTypeOverride, ...] = (),
     assume_backend: str | None = None,
     skip_merkle_root: bool = False,
+    bytes_as_is: bool = False,
     build_options: BuildOptions = BuildOptions(),
     exclude_path: Path | None = None,
     on_left_out: Callable[[Path], None] = warn_registry_left_out,
@@ -295,6 +320,12 @@ def get_wheel_files(
     access failure is still warned about and skipped, same as when
     hashing is on.
 
+    A Git LFS pointer is flagged, its text never scanned, and recorded by
+    its ``oid`` (the root is the one after ``git lfs pull``); with
+    *bytes_as_is* (the hook: ``RECORD`` hashes the pointer text), or when
+    a build extracted it, by its own digests (see
+    :func:`~pitloom.core.project.digest_fields`).
+
     A discovered file that exists but cannot be read (permissions, a
     race) gets one ``WARNING:`` naming its project-relative path and is
     left out; the other files are still returned. A directory the
@@ -344,6 +375,7 @@ def get_wheel_files(
         detect_content=detect_content,
         content_type_overrides=content_type_overrides,
         content_type_method=content_type_method,
+        bytes_as_is=bytes_as_is,
     )
 
     # Owns signal handling until this returns, unless the caller entered

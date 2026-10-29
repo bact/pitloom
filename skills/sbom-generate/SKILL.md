@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-28
+# Last-Modified: 2026-10-29
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -421,9 +421,9 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   yaml_frontmatter`). Name the cause from stderr and tell the user: the wheel
   gate (`INFO:`, `--trust-wheel-model`), a missing library (install
   `pitloom[ai]`), a parse failure (truncated or corrupt file), a size cap or
-  the per-wheel budget, or a Git LFS pointer (`git lfs pull`, regenerate; for
-  a Git URL target there is no checkout to pull into: clone with `git lfs`, then
-  run on the directory).
+  the per-wheel budget, or a `... Git LFS pointer ...` message (the file is a
+  placeholder, not a model: relay Pitloom's advice;
+  `references/known-limitations.md`).
   Never raise a ceiling or add `--trust-wheel-model` on your own. A failed
   read leaves a stub with a `WARNING:` (exit 0); a file whose header
   contradicts its suffix is no model (no `ai_AIPackage`), and `loom model
