@@ -33,6 +33,12 @@ EVIDENCE_LEVELS: frozenset[str] = frozenset(
 EVIDENCE_KEY = "evidence"
 REASON_KEY = "reason"
 
+#: Provenance field names of the facts a ``not_measured`` entry stands in
+#: for: the hash (``verifiedUsing``) of a file, dataset or model, and a
+#: dataset's size (``dataset_datasetSize``, ``DatasetMetadata.byte_size``).
+VERIFIED_USING_FIELD = "verified_using"
+BYTE_SIZE_FIELD = "byte_size"
+
 #: Why a fact is ``not_measured``. The starting set the future message
 #: catalogue adopts; a code is never free text, so it cannot carry untrusted
 #: input into an SBOM.

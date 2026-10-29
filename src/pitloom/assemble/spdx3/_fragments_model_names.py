@@ -144,33 +144,40 @@ def _drop_annotation_field(
 
 
 def drop_annotation_provenance(
-    exporter: Spdx3JsonExporter,
     annotations: Iterable[spdx3.Annotation],
     spdx_id: str,
     field_name: str,
+    emptied: set[spdx3.Annotation],
     *,
     evidence: str | None = None,
 ) -> bool:
     """Drop *field_name*'s provenance (only one of *evidence* when given)
     from those of *annotations* that are ``fields`` provenance Annotations
-    of *spdx_id*; an Annotation left with no field goes. True when any
-    entry was dropped."""
+    of *spdx_id*; an Annotation left with no field joins *emptied*, for
+    :func:`remove_annotations` to take out once. True when any entry was
+    dropped."""
     dropped = False
-    emptied: list[spdx3.Annotation] = []
     for annotation in annotations:
-        if _endpoint_id(annotation.subject) != spdx_id:
+        if _endpoint_id(annotation.subject) != spdx_id or annotation in emptied:
             continue
         statement = annotation.statement
         if _drop_annotation_field(annotation, field_name, evidence) is None:
-            emptied.append(annotation)
+            emptied.add(annotation)
         elif annotation.statement == statement:
             continue
         dropped = True
+    return dropped
+
+
+def remove_annotations(
+    exporter: Spdx3JsonExporter, emptied: set[spdx3.Annotation]
+) -> None:
+    """Take *emptied* out of *exporter*'s object set, reindexing it once
+    (a reindex reads every object)."""
     if emptied:
         object_set = exporter.object_set
         object_set.objects.difference_update(emptied)
         object_set.create_index()
-    return dropped
 
 
 class ModelNames:
@@ -219,6 +226,7 @@ class ModelNames:
         """Settle every base model's name and provenance, after the last
         fragment."""
         models = (m for m in self._models.values() if m.names or m.dropped)
+        emptied: set[spdx3.Annotation] = set()
         for model in sorted(models, key=lambda m: require_spdx_id(m.package)):
             fields = list(model.dropped)
             names = list(model.names)
@@ -229,7 +237,8 @@ class ModelNames:
                 for name in sorted(names):  # today's field merge, in a fixed order
                     _merge_scalar(model.package, _NAME, model.package.name, name)
             if fields:
-                self._drop_provenance(model, fields)
+                self._drop_provenance(model, fields, emptied)
+        remove_annotations(self._exporter, emptied)
 
     def _rename(self, model: _BaseModel, name: str) -> None:
         package = model.package
@@ -241,10 +250,13 @@ class ModelNames:
         )
         package.name = name
 
-    def _drop_provenance(self, model: _BaseModel, fields: list[str]) -> None:
+    def _drop_provenance(
+        self, model: _BaseModel, fields: list[str], emptied: set[spdx3.Annotation]
+    ) -> None:
         """Rebuild the comment of *model* from the base comment without the
         provenance of *fields* and from the fragments' comments in fold order,
-        and drop *fields* from the base's Annotations."""
+        and drop *fields* from the base's Annotations (one left with none
+        joins *emptied*)."""
         package = model.package
         comment = model.comment
         for field_name in fields:
@@ -258,10 +270,7 @@ class ModelNames:
         _finish_parameter_count_note(package)
         for field_name in fields:
             drop_annotation_provenance(
-                self._exporter,
-                self._annotations,
-                require_spdx_id(package),
-                field_name,
+                self._annotations, require_spdx_id(package), field_name, emptied
             )
 
 

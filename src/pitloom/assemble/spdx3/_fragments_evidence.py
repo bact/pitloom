@@ -9,9 +9,11 @@ A source that could not read a fact (a dataset over the hash ceiling) records
 no value and a provenance entry ``Evidence: not_measured``. When a fragment
 merge gives the element that value, the entry no longer holds: it goes from
 every ``fields`` provenance Annotation of the element and from its comment,
-with one ``INFO:`` per entry. An element still without the value keeps it.
-The rule reads the merged graph only, so the order of the fold does not
-matter.
+with one ``INFO:`` per entry. Only an element a fragment folded into is
+read: one no fragment merged with (a whole build with no fragment) keeps
+what its source wrote, and an element still without the value keeps it.
+The rule reads the merged graph once the fold is done, so the order of the
+fold does not matter.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller),
 :mod:`pitloom.assemble.spdx3._fragments_model_names` (the drop helpers) and
@@ -29,10 +31,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3._fragments_model_names import (
     drop_annotation_provenance,
     drop_comment_provenance,
+    remove_annotations,
 )
 from pitloom.assemble.spdx3._fragments_props import _is_empty
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
-from pitloom.core.evidence import NOT_MEASURED
+from pitloom.core.evidence import BYTE_SIZE_FIELD, NOT_MEASURED, VERIFIED_USING_FIELD
 from pitloom.export.spdx3_describe import describe_element
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.logging_config import loggable
@@ -41,11 +44,11 @@ log = logging.getLogger(__name__)
 
 #: Provenance field -> the property (binding name) holding its value.
 MEASURED_PROPERTIES: Final[dict[str, str]] = {
-    # The hash provenance field (``POINTER_PROVENANCE_FIELD``, the file
-    # entries of ``_document_files``).
-    "verified_using": "verifiedUsing",
+    # The hash provenance field (the file entries of ``_document_files``,
+    # ``loom`` pointer provenance).
+    VERIFIED_USING_FIELD: "verifiedUsing",
     # ``DatasetMetadata.byte_size``, written by ``dataset.set_dataset_fields``.
-    "byte_size": "dataset_datasetSize",
+    BYTE_SIZE_FIELD: "dataset_datasetSize",
 }
 
 #: ``log.info()`` format for a dropped entry. Arguments: the property, the
@@ -84,28 +87,32 @@ def _drop_from_comment(element: spdx3.Element, field_name: str) -> bool:
     return True
 
 
-def drop_superseded_absences(exporter: Spdx3JsonExporter) -> None:
-    """Drop each ``not_measured`` provenance entry whose element now holds
-    the value (:data:`MEASURED_PROPERTIES`), after the last fragment."""
-    objects = exporter.object_set.objects
-    annotations = _candidate_annotations(objects)
-    elements = [
-        obj
-        for obj in objects
+def drop_superseded_absences(
+    exporter: Spdx3JsonExporter, folded: Iterable[spdx3.SHACLObject]
+) -> None:
+    """Drop each ``not_measured`` provenance entry whose element, one of
+    *folded* (the elements a fragment folded into), now holds the value
+    (:data:`MEASURED_PROPERTIES`), after the last fragment."""
+    elements = {
+        str(obj.spdxId): obj
+        for obj in folded
         if isinstance(obj, spdx3.Element)
         and obj.spdxId
         and not isinstance(obj, spdx3.Annotation)
-    ]
-    for element in sorted(elements, key=lambda e: str(e.spdxId)):
-        spdx_id = str(element.spdxId)
+    }
+    if not elements:
+        return
+    annotations = _candidate_annotations(exporter.object_set.objects)
+    emptied: set[spdx3.Annotation] = set()
+    for spdx_id, element in sorted(elements.items()):
         for field_name, pyname in MEASURED_PROPERTIES.items():
             if _is_empty(getattr(element, pyname, None)):
                 continue
             from_annotations = drop_annotation_provenance(
-                exporter,
                 annotations.get(spdx_id, ()),
                 spdx_id,
                 field_name,
+                emptied,
                 evidence=NOT_MEASURED,
             )
             if _drop_from_comment(element, field_name) or from_annotations:
@@ -117,3 +124,4 @@ def drop_superseded_absences(exporter: Spdx3JsonExporter) -> None:
                     ),
                     field_name,
                 )
+    remove_annotations(exporter, emptied)

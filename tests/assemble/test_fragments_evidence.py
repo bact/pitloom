@@ -28,14 +28,16 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import _fragments_props as props
+from pitloom.assemble.spdx3._fragments_evidence import drop_superseded_absences
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.assemble.spdx3.provenance import build_provenance_comment
 from pitloom.core.config import FragmentConfig
 from pitloom.core.evidence import NOT_MEASURED, evidence_segment
+from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from tests._license_graph import fragment_graph, write_fragment
-from tests.assemble.embed_surfaces_shared import demo_project, run_cli
+from tests.assemble.embed_surfaces_shared import demo_project, demo_wheel, run_cli
 from tests.extract.conftest import make_hook
 
 _NS = "https://spdx.org/spdxdocs/base"
@@ -83,13 +85,17 @@ def _absent(name: str = "d", **fields: Any) -> list[dict[str, Any]]:
     ]
 
 
-def _envelope() -> Spdx3JsonExporter:
-    """A document with no dataset (``loom merge``'s starting point)."""
-    ci = spdx3.CreationInfo(
+def _creation_info() -> spdx3.CreationInfo:
+    return spdx3.CreationInfo(
         specVersion="3.0.1",
         created=datetime(2026, 1, 1, tzinfo=timezone.utc),
         createdBy=[f"{_NS}#A"],
     )
+
+
+def _envelope() -> Spdx3JsonExporter:
+    """A document with no dataset (``loom merge``'s starting point)."""
+    ci = _creation_info()
     exporter = Spdx3JsonExporter()
     exporter.add_document(spdx3.SpdxDocument(spdxId=_NS, creationInfo=ci))
     exporter.add_agent(spdx3.Agent(spdxId=f"{_NS}#A", name="A", creationInfo=ci))
@@ -188,18 +194,21 @@ def test_the_fold_order_gives_the_same_bytes(
     assert forward[0]["@fields"] == ["name"]
 
 
+@pytest.mark.parametrize("note", ["note", None], ids=["note", "provenance-only"])
 def test_an_entry_alone_takes_its_annotation_and_line(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, note: str | None
 ) -> None:
+    """A comment that was only the provenance line goes as a whole."""
     alone = {"verified_using": _ABSENT}
+    line = build_provenance_comment(alone)
     absent = [
-        _dataset(comment=f"note\n{build_provenance_comment(alone)}"),
+        _dataset(comment=line if note is None else f"{note}\n{line}"),
         _annotation(f"{_NS}#Annotation-1", alone),
     ]
     dataset, messages, merged = _merge(
         tmp_path, caplog, [absent, [_dataset(verifiedUsing=_HASH)]]
     )
-    assert dataset["comment"] == "note"
+    assert dataset.get("comment") == note
     assert not dataset["@fields"]
     assert f"{_NS}#Annotation-1" not in merged
     assert messages == [_info("verifiedUsing", "verified_using")]
@@ -290,10 +299,19 @@ def _hook(_tmp: Path, project: Path, _mp: pytest.MonkeyPatch) -> str:
         hook.finalize("standard", build_data, "")
 
 
+def _embed(tmp: Path, project: Path, _mp: pytest.MonkeyPatch) -> str:
+    """``embed_wheel_sbom`` with the project (a Build SBOM): the JSON it
+    embeds."""
+    wheel = demo_wheel(tmp)
+    overrides = ConfigOverrides(offline=True)
+    return embed_wheel_sbom(wheel, project_dir=project, overrides=overrides)[2]
+
+
 _SURFACES: dict[str, Callable[[Path, Path, pytest.MonkeyPatch], str]] = {
     "loom-merge": _loom_merge,
     "lib": _lib,
     "hook": _hook,
+    "embed-wheel": _embed,
 }
 
 
@@ -329,3 +347,116 @@ def test_the_merge_runs_the_drop_without_a_fragment_value(
     assert NOT_MEASURED in merged
     assert dataset["@fields"] == ["byte_size", "name", "verified_using"]
     assert not messages
+
+
+def _base_with_value_and_entry(exporter: Spdx3JsonExporter) -> None:
+    """Give *exporter* the dataset holding both its hash and the
+    ``not_measured`` entry for it, in comment and Annotation (as a forged
+    file name once made it)."""
+    ci = _creation_info()
+    alone = {"verified_using": _ABSENT}
+    exporter.object_set.add(
+        spdx3.dataset_DatasetPackage(
+            spdxId=_D,
+            name="d",
+            creationInfo=ci,
+            dataset_datasetType=[spdx3.dataset_DatasetType.text],
+            comment=build_provenance_comment(alone),
+            verifiedUsing=[
+                spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=_DIGEST)
+            ],
+        )
+    )
+    exporter.object_set.add(
+        spdx3.Annotation(
+            spdxId=f"{_NS}#Annotation-1",
+            creationInfo=ci,
+            annotationType=spdx3.AnnotationType.other,
+            subject=_D,
+            statement=PitloomV1Encoder().encode(alone),
+        )
+    )
+    exporter.object_set.create_index()
+
+
+@pytest.mark.parametrize(
+    "fragments",
+    [[], [[{"type": "software_Package", "spdxId": f"{_NS}#P", "name": "p"}]]],
+    ids=["no-fragment", "unrelated-fragment"],
+)
+def test_no_merge_into_the_element_leaves_its_entry(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    fragments: list[list[dict[str, Any]]],
+) -> None:
+    """Only a fragment merged into an element supersedes its entry: a
+    base element no fragment merged with keeps both, and nothing is said."""
+    for n, elements in enumerate(fragments):
+        write_fragment(tmp_path / f"f{n}.json", fragment_graph(elements))
+    exporter = _envelope()
+    _base_with_value_and_entry(exporter)
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        merged = merge_fragments(
+            tmp_path,
+            [FragmentConfig(path=f"f{n}.json") for n in range(len(fragments))],
+            exporter,
+        )
+    assert merged == len(fragments)
+    graph = json.loads(exporter.to_json())["@graph"]
+    (dataset,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert dataset["comment"] == build_provenance_comment({"verified_using": _ABSENT})
+    assert any(e.get("spdxId") == f"{_NS}#Annotation-1" for e in graph)
+    assert not [r for r in caplog.records if "Merge:" in r.getMessage()]
+
+
+def test_the_drop_pass_reindexes_once(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Many emptied Annotations among many objects: one reindex for the
+    pass, not one per Annotation (which made 200 drops take 33 s)."""
+    exporter = _envelope()
+    ci = _creation_info()
+    objects = exporter.object_set.objects
+    datasets = []
+    for i in range(100):
+        spdx_id = f"{_NS}#D{i}"
+        datasets.append(
+            spdx3.dataset_DatasetPackage(
+                spdxId=spdx_id,
+                name=f"d{i}",
+                creationInfo=ci,
+                verifiedUsing=[
+                    spdx3.Hash(
+                        algorithm=spdx3.HashAlgorithm.sha256, hashValue=f"{i:064x}"
+                    )
+                ],
+            )
+        )
+        objects.add(datasets[-1])
+        objects.add(
+            spdx3.Annotation(
+                spdxId=f"{_NS}#Annotation-{i}",
+                creationInfo=ci,
+                annotationType=spdx3.AnnotationType.other,
+                subject=spdx_id,
+                statement=PitloomV1Encoder().encode({"verified_using": _ABSENT}),
+            )
+        )
+    for i in range(300):
+        objects.add(spdx3.software_File(spdxId=f"{_NS}#F{i}", creationInfo=ci))
+    exporter.object_set.create_index()
+    calls: list[None] = []
+    reindex = exporter.object_set.create_index
+
+    def counted() -> None:
+        calls.append(None)
+        reindex()
+
+    monkeypatch.setattr(exporter.object_set, "create_index", counted)
+    with caplog.at_level(logging.INFO):
+        drop_superseded_absences(exporter, datasets)
+    assert len(calls) == 1
+    assert not [o for o in objects if isinstance(o, spdx3.Annotation)]
+    assert exporter.object_set.find_by_id(f"{_NS}#Annotation-0") is None
+    assert len([r for r in caplog.records if "Merge:" in r.getMessage()]) == 100

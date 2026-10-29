@@ -41,7 +41,7 @@ from pitloom.core.pep508 import parse_requirement
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
-from pitloom.extract._extract_utils import pkg_meta_get
+from pitloom.extract._extract_utils import pkg_meta_get, sanitize_provenance_text
 from pitloom.extract.lock.common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
@@ -58,6 +58,13 @@ _DOWNLOAD_LABELS = ("download",)
 _DEFAULT_LOCKED_PROVENANCE = "Source: lock file | Method: resolved_lockfile"
 
 log = logging.getLogger(__name__)
+
+
+def package_provenance_source(source: str, dep_name: str) -> str:
+    """``"Source: <source> | Package: <dep_name>"``, the provenance of a
+    dependency's metadata. *dep_name* can be requirement text that did not
+    parse (:func:`_parse_dep_name`): sanitised, so it adds no segment."""
+    return f"Source: {source} | Package: {sanitize_provenance_text(dep_name)}"
 
 
 def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
@@ -447,7 +454,7 @@ def _enrich_from_installed(
         repo_url=repo_url,
         provenance_config=provenance_config,
         encoder=encoder,
-        provenance_source=f"Source: {installed_source} | Package: {dep_name}",
+        provenance_source=package_provenance_source(installed_source, dep_name),
         offline=offline,
         content_type_method=content_type_method,
     ):
@@ -459,7 +466,7 @@ def _enrich_from_installed(
         filled.add("copyright")
 
     license_id, provenance = core_metadata_license_with_source(
-        pkg_meta, f"Source: {installed_source} | Package: {dep_name}"
+        pkg_meta, package_provenance_source(installed_source, dep_name)
     )
     if _apply_license(
         license_id,

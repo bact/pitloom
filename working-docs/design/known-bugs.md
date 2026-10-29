@@ -441,7 +441,7 @@ From the Git LFS pointer work. Open:
 From an Opus review of the provenance code against `evidence-levels.md`:
 
 - [x] **After a comment merge the second `Metadata provenance:` block is not
-  found by the drop helpers (S), fixed (PR to follow).** `_merge_comment`
+  found by the drop helpers (S), fixed (#386).** `_merge_comment`
   joined comments with `"; "` (`_fragments_props.py`);
   `provenance_comment_parts` strips the prefix only at the start of a line. A
   provenance line now starts a line of its own on either side of the join, and
