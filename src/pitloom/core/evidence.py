@@ -29,7 +29,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from pitloom.core.provenance import parse_provenance_value, sanitize_provenance_text
+from pitloom.core.provenance import (
+    parse_provenance_value,
+    provenance_source,
+    sanitize_provenance_text,
+)
 
 T = TypeVar("T")
 
@@ -168,7 +172,8 @@ class Fact(Generic[T]):
         (:func:`evidence_segment`); ``None`` for ``measured_read``."""
         if self.source is None:
             return None
-        return f"Source: {self.source} | {evidence_segment(self.level, self.reason)}"
+        segment = evidence_segment(self.level, self.reason)
+        return f"{provenance_source(self.source)} | {segment}"
 
 
 def count_fact(value: int, level: str, source: str, field: str) -> Fact[int]:
