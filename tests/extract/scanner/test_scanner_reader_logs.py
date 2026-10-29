@@ -165,20 +165,26 @@ def test_a_reader_records_code_is_kept_when_relogged(
 ) -> None:
     def reader(path: Path, **_kwargs: Any) -> Any:
         log = logging.getLogger("pitloom.extract.ai_model.pytorch")
-        emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=path.name)
+        for _ in range(2):  # the repeat is DEBUG: its code is not relayed
+            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=path.name, once="r")
         log.warning("plain")
         raise ValueError("boom")
 
-    with patch(_READ, reader):
+    with patch(_READ, reader), caplog.at_level(logging.DEBUG, logger="pitloom"):
         discover_ai_models(
             [_candidate(Path(tempfile.gettempdir()) / "0.pt", Mock(return_value=_PT))]
         )
-    relayed = [(r.name, getattr(r, CODE_ATTR, None)) for r in caplog.records]
+    relayed = [
+        (r.name, r.levelno, getattr(r, CODE_ATTR, None))
+        for r in caplog.records
+        if r.name == "pitloom.extract.scanner" and "Discovered" not in r.getMessage()
+    ]
     scanner = "pitloom.extract.scanner"
     assert relayed == [
-        (scanner, "lfs-pointer-malformed"),
-        (scanner, None),
-        (scanner, None),
+        (scanner, logging.WARNING, "lfs-pointer-malformed"),
+        (scanner, logging.DEBUG, None),
+        (scanner, logging.WARNING, None),
+        (scanner, logging.WARNING, None),
     ]
 
 

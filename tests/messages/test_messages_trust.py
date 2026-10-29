@@ -83,6 +83,9 @@ _FORGED = [
     # two actions run together
     "WARNING: FILE=a: Git LFS pointer, content not read; run 'git lfs pull' for "
     "the content; clone with git lfs, then run on the directory [lfs-pointer]",
+    # a frame before a line of a level it is not printed before
+    "WARNING: model command failed: FILE=a: Git LFS pointer, content not read; "
+    "run 'git lfs pull' for the content [lfs-pointer]",
     # a shape at a level it is not printed at
     f"WARNING: 'm.gguf': {_LOOKS} [lfs-pointer-malformed]",
     f"WARNING: {_POINTER} [lfs-pointer]",
