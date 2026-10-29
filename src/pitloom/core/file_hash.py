@@ -26,6 +26,12 @@ no caller reads a file twice to ask. ``stated()`` gives the digests of
 the content a file stands for: a pointer's ``oid`` as the SHA-256 and no
 SHA-512 (the content was not read), else the digests read.
 
+Two questions, two readers. *Which bytes?* (the registry's copy match,
+a build-and-read copy) is :func:`sha256_digest`, raw. *What SHA-256 does
+an SBOM state for the file on disk?* is :func:`stated_sha256_hex`: for a
+Git LFS pointer, its ``oid`` (what ``git lfs pull`` brings), else the
+digest; every registry key built from a file on disk takes it.
+
 See also: :mod:`pitloom.core.lfs_pointer` (the pointer grammar);
 :mod:`pitloom.core.dataset_hash` (the dataset ceiling) and
 :func:`pitloom.id_registry.sha256_file` (the hex form).
@@ -54,6 +60,7 @@ __all__ = [
     "sha256_digest",
     "sha256_digest_and_size",
     "sha256_read",
+    "stated_sha256_hex",
 ]
 
 #: Bytes read per chunk.
@@ -221,6 +228,18 @@ def sha256_read(
 
     read = _read_chunks(path, max_bytes, update)
     return Sha256Read(digest.digest(), read, prefix.pointer())
+
+
+def stated_sha256_hex(
+    path: str | os.PathLike[str], *, max_bytes: int | None = None
+) -> str:
+    """The SHA-256 an SBOM states for the file at *path* in a checkout, as
+    lowercase hex: a Git LFS pointer's ``oid`` (so the same before and
+    after ``git lfs pull``), else the digest of the bytes
+    (:func:`sha256_read`). Only the digest: a pointer has no SHA-512.
+    Raises as :func:`sha256_digest_and_size`."""
+    sha256, _, pointer = sha256_read(path, max_bytes=max_bytes)
+    return sha256.hex() if pointer is None else pointer.oid
 
 
 def sha256_digest(
