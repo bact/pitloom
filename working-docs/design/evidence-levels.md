@@ -219,6 +219,23 @@ escaped.
    by the drop helpers (they strip the prefix only at the start of a line).
 9. Drift in `docs/metadata-provenance.md` and the skills.
 
+## The `AGENTS.md` rule
+
+The rule below goes into `AGENTS.md` ("Design principles") with the first
+implementing PR (sizes under a cap), not before: it binds every agent session,
+and no code follows it yet.
+
+```text
+- **Caps bound reading, never reporting; every fact has an evidence level.**
+  A size or time cap is for security and hangs only. Record the first
+  available: **measured** (`stat()`, or a read within the caps);
+  **declared** (archive header, LFS pointer, API) with its source, never
+  passed off as measured; a **lower bound** (provenance only); else nothing,
+  with provenance `not_measured` and why. A declared value never gates a cap
+  or a read. Plan:
+  [evidence-levels.md](working-docs/design/evidence-levels.md).
+```
+
 ## Decisions
 
 Recommended answers; none is decided.

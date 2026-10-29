@@ -10,7 +10,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - Design docs: `working-docs/design/` -- future work, plans, sketches; may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/` -- what WAS built: decisions, why, paths rejected in service of it, revisions.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
-- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` unbuilt, `implementation/` built, `archive/` abandoned) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
+- **`roadmap.md` stays a summary**: when an item outgrows a bullet, move its detail to its own file (`design/` while unbuilt, `implementation/` once built, `archive/` if abandoned but worth keeping) and leave 1-2 lines plus a `See [doc.md](doc.md)` link; small items stay inline. Why: one copy drifts unnoticed.
 - Paper notes (sourced raw material for a write-up): `working-docs/implementation/sbom-generator-field-notes/` (start at `README.md`) and `working-docs/implementation/ai-model-scan-security-lessons.md` (entry page; findings in `-*` parts). Add findings worth publishing.
 - Test fixtures: `tests/fixtures/README.md`
 - `working-docs/` is internal notes only -- content can change without notice. The user-facing website (`docs/`) must never link into it; reference a PR or issue number instead.
@@ -48,7 +48,6 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 
 - **Honour user intent over silent fallbacks**: no implicit fallback that contradicts the user's explicit instruction.
 - **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction. A rejected input (URL, scheme, ref) is logged as well as raised.
-- **Caps bound reading, never reporting; every fact has an evidence level.** A size or time cap is for security and hangs only. Record the first available: **measured** (`stat()`, or a read within the caps); **declared** (archive header, LFS pointer, API) with its source, never passed off as measured; a **lower bound** (provenance only); else nothing, with provenance `not_measured` and why. A declared value never gates a cap or a read. Plan: [evidence-levels.md](working-docs/design/evidence-levels.md).
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
 - **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or lazy header extraction (`np.lib.format`, stream loading for fickling/pickle).
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment, which is a fallback for the unpinned case only.
@@ -104,7 +103,7 @@ Data and semantics:
 Code shape:
 
 - **Warning/error/log wording drifts across sibling modules**: one shared helper; check siblings when adding a check.
-- **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows, `repr(str)` doubles backslashes. `loggable()` every interpolated value; test with a newline and a repeated input (said once).
+- **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows and `repr(str)` doubles backslashes. `loggable()` every interpolated value, test with a newline, and test each emitter with a repeated input (said once).
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively; prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
@@ -116,7 +115,7 @@ Code shape:
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
 - **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
-- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update`, 0.5.0 or later); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets with a stashed baseline.
+- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.5.0 or later); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
 
 Tests, platform and CI:
 
@@ -165,7 +164,7 @@ Unix philosophy: consistent, predictable, parseable.
 
 - Min version 3.10: no later syntax/features unless via `__future__`; no `A | B` unions outside `TYPE_CHECKING` blocks.
 - Verify types with mypy (strict=true); pyright/pytype as second opinions.
-- **Untyped third-party dependency**: before an `ignore_missing_imports` override (mypy, pyrefly, ...), find a trusted typeshed `types-<package>` stub on PyPI and add it to the `typecheck` group; suppress only if none exists. Why: [rationale](working-docs/implementation/agents-md-rationale.md#python).
+- **Untyped third-party dependency**: before an `ignore_missing_imports` override (mypy, pyrefly, ...), look on PyPI for a trusted typeshed `types-<package>` stub package and add it to the `typecheck` group; suppress only if none exists. Why: [rationale](working-docs/implementation/agents-md-rationale.md#python).
 - Fully qualified names in docstrings for non-stdlib types (`numpy.ndarray`).
 - No `assert` in production (tests only). No wildcard imports. All config in `pyproject.toml` where possible.
 - **Import order**: stdlib -> third-party -> local, alphabetical within each; do not reorder imports that a comment says must stay in order (circular import/init). `ruff check --fix --select I` automates it.
@@ -174,7 +173,7 @@ Unix philosophy: consistent, predictable, parseable.
 ## Cross-platform compatibility
 
 - Must work on Windows, macOS and Linux. Use `pathlib.Path` for paths. `/tmp/` and POSIX directories do not exist on Windows.
-- **Dry-run Windows when you cannot run it**: read each path test as Windows would: `/` in an expected path, `Path ==` on names differing only in case, a `skipif`/constant naming a POSIX-only API, `..` collapsed by Win32 before the open, a symlink needing privilege. Emulate with `PureWindowsPath`/`ntpath`; put it in every review brief (macOS green is not Windows green).
+- **Dry-run Windows when you cannot run it**: read each path test as Windows would: `/` in an expected path, `Path ==` on names differing only in case, a `skipif`/constant naming a POSIX-only API, `..` collapsed by Win32 before the open, a symlink needing privilege. Emulate with `PureWindowsPath`/`ntpath`; put it in every review agent's brief (macOS green is not Windows green).
 
 ## Linting and formatting
 
