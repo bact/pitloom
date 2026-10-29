@@ -11,9 +11,9 @@ A catalogued message has a stable code, printed after its text as
 'git lfs pull' for the content [lfs-pointer]``). The code travels on the log
 record as its ``pitloom_code`` attribute
 (:data:`~pitloom.logging_config.CODE_ATTR`), which a library user's own
-handler can read, and on an exception as its ``code``
-(:class:`CodedValueError`, read back by :func:`code_of`). A line without a
-code is not catalogued yet.
+handler can read, and on an exception of any class as an attribute of the
+same name (:class:`CodedValueError` sets it, :func:`code_of` reads it back).
+A line without a code is not catalogued yet.
 
 Trust a code read back from a line only through :func:`trusted_message`:
 the code must be catalogued and the text must match one of the entry's

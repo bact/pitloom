@@ -32,8 +32,8 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
-- Catalogued messages end in a stable `[code]` (Git LFS pointer ones first),
-  also on log records (`pitloom_code`) and exceptions (`.code`) ([#390])
+- Catalogued messages end in a stable `[code]` (Git LFS pointer ones first);
+  log records and exceptions carry it as `pitloom_code` ([#390])
 
 ### Changed
 

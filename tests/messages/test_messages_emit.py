@@ -132,28 +132,54 @@ def test_print_error_appends_only_a_code(
 def test_a_coded_error_is_a_value_error_with_its_code() -> None:
     exc = CodedValueError(LFS_POINTER, "'m.bin': header")
     assert isinstance(exc, ValueError) and str(exc) == "'m.bin': header"
-    assert code_of(exc) == "lfs-pointer"
+    assert exc.pitloom_code == code_of(exc) == "lfs-pointer"
+    assert not hasattr(exc, "code")
     assert code_extra_of(exc) == {CODE_ATTR: "lfs-pointer"}
     for again in (pickle.loads(pickle.dumps(exc)), copy.copy(exc)):  # nosec B301
         assert (str(again), code_of(again)) == (str(exc), "lfs-pointer")
 
 
+class _ClassCoded(OSError):
+    pitloom_code = "lfs-pointer"
+
+
+def _instance_coded() -> RemoteSourceError:
+    exc = RemoteSourceError("git.too-large", "too large")
+    setattr(exc, CODE_ATTR, "lfs-pointer/shipped")
+    return exc
+
+
+@pytest.mark.parametrize(
+    ("exc", "code"),
+    [(_ClassCoded("x"), "lfs-pointer"), (_instance_coded(), "lfs-pointer/shipped")],
+    ids=["class", "instance"],
+)
+def test_any_exception_class_carries_a_code(exc: BaseException, code: str) -> None:
+    """``pitloom_code`` on the class or the instance; an exception's own
+    ``code`` (here ``git.too-large``) stays its own."""
+    assert code_of(exc) == code and code_extra_of(exc) == {CODE_ATTR: code}
+
+
 def test_code_of_ignores_any_other_code_and_the_cause() -> None:
-    """An HTTP status, an exit status, a code that is no text, an
-    uncatalogued code, a code on the cause only: nothing to print."""
+    """An HTTP status, an exit status, a catalogued code in another
+    attribute, a code that is no text, an uncatalogued code, a code on the
+    cause only: nothing to print."""
     with HTTPError("https://x.example/", 404, "Not Found", EmailMessage(), None) as e:
         assert e.code == 404 and code_of(e) is None
     wrapped = RuntimeError("wrapper")
     wrapped.__cause__ = CodedValueError(LFS_POINTER, "inner")
 
     class _Listed(ValueError):
-        code: list[str] = ["lfs-pointer"]
+        pitloom_code: list[str] = ["lfs-pointer"]
 
-    unhashable = _Listed("listed")
+    class _Uncatalogued(ValueError):
+        pitloom_code = "git.too-large"
+
     for exc in (
         SystemExit(2),
-        unhashable,
-        RemoteSourceError("git.too-large", "too large"),
+        _Listed("listed"),
+        _Uncatalogued("uncatalogued"),
+        RemoteSourceError("lfs-pointer", "a catalogued code as .code"),
         ValueError("plain"),
         wrapped,
     ):

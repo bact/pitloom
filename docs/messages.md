@@ -75,17 +75,18 @@ logging.getLogger("pitloom").addHandler(CodeHandler())
 
 try:
     ...  # a call that raises
-except ValueError as exc:
+except Exception as exc:
     print(code_of(exc))  # the catalogued code, or None
 ```
 
 - A log record of a catalogued message has the attribute `pitloom_code`;
   `record.getMessage()` is the text without the code. A record without the
   attribute is not catalogued.
-- An exception of a catalogued condition has `exc.code` (a `ValueError`
-  subclass). `pitloom.messages.code_of(exc)` returns it when it is a
-  catalogued code, and `None` for anything else, such as an HTTP status or a
-  code of the remote-source errors.
+- An exception of a catalogued condition, of any class, has the attribute
+  `pitloom_code`. `pitloom.messages.code_of(exc)` returns it when it is a
+  catalogued code, and `None` for anything else. An exception's own `code`
+  (an HTTP status, an exit status, `git.too-large` of a remote-source error)
+  is never read.
 
 The command line prints the code of the exception it reports at the end of its
 `ERROR:` line.

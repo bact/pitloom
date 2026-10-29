@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """How a catalogued message carries its code: on a log record
-(:func:`emit`, :func:`code_extra`) and on an exception
-(:class:`CodedValueError`, :func:`code_of`).
+(:func:`emit`, :func:`code_extra`) and on an exception of any class, as its
+:data:`~pitloom.logging_config.CODE_ATTR` attribute (:class:`CodedValueError`
+sets it; :func:`code_of` reads it).
 
 See also: :mod:`pitloom.messages` (the catalogue) and
 :mod:`pitloom.logging_config` (which prints the code).
@@ -50,11 +51,13 @@ def emit(
 
 
 def code_of(exc: BaseException) -> str | None:
-    """*exc*'s ``code`` when it is a catalogued code, else ``None``: an
-    HTTP status, an exit status or an uncatalogued code (``git.too-large``)
-    is not printed. *exc*'s cause is not consulted: a wrapping exception
-    states its own condition."""
-    code = getattr(exc, "code", None)
+    """*exc*'s ``pitloom_code`` (:data:`~pitloom.logging_config.CODE_ATTR`,
+    on the instance or its class) when it is a catalogued code, else
+    ``None``. Any exception class can carry one; another attribute, such as
+    the ``code`` of an HTTP error, an exit or a remote-source error
+    (``git.too-large``), is never read. *exc*'s cause is not consulted: a
+    wrapping exception states its own condition."""
+    code = getattr(exc, CODE_ATTR, None)
     return code if isinstance(code, str) and code in MESSAGES else None
 
 
@@ -66,13 +69,14 @@ def code_extra_of(exc: BaseException) -> dict[str, object] | None:
 
 
 class CodedValueError(ValueError):
-    """A :class:`ValueError` that says a catalogued *message*: its ``code``
-    reaches the ``ERROR:`` line of every surface that reports it."""
+    """A :class:`ValueError` that says a catalogued *message*: its
+    ``pitloom_code`` reaches the ``ERROR:`` line of every surface that
+    reports it."""
 
     def __init__(self, message: Message, text: str) -> None:
         super().__init__(text)
-        #: The catalogued code.
-        self.code: str = message.code
+        #: The catalogued code (:data:`~pitloom.logging_config.CODE_ATTR`).
+        self.pitloom_code: str = message.code
         self._message = message
 
     def __reduce__(self) -> tuple[type[CodedValueError], tuple[Message, str]]:
