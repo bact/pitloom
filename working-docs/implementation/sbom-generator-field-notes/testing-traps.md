@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -260,3 +260,41 @@ Ways a test passes, fails or floods the log for the wrong reason.
   discovery-failure flag is set on the caller's thread by whichever discoverer
   logs a failure; the dispatcher clears it first, so a report left by an earlier
   call cannot reword the next. Test the stale case, not only the set case.
+
+- **A path spelled `./x` is normalised by `Path`, so a mutant on the
+  de-duplication key survives.** The pointer summary de-duplicated on
+  `normcase(realpath(path))`; a test using `./x` never differed from `x`. The
+  test spelled `data/../data/x`, and a unit test patched `normcase` with a
+  case-folding stub, so nothing depends on the file system.
+- **A drift guard against the real tool needs a verdict per row, and the
+  intended differences named.** The grammar matrix runs every row through `git
+  lfs pointer --check --stdin` (skipped without git-lfs). Ten rows git-lfs
+  3.4.1 accepts are refused on purpose (`1024-bytes`, `empty`, `blank-line`,
+  `trailing-blank`, `trailing-space`, `ext-after-oid`, `size-plus`,
+  `size-leading-0`, `mixed-eol`, `mixed-final-eol`); the list is asserted
+  exactly, so a change in either direction fails.
+- **A fixture checked out with CRLF changes its digest.** Real pointer fixtures
+  carry `-text` in `.gitattributes`, and tests that need other line endings
+  build them with `lfs_pointer_bytes(eol=...)`.
+- **A skip for an absent fixture is also silent in a development checkout.**
+  Tests that read the pointer fixtures use `pointer_fixture()`, which skips when
+  `tests/fixtures/lfs-pointers/` is missing, so the sdist test run does not
+  error. The same skip hides a checkout that lost the directory. Open: a test
+  that asserts the directory exists when a `.git` directory does.
+- **A "bounded read" claim needs a spy on `open`.** The detector tests wrap the
+  file object and assert no read asks for more than 1024 bytes, and that a
+  sparse 64 MiB file is read for zero bytes.
+
+- **A module-level `pytest.skip` in a shared helper skips every importer.**
+  `tests/_lfs.py` built its pointer table at import by calling a function that
+  skips when the fixture directory is absent. In an sdist copy of `tests/` that
+  skipped 17 modules (307 tests) instead of the 4 that needed the files. Found
+  by copying `tests/` without the directory and running it; build such data
+  lazily.
+- **Simulate the artefact you ship.** The sdist exclude was correct, and its
+  consequence for the tests was only visible by running a copy of `tests/`
+  without the excluded directory.
+- **A test written for a fix can pass without it.** The licence-reader test
+  passed with the new check replaced by `return None`, because the project it
+  built never put the pointer text where it asserted. Revert the fix, run the
+  test, and look at the failure.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -308,3 +308,52 @@ not built, and stay open in
   repeated `set_model()` calls (#234).
   Do: reserve externally supplied ids first; check for duplicates only
   after legitimate merging.
+
+## 4. A stand-in file: the Git LFS pointer (#378)
+
+A Git checkout made with LFS off holds, for an LFS-tracked file, a pointer of
+under 1 KiB: a version line, `oid sha256:<64 hex>` and `size N`. The oid is the
+SHA-256 of the content, so the pointer already states the one hash an SBOM
+wants. Pitloom reads nothing else of the file.
+
+- **A checkout takes the oid; an archive keeps the bytes.** In a directory scan
+  the file is listed with the oid as its SHA-256 (no SHA-512), a comment saying
+  so, and `Method: lfs_pointer`. A wheel, sdist, built file or the Hatchling
+  hook record the real pointer-text hashes, which match `RECORD`, and warn that
+  a pointer was shipped. Why two rules: an SBOM of a built artefact must agree
+  with the artefact; an SBOM of a checkout describes what the checkout stands
+  for.
+- **The oid keeps identity across `git lfs pull`.** The file's SHA-256, a
+  dataset's Merkle root and a `use_model` identity are equal before and after a
+  pull (tests replace a pointer with the content it names and assert the bytes
+  changed). Only SHA-512 appears later.
+- **The stated size is recorded, never used.** SPDX 3 has no file size property,
+  so it sits in the Hash comment (ledger FG-9). No cap compares it: a pointer
+  stating 100 GB is hashed like any other, because the dataset ceiling counts
+  bytes read. Consequence: after a pull the same directory may exceed the
+  ceiling and get no hash, so its identity goes from a hash to none.
+- **The consequences are ledgered, not hidden.** A stated hash looks like a
+  computed one (FG-10); a Merkle root partly built from oids says so only in a
+  comment (FG-11); the hook and `loom project` give different document ids for a
+  project with pointers, because the hook's Merkle leaf is the pointer-text
+  hash.
+- **Real pointers are narrower than the grammar.** Five pointers fetched from
+  the Hugging Face Hub (two dataset parquet files, a model `.bin`, a `.zip`, a
+  Space `.js`; stated sizes 28 B to 17.8 MB, pointer files 127 to 133 bytes)
+  were all LF-terminated, used the `git-lfs.github.com/spec/v1` URL and had no
+  extension lines. The CRLF, `hawser` and `git-media` forms the decoder accepts
+  were not found in the wild, and are built in tests.
+
+- **Two routes, one registry: the stored key has to be one of them.** The first
+  design let a checkout key a pointer by its `oid` and an archive by the
+  pointer-text digest, and made every lookup accept either. A review showed the
+  write side undoes it: an archive run rewrote the entry to the digest, and the
+  checkout run then missed it. The stored key for a pointer is the `oid` on
+  every route; the digest of the pointer text is only a lookup alias. Open: the
+  SBOM of an archive states the digest, so a harvest from that SBOM alone cannot
+  recover the `oid`.
+- **The same checkout, two document ids.** The Hatchling hook's Merkle leaf for
+  a pointer is the pointer-text hash; `loom project`'s is the `oid`. Reviewers
+  named it a regression against `main` (the two agreed there); the maintainer
+  was unsure whether any flow combines them, so it is documented and listed in
+  the open questions.
