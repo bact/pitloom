@@ -16,7 +16,9 @@ repository is never built.
 Give `loom project` or `loom generate` the `http` or `https` URL of a Git
 repository, or of one of its web pages, and Pitloom fetches the repository
 shallowly into a temporary directory, reads the Python project in it and writes
-the SBOM. The directory is removed afterwards. It needs the `git` program.
+the SBOM. The directory is removed afterwards, and a message that would name
+it says `<checkout>` instead, so two runs print the same text. It needs the
+`git` program.
 
 ```bash
 loom project https://gitlab.com/group/project                  # the default branch

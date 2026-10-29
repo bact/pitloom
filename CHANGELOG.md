@@ -31,8 +31,11 @@ and this project adheres to
 
 - `embed-wheel --sbom` refuses invalid JSON, a non-object and a `.spdx3.json`
   that is not SPDX 3, before the wheel is written ([#374])
+- A Git URL's messages show the temporary checkout as `<checkout>`, not a random
+  path ([#375])
 
 [#374]: https://github.com/bact/pitloom/pull/374
+[#375]: https://github.com/bact/pitloom/pull/375
 [#376]: https://github.com/bact/pitloom/pull/376
 
 ## [0.21.1] - 2026-10-28

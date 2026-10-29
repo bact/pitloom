@@ -22,6 +22,7 @@ import re
 import sys
 import threading
 import traceback
+from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any, TextIO, cast
@@ -142,12 +143,56 @@ def sanitize_url(url: str) -> str:
     return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
 
 
+#: The name prefix of the temporary directory a Git URL is checked out in.
+CHECKOUT_DIR_PREFIX = "pitloom-git-"
+#: What a message shows for that directory, so two runs read the same.
+CHECKOUT_PLACEHOLDER = "<checkout>"
+#: ``tempfile.mkdtemp`` appends eight characters of ``[a-z0-9_]``: a directory
+#: of another name (a worktree called ``pitloom-git-fix``) is not the checkout.
+_CHECKOUT_DIR = re.compile(
+    re.escape(CHECKOUT_DIR_PREFIX) + r"[a-z0-9_]{8}(?![a-z0-9_])"
+)
+#: A word of a message: a run without a space, quote, bracket, backtick, ``=``,
+#: ``,`` or ``;`` (where a path ends in a message that quotes, brackets or
+#: follows ``KEY=``).
+_WORD = re.compile(r"[^\s'\"`()\[\]<>=,;]+")
+#: ``user@host:path``, the scp-style address of a repository.
+_SCP_ADDRESS = re.compile(r"[\w.+-]+@[\w.-]+:")
+
+
+def _mask_word(found: re.Match[str]) -> str:
+    word = found.group(0)
+    if (
+        CHECKOUT_DIR_PREFIX not in word
+        or "://" in word
+        or _SCP_ADDRESS.match(word) is not None
+    ):
+        return word
+    last = deque(_CHECKOUT_DIR.finditer(word), maxlen=1)
+    return CHECKOUT_PLACEHOLDER + word[last[0].end() :] if last else word
+
+
+def mask_checkout(text: str) -> str:
+    """*text* with the temporary checkout of a Git URL written as
+    ``<checkout>``: each word that is a path holding the directory
+    (``pitloom-git-`` and its eight random characters) becomes ``<checkout>``
+    and what follows the directory, so a path below it keeps its tail
+    (``<checkout>/setup.cfg``). A word that is an address (``https://host/o/
+    pitloom-git-abcdefgh``, ``git@host:o/pitloom-git-abcdefgh``) is kept. One
+    pass over the words; text without the prefix is returned as it is."""
+    if CHECKOUT_DIR_PREFIX not in text:
+        return text
+    return _WORD.sub(_mask_word, text)
+
+
 def escape_controls(text: str) -> str:
-    """*text* with each character that is not printable, and each code point
-    of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its
-    ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
-    letters included, is kept. Unlike :func:`loggable` it never quotes, so a
-    message already built stays readable."""
+    """*text* with the temporary checkout of a Git URL masked
+    (:func:`mask_checkout`), each character that is not printable, and each
+    code point of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`,
+    written as its ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything
+    else, non-ASCII letters included, is kept. Unlike :func:`loggable` it never
+    quotes, so a message already built stays readable."""
+    text = mask_checkout(text)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return "".join(
@@ -191,7 +236,9 @@ def loggable(text: str) -> str:
     The one escaping every message interpolating such text goes through.
     Text holding a code point of
     :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is escaped too,
-    printable or not (U+034F is a printable combining mark).
+    printable or not (U+034F is a printable combining mark). It does not mask
+    the temporary checkout: ``KEY=VALUE`` data on stdout goes through it and
+    must stay as it is (messages are masked by :func:`escape_controls`).
     """
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text

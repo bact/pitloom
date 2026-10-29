@@ -46,7 +46,12 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
-from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
+from pitloom.logging_config import (
+    CHECKOUT_DIR_PREFIX,
+    loggable,
+    sanitize_url,
+    sanitize_url_credentials,
+)
 
 log = logging.getLogger(__name__)
 
@@ -135,7 +140,7 @@ def fetch_git_project(
     if max_bytes is not None and max_bytes <= 0:
         raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
     runner = GitRunner(max_bytes=max_bytes)
-    with tempfile.TemporaryDirectory(prefix="pitloom-git-") as work_dir:
+    with tempfile.TemporaryDirectory(prefix=CHECKOUT_DIR_PREFIX) as work_dir:
         try:
             checkout = _prepare(url, work_dir, runner, check_url, offline)
         except Exception as exc:
