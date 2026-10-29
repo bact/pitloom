@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -181,6 +181,7 @@ pitloom/
 │       │   ├── file_identity.py  # Whether two paths are one file, by identity not spelling
 │       │   ├── file_names.py       # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
 │       │   ├── iri.py  # Human name to IRI segment for an SPDX 3 identifier
+│       │   ├── lfs_pointer.py   # Git LFS pointer grammar, bounded read and prefix capture
 │       │   ├── inert_options.py    # INERT: options a target kind can't act on; forward_options()
 │       │   ├── license_individuals.py  # The SPDX 3 named licence individuals Pitloom emits
 │       │   ├── model_extract_limit.py  # Validation of max-model-extract-bytes and max-dataset-hash-bytes

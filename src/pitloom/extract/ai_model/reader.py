@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.lfs_pointer import LFS_OPENING_BYTES, opens_lfs_pointer
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.crfsuite import read_crfsuite
 from pitloom.extract.ai_model.fasttext import read_fasttext
@@ -98,22 +99,9 @@ REGISTRY: tuple[FormatInfo, ...] = (
     FormatInfo(format=AiModelFormat.SAFETENSORS, reader=read_safetensors),
 )
 
-# What a Git LFS pointer file opens with: the line ``version <spec URL>``, per
-# the git-lfs pointer spec (docs/spec.md) and its decoder, which compares the
-# whole value (and still accepts the URLs of the two earlier spec versions).
-_GIT_LFS_OPENINGS = tuple(
-    url + eol
-    for url in (
-        b"version https://git-lfs.github.com/spec/v1",
-        b"version https://hawser.github.com/spec/v1",
-        b"version http://git-media.io/v/2",
-    )
-    for eol in (b"\n", b"\r\n")
-)
-
 # Number of bytes needed to run all header checks: the longest Git LFS
 # opening line; the magic checks (8-byte HDF5 + 1 for Safetensors) need fewer.
-SNIFF_BYTES: int = max(map(len, _GIT_LFS_OPENINGS))
+SNIFF_BYTES: int = LFS_OPENING_BYTES
 
 # Derived lookups - built from AiModelFormat enum members and REGISTRY.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
@@ -168,8 +156,9 @@ def _is_zip(header: bytes) -> bool:
 def is_git_lfs_pointer(header: bytes) -> bool:
     """Whether *header* opens a Git LFS pointer: text standing in for a file
     not fetched, never a model whatever its suffix. The ``version`` line must
-    be complete (``/spec/v1x`` is not one)."""
-    return header.startswith(_GIT_LFS_OPENINGS)
+    be complete (``/spec/v1x`` is not one); see
+    :func:`pitloom.core.lfs_pointer.opens_lfs_pointer`."""
+    return opens_lfs_pointer(header)
 
 
 def _looks_like_pytorch(header: bytes) -> bool:
