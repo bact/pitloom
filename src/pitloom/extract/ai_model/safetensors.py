@@ -21,7 +21,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
@@ -195,7 +195,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     except ImportError as exc:
         raise missing_library(AiModelFormat.SAFETENSORS) from exc
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     provenance: dict[str, str] = {}
     metadata, parameter_count = _read_header(model_path, safe_open, source, provenance)
 

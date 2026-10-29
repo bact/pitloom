@@ -45,14 +45,17 @@ def _annotation_fields(sbom: str) -> list[dict[str, Any]]:
 
 def _comment_entries(sbom: str) -> list[tuple[str, str]]:
     """``(field, provenance string)`` of every entry of every provenance
-    comment (entries are separated by ``"; "``)."""
+    line of a comment (entries are separated by ``"; "``); a model's comment
+    has its notes on the lines before."""
     out: list[tuple[str, str]] = []
     for element in _graph(sbom):
         comment = element.get("comment")
-        if isinstance(comment, str) and comment.startswith(_COMMENT_PREFIX):
-            for entry in comment[len(_COMMENT_PREFIX) :].split("; "):
-                field, _, text = entry.partition(": ")
-                out.append((field, text))
+        lines = comment.splitlines() if isinstance(comment, str) else []
+        for line in lines:
+            if line.startswith(_COMMENT_PREFIX):
+                for entry in line[len(_COMMENT_PREFIX) :].split("; "):
+                    field, _, text = entry.partition(": ")
+                    out.append((field, text))
     return out
 
 

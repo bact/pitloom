@@ -142,13 +142,17 @@ found and fixed two real gaps:
   `source = f"Source: {model_path.name}"` construction site (the filename) --
   the first fix (key-only) was caught as incomplete by a follow-up
   adversarial audit before this file was updated.
-  **Scope boundary, not fixed:** `dataset/croissant.py`/`project/pyproject.py`/
-  `project/setuptools.py`/`_license.py` build `"Source: {path}"` strings with the
-  identical unescaped pattern, but never call `record_dict_field_provenance`
-  and were outside the audited AI-extractor scope; their inputs (project-local
-  paths, PEP 621 field values) are a different, generally lower trust
-  boundary than an arbitrary downloaded binary model file. Worth revisiting
-  with the same `sanitize_provenance_text()` if that trust assumption changes.
+  The same pattern outside the AI extractors (dataset labels, project and
+  archive file names, licence texts in `Normalized-From`/`Resolution-1`, a
+  dependency marker in `declared_constraint`) was routed through the
+  sanitiser later in one sweep: every provenance string is now built by
+  `provenance_source()`/`provenance_segment()` (`core/provenance.py`), which
+  sanitise what they are given, and
+  `tests/test_provenance_builders_lint.py` (an AST scan with an allowlist)
+  fails a new f-string or `+` that interpolates a raw name next to a segment
+  key. `tests/test_provenance_key_sets.py` runs each surface (project, wheel,
+  sdist, model, loom dataset) with a hostile token in every name and asserts
+  the key sets of the whole SBOM are unchanged.
 - **Non-deterministic/invalid JSON in the P1 preservation blob.**
   `json.dumps`'s `default=` hook is never called for a `float`, so a
   malformed model's NaN/Infinity metadata value round-tripped into the

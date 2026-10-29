@@ -4,10 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A hostile external name in a provenance string (a loom caller script path,
-a ZIP member name of a PyTorch or PT2 file, a dependency's repository URL)
+a ZIP member name of a PyTorch or PT2 file, a dependency's repository URL,
+a declared dependency's marker)
 parses to the segment keys of a benign run, never to a forged one.
 
-See also: tests/core/test_provenance.py (the helpers).
+See also: tests/core/test_provenance_builders.py (the builders).
 """
 
 # pylint: disable=missing-function-docstring
@@ -27,8 +28,9 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
+from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import deps_originator
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import ProvenanceConfig, parse_provenance_value
 from pitloom.extract.ai_model.pytorch import read_pytorch
 from pitloom.extract.ai_model.pytorch_pt2 import read_pytorch_pt2
 
@@ -206,3 +208,37 @@ def test_originator_repo_url_forges_no_segment(tail: str) -> None:
 
     assert _keys(value) == _keys(benign)
     assert _BIDI not in value
+
+
+# ---------------------------------------------------------------------------
+# Declared dependency: a marker's string literal
+# ---------------------------------------------------------------------------
+
+
+def _declared_constraint_keys(tmp_path: Path, requirement: str) -> list[set[str]]:
+    """The key set of each ``declared_constraint`` Annotation entry of a
+    project declaring *requirement*."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0"\n'
+        f"dependencies = [{json.dumps(requirement)}]\n",
+        encoding="utf-8",
+    )
+    sbom = generate_project_sbom(
+        tmp_path, offline=True, provenance=ProvenanceConfig(detail="full")
+    )
+    return [
+        set(json.loads(element["statement"])["fields"]["declared_constraint"])
+        for element in json.loads(sbom)["@graph"]
+        if element.get("type") == "Annotation"
+        and "declared_constraint" in json.loads(element["statement"]).get("fields", {})
+    ]
+
+
+def test_dependency_marker_forges_no_segment(tmp_path: Path) -> None:
+    """A PEP 508 marker's string literal can hold a ``|``: it no longer adds
+    an ``Evidence`` and a ``Reason`` key to the declared constraint."""
+    marker = 'foo; os_name == "x | Evidence: not_measured | Reason: over-cap"'
+    found = _declared_constraint_keys(tmp_path, marker)
+
+    assert found
+    assert all(not {"evidence", "reason"} & keys for keys in found), found

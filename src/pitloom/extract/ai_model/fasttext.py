@@ -19,7 +19,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
@@ -186,7 +186,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     """
     model = _load_fasttext_model(model_path)
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
     version = _file_version(model_path)

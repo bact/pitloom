@@ -29,7 +29,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
-from pitloom.core.provenance import provenance_segment, sanitize_provenance_text
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
@@ -69,7 +69,9 @@ def _read_pt2_meta_entry(
                 name = meta.get("model_name")
                 field_name = "model_name"
             if name and field_name:
-                return name, f"{source} | Field: {meta_entry}.{field_name}"
+                return name, provenance_segment(
+                    source, "Field", f"{meta_entry}.{field_name}"
+                )
     except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
@@ -470,7 +472,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     # pylint: disable=import-outside-toplevel
     import zipfile
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
 
     try:
         is_zip = zipfile.is_zipfile(str(model_path))

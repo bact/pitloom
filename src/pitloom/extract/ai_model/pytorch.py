@@ -26,7 +26,7 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
     source_metadata,
 )
-from pitloom.core.provenance import provenance_segment, sanitize_provenance_text
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
@@ -221,7 +221,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     # pylint: disable=import-outside-toplevel
     import zipfile
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     framework = "pytorch"
     type_of_model: str | None = None
     properties: dict[str, str] = {}

@@ -27,7 +27,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_segment,
+    sanitize_provenance_text,
+)
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     agent_key,
@@ -309,9 +313,10 @@ def _emit_originator_provenance(
     """Emit provenance annotations for originator assignment."""
     if not provenance_source:
         return
-    method = "parsed_author_list" if originators_count > 1 else ""
     prov_str = (
-        f"{provenance_source} | Method: {method}" if method else provenance_source
+        provenance_segment(provenance_source, "Method", "parsed_author_list")
+        if originators_count > 1
+        else provenance_source
     )
     prov_dict = {"originatedBy": prov_str}
     if dep_package.software_attributionText and repo_url:

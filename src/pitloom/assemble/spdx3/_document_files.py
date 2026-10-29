@@ -30,7 +30,11 @@ from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
-from pitloom.core.provenance import ProvenanceConfig, sanitize_provenance_text
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     file_hashes,
@@ -145,7 +149,7 @@ def _emit_file_header_metadata(
     # instead whenever physical_path isn't project-relative.
     # A file name is untrusted text: a "|" in it would forge a segment
     # (an "Evidence: not_measured" that a merge then acts on).
-    file_path = sanitize_provenance_text(
+    source = provenance_source(
         project_relative_or_fallback(
             package_file.physical_path, package_file.distribution_path
         )
@@ -160,7 +164,7 @@ def _emit_file_header_metadata(
             if package_file.copyright_source == "spdx_tag"
             else "bare Copyright line"
         )
-        field_provenance["copyright_text"] = f"Source: {file_path} | Field: {field}"
+        field_provenance["copyright_text"] = provenance_segment(source, "Field", field)
 
     if package_file.file_type:
         purpose = _FILE_TYPE_TO_SOFTWARE_PURPOSE.get(package_file.file_type)
@@ -168,7 +172,9 @@ def _emit_file_header_metadata(
             package_entry.software_primaryPurpose = purpose
         else:
             summary_entries.append(("FileType", package_file.file_type))
-        field_provenance["file_type"] = f"Source: {file_path} | Field: SPDX-FileType"
+        field_provenance["file_type"] = provenance_segment(
+            source, "Field", "SPDX-FileType"
+        )
 
     if package_file.content_type:
         package_entry.contentType = package_file.content_type
@@ -177,26 +183,28 @@ def _emit_file_header_metadata(
             # config author asserted this value directly, Pitloom
             # detected nothing, so role sbomAuthorSupplied rather than the
             # detected shape below (see working-docs/implementation/file-headers.md).
-            segment = "Role: sbomAuthorSupplied"
+            content_type = provenance_segment(source, "Role", "sbomAuthorSupplied")
         elif package_file.content_type_method == "magika":
-            segment = (
-                f"Method: magika_content_detection | Tool: magika=={_magika_version()}"
+            content_type = provenance_segment(
+                provenance_segment(source, "Method", "magika_content_detection"),
+                "Tool",
+                f"magika=={_magika_version()}",
             )
         else:
-            segment = "Method: extension_guess"
-        field_provenance["content_type"] = f"Source: {file_path} | {segment}"
+            content_type = provenance_segment(source, "Method", "extension_guess")
+        field_provenance["content_type"] = content_type
 
     if _stand_in_pointer(package_file) is not None:
-        field_provenance[VERIFIED_USING_FIELD] = (
-            f"Source: {file_path} | Method: {LFS_POINTER_METHOD}"
+        field_provenance[VERIFIED_USING_FIELD] = provenance_segment(
+            source, "Method", LFS_POINTER_METHOD
         )
 
     if package_file.file_contributors:
         summary_entries.extend(
             ("Contributor", name) for name in package_file.file_contributors
         )
-        field_provenance["file_contributors"] = (
-            f"Source: {file_path} | Field: SPDX-FileContributor"
+        field_provenance["file_contributors"] = provenance_segment(
+            source, "Field", "SPDX-FileContributor"
         )
 
     if summary_entries:
@@ -220,7 +228,7 @@ def _emit_file_header_metadata(
     _emit_file_license_relationship(
         package_entry,
         package_file,
-        file_path,
+        source,
         spdx_ci,
         doc_name,
         doc_uuid,
@@ -234,7 +242,7 @@ def _emit_file_header_metadata(
 def _emit_file_license_relationship(
     package_entry: spdx3.software_File,
     package_file: ProjectFile,
-    file_path: str,
+    source: str,
     spdx_ci: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
@@ -249,7 +257,7 @@ def _emit_file_license_relationship(
     if not license_id:
         return
     warn_unless_expression(license_id, "SPDX-License-Identifier")
-    license_provenance = f"Source: {file_path} | Field: SPDX-License-Identifier"
+    license_provenance = provenance_segment(source, "Field", "SPDX-License-Identifier")
 
     relationship = build_file_declared_license(
         license_id,

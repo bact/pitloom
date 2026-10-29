@@ -10,7 +10,7 @@
 every provenance string; a ``|`` in it would otherwise add an ``Evidence:``
 or ``Source:`` segment that a merge acts on.
 
-See also: tests/core/test_provenance.py (the helpers),
+See also: tests/core/test_provenance_builders.py (the builders),
 tests/extract/dataset/test_card.py, tests/extract/dataset/test_croissant.py.
 """
 

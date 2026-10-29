@@ -28,7 +28,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
@@ -259,7 +259,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
     """
     require_library(AiModelFormat.NUMPY)
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     format_version: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}

@@ -44,7 +44,7 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract._scanner_messages import detail, scrub
 from pitloom.extract.ai_model import (
@@ -199,8 +199,8 @@ def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> N
     """
     if path.name == dist_name:
         return
-    copied = f"Source: {sanitize_provenance_text(path.name)}"
-    real = f"Source: {sanitize_provenance_text(dist_name)}"
+    copied = provenance_source(path.name)
+    real = provenance_source(dist_name)
     for key, value in meta.provenance.items():
         if value == copied or value.startswith(copied + " |"):
             meta.provenance[key] = real + value[len(copied) :]
@@ -231,7 +231,7 @@ def _relog_reader_records(
     temporary copy's path and name replaced by the model's. An over-cap
     warning is said again through the shared helper, naming the model."""
     dist_name = PurePosixPath(candidate.distribution_path).name
-    copied = f"Source: {sanitize_provenance_text(path.name)}"
+    copied = provenance_source(path.name)
     for record in records:
         over = over_cap_of(record)
         if over is not None:  # a reader warns over a cap once per read
@@ -240,9 +240,7 @@ def _relog_reader_records(
             continue
         text = record.getMessage()
         if path.name != dist_name:
-            text = text.replace(
-                copied, f"Source: {sanitize_provenance_text(dist_name)}"
-            )
+            text = text.replace(copied, provenance_source(dist_name))
         text = scrub(text, path, candidate.physical_path)
         if record.levelno >= logging.WARNING:
             log.log(

@@ -491,4 +491,4 @@ def tag_deprecated_license_ids(provenance: str, expression: str) -> str:
     ambiguous = _ambiguous_deprecated_ids(expression)
     if not ambiguous:
         return provenance
-    return f"{provenance} | Deprecated-License-Id: {'; '.join(ambiguous)}"
+    return provenance_segment(provenance, "Deprecated-License-Id", "; ".join(ambiguous))

@@ -19,7 +19,7 @@ that read the text from a file's content or a function argument run
 everywhere.
 
 See also: tests/provenance_helpers.py (the readers of the SBOM) and
-tests/core/test_provenance_helpers.py (the builders).
+tests/core/test_provenance_builders.py (the builders).
 """
 
 from __future__ import annotations

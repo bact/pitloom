@@ -31,7 +31,6 @@ from pitloom.core.provenance import (
     ProvenanceConfig,
     provenance_segment,
     provenance_source,
-    sanitize_provenance_text,
 )
 from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
 from pitloom.id_registry import (
@@ -163,8 +162,9 @@ def _record_hyperparameter_provenance(
 ) -> None:
     """Record exact per-key provenance for hyperparameters, in key order."""
     for key in sorted(hyperparameters):
-        safe_key = sanitize_provenance_text(str(key))
-        provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
+        provenance[f"hyperparameters.{key}"] = provenance_segment(
+            caller_info, "Field", str(key)
+        )
 
 
 #: What a loom message calls an element of each registry type.
@@ -261,7 +261,7 @@ def pointer_provenance(label: str) -> str:
     """The provenance of a hash copied from the Git LFS pointer *label*
     names (:func:`cwd_relative_label`, taken when the path was given), for
     :data:`HASH_PROVENANCE_FIELD`."""
-    return f"Source: {_source(label)} | Method: {LFS_POINTER_METHOD}"
+    return provenance_segment(provenance_source(label), "Method", LFS_POINTER_METHOD)
 
 
 def evidence_provenance(label: str, level: str, reason: str | None = None) -> str:
@@ -269,9 +269,4 @@ def evidence_provenance(label: str, level: str, reason: str | None = None) -> st
     (:func:`cwd_relative_label`) at the evidence *level*, with *reason* for
     ``not_measured`` (:func:`~pitloom.core.evidence.evidence_segment`, which
     raises ``ValueError`` on a level or reason it does not know)."""
-    return f"Source: {_source(label)} | {evidence_segment(level, reason)}"
-
-
-def _source(label: str) -> str:
-    """*label* as a provenance ``Source:`` writes it."""
-    return sanitize_provenance_text(label)
+    return f"{provenance_source(label)} | {evidence_segment(level, reason)}"

@@ -64,7 +64,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
     value_text,
 )
-from pitloom.core.provenance import sanitize_provenance_text
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
 from pitloom.extract.ai_model.hdf5_config import (
@@ -234,7 +234,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     with hf:
-        source = f"Source: {sanitize_provenance_text(model_path.name)}"
+        source = provenance_source(model_path.name)
         format_version: str | None = None
         framework: str | None = None
         framework_version: str | None = None

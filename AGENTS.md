@@ -32,15 +32,15 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
 - **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/` layout. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file `physical_path` is an *absolute* temporary path: a consumer that joins it onto `project_dir` or bakes it into a deterministic string calls `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
-- **Stage-scoped helpers take an explicit stage flag** (`include_locked_dependencies=False`-style) when a source-stage caller and a build-stage caller share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
+- **Stage-scoped helpers take an explicit stage flag** when a source-stage caller and a build-stage caller share them, so a source-only artefact (`poetry.lock`) cannot leak into the build.
 
 ### Usage surfaces
 
 Pitloom runs from several surfaces: CLI, the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
-- **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads (`--debug` -> the `PITLOOM_DEBUG` env var), not per-call-site updates.
+- **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads, not per-call-site updates.
 - **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
-- **A pattern hand-copied across 3+ call sites drifts** (e.g. a `WARNING:` naming the skipped SBOM field): factor it into one helper/constant.
+- **A pattern hand-copied across 3+ call sites drifts**: factor it into one helper/constant.
 - **A test on one surface doesn't cover the others**: for behaviour that must hold across CLI, library, hook and Action, or every subcommand, test each.
 - **A skill is discovered through its frontmatter `description` only**; a body section does not make a command triggerable. On a CLI command/flag add/rename, check `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep *verify* (structural) vs *validate* (schema/SHACL) explicit; give combined asks ("generate SBOM meeting CISA") a hand-off in both skills, every follow-up question a non-interactive fallback. Try a skill's check or recipe on a legitimate input where it should do nothing. Audit: [skills-trigger-coverage.md](working-docs/implementation/skills-trigger-coverage.md).
 
@@ -84,7 +84,7 @@ Data and semantics:
 - **Compare identifiers the ecosystem's way**: PEP 503 names, PEP 440 versions (never SemVer: `"1.0"` == `"1.0.0"`), in code, docstrings and lock-file conflict detection.
 - **A placeholder (`UNKNOWN`, `N/A`) is not a claim**: keep it weak in a cascade (skip while a later source may know better, emit with provenance only if nothing better); a real "none" ends it; held state is per item.
 - **A source that can resolve to zero entries needs its own "is this really a file of this format" check** in a priority cascade.
-- **A presence-only check misfires when a key is genuinely boolean** (`"editable": false`).
+- **A presence-only check misfires when a key is genuinely boolean**.
 - **`dict.get(key, default)` guards absence, not a wrong type**: `isinstance`-check values from external files.
 - **A parse helper catching only the format's exception (`TOMLDecodeError`, `JSONDecodeError`) can still die on a bare `UnicodeDecodeError`.**
 - **`json.loads(bytes)` strips a UTF-8 BOM; `json.loads(str)` after `.decode()` raises on it**: pass raw bytes where a binary parse matches.
@@ -102,7 +102,7 @@ Data and semantics:
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
 - **A doc/docstring claim about "how this mechanism decides" is re-verified against the code before it is trusted or restated.**
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
-- **A model reader records what the file stores, not what a binding defaults** (fastText `lr`), and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
+- **A model reader records what the file stores, not what a binding defaults**, and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
 - **`Path.relative_to` does not collapse `..`**: `normpath` lexically first, `realpath` only as fallback.
 - **An alias rule must test that the shorter key names no real file**: else two real files with equal bytes alias; look up a few built candidate keys, never scan the table.
@@ -112,6 +112,7 @@ Code shape:
 
 - **Warning/error/log wording drifts across sibling modules**: one shared helper; check siblings when adding a check.
 - **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows and `repr(str)` doubles backslashes. `loggable()` every interpolated value, test with a newline, and test each emitter with a repeated input (said once).
+- **A provenance string is built only through `provenance_source`/`provenance_segment`** (a `|` in a name forges a segment); `tests/test_provenance_builders_lint.py` enforces it.
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively; prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
@@ -133,7 +134,7 @@ Tests, platform and CI:
 - **Mutation testing lies two ways**: an equivalent mutant proves nothing (reinstate the exact pre-fix shape); an assertion on a lazily installed side effect observes nothing.
 - **A test helper that normalises what it captures hides the bug class** (`text=True` turns CRLF into LF): decode bytes yourself; mutation-test shell/CI changes.
 - **A test reaching the network via a subprocess/library bypasses the socket block**: mark it `network` (real host), route through `tests/_network.py`; a local server is `loopback`.
-- **Patching a function on a shared stdlib module (`mod.time.sleep`) patches it for every thread**: import the name into the module under test and patch that.
+- **Patching a function on a shared stdlib module patches it for every thread**: import the name into the module under test and patch that.
 - **A logging handler bound to `sys.stderr` under `capsys` outlives the capture stream**: `tests/conftest.py` restores the `pitloom` logger per test; new process-global state a test mutates needs the same.
 - **A long `parametrize` value becomes the test id** (Windows `PYTEST_CURRENT_TEST` cap 32,767 chars): short `ids=`; conftest fails ids over 1,000.
 - **A `skipif` condition runs at import time on every platform**: use one short-circuited module constant; same for POSIX-only names in decorators and `parametrize`.
