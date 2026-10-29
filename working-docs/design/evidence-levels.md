@@ -74,8 +74,8 @@ bytes are absent as the provenance of the missing `measured` value.
    read.** (A pointer stating 100 GB is hashed like any other; the cap counts
    real bytes.)
 5. **Time and network limits are caps too.** A download size cap, a connect or
-   read timeout and a total wait are security limits like the read cap: they bound
-   what Pitloom waits for and never what it reports. A fetch that times out is
+   read timeout and a total wait are security limits like the read cap: they
+   bound what Pitloom waits for and never what it reports. A fetch that times out is
    `not_measured` with the reason `timeout`, unless a declared value exists.
    **A walk is bounded too.** Summing the sizes of a directory with a million
    entries can hang on `stat()` alone; give it an entry or time budget, and let
