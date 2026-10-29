@@ -77,9 +77,9 @@ bytes are absent as the provenance of the missing `measured` value.
    read timeout and a total wait are security limits like the read cap: they
    bound what Pitloom waits for and never what it reports. A fetch that times
    out is `not_measured` with the reason `timeout`, unless a declared value
-   exists. **A walk is bounded too.** Summing the sizes of a directory with a million
-   entries can hang on `stat()` alone; give it an entry or time budget, and let
-   an exhausted budget produce a `lower_bound`.
+   exists. **A walk is bounded too.** Summing the sizes of a directory with a
+   million entries can hang on `stat()` alone; give it an entry or time budget,
+   and let an exhausted budget produce a `lower_bound`.
 6. **`not_measured` is a deviation, not absence.** Absent source data stays
    quiet (a field the source lacks). A fact left unread by policy is a
    `WARNING:` (as the cap warnings already are) and a provenance entry.
