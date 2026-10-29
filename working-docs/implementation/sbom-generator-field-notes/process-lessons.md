@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -298,3 +298,91 @@ file group; the rules file (46 KB) was compacted by hand.
   `--no-offline` documented nowhere and the `embed-wheel`, `verify-wheel` and
   `validate-wheel` flags missing from `docs/cli.md`; the "no effect" table was
   already guarded by tests. Audit what no test covers.
+
+## After 0.21.1: small items, a parity rule, an adoption prep (#373 to #377)
+
+- **Make a later removal a file delete.** Before adopting `licenseid.resolve()`
+  (#377), `test_license_classify.py` was split in tests only: a shared table of
+  73 cases (30 that stay, 43 that exist only for Pitloom's own parsing) and a
+  drift guard that every accepted expression also parses with py-spdx-license
+  and names only listed ids. Adopting becomes deleting one test file and
+  regenerating one table, and the guard runs unchanged afterwards. Do: when a
+  dependency will replace code, move its tests apart first.
+- **A lesson that recurs becomes a note, a rule and a doc line.** The model
+  readers recording a binding's default (fastText `lr`, #361) and then a missing
+  Safetensors licence key (#376) led to one persistent parity note, one
+  `AGENTS.md` bullet and a rule in the docs, so the next format starts from
+  them.
+- **A push can be rejected because the user edited the branch.** #375's push
+  failed because the remote held the user's "Update branch" merge; fetch and
+  merge it (never force). The sandbox's safety classifier also refused a
+  wildcard `rm` under `/tmp`; name the paths, or leave the removal to the user.
+- **Ask for coverage from the report, not the number.** The coverage comment on
+  #375 named `logging_config.py` (89.47%, one line and one branch missing);
+  tests were added until branch coverage of that file was 100%.
+
+## Git LFS pointers: a tiered, parallel build (#378, 2026-10-29)
+
+How one feature was planned, built and reviewed with mixed agents under a
+human who set every scope rule. Numbers are from the harness's per-agent token
+counts and durations.
+
+- **Plan with the strongest model, explore with the cheapest, build by risk.**
+  Two Sonnet explorers (code paths; docs and fixtures) fed one Opus planner,
+  which also probed the installed `git-lfs` 3.4.1 for the grammar. Hash and
+  identity work (detector, hashing routes, SPDX emission, loom) went to Opus;
+  warning wiring, registry consistency, the error message, docs and the manual
+  check went to Sonnet. About 1.4 M sub-agent tokens ran on Opus and 1.3 M on
+  Sonnet up to the fix round.
+- **Write the shared helper before the fan-out.** The one-WARNING helper and its
+  wording were written by the orchestrator and merged into the four task
+  worktrees first, so two parallel tasks could not word it differently.
+- **Fence files in writing, one worktree per parallel task.** Tasks 3 to 6
+  touched disjoint files, each in its own worktree from the same base; the four
+  merges into the feature branch had no conflict. Each brief named the files
+  other tasks owned.
+- **Ask a design question of the planner before adding a flag.** "What is the
+  cap size, do we need a flag?" went to an Opus planner with the instruction to
+  inventory existing caps first. The answer was no new cap: a pointer is under 1
+  KiB by its format, and a stated size is only recorded. The same inventory
+  showed the two safety ceilings lacked the flag, key, keyword and Action input
+  that `max-source-metadata-bytes` has; that became a separate PR.
+- **A cold review after the merge found what task-level gates could not.** Five
+  confirmed defects, one a regression against `main` (the hook missed registry
+  ids made on the checkout), all in cross-route behaviour. The fix round then
+  got its own review, because fixes are new code.
+- **An agent that waits on its own timers repeats its report.** One task agent
+  sent the same final report five times while sleeping on timers, its token
+  count rising each time. Stop it with `TaskStop` once its work is committed,
+  and tell the brief to report once and finish.
+- **A virtual environment can point at a deleted worktree.** The shared venv's
+  editable install pointed at a worktree that was then removed; `python -I`
+  ignores `PYTHONPATH`, so a reviewer's scripts imported `main`'s `src` and not
+  the branch under review. Put the worktree's `src` on `sys.path` in the script,
+  and reinstall the editable install after removing worktrees.
+- **A long foreground run needs a background run.** The full manual CLI checks
+  (583 checks, 8 in parallel) outlasted a 580 s `timeout`; run them with `nohup
+  ... &` and read the summary line. `pgrep -f` in a wait loop matches its own
+  command line: wait on the PID, not on the name.
+
+- **Review the fix round, and expect it to fail.** The cold review of the seven
+  fixes (#378) found five confirmed defects, the highest in the fix itself: the
+  registry change introduced a flip-flop between routes. The earlier cold review
+  had found a regression against `main`; the review of its fix found the fix
+  incomplete. Budget one more review round for any fix of cross-route identity,
+  with a narrow brief: the last commit only.
+- **A reviewer's probe should write down the route pair.** The finding that
+  mattered came from running route A then route B on one registry (`id generate`
+  on a checkout, then a wheel build, then the checkout again). Ask reviewers for
+  the sequence, not the single call.
+| Step | Model | Tokens | Minutes |
+| - | - | - | - |
+| Explore code, docs | Sonnet, Sonnet | 61 k, 79 k | 1, 1 |
+| Plan (grammar, design) | Opus | 122 k | 5 |
+| Cap survey | Opus | 113 k | 3 |
+| Task 1 detector | Opus | 182 k | 18 |
+| Task 2 hashing routes | Opus | 235 k | 27 |
+| Tasks 3, 4, 5, 6 (parallel) | Opus, Sonnet, Opus, Sonnet | 168 k, 200 k, 274 k, 204 k | 19, 24, 41, 17 |
+| Tasks 7, 8, check 23 | Sonnet | 120 k, 160 k, 127 k | 3, 5, 2 |
+| Cold review | Opus | 226 k | 12 |
+| Fix round (7 findings) | Sonnet | 252 k | 19 |
