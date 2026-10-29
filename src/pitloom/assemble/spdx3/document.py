@@ -217,8 +217,6 @@ def _with_recorded_keys(
     return exporter
 
 
-# pylint: disable=too-many-locals
-# pylint: disable-next=too-many-arguments
 def _prepared(doc: DocumentModel) -> DocumentModel:
     """*doc* with canonical dependencies, its Git LFS pointers reported (once
     per document: every surface builds through here)."""
@@ -226,6 +224,8 @@ def _prepared(doc: DocumentModel) -> DocumentModel:
     return _with_canonical_dependencies(doc)
 
 
+# pylint: disable=too-many-locals
+# pylint: disable-next=too-many-arguments
 def build(
     doc: DocumentModel,
     merkle_root: str | None = None,

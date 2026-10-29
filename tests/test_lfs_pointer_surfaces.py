@@ -110,9 +110,6 @@ def test_every_route_flags_the_same_pointers(tmp_path: Path, route: str) -> None
                 hashlib.sha512(TREE[name]).hexdigest(),
             )
         assert (project_file.digest_sha256, project_file.digest_sha512) == expected
-        assert project_file.stated_sha256() == (
-            expected[0] if pointer is None else pointer.oid
-        )
 
 
 def test_a_pulled_pointer_keeps_its_sha256_and_root(tmp_path: Path) -> None:

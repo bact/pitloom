@@ -44,7 +44,8 @@ def test_every_route_states_the_same_sha256_for_a_file_on_disk(tmp_path: Path) -
         assert sha256_file(path) == stated
         assert digest_fields(file_digests(path))["digest_sha256"] == stated
         assert checkout[name].digest_sha256 == stated
-        assert as_is[name].stated_sha256() == stated
+        archived = as_is[name].lfs_pointer
+        assert (archived.oid if archived else as_is[name].digest_sha256) == stated
         if name in POINTERS:
             assert stated == POINTERS[name].oid
             # Non-vacuous: the raw digest and the archive record differ.

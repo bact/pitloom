@@ -27,7 +27,7 @@ from pitloom.__about__ import __version__
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import file_hashes, sha256_hash
+from pitloom.export.spdx3_json import file_hashes, lfs_pointer_hashes
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -247,15 +247,6 @@ def registry_miss_callback(
         by_path=by_path,
         unhashed=unhashed,
     )
-
-
-def lfs_pointer_hashes(pointer: LfsPointer) -> list[spdx3.Hash]:
-    """The ``verifiedUsing`` of a Git LFS pointer whose content Pitloom did
-    not read: the ``oid`` as the SHA-256, no SHA-512, and a comment saying
-    so with the stated size (SPDX 3 has no file size)."""
-    unit = "byte" if pointer.size == 1 else "bytes"
-    comment = f"Git LFS pointer oid; content not read; size {pointer.size} {unit}"
-    return [sha256_hash(pointer.oid, comment=comment)]
 
 
 def stated_hashes(digests: HexDigests, pointer: LfsPointer | None) -> list[spdx3.Hash]:

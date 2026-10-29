@@ -123,15 +123,6 @@ class ProjectFile:
             return None
         return HexDigests(self.digest_sha256, self.digest_sha512)
 
-    def stated_sha256(self) -> str | None:
-        """The SHA-256 of the content this file stands for: a Git LFS
-        pointer's ``oid`` on every route (an archive records the pointer
-        text's own digest in ``digest_sha256``), else ``digest_sha256``.
-        The same before and after ``git lfs pull``."""
-        if self.lfs_pointer is not None:
-            return self.lfs_pointer.oid
-        return self.digest_sha256
-
 
 class DigestFields(TypedDict):
     """The digest fields of a :class:`ProjectFile`, from one read
