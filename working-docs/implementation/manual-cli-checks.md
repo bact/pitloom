@@ -34,7 +34,7 @@ The full run takes minutes; pytest already runs a slice of it in CI
   |---|---|
   | wheel, embed | `3,4a,16,22,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
   | registry, ids | `9,14,20,21,S4,S5,M/id-*/*`, plus `O*` (order matrix) |
-  | `loom.run` (SDK), dataset hashing, loom models | `20,21,O1/*/fresh-loom,O3/*` |
+  | `loom.run` (SDK), dataset hashing, loom models | `20,21,24,O1/*/fresh-loom,O3/*` |
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
@@ -444,6 +444,18 @@ the next training run (those new bytes) gets a new id with exactly one
 `content changed` INFO. Automated as check 21
 (`scripts/manual_cli_checks/_checks_loom.py::check_loom_model_ids`);
 per-case detail in `tests/core/test_loom_model.py`.
+
+**24. One dataset hash cap on `id generate -e` and `loom.run`**: a project
+whose `data/small.txt` is exactly the cap (16 bytes) and `data/big.txt` is
+4 bytes over it. `id generate -e` of both with `--max-dataset-hash-bytes 16`,
+and again with the cap only as the project's `max-dataset-hash-bytes`, pins
+the same: `small.txt` with its SHA-256, `big.txt` with none and one `INFO:`
+naming the key. `loom.run` over the same cap (the `max_dataset_hash_bytes=`
+keyword, then a `pitloom_config=` file) gives the same digests, with one
+`WARNING:` naming the key. Automated as check 24
+(`scripts/manual_cli_checks/_checks_loom.py::check_dataset_hash_cap`);
+per-case detail in `tests/cli/test_cli_id_dataset_ceiling.py` and
+`tests/core/test_loom_pitloom_config.py`.
 
 **22. A model's producer and parameter count are the same on every route**: a
 project with a PT2 Archive whose `extra/author` is `Alice` and a one-element

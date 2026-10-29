@@ -17,8 +17,10 @@ byte-identical and the registry untouched. The same decoy named with
 The rest pins ``--config`` itself: flag > ``--config`` > target config;
 ``--config`` replaces a project's own config; its relative ``id-registry``
 resolves against its own directory; a bad ``--config`` is one ``ERROR:``
-and exit 1 with nothing written; and a field-level byte cap from the flag
-overrides the config's without resetting its other provenance settings.
+and exit 1 with nothing written; a field-level byte cap from the flag
+overrides the config's without resetting its other provenance settings; and
+``--max-model-extract-bytes`` beats ``--config`` beats the default on every
+command that reads a wheel's models.
 
 See also: :mod:`tests.assemble.test_generator_no_implicit_config` for the
 library counterpart, and :mod:`tests.cli.test_cli_option_reach` for which
@@ -40,6 +42,8 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
+from pitloom.core.config import PitloomConfig
+from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     FILE_TYPE,
@@ -399,3 +403,52 @@ def test_too_small_byte_cap_is_refused(
         _loom([*argv, "--max-source-metadata-bytes", "5"], monkeypatch)
     assert exc.value.code == 2
     assert "at least 8 bytes, got 5" in capsys.readouterr().err
+
+
+#: Every command that scans a wheel's models (generate's -o is required).
+_MODEL_CAP_SURFACES: dict[str, tuple[str, ...]] = {
+    "wheel": ("wheel", "{wheel}"),
+    "wheel-embed": ("wheel", "{wheel}", "--embed"),
+    "generate-wheel": ("generate", "{wheel}", "-o", "{out}"),
+    "embed-wheel-standalone": ("embed-wheel", "{wheel}"),
+}
+
+
+@pytest.mark.parametrize("surface", sorted(_MODEL_CAP_SURFACES))
+@pytest.mark.parametrize(
+    ("config", "flag", "expected"),
+    [
+        (None, None, PitloomConfig().max_model_extract_bytes),
+        (7000, None, 7000),
+        (7000, 9000, 9000),
+        (None, 5000, 5000),
+    ],
+    ids=["default", "config", "flag-beats-config", "flag"],
+)
+def test_model_cap_flag_beats_config_beats_default(
+    surface: str,
+    config: int | None,
+    flag: int | None,
+    expected: int,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[int] = []
+
+    def _spy(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs["max_bytes"])
+        return scan_wheel_for_ai_models(*args, **kwargs)
+
+    for module in ("assemble._generators_wheel", "_embed_generate"):
+        monkeypatch.setattr(f"pitloom.{module}.scan_wheel_for_ai_models", _spy)
+    monkeypatch.chdir(tmp_path)
+    fields = {"wheel": str(demo_wheel(tmp_path)), "out": str(tmp_path / "o.json")}
+    argv = [a.format(**fields) for a in _MODEL_CAP_SURFACES[surface]]
+    if config is not None:
+        path = tmp_path / "explicit.toml"
+        _write(path, f"[tool.pitloom]\nmax-model-extract-bytes = {config}\n")
+        argv += ["--config", str(path)]
+    if flag is not None:
+        argv += ["--max-model-extract-bytes", str(flag)]
+    assert _loom([*argv, "--offline"], monkeypatch) == 0
+    assert seen == [expected]

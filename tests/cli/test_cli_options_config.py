@@ -99,6 +99,20 @@ def test_overrides_carry_every_option_but_the_embed_api_arguments() -> None:
     assert overrides == ConfigOverrides()
 
 
+@pytest.mark.parametrize(
+    ("flag", "field"),
+    [
+        ("--max-source-metadata-bytes", "max_source_metadata_bytes"),
+        ("--max-model-extract-bytes", "max_model_extract_bytes"),
+    ],
+)
+def test_a_given_byte_cap_reaches_the_overrides(flag: str, field: str) -> None:
+    overrides = overrides_from_options(
+        run_options(_parse(flag, "4096"), PitloomConfig())
+    )
+    assert getattr(overrides, field) == 4096
+
+
 def test_load_explicit_config(tmp_path: Path) -> None:
     assert load_explicit_config(_parse()) is None
     path = tmp_path / "team.toml"

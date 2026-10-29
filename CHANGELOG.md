@@ -28,6 +28,8 @@ and this project adheres to
   `general.license` is blank or `other`) are read as the model licence ([#376])
 - A Git LFS pointer in a checkout is listed by its `oid` (SHA-256 only) with one
   `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
+- `--max-model-extract-bytes` and `--max-dataset-hash-bytes` (`loom id generate`)
+  set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 
 ### Changed
 
@@ -47,6 +49,7 @@ and this project adheres to
 [#375]: https://github.com/bact/pitloom/pull/375
 [#376]: https://github.com/bact/pitloom/pull/376
 [#378]: https://github.com/bact/pitloom/pull/378
+[#381]: https://github.com/bact/pitloom/pull/381
 [#382]: https://github.com/bact/pitloom/pull/382
 
 ## [0.21.1] - 2026-10-28
