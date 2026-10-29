@@ -129,6 +129,52 @@ def test_print_error_appends_only_a_code(
     assert _lines(capsys) == [f"ERROR: model command failed: {tail}"]
 
 
+@pytest.mark.parametrize(
+    ("text", "printed"),
+    [
+        ("skipped x [lfs-pointer]", "skipped x \\x5blfs-pointer]"),
+        ("skipped [a/b]", "skipped \\x5ba/b]"),
+        ("a\n [b]", "a\\n \\x5bb]"),
+        ("in [tool.poetry.dependencies]", "in [tool.poetry.dependencies]"),
+        ("x [Not-a-code]", "x [Not-a-code]"),
+        ("x[lfs-pointer]", "x[lfs-pointer]"),
+        ("[lfs-pointer] first", "[lfs-pointer] first"),
+        ("a [b] c", "a [b] c"),
+    ],
+    ids=repr,
+)
+def test_an_uncoded_line_never_ends_in_a_code(
+    capsys: pytest.CaptureFixture[str], text: str, printed: str
+) -> None:
+    """Without a code, a trailing `` [x]`` that reads as one has its ``[``
+    escaped, on a record of any level and on ``print_error`` (a code that
+    is no code prints none)."""
+    configure_logging(debug=True)
+    _LOG.warning("%s", text)
+    _LOG.debug("%s", text)
+    print_error(text)
+    print_error(text, code="not a code")
+    assert _lines(capsys) == [
+        f"WARNING: {printed}",
+        f"DEBUG: {printed}",
+        f"ERROR: {printed}",
+        f"ERROR: {printed}",
+    ]
+
+
+def test_a_coded_line_keeps_a_value_that_ends_like_a_code(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The value is the record's own text; Pitloom's code comes last."""
+    configure_logging()
+    emit(_LOG, LFS_POINTER, logging.WARNING, "FILE=%s", "x [lfs-pointer]")
+    print_error("x [lfs-pointer]", code="lfs-pointer")
+    assert _lines(capsys) == [
+        "WARNING: FILE=x [lfs-pointer] [lfs-pointer]",
+        "ERROR: x [lfs-pointer] [lfs-pointer]",
+    ]
+
+
 def test_a_coded_error_is_a_value_error_with_its_code() -> None:
     exc = CodedValueError(LFS_POINTER, "'m.bin': header")
     assert isinstance(exc, ValueError) and str(exc) == "'m.bin': header"

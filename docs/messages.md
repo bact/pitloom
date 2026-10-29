@@ -46,11 +46,13 @@ trailing `\r` before matching.
   message's wording may change; match the code, not the words.
 - A code names one condition, and each row below says what it means and what
   Pitloom did.
+- The last `[code]` of a line is Pitloom's. A line without a code never ends
+  in one: a value that would end it so (a file named `x [lfs-pointer]`) is
+  printed with its `[` escaped, `WARNING: skipped x \x5blfs-pointer]`. In a
+  catalogued line the value stays as it is and the real code comes last.
 - **Trust a code only when it is catalogued and the text before it matches
-  that entry's pattern.** A line can end in a value Pitloom copied from your
-  input: a file named `x [lfs-pointer]` makes the uncatalogued line `WARNING:
-  skipped x [lfs-pointer]` end in a code that Pitloom did not say. In the
-  catalogued line, the real code comes last, after the file name.
+  that entry's pattern.** Another program writing to the same stream can
+  print anything.
 
 `pitloom.messages.trusted_message(line)` does this check: it returns the
 catalogue entry (`Message`) for a line it trusts, else `None`.

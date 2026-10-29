@@ -79,16 +79,17 @@ def test_a_printed_value_ending_in_a_code_is_not_trusted(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A file named ``x [lfs-pointer]`` at the end of an uncatalogued line
-    reads as a code, and is not trusted; at the end of a catalogued line's
-    value it is the value, the real code still last."""
+    is printed with its ``[`` escaped, so the line has no code; at the end
+    of a catalogued line's value it is the value, the real code still
+    last."""
     configure_logging()
     _LOG.warning("not listed: %s", _HOSTILE)
     warn_pointers_not_read([_HOSTILE])
     forged, real = capsys.readouterr().err.splitlines()
-    found = LINE_RE.fullmatch(forged)
-    assert found is not None and found.group(3) == "lfs-pointer"
-    assert trusted_message(forged) is None
+    assert forged == "WARNING: not listed: x \\x5blfs-pointer]"
+    assert LINE_RE.fullmatch(forged) is None and trusted_message(forged) is None
     assert trusted_message(real) is LFS_POINTER
+    assert trusted_message("WARNING: not listed: x [lfs-pointer]") is None
 
 
 def test_the_loom_entry_point_prints_the_code(tmp_path: Path) -> None:

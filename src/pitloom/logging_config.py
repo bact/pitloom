@@ -62,6 +62,8 @@ CODE_ATTR = "pitloom_code"
 #: stricter (:data:`pitloom.messages.CODE_GRAMMAR`).
 CODE_PATTERN = r"[a-z][a-z0-9/-]*"
 _CODE_RE = re.compile(CODE_PATTERN)
+#: A `` [x]`` ending a text that would read as a code.
+_CODE_LIKE_END = re.compile(rf" \[({CODE_PATTERN})\]\Z")
 
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
 #: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
@@ -219,17 +221,28 @@ def _code_suffix(code: object) -> str:
     return f" [{code}]" if isinstance(code, str) and _CODE_RE.fullmatch(code) else ""
 
 
+def _with_code(text: str, code: object) -> str:
+    """*text* (escaped already) as a line ends: `` [code]`` after it when
+    *code* is one (:func:`_code_suffix`); else a `` [x]`` ending it that
+    would read as a code has its ``[`` written ``\\x5b``, so the last
+    `` [code]`` of a line is always Pitloom's, never a value it printed (a
+    file named ``m [lfs-pointer]``)."""
+    suffix = _code_suffix(code)
+    return text + suffix if suffix else _CODE_LIKE_END.sub(r" \\x5b\1]", text)
+
+
 class _OneLineFormatter(logging.Formatter):
     """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
     whatever a call site interpolated, one record is one tagged line on
     stderr; a record's :data:`CODE_ATTR` follows it (``DEBUG`` lines carry
-    none). A traceback (``exc_info``) is appended as it is."""
+    none, :func:`_with_code`). A traceback (``exc_info``) is appended as it
+    is."""
 
     def formatMessage(self, record: logging.LogRecord) -> str:
         code = (
             getattr(record, CODE_ATTR, None) if record.levelno > logging.DEBUG else None
         )
-        record.message = escape_controls(record.message) + _code_suffix(code)
+        record.message = _with_code(escape_controls(record.message), code)
         return super().formatMessage(record)
 
 
@@ -245,8 +258,9 @@ def print_error(message: str, *, code: str | None = None) -> None:
     """Print one ``ERROR: <message>`` line to stderr, the message escaped by
     :func:`escape_controls`: the one way the CLI writes an error, so a newline
     in a path or an exception text cannot start a second, forged line. A
-    catalogued *code* follows as `` [code]``."""
-    print(f"ERROR: {escape_controls(message)}{_code_suffix(code)}", file=sys.stderr)
+    catalogued *code* follows as `` [code]``; without one, nothing at the end
+    reads as a code (:func:`_with_code`)."""
+    print(f"ERROR: {_with_code(escape_controls(message), code)}", file=sys.stderr)
 
 
 def loggable(text: str) -> str:

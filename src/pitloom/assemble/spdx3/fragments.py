@@ -478,7 +478,7 @@ def merge_fragments(
         raise FragmentMergeError(
             f"{len(unmet_required)} required fragment(s) could not be "
             f"merged: {', '.join(unmet_required)} -- check the configured "
-            "path(s) under [tool.pitloom.fragment] in the project's configuration"
+            "path(s) under [tool.pitloom.fragment]"
         )
 
     if loaded_fragments:
