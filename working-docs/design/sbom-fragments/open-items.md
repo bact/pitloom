@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -118,6 +118,9 @@ the original Phase 1/4 plan turned out to already be built.
   `log.warning`. Not planned to change without a native SPDX
   field-provenance construct -- see
   [roadmap-and-resources.md](roadmap-and-resources.md) for the full note.
+- [ ] **Reuse of a project's own earlier SBOM**
+  ([#41](https://github.com/bact/pitloom/issues/41)) and **configurable merge
+  precedence** ([#150](https://github.com/bact/pitloom/issues/150)).
 
 ### Left after the fragment-merge fixes
 

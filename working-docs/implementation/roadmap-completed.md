@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -278,7 +278,8 @@ under "Open follow-ups by area".
 Shipped #287, #289, #291: setuptools precedence, licence detection on
 Windows. Three planned fixes (a very long lock-file version, Safetensors
 licence keys, a `%` in `setup.cfg`) did not make it; they are in
-[known-bugs.md](../design/known-bugs.md#p2-in-0210).
+[known-bugs.md](../design/known-bugs.md#p2-0210-and-later). The Safetensors
+licence keys were fixed in 0.22.0 (#376).
 
 ### 0.20.2 (released 2026-10-09, tag v0.20.2)
 
@@ -292,8 +293,129 @@ AI model metadata made uniform and safer:
   caps, display escape of bidi/invisible text, RFC 8785 embedded JSON,
   GGUF `general.license`** (#294).
 - Known issue at release: a generated CRFsuite description can override a
-  fragment description (roadmap 0.21.0, "Fragment value beats an extracted
-  one").
+  fragment description (roadmap 0.21.0, "A fragment value beats a value read
+  from the file").
+
+## Shipped in 0.21.0 (PRs #300-#350)
+
+Moved from [roadmap.md](../design/roadmap.md) on 2026-10-29, as they stood
+there. The release items; the ones still open are in
+[roadmap.md](../design/roadmap.md#0210).
+
+**Release status (2026-10-23):** every code PR of the release is merged
+(#305-#350; the last were #347 more Git hosts, #349 fragment value replaces
+generated, #350 the Spaces note). PR #346 holds the version bump, CHANGELOG,
+coverage snapshots and the release review (CHANGELOG against the code, user
+docs and skills, working-docs and comments). Before the tag: merge #346, tag
+v0.21.0, publish to PyPI. After it: Lumina pins `pitloom==0.21.0` (it takes
+`licenseid` 0.6.0 through Pitloom's floor), then adds its non-GitHub examples.
+See [release-checklist.md](release-checklist.md). Released 2026-10-28
+(v0.21.0); v0.21.1 (#364-#366) followed the same day.
+
+- [x] **Same AI model, same id on every surface**, and **registry path keys**
+  (2026-10-16): one key helper, a model keyed by its file, content-gated
+  lookups. See [id-registry-path-keys.md](id-registry-path-keys.md).
+- [x] **Registry v3** (PR #305). See
+  [id-registry-v3.md](id-registry-v3.md); open follow-ups in
+  [id-registry-followups.md](../design/id-registry-followups.md).
+- [x] **Extras, edge kind and authors on every route** (#300); open
+  follow-ups in [extras-parity.md](extras-parity.md#open-questions).
+- [x] **Git URL ingestion** (PR #317): `loom project <url>` and
+  `loom generate <url>` for GitLab, GitHub, Gitea/Forgejo, Bitbucket and
+  SourceHut; redirects followed hop by hop with a caller check; Lumina uses
+  it. See [remote-git-ingestion.md](remote-git-ingestion.md),
+  [docs/git-urls.md](../../docs/git-urls.md).
+- [x] **More Git hosts** (#347): Bitbucket `branch`/`commits` pages (the ref
+  was dropped silently), SourceHut `log`, Gitiles `/+/`, cgit `?h=`, Azure
+  DevOps `?version=`; a folder page naming a file reads its folder; a clone
+  rejected with HTTP 400 on the blob filter is retried without it; a Hugging
+  Face Space or dataset is a Git repository, not a model. Live checks on 12
+  hosts. See [docs/git-urls.md](../../docs/git-urls.md).
+- [x] **A fragment value replaces one Pitloom generated** (#349): the
+  `description`, `ai_domain` and input/output text a reader made from the file's
+  format (`generated_from_labels`, `derived_from_format`), with one `INFO:` and
+  the property's provenance dropped, in any order of fragments. See
+  [docs/fragments.md](../../docs/fragments.md).
+- [x] **Git URL hardening** (#339, #342-#344): `max_bytes=` clone cap in the
+  library (`git.too-large`), credentials only on same-origin redirects,
+  SourceHut slash branches, the process tree killed on Windows.
+- [x] **One default SBOM file name** (#334): one helper for the CLI, the hook
+  and `embed-wheel`. It replaces unsafe characters only, not PEP 427's
+  escaping as [known-bugs.md](../design/known-bugs.md#p0-in-0210) decided;
+  whether to change the rule is open.
+
+### G7, conformance and SHA-512
+
+The G7 and conformance work; full breakdown in
+[g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md).
+
+- [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** from its model file, with
+  gated lookups (2026-10-16; see
+  [id-registry-path-keys.md](id-registry-path-keys.md)).
+- [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read
+  by `dataset.py`; G7 B1) and its three readers
+  (Croissant via `loom.run`, a local dataset card, a Hub model's dataset
+  cards): [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+- [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
+  G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
+  packages (G7 B2; [g7-conformance-tests.md](g7-conformance-tests.md)).
+- [x] **SHA-512 beside SHA-256** (always, no flag) for every file Pitloom
+  reads and describes: model files, project/wheel/sdist file elements,
+  `loom` files, bundled libraries (`pitloom.core.file_hash`). The registry
+  gate, a Merkle root and a lock file's dependency hash stay SHA-256; a
+  dependency's SHA-512
+  stays unspecified while no source states one (decided 2026-10-18;
+  [build-backend-improvements.md](../design/build-backend-improvements.md)).
+- [x] **Hub revision** (G7 B3): a Hub model's commit hash as its version and
+  its last-modified time as `releaseTime`.
+- [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
+  fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
+  Hatchling, setuptools, Poetry) and the parity ledger on
+  `docs/g7-sbom-for-ai.md`; open gaps are under
+  [0.22.0](../design/roadmap.md#0220-g7-sbom-for-ai-field-coverage).
+- [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
+  element SPDX 3.0.1 has no property for (today the architecture, in
+  `ai_typeOfModel`; no reader drops a value). Always on, stderr only
+  (`extract/ai_model/unrecordable.py`). See
+  [g7-honesty-and-non-recordable.md](../design/g7-honesty-and-non-recordable.md).
+- [x] **Conformance tests**: G7 (`g7ai`, with offline SPDX validation),
+  CISA 2026 (`cisa2026`, SPDX 3.0), FSCT 2024 (`fsct3`) and BSI TR-03183-2
+  v2.1 (rule-based `rules/bsi.yaml`; the hand-written `BSIChecker` is
+  removed), each with an expected-outcome table and surface-parity tests;
+  coverage in `g7-coverage-history/`. CISA's hash rule is checked as "an
+  integrity method is present" only. BSI
+  [ontology](https://bact.github.io/bom/req/bsi2025/bsi2025.ttl) and
+  [mapping](https://bact.github.io/bom/mapping/bsi2025-to-spdx30.sssom.tsv).
+  See [g7-conformance-tests.md](g7-conformance-tests.md).
+- [x] **Same reachability for every standard** (checker `151460c`,
+  2026-10-18): `trainedOn` and `testedOn` are the default `reach_via`, so
+  every standard judges the datasets a reachable model uses;
+  `bsi-expected.tsv` refreshed.
+- [x] **CLI option choices in a stable order** (2026-10-18):
+  `--content-type-method` and `--creator-type` listed a `frozenset` in hash
+  order; now sorted (`tests/cli/test_cli_choices_order.py`).
+- [x] **Dataset readers' edge cases** (2026-10-19): Croissant nesting cap,
+  placeholder and non-URL values, card warnings without a cache path, one
+  reference per dataset, a `datasets:` cap, YAML 1.1 and generated-input
+  tests. See [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+- [x] **One dataset, one package, one relationship per role** (PR #311, #314):
+  first reference wins, later ones fill unset fields, a conflict warns once
+  per field; `loom.Run` folds spellings the same way (`Org/Data` is
+  `org/data`, an existing path never folded). See
+  [ai-dataset-linking.md](ai-dataset-linking.md).
+- [x] **A software-agent creator is the author, not the supplier** (PR #312):
+  `suppliedBy` takes the first creator that is not a `software-agent`, else
+  none; Lumina reports itself as the author and Pitloom as the tool.
+- [x] **#6 Model producer and parameter count** from structured sources
+  (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
+  entry. See
+  [g7-model-producer-parameter-count.md](g7-model-producer-parameter-count.md).
+- [x] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work (#309), the
+  Hub model description fix (#310) and the dataset and creator fixes (#311,
+  #312, #314).
+- [x] The skill's G7 checklist matches the code (`hasDataFile` only with
+  `--scan-model-usage`; dataset edges; SHA-512): see
+  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md).
 
 ## Bugs fixed in 0.21.0
 
@@ -305,3 +427,29 @@ Moved from [known-bugs.md](../design/known-bugs.md).
   `hasOptionalDependency` with no scope, all authors as `originatedBy`. See
   [extras-parity.md](extras-parity.md). PyThaiNLP 5.4.0: 79 packages from the
   wheel route, 3 from `loom project .` before the fix.
+
+## Shipped in 0.22.0 so far
+
+Moved from [roadmap.md](../design/roadmap.md) on 2026-10-29, as they stood
+there. Open 0.22.0 items:
+[roadmap.md](../design/roadmap.md#0220-g7-sbom-for-ai-field-coverage).
+
+- [x] **`embed-wheel --sbom` input check** (#374): invalid JSON, a non-object
+  or a non-SPDX-3 `.spdx3.json` is refused before the wheel is written.
+- [x] **Git URL messages** (#375): the temporary checkout shows as
+  `<checkout>`, not a random path.
+- [x] **Model licence from Safetensors and GGUF** (#376): `modelspec.license`
+  and `general.license.name` (when `general.license` is blank or `other`) are
+  read as the model licence.
+- [x] **Git LFS pointers** (#378): one detector; a checkout pointer is listed
+  by its `oid`, one `WARNING:` per SBOM. See
+  [git-lfs-pointers.md](git-lfs-pointers.md); LFS fetch is open
+  ([known-bugs.md](../design/known-bugs.md)).
+- [x] **Flags for both size ceilings** (#381).
+- [x] **Dataset size unit fix** (#382): `dataset_datasetSize` holds bytes only.
+- [x] **Skill size cap** (#385).
+- [x] **Evidence merge drop** (#386): `minimal` provenance keeps `Evidence:`;
+  a `not_measured` entry is dropped once a merge supplies the value, with the
+  comment-join fix it needs.
+- [x] **Sizes under a cap** (#387): a single-file dataset's size and why its
+  hash is missing. See [evidence-levels.md](../design/evidence-levels.md).

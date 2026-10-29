@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -253,7 +253,8 @@ Moved from [embed-wheel-followups.md](embed-wheel-followups.md).
   pretty-printed examples show canonical key order for that reason. The
   Hatchling hook ignores `pretty`; that is stated only in its docstring
   ([config-cascade-parity.md](config-cascade-parity.md)).
-- **Owner:** roadmap "Canonical output".
+- **Owner:** roadmap "Canonical output". A separate serialiser library
+  ([#51](https://github.com/bact/pitloom/issues/51)) needs a decision.
 
 ### C10. What "JSON-LD: follow RDF canonicalisation" means here
 
@@ -351,7 +352,7 @@ origin; KB is [known-bugs.md](known-bugs-p3.md).
   compared (today); classifier names need new `licenseid` data
   ([license-layers.md](license-layers.md)).
 - **Current behaviour:** text, a known deviation
-  ([license-typing.md](../implementation/license-typing.md#known-deviation-licence-names-stay-text));
+  ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text));
   `same_licence()` treats a List name and its id as equal
   (`is_listed_name`, a stop-gap). KB: "A model licence that is a name or
   URL becomes licence text".
