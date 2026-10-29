@@ -7,11 +7,17 @@
 
 Out of scope are the sites that are not Pitloom's own message to a person:
 ``DEBUG`` lines, ``KEY=VALUE`` data on stdout, traceback lines, text that
-passes another message through unchanged (``str(exc)``), the detail text of
-a reader's exception (it is the DETAIL of a line a wrapper says), internal
-invariants a caller never sees, library-only errors raised to a Python
-caller, and a helper's call sites whose text lives in the helper body (the
-body is counted once).
+passes another message through unchanged (``str(exc)``, a frame before a
+relayed record), the detail text of a reader's exception (it is the DETAIL
+of a line a wrapper says), internal invariants a caller never sees,
+library-only errors raised to a Python caller, and a helper's call sites
+whose text lives in the helper body (the body is counted once).
+
+An internal invariant is marked by its class: ``raise InternalError(...)``
+(:class:`pitloom.core.internal_error.InternalError`, a ``ValueError``), found
+by the class name or the name it is imported under. :data:`INTERNAL_PAT`
+is the older list of such texts; a raise moves from it to the class, never
+back.
 
 ``reach`` is a static guess for ``raise`` sites (which of them reach the CLI
 as an ``ERROR:`` line), by exception class and message text.
@@ -55,7 +61,13 @@ DETAIL_EXC = frozenset(
 )
 #: Exception classes that are programming errors or process control.
 INTERNAL_EXC = frozenset(
-    {"AttributeError", "SystemExit", "TerminationSignal", "LockNotReleased"}
+    {
+        "AttributeError",
+        "InternalError",
+        "LockNotReleased",
+        "SystemExit",
+        "TerminationSignal",
+    }
 )
 #: Message texts of invariants a user never meets.
 INTERNAL_PAT = re.compile(
@@ -109,7 +121,8 @@ def _raise_reach(rec: dict[str, Any]) -> str:
     text = rec["template"] or ""
     if exc in DETAIL_EXC:
         return "detail"
-    if INTERNAL_PAT.search(text) or exc in INTERNAL_EXC:
+    names = {exc.rpartition(".")[2], rec.get("exc_origin") or ""}
+    if INTERNAL_PAT.search(text) or names & INTERNAL_EXC:
         return "internal"
     if LIBRARY_PAT.search(text) or exc == "_no_active_run":
         return "library"

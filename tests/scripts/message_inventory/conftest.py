@@ -55,6 +55,24 @@ def check(path, exc):
     print_error("boom", code=None)
     print_error("boom again", code=code_of(exc))
 """,
+    # A programming error, by its class (also imported under another name),
+    # is out of scope; the same text as a ValueError is a message.
+    "internal.py": """\
+from pitloom.core.internal_error import InternalError
+from pitloom.core.internal_error import InternalError as Bug
+
+
+def check(level):
+    raise InternalError(f"unknown level: {level}")
+
+
+def check_again(level):
+    raise Bug(f"unknown level: {level}")
+
+
+def check_user(level):
+    raise ValueError(f"unknown level: {level}")
+""",
     # A relay that says another record again with its code: it forwards.
     "relay.py": """\
 import logging

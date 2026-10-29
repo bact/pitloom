@@ -21,6 +21,7 @@ from . import (
     inventory,
     match_quotes,
     parse_baseline,
+    rises,
     summary,
     uncoded_counts,
 )
@@ -37,6 +38,26 @@ def _write_jsonl(rows: list[dict[str, Any]], target: str) -> None:
         sys.stdout.buffer.flush()
     else:
         Path(target).write_bytes(text.encode("utf-8"))
+
+
+def _write_baseline(root: Path, path: Path, counts: dict[str, int]) -> int:
+    """Write *counts* as the baseline at *path*, only when no module and not
+    the total is above the baseline already there (none: written as is);
+    the exit status."""
+    if path.is_file():
+        problems = rises(parse_baseline(path.read_text(encoding="utf-8")), counts)
+        for problem in problems:
+            print(f"ERROR: {problem}", file=sys.stderr)
+        if problems:
+            return 1
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(format_baseline(counts).encode("utf-8"))
+    try:
+        shown: Path = path.relative_to(root)
+    except ValueError:
+        shown = path
+    print(f"INFO: wrote {shown.as_posix()}", file=sys.stderr)
+    return 0
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -71,14 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         match_quotes(quotes, records)
         _write_jsonl(quotes, args.quotes)
     elif args.write_baseline:
-        baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        text = format_baseline(uncoded_counts(records))
-        baseline_path.write_bytes(text.encode("utf-8"))
-        try:
-            shown: Path = baseline_path.relative_to(root)
-        except ValueError:
-            shown = baseline_path
-        print(f"INFO: wrote {shown.as_posix()}", file=sys.stderr)
+        return _write_baseline(root, baseline_path, uncoded_counts(records))
     elif args.check:
         problems = compare(
             parse_baseline(baseline_path.read_text(encoding="utf-8")),

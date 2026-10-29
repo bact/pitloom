@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 import rfc8785
 
+from pitloom.core.internal_error import InternalError
 from pitloom.core.untrusted_text import escape_display_controls, escape_lone_surrogates
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
@@ -181,12 +182,12 @@ def provenance_segment(base: str, key: str, value: str) -> str:
     built (by :func:`provenance_source` or this function).
 
     Raises:
-        ValueError: *key* is neither in :data:`PROVENANCE_SEGMENT_KEYS` nor
-            a numbered ``Resolution-<n>``/``Expansion-<n>`` key (a
-            programming error).
+        pitloom.core.internal_error.InternalError: *key* is neither in
+            :data:`PROVENANCE_SEGMENT_KEYS` nor a numbered
+            ``Resolution-<n>``/``Expansion-<n>`` key (a programming error).
     """
     if key not in PROVENANCE_SEGMENT_KEYS and not _NUMBERED_SEGMENT_KEY.fullmatch(key):
-        raise ValueError(f"unknown provenance segment key: {key!r}")
+        raise InternalError(f"unknown provenance segment key: {key!r}")
     return f"{base} | {key}: {sanitize_provenance_text(value)}"
 
 

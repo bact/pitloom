@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The message ratchet: the number of emission sites in ``src/pitloom`` that
-say no catalogued message (no `` [code]``) may only fall, per module.
+say no catalogued message (no `` [code]``) may only fall, per module and in
+total.
 
 A new uncoded site raises its module's count and fails the first test: give
 the message a code in :mod:`pitloom.messages`. A coded or removed site lowers
@@ -59,6 +60,22 @@ def test_the_tool_sees_the_lfs_pointer_sites_as_coded(
     sites = [r for r in records if r["file"] == file and r["emitter"] == emitter]
     assert any(r["coded"] for r in sites)
     assert any(load().in_scope(r) for r in sites if r["coded"])
+
+
+@pytest.mark.parametrize(
+    "file", ["src/pitloom/core/evidence.py", "src/pitloom/core/provenance.py"]
+)
+def test_a_programming_error_is_out_of_scope(
+    records: list[dict[str, Any]], file: str
+) -> None:
+    """An ``InternalError`` raise is no message to a user: the ratchet does
+    not count it, and the baseline does not rise for it."""
+    internal = [
+        r
+        for r in records
+        if r["file"] == file and r.get("exc_class") == "InternalError"
+    ]
+    assert internal and not any(load().in_scope(r) for r in internal)
 
 
 def test_the_documented_command_runs_the_ratchet() -> None:

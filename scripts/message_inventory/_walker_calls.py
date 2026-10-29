@@ -356,6 +356,9 @@ class CallSites:
         if builder:
             self.idx.builders = []
             tnode = exc
+        imported = (
+            mod.imports.get(exc.func.id) if isinstance(exc.func, ast.Name) else None
+        )
         self.make(
             mod,
             node,
@@ -367,6 +370,8 @@ class CallSites:
             exc,
             extra={
                 "exc_class": unparse(exc.func),
+                # The class's own name when imported under another.
+                "exc_origin": imported[1] if imported else None,
                 "reaches_cli": "unknown (static)",
             },
         )

@@ -24,12 +24,22 @@ BASE = {"pitloom.a": 3, "pitloom.b": 1}
     ("current", "expected"),
     [
         (BASE, []),  # unchanged: nothing to say
-        ({"pitloom.a": 4, "pitloom.b": 1}, ["pitloom.a: 4 uncoded"]),  # rise
-        ({"pitloom.a": 3, "pitloom.b": 1, "pitloom.c": 1}, ["pitloom.c: 1"]),  # new
+        (
+            {"pitloom.a": 4, "pitloom.b": 1},
+            ["pitloom.a: 4 uncoded", "total: 5 uncoded"],
+        ),  # rise
+        (
+            {"pitloom.a": 3, "pitloom.b": 1, "pitloom.c": 1},
+            ["pitloom.c: 1", "total: 5 uncoded"],
+        ),  # new
         ({"pitloom.a": 2, "pitloom.b": 1}, ["pitloom.a: 2 uncoded"]),  # fall
         ({"pitloom.a": 3}, ["pitloom.b: 0 uncoded"]),  # last one coded
+        (
+            {"pitloom.a": 2, "pitloom.b": 1, "pitloom.c": 1},
+            ["pitloom.c: 1", "pitloom.a: 2 uncoded"],
+        ),  # a site moved to a new module: the total holds
     ],
-    ids=["same", "rise", "new-module", "fall", "module-gone"],
+    ids=["same", "rise", "new-module", "fall", "module-gone", "moved"],
 )
 def test_compare_flags_a_rise_and_a_fall(
     mi: ModuleType, current: dict[str, int], expected: list[str]
@@ -41,9 +51,10 @@ def test_compare_flags_a_rise_and_a_fall(
 
 
 def test_compare_says_how_to_fix_each_direction(mi: ModuleType) -> None:
-    (rise,) = mi.compare({"pitloom.a": 1}, {"pitloom.a": 2})
+    rise, total = mi.compare({"pitloom.a": 1}, {"pitloom.a": 2})
     (fall,) = mi.compare({"pitloom.a": 2}, {"pitloom.a": 1})
     assert "needs a code" in rise and mi.REGENERATE not in rise
+    assert total.startswith("total: 2 uncoded") and "baseline 1" in total
     assert mi.REGENERATE in fall and "lower" in fall
 
 
@@ -96,3 +107,35 @@ def test_write_then_check_then_a_coded_site_goes_stale(
     source.write_bytes(original.replace(odd, "    pass\n").encode("utf-8"))
     assert mi_main.main([*args, "--check"]) == 1
     assert "baseline 4: lower the baseline" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("baseline", "written"),
+    [
+        ("pitloom.uncoded 9\npitloom.helpers 9\npitloom.callers 9\n", True),
+        ("pitloom.uncoded 3\npitloom.helpers 9\npitloom.callers 9\n", False),
+        ("pitloom.old 6\npitloom.helpers 1\npitloom.callers 1\n", False),
+    ],
+    ids=["falls-only", "a-module-rises", "moved-total-holds"],
+)
+def test_rewriting_the_baseline_only_lowers_it(
+    mi_main: ModuleType,
+    tree: Path,
+    capsys: pytest.CaptureFixture[str],
+    baseline: str,
+    written: bool,
+) -> None:
+    """``--write-baseline`` writes falls; a module above its count is
+    refused, even when the total holds (a site moved there is moved in the
+    file by hand)."""
+    path = tree / "uncoded.txt"
+    path.write_bytes(f"pitloom.internal 1\npitloom.relay 1\n{baseline}".encode())
+    before = path.read_bytes()
+    args = ["--root", str(tree), "--baseline", str(path), "--write-baseline"]
+    assert mi_main.main(args) == (0 if written else 1)
+    err = capsys.readouterr().err
+    if written:
+        assert path.read_bytes() != before and err.startswith("INFO: wrote")
+    else:
+        assert path.read_bytes() == before
+        assert err.startswith("ERROR: pitloom.uncoded: 4 uncoded")

@@ -72,12 +72,24 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
     assert mi.uncoded_counts(records) == {
         "pitloom.callers": 1,
         "pitloom.helpers": 1,
+        "pitloom.internal": 1,
         "pitloom.relay": 1,
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (12, 5)
-    assert counts["IN_SCOPE_UNCODED"] == 7 == sum(mi.uncoded_counts(records).values())
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (13, 5)
+    assert counts["IN_SCOPE_UNCODED"] == 8 == sum(mi.uncoded_counts(records).values())
+
+
+@pytest.mark.parametrize(("line", "scoped"), [(6, False), (10, False), (14, True)])
+def test_a_programming_error_is_out_of_scope_by_its_class(
+    mi: ModuleType, tree: Path, line: int, scoped: bool
+) -> None:
+    """``InternalError`` by its name or the name it is imported under; the
+    same text raised as a plain ``ValueError`` counts."""
+    site = _site(mi.inventory(tree), "pitloom.internal", line)
+    assert site["emitter"] == "raise"
+    assert mi.in_scope(site) is scoped
 
 
 def test_output_is_the_same_on_every_run(

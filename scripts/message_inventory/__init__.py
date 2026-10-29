@@ -32,6 +32,7 @@ from ._baseline import (
     compare,
     format_baseline,
     parse_baseline,
+    rises,
     uncoded_counts,
 )
 from ._families import emitter_family
@@ -49,6 +50,7 @@ __all__ = [
     "inventory",
     "match_quotes",
     "parse_baseline",
+    "rises",
     "summary",
     "uncoded_counts",
 ]
