@@ -112,7 +112,7 @@ into the repo with the first catalogue PR.)
   text is the detail of a catalogued line), `loom.*` library raises 19, one
   traceback.
 - **Printed form: a trailing ` [code]`**, parsed by `^(ERROR|WARNING|INFO): (.*)
-  \[([a-z][a-z0-9-]*)\]$`. Example: `WARNING: FILE=demo/model.gguf: Git LFS
+  \[([a-z][a-z0-9.-]*)\]$`. Example: `WARNING: FILE=demo/model.gguf: Git LFS
   pointer, content not read; run 'git lfs pull' for the content [lfs-pointer]`.
   The message text is unchanged, so the 453 `in caplog` and 46 `caplog.messages
   ==` assertions and all 46 matched skill quotes still pass; about 47 full-line
@@ -192,12 +192,13 @@ Steps 1 and 2 are independent. Compatibility is not a constraint (alpha).
 Decided 2026-10-29 (the maintainer took the recommendations; SARIF and the
 resolver JSON deferred to 0.23.0):
 
-1. **Condition token.** Every catalogued message has a stable code. In
-   0.22.0 the printed line carries it only for catalogued messages, as a
-   trailing ` [code]` (settled by the inventory; see the results) so `LEVEL:`
-   stays first and the existing text is unchanged. A message without a token is
-   "not catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will
-   give every record a code, `uncatalogued` where there is none.
+1. **Condition token.** Every catalogued message has a stable code. In 0.22.0
+   the printed line carries it only for catalogued messages, as a trailing `
+   [code]` (settled by the inventory; see the results) so `LEVEL:` stays first
+   and the existing text is unchanged. A message without a token is "not
+   catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will give
+   every record a code, `uncatalogued` where there is none. A code may hold
+   dots, because `RemoteSourceError` codes already do (`git.too-large`).
 2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
    `message`, a location from `FILE=`); SARIF export and the licence
    resolver's nested result follow. All 0.23.0.
