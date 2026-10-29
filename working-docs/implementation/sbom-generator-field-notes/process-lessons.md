@@ -409,3 +409,33 @@ counts and durations.
 | Tasks 7, 8, check 23 | Sonnet | 120 k, 160 k, 127 k | 3, 5, 2 |
 | Cold review | Opus | 226 k | 12 |
 | Fix round (7 findings) | Sonnet | 252 k | 19 |
+
+## Evidence, provenance and messages: parallel PRs (#381 to #392, 2026-10-29)
+
+Several feature branches ran at once, one agent and one worktree each,
+with file ownership fenced in each brief. What was new beyond the #378 items
+above:
+
+- **Stash by path, never the whole tree.** One agent ran a bare `git stash`
+  to compare against its base and stashed the whole `src/` of a shared
+  checkout, so sibling agents briefly tested reverted code (session record,
+  not in Git). Do: `git stash push -- <own paths>`, or compare in a separate
+  worktree.
+- **Concurrent suites starve xdist.** With four or more agents running the
+  full suite, workers died (`node down: Not properly terminated`, five in
+  one full run, 16,914 passed) and the deaths read as test failures; the
+  cause was taken to be sandbox memory (inferred, not measured). Do: cap each
+  agent at `-n 4` and re-run a crashed worker's tests alone before
+  believing them.
+- **A read-only reviewer found real defects in every PR round.** Five
+  examples: a record count in a bytes property (#383 review, fixed in
+  #382); a `|` file name forging the `Evidence:` entry a merge acts on,
+  then 13 unsanitised sites (#386); a small file over the cap whose size
+  may be a pointer's (#387, b0c89dd2); four kinds of silent loss in a skill
+  move, one a false paraphrase (#385); and, from #378, the fragment twin
+  above.
+- **A lint finds what a human list misses.** The provenance sites were
+  first routed from a list made by reading the code (735b71b1); the AST
+  lint written next flagged a further `" | ".join` in `deps.py` that could
+  be forged (f524e61f, #389). Do: when a fix is "every site that does X",
+  write the lint before the last site, so it checks the list.

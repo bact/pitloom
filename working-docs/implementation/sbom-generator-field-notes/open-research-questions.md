@@ -254,3 +254,30 @@ regenerate.
 *Unverified:* the claim that `os.path.normcase` does nothing on macOS was
   checked against the Python documentation ("no effect under POSIX"), not on a
   Mac.
+
+## Evidence, messages and skills (2026-10-29)
+
+*Open:* how should an SBOM state the evidence level of a value, or that a
+value was deliberately not computed? SPDX 3.0.1 and 3.1-dev have no property
+for either (FG-13 in the format-gaps ledger); Pitloom writes `Evidence:` and
+`Reason:` segments into its own provenance Annotation and comment, which no
+other tool reads. A consumer cannot tell "no hash known" from "hash skipped
+over the read cap" from SPDX alone. See
+[evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md).
+
+*Open:* are catalogue codes the right unit for SARIF `ruleId`s? The
+0.23.0 plan maps a code to `ruleId`, but a code names a condition
+(`lfs-pointer`) shared by several subjects and surfaces, while a SARIF rule
+usually names one check. Not reviewed.
+
+*Open:* how do you version a message contract whose consumers are AI agents?
+A code is promised stable and the wording is not, but a skill quotes
+wording, and an agent may key on either. The ratchet and the drift test
+hold the code and the skills' quotes to the catalogue; nothing measures
+whether an agent still behaves the same after a wording change.
+
+*Open:* how do you measure whether progressive disclosure in a skill loses
+behaviour? Static tests check size, orphan references and that each pointer
+states a condition; the four kinds of loss in #385 were found by a read-only
+agent review, not a test. Candidate: scenario evals (Pitloom output in, expected
+explanation out), planned but not built.
