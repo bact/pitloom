@@ -8,36 +8,27 @@
 hook): an unknown key warns once; a negative ``max-source-metadata-bytes`` is
 refused.
 
-See also: :mod:`tests.core.test_config_unknown_keys` and
+See also: :mod:`tests.test_byte_cap_surfaces` (a bad byte cap on every flag
+and library surface), :mod:`tests.core.test_config_unknown_keys` and
 :mod:`tests.core.test_provenance` for the parts.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import sys
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pytest
 
 from pitloom import __main__
 from pitloom.assemble import (
-    generate_env_sbom,
     generate_project_sbom,
-    generate_wheel_sbom,
 )
-from pitloom.cli.parser import _build_parser
-from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.provenance import ProvenanceConfig
-from pitloom.embed import embed_wheel_sbom
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.extract.conftest import make_hook
 from tests.warning_helpers import error_lines, logged_warnings, stderr_warnings
@@ -298,143 +289,3 @@ def test_hatchling_hook_bad_config_key_raises() -> None:
         pytest.raises(ValueError, match="at least 8 bytes, got -1"),
     ):
         _hook(Path(tmp), _HEAD + tail)
-
-
-def _subcommands() -> list[str]:
-    """Every subcommand that offers ``--max-source-metadata-bytes``."""
-    # pylint: disable-next=protected-access
-    actions = _build_parser()._actions
-    # pylint: disable-next=protected-access
-    (sub,) = [a for a in actions if isinstance(a, argparse._SubParsersAction)]
-    return sorted(
-        name
-        for name, parser in sub.choices.items()
-        if "--max-source-metadata-bytes" in parser.format_help()
-    )
-
-
-@pytest.mark.parametrize("command", _subcommands())
-@pytest.mark.parametrize(
-    ("value", "text"),
-    [
-        ("-1", "argument --max-source-metadata-bytes: must be 0 (unlimited) or at"),
-        ("5", "at least 8 bytes, got 5"),
-        ("x", "invalid int"),
-    ],
-)
-def test_flag_refuses_a_bad_value_on_every_subcommand(
-    command: str, value: str, text: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    with pytest.raises(SystemExit) as exc:
-        _build_parser().parse_args([command, "--max-source-metadata-bytes", value])
-    assert exc.value.code == 2
-    assert text in capsys.readouterr().err
-
-
-def test_flag_is_offered_by_the_sbom_subcommands() -> None:
-    """Not vacuous: the parametrisation above found the commands."""
-    assert {"project", "wheel", "embed-wheel"} <= set(_subcommands())
-
-
-def test_loom_flag_too_small_exits_2(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project = _project(tmp_path, "p", _HEAD)
-    monkeypatch.chdir(tmp_path)
-    with pytest.raises(SystemExit) as exc:
-        _loom(
-            ["project", str(project), "--max-source-metadata-bytes", "-1"], monkeypatch
-        )
-    assert exc.value.code == 2
-
-
-def _library_calls(tmp_path: Path) -> dict[str, Callable[[int], Any]]:
-    project = _project(tmp_path, "p", _HEAD)
-    wheel = _make_dummy_wheel(tmp_path / "w", "demo", "1.0.0")
-    sbom_wheel = _make_dummy_wheel(tmp_path / "x", "demo", "1.0.0")
-    return {
-        "project": lambda n: generate_project_sbom(
-            project, creation_metadata=_PINNED, max_source_metadata_bytes=n
-        ),
-        "wheel": lambda n: generate_wheel_sbom(
-            wheel, creation_metadata=_PINNED, max_source_metadata_bytes=n
-        ),
-        "env": lambda n: generate_env_sbom(
-            creation_metadata=_PINNED, max_source_metadata_bytes=n
-        ),
-        "embed": lambda n: embed_wheel_sbom(
-            wheel, overrides=ConfigOverrides(max_source_metadata_bytes=n)
-        ),
-        "embed-inert-sbom": lambda n: embed_wheel_sbom(
-            sbom_wheel,
-            sbom_path=_sbom_file(tmp_path),
-            overrides=ConfigOverrides(max_source_metadata_bytes=n),
-        ),
-        "overrides": lambda n: apply_overrides(
-            PitloomConfig(), ConfigOverrides(max_source_metadata_bytes=n)
-        ),
-        "provenance-config": lambda n: ProvenanceConfig(max_source_metadata_bytes=n),
-        "pitloom-config": lambda n: (
-            PitloomConfig(provenance_max_source_metadata_bytes=n).provenance
-        ),
-    }
-
-
-def _sbom_file(tmp_path: Path) -> Path:
-    """An SBOM for ``demo`` 1.0.0, to hand to ``embed_wheel_sbom(sbom_path=)``."""
-    path = tmp_path / "s.json"
-    path.write_text(
-        generate_wheel_sbom(
-            _make_dummy_wheel(tmp_path / "y", "demo", "1.0.0"),
-            creation_metadata=_PINNED,
-        ),
-        encoding="utf-8",
-    )
-    return path
-
-
-_CALLS = [
-    "project",
-    "wheel",
-    "env",
-    "embed",
-    "embed-inert-sbom",
-    "overrides",
-    "provenance-config",
-    "pitloom-config",
-]
-
-
-@pytest.mark.parametrize("value", [-1, 1, 7, 4096.0, True])
-@pytest.mark.parametrize("call", _CALLS)
-def test_library_refuses_an_invalid_budget(
-    call: str, value: Any, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An error, with no warning ahead of it (not even the inert one)."""
-    calls = _library_calls(tmp_path)
-    with (
-        caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="must be (0 \\(unlimited\\)|an integer)"),
-    ):
-        calls[call](value)
-    assert not logged_warnings(caplog)
-
-
-def test_a_library_config_names_itself_in_the_error() -> None:
-    config = PitloomConfig(provenance_max_source_metadata_bytes=3)
-    with pytest.raises(
-        ValueError, match=r"^pitloom_config 'max-source-metadata-bytes'"
-    ):
-        _ = config.provenance
-
-
-@pytest.mark.parametrize("call", ["overrides", "provenance-config", "pitloom-config"])
-@pytest.mark.parametrize("value", [0, 8, 4096, np.int64(4096)])
-def test_library_accepts_zero_and_a_real_budget(
-    call: str, value: int, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """The control: ``0`` (unlimited) and a usable budget stay valid, quietly."""
-    with caplog.at_level(logging.WARNING):
-        _library_calls(tmp_path)[call](value)
-    assert not logged_warnings(caplog)

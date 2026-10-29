@@ -16,21 +16,25 @@ option reaches the library or warns).
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import logging
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from pitloom.assemble import enrich_model, generate_project_sbom
+from pitloom.assemble import enrich_model, generate, generate_project_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from pitloom.extract.project import resolve_project_with_lockfile
+from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
+from tests.assemble.embed_surfaces_shared import demo_project
 from tests.assemble.enrich_identity_shared import (
     enrich_base_namespace,
     sbom_namespace,
@@ -144,8 +148,8 @@ def test_embed_batch_warns_once_per_batch(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, project: bool
 ) -> None:
     """A library batch sharing one EmbedFileCache warns once about an inert
-    option and once about a too-small byte cap -- as the CLI batch does,
-    and as the cache already does for build flags."""
+    option (the model cap is one only with a project) -- as the CLI batch
+    does, and as the cache already does for build flags."""
     wheels = [
         _make_dummy_wheel(tmp_path / "w", name=name) for name in ("alpha", "beta")
     ]
@@ -156,7 +160,7 @@ def test_embed_batch_warns_once_per_batch(
         (project_dir / "pyproject.toml").write_text(
             '[project]\nname = "alpha"\nversion = "1.0.0"\n', encoding="utf-8"
         )
-    overrides = ConfigOverrides(pretty=True)
+    overrides = ConfigOverrides(pretty=True, max_model_extract_bytes=4096)
     with caplog.at_level(logging.WARNING), EmbedFileCache() as cache:
         for wheel in wheels:
             embed_wheel_sbom(
@@ -169,6 +173,7 @@ def test_embed_batch_warns_once_per_batch(
             )
     warnings = logged_warnings(caplog)
     assert count_naming(warnings, "--pretty") == 1
+    assert count_naming(warnings, "--max-model-extract-bytes") == int(project)
 
 
 def test_embed_without_a_batch_still_warns_per_call(
@@ -228,10 +233,14 @@ def test_enrich_model_registry_follows_the_base_project_config(
     assert loaded == [named if explicit else own]
 
 
+@pytest.mark.parametrize(
+    "field", ["max_source_metadata_bytes", "max_model_extract_bytes"]
+)
 def test_embed_external_sbom_inert_byte_cap_warns_once(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    field: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """An inert byte cap gets its no-effect warning, once."""
+    cap: dict[str, Any] = {field: 100}
     wheel = _make_dummy_wheel(tmp_path / "w", name="demo")
     sbom = tmp_path / "given.spdx3.json"
     sbom.write_text(generate_project_sbom(_make_sdist(tmp_path)), encoding="utf-8")
@@ -240,11 +249,37 @@ def test_embed_external_sbom_inert_byte_cap_warns_once(
             wheel,
             sbom_path=sbom,
             output_path=tmp_path / "out.whl",
-            overrides=ConfigOverrides(max_source_metadata_bytes=100),
+            overrides=ConfigOverrides(**cap),
             allow_mismatch=True,
         )
     warnings = logged_warnings(caplog)
-    assert count_naming(warnings, "--max-source-metadata-bytes") == 1
+    assert count_naming(warnings, "--" + field.replace("_", "-")) == 1
+    assert len(warnings) == 1
+
+
+_NOT_WHEEL_TARGETS: dict[str, Callable[[Path], str]] = {
+    "project": lambda tmp: str(demo_project(tmp)),
+    "sdist": lambda tmp: str(_make_sdist(tmp)),
+    "model": lambda _tmp: str(SAFETENSORS_FIXTURE),
+    "git": lambda _tmp: "https://github.com/example/demo",
+}
+
+
+@pytest.mark.parametrize("target", _NOT_WHEEL_TARGETS)
+def test_generate_warns_once_about_an_inert_model_cap(
+    target: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``generate(max_model_extract_bytes=)`` on a target that is not a
+    wheel: one warning, from the layer that drops it (an offline Git URL
+    is then refused)."""
+    with caplog.at_level(logging.WARNING), contextlib.suppress(RemoteSourceError):
+        generate(
+            _NOT_WHEEL_TARGETS[target](tmp_path),
+            offline=True,
+            creation_metadata=_PINNED,
+            max_model_extract_bytes=4096,
+        )
+    assert count_naming(logged_warnings(caplog), "--max-model-extract-bytes") == 1
 
 
 def test_sdist_relative_registry_resolves_as_for_a_wheel(

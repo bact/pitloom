@@ -2,11 +2,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Checks 20 and 21 of manual-cli-checks.md: a ``loom.run`` script's
+"""Checks 20, 21 and 24 of manual-cli-checks.md: a ``loom.run`` script's
 dataset ids, read from a registry ``loom id generate`` wrote, are the same
 from the project root and from a subdirectory (20); separate training and
 evaluation scripts share one model id that loom records itself, a retrain
-re-mints it, and a crashing script writes nothing (21).
+re-mints it, and a crashing script writes nothing (21); ``id generate -e``
+and ``loom.run`` hash or omit a dataset the same way under one cap (24).
 
 See also: ``_checks_core.py`` (check 9, the CLI's registry round trip),
 ``_harness.py``.
@@ -14,6 +15,7 @@ See also: ``_checks_core.py`` (check 9, the CLI's registry round trip),
 
 from __future__ import annotations
 
+import json
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
@@ -230,3 +232,105 @@ def check_loom_model_ids(ctx: Context) -> None:
         f"retrain: not one content-changed INFO: {lines}",
     )
     ctx.note(f"model {trained} -> {retrained}")
+
+
+_CAP_SCRIPT = """\
+import sys
+from pitloom import loom
+
+out, mode, value = sys.argv[1:4]
+extra = {"max_dataset_hash_bytes": int(value)} if mode == "keyword" else {
+    "pitloom_config": value
+}
+with loom.run(out, **extra):
+    loom.add_dataset("data/small.txt")
+    loom.add_dataset("data/big.txt")
+"""
+#: Bytes of ``data/small.txt`` (at the cap) and ``data/big.txt`` (over it).
+_CAP = 16
+
+
+def _pinned_digests(registry: Path) -> dict[str, str | None]:
+    """Dataset name -> SHA-256 (or none) in the registry at *registry*."""
+    entries = json.loads(registry.read_bytes())["elements"]["dataset_DatasetPackage"]
+    return {name: entry.get("sha256") for name, entry in entries.items()}
+
+
+def _packaged_digests(graph: list[dict[str, Any]]) -> dict[str, str | None]:
+    """Dataset name -> SHA-256 (or none) in a loom fragment's graph."""
+    found: dict[str, str | None] = {}
+    for element in graph:
+        if element["type"] != "dataset_DatasetPackage":
+            continue
+        hashes = {
+            h["algorithm"]: h["hashValue"] for h in element.get("verifiedUsing", [])
+        }
+        found[element["name"]] = hashes.get("sha256")
+    return found
+
+
+def _id_generate_with_cap(root: Path, registry: Path, *flags: str) -> None:
+    """Pin both datasets with ``id generate -e``: one INFO names the cap."""
+    result = run_loom(
+        "id",
+        "generate",
+        "--project-dir",
+        str(root),
+        "-o",
+        str(registry),
+        "-e",
+        "data/small.txt:dataset_DatasetPackage",
+        "-e",
+        "data/big.txt:dataset_DatasetPackage",
+        *flags,
+        cwd=root,
+    )
+    expect(result.returncode == 0, result.describe())
+    capped = [ln for ln in result.stderr_lines if "max-dataset-hash-bytes" in ln]
+    expect(
+        len(capped) == 1 and capped[0].startswith("INFO: ID registry: dataset "),
+        f"id generate: not one INFO naming the cap: {result.stderr_lines}",
+    )
+
+
+@check("24", "dataset hash cap: id generate -e and loom.run hash or omit alike")
+def check_dataset_hash_cap(ctx: Context) -> None:
+    root = ctx.work / "capped"
+    (root / "data").mkdir(parents=True)
+    (root / "data" / "small.txt").write_bytes(b"s" * _CAP)
+    (root / "data" / "big.txt").write_bytes(b"b" * (_CAP + 4))
+    (root / "pyproject.toml").write_text(
+        f'[project]\nname = "p"\nversion = "1"\n\n[tool.pitloom]\n'
+        f"max-dataset-hash-bytes = {_CAP}\n",
+        encoding="utf-8",
+    )
+    config = root / "cap.toml"
+    config.write_text(
+        f"[tool.pitloom]\nmax-dataset-hash-bytes = {_CAP}\n", encoding="utf-8"
+    )
+    flagged = ctx.work / "flag.json"
+    keyed = ctx.work / "key.json"
+    # The flag, then the project's own key; the 4 GiB default hashes both.
+    _id_generate_with_cap(root, flagged, "--max-dataset-hash-bytes", str(_CAP))
+    _id_generate_with_cap(root, keyed)
+    pinned = _pinned_digests(flagged)
+    expect(pinned == _pinned_digests(keyed), "the project key and the flag differ")
+    expect(
+        pinned["data/small.txt"] is not None and pinned["data/big.txt"] is None,
+        f"id generate -e did not hash only the dataset within the cap: {pinned}",
+    )
+
+    script = ctx.work / "cap.py"
+    script.write_text(_CAP_SCRIPT, encoding="utf-8")
+    for mode, value in (("keyword", str(_CAP)), ("config", str(config))):
+        out = ctx.work / f"{mode}.json"
+        code, stderr = _python(script, root, str(out), mode, value)
+        expect(code == 0 and "Traceback" not in stderr, f"loom {mode}:\n{stderr}")
+        warned = [ln for ln in stderr.splitlines() if "max-dataset-hash-bytes" in ln]
+        expect(
+            len(warned) == 1 and warned[0].startswith("WARNING: "),
+            f"loom {mode}: not one WARNING naming the cap:\n{stderr}",
+        )
+        packaged = _packaged_digests(load_graph(out))
+        expect(packaged == pinned, f"loom {mode} {packaged} differs from {pinned}")
+    ctx.note(f"cap {_CAP}: small hashed, big omitted, on both")

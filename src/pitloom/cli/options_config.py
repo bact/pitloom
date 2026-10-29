@@ -51,6 +51,7 @@ _SAME_NAME_OPTIONS = (
     "content_type",
     "content_type_method",
     "max_source_metadata_bytes",
+    "max_model_extract_bytes",
     "offline",
     "id_registry",
     "update_id_registry",
@@ -133,6 +134,7 @@ def overrides_from_options(
         describe_relationship=options["describe_relationship"],
         update_id_registry=options["update_id_registry"],
         max_source_metadata_bytes=options["max_source_metadata_bytes"],
+        max_model_extract_bytes=options["max_model_extract_bytes"],
         build_options=build_options,
     )
 

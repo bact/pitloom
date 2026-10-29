@@ -213,7 +213,7 @@ Steps:
      a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
      max-model-extract-bytes cap; metadata not read`, or `... per-wheel
      model-scan budget cap; ...` -- tell the user; never add the flag or raise
-     `max-model-extract-bytes` yourself. Any other `...; metadata not read` -- a
+     the cap yourself (flag or key). Any other `...; metadata not read` -- a
      fixed bound. (`... identity unknown` is the wheel's own name/version, not a
      model: see `sbom-generate`.) Fields the file itself would give
      (hyperparameters, inputs, outputs, an author, a parameter count) are better

@@ -20,8 +20,10 @@ from pitloom.cli._id_target import (
     _log_config_hint,
     _normalized_absolute,
     _resolve_id_registry_target,
+    resolve_dataset_hash_ceiling,
 )
 from pitloom.cli.kv_output import print_kv
+from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.iri import require_namespace_iri
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import (
@@ -238,6 +240,21 @@ def _open_generate_registry(
     return registry
 
 
+def _register_entities(
+    args: argparse.Namespace, project_dir: Path, registry: IdRegistry
+) -> None:
+    """Register each ``-e`` entity under its key and SHA-256; raises
+    ``ValueError`` for an unreadable project config when a dataset needs
+    its ``max-dataset-hash-bytes``."""
+    entities: list[tuple[str, str]] = args.entity or []
+    ceiling = resolve_dataset_hash_ceiling(
+        args.max_dataset_hash_bytes, project_dir, [t for t, _ in entities]
+    )
+    for type_name, name in entities:
+        key, sha256 = entity_entry(registry, project_dir, type_name, name, ceiling)
+        registry.register(type_name, key, sha256=sha256)
+
+
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `pitloom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
@@ -256,9 +273,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
         registry.generate(
             paths, project_dir, exclude=registry_path, explicit=bool(args.paths)
         )
-        for type_name, name in args.entity or []:
-            key, sha256 = entity_entry(registry, project_dir, type_name, name)
-            registry.register(type_name, key, sha256=sha256)
+        _register_entities(args, project_dir, registry)
     except (ValueError, OSError) as exc:
         print_error(str(exc))
         return 1
@@ -393,6 +408,18 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "content gets a new id. Else it is stored by name; a model "
             "name then holds only for a model with no file (a Hugging Face "
             "id)."
+        ),
+    )
+    gen_parser.add_argument(
+        "--max-dataset-hash-bytes",
+        type=positive_byte_ceiling,
+        default=None,
+        metavar="BYTES",
+        help=(
+            "Most bytes read to hash one dataset given with -e (a file, or "
+            "all files of a directory together); a dataset over it is "
+            "pinned without a hash. An integer of at least 1. Default: "
+            "max-dataset-hash-bytes in the project config, else 4 GiB."
         ),
     )
 

@@ -86,11 +86,17 @@ class Run(contextlib.ContextDecorator):
             current working directory; missing or invalid raises
             ``ValueError``), or ``None`` (default): the built-in defaults.
             No ``[tool.pitloom]`` is ever read implicitly. Loom reads only
-            ``max-dataset-hash-bytes``, ``id-registry`` (when *id_registry*
-            is not given; a relative path in a config file is relative to
-            that file's directory) and ``update-id-registry`` (``false``:
-            no model is registered). Every other key does not apply to
-            loom.
+            ``max-dataset-hash-bytes`` (when *max_dataset_hash_bytes* is
+            not given), ``id-registry`` (when *id_registry* is not given;
+            a relative path in a config file is relative to that file's
+            directory) and ``update-id-registry`` (``false``: no model is
+            registered). Every other key does not apply to loom.
+        max_dataset_hash_bytes: The most bytes read to hash one dataset (a
+            file, or all files of a directory together); a dataset over it
+            gets no hash and a ``WARNING:``. An integer of at least 1
+            (``0`` is an error, not "unlimited"; ``ValueError`` at
+            ``__enter__``). Beats the config's ``max-dataset-hash-bytes``;
+            default 4 GiB.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -102,12 +108,14 @@ class Run(contextlib.ContextDecorator):
         id_registry: str | Path | IdRegistry | None = None,
         *,
         pitloom_config: PitloomConfig | str | Path | None = None,
+        max_dataset_hash_bytes: int | None = None,
     ):
         self.output_file = str(output_file)
         self.pretty = pretty
         self.creation_metadata = creation_metadata or CreationMetadata()
         self.id_registry = id_registry
         self.pitloom_config = pitloom_config
+        self.max_dataset_hash_bytes = max_dataset_hash_bytes
         #: The run active at the latest ``__enter__``.
         self.previous_run: _ActiveRun | None = None
         #: One per open ``__enter__``: a recursive ``@loom.run`` function
@@ -125,6 +133,7 @@ class Run(contextlib.ContextDecorator):
             creation_metadata=self.creation_metadata,
             id_registry=self.id_registry,
             pitloom_config=self.pitloom_config,
+            max_dataset_hash_bytes=self.max_dataset_hash_bytes,
         )
         return _active_run
 

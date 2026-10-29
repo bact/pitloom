@@ -26,7 +26,11 @@ from pitloom.cli.commands.validate_wheel import add_parser as add_validate_wheel
 from pitloom.cli.commands.verify_wheel import add_parser as add_verify_wheel
 from pitloom.cli.commands.wheel import add_parser as add_wheel
 from pitloom.cli.id import add_parser as add_id
-from pitloom.cli.options import add_debug_argument, byte_budget
+from pitloom.cli.options import (
+    add_debug_argument,
+    byte_budget,
+    positive_byte_ceiling,
+)
 from pitloom.cli.options_config import add_config_argument
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS
 from pitloom.core.creation import (
@@ -172,6 +176,19 @@ def _build_parent_parser() -> argparse.ArgumentParser:
             "or use unbounded memory, and Ctrl-C cannot interrupt it. "
             "Without it, those models are listed without metadata. "
             "Deliberately has no [tool.pitloom] equivalent."
+        ),
+    )
+    parent.add_argument(
+        "--max-model-extract-bytes",
+        type=positive_byte_ceiling,
+        default=None,
+        metavar="BYTES",
+        help=(
+            "Read an AI model file inside a wheel only up to this many bytes "
+            "(four times it per wheel); a larger one is listed without "
+            "metadata. A positive integer: 0 and negative values are errors. "
+            "Wheel targets only. Defers to [tool.pitloom] "
+            "max-model-extract-bytes (512 MiB by default) when omitted."
         ),
     )
     parent.add_argument(

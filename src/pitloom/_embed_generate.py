@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import codecs
 import dataclasses
+import functools
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -38,6 +40,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
     apply_overrides,
+    require_model_extract_override,
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
@@ -162,6 +165,14 @@ def _settle_build_options(
     return build_options.settle_not_applicable(subject, reason)
 
 
+#: The byte caps of :class:`ConfigOverrides` and their validators: an
+#: invalid one is an error even where the target cannot use it.
+_BYTE_CAPS: tuple[tuple[str, Callable[[object], int]], ...] = (
+    ("max_source_metadata_bytes", require_max_source_metadata_bytes),
+    ("max_model_extract_bytes", require_model_extract_override),
+)
+
+
 def _settle_embed_options(
     kind: str,
     subject: object,
@@ -170,35 +181,45 @@ def _settle_embed_options(
     file_cache: EmbedFileCache | None,
 ) -> ConfigOverrides:
     """Warn about every option in *given* that *kind* cannot use, and
-    validate the byte cap -- once per batch through *file_cache* when
-    given, so a batch warns once, as :meth:`EmbedFileCache.settle` does for
-    the build flags. Returns *overrides* with the cap validated, so the
+    validate the byte caps (:data:`_BYTE_CAPS`) -- once per batch through
+    *file_cache* when given, so a batch warns once, as
+    :meth:`EmbedFileCache.settle` does for the build flags. Returns
+    *overrides* with the caps validated and an inert one cleared, so the
     per-wheel :func:`apply_overrides` finds nothing left to warn about."""
     given_names = frozenset(name for name, value in given.items() if value is not None)
 
     def settle() -> None:
         settle_inert(kind, subject, given)
 
-    def normalise() -> int | None:
-        value = overrides.max_source_metadata_bytes
+    def normalise(name: str, check: Callable[[object], int]) -> int | None:
+        value = getattr(overrides, name)
         if value is None:
             return None
-        valid = require_max_source_metadata_bytes(value)  # even if inert
-        if "max_source_metadata_bytes" in INERT[kind]:
+        valid = check(value)  # even if inert
+        if name in INERT[kind]:
             return None  # an inert cap is warned about by settle()
         return valid
 
-    # The cap is checked first: an invalid one is an error, not an inert warning.
+    # The caps are checked first: an invalid one is an error, not an inert
+    # warning.
+    caps: dict[str, int | None] = {}
+    for name, check in _BYTE_CAPS:
+        if file_cache is None:
+            caps[name] = normalise(name, check)
+        else:
+            caps[name] = file_cache.once(
+                (name, getattr(overrides, name)),
+                functools.partial(normalise, name, check),
+            )
     if file_cache is None:
-        cap = normalise()
         settle()
     else:
-        cap = file_cache.once(
-            ("max_source_metadata_bytes", overrides.max_source_metadata_bytes),
-            normalise,
-        )
         file_cache.once(("inert", kind, given_names), settle)
-    return dataclasses.replace(overrides, max_source_metadata_bytes=cap)
+    return dataclasses.replace(
+        overrides,
+        max_source_metadata_bytes=caps["max_source_metadata_bytes"],
+        max_model_extract_bytes=caps["max_model_extract_bytes"],
+    )
 
 
 def _note_inert_config(

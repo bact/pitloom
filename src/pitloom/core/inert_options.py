@@ -32,6 +32,7 @@ import dataclasses
 import inspect
 import logging
 from collections.abc import Callable, Iterable, Mapping
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
@@ -66,6 +67,7 @@ PARAM_TO_FLAG: dict[str, str] = {
     "content_type": "--content-type/--no-content-type",
     "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
     "trust_wheel_model": "--trust-wheel-model",
+    "max_model_extract_bytes": "--max-model-extract-bytes",
     "content_type_method": "--content-type-method",
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
@@ -154,6 +156,9 @@ _EMBED_PROJECT_MODELS = (
 )
 
 _FILE_SCAN = ("extract_file_header", "content_type")
+#: The options that steer only the scan of AI model files inside a wheel.
+_WHEEL_MODEL_SCAN = ("trust_wheel_model", "max_model_extract_bytes")
+_NOT_A_WHEEL_ROW = dict.fromkeys(_WHEEL_MODEL_SCAN, _NOT_A_WHEEL)
 #: Options no wheel-embedded SBOM can use, however it is embedded
 #: (``embed-wheel`` or ``wheel --embed``).
 _EMBED_COMMON: dict[str, str] = {
@@ -162,7 +167,7 @@ _EMBED_COMMON: dict[str, str] = {
     "update_id_registry": _NO_HARVEST,
 }
 _MODEL_FILE_ROW: dict[str, str] = {
-    "trust_wheel_model": _NOT_A_WHEEL,
+    **_NOT_A_WHEEL_ROW,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "scan_model_usage": _MODEL_NO_USAGE,
@@ -170,7 +175,7 @@ _MODEL_FILE_ROW: dict[str, str] = {
 }
 
 _ENRICH_ROW: dict[str, str] = {
-    "trust_wheel_model": _NOT_A_WHEEL,
+    **_NOT_A_WHEEL_ROW,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "describe_relationship": _FRAGMENT_NO_DESCRIBE,
     "content_type_method": _MODEL_NO_DEPENDENCIES,
@@ -181,10 +186,10 @@ _ENRICH_ROW: dict[str, str] = {
 
 #: Target kind -> {parameter: reason it has no effect there}.
 INERT: dict[str, dict[str, str]] = {
-    PROJECT: {"trust_wheel_model": _NOT_A_WHEEL, "project_dir": _PROJECT_IS_DIR},
-    GIT: {"trust_wheel_model": _NOT_A_WHEEL, "project_dir": _GIT_PROJECT_DIR},
+    PROJECT: {**_NOT_A_WHEEL_ROW, "project_dir": _PROJECT_IS_DIR},
+    GIT: {**_NOT_A_WHEEL_ROW, "project_dir": _GIT_PROJECT_DIR},
     SDIST: {
-        "trust_wheel_model": _NOT_A_WHEEL,
+        **_NOT_A_WHEEL_ROW,
         **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
         "enrich": _SDIST_NO_ENRICH,
         "scan_model_usage": _SDIST_NO_MODELS,
@@ -196,7 +201,7 @@ INERT: dict[str, dict[str, str]] = {
         "use_lockfile": _NO_LOCKFILE,
     },
     ENV: {
-        "trust_wheel_model": _NOT_A_WHEEL,
+        **_NOT_A_WHEEL_ROW,
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
         "enrich": _NO_MODELS,
         "scan_model_usage": _ENV_NO_MODEL_SCAN,
@@ -222,7 +227,11 @@ INERT: dict[str, dict[str, str]] = {
         "describe_relationship": _HOOK_NO_DESCRIBE,
         "update_id_registry": _HOOK_NO_HARVEST,
     },
-    EMBED_PROJECT: {**_EMBED_COMMON, "trust_wheel_model": _EMBED_PROJECT_MODELS},
+    EMBED_PROJECT: {
+        **_EMBED_COMMON,
+        "trust_wheel_model": _EMBED_PROJECT_MODELS,
+        "max_model_extract_bytes": _EMBED_PROJECT_MODELS,
+    },
     EMBED_STANDALONE: {
         **_EMBED_COMMON,
         **dict.fromkeys((*_FILE_SCAN, "enrich"), NO_PROJECT_DIR_REASON),
@@ -233,7 +242,7 @@ INERT: dict[str, dict[str, str]] = {
                 *_FILE_SCAN,
                 "enrich",
                 "scan_model_usage",
-                "trust_wheel_model",
+                *_WHEEL_MODEL_SCAN,
                 "content_type_method",
                 "max_source_metadata_bytes",
                 "offline",
@@ -254,6 +263,12 @@ INERT: dict[str, dict[str, str]] = {
 #: The parameters of :data:`_EMBED_COMMON`, for a caller that embeds by
 #: another route than :func:`pitloom.embed.embed_wheel_sbom`.
 EMBEDDED_SBOM_PARAMS = tuple(_EMBED_COMMON)
+
+
+def project_target_kind(target: Path) -> str:
+    """:data:`SDIST` for an archive *target* of the project generator, else
+    :data:`PROJECT` (a directory)."""
+    return SDIST if target.is_file() else PROJECT
 
 
 def settle_inert(
@@ -390,5 +405,6 @@ __all__ = [
     "configured_options",
     "forward_options",
     "overridden_by_flags",
+    "project_target_kind",
     "settle_inert",
 ]

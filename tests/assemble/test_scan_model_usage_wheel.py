@@ -63,7 +63,9 @@ def _hints(caplog: pytest.LogCaptureFixture) -> list[str]:
     ]
 
 
-_Runner = Callable[..., str]  # (tmp, mp, usage, flag, ceiling=None) -> SBOM json
+#: (tmp, mp, usage, flag, ceiling=None, cap=None) -> SBOM json; *ceiling* is
+#: the config's max-model-extract-bytes, *cap* the flag's or keyword's.
+_Runner = Callable[..., str]
 
 
 def _config(tmp: Path, usage: bool | None, extra: str = "") -> list[str]:
@@ -82,6 +84,10 @@ def _ceiling_line(ceiling: int | None) -> str:
     return "" if ceiling is None else f"max-model-extract-bytes = {ceiling}\n"
 
 
+def _cap_flag(cap: int | None) -> list[str]:
+    return [] if cap is None else ["--max-model-extract-bytes", str(cap)]
+
+
 def _pitloom_config(usage: bool | None, ceiling: int | None) -> PitloomConfig | None:
     if usage is None and ceiling is None:
         return None
@@ -97,6 +103,7 @@ def _cli_wheel(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     out = tmp / "out.json"
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
@@ -109,6 +116,7 @@ def _cli_wheel(
             "--offline",
             *_config(tmp, usage, _ceiling_line(ceiling)),
             *_flag(flag),
+            *_cap_flag(cap),
         ],
         mp,
     )
@@ -121,6 +129,7 @@ def _cli_wheel_embed(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
     run_cli(
@@ -131,6 +140,7 @@ def _cli_wheel_embed(
             "--offline",
             *_config(tmp, usage, _ceiling_line(ceiling)),
             *_flag(flag),
+            *_cap_flag(cap),
         ],
         mp,
     )
@@ -143,6 +153,7 @@ def _cli_embed_wheel(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
     run_cli(
@@ -152,6 +163,7 @@ def _cli_embed_wheel(
             "--offline",
             *_config(tmp, usage, _ceiling_line(ceiling)),
             *_flag(flag),
+            *_cap_flag(cap),
         ],
         mp,
     )
@@ -164,12 +176,14 @@ def _lib_generate(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
     return generate(
         wheel,
         offline=True,
         scan_model_usage=flag,
+        max_model_extract_bytes=cap,
         pitloom_config=_pitloom_config(usage, ceiling),
     )
 
@@ -180,12 +194,14 @@ def _lib_wheel(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
     return generate_wheel_sbom(
         wheel,
         offline=True,
         scan_model_usage=flag,
+        max_model_extract_bytes=cap,
         pitloom_config=_pitloom_config(usage, ceiling),
     )
 
@@ -196,9 +212,12 @@ def _lib_embed(
     usage: bool | None,
     flag: bool | None,
     ceiling: int | None = None,
+    cap: int | None = None,
 ) -> str:
     wheel = write_model_wheel(tmp / "dist", _MEMBERS)
-    overrides = ConfigOverrides(offline=True, scan_model_usage=flag)
+    overrides = ConfigOverrides(
+        offline=True, scan_model_usage=flag, max_model_extract_bytes=cap
+    )
     embed_wheel_sbom(
         wheel, pitloom_config=_pitloom_config(usage, ceiling), overrides=overrides
     )
@@ -315,16 +334,24 @@ def test_wheel_model_ids_are_stable_through_a_registry(
 
 
 @pytest.mark.parametrize("surface", _SURFACES)
-def test_ceiling_comes_from_the_config(
+@pytest.mark.parametrize(
+    ("ceiling", "cap"),
+    [(64, None), (None, 64), (32, 64)],
+    ids=["config", "flag", "flag-beats-config"],
+)
+def test_ceiling_comes_from_the_flag_or_the_config(
     surface: str,
+    ceiling: int | None,
+    cap: int | None,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``max-model-extract-bytes`` reaches the scan on every wheel surface,
-    and a model over it stays listed, without its metadata."""
+    """``max-model-extract-bytes`` (the flag or keyword, else the config)
+    reaches the scan on every wheel surface, and a model over it stays
+    listed, without its metadata."""
     caplog.set_level(logging.WARNING)
-    sbom = _SURFACES[surface](tmp_path, monkeypatch, None, None, 64)
+    sbom = _SURFACES[surface](tmp_path, monkeypatch, None, None, ceiling, cap)
     (package,) = [e for e in _graph(sbom) if e["type"] == "ai_AIPackage"]
     assert f"demo/{_MODEL}" in sbom
     assert f"Source: {_MODEL}" not in sbom  # nothing was read from the model

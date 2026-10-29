@@ -23,6 +23,8 @@ from typing import Any
 
 import pytest
 
+from pitloom.assemble import generate_wheel_sbom
+from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from pitloom.extract.scanner_wheel import BUDGET_FACTOR, scan_wheel_for_ai_models
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.build_and_read_shared import (
@@ -74,6 +76,21 @@ def test_models_past_the_budget_are_format_only_with_one_warning(
         " budget cap; the model that would pass it and the models not yet read"
         " are listed without metadata"
     )
+
+
+@pytest.mark.parametrize("surface", ["generate_wheel_sbom", "embed_wheel_sbom"])
+def test_the_budget_follows_the_keyword(
+    surface: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``max_model_extract_bytes=`` sets the per-wheel budget too."""
+    wheel = write_model_wheel(tmp_path, dict.fromkeys(_NAMES, _MODEL))
+    if surface == "generate_wheel_sbom":
+        generate_wheel_sbom(wheel, offline=True, max_model_extract_bytes=_CEILING)
+    else:
+        overrides = ConfigOverrides(offline=True, max_model_extract_bytes=_CEILING)
+        embed_wheel_sbom(wheel, overrides=overrides)
+    budget = f"larger than the {BUDGET_FACTOR * _CEILING}-byte per-wheel"
+    assert len([m for m in logged_warnings(caplog) if budget in m]) == 1
 
 
 def test_a_wheel_within_the_budget_reads_every_model(

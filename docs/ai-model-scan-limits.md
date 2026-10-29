@@ -99,7 +99,7 @@ Values are exact; "stub" is the format-only entry described above.
 
 | Cap | Value | Applies to | Configurable | When it is hit |
 | :-- | :---- | :--------- | :----------- | :------------- |
-| Per-model size ceiling | 512 MiB (536870912 bytes) | Wheel scans, every format | `[tool.pitloom] max-model-extract-bytes` (positive integer; zero is an error, not "unlimited"), from `--config` or `pitloom_config=`. No CLI flag | Stub, per model. Declared size over the ceiling, checked before copying, and the bytes the copy really reads, so an archive that understates its size is stopped too: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the <limit>-byte max-model-extract-bytes cap; metadata not read` |
+| Per-model size ceiling | 512 MiB (536870912 bytes) | Wheel scans, every format | `--max-model-extract-bytes BYTES` or `max_model_extract_bytes=`, else `[tool.pitloom] max-model-extract-bytes` from `--config` or `pitloom_config=` (positive integer; zero is an error, not "unlimited") | Stub, per model. Declared size over the ceiling, checked before copying, and the bytes the copy really reads, so an archive that understates its size is stopped too: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the <limit>-byte max-model-extract-bytes cap; metadata not read` |
 | Per-wheel budget | 4 times the ceiling (2 GiB by default) | Wheel scans: bytes copied plus bytes read from inside models | Derived from the ceiling; no key of its own | Models in path order are read until it is spent; later ones are stubs. One `WARNING: FILE=<wheel>: larger than the <N>-byte per-wheel model-scan budget cap; the model that would pass it and the models not yet read are listed without metadata` per wheel |
 | Inner archive member | 8 MiB | Every scan. Keras v3 `metadata.json` and `config.json`; PyTorch `.pt`/`.pth` `data.pkl` (a raw pickle `.pt` is read to the same cap; its stub names `the 8388608-byte first-pickle cap`); PT2 `version`, `archive_version`, `METADATA.json`, `models/model.json` and `extra/` files | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>:<member>: larger than the 8388608-byte archive-member cap; metadata not read`. Read bounded, so a few KiB that inflate to gigabytes are refused |
 | ZIP entries | 100,000 entries, counted by walking the central directory as Python's `zipfile` does (the counts in the end record are not trusted), and a central directory of at most 25,600,000 bytes (256 bytes per entry at the cap), both checked before the archive is opened | Keras v3, PyTorch `.pt`/`.pth`, PT2, `.npz` | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 100000-entry ZIP-archive cap; metadata not read` (or `the 25600000-byte ZIP-central-directory cap`). If Python's internal ZIP code cannot be asked, the archive is refused too: `ZIP archive not checkable: zipfile internals changed`. A real checkpoint has a file per tensor, a few thousand at most; without the check 3 million empty entries in 16 MiB peaked at 1.8 GB |
@@ -149,10 +149,10 @@ changes the models' entries, except where you asked for the change yourself:
 | Setting | What changes | Message |
 | :------ | :----------- | :------ |
 | `--trust-wheel-model` | Models of the gated formats in a wheel are read, not listed as stubs | Without it, one `INFO:` naming the formats not read (each format once per run) |
-| `max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
+| `--max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
 | `--scan-model-usage` | `hasDataFile` edges from `.py` files to models exist or not | Without the setting given, one `INFO:` naming the flag |
 | `--allow-build` | The file list comes from a real build, so the models found, and their paths, can differ from the static list | None when the build succeeds; a `WARNING:` and the static list when it fails. See [Building a project](allow-build.md) |
-| `max-dataset-hash-bytes` (`loom.Run` only) | A dataset over it has no hash | One `WARNING:` naming the key, per dataset; see [Configuration](configuration.md) |
+| `max-dataset-hash-bytes` (`loom.Run`; `loom id generate` with `-e`) | A dataset over it has no hash | One `WARNING:` naming the key, per dataset; see [Configuration](configuration.md) |
 | The 1000-entry cap | Which entries are kept: the first 1000 in file order, or in sorted key order for Safetensors `__metadata__` | One `WARNING:` per model naming the fields cut, in a scan and in `loom model FILE` (not for a Hugging Face model) |
 | A project directory, not its built wheel | Models are read in place: no ceiling, no gate | None; see [Which scans apply which limits](#which-scans-apply-which-limits) |
 
@@ -298,6 +298,7 @@ that are only gated, no Ctrl-C inside one, disk use) is on
   and the display escape combine, and how to read a value back.
 - [Configuration](configuration.md) -- `max-model-extract-bytes`,
   `scan-model-usage`, `max-source-metadata-bytes`.
-- [Command line](cli.md) -- `--trust-wheel-model`, `--scan-model-usage`.
-- [Python API](python-api.md) -- `trust_wheel_model=`.
+- [Command line](cli.md) -- `--trust-wheel-model`, `--max-model-extract-bytes`,
+  `--scan-model-usage`.
+- [Python API](python-api.md) -- `trust_wheel_model=`, `max_model_extract_bytes=`.
 - [GitHub Action](github-action.md) -- the `trust-wheel-model` input.
