@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -318,7 +318,12 @@ and symbolic links to directories are left out of the root, as is the
 declared registry file. A missing or remote dataset name gets no hash.
 Hashing one dataset reads at most `max_dataset_hash_bytes=` (else the
 config's `max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets
-no hash and one `WARNING:`. The keyword is an integer of at least 1:
+no hash and one `WARNING:`. A dataset that is a file also gets its size in
+bytes (`dataset_datasetSize`): the bytes read, or, over the cap, its
+`stat()` size, with the hash's absence and the reason in the
+[provenance](metadata-provenance.md).
+A directory, a Git LFS pointer and a file under 1,024 bytes that is over
+the cap get no size. The keyword is an integer of at least 1:
 `0` and a `bool` raise `ValueError` as the run begins.
 A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the
@@ -334,9 +339,8 @@ A dataset can carry what its own metadata states. Pass `croissant=` (a
 local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any
 of the four dataset calls: its licence becomes the dataset's
 `hasDeclaredLicense`, and its version, description, download URL, creator
-(`publishedBy`) and dataset-profile fields (size, collection process,
-preprocessing, known bias, sensitive personal information) are written onto
-the package. A dataset that is a directory has its card read too: the YAML
+(`publishedBy`) and dataset-profile fields (collection process, preprocessing,
+known bias, sensitive personal information) are written onto the package. A dataset that is a directory has its card read too: the YAML
 frontmatter of its `README.md` gives `license`, `version` and `tags` (the tags
 are read but have no SPDX 3.0.1 dataset property to go in). Pass
 `declared_license=` to state the licence yourself:
@@ -371,10 +375,8 @@ says the source does not state whether they combine as AND or OR. A licence
 that holds no text (a number, a mapping), a `version` written as a decimal number (YAML and JSON read `1.10` as
 `1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
 `3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
-the wrong shape (a size that is negative, not whole, `true` or over
-9007199254740991, the largest integer canonical JSON can write; a description
-that is a list of several texts; a creator, URL or tag that is a number) is
-left out, with one `WARNING:`. A card that cannot be read at all (front
+the wrong shape (a description that is a list of several texts; a creator,
+URL or tag that is a number) is left out, with one `WARNING:`. A card that cannot be read at all (front
 matter YAML cannot parse: an impossible date such as `2024-02-30`, a number
 of thousands of digits, nesting thousands of levels deep) is skipped with one
 `WARNING:`, and the declaration goes on with its other sources: the card is

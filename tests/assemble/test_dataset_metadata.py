@@ -31,7 +31,7 @@ def test_dataset_metadata_defaults() -> None:
     assert not meta.keywords
     assert meta.creator is None
     assert not meta.dataset_types
-    assert meta.dataset_size is None
+    assert meta.byte_size is None
     assert meta.data_collection_process is None
     assert not meta.data_preprocessing
     assert not meta.known_bias
@@ -52,7 +52,7 @@ def test_dataset_metadata_full_construction() -> None:
         keywords=["NLP", "text"],
         creator="Test Author",
         dataset_types=["text", "numeric"],
-        dataset_size=10000,
+        byte_size=10000,
         data_collection_process="Web scraping.",
         data_preprocessing=["tokenization"],
         known_bias=["selection bias"],
@@ -65,7 +65,7 @@ def test_dataset_metadata_full_construction() -> None:
     assert meta.name == "Full Dataset"
     assert meta.version == "1.0"
     assert meta.dataset_types == ["text", "numeric"]
-    assert meta.dataset_size == 10000
+    assert meta.byte_size == 10000
     assert meta.has_sensitive_personal_information == "no"
     assert meta.croissant_url == "https://example.com/croissant.json"
 

@@ -225,7 +225,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `max-dataset-hash-bytes` each change
   what is recorded, so do not compare SBOMs made with different ones. The
   last drops a dataset's hash, with a `WARNING:`, when its bytes pass the
-  cap.
+  cap; the hash's provenance says `not_measured | Reason: over-cap` and a
+  single-file dataset keeps its size, from `stat()`.
 
 Every cap, its value and message (the single source of truth):
 <https://bact.github.io/pitloom/ai-model-scan-limits/#size-and-count-caps>.

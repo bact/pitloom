@@ -42,9 +42,7 @@ from pitloom.extract.dataset.croissant_key import (
     RAI_COLLECTION_KEYS,
     RAI_PREPROCESSING_KEYS,
     RAI_SENSITIVITY_KEYS,
-    RECORD_SET_KEYS,
     SCHEMA_TYPE_TO_DATASET_TYPE,
-    TOTAL_ITEMS_KEYS,
     URL_KEYS,
     VERSION_KEYS,
 )
@@ -54,11 +52,9 @@ from pitloom.extract.dataset.licence import (
     dataset_licence,
 )
 from pitloom.extract.dataset.values import (
-    stated_count,
     stated_name,
     stated_text,
     stated_texts,
-    stated_total,
     stated_url,
     stated_version,
     text_of,
@@ -239,41 +235,6 @@ def _extract_croissant_rai_fields(
     )
 
 
-def _extract_dataset_size(
-    data: dict[str, Any], src_label: str, provenance: dict[str, str]
-) -> int | None:
-    """Extract total record/item count from Croissant document."""
-    top_total = stated_count(
-        get_first(data, *TOTAL_ITEMS_KEYS), src_label, "cr:totalItems"
-    )
-    if top_total is not None:
-        provenance["dataset_size"] = f"Source: {src_label} | Field: cr:totalItems"
-        return top_total
-
-    record_sets_raw = get_first(data, *RECORD_SET_KEYS)
-    if isinstance(record_sets_raw, dict):
-        record_sets: list[Any] = [record_sets_raw]
-    elif isinstance(record_sets_raw, list):
-        record_sets = record_sets_raw
-    else:
-        record_sets = []
-
-    # A record set that is not a table states no count, so no total.
-    total = stated_total(
-        [
-            get_first(rs, *TOTAL_ITEMS_KEYS) if isinstance(rs, dict) else None
-            for rs in record_sets
-        ],
-        src_label,
-        "cr:recordSet cr:totalItems",
-    )
-    if total is not None:
-        provenance["dataset_size"] = (
-            f"Source: {src_label} | Field: cr:recordSet, cr:totalItems"
-        )
-    return total
-
-
 def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMetadata:
     """Extract metadata from a Croissant JSON-LD document, named *label*
     (default: *source* as given) in its provenance. A lone surrogate (a
@@ -361,8 +322,6 @@ def _metadata(
         has_sensitive,
     ) = _extract_croissant_rai_fields(data, src_label, provenance)
 
-    dataset_size = _extract_dataset_size(data, src_label, provenance)
-
     croissant_url: str | None = None
     if isinstance(source, str) and source.startswith(("http://", "https://")):
         croissant_url = source
@@ -375,7 +334,6 @@ def _metadata(
         keywords=keywords,
         creator=creator,
         dataset_types=dataset_types,
-        dataset_size=dataset_size,
         data_collection_process=data_collection_process,
         data_preprocessing=data_preprocessing,
         known_bias=known_bias,

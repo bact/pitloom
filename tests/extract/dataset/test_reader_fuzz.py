@@ -36,8 +36,6 @@ from pitloom.extract.dataset.croissant_key import (
     DESCRIPTION_KEYS,
     KEYWORDS_KEYS,
     LICENSE_KEYS,
-    RECORD_SET_KEYS,
-    TOTAL_ITEMS_KEYS,
     URL_KEYS,
     VERSION_KEYS,
 )
@@ -56,9 +54,11 @@ _STRINGS = [
     "{{", "---", "[", "\U0001f600",
 ]  # fmt: skip
 _NUMBERS = [0, -1, 1.5, 2**53, 2**200, 10**4000, float("nan"), float("inf"), True]
+#: Keys the reader ignores, kept to show it neither reads nor trips on them.
+_UNREAD_KEYS = ("cr:recordSet", "recordSet", "cr:totalItems", "totalItems")
 _KEYS = [
     *VERSION_KEYS, *URL_KEYS, *LICENSE_KEYS, *CREATOR_KEYS, *DESCRIPTION_KEYS,
-    *KEYWORDS_KEYS, *TOTAL_ITEMS_KEYS, *DATA_TYPE_KEYS, *RECORD_SET_KEYS,
+    *KEYWORDS_KEYS, *DATA_TYPE_KEYS, *_UNREAD_KEYS,
     "rai:dataCollection", "rai:dataBiases", "rai:personalSensitiveInformation",
     "rai:dataPreprocessingProtocol", "@context", "@type", "name",
 ]  # fmt: skip
@@ -86,7 +86,7 @@ def _croissant(rng: random.Random) -> bytes:
         doc["name"] = _value(rng)  # the one field a document must have
     nested = rng.random() < 0.1
     if nested:  # spliced as text: building it would hit the parser's own limit
-        doc[rng.choice(RECORD_SET_KEYS)] = "NESTED"
+        doc[rng.choice(_UNREAD_KEYS[:2])] = "NESTED"
     raw = json.dumps(doc, ensure_ascii=rng.random() < 0.5).encode("utf-8", "replace")
     if nested:
         levels = rng.choice([10, 63, 64, 1500])

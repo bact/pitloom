@@ -46,13 +46,6 @@ RAI_SENSITIVITY_KEYS = ("rai:personalSensitiveInformation",)
 # ---------------------------------------------------------------------------
 
 DATA_TYPE_KEYS = ("sc:dataType", "dataType", "schema:dataType", "cr:dataType")
-RECORD_SET_KEYS = ("cr:recordSet", "recordSet", "sc:recordSet", "schema:recordSet")
-TOTAL_ITEMS_KEYS = (
-    "cr:totalItems",
-    "totalItems",
-    "sc:totalItems",
-    "schema:totalItems",
-)
 
 # ---------------------------------------------------------------------------
 # schema.org type IRI -> SPDX dataset_DatasetType enum name

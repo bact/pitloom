@@ -68,6 +68,7 @@ def test_regular_file_is_its_own_sha256(tmp_path: Path, sha512: bool) -> None:
         hashlib.sha256(b"hello\n").hexdigest(),
         1,
         hex_sha512=hashlib.sha512(b"hello\n").hexdigest() if sha512 else None,
+        size=len(b"hello\n"),
     )
 
 
@@ -322,7 +323,8 @@ def test_excluded_registry_is_reported_without_a_root(
         found = hash_dataset(
             top, max_bytes=1 if case == "over-cap" else _BIG, exclude=top / "ids.json"
         )
-    assert found == DatasetDigest("dir", excluded=True)
+    omitted = "over-cap" if case == "over-cap" else None
+    assert found == DatasetDigest("dir", excluded=True, omitted=omitted)
 
 
 @pytest.mark.parametrize(

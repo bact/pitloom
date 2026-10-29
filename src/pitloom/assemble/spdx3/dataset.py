@@ -22,10 +22,12 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_merge import merge_dataset_references
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.evidence import BYTE_SIZE_FIELD
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.purl import build_generic_purl
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract.dataset.values import is_stated_count, stated_count
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
 # finetunedOn, validatedOn, pretrainedOn do not exist in SPDX 3.0.1;
@@ -99,8 +101,9 @@ def set_dataset_fields(
     name, types, creator and licence: version, description, download
     location (and its PURL), and the dataset profile and privacy fields."""
     _set_package_fields(dataset_pkg, meta)
-    if meta.dataset_size is not None:
-        dataset_pkg.dataset_datasetSize = meta.dataset_size
+    byte_size = stated_count(meta.byte_size, meta.name, BYTE_SIZE_FIELD)
+    if byte_size is not None:
+        dataset_pkg.dataset_datasetSize = byte_size
     if meta.data_collection_process:
         dataset_pkg.dataset_dataCollectionProcess = meta.data_collection_process
     if meta.data_preprocessing:
@@ -130,10 +133,12 @@ UNWRITTEN_DATASET_FIELDS = frozenset({"keywords"})
 
 
 def written_provenance(meta: DatasetMetadata) -> dict[str, str]:
-    """*meta*'s provenance without the fields that are not written."""
-    return {
-        k: v for k, v in meta.provenance.items() if k not in UNWRITTEN_DATASET_FIELDS
-    }
+    """*meta*'s provenance without the fields that are not written, nor the
+    size when it is not a count."""
+    unwritten = UNWRITTEN_DATASET_FIELDS
+    if not is_stated_count(meta.byte_size):
+        unwritten = unwritten | {BYTE_SIZE_FIELD}
+    return {k: v for k, v in meta.provenance.items() if k not in unwritten}
 
 
 #: A dataset's licence provenance when its metadata records none.

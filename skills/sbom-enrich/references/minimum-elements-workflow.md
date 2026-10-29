@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,22 @@ See also: `../SKILL.md` ("Complete a standard's minimum elements", steps
 a-g, which hold the rules) and `minimum-elements.md` (the checklists,
 field mappings; `minimum-elements-datasets.md` has the G7 Dataset Properties
 cluster, `minimum-elements-questions.md` the question bank).
+
+## Steps a-c: scope of the workflow
+
+The lettered steps reuse the numbered steps 1-11 of `../SKILL.md`. Steps a and b
+work on any SPDX 3 SBOM. The merge (step f) works only for a project-directory
+base (`../SKILL.md`, "Where a fragment can be merged"); for any other SBOM, stop
+after b and report the gaps, or, if you drafted a fragment, hand it over
+unmerged and say so.
+
+Step c resolves gaps by the precedence of steps 2-5: deterministic `loom
+enrich`, then local prose, then (interactive only, consent-gated per step 5)
+outside sources. Only what is left reaches step d. This fills *extraction* gaps
+(a value the file lacks, or sources that disagree), not *recording* gaps: an
+element whose mapped SPDX 3.0.1 field does not exist. Do not stretch a
+neighbouring property; write only where Pitloom itself records it, else list it
+in step g as not recordable.
 
 ## Step d: ranking the questions
 
@@ -28,6 +44,14 @@ flat list top to bottom.
 The user can stop with "stop", "that's enough", "skip the rest" or
 equivalent. That is not a failure, and there is no need to insist on an
 answer first.
+
+## Step g: the final report
+
+List: the elements now satisfied; those unknown by the user's choice (write
+`NOASSERTION`, don't omit the field; the licence recipe is below); and those
+with no automatable path (SBOM Author Signature, most G7 AI Security/KPI
+elements, dataset statistical properties, BSI's SHA-512 for a dependency),
+which need something outside this workflow. Name the standards applied.
 
 ## Step g: why `NOASSERTION`
 

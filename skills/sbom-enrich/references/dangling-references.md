@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,15 @@ SPDX-License-Identifier: CC0-1.0
 See also: `../SKILL.md` ("Troubleshooting: dangling references", which
 holds the rule: regenerate the base SBOM, never retry the same merge, never
 create or write an ID registry to fix it) and `deterministic-pass.md`.
+
+If Pitloom was upgraded since the base SBOM was generated, regenerate the base
+before merging when the upgrade could have changed file discovery for this
+project's build backend (check the CHANGELOG).
+
+An `ERROR: ID registry file ...: version 2, expected 3` means the declared
+registry is an old format: never delete or rewrite it from this skill; hand the
+user to `sbom-generate` ("Pinning element ids"), or when non-interactive stop
+and report the `ERROR:`.
 
 Why each cause makes the ids miss, in the order to check:
 

@@ -28,6 +28,7 @@ from pitloom.assemble.spdx3.provenance import (
     filter_high_signal,
     resolve_encoder,
 )
+from pitloom.core.evidence import NOT_MEASURED, evidence_segment
 from pitloom.core.models import _clear_doc_counters
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -305,6 +306,15 @@ def test_filter_high_signal_keeps_a_licence_note_on_a_manifest_read(note: str) -
     source is a transparent manifest read."""
     prov = {"license": f"Source: pyproject.toml | Field: project.license | {note}"}
     assert filter_high_signal(prov) == prov
+
+
+def test_filter_high_signal_keeps_evidence_on_a_transparent_source() -> None:
+    """An ``Evidence:`` segment is kept even from a transparent source; the
+    same entry without it is dropped."""
+    base = "Source: setup.cfg | Field: metadata.name"
+    negative = f"{base} | {evidence_segment(NOT_MEASURED, 'over-cap')}"
+    assert filter_high_signal({"name": base}) == {}
+    assert filter_high_signal({"name": negative}) == {"name": negative}
 
 
 def test_filter_high_signal_keeps_nonmanifest_sources() -> None:

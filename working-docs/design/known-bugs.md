@@ -375,6 +375,11 @@ From the 0.21.0 release review. Open:
 
 From the Git LFS pointer work. Open:
 
+- [x] **`dataset_datasetSize` held a record count (M), fixed in #382.** A
+  Croissant `totalItems` filled it, but SPDX defines it in bytes. `totalItems`
+  is not Croissant, so it is no longer read; `DatasetMetadata.byte_size` (bytes,
+  library callers only) replaces `dataset_size`. A count has no 3.0.1
+  property: FG-12 in [sbom-format-gaps.md](sbom-format-gaps.md).
 - [x] **A pointer's registry entry flipped between routes (M), fixed in
   #378.** Each harvest wrote its SBOM's hash, the `oid` (checkout) or the
   pointer text's digest (wheel, sdist, `--allow-build`), so alternating runs
@@ -424,3 +429,44 @@ From the Git LFS pointer work. Open:
   `loom project`; file ids are shared (the registry holds the `oid`).
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.
+- [ ] **A loom fragment's document namespace is a random `uuid4` per run (S).**
+  `_ActiveRun` sets `doc_uuid = str(uuid4())` (`_loom_active_run.py`), so the
+  same script gives different `spdxId`s each run unless an ID registry pins
+  them; the idempotence rule (no random UUIDs) holds only with a registry.
+  Found while testing the dataset-size fix: the determinism test sits on
+  `build_model`, not on `loom.run`.
+
+## Found 2026-10-29 (evidence-levels review)
+
+From an Opus review of the provenance code against `evidence-levels.md`:
+
+- [x] **After a comment merge the second `Metadata provenance:` block is not
+  found by the drop helpers (S), fixed (#386).** `_merge_comment`
+  joined comments with `"; "` (`_fragments_props.py`);
+  `provenance_comment_parts` strips the prefix only at the start of a line. A
+  provenance line now starts a line of its own on either side of the join, and
+  a `not_measured` entry goes when the merged element gains the value
+  (`_fragments_evidence.py`).
+- [ ] **An unreadable project file is logged with the raw exception (S).** The
+  skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
+  `OSError` text can hold an absolute path.
+- [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
+  `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
+  and logs DEBUG only, so no `failed` entry is possible there without the 404
+  check `huggingface_dataset.py` already has.
+- [ ] **Provenance `Source:` strings built from a file or label name outside
+  `assemble/spdx3` are not sanitised (S).** A `|` or `;` in the name adds a
+  segment (a forged `Evidence:` or `Method:`). Seen, not exploited:
+  `extract/project/_setup_cfg_directives.py:127,151`, `pyproject_dynamic.py:241`,
+  `reader.py:242`, `_pyproject_license.py:77`, `_license_detect.py:189`,
+  `copyright_notices.py:201`, `extract/dataset/{croissant,card,licence}.py`
+  (`src_label`), `extract/lock/cascade.py:255`, `_setuptools_options.py:313`,
+  `_optional_dependencies.py:62`. Route them through one helper
+  (`sanitize_provenance_text`); `assemble/spdx3` (#386) is done.
+- [ ] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S).**
+  `core/lfs_pointer.py` does not use `quote_source` for a path with `|` or a
+  space.
+- [ ] **A base element holding both a value and a `not_measured` entry loses the
+  entry when a fragment folds into it for an unrelated field (S).** Needs a
+  forged entry, which sanitising now blocks; ruling it out means tracking which
+  side of each fold supplied the entry.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,6 +128,41 @@ well-known, re-readable manifest (`pyproject.toml`, `setup.cfg`/`setup.py`,
 wheel metadata, an sdist's `PKG-INFO`, the Hugging Face Hub API) -- they
 add no signal beyond what's already implied by the native field. Set
 `detail = "full"` to see every field's source regardless.
+
+## How sure a recorded fact is: `Evidence` and `Reason`
+
+A provenance entry in the comment form is a list of segments, in this
+order: `Source | Field | Method | Evidence | Reason`. `Evidence` says how
+a number, hash or other fact was obtained, as distinct from where (`Source`)
+and how it was read (`Method`). An entry with no `Evidence` segment is a
+fact Pitloom measured by reading the content, which is nearly every entry.
+
+| `Evidence` | Meaning |
+| --- | --- |
+| `measured_stat` | Taken from the file system without reading the content (a file's size from `stat()`). |
+| (no segment) | Computed by reading the content within the caps (`measured_read`). |
+| `declared` | Stated by metadata and not checked (an archive header, a Hub API response). |
+| `lower_bound` | A read stopped at its limit: "at least N". |
+| `not_measured` | Not read, and nothing declared; always with a `Reason`. |
+
+`Reason` is a short code, never free text: `over-cap`, `timeout`,
+`network-failed`, `lfs-pointer`, `unreadable-file` or `unlistable-dir`.
+Today only `over-cap` is written, for a dataset in `loom` (a file or a
+directory; the [Python API](python-api.md#tracking-decorator)):
+
+- A file over `max-dataset-hash-bytes` has no hash, and its
+  `verified_using` entry reads `Source: data.csv | Evidence: not_measured
+  | Reason: over-cap`. Its size is recorded from `stat()`, and `byte_size`
+  reads `Source: data.csv | Evidence: measured_stat`.
+- A file hashed in full has its size, the bytes read, and no entry.
+- A directory over the cap: the same `verified_using` entry, and no size.
+- An over-cap file under 1,024 bytes (it might be a Git LFS pointer, and
+  Pitloom never reads past the cap to tell) and a size above 2^53-1 get no
+  size, and `byte_size` reads `Evidence: not_measured | Reason: over-cap`.
+- A Git LFS pointer gets no size (its own is not the content's).
+
+With `detail = "minimal"` (the default), an entry that has an `Evidence`
+segment is kept, even from a source that is otherwise left out.
 
 ## How a dependency-version source is chosen
 

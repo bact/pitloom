@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,6 +30,15 @@ and this project adheres to
   `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
 - `--max-model-extract-bytes` and `--max-dataset-hash-bytes` (`loom id generate`)
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
+- `loom` records a single-file dataset's byte size; a hash omitted over the cap
+  says why ([#387])
+
+### Changed
+
+- `DatasetMetadata.dataset_size` is `byte_size` (bytes); no reader sets it
+  ([#382])
+- Merged provenance comments start a new line; a `not_measured` entry is dropped
+  when a merge supplies the value ([#386])
 
 ### Fixed
 
@@ -37,12 +46,19 @@ and this project adheres to
   that is not SPDX 3, before the wheel is written ([#374])
 - A Git URL's messages show the temporary checkout as `<checkout>`, not a random
   path ([#375])
+- A Croissant `totalItems` count no longer fills `dataset_datasetSize` (bytes);
+  it is not recorded ([#382])
+- A `|` in a project file name no longer adds a segment to its provenance
+  ([#386])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
 [#376]: https://github.com/bact/pitloom/pull/376
 [#378]: https://github.com/bact/pitloom/pull/378
 [#381]: https://github.com/bact/pitloom/pull/381
+[#382]: https://github.com/bact/pitloom/pull/382
+[#386]: https://github.com/bact/pitloom/pull/386
+[#387]: https://github.com/bact/pitloom/pull/387
 
 ## [0.21.1] - 2026-10-28
 

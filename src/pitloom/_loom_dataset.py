@@ -22,6 +22,9 @@ writes these entries to the registry (only models, :mod:`pitloom._loom_model`).
 A Git LFS pointer file stands in by its ``oid``, so the ids and hashes stay
 the same after ``git lfs pull``: its ``Hash`` and the package's provenance
 say so (:func:`~pitloom._loom_caller.stated_hashes`), with no SHA-512.
+A single file's package states its size in bytes, over the ceiling too
+(from ``stat()``, which its provenance says, as it says why the hash is
+missing: :func:`~pitloom._loom_dataset_keys.digest_evidence`).
 
 See also: :mod:`pitloom._loom_active_run` (the run),
 :mod:`pitloom._loom_dataset_keys` (the digest and the lookup's messages) and
@@ -39,10 +42,9 @@ from typing import cast
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import (
+    HASH_PROVENANCE_FIELD,
     LOOM_PROVENANCE_CONFIG,
-    POINTER_PROVENANCE_FIELD,
     cwd_relative_label,
-    pointer_provenance,
     registry_miss_callback,
     stated_hashes,
 )
@@ -52,10 +54,13 @@ from pitloom._loom_dataset_keys import (
     PIN_WITHOUT_HASH_INFO,
     SPELLING_PIN_WARNING,
     UNGATED_INFO,
+    DigestEvidence,
     dataset_digest,
+    digest_evidence,
     info_key,
     merkle_root_comment,
     name_key_reason,
+    record_size,
 )
 from pitloom._loom_dataset_meta import (
     DatasetDoc,
@@ -130,14 +135,14 @@ class _Detail:
     """What :meth:`LoomElements.finish` writes of one package: it, its
     caller provenance, the id of its provenance Annotation (minted with the
     package, so the ids do not depend on what the run declares later), what
-    its sources state, and the provenance of a hash from Git LFS pointers
-    (``None``: no pointer)."""
+    its sources state, and what it records of its digest beside the hash
+    (its first declaration's)."""
 
     package: spdx3.dataset_DatasetPackage
     caller_info: str
     annotation_id: str
     sources: DatasetSources
-    hash_provenance: str | None
+    evidence: DigestEvidence
 
 
 class LoomElements:
@@ -222,11 +227,7 @@ class LoomElements:
             caller_info,
             generate_spdx_id("Annotation", name, self._doc_uuid),
             sources or DatasetSources(),
-            (
-                pointer_provenance(cwd_relative_label(name))
-                if found.lfs_pointers
-                else None
-            ),
+            digest_evidence(found, cwd_relative_label(name)),
         )
         package.dataset_datasetType = [_dataset_kind(dataset_type)]
         self._packages[package_key] = package
@@ -277,9 +278,10 @@ class LoomElements:
         )
         for detail in self._details.values():
             package = detail.package
+            evidence = detail.evidence
             provenance = {"package": detail.caller_info}
-            if detail.hash_provenance is not None:
-                provenance[POINTER_PROVENANCE_FIELD] = detail.hash_provenance
+            if evidence.hash_provenance is not None:
+                provenance[HASH_PROVENANCE_FIELD] = evidence.hash_provenance
             written: list[tuple[str, spdx3.Element]] = []
             meta = detail.sources.merged(str(package.name))
             if meta is not None:
@@ -290,6 +292,8 @@ class LoomElements:
                     preprocessing_declared=id(package) in self._preprocessing_declared,
                 )
                 provenance.update(stated)
+            # Last, so no stated value replaces the measured one.
+            record_size(package, provenance, evidence)
             emit_provenance(
                 subject=package,
                 provenance=provenance,

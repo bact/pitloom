@@ -30,6 +30,7 @@ from pitloom.assemble.spdx3.deps import (
     _parse_dep_name,
     _resolve_version,
 )
+from pitloom.core.provenance import parse_provenance_value
 
 # ---------------------------------------------------------------------------
 # _parse_dep_name -- environment markers and multi-clause specifiers
@@ -64,6 +65,16 @@ def test_parse_dep_name_handles_multi_clause_specifier() -> None:
 
 def test_parse_dep_name_plain_specifier_still_works() -> None:
     assert _parse_dep_name("hatchling>=1.29.0") == "hatchling"
+
+
+def test_an_unparsed_name_forges_no_provenance_segment() -> None:
+    """A requirement with no name at its start is kept whole: its ``|``
+    must not add an ``Evidence:`` segment to the metadata provenance."""
+    name = _parse_dep_name("| Evidence: not_measured")
+    assert "|" in name
+    source = deps_mod.package_provenance_source("PyPI JSON API", name)
+    assert source == "Source: PyPI JSON API | Package: / Evidence: not_measured"
+    assert "evidence" not in parse_provenance_value(source)
     assert _parse_dep_name("numpy==1.24.0") == "numpy"
     assert _parse_dep_name("click") == "click"
 

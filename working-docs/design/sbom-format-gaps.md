@@ -240,3 +240,44 @@ declined or fixed entry with its outcome.
   (`test_pull_keeps_the_sha256`)
 - Status: noted
 - Date: 2026-10-29
+
+### FG-12 A dataset's record count has no property
+
+- Format and version: SPDX 3.0.1, Dataset profile (also 3.1-dev)
+- Element or property: `dataset_DatasetPackage`; nearest is
+  `dataset_datasetSize`, which is a size in bytes (3.1: `byteSize`)
+- Fact to record: the number of records or items a dataset states
+- Pitloom today: not recorded. Croissant has no standard key for it
+  (`totalItems` is not a Croissant term), and writing a count into
+  `dataset_datasetSize` would be a false size in bytes
+- Why imprecise: no property
+- Proposal: a `counts` property in SPDX 3.1 [maintainer to add link and
+  wording]
+- Evidence: `tests/extract/dataset/test_croissant.py`
+  (`test_read_croissant_ignores_total_items`),
+  `tests/conformance/test_g7ai_dataset_size.py`
+- Status: noted
+- Date: 2026-10-29
+
+### FG-13 No property states how sure a value is, or that a hash was skipped
+
+- Format and version: SPDX 3.0.1, Core profile (also 3.1-dev)
+- Element or property: `verifiedUsing` (`IntegrityMethod`) and any size or
+  count property, such as `dataset_datasetSize` (3.1: `byteSize`)
+- Fact to record: the evidence level of a value (measured by reading,
+  measured from the file system, declared by metadata, a lower bound, not
+  measured), and that a hash was deliberately not computed (a file over the
+  read cap) and why
+- Pitloom today: the Pitloom provenance `Annotation` (`fields`) and the
+  element `comment` carry `Evidence:` and `Reason:` segments. An omitted
+  hash is no `Hash` at all, so an element without one reads as "no hash
+  known", not "hash skipped over the cap"
+- Why imprecise: no property says how a value was obtained, or lets an
+  integrity method be marked as declared or not computed; absence cannot
+  state a reason
+- Proposal: a way to mark an integrity method as declared or not computed
+  (with FG-10), and an evidence level on size and count properties, to SPDX
+  3.1 [maintainer to add link and wording]
+- Evidence: `tests/core/test_loom_dataset_size.py`
+- Status: noted
+- Date: 2026-10-29

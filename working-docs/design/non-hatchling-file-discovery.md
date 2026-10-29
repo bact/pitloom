@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -307,3 +307,11 @@ one line. Four remain:
   `[tool.uv_build]` (found on ffmpeg-normalize, currently invisible to
   `has_uv_build_backend_overrides()` too, though no practical divergence
   was observed for it).
+
+Also open:
+
+- setuptools gives an absolute `physical_path` for a project directory named
+  in another letter case (macOS, Windows; #257, in
+  [known-bugs-p3.md](known-bugs-p3.md)).
+- scikit-build-core is checked only through `--allow-build`
+  ([#61](https://github.com/bact/pitloom/issues/61)).
