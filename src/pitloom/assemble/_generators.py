@@ -32,7 +32,12 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.inert_options import PROJECT, SDIST, settle_inert
+from pitloom.core.inert_options import (
+    PROJECT,
+    SDIST,
+    project_target_kind,
+    settle_inert,
+)
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
@@ -131,7 +136,10 @@ def generate_project_sbom(
     ``enrich``, ``scan_model_usage``, ``use_lockfile`` and
     ``trust_wheel_model`` have no effect, and for a directory
     ``trust_wheel_model`` has none; each warns when given (see
-    :data:`pitloom.core.inert_options.INERT`).
+    :data:`pitloom.core.inert_options.INERT`). ``max_model_extract_bytes``
+    is no parameter here: a caller forwarding it settles it with
+    :func:`~pitloom.core.inert_options.forward_options` and
+    :func:`~pitloom.core.inert_options.project_target_kind`.
 
     *project_dir* names the project directory an sdist archive was built
     from: its members are then keyed below that directory's path from the
@@ -151,7 +159,7 @@ def generate_project_sbom(
     # build-flag WARNING: is the first thing this call logs.
     build_options = build_options.settle_target(target_path)
 
-    if target_path.is_file():
+    if project_target_kind(target_path) == SDIST:
         # Every option is passed, so an INERT[SDIST] entry needs no change
         # here.
         settle_inert(

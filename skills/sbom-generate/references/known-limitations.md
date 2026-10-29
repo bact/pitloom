@@ -95,7 +95,8 @@ entry `Source: <model file> | Field: ...`; its `name` is the file's stem
 - `... failed to extract metadata; ...` -- the file has a model's header but
   could not be parsed (truncated or corrupt): check the file.
 - `... max-model-extract-bytes cap; metadata not read` -- the ceiling (512
-  MiB, config key only, wheel scans); `WARNING: ... model-scan budget cap; ...`
+  MiB, wheel scans; `--max-model-extract-bytes BYTES` or the config key);
+  `WARNING: ... model-scan budget cap; ...`
   -- the per-wheel budget (4x the ceiling, one line); any other `...; metadata
   not read` is a fixed bound. Lists past 1000 entries are cut with one
   `WARNING:`. Never raise a ceiling on your own.
@@ -219,7 +220,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   further line, except one over the ceiling or missing its library, which
   adds its own.
 - The same input gives the same SBOM for the same settings;
-  `--trust-wheel-model`, `max-model-extract-bytes`, `--scan-model-usage`,
+  `--trust-wheel-model`, `--max-model-extract-bytes`, `--scan-model-usage`,
   `--allow-build` and (for `loom.Run`) `max-dataset-hash-bytes` each change
   what is recorded, so do not compare SBOMs made with different ones. The
   last drops a dataset's hash, with a `WARNING:`, when its bytes pass the

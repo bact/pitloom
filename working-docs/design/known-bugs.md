@@ -403,11 +403,10 @@ From the Git LFS pointer work. Open:
   tracked in
   [id-registry-followups.md](id-registry-followups.md#harvest-rewrites-per-document-entities-env-root-is-never-looked-up),
   allow-listed in the order checks).
-- [ ] **The model-cap and dataset-hash ceilings have no flag (S-M, decided).**
-  `max-source-metadata-bytes` has a flag, a key, a kwarg and an Action input;
-  `max-model-extract-bytes` and the dataset-hash ceiling have the key only.
-  Decided: a separate PR adds `--max-model-extract-bytes` (parent parser,
-  Action input), `--max-dataset-hash-bytes` (`loom id generate` only) and
+- [ ] **The dataset-hash ceiling has no flag (S-M, decided).**
+  `max-source-metadata-bytes` and `max-model-extract-bytes` have a flag, a
+  key, a kwarg and an Action input; the dataset-hash ceiling has the key only.
+  Decided: `--max-dataset-hash-bytes` (`loom id generate` only) and
   `loom.Run(max_dataset_hash_bytes=)`; `0` stays an error.
 - [ ] **The clone cap is missing from `generate()`, the CLI, config and the
   Action (S-M),** and its over-cap message is outside the shared wording.

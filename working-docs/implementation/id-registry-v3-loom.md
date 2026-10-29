@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,7 +80,7 @@ rewritten file (new digest) is a new element.
   alike. A config key only: no CLI flag, so no `_matrix_plan.py` entry and
   no INERT row. It reaches loom through `loom.Run(pitloom_config=...)`
   (D14), is validated at use (a positive `int`; `bool` and `0` rejected)
-  by one validator generalised from `require_max_model_extract_bytes`, and
+  by the validator every ceiling shares (`require_positive_ceiling`), and
   gets a `docs/configuration.md` row. The size is checked from `stat()`
   first, so nothing over the limit is opened; a file that grows during the
   read is caught by a byte budget. Over the ceiling: no hash and one

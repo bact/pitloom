@@ -151,6 +151,12 @@ Other arguments that mirror a CLI flag or config key:
   `project_dir=`): `--trust-wheel-model`, for a wheel you trust only. It has no
   config key, so a config cannot opt in. Other targets warn that it has no
   effect.
+- `max_model_extract_bytes=` (`generate()`, `generate_wheel_sbom()`;
+  `ConfigOverrides.max_model_extract_bytes` for `embed_wheel_sbom()` without
+  `project_dir=`): `--max-model-extract-bytes`, the per-model ceiling of a
+  wheel's model scan; it wins over `pitloom_config=`'s `max-model-extract-bytes`.
+  Other targets warn that it has no effect; a value that is not an integer of
+  at least 1 (`True` included) raises `ValueError` on every target.
 - `id_registry=`: `--id-registry`; see [Loom ID registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an
   sdist, `generate()` on either): `--project-dir` of `wheel`/`project`, the
@@ -165,7 +171,7 @@ Other arguments that mirror a CLI flag or config key:
 What `scan_model_usage` records, and which wheel models are listed without
 metadata and why: [Configuration](configuration.md) and [AI model scan
 limits](ai-model-scan-limits.md#formats-gated-in-wheels). For a wheel, a bad
-`max-model-extract-bytes` in `pitloom_config=` raises `ValueError`.
+`max-model-extract-bytes` in `pitloom_config=` raises `ValueError` too.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()` (and
 `generate_wheel_sbom_with_metadata()`, which returns `(json, metadata)`: the

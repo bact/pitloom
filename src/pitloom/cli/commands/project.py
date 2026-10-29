@@ -32,7 +32,12 @@ from pitloom.cli.options_config import add_archive_project_dir_argument, run_opt
 from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
-from pitloom.core.inert_options import GIT, settle_inert
+from pitloom.core.inert_options import (
+    GIT,
+    forward_options,
+    project_target_kind,
+    settle_inert,
+)
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import (
     fetch_git_project,
@@ -78,13 +83,14 @@ def generate_project_from_args(
     if remote_url is not None:
         settled = settle_inert(GIT, remote_url, options)
         options = {k: v for k, v in options.items() if k not in settled}
+    kind = project_target_kind(project_dir)
     generate_project_sbom(
         project_dir,
         output_path=output_path,
         project_metadata=project_metadata,
         pitloom_config=pitloom_config,
         build_options=build_options,
-        **options,
+        **forward_options(kind, project_dir, generate_project_sbom, options),
     )
     return output_path
 

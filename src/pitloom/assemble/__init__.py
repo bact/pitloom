@@ -40,9 +40,20 @@ from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.ai_metadata import model_file_suffixes
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides
+from pitloom.core.config_cascade import (
+    ConfigOverrides,
+    require_model_extract_override,
+)
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.inert_options import ENV, GIT, HF, MODEL_FILE, WHEEL, forward_options
+from pitloom.core.inert_options import (
+    ENV,
+    GIT,
+    HF,
+    MODEL_FILE,
+    WHEEL,
+    forward_options,
+    project_target_kind,
+)
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import (
@@ -161,6 +172,7 @@ def generate(
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
+    max_model_extract_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
@@ -175,7 +187,9 @@ def generate(
 
     *project_dir* (the project directory an sdist or a wheel was built
     from, for its registry keys) reaches the sdist and wheel delegates; any
-    other target warns that it has no effect.
+    other target warns that it has no effect. So does
+    *max_model_extract_bytes* on any target but a wheel; an invalid value
+    raises ``ValueError`` whatever the target.
 
     A target that is the ``http`` or ``https`` URL of a Git repository (or of
     one of its web pages) is fetched and read as a project
@@ -186,6 +200,8 @@ def generate(
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
     configure_logging()
+    if max_model_extract_bytes is not None:
+        require_model_extract_override(max_model_extract_bytes)  # even if inert
     target_str = str(target).strip()
     classification = _classify_target(target_str)
 
@@ -212,6 +228,7 @@ def generate(
         "content_type_method": content_type_method,
         "update_id_registry": update_id_registry,
         "max_source_metadata_bytes": max_source_metadata_bytes,
+        "max_model_extract_bytes": max_model_extract_bytes,
         "pitloom_config": pitloom_config,
         "use_lockfile": use_lockfile,
         "project_dir": project_dir,
@@ -244,8 +261,10 @@ def generate(
             build_options=build_options,
             check_url=check_url,
         )
+    project_target = Path(target_str)
+    kind = project_target_kind(project_target)
     return generate_project_sbom(
-        Path(target_str),
-        **options,
+        project_target,
+        **forward_options(kind, project_target, generate_project_sbom, options),
         build_options=build_options,
     )
