@@ -33,12 +33,15 @@ EVIDENCE_LEVELS: frozenset[str] = frozenset(
 EVIDENCE_KEY = "evidence"
 REASON_KEY = "reason"
 
+#: The reason code of a fact over a read cap.
+OVER_CAP = "over-cap"
+
 #: Why a fact is ``not_measured``. The starting set the future message
 #: catalogue adopts; a code is never free text, so it cannot carry untrusted
 #: input into an SBOM.
 REASON_CODES: frozenset[str] = frozenset(
     {
-        "over-cap",
+        OVER_CAP,
         "timeout",
         "network-failed",
         "lfs-pointer",

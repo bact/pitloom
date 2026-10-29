@@ -40,8 +40,9 @@ import stat
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Final, Literal
+from typing import Literal
 
+from pitloom.core.evidence import OVER_CAP
 from pitloom.core.file_hash import (
     HexDigests,
     ReadBudgetExceeded,
@@ -67,10 +68,6 @@ __all__ = ["DatasetDigest", "PointerAt", "hash_dataset"]
 
 _OMITTED = "dataset hash omitted"
 _PURPOSE = "for dataset hashing"
-#: The :data:`~pitloom.core.evidence.REASON_CODES` code of a hash over the
-#: ceiling.
-_OVER_CAP: Final = "over-cap"
-
 #: A sorted member: its leaf name bytes, its path, its size.
 _Member = tuple[bytes, str, int]
 #: A Git LFS pointer hashed by its ``oid``: its path, what it states.
@@ -275,7 +272,7 @@ def _file_over_ceiling(where: str, max_bytes: int, size: int) -> DatasetDigest:
     pointer, whose size is not the content's: no size."""
     _warn_over_ceiling("FILE", where, max_bytes)
     unread = None if size < LFS_POINTER_MAX_BYTES else size
-    return _unhashed("file", unread, _OVER_CAP)
+    return _unhashed("file", unread, OVER_CAP)
 
 
 def _unreadable_file(where: str, exc: OSError) -> DatasetDigest:
@@ -361,7 +358,7 @@ def _leaves(
             read = sha256_read(member, max_bytes=max_bytes - spent)
         except ReadBudgetExceeded:
             _warn_over_ceiling("DIR", top, max_bytes)
-            return _Failed(_OVER_CAP)
+            return _Failed(OVER_CAP)
         except OSError as exc:
             _warn_unreadable(member, exc)
             return _Failed(None)
@@ -382,7 +379,7 @@ def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDi
         return _unhashed("dir", None, None, excluded=excluded)
     if sum(size for _, _, size in members) > max_bytes:
         _warn_over_ceiling("DIR", top, max_bytes)
-        return _unhashed("dir", None, _OVER_CAP, excluded=excluded)
+        return _unhashed("dir", None, OVER_CAP, excluded=excluded)
     read = _leaves(top, members, max_bytes)
     if isinstance(read, _Failed):
         return _unhashed("dir", None, read.omitted, excluded=excluded)

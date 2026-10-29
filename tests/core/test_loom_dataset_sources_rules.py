@@ -317,14 +317,16 @@ def test_a_croissant_total_items_is_not_a_size(
     fields: dict[str, object],
 ) -> None:
     """``totalItems`` is a record count, not Croissant's and not bytes: it is
-    not written as ``dataset_datasetSize``, has no provenance and no warning,
-    and the fragment is valid SPDX 3."""
+    not written as ``dataset_datasetSize`` (which holds the file's bytes
+    read), has no provenance and no warning, and the fragment is valid
+    SPDX 3."""
     croissant_file(project / "c.json", license="MIT", **fields)
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         graph = run_graph(
             project / "out.json", lambda: loom.add_dataset("t.txt", croissant="c.json")
         )
-    assert "dataset_datasetSize" not in package_of(graph, "t.txt")
+    size = package_of(graph, "t.txt")["dataset_datasetSize"]
+    assert size == (project / "t.txt").stat().st_size
     raw = (project / "out.json").read_bytes()
     assert not [word for word in (b"totalItems", b"byte_size") if word in raw]
     assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]

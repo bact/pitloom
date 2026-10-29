@@ -24,6 +24,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
+from pitloom.core.evidence import evidence_segment
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.provenance import ProvenanceConfig
@@ -46,9 +47,10 @@ log = logging.getLogger("pitloom.loom")
 #: rather than threading a format setting through the whole SDK surface.
 LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 
-#: The provenance field of a ``verifiedUsing`` copied from a Git LFS
-#: pointer's ``oid``; its value is :func:`pointer_provenance`.
-POINTER_PROVENANCE_FIELD = "verified_using"
+#: The provenance field of a package's ``verifiedUsing``: a hash copied from
+#: a Git LFS pointer's ``oid`` (:func:`pointer_provenance`), or why there is
+#: none (:func:`evidence_provenance`).
+HASH_PROVENANCE_FIELD = "verified_using"
 
 #: Pitloom's own modules on the stack of a loom call; caller provenance
 #: names the first frame outside them.
@@ -261,5 +263,18 @@ def stated_hashes(digests: HexDigests, pointer: LfsPointer | None) -> list[spdx3
 def pointer_provenance(label: str) -> str:
     """The provenance of a hash copied from the Git LFS pointer *label*
     names (:func:`cwd_relative_label`, taken when the path was given), for
-    :data:`POINTER_PROVENANCE_FIELD`."""
-    return f"Source: {sanitize_provenance_text(label)} | Method: {LFS_POINTER_METHOD}"
+    :data:`HASH_PROVENANCE_FIELD`."""
+    return f"Source: {_source(label)} | Method: {LFS_POINTER_METHOD}"
+
+
+def evidence_provenance(label: str, level: str, reason: str | None = None) -> str:
+    """The provenance of a fact about the file *label* names
+    (:func:`cwd_relative_label`) at the evidence *level*, with *reason* for
+    ``not_measured`` (:func:`~pitloom.core.evidence.evidence_segment`, which
+    raises ``ValueError`` on a level or reason it does not know)."""
+    return f"Source: {_source(label)} | {evidence_segment(level, reason)}"
+
+
+def _source(label: str) -> str:
+    """*label* as a provenance ``Source:`` writes it."""
+    return sanitize_provenance_text(label)

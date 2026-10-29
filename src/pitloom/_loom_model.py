@@ -44,8 +44,8 @@ from typing import cast
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import (
+    HASH_PROVENANCE_FIELD,
     LOOM_PROVENANCE_CONFIG,
-    POINTER_PROVENANCE_FIELD,
     _record_hyperparameter_provenance,
     cwd_relative_label,
     pointer_provenance,
@@ -270,7 +270,7 @@ class LoomModels:
         pointer = digest.lfs_pointer
         declared.element.verifiedUsing = stated_hashes(digest.stated(), pointer)
         if pointer is not None:
-            provenance = {POINTER_PROVENANCE_FIELD: pointer_provenance(declared.label)}
+            provenance = {HASH_PROVENANCE_FIELD: pointer_provenance(declared.label)}
             self._annotate(declared, provenance, declared.name)
 
     def persist(self) -> None:
