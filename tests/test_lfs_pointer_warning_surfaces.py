@@ -16,22 +16,32 @@ from __future__ import annotations
 import json
 import os
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
+from pitloom.assemble import (
+    _generators_git,
+    generate_git_project_sbom,
+    generate_project_sbom,
+    generate_wheel_sbom,
+)
+from pitloom.cli.commands import project as mod_project
 from pitloom.embed import embed_wheel_sbom
+from pitloom.extract.remote.git import GitCheckout
 from tests._lfs import POINTERS, TREE, lfs_pointer_bytes, write_project
 from tests._raw_archive import METADATA, write_raw_zip
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.extract.conftest import make_hook, staged_sbom
 from tests.warning_helpers import stderr_warnings
 
-_CHECKOUT = "content not read"
+_CHECKOUT = "run 'git lfs pull' for the content"
+_CLONE = "clone with git lfs, then run on the directory"
 _SHIPPED = "Git LFS pointer shipped"
+_URL = "https://gitlab.example.org/g/p"
 _Surface = Callable[[Path, pytest.MonkeyPatch], str]
 
 
@@ -49,6 +59,30 @@ def _cli_project(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
 
 def _lib_project(tree: dict[str, bytes], tmp_path: Path, _mp: Any) -> str:
     return generate_project_sbom(write_project(tmp_path / "p", tree), offline=True)
+
+
+def _fetching(folder: Path) -> Callable[..., Any]:
+    """A stand-in for the fetch of a Git URL: the prepared project *folder*."""
+
+    @contextmanager
+    def fetch(url: str, **_options: Any) -> Iterator[GitCheckout]:
+        yield GitCheckout(str(folder), url, None, "c0ffee", "", True)
+
+    return fetch
+
+
+def _cli_git_url(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
+    folder = write_project(tmp_path / "p", tree)
+    mp.setattr(mod_project, "fetch_git_project", _fetching(folder))
+    out = tmp_path / "out.spdx3.json"
+    run_cli(["project", _URL, "-o", str(out)], mp)
+    return out.read_text(encoding="utf-8")
+
+
+def _lib_git_url(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
+    folder = write_project(tmp_path / "p", tree)
+    mp.setattr(_generators_git, "fetch_git_project", _fetching(folder))
+    return generate_git_project_sbom(_URL)
 
 
 def _hook(tree: dict[str, bytes], tmp_path: Path, _mp: Any) -> str:
@@ -93,6 +127,8 @@ def _embedded(wheel: Path) -> str:
 _SURFACES: dict[str, tuple[Callable[..., str], str]] = {
     "cli-project": (_cli_project, _CHECKOUT),
     "lib-project": (_lib_project, _CHECKOUT),
+    "cli-git-url": (_cli_git_url, _CLONE),
+    "lib-git-url": (_lib_git_url, _CLONE),
     "hook": (_hook, _SHIPPED),
     "cli-wheel": (_cli_wheel, _SHIPPED),
     "lib-wheel": (_lib_wheel, _SHIPPED),

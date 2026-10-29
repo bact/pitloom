@@ -15,7 +15,9 @@ Real Git LFS pointers, byte for byte as the Hugging Face Hub serves them
 from `https://huggingface.co/<id>/raw/main/<path>`, fetched 2026-10-29.
 Only the pointer text (three LF-terminated lines, under 140 bytes) is
 committed, never the content it stands in for. `.gitattributes` marks them
-`-text`, so a Windows checkout keeps the LF line ends.
+`-text`, so a Windows checkout keeps the LF line ends. Pitloom's sdist leaves
+them out (`pyproject.toml`), or `loom project` of it would warn of pointers
+it ships; the tests that read them skip without them.
 
 | File | Repository `<id>` | `<path>` | Licence | LFS size (bytes) |
 | --- | --- | --- | --- | --- |

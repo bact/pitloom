@@ -391,7 +391,9 @@ From the Git LFS pointer work. Open:
 - [ ] **A dataset's identity can change from a hash to omitted after a pull
   (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated
   sizes above the ceiling mean no hash. The SHA-256 is otherwise unchanged.
-- [ ] **Archive-route registry ids differ from checkout ids for LFS files
-  (S).** The archive keys by the pointer-text digest, a checkout by the `oid`.
+- [ ] **The hook's and `loom project`'s document ids differ for a project
+  with Git LFS pointers (S, decided: kept).** The Merkle leaf of a pointer is
+  the pointer text's digest in the hook (it matches `RECORD`) and the `oid` in
+  `loom project`; file ids are shared (the registry accepts either hash).
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.

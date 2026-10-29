@@ -28,7 +28,7 @@ from pitloom.core.inert_options import (
     SDIST,
     settle_inert,
 )
-from pitloom.core.lfs_pointer import read_lfs_pointer
+from pitloom.core.lfs_pointer import read_lfs_pointer, size_text
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
@@ -83,7 +83,8 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
         where = quote_source(model_path)
-        raise ValueError(f"{where}: {_refusal_text(e, model_path)}") from e
+        reason = _refusal_text(e, model_path)
+        raise ValueError(f"{where}: {reason}") from e
 
 
 def _refusal_text(refusal: NotAModel, model_path: Path) -> str:
@@ -98,7 +99,7 @@ def _refusal_text(refusal: NotAModel, model_path: Path) -> str:
         if pointer is not None:
             return (
                 f"{LFS_POINTER_REASON}, content not pulled "
-                f"(oid sha256:{pointer.oid}, size {pointer.size} bytes); "
+                f"(oid sha256:{pointer.oid}, size {size_text(pointer.size)}); "
                 "run 'git lfs pull'"
             )
     return str(refusal)

@@ -55,9 +55,12 @@ never matches a model.
 
 A **Git LFS pointer** in a checkout is gated by its `oid`, the SHA-256 of the
 content it stands for, so its id survives `git lfs pull`. A wheel, an sdist or
-the Hatchling hook ships the pointer text itself, so those routes gate by the
-digest of that text and get a different id for the same file. `id import` and
-`id generate` record SHA-256 only for a pointer.
+the Hatchling hook ships the pointer text itself, so their SBOM states the
+digest of that text; those routes accept an entry recording either hash, so a
+registry made by `id generate` on the checkout is reused. `id import` and
+`id generate` record SHA-256 only for a pointer. The document id, taken from
+the package's Merkle root, differs between the hook and `loom project` for a
+project with pointers; the file ids do not.
 
 A **dataset package** has a hybrid gate:
 

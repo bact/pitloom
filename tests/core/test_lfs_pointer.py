@@ -30,9 +30,8 @@ from pitloom.core.lfs_pointer import (
     parse_lfs_pointer,
     read_lfs_pointer,
 )
-from tests._lfs import lfs_pointer_bytes
+from tests._lfs import lfs_pointer_bytes, pointer_fixture
 
-_FIXTURES = Path(__file__).parent.parent / "fixtures" / "lfs-pointers"
 _CONTENT = b"hello"
 _HEX = hashlib.sha256(_CONTENT).hexdigest()
 _HELLO = LfsPointer(_HEX, 5)
@@ -183,7 +182,7 @@ def test_pointer_grammar(data: bytes, expected: LfsPointer | None) -> None:
     ],
 )
 def test_real_pointers_parse(name: str, size: int) -> None:
-    pointer = read_lfs_pointer(_FIXTURES / name)
+    pointer = read_lfs_pointer(pointer_fixture(name))
     assert pointer is not None and len(pointer.oid) == 64
     assert pointer.size == size
 

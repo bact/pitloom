@@ -15,6 +15,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from pitloom.core.lfs_pointer import LfsPointer, parse_lfs_pointer
 
 #: The spec URL git-lfs writes today.
@@ -39,6 +41,21 @@ def lfs_pointer_bytes(
 
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "lfs-pointers"
+
+
+def pointer_fixture(name: str) -> Path:
+    """The real pointer fixture *name*; skips the importing module (or the
+    test) when ``tests/fixtures/lfs-pointers/`` is absent, as in Pitloom's
+    published sdist, which leaves it out."""
+    path = _FIXTURES / name
+    if not path.is_file():
+        pytest.skip(
+            "pointer fixtures not present (excluded from the sdist)",
+            allow_module_level=True,
+        )
+    return path
+
+
 _PYPROJECT = (
     b'[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
     b'[project]\nname = "demo"\nversion = "1.0"\n'
@@ -50,11 +67,13 @@ _OPENING = b"version https://git-lfs.github.com/spec/v1\n"
 #: are not pointers (one only opens like one).
 TREE: dict[str, bytes] = {
     "demo/__init__.py": b"x = 1\n",
-    "demo/data/humaneval-test.parquet": (
-        _FIXTURES / "humaneval-test.parquet"
+    "demo/data/humaneval-test.parquet": pointer_fixture(
+        "humaneval-test.parquet"
     ).read_bytes(),
-    "demo/static/main.js": (_FIXTURES / "static-js-app-main.js").read_bytes(),
-    "demo/pytorch_model.bin": (_FIXTURES / "bert-tiny-pytorch-model.bin").read_bytes(),
+    "demo/static/main.js": pointer_fixture("static-js-app-main.js").read_bytes(),
+    "demo/pytorch_model.bin": pointer_fixture(
+        "bert-tiny-pytorch-model.bin"
+    ).read_bytes(),
     "demo/crlf.dat": lfs_pointer_bytes(b"crlf", eol="\r\n"),
     "demo/hawser.dat": lfs_pointer_bytes(
         b"old", url="https://hawser.github.com/spec/v1", trailing_newline=False

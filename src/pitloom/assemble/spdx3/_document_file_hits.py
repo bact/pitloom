@@ -17,7 +17,6 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
 
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import FilesOrigin, ProjectFile
@@ -114,6 +113,21 @@ def file_keys(doc: DocumentModel, registry: IdRegistry) -> dict[str, LookupKey]:
     return _file_keys(doc, _doc_prefix(doc, registry), registry)
 
 
+def _lookup_file(
+    session: IdRegistrySession, package_file: ProjectFile, lookup: LookupKey
+) -> str | None:
+    """*session*'s hit for *package_file* under *lookup*, gated by each of
+    its :meth:`~pitloom.core.project.ProjectFile.registry_hashes` in turn
+    (a file not hashed: ungated)."""
+    for sha256 in package_file.registry_hashes() or (None,):
+        claimed_id = session.lookup_key(
+            package_file.distribution_path, FILE_TYPE, lookup, sha256=sha256
+        )
+        if claimed_id is not None:
+            return claimed_id
+    return None
+
+
 def _resolve_file_and_directory_hits(
     files: list[ProjectFile],
     session: IdRegistrySession,
@@ -157,12 +171,7 @@ def _resolve_file_and_directory_hits(
         lookup = keys.get(package_file.distribution_path) or file_lookup_key(
             package_file, FilesOrigin(), None
         )
-        claimed_id = session.lookup_key(
-            package_file.distribution_path,
-            FILE_TYPE,
-            lookup,
-            sha256=cast(str, package_file.digest_sha256),
-        )
+        claimed_id = _lookup_file(session, package_file, lookup)
         if claimed_id is not None:
             file_hits[package_file.distribution_path] = claimed_id
 

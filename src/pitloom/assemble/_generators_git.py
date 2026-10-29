@@ -90,7 +90,7 @@ def generate_git_project_sbom(
     ) as checkout:
         if pitloom_config is None:
             log.info(CONFIG_IGNORED_INFO)
-        with checkout.explaining_failures():
+        with checkout.reading():
             return generate_project_sbom(
                 checkout.folder,
                 output_path=output_path,

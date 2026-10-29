@@ -23,12 +23,11 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_model_sbom
 from pitloom.core.lfs_pointer import read_lfs_pointer
-from tests._lfs import lfs_pointer_bytes
+from tests._lfs import lfs_pointer_bytes, pointer_fixture
 from tests.warning_helpers import error_lines
 
-_FIXTURES = Path(__file__).parent.parent / "fixtures" / "lfs-pointers"
 _OPENING = b"version https://git-lfs.github.com/spec/v1\n"
-_REAL = (_FIXTURES / "bert-tiny-pytorch-model.bin").read_bytes()
+_REAL = pointer_fixture("bert-tiny-pytorch-model.bin").read_bytes()
 _PULL = "run 'git lfs pull'"
 _PLAIN = "m.gguf': header is a Git LFS pointer"
 

@@ -31,6 +31,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
     checkout_has_file,
@@ -109,6 +110,15 @@ class GitCheckout:
             if not hint:
                 raise
             raise RemoteSourceError("git.no-project", f"{exc}{hint}") from exc
+
+    @contextmanager
+    def reading(self) -> Iterator[None]:
+        """The context in which a caller reads :attr:`folder`: failures are
+        explained (:meth:`explaining_failures`), and a Git LFS pointer
+        is reported as in a temporary clone
+        (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
+        with reading_remote_clone(), self.explaining_failures():
+            yield
 
 
 @contextmanager

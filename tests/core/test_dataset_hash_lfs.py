@@ -22,10 +22,9 @@ import pytest
 
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
 from pitloom.core.lfs_pointer import LFS_POINTER_MAX_BYTES, parse_lfs_pointer
-from tests._lfs import lfs_pointer_bytes
+from tests._lfs import lfs_pointer_bytes, pointer_fixture
 
 _BIG = 1 << 40
-_FIXTURES = Path(__file__).parents[1] / "fixtures" / "lfs-pointers"
 _OPENING = b"version https://git-lfs.github.com/spec/v1\n"
 #: A pointer stating 2**40 bytes of content that is not at hand.
 _HUGE = _OPENING + b"oid sha256:" + b"ab" * 32 + b"\nsize 1099511627776\n"
@@ -51,7 +50,7 @@ def _tree(top: Path, files: dict[str, bytes]) -> Path:
         lfs_pointer_bytes(
             b"old", url="http://git-media.io/v/2", trailing_newline=False
         ),
-        (_FIXTURES / "humaneval-test.parquet").read_bytes(),
+        pointer_fixture("humaneval-test.parquet").read_bytes(),
     ],
     ids=["lf", "crlf", "git-media-no-eol", "hub"],
 )

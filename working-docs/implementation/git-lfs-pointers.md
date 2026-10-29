@@ -53,12 +53,25 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
   the `oid` (`_loom_dataset.py`, `_loom_dataset_keys.py`, `_loom_model.py`,
   `core/dataset_hash.py`); a directory's Merkle leaf is the `oid`. The
   dataset-hash ceiling counts real on-disk bytes, never a stated size.
-- **ID registry.** A checkout pointer is keyed by its `oid`; archive and hook
-  routes by the digest of the pointer text. `id_registry.sha256_file` is the
-  stated digest. `id import` and `id generate` record SHA-256 only.
+- **ID registry.** A checkout pointer is keyed by its `oid`
+  (`id_registry.sha256_file` is the stated digest); an archive or hook SBOM
+  states the digest of the pointer text. The file lookup accepts either, the
+  stated one first (`ProjectFile.registry_hashes`), so a registry made by
+  `id generate` on the checkout is hit by every route. `id import` and
+  `id generate` record SHA-256 only.
 
 ## Decisions
 
+- The warning's advice follows the source: a temporary Git-URL clone has
+  nothing to pull into, so `GitCheckout.reading()` marks the run
+  (`lfs_pointer.reading_remote_clone`) and the advice is `clone with git lfs,
+  then run on the directory`.
+- A licence source that is a pointer is no licence text on the directory
+  route either (`read_license_file`, as the sdist route): `None`, with a
+  `DEBUG` line only, even when the file is not among the listed files.
+- The hook keeps the pointer text as the Merkle leaf (`bytes_as_is`: it
+  matches the wheel's `RECORD`); `loom project` takes the `oid`. So the two
+  document ids differ for a project with pointers; file ids do not.
 - No fetching: it would contact a second server the Git URL guard does not
   cover. A future `--allow-lfs-fetch` could reuse the clone cap.
 - A stated size is never used to read or allocate. The pointer file is read
@@ -72,7 +85,8 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
   `git lfs pull` and regenerate.
 - After a pull the SHA-256 and the Merkle root are unchanged, but a dataset
   may then exceed the ceiling and get no hash.
-- Archive-route registry ids differ from checkout ids for LFS files.
+- The hook's and `loom project`'s package Merkle root (so document id)
+  differ for a project with pointers.
 - The ceilings and the clone cap have no flag yet; see known-bugs.
 
 ## Lessons and traps

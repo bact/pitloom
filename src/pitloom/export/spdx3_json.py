@@ -18,6 +18,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._sbom_io import write_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 
@@ -94,8 +95,7 @@ def lfs_pointer_hashes(pointer: LfsPointer) -> list[spdx3.Hash]:
     """The ``verifiedUsing`` of a checkout's Git LFS pointer, whose content
     Pitloom did not read: the ``oid`` as the SHA-256, no SHA-512, and a
     comment saying so with the stated size (SPDX 3 has no file size)."""
-    unit = "byte" if pointer.size == 1 else "bytes"
-    comment = f"Git LFS pointer oid; content not read; size {pointer.size} {unit}"
+    comment = f"Git LFS pointer oid; content not read; size {size_text(pointer.size)}"
     return [sha256_hash(pointer.oid, comment=comment)]
 
 

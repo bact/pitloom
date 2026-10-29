@@ -43,3 +43,13 @@ def test_a_pointer_is_refused_and_never_hashed(
         monkeypatch.setattr(_model_generator, reader, hashed)
     with pytest.raises(ValueError, match="Git LFS"):
         api(path, id_registry=registry)
+
+
+@pytest.mark.parametrize(("content", "said"), [(b"x", "1 byte"), (b"xy", "2 bytes")])
+def test_the_refusal_states_the_size_in_the_singular_for_one(
+    tmp_path: Path, content: bytes, said: str
+) -> None:
+    path = tmp_path / "model.gguf"
+    path.write_bytes(lfs_pointer_bytes(content))
+    with pytest.raises(ValueError, match=rf"size {said}\)"):
+        generate_model_sbom(path)

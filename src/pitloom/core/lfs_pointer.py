@@ -24,13 +24,16 @@ the model gate) and :mod:`pitloom.core.file_hash` (the chunked hasher).
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import io
 import logging
 import os
 import re
 import stat
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from os.path import normcase, realpath
 from typing import Final
 
 from pitloom.core.path_confine import open_nonblocking
@@ -47,6 +50,8 @@ __all__ = [
     "opens_lfs_pointer",
     "parse_lfs_pointer",
     "read_lfs_pointer",
+    "reading_remote_clone",
+    "size_text",
     "warn_pointers_not_read",
 ]
 
@@ -89,6 +94,27 @@ _POINTER: Final = re.compile(
 
 
 _log = logging.getLogger(__name__)
+
+#: Whether the run reads a temporary clone of a remote repository, where
+#: ``git lfs pull`` has nothing to pull into.
+_REMOTE_CLONE: Final[contextvars.ContextVar[bool]] = contextvars.ContextVar(
+    "pitloom_lfs_remote_clone", default=False
+)
+_ADVICE_PULL: Final = "run 'git lfs pull' for the content"
+_ADVICE_CLONE: Final = "clone with git lfs, then run on the directory"
+_ADVICE_SHIPPED: Final = "the build did not pull LFS content"
+
+
+@contextlib.contextmanager
+def reading_remote_clone() -> Iterator[None]:
+    """Mark the reads within as those of a temporary clone, so the warning
+    for a pointer left unread (:func:`warn_pointers_not_read`) tells the
+    user to clone with Git LFS instead of to pull."""
+    token = _REMOTE_CLONE.set(True)
+    try:
+        yield
+    finally:
+        _REMOTE_CLONE.reset(token)
 
 
 @dataclass(frozen=True)
@@ -179,13 +205,18 @@ class PrefixCapture:
         return parse_lfs_pointer(bytes(self._prefix))
 
 
+def size_text(size: int) -> str:
+    """*size* as every message and comment states it: ``1 byte``, ``N bytes``."""
+    return f"{size} byte" if size == 1 else f"{size} bytes"
+
+
 def log_pointer_not_read(path: str, pointer: LfsPointer) -> None:
     """The per-file line of a pointer left unread (``--debug`` only)."""
     _log.debug(
-        "FILE=%s: Git LFS pointer, content not read; oid sha256:%s, %d bytes",
+        "FILE=%s: Git LFS pointer, content not read; oid sha256:%s, %s",
         loggable(path),
         pointer.oid,
-        pointer.size,
+        size_text(pointer.size),
     )
 
 
@@ -193,15 +224,15 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     """One ``WARNING:`` for all the pointers a run met (none: silent), naming
     the first path in sorted order. *archive*: the pointers were shipped in a
     built artefact (the bytes are recorded as they are), not left by an
-    unpulled checkout."""
+    unpulled checkout. Within :func:`reading_remote_clone` the advice for a
+    checkout is to clone with Git LFS."""
     if not paths:
         return
     count = f" ({len(paths)} files)" if len(paths) > 1 else ""
-    advice = (
-        "the build did not pull LFS content"
-        if archive
-        else "run 'git lfs pull' for the content"
-    )
+    if archive:
+        advice = _ADVICE_SHIPPED
+    else:
+        advice = _ADVICE_CLONE if _REMOTE_CLONE.get() else _ADVICE_PULL
     what = "Git LFS pointer shipped" if archive else "Git LFS pointer, content not read"
     _log.warning("FILE=%s: %s%s; %s", loggable(min(paths)), what, count, advice)
 
@@ -213,14 +244,15 @@ class UnreadPointers:
     when the run ends. A file is one file however it is spelled."""
 
     def __init__(self) -> None:
-        # Real path -> the path as first noted (for the messages).
+        # Real path, case-folded where the file system is (macOS, Windows),
+        # -> the path as first noted (for the messages).
         self._paths: dict[str, str] = {}
 
     def note(self, path: str, pointer: LfsPointer, shown: str | None = None) -> None:
         """Note the pointer file at *path* (absolute, or from the current
         directory), stating *pointer*; the messages name it *shown*
         (default: *path*)."""
-        key = os.path.realpath(path)
+        key = normcase(realpath(path))
         if key not in self._paths:
             self._paths[key] = path if shown is None else shown
             log_pointer_not_read(self._paths[key], pointer)

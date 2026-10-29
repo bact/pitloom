@@ -17,6 +17,7 @@ import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
+from pitloom.core.lfs_pointer import log_pointer_not_read, parse_lfs_pointer
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
 from pitloom.logging_config import Cap, loggable, one_line, warn_once, warn_over_cap
@@ -196,7 +197,9 @@ def read_license_file(path: Path, root: Path | None = None) -> bytes | None:
     file not inside it (a symlink out) is not read
     (:func:`~pitloom.core.path_confine.open_inside`): its content is no
     part of the project. A file present but not read is warned about, once
-    per file and process."""
+    per file and process. A Git LFS pointer is no licence text: ``None``, with
+    a ``DEBUG`` line only (one among the project's files is also in the
+    run's one pointer warning)."""
     try:
         with path.open("rb") if root is None else open_inside(path, root) as fh:
             raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
@@ -213,6 +216,11 @@ def read_license_file(path: Path, root: Path | None = None) -> bytes | None:
         return None
     if len(raw) > LICENSE_FILE_MAX_BYTES:
         warn_over_cap(log, LICENSE_FILE_CAP, str(path), once=True)
+        return None
+    pointer = parse_lfs_pointer(raw)
+    if pointer is not None:
+        # Text standing in for a file not pulled: no licence text.
+        log_pointer_not_read(str(path), pointer)
         return None
     return raw
 
