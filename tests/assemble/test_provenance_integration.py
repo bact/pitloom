@@ -44,7 +44,7 @@ def _build_integrated_model() -> AiModelMetadata:
         name="ai-training-data",
         creator="Example Research Group",
         dataset_types=["text"],
-        dataset_size=100000,
+        byte_size=100000,
     )
     return AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.SAFETENSORS),

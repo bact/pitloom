@@ -334,9 +334,8 @@ A dataset can carry what its own metadata states. Pass `croissant=` (a
 local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any
 of the four dataset calls: its licence becomes the dataset's
 `hasDeclaredLicense`, and its version, description, download URL, creator
-(`publishedBy`) and dataset-profile fields (size, collection process,
-preprocessing, known bias, sensitive personal information) are written onto
-the package. A dataset that is a directory has its card read too: the YAML
+(`publishedBy`) and dataset-profile fields (collection process, preprocessing,
+known bias, sensitive personal information) are written onto the package. A dataset that is a directory has its card read too: the YAML
 frontmatter of its `README.md` gives `license`, `version` and `tags` (the tags
 are read but have no SPDX 3.0.1 dataset property to go in). Pass
 `declared_license=` to state the licence yourself:
@@ -371,10 +370,8 @@ says the source does not state whether they combine as AND or OR. A licence
 that holds no text (a number, a mapping), a `version` written as a decimal number (YAML and JSON read `1.10` as
 `1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
 `3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
-the wrong shape (a size that is negative, not whole, `true` or over
-9007199254740991, the largest integer canonical JSON can write; a description
-that is a list of several texts; a creator, URL or tag that is a number) is
-left out, with one `WARNING:`. A card that cannot be read at all (front
+the wrong shape (a description that is a list of several texts; a creator,
+URL or tag that is a number) is left out, with one `WARNING:`. A card that cannot be read at all (front
 matter YAML cannot parse: an impossible date such as `2024-02-30`, a number
 of thousands of digits, nesting thousands of levels deep) is skipped with one
 `WARNING:`, and the declaration goes on with its other sources: the card is

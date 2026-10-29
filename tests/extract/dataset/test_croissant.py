@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,7 +26,6 @@ from pitloom.extract._extract_utils import to_str_list as _to_str_list
 from pitloom.extract.dataset.croissant import (
     _collect_data_types,
     _extract_creator_name,
-    _extract_dataset_size,
     _infer_dataset_types,
     _normalize_sensitivity,
     read_croissant,
@@ -248,11 +248,6 @@ def test_read_croissant_full_dataset_types() -> None:
     assert "numeric" in meta.dataset_types
 
 
-def test_read_croissant_full_dataset_size() -> None:
-    meta = read_croissant(FIXTURES / "full.json")
-    assert meta.dataset_size == 5000
-
-
 def test_read_croissant_full_data_collection() -> None:
     meta = read_croissant(FIXTURES / "full.json")
     assert meta.data_collection_process == "Data was collected from public web sources."
@@ -277,7 +272,6 @@ def test_read_croissant_full_provenance_populated() -> None:
     meta = read_croissant(FIXTURES / "full.json")
     assert "name" in meta.provenance
     assert "dataset_types" in meta.provenance
-    assert "dataset_size" in meta.provenance
 
 
 def test_read_croissant_full_no_croissant_url_for_local_file() -> None:
@@ -357,54 +351,46 @@ def test_read_croissant_url_string_sets_croissant_url() -> None:
     assert meta.name == "Remote Dataset"
 
 
-def test_extract_dataset_size_top_level_total_items() -> None:
-    prov: dict[str, str] = {}
-    size = _extract_dataset_size({"cr:totalItems": "1500"}, "ds.json", prov)
-    assert size == 1500
-    assert prov.get("dataset_size") == "Source: ds.json | Field: cr:totalItems"
-
-
-def test_extract_dataset_size_invalid_top_level_falls_to_dict_record_set() -> None:
-    prov: dict[str, str] = {}
-    size = _extract_dataset_size(
-        {"totalItems": "invalid", "cr:recordSet": {"cr:totalItems": 42}},
-        "ds.json",
-        prov,
-    )
-    assert size == 42
-    assert (
-        prov.get("dataset_size")
-        == "Source: ds.json | Field: cr:recordSet, cr:totalItems"
-    )
-
-
 @pytest.mark.parametrize(
-    ("record_sets", "size"),
+    "fields",
     [
-        ([{"totalItems": 100}, {"totalItems": 20}], 120),
-        ([{"name": "no_total"}, {"totalItems": 100}], None),
-        ([{"totalItems": 100}, {"totalItems": "bad"}], None),
-        ([{"totalItems": 100}, "#other"], None),
-        ([{"totalItems": 0}, {"totalItems": 0}], 0),
+        {"totalItems": 1500},
+        {"cr:totalItems": "1500"},
+        {"sc:totalItems": 0},
+        {"schema:totalItems": -5},
+        {"cr:totalItems": True},
+        {"totalItems": 10**30},
+        {"recordSet": [{"totalItems": 100}, {"totalItems": 20}]},
+        {"cr:recordSet": {"cr:totalItems": 42}},
     ],
-    ids=["all-state", "one-states-nothing", "one-is-bad", "one-not-a-table", "zero"],
+    ids=[
+        "bare",
+        "cr",
+        "sc-zero",
+        "schema-negative",
+        "bool",
+        "huge",
+        "record-sets",
+        "dict",
+    ],
 )
-def test_extract_dataset_size_sums_only_when_every_record_set_states_one(
-    record_sets: list[dict[str, object]], size: int | None
+@pytest.mark.parametrize("name", ["full.json", "prefixed.json", None])
+def test_read_croissant_ignores_total_items(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    fields: dict[str, object],
+    name: str | None,
 ) -> None:
-    """A partial sum would understate the dataset: it is no size at all."""
-    prov: dict[str, str] = {}
-    assert _extract_dataset_size({"recordSet": record_sets}, "ds.json", prov) == size
-    assert prov.get("dataset_size") == (
-        "Source: ds.json | Field: cr:recordSet, cr:totalItems"
-        if size is not None
-        else None
-    )
-
-
-def test_extract_dataset_size_non_container_record_set_returns_none() -> None:
-    prov: dict[str, str] = {}
-    assert _extract_dataset_size({"recordSet": "not-a-list"}, "ds.json", prov) is None
+    """``totalItems`` is no Croissant term, and a record count is not a size
+    in bytes: it gives no size, no provenance and no warning."""
+    path = FIXTURES / name if name else tmp_path / "ds.json"
+    if not name:
+        path.write_text(json.dumps({"name": "ds", **fields}), encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        meta = read_croissant(path)
+    assert meta.byte_size is None
+    assert not [key for key in meta.provenance if "size" in key]
+    assert not caplog.records
 
 
 @pytest.mark.parametrize(

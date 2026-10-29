@@ -73,13 +73,13 @@ def test_gaps_are_filled_with_provenance_and_nothing_is_overwritten() -> None:
         version="2",
         creator="C",
         keywords=["k"],
-        dataset_size=0,
+        byte_size=0,
         provenance={"version": "other", "creator": "croissant"},
     )
     merged = _one([first, second])
     meta = merged.metadata
     assert (meta.version, meta.creator, meta.keywords) == ("1", "C", ["k"])
-    assert meta.dataset_size == 0  # a stated zero is a value, not a gap
+    assert meta.byte_size == 0  # a stated zero is a value, not a gap
     assert meta.provenance == {"version": "card", "creator": "croissant"}
 
 

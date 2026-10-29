@@ -375,6 +375,11 @@ From the 0.21.0 release review. Open:
 
 From the Git LFS pointer work. Open:
 
+- [x] **`dataset_datasetSize` held a record count (M), fixed in #382.** A
+  Croissant `totalItems` filled it, but SPDX defines it in bytes. `totalItems`
+  is not Croissant, so it is no longer read; `DatasetMetadata.byte_size` (bytes,
+  library callers only) replaces `dataset_size`. A count has no 3.0.1
+  property: FG-12 in [sbom-format-gaps.md](sbom-format-gaps.md).
 - [x] **A pointer's registry entry flipped between routes (M), fixed in
   #378.** Each harvest wrote its SBOM's hash, the `oid` (checkout) or the
   pointer text's digest (wheel, sdist, `--allow-build`), so alternating runs
@@ -424,18 +429,17 @@ From the Git LFS pointer work. Open:
   `loom project`; file ids are shared (the registry holds the `oid`).
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.
+- [ ] **A loom fragment's document namespace is a random `uuid4` per run (S).**
+  `_ActiveRun` sets `doc_uuid = str(uuid4())` (`_loom_active_run.py`), so the
+  same script gives different `spdxId`s each run unless an ID registry pins
+  them; the idempotence rule (no random UUIDs) holds only with a registry.
+  Found while testing the dataset-size fix: the determinism test sits on
+  `build_model`, not on `loom.run`.
 
 ## Found 2026-10-29 (evidence-levels review)
 
 From an Opus review of the provenance code against `evidence-levels.md`. Open:
 
-- [ ] **`dataset_datasetSize` holds a record count (M).** A Croissant
-  `cr:totalItems` becomes `dataset_size`, which becomes `dataset_datasetSize`
-  (`extract/dataset/croissant.py`, `assemble/spdx3/dataset.py`); SPDX defines
-  the property in bytes, and `dataset_metadata.py` and
-  `skills/sbom-enrich/references/minimum-elements-datasets.md` say "record
-  count". Silently wrong data; move the count to a comment and an FG entry
-  before any byte size is written to the property.
 - [ ] **After a comment merge the second `Metadata provenance:` block is not
   found by the drop helpers (S).** `_merge_comment` joins comments with `"; "`
   (`_fragments_props.py`); `provenance_comment_parts` strips the prefix only at

@@ -101,20 +101,21 @@ def _hub() -> str:
         return generate_model_sbom("acme/model", creation_metadata=CREATED)
 
 
-def _library() -> str:
-    """A model and a licensed, described dataset with a type and a size, built
-    through the assembler (a dataset's statistics reach a model SBOM only
-    through the library)."""
-    dataset = DatasetMetadata(
-        name="corpus",
-        version="1.0",
-        description="A text corpus.",
-        download_url="https://example.org/corpus.tar",
-        license="CC-BY-4.0",
-        creator="Alice",
-        dataset_types=["text"],
-        dataset_size=1000,
-    )
+LIBRARY_DATASET = DatasetMetadata(
+    name="corpus",
+    version="1.0",
+    description="A text corpus.",
+    download_url="https://example.org/corpus.tar",
+    license="CC-BY-4.0",
+    creator="Alice",
+    dataset_types=["text"],
+    byte_size=1000,
+)
+
+
+def library_sbom(dataset: DatasetMetadata) -> str:
+    """A model trained on *dataset*, built through the assembler (a dataset's
+    statistics reach a model SBOM only through the library)."""
     model = AiModelMetadata(
         name="m",
         version="1.0",
@@ -187,7 +188,7 @@ SCENARIOS: dict[str, Callable[[], str]] = {
     "numpy": _file("numpy/example-model-v1.npy"),
     "fasttext": _file("fasttext/sentimentdemo.bin"),
     "hub": _hub,
-    "library": _library,
+    "library": lambda: library_sbom(LIBRARY_DATASET),
     **{f"proj-{backend}": _project(backend) for backend in BACKENDS},
 }
 
