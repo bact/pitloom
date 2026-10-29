@@ -494,6 +494,20 @@ Field-note version, with the measured context:
   passed with `parse_lfs_pointer` patched to return `None`, because the SBOM
   never contained the text in the way it asserted. Run each new test against the
   pre-fix code, and assert on the value the bug produced.
+- **A message path is native, an expected string is not.** Loom's `FILE=` text
+  names a dataset member with the platform's separator (`corpus\a.bin`), and two
+  tests compared it with `corpus/a.bin`; found by reading the tests as Windows
+  would, with `ntpath`. Build the expected text with `os.path.join`. The
+  messages stay native, like their siblings.
+- **A drift guard against a tool pins the tool's version.** The grammar matrix
+  asserts git-lfs 3.4.1's verdict on every row (including the ten rows it
+  accepts and Pitloom refuses); another runner's git-lfs may differ. Skip the
+  guard unless the version is the pinned one, or compare only the rows both
+  versions agree on.
+- **An assertion on a quote character fails with an apostrophe in the path.** A
+  test expected `quote_source` to use single quotes around a temporary path; a
+  Windows user name with an apostrophe changes that. Derive the expected text
+  from `quote_source`.
 - **A mask added to a shared sanitiser rewrites data as well as messages.** The
   Git checkout mask (#375) sat in `loggable()`, which the CLI also uses for
   `KEY=VALUE` stdout that the Action reads back. It moved to `escape_controls`,

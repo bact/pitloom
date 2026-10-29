@@ -375,6 +375,13 @@ counts and durations.
   mattered came from running route A then route B on one registry (`id generate`
   on a checkout, then a wheel build, then the checkout again). Ask reviewers for
   the sequence, not the single call.
+- **A planner told to expect no backward compatibility designs a smaller
+  change.** The registry design first carried a lookup that accepted two hashes,
+  a legacy-entry adoption and a message for it; the maintainer, reminded that
+  Pitloom is alpha with very low adoption, removed all three, and the rule
+  became: store the `oid` on every route, look up the `oid`. State the
+  compatibility policy in every design brief.
+
 | Step | Model | Tokens | Minutes |
 | - | - | - | - |
 | Explore code, docs | Sonnet, Sonnet | 61 k, 79 k | 1, 1 |
