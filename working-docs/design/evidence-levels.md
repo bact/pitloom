@@ -40,6 +40,25 @@ In order of preference. The first that is available is used.
 Reading is not the only way to measure: `stat()` is safe for any regular file,
 so a size is available even when the content is over the cap.
 
+**Why a fact can be `not_measured`.** The cap on reading is one reason. For a
+remote artefact the bytes may never arrive, and then nothing can be measured at
+all:
+
+| Reason | Example | Catalogue code (proposed) |
+| - | - | - |
+| Read cap | a model over `max-model-extract-bytes` | `over-cap` |
+| Download cap | a clone stopped at the size limit (`git.too-large`); a file too big to fetch | `over-cap` or `download-cap` |
+| Wait too long | a network timeout, a slow server | `timeout` |
+| Not reachable | a refused or failed fetch, an unreachable host | `network-failed` |
+| Not resolved | an unpulled Git LFS file (only the pointer arrived) | `lfs-pointer` |
+| Not readable | a permission error, a vanished file | `unreadable-file` |
+
+In every case the declared route is still open: a remote API or a pointer often
+states the size and hash of something Pitloom did not download (the Hub API
+lists each LFS file's `oid` and size; a pointer states both; a server may send
+`Content-Length`). Record that as `declared` with its source, and the reason the
+bytes are absent as the provenance of the missing `measured` value.
+
 ## Rules
 
 1. **Prefer measured to declared.** If both exist and differ materially, record
@@ -54,7 +73,11 @@ so a size is available even when the content is over the cap.
 4. **A declared value is never compared with a cap and never decides what is
    read.** (A pointer stating 100 GB is hashed like any other; the cap counts
    real bytes.)
-5. **A walk is bounded too.** Summing the sizes of a directory with a million
+5. **Time and network limits are caps too.** A download size cap, a connect or
+   read timeout and a total wait are security limits like the read cap: they bound
+   what Pitloom waits for and never what it reports. A fetch that times out is
+   `not_measured` with the reason `timeout`, unless a declared value exists.
+   **A walk is bounded too.** Summing the sizes of a directory with a million
    entries can hang on `stat()` alone; give it an entry or time budget, and let
    an exhausted budget produce a `lower_bound`.
 6. **`not_measured` is a deviation, not absence.** Absent source data stays
@@ -85,6 +108,9 @@ so a size is available even when the content is over the cap.
 | Dataset size | not reported unless the user supplies it, although `stat()` is already called for the cap check | report `measured_stat`, also when the hash is omitted |
 | Model over the cap | a stub with a warning; no size | the declared ZIP size is in memory and could be named |
 | Directory size | not reported | a bounded walk |
+| Git source, clone stopped at the size cap | the run is refused (`git.too-large`) | none per file; the reason is the run's |
+| Git source, LFS file not pulled | `declared` (pointer), content not read | the level is not named in the provenance |
+| Hub source, file size and hash | not read from the API | the API states them: `declared` |
 
 ## Scope and order
 
@@ -111,5 +137,6 @@ under the caps.
 1. The shape of the value type and the exact provenance words.
 2. Whether `lower_bound` appears in the SBOM or only on stderr.
 3. The budget for a directory walk (entries, time, or both).
-4. Release placement of step 1.
+4. Release placement of step 1, and whether the remote `declared` sources (Hub
+   API sizes, `Content-Length`) are in the first step or the second.
 5. Whether a declared hash may sit in `verifiedUsing` at all (FG-10).
