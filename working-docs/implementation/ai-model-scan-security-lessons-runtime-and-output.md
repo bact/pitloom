@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -90,6 +90,12 @@ See also: [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
   given, resolved, `repr`-escaped, forward slashes).
 - **Truncate before escaping**, or the escaped quote loses its closing
   delimiter.
+- **The SBOM's own provenance is an output channel too.** Provenance
+  strings are parsed back (`Source: x | Field: y`), and a key read from a
+  model, an archive member or a file name holding `|` forged a segment that
+  a merge or the `minimal` filter then acted on. Every AI-model reader now
+  builds them through one sanitising builder, held by a lint (#389). See
+  [provenance-injection-and-message-contract.md](sbom-generator-field-notes/provenance-injection-and-message-contract.md).
 
 ## 3.6 Determinism (an SBOM requirement, not a nicety)
 

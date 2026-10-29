@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-15).
+the day it was added (2026-10-02 to 2026-10-29).
 
 ## Files
 
@@ -63,6 +63,12 @@ the day it was added (2026-10-02 to 2026-10-15).
   GitLab's 301, page-URL syntax per platform, ref versus folder, measured
   platforms; git-lfs, forged log lines and symlinks from an untrusted
   repository; where the logic should live; rejections said once; test traps.
+- [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md):
+  caps bound reading, never reporting; five evidence levels; recording why a
+  value is missing; a record count in a bytes property.
+- [provenance-injection-and-message-contract.md](provenance-injection-and-message-contract.md):
+  a `|` in a name forging a provenance segment; stderr codes as the contract
+  with the AI skills; what moving skill text to references loses.
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
