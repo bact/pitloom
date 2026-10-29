@@ -23,6 +23,8 @@ from pitloom.core.lfs_pointer import (
     warn_pointers_not_read,
 )
 
+LOGGER = "pitloom.core.lfs_pointer"
+
 
 @pytest.mark.parametrize(
     ("paths", "archive", "expected"),
@@ -50,7 +52,7 @@ def test_summary_is_one_line_naming_the_first_path(
 def test_no_pointer_is_silent_and_debug_line_names_the_oid(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=LOGGER):
         warn_pointers_not_read([])
         log_pointer_not_read("m.bin", LfsPointer("ab" * 32, 7))
     assert [r.levelno for r in caplog.records] == [logging.DEBUG]
@@ -65,7 +67,7 @@ def test_the_size_is_said_in_the_singular_for_one(
 ) -> None:
     """The debug line and the helper every message and comment shares."""
     assert size_text(size) == said
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=LOGGER):
         log_pointer_not_read("m.bin", LfsPointer("ab" * 32, size))
     assert caplog.records[0].getMessage().endswith(f", {said}")
 
@@ -106,7 +108,7 @@ def test_a_file_with_no_identity_is_keyed_by_its_folded_real_path(
     monkeypatch.setattr(lfs_pointer, "normcase", str.lower if folds else str)
     pointer = LfsPointer("ab" * 32, 7)
     noted = UnreadPointers()
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger=LOGGER):
         for name in ("Data.bin", "data.bin", "Data.bin"):
             noted.note(f"/p/{name}", pointer)
         noted.warn()
