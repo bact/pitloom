@@ -42,11 +42,13 @@ from pitloom.core.ai_metadata import (
     model_file_suffixes,
 )
 from pitloom.core.inert_options import PARAM_TO_FLAG
+from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract._scanner_messages import detail, scrub
 from pitloom.extract.ai_model import (
+    LFS_POINTER_REASON,
     NotAModel,
     contradicted_format,
     detect_ai_model_format_from_header,
@@ -155,6 +157,9 @@ class ModelCandidate:
             removes it, in every spelling, from the messages it logs.
         gate: Formats left unread (see :class:`ReaderGate`); the
             header sniff alone decides, and nothing is materialised.
+        pointer: Returns the Git LFS pointer the whole file is (reading at
+            most the pointer's size), else ``None``; ``None`` here: unknown,
+            so a pointer-like header is a defect. Never raises.
     """
 
     distribution_path: str
@@ -163,6 +168,7 @@ class ModelCandidate:
     materialize: Callable[[], AbstractContextManager[Path]]
     read_path: Path | None = None
     gate: ReaderGate | None = None
+    pointer: Callable[[], LfsPointer | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -348,6 +354,11 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
     return _stub(fmt, candidate)
 
 
+def _is_whole_pointer(candidate: ModelCandidate) -> bool:
+    """Whether the candidate's whole file is a valid Git LFS pointer."""
+    return candidate.pointer is not None and candidate.pointer() is not None
+
+
 def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
     """:func:`read_model_candidate` for a scan: ``None`` for a file that is
     not a model, a candidate whose suffix could not be one is not even read.
@@ -369,7 +380,15 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
         if e.reason is not None:
             # A pointer named x.bin has no format to name.
             key = "" if e.model_format is None else f"FORMAT={e.model_format} "
-            log.warning(
+            # A whole, valid pointer is said once for the run (the document
+            # build); an opening whose rest does not parse is a defect.
+            level = (
+                logging.DEBUG
+                if e.reason == LFS_POINTER_REASON and _is_whole_pointer(candidate)
+                else logging.WARNING
+            )
+            log.log(
+                level,
                 "%sFILE=%s: %s; not listed as an AI model",
                 key,
                 loggable(candidate.physical_path),

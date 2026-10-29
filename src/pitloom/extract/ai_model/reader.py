@@ -56,6 +56,7 @@ __all__ = [
     "detect_ai_model_format",
     "detect_ai_model_format_from_header",
     "detect_ai_model_format_from_name",
+    "LFS_POINTER_REASON",
     "is_git_lfs_pointer",
     "not_a_model_reason",
     "refusal_reason",
@@ -294,12 +295,16 @@ def contradicted_format(header: bytes, name: str) -> AiModelFormat | None:
 NOT_A_MODEL_MESSAGE = "not an AI model file of a supported format"
 
 
+#: The reason :func:`not_a_model_reason` gives for a pointer.
+LFS_POINTER_REASON = "header is a Git LFS pointer"
+
+
 def not_a_model_reason(header: bytes, name: str) -> str | None:
     """Why *header* and the suffix of *name* make the file not a model, when
     they contradict each other: ``header is a Git LFS pointer`` or ``header
     is not <format>``; ``None`` otherwise (see :func:`contradicted_format`)."""
     if is_git_lfs_pointer(header):
-        return "header is a Git LFS pointer"
+        return LFS_POINTER_REASON
     named = contradicted_format(header, name)
     return None if named is None else f"header is not {named}"
 

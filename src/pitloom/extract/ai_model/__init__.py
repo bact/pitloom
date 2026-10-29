@@ -15,6 +15,7 @@ modules; callers should use the facade functions exported below.
 from __future__ import annotations
 
 from pitloom.extract.ai_model.reader import (
+    LFS_POINTER_REASON,
     NOT_A_MODEL_MESSAGE,
     REGISTRY,
     SNIFF_BYTES,
@@ -45,6 +46,7 @@ __all__ = [
     "detect_ai_model_format",
     "detect_ai_model_format_from_header",
     "detect_ai_model_format_from_name",
+    "LFS_POINTER_REASON",
     "is_git_lfs_pointer",
     "not_a_model_reason",
     "read_ai_model",
