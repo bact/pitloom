@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,6 +45,9 @@ saw it.
 - **Assembler fallbacks left as they are.** `unknown` fallbacks in
   `_document_deployed.py` are now reachable only from a caller passing a
   hand-built tree with no name or version.
+- **Open (#236 review).** An unmet requirement (`installed_version: "?"`) loses
+  its `dependsOn` edge silently; two installs sharing one pipdeptree `key`
+  collide. See [known-bugs-p3.md](../design/known-bugs-p3.md).
 
 ## Tests
 

@@ -139,7 +139,9 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
   on the CLI the blob filter is a request, so only the 10-minute deadline
   bounds it.
 - A reader for a project that declares its metadata only in an imperative
-  `setup.py`; the error names the sub-projects it can read.
+  `setup.py`; the error names the sub-projects it can read. A monorepo such as
+  `labs.etsi.org/rep/ocf/capif` fails on it, with a hint naming its
+  sub-projects.
 - DNS-rebinding protection between the caller's address check and git's own
   lookup.
 - The GitHub Action takes a checkout in the workflow, not a URL.

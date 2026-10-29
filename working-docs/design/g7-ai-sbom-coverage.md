@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -172,7 +172,10 @@ decisions:
   itself collided before #6; that belongs with the registry v3 / identity
   follow-ups.
 - Dataset creators map to `publishedBy`, model producers to `originatedBy`:
-  a divergence that predates #6; decide whether it is intended.
+  a divergence that predates #6; decide whether it is intended. The checker's
+  `DP-006.1` reads `originatedBy`, so the rule stays missing: decide whether a
+  Hub dataset owner is an originator (never guessed), and whether the checker
+  should also accept `publishedBy`.
 - GGUF `general.quantized_by` (who produced the quantised file; the G7
   producer definition names fine-tuning companies) as a candidate
   originator, and `general.base_model.N.*` (base-model lineage, which the
