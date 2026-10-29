@@ -16,7 +16,8 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 that showed the gap).
 
 Status: decided 2026-10-29 (the four decisions at the end); scope split
-between 0.22.0 and 0.23.0 below.
+between 0.22.0 and 0.23.0 below. The inventory (step 1) is done; its results
+and the printed form it settled are in "Inventory results".
 
 ## Core idea
 
@@ -56,19 +57,19 @@ Measured 2026-10-29 on the Git LFS branch (#378):
 
 ## Pitloom side
 
-1. **Inventory (read-only).** Extract every message template by AST and classify
-   it: level, subject key, condition, advice, helper. Output: a draft catalogue
-   and a list of outliers (second tags, untagged continuation lines, differing
-   separators, wrapper wording).
+1. **Inventory (read-only). Done 2026-10-29**, see "Inventory results".
 2. **Grammar, written down and ratcheted.** Shape:
-   `LEVEL: [SUBJECT=value: ]CONDITION[ (detail)][; ACTION]`, advice always after
-   the semicolon. A grammar test fails any new message that breaks it; existing
-   outliers sit in an allow-list that only shrinks (as licenseid's
-   `check_diagnostic_grammar` does).
+   `LEVEL: [SUBJECT=value: ]CONDITION[ (detail)][; ACTION] [code]`. Advice is a
+   catalogue field, not parsed from the line (see the results). A grammar test
+   fails any new message that breaks it; existing outliers sit in an allow-list
+   that only shrinks (as licenseid's `check_diagnostic_grammar` does), fed by
+   the lines the tests actually produce.
 3. **One helper per family** wherever a pattern is hand-copied at three or more
    sites (extends the over-cap helper).
 4. **A closed condition vocabulary for new and touched messages only**
-   (`lfs-pointer`, `over-cap`, `not-a-model`); no rewrite of existing text.
+   (`lfs-pointer`, `over-cap`, `not-a-model`); no rewrite of existing text. The
+   code is printed as a trailing ` [code]` and travels on the log record and on
+   exceptions, not in the message text.
 5. **State the environment decision.** Offline, static or real build, which cap
    applied, which registry: each is an `INFO:` or `WARNING:` with its cause. The
    inventory shows where one is missing.
@@ -95,6 +96,64 @@ Measured 2026-10-29 on the Git LFS branch (#378):
 6. **Behaviour checks**: static tests, plus a few scenarios (Pitloom output in,
    expected explanation out) run with an agent during development.
 
+## Inventory results
+
+Measured 2026-10-29 on `main` b18e2cce by an AST extraction of every emission
+site, then a classification; every count is from a script. (The scripts move
+into the repo with the first catalogue PR.)
+
+- **983 sites; 718 user-visible lines** (WARNING, INFO, ERROR) with 517 distinct
+  templates, in **62 families using 35 condition words**. Top 10 families hold
+  43% of sites, top 20 hold 65%, **31 reach 80%**, 41 reach 90%; 11 families
+  have 1 to 3 sites. 37% of sites already use a helper or shared constant; 568
+  places to edit.
+- **Not catalogued (265 sites):** internal invariants 37, pass-through
+  `str(exc)` 49, KEY=VALUE data 16, DEBUG 46, reader-detail raises 97 (their
+  text is the detail of a catalogued line), `loom.*` library raises 19, one
+  traceback.
+- **Printed form: a trailing ` [code]`**, parsed by `^(ERROR|WARNING|INFO): (.*)
+  \[([a-z][a-z0-9-]*)\]$`. Example: `WARNING: FILE=demo/model.gguf: Git LFS
+  pointer, content not read; run 'git lfs pull' for the content [lfs-pointer]`.
+  The message text is unchanged, so the 453 `in caplog` and 46 `caplog.messages
+  ==` assertions and all 46 matched skill quotes still pass; about 47 full-line
+  stderr tests can break, one family at a time. Rejected: a `CODE=` pair after
+  the subject (155 of 545 templates name a path with no KEY subject) and a
+  leading condition word (rewrites every line; licenseid can use it because its
+  subjects are a closed set of words).
+- **Advice is a catalogue field.** 211 templates contain `; `, and another
+  tool's own `; ACTION` can sit inside a detail, so the advice cannot be parsed
+  from the line.
+- **Wording drift:** 170 sites break six mechanical rules (83 ` -- `, 72
+  trailing periods, 22 two-sentence messages, 16 pipe suffixes, 12 contractions,
+  7 "Please") across 75 modules; "failed to read" has 12 variants over 18 sites;
+  "could not" (32) competes with "cannot" (20).
+- **Skill quotes:** 46 of the 168 quotes match exactly; the 7 unmatched and the
+  approximate one are live (none stale), three need small corrections, and one
+  comes from spdx3-validate, so the drift test needs an allow-list for external
+  tools. About 94 of the 109 bare-tag quotes could cite a code.
+- **Licence families** (8 classification sites plus 3 DEBUG) wait for the
+  licenseid 0.7.0 adoption; 5 licence-file-read sites probably survive it.
+
+**Migration order** (cost against benefit; one family per PR, code first,
+wording later):
+
+1. `lfs-pointer` (5 sites, 3 edit points): builds the plumbing (record code,
+  exception code, the wrapper, the scanner's re-wrap).
+2. `over-cap` (36 sites, 8 edit points).
+3. `unreadable-file` and `unlistable-dir` (32 sites, two shared constants).
+4. `option-no-effect` (7 sites, 2 edit points).
+5. `registry-file-invalid` (24 sites, one builder).
+
+Then `lock-entry-skipped` 40, `lock-file-ignored` 28, `project-value-ignored`
+22, and the free-text families that need a helper first: `config-invalid` 46,
+`input-not-found` 25, `model-unreadable` 18.
+
+**Ratchet.** A runtime check on every captured stderr line (one tag, one line,
+no trailing period, no "Please", a `[code]` must be in the catalogue) plus a
+static, shrink-only allow-list keyed by module and normalised template.
+Capitalisation, a path with no KEY subject, "could not" against "failed to", and
+the wrapper wording need a decision before they become rules.
+
 ## Scope by release
 
 **0.22.0** (with the `licenseid` 0.7.0 adoption, which is already planned for
@@ -119,9 +178,10 @@ nested shape is real, not guessed.
 | Step | Work | Agent | Release |
 | - | - | - | - |
 | 0 | Finish #378, then the ceilings PR | in progress | 0.22.0 |
-| 1 | Inventory and outlier report (read-only); **queued after #378** | Sonnet extract, Opus classify | 0.22.0 |
+| 1 | Inventory and outlier report (read-only): **done 2026-10-29** | Sonnet extract, Opus classify | 0.22.0 |
 | 2 | Skill size PR: move detail to references, conditional pointers | Sonnet, Opus review | 0.22.0 |
-| 3 | Catalogue, grammar ratchet, generated reference, drift test | Opus design, Sonnet | 0.22.0 |
+| 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test): **queued** | Opus design, Sonnet | 0.22.0 |
+| 3b | Remaining families in the migration order above, grammar ratchet, generated skills reference | Opus design, Sonnet | 0.22.0 |
 | 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
 | 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.23.0 |
 
@@ -133,9 +193,9 @@ Decided 2026-10-29 (the maintainer took the recommendations; SARIF and the
 resolver JSON deferred to 0.23.0):
 
 1. **Condition token.** Every catalogued message has a stable code. In
-   0.22.0 the printed line carries it only for catalogued messages, appended at
-   the end so `LEVEL:` stays first and the grammar holds; the exact form is
-   fixed after the inventory gives the count. A message without a token is
+   0.22.0 the printed line carries it only for catalogued messages, as a
+   trailing ` [code]` (settled by the inventory; see the results) so `LEVEL:`
+   stays first and the existing text is unchanged. A message without a token is
    "not catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will
    give every record a code, `uncatalogued` where there is none.
 2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
@@ -153,5 +213,9 @@ resolver JSON deferred to 0.23.0):
 - A message rewrite breaks tests that pin wording. Touch a family at a time.
 - The grammar test is only as good as the extraction: start with the shared
   helpers, then the free-text sites.
+- The families are rule-based over a static extraction and raise reach is a
+  heuristic: build the ratchet on lines the tests produce.
+- One condition prints in several shapes by surface; the code must travel on
+  exceptions or it is lost on two of three surfaces.
 - Moving text to references can make a rule unread. Safety and fallbacks stay in
   the body; recipes are run before and after.
