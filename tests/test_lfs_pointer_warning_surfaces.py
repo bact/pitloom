@@ -263,6 +263,6 @@ def test_an_opening_that_does_not_parse_keeps_its_warning(
     bad = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
     tree = {"demo/__init__.py": b"", "demo/m.gguf": bad, "demo/m.bin": bad}
     _, warnings, _ = _run(surface, tree, tmp_path, monkeypatch, capsys)
-    per_file = [w for w in warnings if "header is a Git LFS pointer" in w]
+    per_file = [w for w in warnings if "header looks like a Git LFS pointer" in w]
     assert len(per_file) == 2 and len(warnings) == 2
     assert all(trusted_message(w) is LFS_POINTER_MALFORMED for w in per_file)

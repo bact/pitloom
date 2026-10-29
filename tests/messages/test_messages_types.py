@@ -3,10 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The catalogue's entries keep its rules, and the package imports in either
-order with :mod:`pitloom.logging_config`.
+"""The catalogue's entries keep its rules (the code grammar, the closed
+vocabularies, a line for each level and set of values), and the package
+imports in either order with :mod:`pitloom.logging_config`.
 
-See also: tests/messages/test_messages_emit.py (the code on a record and an
+See also: tests/messages/test_messages_fields.py (templates, fields and
+frames), tests/messages/test_messages_emit.py (the code on a record and an
 exception), tests/messages/test_messages_lines.py (reading a line back).
 """
 
@@ -16,6 +18,7 @@ import ast
 import dataclasses
 import subprocess  # nosec B404
 import sys
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -24,14 +27,19 @@ import pytest
 from pitloom.core.evidence import REASON_CODES
 from pitloom.messages import (
     CONDITIONS,
+    LFS_CLONE_LINE,
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
+    LFS_PULL_LINE,
     MESSAGES,
+    Line,
+    Message,
 )
 from pitloom.messages._catalogue import _by_code
 
 _SRC = str(Path(__file__).resolve().parents[2] / "src")
+_SHIPPED_LINE = LFS_POINTER_SHIPPED.lines[0]
 
 
 def test_every_entry_is_keyed_by_its_own_code() -> None:
@@ -50,6 +58,16 @@ def test_the_lfs_pointer_code_is_the_evidence_reason() -> None:
     """One condition, one code: the warning's code and the provenance's
     ``Reason: lfs-pointer`` stay equal."""
     assert LFS_POINTER.code in REASON_CODES
+
+
+def test_the_family_and_the_levels_come_from_the_code_and_the_lines() -> None:
+    assert (LFS_POINTER_SHIPPED.family, LFS_POINTER_MALFORMED.family) == (
+        "lfs-pointer",
+        "lfs-pointer-malformed",
+    )
+    assert LFS_POINTER.levels == {"WARNING", "ERROR"}
+    assert LFS_POINTER_SHIPPED.levels == {"WARNING"}
+    assert hash(dataclasses.replace(LFS_POINTER)) == hash(LFS_POINTER)
 
 
 @pytest.mark.parametrize(
@@ -75,18 +93,23 @@ def test_a_code_catalogued_twice_is_refused() -> None:
         ({"code": "lfs-pointer-"}, "is not a code"),
         ({"code": "lfs-pointer/"}, "is not a code"),
         ({"code": "lfs-pointer/-a"}, "is not a code"),
+        ({"code": "1fs-pointer"}, "is not a code"),
         ({"code": "lfs-pointer/" + "a" * 29}, "is not a code"),
-        ({"code": "lfs-pointerx"}, "is not in"),
-        ({"code": "other/shipped"}, "is not in"),
-        ({"code": "sbom", "family": "sbom"}, "reserved"),
-        ({"code": "pitloom/x", "family": "pitloom"}, "reserved"),
+        ({"code": "sbom"}, "reserved"),
+        ({"code": "pitloom/x"}, "reserved"),
         ({"condition": "broken"}, "unknown condition"),
-        ({"levels": frozenset()}, "levels"),
-        ({"levels": frozenset({"DEBUG"})}, "levels"),
+        ({"effect": "fatter"}, "unknown effect"),
+        ({"actor": "agent"}, "unknown actor"),
+        ({"lines": ()}, "no lines"),
+        ({"lines": (_SHIPPED_LINE, _SHIPPED_LINE)}, "one line twice"),
         ({"advice": " "}, "empty field"),
         ({"summary": ""}, "empty field"),
-        ({"patterns": ()}, "empty field"),
-        ({"patterns": ("",)}, "empty field"),
+        ({"did": "\n"}, "empty field"),
+        ({"subject_key": "file"}, "subject key"),
+        ({"subject_key": "PATH"}, "subject key"),
+        ({"since": "0.22"}, "since"),
+        ({"since": "v0.22.0"}, "since"),
+        ({"since": "0.022.0"}, "since"),
     ],
     ids=lambda value: str(value)[:30],
 )
@@ -94,7 +117,40 @@ def test_an_entry_breaking_a_rule_is_refused(
     change: dict[str, Any], match: str
 ) -> None:
     with pytest.raises(ValueError, match=match):
-        dataclasses.replace(LFS_POINTER, **change)
+        dataclasses.replace(LFS_POINTER_SHIPPED, **change)
+
+
+def test_line_for_picks_the_one_line_naming_the_values() -> None:
+    malformed = LFS_POINTER_MALFORMED
+    assert LFS_POINTER_SHIPPED.line_for("WARNING", {"file", "count"}) == (_SHIPPED_LINE)
+    assert malformed.line_for("WARNING", {"file"}).template.startswith("FILE=")
+    assert malformed.line_for("WARNING", ["format", "file"]).template.startswith(
+        "FORMAT="
+    )
+    for line in (LFS_PULL_LINE, LFS_CLONE_LINE):
+        assert LFS_POINTER.line_for("WARNING", {"file", "count"}, line) is line
+
+
+@pytest.mark.parametrize(
+    ("message", "level", "names", "line", "match"),
+    [
+        (LFS_POINTER, "WARNING", {"file", "count"}, None, "2 name"),
+        (LFS_POINTER, "WARNING", {"file", "count"}, _SHIPPED_LINE, "not one"),
+        (LFS_POINTER, "ERROR", {"path"}, None, "0 name"),
+        (LFS_POINTER_SHIPPED, "ERROR", {"file", "count"}, None, "0 name"),
+        (LFS_POINTER_SHIPPED, "WARNING", {"file"}, None, "0 name"),
+    ],
+    ids=["two-lines", "another-line", "too-few", "level", "names"],
+)
+def test_line_for_refuses_when_it_cannot_tell(
+    message: Message,
+    level: str,
+    names: Collection[str],
+    line: Line | None,
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        message.line_for(level, names, line)
 
 
 @pytest.mark.parametrize(

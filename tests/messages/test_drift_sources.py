@@ -5,7 +5,8 @@
 
 """Drift guard on the source: every catalogued message is used, every place
 that says a catalogued family's text goes through the catalogue, the evidence
-reasons are catalogued or pending, and each pattern reads back as its entry.
+reasons are catalogued or pending, each line reads back as its entry, and
+each entry's advice fits its actor.
 
 See also: tests/messages/test_drift_records.py (run time) and
 tests/messages/test_drift_quotes.py (docs and skills).
@@ -14,14 +15,13 @@ tests/messages/test_drift_quotes.py (docs and skills).
 from __future__ import annotations
 
 import ast
-import itertools
 
 import pytest
 
 from pitloom.core.evidence import REASON_CODES
-from pitloom.messages import MESSAGES, trusted_message
+from pitloom.messages import FRAMES, MESSAGES, trusted_message
 from tests._message_drift import (
-    cores,
+    SAMPLES,
     families_said_by,
     family_names,
     referenced_names,
@@ -83,52 +83,62 @@ def test_a_module_saying_a_family_text_uses_the_catalogue() -> None:
     assert not found
 
 
-def _says(node: ast.Call, family_cores: set[str]) -> bool:
+def _says(node: ast.Call) -> bool:
+    """Whether a call's own strings hold a family's line text whole."""
     texts = [c for arg in node.args for c in string_constants(arg)]
-    return any(
-        piece in core or core in piece
-        for text in texts
-        for piece in cores(text)
-        for core in family_cores
-    )
+    return bool(families_said_by(texts, whole=True))
 
 
 def test_every_call_saying_a_family_text_carries_its_code() -> None:
-    """A log call (above ``DEBUG``) whose own strings hold a family's
-    wording passes ``extra=``; a raise does it as a ``CodedValueError``."""
-    said = {
-        c
-        for entry in MESSAGES.values()
-        for pattern in entry.patterns
-        for c in cores(pattern)
-    }
+    """A log call (above ``DEBUG``) or ``print_error`` whose own strings
+    hold a family's text says it through the catalogue instead (``emit``,
+    ``CodedValueError``), or at least carries the code; a sibling message
+    sharing a tail (``not listed as an AI model``) is not one."""
     bare = []
     for path, tree in source_modules():
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
+            if not isinstance(node, ast.Call) or not _says(node):
                 continue
             name = getattr(node.func, "attr", getattr(node.func, "id", ""))
-            if name in _LOG_METHODS and _says(node, said):
-                if not any(kw.arg == "extra" for kw in node.keywords):
-                    bare.append(f"{path}:{node.lineno}: {name}")
-            elif name in {"print_error"} and _says(node, said):
-                if not any(kw.arg == "code" for kw in node.keywords):
-                    bare.append(f"{path}:{node.lineno}: {name}")
+            key = {"print_error": "code"}.get(name, "extra")
+            if (name in _LOG_METHODS or name == "print_error") and not any(
+                kw.arg == key for kw in node.keywords
+            ):
+                bare.append(f"{path}:{node.lineno}: {name}")
     assert not bare
 
 
 @pytest.mark.parametrize("entry", sorted(MESSAGES), ids=str)
-def test_each_pattern_reads_back_as_its_entry(entry: str) -> None:
-    """Every pattern, at every level of its entry, with a value for each
-    ``%s``, is trusted as that entry; no pattern ends in a code."""
+def test_each_line_reads_back_as_its_entry(entry: str) -> None:
+    """Every line, with a sample value for each field, alone and after each
+    frame of its level, is trusted as its entry, and at no other level."""
     message = MESSAGES[entry]
-    for pattern, level in itertools.product(message.patterns, sorted(message.levels)):
-        line = f"{level}: {pattern.replace('%s', 'v')} [{message.code}]"
-        assert trusted_message(line) is message, line
-        assert not pattern.rstrip().endswith("]")
-    assert message.advice.startswith("Tell the user")
+    for line in message.lines:
+        text = line.render({name: SAMPLES[name] for name in line.fields})
+        heads = [
+            frame.render({name: SAMPLES[name] for name in frame.fields})
+            for frame in FRAMES
+            if line.level in frame.levels
+        ]
+        for head in ["", *heads]:
+            printed = f"{line.level}: {head}{text} [{message.code}]"
+            assert trusted_message(printed) is message, printed
+        for other in {"ERROR", "WARNING", "INFO"} - message.levels:
+            assert trusted_message(f"{other}: {text} [{message.code}]") is None
 
 
-def test_no_two_entries_share_a_pattern() -> None:
-    patterns = [p for m in MESSAGES.values() for p in m.patterns]
-    assert len(patterns) == len(set(patterns))
+@pytest.mark.parametrize("entry", sorted(MESSAGES), ids=str)
+def test_the_advice_fits_its_actor(entry: str) -> None:
+    """``user``: an agent relays the advice and does not act on it;
+    ``caller``: the program that ran the command may fix it itself."""
+    message = MESSAGES[entry]
+    relayed = message.advice.startswith("Tell the user")
+    if message.actor == "user":
+        assert relayed and " Do not " in message.advice, message.advice
+    else:
+        assert not relayed, message.advice
+
+
+def test_no_two_entries_share_a_line() -> None:
+    lines = [(ln.level, ln.template) for m in MESSAGES.values() for ln in m.lines]
+    assert len(lines) == len(set(lines))

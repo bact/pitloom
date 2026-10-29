@@ -3,19 +3,22 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""One catalogue entry, :class:`Message`, and the closed vocabularies it
-draws on.
+"""One catalogue entry, :class:`Message`, the shapes it is printed in,
+:class:`Line`, and the closed vocabularies they draw on.
 
-See also: :mod:`pitloom.messages` (the catalogue).
+See also: :mod:`pitloom.messages` (the catalogue) and
+:mod:`pitloom.messages._fields` (the values a line names).
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Final
 
 from pitloom.logging_config import CODE_PATTERN
+from pitloom.messages._fields import FIELDS, PLACEHOLDER, render, template_names
 
 #: The levels a catalogued message is printed at (``DEBUG`` lines carry no
 #: code).
@@ -63,6 +66,16 @@ CONDITIONS: Final = frozenset(
     }
 )
 
+#: What the condition does to the SBOM, as a ``WARNING:``: nothing; it says
+#: less (``thinner``); what it says is less sure (``weaker``); or no SBOM is
+#: written for that input (``not-written``).
+EFFECTS: Final = frozenset({"none", "thinner", "weaker", "not-written"})
+
+#: Who acts on the advice: the ``user`` (an agent relays it and does not
+#: act), the ``caller`` (the program or agent that ran the command may fix
+#: its own command), or ``none``.
+ACTORS: Final = frozenset({"user", "caller", "none"})
+
 #: One part of a code: lower-case ASCII words joined by single hyphens.
 _PART: Final = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
 #: A catalogued code: a family, optionally ``/`` and a variant.
@@ -77,6 +90,9 @@ RESERVED_FAMILIES: Final = frozenset(
 
 _CODE_RE: Final = re.compile(CODE_GRAMMAR)
 _READ_RE: Final = re.compile(CODE_PATTERN)
+_CODE_LIKE_END: Final = re.compile(rf" \[{CODE_PATTERN}\]\Z")
+_KEY_RE: Final = re.compile(r"[A-Z][A-Z0-9_]*")
+_RELEASE_RE: Final = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2}")
 
 
 def _code_problem(code: str) -> str | None:
@@ -92,7 +108,80 @@ def _code_problem(code: str) -> str | None:
     return None
 
 
-@dataclass(frozen=True)
+def template_problem(template: str) -> str | None:
+    """Why *template* cannot be a line's or a frame's text, or ``None``: it
+    names an unknown field, holds a stray ``%`` or a line break, has white
+    space at its start, ends in what reads as a code, or puts a field that
+    takes any text first or next to another field (it would take in what
+    lies beside it)."""
+    try:
+        template_names(template)
+    except ValueError as exc:
+        return str(exc)
+    if not template.strip() or template != template.lstrip():
+        return f"{template!r}: empty, or white space at its start"
+    if "\n" in template or "\r" in template:
+        return f"{template!r}: a line break"
+    if _CODE_LIKE_END.search(template):
+        return f"{template!r}: ends in what reads as a code"
+    spans = [(m.start(), m.end(), m.group(1)) for m in PLACEHOLDER.finditer(template)]
+    for i, (start, end, name) in enumerate(spans):
+        beside = (i > 0 and spans[i - 1][1] == start) or (
+            i + 1 < len(spans) and spans[i + 1][0] == end
+        )
+        if FIELDS[name].free and (start == 0 or beside):
+            return f"{template!r}: {name!r} takes any text, first or beside a field"
+    return None
+
+
+@dataclass(frozen=True, kw_only=True)
+class Line:
+    """One shape a message is printed in.
+
+    Raises:
+        ValueError: The level is not one of :data:`LEVELS`, or the
+            template breaks a rule of :func:`template_problem`, or ends in
+            white space.
+    """
+
+    #: ``ERROR``, ``WARNING`` or ``INFO``.
+    level: str
+    #: The text between ``LEVEL: `` and `` [code]``, each value
+    #: ``%(name)s`` of a field of :data:`~pitloom.messages._fields.FIELDS`.
+    template: str
+
+    def __post_init__(self) -> None:
+        """Check the line against the catalogue's rules."""
+        if self.level not in LEVELS:
+            raise ValueError(f"{self.template!r}: level {self.level!r} not in LEVELS")
+        problem = template_problem(self.template)
+        if problem is None and self.template != self.template.rstrip():
+            problem = f"{self.template!r}: white space at its end"
+        if problem is not None:
+            raise ValueError(problem)
+
+    @property
+    def fields(self) -> frozenset[str]:
+        """The names the template uses."""
+        return frozenset(template_names(self.template))
+
+    @property
+    def shown(self) -> str:
+        """The template as the reference shows it, each value as
+        :attr:`~pitloom.messages._fields.Field.shown` (``<file>``)."""
+        return PLACEHOLDER.sub(lambda m: FIELDS[m.group(1)].shown, self.template)
+
+    def render(self, values: Mapping[str, object]) -> str:
+        """The text printed for *values*, each written by its field.
+
+        Raises:
+            ValueError: *values* names other fields, or a value does not
+                have its field's shape.
+        """
+        return render(self.template, values)
+
+
+@dataclass(frozen=True, kw_only=True)
 class Message:
     """A catalogued message: what Pitloom prints, what it means, what it did
     and what a reader (a person, or an agent relaying it) should do.
@@ -103,37 +192,90 @@ class Message:
     """
 
     #: The stable code printed as `` [code]``: the family, or
-    #: ``<family>/<variant>`` (:data:`CODE_GRAMMAR`).
+    #: ``<family>/<variant>`` (:data:`CODE_GRAMMAR`), named by the cause.
     code: str
-    #: The group of messages this one belongs to.
-    family: str
-    #: What happened, from :data:`CONDITIONS`.
+    #: What happened, from :data:`CONDITIONS`; one per family.
     condition: str
-    #: The levels it is printed at, from :data:`LEVELS`.
-    levels: frozenset[str]
-    #: What the line names (``FILE``, a model path).
-    subject: str
-    #: What the message means, in one sentence.
+    #: Every shape it is printed in.
+    lines: tuple[Line, ...]
+    #: What the message means.
     summary: str
-    #: What Pitloom did about it.
+    #: What Pitloom did about it, as a ``WARNING:``.
     did: str
-    #: What an agent tells the user to do; never to run a fix itself.
+    #: What it does to the SBOM, from :data:`EFFECTS`.
+    effect: str
+    #: Who acts on :attr:`advice`, from :data:`ACTORS`.
+    actor: str
+    #: What an agent tells the user, or what the caller may fix.
     advice: str
-    #: The message text as printed, after ``LEVEL: `` and before the code,
-    #: with ``%s`` for each interpolated value.
-    patterns: tuple[str, ...]
+    #: The key of the ``KEY=value`` its lines name the subject by (``FILE``).
+    subject_key: str | None = None
+    #: The release that first prints the code.
+    since: str = "0.22.0"
 
     def __post_init__(self) -> None:
         """Check the entry against the catalogue's rules."""
         problem = _code_problem(self.code)
+        if problem is None:
+            problem = self._field_problem()
         if problem is not None:
             raise ValueError(problem)
-        if self.code.partition("/")[0] != self.family:
-            raise ValueError(f"message code {self.code!r} is not in {self.family!r}")
-        if self.condition not in CONDITIONS:
-            raise ValueError(f"{self.code}: unknown condition {self.condition!r}")
-        if not self.levels or not self.levels <= LEVELS:
-            raise ValueError(f"{self.code}: levels {sorted(self.levels)} not in LEVELS")
-        texts = (self.subject, self.summary, self.did, self.advice, *self.patterns)
-        if not self.patterns or not all(text.strip() for text in texts):
-            raise ValueError(f"{self.code}: an empty field")
+
+    def _field_problem(self) -> str | None:
+        """Why a field other than the code breaks a rule, or ``None``."""
+        checks = (
+            (self.condition in CONDITIONS, f"unknown condition {self.condition!r}"),
+            (self.effect in EFFECTS, f"unknown effect {self.effect!r}"),
+            (self.actor in ACTORS, f"unknown actor {self.actor!r}"),
+            (
+                bool(self.lines) and len(set(self.lines)) == len(self.lines),
+                "no lines, or one line twice",
+            ),
+            (
+                all(t.strip() for t in (self.summary, self.did, self.advice)),
+                "an empty field",
+            ),
+            (
+                self.subject_key is None
+                or (
+                    _KEY_RE.fullmatch(self.subject_key) is not None
+                    and any(f"{self.subject_key}=" in ln.template for ln in self.lines)
+                ),
+                f"subject key {self.subject_key!r} names no line's subject",
+            ),
+            (
+                _RELEASE_RE.fullmatch(self.since) is not None,
+                f"since {self.since!r}",
+            ),
+        )
+        return next((f"{self.code}: {why}" for ok, why in checks if not ok), None)
+
+    @property
+    def family(self) -> str:
+        """The code before any ``/``: the group of messages of one
+        condition."""
+        return self.code.partition("/")[0]
+
+    @property
+    def levels(self) -> frozenset[str]:
+        """The levels its lines are printed at."""
+        return frozenset(line.level for line in self.lines)
+
+    def line_for(
+        self, level: str, names: Collection[str], line: Line | None = None
+    ) -> Line:
+        """Its line at *level* that names exactly *names*: *line*, which
+        must be one of them, else the only one.
+
+        Raises:
+            ValueError: No line does, *line* is not one, or several do and
+                *line* does not say which.
+        """
+        wanted = frozenset(names)
+        found = [ln for ln in self.lines if ln.level == level and ln.fields == wanted]
+        if line is not None and line in found:
+            return line
+        if line is None and len(found) == 1:
+            return found[0]
+        what = "that line is not one" if line is not None else f"{len(found)} name"
+        raise ValueError(f"{self.code}: {what} of its {level} lines {sorted(wanted)}")

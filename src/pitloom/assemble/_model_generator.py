@@ -28,7 +28,7 @@ from pitloom.core.inert_options import (
     SDIST,
     settle_inert,
 )
-from pitloom.core.lfs_pointer import read_lfs_pointer, size_text
+from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
@@ -58,12 +58,6 @@ from pitloom.logging_config import (
     one_line,
     sanitize_url,
 )
-from pitloom.messages import (
-    LFS_POINTER,
-    LFS_POINTER_MALFORMED,
-    CodedValueError,
-    Message,
-)
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +75,8 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         FileNotFoundError: *model_path* does not exist.
         ValueError: The file is not a model of a supported format (an empty
             file, an unknown format, a header that contradicts the suffix);
-            a :class:`~pitloom.messages.CodedValueError` for a Git LFS pointer.
+            a :class:`~pitloom.messages.CodedValueError` for a Git LFS
+            pointer (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
         OSError: The header cannot be read.
     """
     if not model_path.exists():
@@ -89,31 +84,9 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     try:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
-        reason, message = _refusal_text(e, model_path)
-        text = f"{quote_source(model_path)}: {reason}"
-        if message is None:
-            raise ValueError(text) from e
-        raise CodedValueError(message, text) from e
-
-
-def _refusal_text(refusal: NotAModel, model_path: Path) -> tuple[str, Message | None]:
-    """*refusal* as said for a named file, and the catalogued message it is: a
-    file that is a whole Git LFS pointer states its ``oid`` and size and the
-    command that pulls the content; one that only opens like a pointer keeps
-    the plain reason (``None`` when the pointer cannot be read again)."""
-    if refusal.reason != LFS_POINTER_REASON:
-        return str(refusal), None
-    try:
-        pointer = read_lfs_pointer(model_path)
-    except OSError:
-        return str(refusal), None
-    if pointer is None:
-        return str(refusal), LFS_POINTER_MALFORMED
-    return (
-        f"{LFS_POINTER_REASON}, content not pulled "
-        f"(oid sha256:{pointer.oid}, size {size_text(pointer.size)}); "
-        "run 'git lfs pull'"
-    ), LFS_POINTER
+        if e.reason == LFS_POINTER_REASON:
+            refuse_named_pointer(model_path, e)
+        raise ValueError(f"{quote_source(model_path)}: {e}") from e
 
 
 #: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model

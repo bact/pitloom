@@ -166,7 +166,7 @@ def test_a_reader_records_code_is_kept_when_relogged(
 ) -> None:
     def reader(path: Path, **_kwargs: Any) -> Any:
         log = logging.getLogger("pitloom.extract.ai_model.pytorch")
-        emit(log, LFS_POINTER_MALFORMED, logging.WARNING, "x in %s", path.name)
+        emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=path.name)
         log.warning("plain")
         raise ValueError("boom")
 

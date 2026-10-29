@@ -7,9 +7,9 @@ message, so its line ends in `` [code]``.
 
 A call has a *static* code when it
 
-- is ``emit(...)``, ``code_extra(...)`` or ``CodedValueError(...)``, or
+- is ``emit(...)`` or ``CodedValueError(...)``, or
 - passes ``code=`` a string or a ``pitloom.messages`` constant, or
-- passes ``extra=`` holding ``code_extra(...)`` or a ``pitloom_code`` key, or
+- passes ``extra=`` holding a ``pitloom_code`` key (``CODE_ATTR``), or
 - passes a ``pitloom.messages`` constant (an upper-case name imported from
   that package) as an argument.
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 STATIC = "static"
 FORWARD = "forward"
 #: Calls that put a fixed catalogued code on a record or an exception.
-STATIC_CALLS = frozenset({"emit", "code_extra", "CodedValueError"})
+STATIC_CALLS = frozenset({"emit", "CodedValueError"})
 #: Calls that read the code from an exception.
 FORWARD_CALLS = frozenset({"code_extra_of"})
 #: The ``extra`` key (and its constant) that carries a code on a log record.

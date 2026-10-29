@@ -19,7 +19,9 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import _model_generator, enrich_model, generate_model_sbom
+from pitloom.core import lfs_pointer
 from pitloom.id_registry import IdRegistry
+from pitloom.messages import code_of
 from tests._lfs import lfs_pointer_bytes
 
 
@@ -66,7 +68,8 @@ def test_a_pointer_that_cannot_be_read_again_keeps_the_plain_reason(
     def unreadable(*_args: Any, **_kwargs: Any) -> None:
         raise PermissionError(13, "Permission denied")
 
-    monkeypatch.setattr(_model_generator, "read_lfs_pointer", unreadable)
+    monkeypatch.setattr(lfs_pointer, "read_lfs_pointer", unreadable)
     with pytest.raises(ValueError, match="header is a Git LFS pointer") as caught:
         generate_model_sbom(path)
     assert "content not pulled" not in str(caught.value)
+    assert code_of(caught.value) is None  # neither condition is known

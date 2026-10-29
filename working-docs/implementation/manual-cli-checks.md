@@ -347,10 +347,11 @@ the truncated model and none for the pointer, and warn exactly once per file
 and each warns on its own; a real whole pointer is check 23's one summary);
 the two runs' `WARNING:` text is equal once the path is replaced (`failed to
 extract metadata ...` or, without the `safetensors` extra, `required library
-not installed ...`; `header is a Git LFS pointer; not listed as an AI model`). `loom
-model` of the truncated file writes one `ai_AIPackage` with that same warning
-and exits 0; `loom model` of any pointer exits 1 with exactly one `ERROR:` and
-writes nothing. Automated as check 17
+not installed ...`; `header looks like a Git LFS pointer but is not a valid
+one; not listed as an AI model [lfs-pointer-malformed]`). `loom model` of the
+truncated file writes one `ai_AIPackage` with that same warning and exits 0;
+`loom model` of any pointer exits 1 with exactly one `ERROR:` (code
+`lfs-pointer-malformed`) and writes nothing. Automated as check 17
 (`scripts/manual_cli_checks/_checks_model.py::check_model_outcome_parity`).
 Per-kind detail (parse, bound, library, empty, `.pth` text) is in
 `tests/assemble/test_model_outcome_parity.py`.
@@ -369,7 +370,7 @@ read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
 **23. Git LFS pointers: recorded by `oid`, reported once, refused as models**:
 a project holding the real Hub pointers of `tests/fixtures/lfs-pointers/` (a
 dataset `.parquet`, a model `.bin`, a `.zip`, a `.js`), a normal file and a
-file over 1 KiB that opens like a pointer. `loom project --offline` exits 0
+file of 1 KiB or more that opens like a pointer. `loom project --offline` exits 0
 with exactly one `WARNING:` (`Git LFS pointer, content not read (4 files)`,
 naming `git lfs pull`; the per-file detail is `DEBUG:`), no model warning and
 no `ai_AIPackage`. Each pointer's `software_File` has one SHA-256 equal to

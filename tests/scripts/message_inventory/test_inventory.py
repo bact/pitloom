@@ -28,7 +28,7 @@ def _site(records: list[dict[str, Any]], module: str, line: int) -> dict[str, An
 # (module, line, coded, forwards the exception's code)
 SITES = [
     ("pitloom.coded", 9, True, False),  # emit(...)
-    ("pitloom.coded", 10, True, False),  # extra=code_extra(...)
+    ("pitloom.coded", 10, True, False),  # extra={CODE_ATTR: ...}
     ("pitloom.coded", 11, True, False),  # raise CodedValueError(...)
     ("pitloom.helpers", 13, True, False),  # a helper body that codes
     ("pitloom.callers", 5, True, False),  # a call of that helper

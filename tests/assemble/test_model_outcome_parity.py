@@ -53,7 +53,8 @@ _CRFSUITE_MINIMAL = (
 )
 _CRFSUITE_COMPLETE = _CRFSUITE_MINIMAL.with_name("complete.crfsuite")
 _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"
-_LFS_WARNING = "header is a Git LFS pointer; not listed as an AI model"
+_LOOKS = "header looks like a Git LFS pointer but is not a valid one"
+_LFS_WARNING = f"{_LOOKS}; not listed as an AI model"
 _NOT_A_MODEL = "not an AI model file"  # what a refused file with no reason says
 _TRUNCATED = struct.pack("<Q", 200) + b'{"a": 1}'  # header cut short
 _CREATED = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
@@ -133,9 +134,7 @@ _KINDS = {
     # a Git LFS pointer is no model under any candidate suffix: a magic one,
     # one admitting any header, PyTorch's, and one naming no format
     **{
-        f"lfs{suffix}": Kind(
-            f"m{suffix}", _LFS, None, _LFS_WARNING, refusal="header is a Git LFS"
-        )
+        f"lfs{suffix}": Kind(f"m{suffix}", _LFS, None, _LFS_WARNING, refusal=_LOOKS)
         for suffix in (".gguf", ".onnx", ".pt", ".bin", ".model")
     },
     # ``.model`` is shared (SentencePiece writes a protobuf one): without

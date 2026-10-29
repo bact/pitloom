@@ -21,7 +21,8 @@ from pathlib import Path
 
 import pitloom.messages as catalogue
 from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
-from pitloom.messages import MESSAGES, Message, trusted_message
+from pitloom.messages import FIELDS, FRAMES, MESSAGES, Message, trusted_message
+from pitloom.messages._fields import PLACEHOLDER
 from tests._docs_scan import REPO_ROOT
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
@@ -29,6 +30,16 @@ SRC_ROOT = REPO_ROOT / "src" / "pitloom"
 #: A logger named like this belongs to a test that feeds the catalogue odd
 #: text on purpose; its records are not checked.
 TEST_LOGGER_PREFIX = "pitloom.test_"
+
+#: A value of each field, as a caller passes it.
+SAMPLES: dict[str, object] = {
+    "count": 2,
+    "file": "m/a.bin",
+    "format": "gguf",
+    "oid": "0f" * 32,
+    "path": "m.gguf",
+    "size": 3,
+}
 
 
 def record_problem(record: logging.LogRecord) -> str | None:
@@ -108,24 +119,29 @@ def string_constants(tree: ast.AST) -> list[str]:
 _EDGE = " :;,()"
 
 
+_VALUE = re.compile(r"%\([a-z_]+\)s|%s")
+
+
 def cores(text: str) -> list[str]:
-    """The literal pieces of *text* (a pattern or a template) between its
-    ``%s`` values, trimmed of edge punctuation, 20 characters or more."""
-    pieces = (piece.strip(_EDGE) for piece in text.split("%s"))
+    """The literal pieces of *text* (a template, or a string of the source)
+    between its values (``%(name)s``, ``%s``), trimmed of edge punctuation,
+    20 characters or more."""
+    pieces = (piece.strip(_EDGE) for piece in _VALUE.split(text))
     return [piece for piece in pieces if len(piece) >= 20]
 
 
 def family_cores() -> dict[str, set[str]]:
-    """Each family to the cores of its entries' patterns."""
+    """Each family to the cores of its entries' lines."""
     found: dict[str, set[str]] = {}
     for entry in MESSAGES.values():
-        for pattern in entry.patterns:
-            found.setdefault(entry.family, set()).update(cores(pattern))
+        for line in entry.lines:
+            found.setdefault(entry.family, set()).update(cores(line.template))
     return found
 
 
-def families_said_by(texts: list[str]) -> set[str]:
-    """The families whose pattern text any of *texts* holds, or is part of."""
+def families_said_by(texts: list[str], *, whole: bool = False) -> set[str]:
+    """The families whose line text any of *texts* holds, or is part of;
+    with *whole*, only those whose text one of *texts* holds whole."""
     said = family_cores()
     return {
         family
@@ -133,7 +149,7 @@ def families_said_by(texts: list[str]) -> set[str]:
         for text in texts
         for piece in cores(text)
         for core in family_texts
-        if piece in core or core in piece
+        if core in piece or (not whole and piece in core)
     }
 
 
@@ -144,22 +160,34 @@ _LEVEL = re.compile(r"^(ERROR|WARNING|INFO): ")
 _CODE = re.compile(rf" \[({CODE_PATTERN})\]$")
 
 
+_ANGLED = re.compile(r"<[^<>]*>")
+
+
+def _as_quoted(template: str) -> str:
+    """*template* with each value as the reference shows it (``'<path>'``),
+    its ``<name>`` a NUL that a quote's wildcard takes."""
+    return PLACEHOLDER.sub(
+        lambda found: _ANGLED.sub("\x00", FIELDS[found.group(1)].shown), template
+    )
+
+
 def quote_matches(quote: str, family: str) -> bool:
     """Whether *quote* (a backticked line or piece of one, optionally with
-    its ``LEVEL: `` and its `` [code]``) is part of a pattern of *family*,
-    at that level and with that code."""
+    its ``LEVEL: `` and its `` [code]``) is part of a line of *family*, at
+    that line's level and with its entry's code, a frame of that level
+    before it or not."""
     level = _LEVEL.match(quote)
     text = quote[level.end() :] if level else quote
     coded = _CODE.search(text)
     text = text[: coded.start()] if coded else text
     regex = re.compile(".*".join(map(re.escape, _WILD.split(text))))
     return any(
-        regex.search(pattern.replace("%s", "\x00"))
+        regex.search(_as_quoted(head + line.template))
         for entry in MESSAGES.values()
-        if entry.family == family
-        and (level is None or level.group(1) in entry.levels)
-        and (coded is None or coded.group(1) == entry.code)
-        for pattern in entry.patterns
+        if entry.family == family and (coded is None or coded.group(1) == entry.code)
+        for line in entry.lines
+        if level is None or level.group(1) == line.level
+        for head in ["", *(f.template for f in FRAMES if line.level in f.levels)]
     )
 
 

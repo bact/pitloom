@@ -30,7 +30,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.messages import LFS_POINTER, CodedValueError
+from pitloom.messages import LFS_POINTER, CodedValueError, trusted_message
 from pitloom.plugins.hatch import PitloomBuildHook
 
 from ..conftest import (
@@ -398,15 +398,23 @@ def test_hook_refuses_an_sbom_name_already_placed(
         assert configured in errors[0].getMessage()
 
 
+_POINTER_TEXT = (
+    "'m.bin': header is a Git LFS pointer, content not pulled "
+    f"(oid sha256:{'0f' * 32}, size 3 bytes); run 'git lfs pull'"
+)
+
+
 @pytest.mark.parametrize(
     ("raised", "tail"),
     [
-        (CodedValueError(LFS_POINTER, "'m.bin': x"), "'m.bin': x [lfs-pointer]"),
+        (
+            CodedValueError(LFS_POINTER, path="m.bin", oid="0f" * 32, size=3),
+            f"{_POINTER_TEXT} [lfs-pointer]",
+        ),
         (ValueError("'m.bin': x"), "'m.bin': x"),
     ],
     ids=["coded", "plain"],
 )
-@pytest.mark.usefixtures("odd_message_text")
 def test_hook_failure_line_ends_in_a_catalogued_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -426,3 +434,4 @@ def test_hook_failure_line_ends_in_a_catalogued_code(
         hook.initialize("standard", {})
     err = capsys.readouterr().err.splitlines()
     assert err == [f"ERROR: SBOM generation failed: {tail}"]
+    assert trusted_message(err[0]) is (LFS_POINTER if tail != "'m.bin': x" else None)

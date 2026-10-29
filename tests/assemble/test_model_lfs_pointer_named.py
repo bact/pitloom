@@ -36,7 +36,7 @@ def _real() -> bytes:
 
 
 _PULL = "run 'git lfs pull'"
-_PLAIN = "m.gguf': header is a Git LFS pointer"
+_LOOKS = "m.gguf': header looks like a Git LFS pointer but is not a valid one"
 
 #: name, bytes (made on use: the real one reads a fixture), text every refusal holds
 _CASES: dict[str, tuple[str, Callable[[], bytes], str]] = {
@@ -81,7 +81,7 @@ def test_the_library_states_the_pointer_and_the_pull(
 
 @pytest.mark.parametrize("look", _LOOKALIKES)
 @pytest.mark.parametrize("surface", ("generate_model_sbom", "enrich_model"))
-def test_a_lookalike_keeps_the_plain_reason(
+def test_a_lookalike_says_it_only_looks_like_a_pointer(
     look: str, surface: str, tmp_path: Path
 ) -> None:
     path = tmp_path / "m.gguf"
@@ -89,7 +89,7 @@ def test_a_lookalike_keeps_the_plain_reason(
     with pytest.raises(ValueError) as caught:
         _run(surface, path, tmp_path / "out.json")
     message = str(caught.value)
-    assert message.endswith(_PLAIN)
+    assert message.endswith(_LOOKS)
     assert "content not pulled" not in message and _PULL not in message
     assert code_of(caught.value) == "lfs-pointer-malformed"
 

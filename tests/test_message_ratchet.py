@@ -26,11 +26,11 @@ import pytest
 
 from tests._message_inventory import REPO_ROOT, load
 
-#: Sites already coded: (file, emitter) of the Git LFS pointer family.
+#: Sites already coded: (file, emitter) of the Git LFS pointer families.
 LFS_SITES = [
     ("src/pitloom/core/lfs_pointer.py", "emit"),
-    ("src/pitloom/assemble/_model_generator.py", "raise"),
-    ("src/pitloom/extract/scanner.py", "logging.log"),
+    ("src/pitloom/core/lfs_pointer.py", "raise"),
+    ("src/pitloom/extract/scanner.py", "emit"),
 ]
 
 
@@ -49,7 +49,9 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
     assert not problems, "\n".join(problems)
 
 
-@pytest.mark.parametrize(("file", "emitter"), LFS_SITES, ids=["emit", "raise", "log"])
+@pytest.mark.parametrize(
+    ("file", "emitter"), LFS_SITES, ids=["emit", "raise", "scanner-emit"]
+)
 def test_the_tool_sees_the_lfs_pointer_sites_as_coded(
     records: list[dict[str, Any]], file: str, emitter: str
 ) -> None:

@@ -53,25 +53,28 @@ _HOSTILE = "x [lfs-pointer]"
             LFS_POINTER_SHIPPED,
         ),
         (
-            "ERROR: model command failed: 'm.gguf': header is a Git LFS pointer "
-            "[lfs-pointer-malformed]",
+            "ERROR: model command failed: 'm.gguf': header looks like a Git LFS "
+            "pointer but is not a valid one [lfs-pointer-malformed]",
             LFS_POINTER_MALFORMED,
         ),
-        # a catalogued code after an uncatalogued text: a value, not a code
-        (f"WARNING: skipped {_HOSTILE}", None),
-        # a level the entry is not said at, an uncatalogued code, no code
-        (
-            "INFO: FILE=a: Git LFS pointer shipped; the build did not pull LFS "
-            "content [lfs-pointer/shipped]",
-            None,
-        ),
+        # an uncatalogued code, no code, a line ending, an old dotted code
         ("ERROR: too large [git.too-large]", None),
         ("WARNING: FILE=a: Git LFS pointer, content not read; x", None),
-        ("WARNING: FILE=a: header is a Git LFS pointer [lfs-pointer]\n", None),
+        (
+            "WARNING: FILE=a: Git LFS pointer, content not read; run 'git lfs "
+            "pull' for the content [lfs-pointer]\n",
+            None,
+        ),
+        (
+            "WARNING: FILE=a: Git LFS pointer shipped; the build did not pull LFS "
+            "content [lfs-pointer.shipped]",
+            None,
+        ),
     ],
     ids=lambda v: str(v)[:24],
 )
 def test_a_code_is_trusted_only_for_its_own_text(line: str, expected: object) -> None:
+    """More forged lines: tests/messages/test_messages_trust.py."""
     assert trusted_message(line) is expected
 
 

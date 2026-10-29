@@ -20,22 +20,22 @@ from tests._message_inventory import load, load_main
 MODULES = {
     # The catalogue's own emit(): its body is the mechanism, out of scope.
     "messages/_emit.py": """\
-def emit(log, message, level, fmt, *args):
-    log.log(level, fmt, *args, extra=code_extra(message))
+def emit(log, message, level, *, line=None, once=None, **values):
+    log.log(level, line.template, values, extra={"pitloom_code": message.code})
 """,
-    # Three coded sites: emit(), extra=code_extra(), CodedValueError().
+    # Three coded sites: emit(), extra={CODE_ATTR: ...}, CodedValueError().
     "coded.py": """\
 import logging
 
-from pitloom.messages import CodedValueError, MSG, code_extra, emit
+from pitloom.messages import CODE_ATTR, MSG, CodedValueError, emit
 
 _log = logging.getLogger(__name__)
 
 
 def check(path, message):
-    emit(_log, message, logging.WARNING, "FILE=%s: held", path)
-    _log.warning("FILE=%s: held again", path, extra=code_extra(MSG))
-    raise CodedValueError(MSG, "FILE: refused")
+    emit(_log, message, logging.WARNING, file=path)
+    _log.warning("FILE=%s: held again", path, extra={CODE_ATTR: MSG.code})
+    raise CodedValueError(MSG, path=path)
 """,
     # In-scope uncoded sites, one DEBUG (out of scope), a print_error with
     # a literal None code, one that forwards an exception's code.
@@ -59,17 +59,17 @@ def check(path, exc):
     "helpers.py": """\
 import logging
 
-from pitloom.messages import MSG, CodedValueError, code_extra
+from pitloom.messages import MSG, CodedValueError
 
 _log = logging.getLogger(__name__)
 
 
 def refuse(path):
-    return CodedValueError(MSG, path)
+    return CodedValueError(MSG, path=path)
 
 
 def warn_coded(path):
-    _log.warning("FILE=%s: held", path, extra=code_extra(MSG))
+    _log.warning("FILE=%s: held", path, extra={"pitloom_code": MSG.code})
 
 
 def warn_plain(path):
