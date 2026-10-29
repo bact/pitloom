@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Evidence levels: how Pitloom records a fact it measured, was told, or could not get
+# Evidence levels: measured, declared or not recorded
 
 See also: [roadmap.md](roadmap.md) (the summary bullet),
 [sbom-format-gaps.md](sbom-format-gaps.md) (FG-9 to FG-11),
