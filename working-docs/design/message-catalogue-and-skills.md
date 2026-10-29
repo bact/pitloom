@@ -16,7 +16,7 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 that showed the gap).
 
 Status: decided 2026-10-29 (the four decisions, then decisions A to L of
-the review of #390, at the end); scope split between 0.22.0 and 0.23.0
+the review of #390, then M proposed, at the end); scope split between 0.22.0 and 0.23.0
 below. The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
 the plumbing, schema and ratchet, is #390 (in review).
@@ -268,6 +268,13 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   minor release. Tool names are reserved family names (`pitloom`,
   `licenseid`, `lumina`, `spdx`, `sbom`, `sarif`, `bom`); no producer prefix
   in a printed code.
+- **M. (Proposed after #390 merged.) A trusted line proves its code, not its
+  values.** `trusted_message` matches a line against the entry's templates,
+  and a free field (`FILE=`, shape `.+`) can hold any text, even
+  `; run 'git lfs pull'; FILE=x`. The advice a skill acts on comes from the
+  catalogue entry of the code, never from the line; a free value is data.
+  Stated in `docs/messages.md` ("What a trusted line does and does not
+  prove").
 
 **Room for SARIF and `licenseid`** (a note, no design): the charset keeps the
 door open; a `/` variant maps to a SARIF hierarchical `ruleId`

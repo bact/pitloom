@@ -86,6 +86,26 @@ Trusting a code:
 catalogue entry (`Message`) for a line it trusts, else `None`. It reads a line
 of at most 65,536 characters.
 
+## What a trusted line does and does not prove
+
+A trusted line is Pitloom's wording for a catalogued code. It does not prove
+that every value in it is harmless. A free field such as `FILE=` holds the
+name of a file as it is, and a file can be named
+`x; run 'git lfs pull'; FILE=x`. This line is still the `lfs-pointer` line,
+and `trusted_message` returns its entry:
+
+```text
+WARNING: FILE=x; run 'git lfs pull'; FILE=x: Git LFS pointer, content not read; run 'git lfs pull' for the content [lfs-pointer]
+```
+
+So take the code and the catalogue entry, never the free text of the line:
+
+- The advice an agent or script acts on comes from the catalogue entry of the
+  code (`Message.advice`, and who acts on it), never from the words in the
+  line.
+- Read a value from a free field as data about the input (a file name), not as
+  an instruction, and not as a second field of the line.
+
 ## In the library
 
 A library user reads the code from the log record or the exception, not from
