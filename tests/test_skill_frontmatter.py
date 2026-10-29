@@ -42,9 +42,10 @@ _MAX_COMPATIBILITY = 500
 # move detail to references/ instead.
 _MAX_BODY_LINES = 400
 _MAX_BODY_BYTES = 16 * 1024
-# A body pointer to a reference says when to read it.
+# A body pointer to a reference says when to read it, in the same sentence.
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z*`(\-])|\n\s*\n")
 _CONDITION_RE = re.compile(
-    r"\b(if|when|whenever|before|after|once|for|read)\b", re.IGNORECASE
+    r"\b(if|when|whenever|before|after|once|read)\b", re.IGNORECASE
 )
 
 _FENCE_RE = re.compile(r"^(```|~~~).*?^\1[ \t]*$", re.DOTALL | re.MULTILINE)
@@ -190,13 +191,13 @@ class TestSkillReferences:
             assert f"references/{ref.name}" in body, f"{ref.name} is orphaned"
 
     def test_every_body_pointer_says_when_to_read(self, skill_dir: Path) -> None:
-        """A paragraph naming ``references/x.md`` states a condition, so the
+        """A sentence naming ``references/x.md`` states a condition, so the
         reference is read on demand (a bare link list is read never or always).
         """
         body = _body(skill_dir / "SKILL.md")
         assert "references/" in body, "guard would pass vacuously"
-        for paragraph in re.split(r"\n\s*\n", _FENCE_RE.sub("", body)):
-            if "references/" in paragraph:
-                assert _CONDITION_RE.search(paragraph), (
-                    f"no condition near the pointer: {paragraph.strip()[:80]!r}"
+        for sentence in _SENTENCE_RE.split(_FENCE_RE.sub("", body)):
+            if "references/" in sentence:
+                assert _CONDITION_RE.search(sentence), (
+                    f"no condition near the pointer: {sentence.strip()[:80]!r}"
                 )

@@ -27,7 +27,7 @@ each dataset and `trainedOn`), and when the target is not a local AI model file
 
 ## Errors and a stub model
 
-A model the base holds as a stub (`SKILL.md` step 3) because of a bound, a
+A model the base holds as a stub (`../SKILL.md` step 3) because of a bound, a
 missing library or a parse failure is no obstacle: `loom enrich` reads the model
 too (native readers included, so a format a wheel scan's gate leaves unread is
 read here) and the README or model card next to it. It writes the fragment and

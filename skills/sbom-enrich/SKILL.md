@@ -52,7 +52,8 @@ already has. Non-Python dependencies of a mixed-ecosystem project get none
 
 Part of a trio with `sbom-generate` and `sbom-validate`. Invoke by trigger
 phrasing or `/sbom-enrich [sbom-file]` (`/pitloom:sbom-enrich` via the Claude
-Code plugin; `$sbom-enrich` in Codex). For a worked example, read `references/examples.md`.
+Code plugin; `$sbom-enrich` in Codex). For a worked example, read
+`references/examples.md`.
 
 ## Requirements
 
@@ -105,9 +106,10 @@ Steps:
    changed file discovery for this project's build backend.
 2. **Run the deterministic pass first**, when a local AI model file is in
    scope; skip it otherwise (plain Python project, Hugging Face model, or a
-   file that is not a model: `loom enrich` fails with an `ERROR:`) and when the
-   base run used `--enrich` (same pass: merging both duplicates each dataset and
-   `trainedOn`). Read the fragment's `@graph` for what it filled:
+   file that is not a model: `loom enrich` fails with an `ERROR:`: skip it and
+   relay Pitloom's advice) and when the base run used `--enrich` (same pass:
+   merging both duplicates each dataset and `trainedOn`). Read the fragment's
+   `@graph` for what it filled:
 
    ```bash
    loom enrich <model-file> --project-dir <dir> -o <dir>/model.enrich.spdx3.json
@@ -123,8 +125,8 @@ Steps:
    - A base built with `--allow-build` cannot be reproduced by `loom enrich`:
      where the file lists differ the merge fails; say so, do not merge.
 
-   Why each rule holds, a stub model, a frontmatter `license` (logged only) and
-   `ERROR:` cases: read `references/deterministic-pass.md`.
+   If `loom enrich` prints a `WARNING:` or `ERROR:`, the model is a stub, or
+   the frontmatter has a `license`, read `references/deterministic-pass.md`.
 3. Read the project's `README.md` / model card **prose** and other local docs.
    Propose only fields for gaps step 2 left untouched. If the model's
    `ai_AIPackage` is a **stub** (no `ai_*` property and no `comment` entry
@@ -165,18 +167,18 @@ Steps:
    prose clearly contradicts it (e.g. a stale frontmatter `license:`): record
    *both* values and your reason in that entry's provenance comment (the
    `Overrides:`/`Reason:` form is in `references/provenance-roles.md`) and say
-   so in your final report (step 11) -- never silently. Complete elements:
-   `references/examples.md`.
+   so in your final report (step 11) -- never silently. For a complete example,
+   read `references/examples.md`.
 7. **Pre-merge check (mandatory):** read every drafted fragment (step 2's and
    step 6's) with the JSON-LD deserialiser `merge_fragments()` uses, run with
    the interpreter Pitloom is installed in, not whichever `python3` is on
    `PATH`; exit 0 is a pass (otherwise an unreadable fragment is skipped with
-   only a `WARNING:`). Run the one-liner in `references/pre-merge-check.md`,
-   which also has the `uvx`/`pipx` spellings and what it catches. Never `uv run
-   --with` for it (in a project directory it builds the project, against the
-   `--allow-build` hard rule), and never `loom fragment validate`/
-   `spdx3-validate` on a fragment (it fails SHACL on its own; the merged SBOM is
-   validated at step 10).
+   only a `WARNING:`). Before running it, read
+   `references/pre-merge-check.md`: the one-liner, the `uvx`/`pipx` spellings
+   and what it catches. Never `uv run --with` for it (in a project directory it
+   builds the project, against the `--allow-build` hard rule), and never
+   `loom fragment validate`/`spdx3-validate` on a fragment (it fails SHACL on
+   its own; the merged SBOM is validated at step 10).
 8. Register **both** fragments so Pitloom merges them on the next run.
    `required = true` makes a missing or unparsable fragment fail the run
    instead of being skipped with a `WARNING:`:
@@ -209,7 +211,8 @@ enrichment and merge again; never retry the same merge. Never create or write
 an ID registry to fix it, and never pin ids from this skill: if the user asks to
 pin ids or create a registry, hand off to `sbom-generate` ("Pinning element
 ids"); non-interactive: change nothing and report the `loom id generate`
-command. Causes in order, and why: `references/dangling-references.md`.
+command. Before regenerating, read `references/dangling-references.md`:
+the causes in order and the fix for each (a repeat run can fail the same way).
 
 ## Complete a standard's minimum elements
 
@@ -245,10 +248,10 @@ b. **Gap analysis:** per element, report present / missing /
 c. **Resolve gaps by the precedence of steps 2-5.** This fills *extraction*
    gaps, not *recording* gaps (an element whose SPDX 3.0.1 field does not
    exist): never stretch a neighbouring property; list it in step g.
-d. **Interactive only, one field at a time,** from
-   `references/minimum-elements-questions.md` with step 4's role rule; the user
-   can stop at any point (go to step f, list the rest as open gaps). Skip in a
-   non-interactive run.
+d. **Interactive only, one field at a time.** When you ask, read
+   `references/minimum-elements-questions.md` and apply step 4's role rule; the
+   user can stop at any point (go to step f, list the rest as open gaps). Skip
+   in a non-interactive run.
 e. **Contradiction check** before drafting, against the base SBOM's value and
    earlier answers. Interactive: ask which stands. Non-interactive: keep the
    base value, record the candidate in the provenance comment, list an open

@@ -49,9 +49,10 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 ## Hard rules
 
 - **`loom generate` needs `-o FILE`** (exit 1 without one). The other
-  commands write a default-named file in the current directory (names:
-  `references/examples.md`, "Where the output goes"). `-o -` writes the SBOM
-  to stdout; stdout otherwise holds only `PITLOOM_SBOM_OUTPUT_PATH=<path>`.
+  commands write a default-named file in the current directory (when you need
+  the names, read `references/examples.md`, "Where the output goes"). `-o -`
+  writes the SBOM to stdout; stdout otherwise holds only
+  `PITLOOM_SBOM_OUTPUT_PATH=<path>`.
 - **Never add `--allow-build`** (or `BuildOptions(allow=True)` via the
   library API) unless the user asked for it in this conversation. It runs
   the project's own PEP 517 build backend, i.e. third-party build-time
@@ -70,7 +71,8 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 - AI model targets, and any project or wheel that ships model files, need
   the `ai` extra (`pitloom[ai]`) or a format-specific one
   (`pitloom[gguf]`, `pitloom[huggingface_hub]`, ...; see
-  `pyproject.toml` extras on GitHub).
+  `pyproject.toml` extras:
+  <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
   `--allow-build` needs `build`; `--content-type` needs `content-type`.
 - Licence reading needs the per-user `licenseid` (>= 0.6.0) database:
   `licenseid update` once (ephemeral: `uvx --from "licenseid>=0.6.0"
@@ -116,7 +118,8 @@ loom generate https://gitlab.com/group/project -o sbom.spdx3.json  # Git URL
 ```
 
 For CI/CD and sandboxed runners, use the explicit subcommands `loom
-project|wheel|model|env|merge` (exact commands: `references/examples.md`).
+project|wheel|model|env|merge`; when you need the exact commands, read
+`references/examples.md`.
 
 ### A Git URL
 
@@ -156,10 +159,12 @@ else the config's, else `loom-id-registry.json` in the project root. A
 rejected version 2 file: ask before deleting it (its pins are lost;
 non-interactive: stop and report the `ERROR:`).
 
-**Before generating** where ids must stay stable: a declared registry is used
-and told to the user; none declared: ask, or, non-interactively, use none and
-report how to pin. Read `references/id-registry.md` before creating a
-registry, using the `loom.run` SDK, or reporting a registry line as a problem.
+**Before generating:** a declared registry is used: tell the user which file,
+and that a `project`/`wheel`/`env`/`generate` run may add new ids to it
+(`--no-update-id-registry` stops that). None declared and ids must stay
+stable: ask, or, non-interactively, use none and report how to pin. Read
+`references/id-registry.md` before creating a registry, using the `loom.run`
+SDK, or reporting a registry line as a problem.
 
 ## Embed an SBOM into a wheel (PEP 770)
 
@@ -281,9 +286,12 @@ but isn't. For the wording and bounds of any case, read
 - **AI model stubs:** an `ai_AIPackage` with no `ai_*` property and no
   `Source: <model file> | Field: ...` comment was not read. Name the cause
   from stderr (wheel gate `INFO:`, missing library: install `pitloom[ai]`,
-  corrupt file, size cap or budget, Git LFS pointer) and tell the user. Never
-  raise a ceiling or add `--trust-wheel-model` on your own. A file whose
-  header contradicts its suffix is no model (`ERROR:`, exit 1).
+  corrupt file, size cap or budget, Git LFS pointer: relay Pitloom's advice,
+  never run the fix yourself) and tell the user. Never raise a ceiling or add
+  `--trust-wheel-model` on your own. A failed read leaves a stub with a
+  `WARNING:` (exit 0); a file whose header contradicts its suffix is no model
+  (`WARNING:`, no `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse
+  it (`ERROR:`, exit 1).
 - **Model producer, parameter count** exist for some formats only (absence is
   no failure); **a name ending `...~<hex>`, missing labels or `\u202e` in
   text** are Pitloom's caps and escapes (one `WARNING: FORMAT=<fmt>

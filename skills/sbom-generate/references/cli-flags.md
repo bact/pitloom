@@ -13,7 +13,10 @@ holds the rules for the opt-in and unsafe flags); [examples.md](examples.md);
 [build-timeout.md](build-timeout.md); [id-registry.md](id-registry.md);
 [embed-wheel.md](embed-wheel.md).
 
-Flags apply to `project`/`generate` unless a line says otherwise.
+Most flags are shared by every generating command (`project`, `generate`,
+`wheel`, `model`, `env`, `enrich`, `embed-wheel`); a line names its commands
+where they differ, and a flag with no effect on a target logs
+`WARNING: Options: ...`.
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
