@@ -236,7 +236,7 @@ def extras_requirements(
                     "Poetry",
                     extra,
                     name,
-                    "not declared in [tool.poetry.dependencies]",
+                    "not declared in tool.poetry.dependencies",
                     quiet=quiet,
                 )
     for key in sorted(optional - listed if warn_unlisted else ()):

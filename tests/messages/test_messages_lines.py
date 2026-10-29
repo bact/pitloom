@@ -43,8 +43,6 @@ _HOSTILE = "x [lfs-pointer]"
 _KNOWN_CODE_LIKE_ENDINGS = {
     # Not a line end: "<table> has moved to <this>. Update your config."
     ("core/_config_legacy.py", "[tool.pitloom.content-type]"),
-    # A WARNING ends with it; the code is uncatalogued, so it is not trusted.
-    ("extract/project/_poetry_extras.py", "[tool.poetry.dependencies]"),
 }
 
 

@@ -39,7 +39,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 Pitloom runs from several surfaces: CLI, the Hatchling hook, the library API, the GitHub Action, the AI skills (`skills/*/SKILL.md`) and the Claude Code plugin (`.claude-plugin/`). A change to one surface ships easily without the others (each surface's own tests keep passing). Skills/plugin have no tests: when a command/flag/output shape a `SKILL.md` documents changes, grep `skills/` and update it in the same change.
 
 - **Route a cross-cutting choice through one shared, explicit mechanism** every surface already reads, not per-call-site updates.
-- **A docstring/comment saying "how surface X does Y" is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
+- **A docstring/comment saying "how surface X does Y" (or "how this mechanism decides") is a claim, not a fact**: verify it against the entry-point code (`__main__.main()`, `plugins/hatch.py`, the library) before trusting or writing it.
 - **A pattern hand-copied across 3+ call sites drifts**: factor it into one helper/constant.
 - **A test on one surface doesn't cover the others**: for behaviour that must hold across CLI, library, hook and Action, or every subcommand, test each.
 - **A skill is discovered through its frontmatter `description` only**; a body section does not make a command triggerable. On a CLI command/flag add/rename, check `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep *verify* (structural) vs *validate* (schema/SHACL) explicit; give combined asks ("generate SBOM meeting CISA") a hand-off in both skills, every follow-up question a non-interactive fallback. Try a skill's check or recipe on a legitimate input where it should do nothing. Audit: [skills-trigger-coverage.md](working-docs/implementation/skills-trigger-coverage.md).
@@ -100,7 +100,6 @@ Data and semantics:
 - **A ruling that reverses a reading needs a before/after sweep**: run a probe corpus through HEAD and the tree; list inputs that yielded records before and none now.
 - **Narrowing a derived field's rule needs an inventory of its writers**: run each through the new rule; derive from the value's shape as well as its key. A reversed rule is recorded as "tried, reverted".
 - **A doc claim "after X, every Y has Z" names the code path deriving Z** and the Y it reaches.
-- **A doc/docstring claim about "how this mechanism decides" is re-verified against the code before it is trusted or restated.**
 - **Measure the real tools before designing a reader**: probe each backend, put the matrix in the working doc.
 - **A model reader records what the file stores, not what a binding defaults**, and a new format maps every field its siblings do: [model-format-mapping-parity.md](working-docs/implementation/model-format-mapping-parity.md).
 - **A failing manual repro is first suspect for a wrong replication**: use the real call shape.
@@ -110,13 +109,12 @@ Data and semantics:
 
 Code shape:
 
-- **Warning/error/log wording drifts across sibling modules**: one shared helper; check siblings when adding a check.
 - **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows and `repr(str)` doubles backslashes. `loggable()` every interpolated value, test with a newline, and test each emitter with a repeated input (said once).
 - **A provenance string is built only through `provenance_source`/`provenance_segment`** (a `|` in a name forges a segment); `tests/test_provenance_builders_lint.py` enforces it.
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively; prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
-- **A check on the URL does not cover every client a fetch starts**: list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where built (test `user:SECRET@`). A fallback names its condition. Detail: [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
+- **A check on the URL does not cover every client a fetch starts**: list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where built. A fallback names its condition.
 - **A circular-import claim needs a live interpreter test** (both import orders).
 - **A guard for one direction of a symmetric hazard leaves the mirror open**: enumerate both; reproduce a concurrency claim with a timeout-bounded run.
 - **A context manager whose `__exit__` can be interrupted resets shared state in `__enter__`.**
@@ -151,7 +149,7 @@ Tests, platform and CI:
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
-- **Parallel agents**: fence file ownership in writing, announce a reversed rule, gate after all land, clean stray files and `pytest-of-*` dirs.
+- **Parallel agents**: fence file ownership in writing, announce a reversed rule, gate after all land, clean stray files.
 
 ## CLI output
 
@@ -161,13 +159,13 @@ Unix philosophy: consistent, predictable, parseable.
 - Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -` (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details go to stderr as `INFO:`. A value that may hold a space goes last.
 - `KEY=VALUE`: uppercase KEY, no spaces around `=`; several pairs on one line only for one data point.
 - Three levels reach stderr, each line starting with exactly one of `ERROR: `, `WARNING: `, `INFO: ` plus a short description; no second tag, no untagged continuation line.
-  - `ERROR:` -- via the CLI's own `print(..., file=sys.stderr)` (`cli_error_handler` in `cli/commands/utils.py` adds it to any raised exception); fatal to the operation.
+  - `ERROR:` -- via `print_error()`, with the exception's `[code]` (`cli_error_handler` wraps any raised exception); fatal to the operation.
   - `WARNING:` -- a "no silent deviations" decision or a recovered non-fatal problem; `logging.warning()` gets the prefix automatically.
   - `INFO:` -- a normal status update; `logging.info()` gets it automatically.
   - `logging.debug()` is developer-only: never prefixed, never on stderr normally.
   - `pitloom.logging_config.configure_logging()` wires all three identically; every CLI command, the hook and every public library-API entry point must call it first. Skipping it is a bug.
-- Within one subsystem use a shared literal sub-prefix (`ID registry: ...`) and match a sibling's wording before inventing one. No global schema across subsystems; the `LEVEL:` tag is the one prefix every consumer keys on.
-- Trim messages.
+- Within one subsystem use a shared literal sub-prefix (`ID registry: ...`) and match a sibling's wording before inventing one. The `LEVEL:` tag is the one prefix every consumer keys on until the catalogue is built.
+- **The message catalogue is the contract between Pitloom and the skills.** A skill reads our output and explains it, so a message's level, subject, condition and advice are an interface, not prose. Change a message, the catalogue and what a skill quotes together; new messages follow `LEVEL: [SUBJECT=value: ]CONDITION[; ACTION]`. Plan: [message-catalogue-and-skills.md](working-docs/design/message-catalogue-and-skills.md).
 
 ## Python
 

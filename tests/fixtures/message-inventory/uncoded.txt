@@ -84,7 +84,7 @@ pitloom.core.model_extract_limit 2
 pitloom.core.no_effect 1
 pitloom.core.path_confine 1
 pitloom.core.project 1
-pitloom.core.provenance 2
+pitloom.core.provenance 3
 pitloom.core.requirements 3
 pitloom.core.temp_dirs 1
 pitloom.core.walk_rules 1
