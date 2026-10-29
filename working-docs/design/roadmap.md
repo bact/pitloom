@@ -339,6 +339,11 @@ unless the linked doc says so.
   `licenseid` 0.6.0): partly built in #359; operands, Q4 and Q5 open. Which
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
+- [ ] **Message catalogue as the contract between Pitloom and the skills**
+  (decided 2026-10-29; inventory done): 0.22.0: catalogue in code, grammar
+  ratchet, better message language, skill bodies to 16 KB / 400 lines, first
+  family `lfs-pointer`; 0.23.0: `--report` JSON Lines, SARIF, resolver detail. See
+  [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting; a size, hash or property is recorded as measured,
   declared (with its source), a lower bound, or not measured (with the reason).
