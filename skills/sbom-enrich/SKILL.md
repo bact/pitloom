@@ -36,291 +36,149 @@ compatibility: >-
 # Enrich a Pitloom-generated SBOM
 
 Two enrichment sources feed the same SBOM. `loom enrich` is Pitloom's own
-**deterministic** enrichment (parses only YAML frontmatter in a README/model
-card -- no reasoning, no network by default); with a local AI model file in
-scope, run it first, as it is fast and free. An agent goes further: it can
-read **prose**, infer a plausible licence from ambiguous wording, classify
-a dependency's purpose, or work out `trainedOn`/`testedOn` dataset
-relationships no structured field encodes. Do this only **after** a base
-SBOM exists (use `sbom-generate` first if not), and only when it adds real
-information. If generating
-that base SBOM needs `--allow-build` and the user asked for it, always
-pass an explicit `--build-timeout` (see `sbom-generate`'s "Choosing
+**deterministic** pass (only YAML frontmatter in a README/model card -- no
+reasoning, no network by default); with a local AI model file in scope, run it
+first. An agent goes further: it reads **prose**, infers a plausible licence,
+classifies a dependency's purpose, or works out `trainedOn`/`testedOn`
+relationships no structured field encodes. Do this only **after** a base SBOM
+exists (use `sbom-generate` first if not), and only when it adds real
+information. If generating that base needs `--allow-build` and the user asked
+for it, always pass an explicit `--build-timeout` (`sbom-generate`'s "Choosing
 `--build-timeout`").
 
-**Limitation inherited from the base SBOM:** enrichment can only add
-evidence to elements the base SBOM already contains. In a project that
-mixes Python with another ecosystem (a JS frontend, a Rust extension), the
-non-Python dependencies have no element to attach a fragment to, and
-reading prose will not surface them. See `sbom-generate`'s "Known
-limitations" section; say so rather than implying enrichment closes that
-gap.
+**Limitation:** enrichment only adds evidence to elements the base SBOM
+already has. Non-Python dependencies of a mixed-ecosystem project get none
+(`sbom-generate`'s "Known limitations"): say so, don't imply it closes the gap.
 
-This skill is one of three (`sbom-generate`, `sbom-enrich`,
-`sbom-validate`) meant to be installed together: it refers to sections of
-`sbom-generate` and hands off to `sbom-validate`.
-
-Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/sbom-enrich [sbom-file]`
-(`/pitloom:sbom-enrich [sbom-file]` when installed via the Claude Code
-plugin; the syntax depends on the client, e.g. `$sbom-enrich` in Codex).
-`sbom-file` is optional -- point it at a specific already-generated SBOM
-when a project has more than one; omit it to let the agent find the one to
-enrich.
-
-See `references/examples.md` for a full worked example.
+Part of a trio with `sbom-generate` and `sbom-validate`. Invoke by trigger
+phrasing or `/sbom-enrich [sbom-file]` (`/pitloom:sbom-enrich` via the Claude
+Code plugin; `$sbom-enrich` in Codex). For a worked example, read
+`references/examples.md`.
 
 ## Requirements
 
 Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases cannot read ID
-registry format 3), the `loom`/`pitloom`
-entry point: `pip install "pitloom>=0.21.0"`; an AI model file needs
-`pip install "pitloom[ai]>=0.21.0"`; the mandatory post-merge check needs
-`pip install "pitloom[validate]>=0.21.0"`. Ephemeral runs and the pin
-spelling: `sbom-generate`'s "Run without installing anything persistent".
-
-Snippets are POSIX shell. On Windows use `python` or `py` for `python3`,
-and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
-one per line).
+registry format 3): `pip install "pitloom>=0.21.0"`; an AI model file needs
+`"pitloom[ai]>=0.21.0"`, the post-merge check `"pitloom[validate]>=0.21.0"`.
+Ephemeral runs: `sbom-generate`'s "Run without installing anything persistent".
+Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
+PowerShell equivalents (5.1 has no `&&`).
 
 ## Contribute enrichment as a fragment, never by hand-editing
 
-Do not edit the generated SBOM JSON directly. Write the inferred facts as
-a small, standalone SPDX 3 JSON **fragment** and let Pitloom merge it on
-the next generation run.
+Do not edit the generated SBOM JSON directly. Write inferred facts as a
+small, standalone SPDX 3 JSON **fragment** that Pitloom merges on the next run.
 
-Every inferred field's `comment` (or the fragment's
-`CreationInfo.comment`) must carry a provenance marker, so it is never
-confused with authoritative, extracted metadata. Include your own agent
-name, vendor and today's date when you know them (Pitloom cannot verify
-them, but they help a reviewer):
+Every inferred field's `comment` (or the fragment's `CreationInfo.comment`)
+must carry a provenance marker, so it is never confused with extracted
+metadata. Use your own agent name, vendor and today's date, never another
+agent's:
 
 ```text
 Source: <your agent name> (<vendor>) | Role: inferred | Date: <ISO 8601 date>
 ```
 
-Fill in your own identity, e.g. `Source: Claude Code (Anthropic) | Role:
-inferred | Date: 2026-08-10` or `Source: Codex (OpenAI) | Role: inferred |
-Date: 2026-08-10` -- never copy another agent's name. If you don't know
-your own name/vendor, fall back to the generic form rather than guessing:
+Unknown name/vendor: use `Source: AI agent | Role: inferred`, not a guess.
+Other `Role:` values: `declared`, `externalReported`, `sbomAuthorSupplied`.
+Before writing a marker line, read `references/provenance-roles.md` for the
+exact lines and filled-in examples.
 
-```text
-Source: AI agent | Role: inferred
-```
-
-**In an interactive session** (a human present to answer), a field the
-SBOM author directly tells you is not an inference -- mark it
-`sbomAuthorSupplied`, not `inferred`:
-
-```text
-Source: SBOM author | Role: sbomAuthorSupplied | Date: <ISO 8601 date>
-```
-
-The `Role:` vocabulary an agent uses:
-
-- `inferred` -- your own reasoning from prose.
-- `declared` -- the subject's own claim, read where it states it (a
-  file's own licence field).
-- `externalReported` -- another party's determination, relayed as given
-  (a paper's, a hub's).
-- `sbomAuthorSupplied` -- the SBOM author stated the fact themselves.
-
-**Where a fragment can be merged.** Registered fragments are merged only
-into an SBOM that Pitloom generates from a project directory: `loom
-project <dir>`, `loom generate <dir>`, the Hatchling build hook, or `loom
-embed-wheel --project-dir <dir>`. Any other base -- `loom model`, a Hugging
-Face model, a wheel, `loom env`, an sdist, or a third-party SBOM -- never
-merges them, **silently** (exit 0, no `WARNING:`). For such a base, do
-steps 1-7, then stop: report the gaps, hand the drafted fragment(s) over
-unmerged, and tell the user they were not merged into the SBOM.
-
-To put an enriched SBOM into a wheel, hand off to `sbom-generate` ("Embed an
-SBOM into a wheel"): it refuses a signed wheel unless the user agrees to
-`--allow-signed-wheel`.
+**Where a fragment can be merged.** Registered fragments are merged only into
+an SBOM that Pitloom generates from a project directory: `loom project <dir>`,
+`loom generate <dir>`, the Hatchling build hook, or `loom embed-wheel
+--project-dir <dir>`. Any other base (`loom model`, a Hugging Face model, a
+wheel, `loom env`, an sdist, a third-party SBOM) never merges them,
+**silently** (exit 0, no `WARNING:`). For such a base, do steps 1-7, then stop:
+report the gaps, hand the drafted fragment(s) over unmerged, and say they were
+not merged. To put an enriched SBOM into a wheel, hand off to `sbom-generate`
+("Embed an SBOM into a wheel"; a signed wheel needs the user's
+`--allow-signed-wheel`).
 
 Steps:
 
-1. Generate a base SBOM first, if not already done (use the
-   `sbom-generate` skill), and **record the exact command that produced
-   it** -- target, `-o`, `--config`, `--id-registry`,
-   `--use-lockfile`/`--no-use-lockfile`, `--enrich`, `--allow-build` with
-   its `--build-timeout`. Step 9 reuses it whole, and step 2 needs its
-   `--config`, `--id-registry` and `--use-lockfile` parts: element ids are
-   content-addressed, so a difference in any of them can make the
-   fragment's references miss the base SBOM (see "Troubleshooting:
-   dangling references"). If Pitloom was upgraded since the base SBOM was
-   generated, regenerate it before merging when the upgrade could have
-   changed file discovery for this project's build backend (check the
-   CHANGELOG).
+1. Generate a base SBOM first, if not already done (`sbom-generate`), and
+   **record the exact command that produced it** -- target, `-o`, `--config`,
+   `--id-registry`, `--use-lockfile`/`--no-use-lockfile`, `--enrich`,
+   `--allow-build` with its `--build-timeout`. Step 9 reuses it whole and step 2
+   needs its `--config`, `--id-registry` and `--use-lockfile` parts: ids are
+   content-addressed, so any difference can make the fragment miss the base.
+   After a Pitloom upgrade, regenerate the base first if the CHANGELOG shows
+   changed file discovery for this project's build backend.
 2. **Run the deterministic pass first**, when a local AI model file is in
-   scope; skip it otherwise (a plain Python project, a Hugging Face model, or
-   a file that is not a model, for which `loom enrich` fails with an
-   `ERROR:`) and when the base run used `--enrich` (same pass: merging both
-   duplicates each dataset and `trainedOn`). It parses only YAML frontmatter and writes a standalone
-   fragment -- fast, free, safe. Each `datasets:` entry becomes a
-   `dataset_DatasetPackage` with a `trainedOn` relationship; a frontmatter
-   `license` is only logged in the fragment's enrichment `Annotation`, with no
-   licence element: a base regenerated with `--enrich` states it (or a step 6
-   fragment does). Read the fragment's `@graph` to see what it filled:
+   scope; skip it otherwise (plain Python project, Hugging Face model, or a
+   file that is not a model: `loom enrich` fails with an `ERROR:`: skip it and
+   relay Pitloom's advice) and when the base run used `--enrich` (same pass:
+   merging both duplicates each dataset and `trainedOn`). Read the fragment's
+   `@graph` for what it filled:
 
    ```bash
    loom enrich <model-file> --project-dir <dir> -o <dir>/model.enrich.spdx3.json
    ```
 
-   - **Always pass `-o <project-dir>/model.enrich.spdx3.json`**: step 8
-     registers a project-relative path.
-   - **Only a project-directory base can be merged into** (see "Where a
-     fragment can be merged"), so pass `--project-dir <dir>` (the directory
-     given to `loom project`/`loom generate`); without it every reference
-     dangles (a `WARNING:` each, then an `ERROR:`). Also pass the base
-     run's `--config`, `--id-registry` and `--use-lockfile`/
-     `--no-use-lockfile` when it used them. For a `loom
-     model` base (never merged into) omit `--project-dir`.
-   - A model the base holds as a stub (step 3) because of a bound, a missing
-     library or a parse failure is no obstacle: `loom enrich` reads the model
-     too (native readers included, so a format a wheel scan's gate leaves
-     unread is read here) and the README or model card next to it. It writes
-     the fragment and exits 0 with the one `WARNING:` the scan gave (its
-     `FILE=` is the path as given, not the scan's project-relative one), and
-     the model stays a stub. (A wheel's gate, ceiling and budget do not apply
-     to a local file.) Only `ERROR: enrichment fragment generation failed:
-     ... not an AI model ...`, `header is not <fmt>` or `header is a Git LFS
-     pointer, ...` means the file is not a model: skip this step for it and
-     relay Pitloom's own advice.
+   - **Always pass `-o <project-dir>/model.enrich.spdx3.json`** (step 8
+     registers a project-relative path) and `--project-dir <dir>` (the directory
+     given to `loom project`/`loom generate`) plus the base run's `--config`,
+     `--id-registry` and `--use-lockfile`/`--no-use-lockfile` if used; without
+     `--project-dir` every reference dangles. Omit it for a `loom model` base.
    - The fragment attaches only if the base has an `ai_AIPackage` for that
-     model (the model file is among the build's files); if not, say so
-     instead of merging.
-   - A base generated with `--allow-build` cannot be reproduced by `loom
-     enrich` (static discovery only): where the file lists differ the
-     merge fails; say so, and do not merge.
+     model; if not, say so instead of merging.
+   - A base built with `--allow-build` cannot be reproduced by `loom enrich`:
+     where the file lists differ the merge fails; say so, do not merge.
 
-   Why each rule holds: `references/deterministic-pass.md`.
-3. Read the project's `README.md` / model card **prose** and other local
-   docs. Propose only fields for gaps step 2 left untouched; do not
-   restate what it already found.
-   - An `ai_AIPackage` is a stub (Pitloom did not read the file) when it
-     has no `ai_*` property and no `comment` entry `Source: <the model
-     file> | Field: ...` (its `name` is then the file's stem, `Method:
-     file_name_stem`); a read
-     model has such entries. A `comment` citing the README (`Source:
-     README.md | Method: yaml_frontmatter`, from `--enrich`) does not make
-     it read. The base run's stderr says why: `required library not
-     installed` -- install `pitloom[ai]` and regenerate; `failed to extract
-     metadata` -- the file has a model's header but could not be parsed
-     (truncated or corrupt), so check the file; `header is not <fmt>; not
-     listed as an AI model` or `Git LFS pointer, content not read` -- the
-     file is no model and has no `ai_AIPackage`; relay Pitloom's advice. On
-     a wheel base, the gate `INFO:` naming `--trust-wheel-model`, `...
-     max-model-extract-bytes cap; metadata not read`, or `... per-wheel
-     model-scan budget cap; ...` -- tell the user; never add the flag or raise
-     the cap yourself (flag or key). Any other `...; metadata not read` -- a
-     fixed bound. (`... identity unknown` is the wheel's own name/version, not a
-     model: see `sbom-generate`.) Fields the file itself would give
-     (hyperparameters, inputs, outputs, an author, a parameter count) are better
-     read than inferred: tell the user the cause before inferring them from
-     prose.
-   - A name ending `...~<hex>`, a CRFsuite/fastText model with
-     `num_labels` but no `labels` or description, or `\uXXXX` in a name or
-     description is a Pitloom cap or escape, not a gap to fill from prose:
-     see `sbom-generate`'s known limitations. Never write the cut name, a
-     dropped label or an unescaped control back in a fragment.
-4. **Interactive session only -- ask the SBOM author about remaining
-   gaps they're plausibly positioned to know:** intended use, training-data
-   provenance/consent, deployment restrictions -- not facts derivable from
-   files (steps 2-3). Ask targeted questions for *specific* gaps, not an
-   open-ended interview. **Skip this step in a non-interactive run** (CI,
-   batch) -- do not block waiting for input.
-
-   **The answer decides the role -- is it the fact, or a pointer to the
-   fact?**
-   - The SBOM author states the fact itself ("it's MIT", "yes, trained on
-     our internal support-ticket corpus"): mark it `Source: SBOM author |
-     Role: sbomAuthorSupplied | Date: <ISO 8601 date>` -- never `Role:
-     inferred`; you didn't derive it, you relayed what you were told.
-   - The SBOM author points at a source instead ("look at
-     CONTRIBUTING.md", "read the wiki page", "try the HF card", "infer it
-     from the changelog"): go look. The role is *never*
-     `sbomAuthorSupplied` here -- it's whichever of
-     `declared`/`externalReported`/`inferred` matches how you actually got
-     the value from that source once you looked.
-5. **Before using any source outside this project** -- one the SBOM
-   author pointed you at (step 4), or one you noticed **on your own
-   initiative** (in your context window, in another readable file, or at a
-   remote location such as PyPI, arXiv, Hugging Face Hub, GitHub, GitLab,
-   Codeberg or a URL already in context) -- stop and ask the SBOM author
-   for permission first. Name exactly what you found and where; an
-   unprompted find needs an *at least as* explicit ask, since nothing
-   invited you to look. Never fold such a finding into a fragment
-   silently. This consent gate is not a provenance role: it never makes
-   the result `sbomAuthorSupplied`. **Non-interactive run:** use no
-   outside source; list what you found and where in the final report as
-   "not used -- needs consent".
-6. Draft your own fragment (`*.spdx3.json`) containing only the elements
-   or relationships you infer from prose (e.g. a `dataset_DatasetPackage`
-   plus a `trainedOn` relationship, or a `comment` refining a licence
-   guess). Mark every inferred value with the provenance string above.
-   Write any file path in a field or comment POSIX-style
-   (`docs/model-card.md`, not `docs\model-card.md`) on every OS:
-   Pitloom-generated SBOMs are byte-identical across operating systems,
-   and a backslash path would be the one thing that isn't.
-
-   A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
-   `spdxId` from the base SBOM as its `from`, and give every new element
-   its own `spdxId`. To add to a base element's own properties
-   (`originatedBy`, an `ai_hyperparameter` entry), restate it with the
-   base's `spdxId` and `name` exactly: a stale id adds a second
-   `ai_AIPackage`, silently, and it still validates; lists merge as a union,
-   a base value wins. `references/examples.md` shows complete elements.
-
-   **The deterministic result wins by default:** if step 2 already set a
-   field, do not re-propose a different value in your own fragment (two
-   conflicting relationships on one subject, no way to tell which is
-   current). **Override** only when prose clearly contradicts it (e.g. a
-   stale frontmatter `license:`): record *both* values and your reasoning
-   in that entry's provenance comment,
-
-   ```text
-   Source: <your agent name> (<vendor>) | Role: inferred | Overrides: <deterministic value> | Reason: <why>
-   ```
-
-   and say so in your final report (step 11) -- never silently.
-7. **Pre-merge check (mandatory):** read every drafted fragment (step 2's
-   and step 6's) with the JSON-LD deserialiser `merge_fragments()` itself
-   uses. It catches malformed JSON and many SPDX-shape errors (an unknown
-   property on a known type, a wrongly typed value, an element without an
-   `spdxId`, a misspelled type that carries properties) before
-   registration -- otherwise a fragment that fails to read is skipped with
-   only a `WARNING:` (the merge fails if it is registered with `required =
-   true`), a wasted `loom` run. It does not catch a bare unrecognised type
-   with no other key, not even `spdxId` (read as an extensible object), or
-   a missing required property (step 10 does). Exit 0 is a pass. This is
-   the one home of the snippet.
-
-   It imports `spdx_python_model`, which only Pitloom's own environment
-   has, so run it with the interpreter Pitloom is installed in, not
-   whichever `python3` is on `PATH`:
-
-   ```bash
-   python3 -c "import sys,io,pathlib; from spdx_python_model.bindings import v3_0_1 as s; [s.JSONLDDeserializer().read(io.BytesIO(pathlib.Path(p).read_bytes()), s.SHACLObjectSet()) for p in sys.argv[1:]]" model.enrich.spdx3.json fragments/agent-enrichment.spdx3.json
-   ```
-
-   With no persistent install, replace `python3` by `uvx --from
-   "pitloom>=0.21.0" python` (or, with pipx, `pipx run --spec
-   "pitloom>=0.21.0" python`; its "already on your PATH" notice is
-   harmless). With `pipx install`, use the venv's
-   interpreter (`$(pipx environment --value PIPX_LOCAL_VENVS)/pitloom/bin/python`;
-   `Scripts\python.exe` on Windows); on Windows otherwise use `py` or
-   `python`.
-
-   Do not use `uv run --with` for this: in a project directory it creates
-   `.venv` and `uv.lock` there and builds the project (running its
-   build backend, against the `--allow-build` hard rule).
-
-   Do not use `loom fragment validate` or `spdx3-validate` on a fragment:
-   it refers to the base SBOM's ids without an `ExternalMap`, so it fails
-   SHACL on its own (exit 1) in most cases, even when correct. The merged SBOM is
-   validated at step 10.
-
+   If `loom enrich` prints a `WARNING:` or `ERROR:`, the model is a stub, or
+   the frontmatter has a `license`, read `references/deterministic-pass.md`.
+3. Read the project's `README.md` / model card **prose** and other local docs.
+   Propose only fields for gaps step 2 left untouched. If the model's
+   `ai_AIPackage` is a **stub** (no `ai_*` property and no `comment` entry
+   `Source: <the model file> | Field: ...`: Pitloom did not read the file), a
+   name ends `...~<hex>`, a CRFsuite/fastText model has `num_labels` but no
+   `labels`, or `\uXXXX` appears in a name or description, read
+   `references/model-stub-diagnosis.md` and tell the user the cause before
+   inferring what the file itself would give. Never add `--trust-wheel-model` or
+   raise a model-scan cap yourself; never write a cut name, dropped label or
+   unescaped control back into a fragment.
+4. **Interactive session only -- ask the SBOM author about remaining gaps
+   they're plausibly positioned to know** (intended use, training-data
+   provenance/consent, deployment restrictions; not facts derivable from
+   files), with targeted questions for *specific* gaps. **Skip this step in a
+   non-interactive run** -- do not block waiting for input. **The answer
+   decides the role:** a fact the author states is `sbomAuthorSupplied`, never
+   `inferred`; if the author points at a source, go look, and the role is
+   *never* `sbomAuthorSupplied` (`references/provenance-roles.md`).
+5. **Before using any source outside this project** -- one the SBOM author
+   pointed you at (step 4), or one you noticed **on your own initiative** (in
+   your context window, another readable file, or a remote location such as
+   PyPI, arXiv, Hugging Face Hub, GitHub, GitLab, Codeberg or a URL already in
+   context) -- stop and ask the SBOM author for permission first. Name exactly
+   what you found and where; an unprompted find needs an *at least as* explicit
+   ask. Never fold such a finding into a fragment silently. This gate is not a
+   provenance role: it never makes the result `sbomAuthorSupplied`.
+   **Non-interactive run:** use no outside source; list what you found and where
+   in the final report as "not used -- needs consent".
+6. Draft your own fragment (`*.spdx3.json`) containing only the elements or
+   relationships you infer from prose (e.g. a `dataset_DatasetPackage` plus a
+   `trainedOn` relationship, or a `comment` refining a licence guess), each
+   marked with the provenance string above and file paths POSIX-style on every
+   OS. A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
+   `spdxId` from the base SBOM, and restate a base element exactly (`spdxId`
+   and `name`) to add to it: a stale id silently adds a second `ai_AIPackage`
+   that still validates. **The deterministic result wins by default:** do not
+   re-propose a different value for a field step 2 set. **Override** only when
+   prose clearly contradicts it (e.g. a stale frontmatter `license:`): record
+   *both* values and your reason in that entry's provenance comment (the
+   `Overrides:`/`Reason:` form is in `references/provenance-roles.md`) and say
+   so in your final report (step 11) -- never silently. For a complete example,
+   read `references/examples.md`.
+7. **Pre-merge check (mandatory):** read every drafted fragment (step 2's and
+   step 6's) with the JSON-LD deserialiser `merge_fragments()` uses, run with
+   the interpreter Pitloom is installed in, not whichever `python3` is on
+   `PATH`; exit 0 is a pass (otherwise an unreadable fragment is skipped with
+   only a `WARNING:`). Before running it, read
+   `references/pre-merge-check.md`: the one-liner, the `uvx`/`pipx` spellings
+   and what it catches. Never `uv run --with` for it (in a project directory it
+   builds the project, against the `--allow-build` hard rule), and never
+   `loom fragment validate`/`spdx3-validate` on a fragment (it fails SHACL on
+   its own; the merged SBOM is validated at step 10).
 8. Register **both** fragments so Pitloom merges them on the next run.
    `required = true` makes a missing or unparsable fragment fail the run
    instead of being skipped with a `WARNING:`:
@@ -333,146 +191,97 @@ Steps:
    ]
    ```
 
-9. Re-run **the exact command that produced the base SBOM** (step 1: same
-   target, `-o`, `--config`, `--id-registry`, `--use-lockfile`, `--enrich`
-   and `--allow-build`/`--build-timeout` flags), so the merged, enriched
-   SBOM is written (`loom generate` without `-o` exits 1).
+9. Re-run **the exact command that produced the base SBOM** (step 1) so the
+   merged SBOM is written (`loom generate` without `-o` exits 1).
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
-    `<merged-sbom-file>` -- a syntactically valid fragment can still miss
-    a required property or use the wrong relationship type, which only
-    shape/SHACL validation catches. Minimal fallback: `pip install
-    "pitloom[validate]>=0.21.0"` then `loom fragment
-    validate <merged-sbom-file>`.
-11. Tell the user what was found deterministically (step 2), what was
-    inferred from prose (step 6), and what the SBOM author supplied
-    directly (step 4) -- and call out any override from step 6 explicitly
-    -- this is provenance-tracked, agent-relayed data, not ground truth.
-
-For `loom enrich` and the `[tool.pitloom] enrich` and
-`[tool.pitloom.fragment]` settings, see
-<https://bact.github.io/pitloom/cli/#enrich-an-sbom> and
-<https://bact.github.io/pitloom/configuration/>.
+    `<merged-sbom-file>` -- a valid fragment can still miss a required property
+    or use the wrong relationship type, which only shape/SHACL validation
+    catches. Minimal fallback: `pip install "pitloom[validate]>=0.21.0"` then
+    `loom fragment validate <merged-sbom-file>`.
+11. Tell the user what was found deterministically (step 2), inferred from
+    prose (step 6) and supplied by the SBOM author (step 4), and call out any
+    override: provenance-tracked, agent-relayed data, not ground truth.
 
 ### Troubleshooting: dangling references
 
 Merging a fragment whose ids the base SBOM does not have makes
-`merge_fragments()` log a `WARNING:` per dangling reference, then fail (the
-CLI prints an `ERROR:` and exits non-zero) rather than write a broken SBOM.
-Regenerate the base SBOM, re-run enrichment and merge again; never retry
-the same merge. Never create or write an ID registry to fix it, and
-never pin ids from this skill: if the user asks to pin ids or create a
-registry, hand off to `sbom-generate` ("Pinning element ids"); non-interactive
-(no user to ask): change nothing and report the `loom id generate` command.
-Likely causes, in order: a Pitloom upgrade changed file discovery; a registry
-mismatch between the base run and `loom enrich`;
-`--project-dir` omitted; a `--config`/`--use-lockfile` mismatch; a base
-built with `--allow-build`; one dependency name held twice. Why each
-misses, and the fix for the last: `references/dangling-references.md`.
+`merge_fragments()` log a `WARNING:` per dangling reference, then fail (the CLI
+prints an `ERROR:` and exits non-zero). Regenerate the base SBOM, re-run
+enrichment and merge again; never retry the same merge. Never create or write
+an ID registry to fix it, and never pin ids from this skill: if the user asks to
+pin ids or create a registry, hand off to `sbom-generate` ("Pinning element
+ids"); non-interactive: change nothing and report the `loom id generate`
+command. Before regenerating, read `references/dangling-references.md`:
+the causes in order and the fix for each (a repeat run can fail the same way).
 
 ## Complete a standard's minimum elements
 
-A separate entry point into the same fragment/provenance/merge mechanism
-above, driven by a **checklist** (a named standard's required elements)
-instead of open-ended prose reading. Use this when the request names a
-standard or asks what's missing for compliance, rather than asking for
-enrichment in general.
+A separate entry point into the same fragment/provenance/merge mechanism,
+driven by a **checklist** (a named standard's required elements) instead of
+open-ended prose reading. Use it when the request names a standard or asks
+what's missing for compliance. Steps a and b work on any SPDX 3 SBOM; the merge
+(step f) needs a project-directory base: for any other SBOM stop after b and
+report the gaps, or hand over a drafted fragment unmerged and say so.
 
-Steps a and b work on any SPDX 3 SBOM. The merge (step f) works only for
-a project-directory base (see "Where a fragment can be merged" above); for
-any other SBOM, stop after b and report the gaps, or, if you drafted a
-fragment, hand it over unmerged and say so.
-
-Steps below are lettered (a-g) to keep them visually distinct from the
-numbered steps 1-11 above, which they reference by number.
-
-a. **Identify the standard(s):** NTIA 2021; FSCT 2024 (CISA's Framing
-   Software Component Transparency); CISA 2026 (current baseline;
-   supersedes NTIA 2021); G7 SBOM for AI 2026 (additive; only with an
+a. **Identify the standard(s):** NTIA 2021; FSCT 2024; CISA 2026 (current
+   baseline; supersedes NTIA 2021); G7 SBOM for AI 2026 (additive; only with an
    `ai_AIPackage`); BSI TR-03183-2 v2.1. Unnamed: interactive, ask;
-   non-interactive, use CISA 2026, plus G7 SBOM for AI 2026 when the SBOM
-   has an `ai_AIPackage`, and say in the report that these were the
-   default. `references/minimum-elements.md` has the checklists: each
-   element's SPDX 3 field, what Pitloom fills, and whether the checker
-   checks it.
-b. **Gap analysis:** per element, check the mapped field in the base SBOM
-   and report present / missing / `NOASSERTION`-or-empty (a licence with no
-   relationship is missing). Don't trust the
-   reference's "covered"/"conditional" calls: they were checked against
-   one real SBOM.
-   A stub `ai_AIPackage` (step 3) has only a name from its file: count every
-   G7 model element as missing for it and report its stderr cause first.
-   Optional cross-check, when the user asks or agrees (non-interactive: only
-   if `sbomcheck` is already installed, else report the command), with
-   `-c` one of `ntia`, `fsct3`, `cisa2026`, `g7ai`, `bsi`:
+   non-interactive, use CISA 2026, plus G7 SBOM for AI 2026 when the SBOM has an
+   `ai_AIPackage`, and say in the report these were the default. Checklists:
+   read `references/minimum-elements.md`.
+b. **Gap analysis:** per element, report present / missing /
+   `NOASSERTION`-or-empty (a licence with no relationship is missing); the
+   reference's "covered"/"conditional" calls were checked against one real SBOM,
+   so don't trust them. A stub `ai_AIPackage` (step 3) counts every G7 model
+   element as missing: report its stderr cause first. Optional cross-check, when
+   the user asks or agrees (non-interactive: only if `sbomcheck` is already
+   installed, else report the command), `-c` one of `ntia`, `fsct3`, `cisa2026`,
+   `g7ai`, `bsi`:
 
    ```bash
    sbomcheck -s spdx3 -c cisa2026 -r json -o report.json sbom.spdx3.json
    ```
 
-   Its `present` means the property exists, not that its value is right.
-   Install, outcomes and what to do per `missing` rule:
-   `references/minimum-elements-workflow.md` ("Cross-check with the
-   checker").
-c. **Resolve gaps by the precedence of steps 2-5:** deterministic `loom
-   enrich`, then local prose, then (interactive only, consent-gated per
-   step 5) outside sources. Only what is left reaches step d.
-   This fills *extraction* gaps (a value the file lacks, or sources that
-   disagree), not *recording* gaps: an element whose mapped SPDX 3.0.1 field
-   does not exist. Do not stretch a neighbouring property; write only where
-   Pitloom itself records it, else list it in step g as not recordable.
-d. **Interactive only, one field at a time,** using
-   `references/minimum-elements-questions.md` and step 4's role rule.
-   Ask quick or high-impact answers first. The user can stop at any point:
-   go to step f with what was gathered; list the rest as open gaps. Skip
+   Its `present` means the property exists, not that the value is right; for
+   install, outcomes and per-`missing` action read "Cross-check with the
+   checker" in `references/minimum-elements-workflow.md`.
+c. **Resolve gaps by the precedence of steps 2-5.** This fills *extraction*
+   gaps, not *recording* gaps (an element whose SPDX 3.0.1 field does not
+   exist): never stretch a neighbouring property; list it in step g.
+d. **Interactive only, one field at a time.** When you ask, read
+   `references/minimum-elements-questions.md` and apply step 4's role rule; the
+   user can stop at any point (go to step f, list the rest as open gaps). Skip
    in a non-interactive run.
-e. **Contradiction check** before drafting: compare each new answer with
-   the base SBOM's value and earlier answers. Interactive: ask which
-   stands. Non-interactive: keep the base value, record the candidate in
-   the provenance comment, list an open conflict in step g. Never pick
-   silently.
-f. **Draft, validate, register, merge, validate:** reuse steps 6-10
-   verbatim. Only *what* is proposed changes, not how it is recorded.
-g. **Final report:** elements now satisfied; those unknown by the user's
-   choice (write `NOASSERTION`, don't omit the field; the licence recipe is
-   in `references/minimum-elements-workflow.md`); those with no
-   automatable path (SBOM Author Signature, most G7 AI Security/KPI
-   elements, dataset statistical properties, BSI's SHA-512 for a
-   dependency), which need something outside this workflow. Name the
-   standards applied.
+e. **Contradiction check** before drafting, against the base SBOM's value and
+   earlier answers. Interactive: ask which stands. Non-interactive: keep the
+   base value, record the candidate in the provenance comment, list an open
+   conflict in step g. Never pick silently.
+f. **Draft, validate, register, merge, validate:** reuse steps 6-10.
+g. **Final report:** elements now satisfied; those unknown by the user's choice
+   (write `NOASSERTION`, don't omit the field); those with no automatable path.
+   Name the standards applied.
 
-Detail for steps b, d and g: `references/minimum-elements-workflow.md`.
+Read `references/minimum-elements-workflow.md` for step d's ranking, step g's
+licence-`NOASSERTION` recipe and its no-automatable-path list;
+`references/minimum-elements-datasets.md` for G7 Dataset Properties;
+`references/minimum-elements-bsi.md` for BSI.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
-`loom enrich`/`project`/`generate`/`merge` log to stderr with the
-convention in `sbom-generate`'s "Check stderr" section: scan it after
-every call and mention any hit, even on exit 0. Expect the
-dangling-reference `WARNING:` plus `ERROR:` above. After an ambiguous-name
-pin (`sbom-generate`'s `references/id-registry.md`, on GitHub:
-<https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/id-registry.md>),
-a `WARNING: ID registry: ... is registered for both` line on every run is
-expected, not a stale entry. `ERROR: ID registry file ...: version 2, expected 3`
-means the declared registry is an old format: never delete or rewrite it from
-this skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
+`loom enrich`/`project`/`generate`/`merge` log to stderr with the convention in
+`sbom-generate`'s "Check stderr" section: scan it after every call and mention
+any hit, even on exit 0. Expect the dangling-reference `WARNING:` plus `ERROR:`
+above. After an ambiguous-name pin (`sbom-generate`'s
+`references/id-registry.md`), a `WARNING: ID registry: ... is registered for
+both` line on every run is expected. `ERROR: ID registry file ...: version 2,
+expected 3` means an old-format registry: never delete or rewrite it from this
+skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
 non-interactive stop and report the `ERROR:`.
 
 ## See also
 
-- `references/examples.md` -- full worked example.
-- `references/minimum-elements.md` -- the NTIA/FSCT/CISA/G7/BSI
-  checklists and field mappings (BSI: `references/minimum-elements-bsi.md`; G7
-  Dataset Properties: `references/minimum-elements-datasets.md`; the
-  question bank: `references/minimum-elements-questions.md`);
-  `references/minimum-elements-workflow.md` -- step detail for "Complete a
-  standard's minimum elements" and the optional checker.
-- `references/deterministic-pass.md`, `references/dangling-references.md`
-  -- `loom enrich` detail and merge-failure causes.
-- All of these are on GitHub:
-  <https://github.com/bact/pitloom/tree/main/skills/sbom-enrich/references>
-- The sibling `sbom-generate` skill -- generates the base SBOM this
-  enriches; owns the ID registry reference.
+- Sibling `sbom-generate` (generates the base SBOM; owns the ID registry
+  reference):
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
-- The sibling `sbom-validate` skill -- the mandatory post-merge check.
+- Sibling `sbom-validate` (the mandatory post-merge check):
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
-- `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.
-  <https://bact.github.io/pitloom/resources/>

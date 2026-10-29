@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,41 @@ SPDX-License-Identifier: CC0-1.0
 
 # The deterministic `loom enrich` pass: why the rules hold
 
-See also: `../SKILL.md` (step 2, which holds the rules) and
-`dangling-references.md`.
+See also: `../SKILL.md` (step 2, which holds the rules),
+`dangling-references.md` and `model-stub-diagnosis.md` (a model the base holds
+as a stub).
+
+## What the pass writes
+
+It parses only YAML frontmatter and writes a standalone fragment: fast, free,
+safe. Each `datasets:` entry becomes a `dataset_DatasetPackage` with a
+`trainedOn` relationship. A frontmatter `license` is only logged in the
+fragment's enrichment `Annotation`, with no licence element: a base regenerated
+with `--enrich` states it (or a step 6 fragment does). Read the fragment's
+`@graph` to see what it filled.
+
+Skip it when the base run used `--enrich` (same pass: merging both duplicates
+each dataset and `trainedOn`), and when the target is not a local AI model file
+(a plain Python project, a Hugging Face model, or a file that is not a model).
+
+## Errors and a stub model
+
+A model the base holds as a stub (`../SKILL.md` step 3) because of a bound, a
+missing library or a parse failure is no obstacle: `loom enrich` reads the model
+too (native readers included, so a format a wheel scan's gate leaves unread is
+read here) and the README or model card next to it. It writes the fragment and
+exits 0 with the one `WARNING:` the scan gave (its `FILE=` is the path as given,
+not the scan's project-relative one), and the model stays a stub. (A wheel's
+gate, ceiling and budget do not apply to a local file.)
+
+Only `ERROR: enrichment fragment generation failed: ... not an AI model ...`,
+`header is not <fmt>` or `header is a Git LFS pointer, ...` means the file is
+not a model: skip the step for it and relay Pitloom's own advice.
+
+## Attaching
+
+The fragment attaches only if the base has an `ai_AIPackage` for that model (the
+model file is among the build's files); if not, say so instead of merging.
 
 ## `-o`: default name and location
 
