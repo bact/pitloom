@@ -119,11 +119,12 @@ def warn_over_cap(log, cap, where, outcome="skipped", *, once=False, key=None):
     "caps.py": """\
 import logging
 
-from pitloom.messages import OVER_CAP
+from pitloom.messages import OVER_CAP, Cap
 from pitloom.messages._over_cap_warning import warn_over_cap
 from pitloom.remote_errors import RemoteSourceError
 
 _log = logging.getLogger(__name__)
+NAME_CAP = Cap(9, "character", "name")
 
 
 def warn_field_cap(field, key, cap, read):
@@ -133,6 +134,7 @@ def warn_field_cap(field, key, cap, read):
 def check(path, cap):
     warn_over_cap(_log, cap, path)
     warn_field_cap("a b", "authors", cap, None)
+    warn_over_cap(_log, model_cap(NAME_CAP, "gguf"), path, "cut")
     raise RemoteSourceError("git.too-large", "too large", pitloom_code=OVER_CAP.code)
 """,
     # A call of each helper, and a raise with text.

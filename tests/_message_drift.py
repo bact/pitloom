@@ -222,12 +222,13 @@ def _line_tokens(template: str) -> tuple[str, ...]:
 
 
 def _takes(name: str, run: tuple[object, ...], marker: str) -> bool:
-    """Whether field *name* can print as the quote's *run*: a wildcard
-    alone, or the value as the reference shows it (``'<path>'``); a free
-    field, any text without the family's *marker*; any other, text of its
-    own shape."""
+    """Whether field *name* can print as the quote's *run*, which starts
+    with text (:func:`_piece_of` reads a wildcard standing for the field):
+    the value as the reference shows it (``'<path>'``); for a free field,
+    any text without the family's *marker*; for any other, text of its own
+    shape."""
     field = FIELDS[name]
-    if run in ((_ANY,), _quote_tokens(field.shown)):
+    if run == _quote_tokens(field.shown):
         return True
     text = "".join(t for t in run if isinstance(t, str))
     if field.free:
