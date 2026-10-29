@@ -26,12 +26,14 @@ from pitloom.assemble.spdx3.deps_license import build_file_declared_license
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.document import DocumentModel
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.lfs_pointer import LFS_POINTER_METHOD, LfsPointer
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     file_hashes,
+    lfs_pointer_hashes,
     require_spdx_id,
 )
 from pitloom.extract._license import warn_unless_expression
@@ -52,6 +54,27 @@ _FILE_TYPE_TO_SOFTWARE_PURPOSE: dict[str, str] = {
     "OTHER": spdx3.software_SoftwarePurpose.other,
     "SPDX": spdx3.software_SoftwarePurpose.bom,
 }
+
+
+def _stand_in_pointer(package_file: ProjectFile) -> LfsPointer | None:
+    """The Git LFS pointer of a checkout's *package_file*, recorded by its
+    ``oid`` (no SHA-512 read), else ``None``: an archive's pointer keeps
+    its own digests (:func:`~pitloom.core.project.digest_fields`)."""
+    if package_file.digest_sha512 is not None:
+        return None
+    return package_file.lfs_pointer
+
+
+def _verified_using(package_file: ProjectFile) -> list[spdx3.Hash]:
+    """*package_file*'s ``verifiedUsing``: the pointer's ``oid`` when it
+    stands in for the content, else the digests read."""
+    pointer = _stand_in_pointer(package_file)
+    if pointer is not None:
+        return lfs_pointer_hashes(pointer)
+    # Optional only for get_wheel_files(skip_merkle_root=True)
+    # (_embed_build_sbom.py's project-file metadata); a document's
+    # files are always hashed.
+    return file_hashes(cast(HexDigests, package_file.hex_digests()))
 
 
 @lru_cache(maxsize=1)
@@ -157,6 +180,11 @@ def _emit_file_header_metadata(
         else:
             segment = "Method: extension_guess"
         field_provenance["content_type"] = f"Source: {file_path} | {segment}"
+
+    if _stand_in_pointer(package_file) is not None:
+        field_provenance["verified_using"] = (
+            f"Source: {file_path} | Method: {LFS_POINTER_METHOD}"
+        )
 
     if package_file.file_contributors:
         summary_entries.extend(
@@ -339,11 +367,6 @@ def _add_package_files(
 
         _ensure_directory_chain(parent_paths, dir_spdx_ids, dir_hits, ctx)
 
-        # Optional only for get_wheel_files(skip_merkle_root=True)
-        # (_embed_build_sbom.py's project-file metadata); a document's
-        # files are always hashed.
-        file_digests = cast(HexDigests, package_file.hex_digests())
-
         registered_id = file_hits.get(package_file.distribution_path)
         package_entry = spdx3.software_File(
             spdxId=registered_id
@@ -352,7 +375,7 @@ def _add_package_files(
             creationInfo=spdx_ci,
         )
         package_entry.software_fileKind = spdx3.software_FileKindType.file
-        package_entry.verifiedUsing = file_hashes(file_digests)
+        package_entry.verifiedUsing = _verified_using(package_file)
         exporter.add_file(package_entry)
         _emit_file_header_metadata(
             package_entry,

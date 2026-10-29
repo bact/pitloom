@@ -230,6 +230,7 @@ exclude = [
     "tests/fixtures/croissant/*.json",
     "tests/fixtures/fragments/*.json",
     "tests/fixtures/huggingface-hub/*.txt",
+    "tests/fixtures/lfs-pointers/",
     "tests/fixtures/real-world-projects/",
     "tests/fixtures/real-world-locks/",
     "tests/fixtures/real-world-extras/",

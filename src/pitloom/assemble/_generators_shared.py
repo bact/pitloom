@@ -118,5 +118,7 @@ def _sync_registry(
         if _harvestable(obj) and getattr(obj, "spdxId", None) not in non_readers:
             filtered.add(obj)
 
-    new_ids, changed = registry.harvest(filtered, keys=exporter.registry_keys)
+    new_ids, changed = registry.harvest(
+        filtered, keys=exporter.registry_keys, hashes=exporter.registry_hashes
+    )
     persist_registry(registry, new_ids, changed)

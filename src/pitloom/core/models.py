@@ -123,8 +123,10 @@ def merkle_root_of_files(files: Iterable[ProjectFile]) -> str | None:
     :func:`pitloom.extract.wheel.payload_files`). :func:`get_wheel_files`
     hashes the source files the build backend selects, so its root equals a
     built wheel's only while the build adds no payload of its own (shared
-    data, scripts, generated or repaired files). Every file must carry a
-    ``digest_sha256``.
+    data, scripts, generated or repaired files) and no Git LFS pointer is
+    among them: a checkout's leaf for a pointer is its ``oid``, a wheel's
+    the pointer text's digest (``bytes_as_is``, as the hook takes it). Every
+    file must carry a ``digest_sha256``.
     """
     ordered = sorted(files, key=lambda f: f.distribution_path)
     if not ordered:

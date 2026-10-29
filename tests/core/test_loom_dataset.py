@@ -115,7 +115,7 @@ def test_file_dataset_contains_its_keyed_file(
         loom.add_dataset(given)
         package = run.datasets[0]
         # the cached one
-        held = run.elements.file(given, Path(given), HexDigests(_SHA))
+        held = run.elements.file(given, Path(given), HexDigests(_SHA), pointer=None)
         shared.append(package.verifiedUsing[0] is held.verifiedUsing[0])
 
     with caplog.at_level(logging.WARNING, logger="pitloom.loom"):

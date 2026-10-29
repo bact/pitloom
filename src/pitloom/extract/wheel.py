@@ -54,7 +54,9 @@ def _hash_wheel_entry(
     *name* is the entry's install-location name (see
     :func:`pitloom.core.archive_member_names.zip_file_members`), the
     ``distribution_path``. ``physical_path`` is the raw archive name, so a
-    registry keyed by it before names were normalised still hits.
+    registry keyed by it before names were normalised still hits. A Git LFS
+    pointer keeps the digests of its own text, as ``RECORD`` has them, and
+    is flagged (``lfs_pointer``).
 
     Raises:
         ValueError: The member cannot be read (damaged, encrypted,
@@ -67,7 +69,7 @@ def _hash_wheel_entry(
     return ProjectFile(
         physical_path=info.orig_filename,
         distribution_path=name,
-        **digest_fields(hasher.digests()),
+        **digest_fields(hasher.digests(), bytes_as_is=True),
     )
 
 

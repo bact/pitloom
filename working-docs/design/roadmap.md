@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,7 +77,7 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   caller's address check and git's own lookup; a reader for imperative
   `setup.py` (a monorepo such as `labs.etsi.org/rep/ocf/capif` fails with a
   hint naming its sub-projects); a clone size cap on the CLI (the library's is
-  built, #339); Git LFS pointers (see 0.22.0); record the commit and URL in the SBOM (see 0.22.0). See
+  built, #339); record the commit and URL in the SBOM (see 0.22.0). See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
   selection** for wheels. See
@@ -205,15 +205,10 @@ Open:
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See the [`loom` SDK](#loom-sdk-code-model-dataset-annotation) section and
   [loom-sdk-expansion.md](loom-sdk-expansion.md).
-- [ ] **Git LFS pointers** (a known limitation of 0.21.0, to fix in 0.22.0): a
-  file kept in Git LFS is a pointer file after Pitloom's clone (LFS is switched
-  off), so an AI model, dataset or other file in LFS is not read, and a file
-  element carries the SHA-256 of the pointer text with no warning. One shared
-  detector for every route; one summary `WARNING:` per run; the pointer's
-  `oid sha256` and `size` recorded as the file's hash and size with their own
-  provenance (`Method: lfs_pointer`), saying the content was not read. See
-  [known-bugs.md](known-bugs.md#p0-in-0210) and
-  [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
+- [x] **Git LFS pointers**, built for 0.22.0: one detector; a checkout
+  pointer is listed by its `oid`, one `WARNING:` per SBOM. See
+  [git-lfs-pointers.md](../implementation/git-lfs-pointers.md). Open
+  follow-ups (ceiling flags, LFS fetch) are in [known-bugs.md](known-bugs.md).
 - [ ] **Record a Git URL target's commit as a `pkg:git` identifier** (decided
   2026-10-23) and **one target resolver with Package-URL targets** (`pkg:git`,
   `github`, `bitbucket`, `huggingface`, `pypi`; later `conda`, `mlflow`): see
@@ -331,7 +326,7 @@ unless the linked doc says so.
 - [ ] **Hugging Face Spaces**: a Space is an application with no
   `pyproject.toml`, so `loom project` fetches it and finds no project; read the
   README front matter, `requirements.txt` and the Hub's `models` list instead,
-  and the LFS pointer's SHA-256 for model files. See
+  and the LFS pointer's `oid` for model files (built). See
   [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
 - [ ] **What an SBOM counts as inside the package**, and package-format
   independence (payload vs container metadata, `.data/` naming). See

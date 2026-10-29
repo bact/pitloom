@@ -17,7 +17,6 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
 
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import FilesOrigin, ProjectFile
@@ -26,7 +25,13 @@ from pitloom.id_registry.keys import LookupKey, file_lookup_key, project_prefix
 
 log = logging.getLogger("pitloom.id_registry")
 
-__all__ = ["FALLBACK_KEYS_INFO", "FileHits", "file_keys", "resolve_file_hits"]
+__all__ = [
+    "FALLBACK_KEYS_INFO",
+    "FileHits",
+    "file_keys",
+    "pointer_registry_hashes",
+    "resolve_file_hits",
+]
 
 
 def _resolve_directory_hits_for_file(
@@ -114,6 +119,20 @@ def file_keys(doc: DocumentModel, registry: IdRegistry) -> dict[str, LookupKey]:
     return _file_keys(doc, _doc_prefix(doc, registry), registry)
 
 
+def _lookup_file(
+    session: IdRegistrySession, package_file: ProjectFile, lookup: LookupKey
+) -> str | None:
+    """*session*'s hit for *package_file* under *lookup*, gated by its
+    :meth:`~pitloom.core.project.ProjectFile.registry_sha256` (a file not
+    hashed: ungated)."""
+    return session.lookup_key(
+        package_file.distribution_path,
+        FILE_TYPE,
+        lookup,
+        sha256=package_file.registry_sha256(),
+    )
+
+
 def _resolve_file_and_directory_hits(
     files: list[ProjectFile],
     session: IdRegistrySession,
@@ -157,12 +176,7 @@ def _resolve_file_and_directory_hits(
         lookup = keys.get(package_file.distribution_path) or file_lookup_key(
             package_file, FilesOrigin(), None
         )
-        claimed_id = session.lookup_key(
-            package_file.distribution_path,
-            FILE_TYPE,
-            lookup,
-            sha256=cast(str, package_file.digest_sha256),
-        )
+        claimed_id = _lookup_file(session, package_file, lookup)
         if claimed_id is not None:
             file_hits[package_file.distribution_path] = claimed_id
 
@@ -174,23 +188,41 @@ class FileHits:
     """One document's file and directory registry hits
     (:func:`_resolve_file_and_directory_hits`), each file's key (*keys*,
     by ``distribution_path``), the project *prefix* they were joined to
-    (``None``: none) and the *session* they were claimed in."""
+    (``None``: none), the *session* they were claimed in, and the registry
+    hash of each Git LFS pointer file (*pointers*, by
+    ``distribution_path``: :func:`pointer_registry_hashes`)."""
 
     session: IdRegistrySession
     dirs: dict[str, str]
     files: dict[str, str]
     keys: dict[str, LookupKey]
     prefix: str | None
+    pointers: dict[str, str]
 
     def record(self, file_spdx_ids: Mapping[str, str]) -> None:
         """Record each file's key for the id it got (*file_spdx_ids*, by
         ``distribution_path``), so a minted id is harvested under it; a
         hit's own recorded key wins
-        (:meth:`~pitloom.id_registry.IdRegistrySession.record_key`)."""
+        (:meth:`~pitloom.id_registry.IdRegistrySession.record_key`). A Git
+        LFS pointer also records its registry hash, the one its lookup
+        gated on, which harvest writes in place of the SBOM's."""
         for dist_path, spdx_id in file_spdx_ids.items():
             lookup = self.keys.get(dist_path)
             if lookup is not None:
-                self.session.record_key(spdx_id, FILE_TYPE, lookup.key)
+                self.session.record_key(
+                    spdx_id, FILE_TYPE, lookup.key, sha256=self.pointers.get(dist_path)
+                )
+
+
+def pointer_registry_hashes(files: list[ProjectFile]) -> dict[str, str]:
+    """``distribution_path`` -> registry hash
+    (:meth:`~pitloom.core.project.ProjectFile.registry_sha256`, its
+    ``oid``) of each Git LFS pointer of *files*; no other file is in it."""
+    return {
+        pf.distribution_path: sha256
+        for pf in files
+        if pf.lfs_pointer is not None and (sha256 := pf.registry_sha256())
+    }
 
 
 def resolve_file_hits(doc: DocumentModel, session: IdRegistrySession) -> FileHits:
@@ -199,4 +231,5 @@ def resolve_file_hits(doc: DocumentModel, session: IdRegistrySession) -> FileHit
     prefix = None if registry is None else _doc_prefix(doc, registry)
     keys = {} if registry is None else _file_keys(doc, prefix, registry)
     dirs, files = _resolve_file_and_directory_hits(doc.project.files, session, keys)
-    return FileHits(session, dirs, files, keys, prefix)
+    pointers = pointer_registry_hashes(doc.project.files)
+    return FileHits(session, dirs, files, keys, prefix, pointers)
