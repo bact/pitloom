@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -318,7 +318,12 @@ and symbolic links to directories are left out of the root, as is the
 declared registry file. A missing or remote dataset name gets no hash.
 Hashing one dataset reads at most `max_dataset_hash_bytes=` (else the
 config's `max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets
-no hash and one `WARNING:`. The keyword is an integer of at least 1:
+no hash and one `WARNING:`. A dataset that is a file also gets its size in
+bytes (`dataset_datasetSize`): the bytes read, or, over the cap, its
+`stat()` size, with the hash's absence and the reason in the
+[provenance](metadata-provenance.md).
+A directory, a Git LFS pointer and a file under 1,024 bytes that is over
+the cap get no size. The keyword is an integer of at least 1:
 `0` and a `bool` raise `ValueError` as the run begins.
 A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the

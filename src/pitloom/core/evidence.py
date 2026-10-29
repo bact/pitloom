@@ -33,6 +33,9 @@ EVIDENCE_LEVELS: frozenset[str] = frozenset(
 EVIDENCE_KEY = "evidence"
 REASON_KEY = "reason"
 
+#: The reason code of a fact over a read cap.
+OVER_CAP = "over-cap"
+
 #: Provenance field names of the facts a ``not_measured`` entry stands in
 #: for: the hash (``verifiedUsing``) of a file, dataset or model, and a
 #: dataset's size (``dataset_datasetSize``, ``DatasetMetadata.byte_size``).
@@ -44,7 +47,7 @@ BYTE_SIZE_FIELD = "byte_size"
 #: input into an SBOM.
 REASON_CODES: frozenset[str] = frozenset(
     {
-        "over-cap",
+        OVER_CAP,
         "timeout",
         "network-failed",
         "lfs-pointer",

@@ -347,7 +347,8 @@ unless the linked doc says so.
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting; a size, hash or property is recorded as measured,
   declared (with its source), a lower bound, or not measured (with the reason).
-  First step: sizes under a cap. See
+  First step built (#387): a single-file dataset's size and why its hash is
+  missing; the rest is unbuilt. See
   [evidence-levels.md](evidence-levels.md).
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete about 250
   lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan: see

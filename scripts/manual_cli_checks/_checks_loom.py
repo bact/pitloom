@@ -246,8 +246,10 @@ with loom.run(out, **extra):
     loom.add_dataset("data/small.txt")
     loom.add_dataset("data/big.txt")
 """
-#: Bytes of ``data/small.txt`` (at the cap) and ``data/big.txt`` (over it).
+#: Bytes of ``data/small.txt`` (at the cap) and ``data/big.txt`` (over it,
+#: and big enough to be no Git LFS pointer, so loom records its size).
 _CAP = 16
+_BIG = 1024
 
 
 def _pinned_digests(registry: Path) -> dict[str, str | None]:
@@ -298,7 +300,7 @@ def check_dataset_hash_cap(ctx: Context) -> None:
     root = ctx.work / "capped"
     (root / "data").mkdir(parents=True)
     (root / "data" / "small.txt").write_bytes(b"s" * _CAP)
-    (root / "data" / "big.txt").write_bytes(b"b" * (_CAP + 4))
+    (root / "data" / "big.txt").write_bytes(b"b" * _BIG)
     (root / "pyproject.toml").write_text(
         f'[project]\nname = "p"\nversion = "1"\n\n[tool.pitloom]\n'
         f"max-dataset-hash-bytes = {_CAP}\n",
@@ -331,6 +333,26 @@ def check_dataset_hash_cap(ctx: Context) -> None:
             len(warned) == 1 and warned[0].startswith("WARNING: "),
             f"loom {mode}: not one WARNING naming the cap:\n{stderr}",
         )
-        packaged = _packaged_digests(load_graph(out))
+        graph = load_graph(out)
+        packaged = _packaged_digests(graph)
         expect(packaged == pinned, f"loom {mode} {packaged} differs from {pinned}")
-    ctx.note(f"cap {_CAP}: small hashed, big omitted, on both")
+        _expect_sizes(graph, mode)
+    ctx.note(f"cap {_CAP}: small hashed, big omitted, on both; both sized")
+
+
+def _expect_sizes(graph: list[dict[str, Any]], mode: str) -> None:
+    """Both datasets state their size; the omitted hash says why, and the
+    unread size how it was taken."""
+    packages = {e["name"]: e for e in graph if e["type"] == "dataset_DatasetPackage"}
+    sizes = {name: p.get("dataset_datasetSize") for name, p in packages.items()}
+    expect(
+        sizes == {"data/small.txt": _CAP, "data/big.txt": _BIG},
+        f"loom {mode}: dataset sizes {sizes}",
+    )
+    comment = packages["data/big.txt"].get("comment", "")
+    for entry in (
+        "verified_using: Source: data/big.txt | Evidence: not_measured | "
+        "Reason: over-cap",
+        "byte_size: Source: data/big.txt | Evidence: measured_stat",
+    ):
+        expect(entry in comment, f"loom {mode}: no {entry!r} in {comment!r}")
