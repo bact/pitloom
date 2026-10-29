@@ -15,7 +15,8 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 `git-lfs-pointers.md` in `../implementation/` once #378 is merged (the case
 that showed the gap).
 
-Status: proposed 2026-10-29; the four decisions at the end are open.
+Status: decided 2026-10-29 (the four decisions at the end); scope split
+between 0.22.0 and 0.23.0 below.
 
 ## Core idea
 
@@ -94,29 +95,58 @@ Measured 2026-10-29 on the Git LFS branch (#378):
 6. **Behaviour checks**: static tests, plus a few scenarios (Pitloom output in,
    expected explanation out) run with an agent during development.
 
+## Scope by release
+
+**0.22.0** (with the `licenseid` 0.7.0 adoption, which is already planned for
+this release): correct reporting on the existing infrastructure, and better
+message language and pattern.
+
+- Steps 1 to 4 below: inventory, grammar and ratchet test, catalogue in code
+  with the emit helper, generated skills reference and drift test, outliers
+  fixed family by family.
+- The skill size PR (step 2).
+- Order with the adoption: the licence families are rewritten by the adoption
+  (`resolve()` replaces Pitloom's own classifier and its messages), so fix
+  those families after it lands, not before.
+
+**0.23.0**: `--report FILE` (JSON Lines, SARIF-compatible field names), the
+SARIF 2.1.0 export, and the licence resolver's result nested in a record
+(`licenseid`'s `Resolution` as it is, not re-modelled). Deferred so that the
+nested shape is real, not guessed.
+
 ## Order
 
-| Step | Work | Agent |
-| - | - | - |
-| 0 | Finish #378, then the ceilings PR | in progress |
-| 1 | Inventory and outlier report (read-only); **queued after #378** | Sonnet extract, Opus classify |
-| 2 | Skill size PR: move detail to references, conditional pointers | Sonnet, Opus review |
-| 3 | Catalogue, grammar ratchet, generated reference, drift test | Opus design, Sonnet |
-| 4 | Fix outliers family by family, smallest first | Sonnet |
-| 5 | Optional `--report`, scenario checks | decide after step 3 |
+| Step | Work | Agent | Release |
+| - | - | - | - |
+| 0 | Finish #378, then the ceilings PR | in progress | 0.22.0 |
+| 1 | Inventory and outlier report (read-only); **queued after #378** | Sonnet extract, Opus classify | 0.22.0 |
+| 2 | Skill size PR: move detail to references, conditional pointers | Sonnet, Opus review | 0.22.0 |
+| 3 | Catalogue, grammar ratchet, generated reference, drift test | Opus design, Sonnet | 0.22.0 |
+| 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
+| 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.23.0 |
 
 Steps 1 and 2 are independent. Compatibility is not a constraint (alpha).
 
-## Open decisions
+## Decisions
 
-Recommended answers in brackets; none is decided.
+Decided 2026-10-29 (the maintainer took the recommendations; SARIF and the
+resolver JSON deferred to 0.23.0):
 
-1. Do new messages carry a stable condition token in the printed line? [yes,
-   new and touched messages only]
-2. Is `--report` wanted? [later]
-3. Is the body target of 16 to 18 KB right? [yes]
-4. Does the catalogue live in code and generate the docs? [yes, code is the
-   source of truth]
+1. **Condition token.** Every catalogued message has a stable code. In
+   0.22.0 the printed line carries it only for catalogued messages, appended at
+   the end so `LEVEL:` stays first and the grammar holds; the exact form is
+   fixed after the inventory gives the count. A message without a token is
+   "not catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will
+   give every record a code, `uncatalogued` where there is none.
+2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
+   `message`, a location from `FILE=`); SARIF export and the licence
+   resolver's nested result follow. All 0.23.0.
+3. **Skill body size.** Target 16 KB and 400 lines; hard limits 20 KB and 500
+   lines (the Agent Skills guidance is under 500 lines and about 5,000 tokens,
+   roughly 20 KB). Ratchet down from today's 24.5 KB.
+4. **Catalogue location.** In code, the source of truth: the emit helper formats
+   the line; docs and the skills' message reference are generated; the drift
+   test checks that every message a skill quotes matches an entry.
 
 ## Risks
 

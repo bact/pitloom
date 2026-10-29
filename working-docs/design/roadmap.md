@@ -345,9 +345,9 @@ unless the linked doc says so.
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
-  (proposed 2026-10-29): one catalogue of messages that the code emits, the
-  skills quote and tests hold together; skill bodies slimmed to the
-  recommended size. Inventory queued after #378. See
+  (decided 2026-10-29): 0.22.0: catalogue in code, grammar ratchet, better
+  message language, skill bodies to 16 KB / 400 lines (inventory queued after
+  #378); 0.23.0: `--report` JSON Lines, SARIF, resolver detail. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete about 250
   lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan: see
