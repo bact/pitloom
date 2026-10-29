@@ -48,6 +48,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 
@@ -177,4 +178,6 @@ def resolve_pdm_dynamic_version(
             )
         return None, None
 
-    return version, f"Source: pyproject.toml | Method: pdm_dynamic_version({source})"
+    return version, provenance_segment(
+        provenance_source("pyproject.toml"), "Method", f"pdm_dynamic_version({source})"
+    )

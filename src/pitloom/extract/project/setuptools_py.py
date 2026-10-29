@@ -21,6 +21,7 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._requirements_files import requirement_lines
 from pitloom.extract.project._setuptools_options import (
@@ -254,7 +255,9 @@ def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
         return None
     if isinstance(value, str):
         value = value or None
-    source = f"Source: setup.py | Field: setup({label}=...)"
+    source = provenance_segment(
+        provenance_source("setup.py"), "Field", f"setup({label}=...)"
+    )
     # setuptools normalises these before it applies setup.cfg
     given = bool(value) if key in _NORMALISED else bool(raw)
     return SetupOption(value, source, given=given)

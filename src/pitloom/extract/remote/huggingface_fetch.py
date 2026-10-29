@@ -22,6 +22,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
@@ -246,10 +247,10 @@ def _detect_license_from_hf_files(
 
         detected = detect_license_from_text(text)
         if detected:
-            return (
-                detected,
-                f"Source: Hugging Face Hub | File: {filename}"
-                " | Method: licenseid_detection",
+            return detected, provenance_segment(
+                provenance_source("Hugging Face Hub", file=filename),
+                "Method",
+                "licenseid_detection",
             )
 
     return None, None

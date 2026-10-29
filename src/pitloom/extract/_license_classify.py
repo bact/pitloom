@@ -28,6 +28,7 @@ from py_spdx_license import get_exception as get_spdx_exception
 from py_spdx_license import get_license as get_spdx_license
 from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license_resolve import (
     resolution_notes,
     resolve_value,
@@ -457,13 +458,15 @@ def tag_license_normalization(
     (:func:`~pitloom.extract._license_resolve.resolution_notes`)."""
     if raw.strip() == normalized:
         return provenance
-    note = f"{provenance} | Normalized-From: {raw.strip()}"
+    note = provenance_segment(provenance, "Normalized-From", raw.strip())
     # Only a value Pitloom's own parse could not read was read by licenseid.
     if normalizer and _parse_locally(raw.strip())[0] is None:
         note += resolution_notes(raw, normalized)
     if not normalizer or _PY_SPDX_LICENSE_VERSION is None:
         return note
-    return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
+    return provenance_segment(
+        note, "Normalizer", f"py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
+    )
 
 
 def _ambiguous_deprecated_ids(expression: str) -> list[str]:
@@ -488,4 +491,4 @@ def tag_deprecated_license_ids(provenance: str, expression: str) -> str:
     ambiguous = _ambiguous_deprecated_ids(expression)
     if not ambiguous:
         return provenance
-    return f"{provenance} | Deprecated-License-Id: {'; '.join(ambiguous)}"
+    return provenance_segment(provenance, "Deprecated-License-Id", "; ".join(ambiguous))

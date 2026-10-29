@@ -23,11 +23,11 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
-    sanitize_provenance_text,
 )
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
@@ -366,11 +366,9 @@ def _categorize_gguf_fields(
     record_dict_field_provenance(provenance, "hyperparameters", hyperparameters, source)
     record_dict_field_provenance(provenance, "properties", properties, source)
     # Overwritten in place, so the entries keep their sorted order.
-    safe_source = sanitize_provenance_text(source)
     for length_key, array_key in derived.items():
-        provenance[f"properties.{length_key}"] = (
-            f"{safe_source} | Field: {sanitize_provenance_text(array_key)}"
-            " | Method: array_length"
+        provenance[f"properties.{length_key}"] = provenance_segment(
+            provenance_segment(source, "Field", array_key), "Method", "array_length"
         )
     return hyperparameters, properties
 
@@ -441,7 +439,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
             a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
     """
     fields, raw_metadata, derived, shapes = _load_fields(model_path)
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     provenance: dict[str, str] = {}
     format_version = _stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
     if format_version:

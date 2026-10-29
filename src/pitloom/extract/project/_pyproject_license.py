@@ -21,6 +21,7 @@ from pyproject_metadata import License
 
 from pitloom.core.lfs_pointer import parse_lfs_pointer
 from pitloom.core.project import project_relative_or_fallback
+from pitloom.core.provenance import provenance_source
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._license import stated_license, warn_unless_expression
 from pitloom.extract._license_detect import decode_text, read_license_file
@@ -74,7 +75,7 @@ def _resolve_license_hint(
         raw = read_license_file(project_dir / path, project_dir)
         if raw is None:
             return None, base, (fname, None)
-        return decode_text(raw, "replace"), f"Source: {fname}", (fname, None)
+        return decode_text(raw, "replace"), provenance_source(fname), (fname, None)
     return None, base, (str(license_obj), None)
 
 

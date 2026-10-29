@@ -21,6 +21,7 @@ from typing import Any
 
 from pitloom._toml_io import load_toml_file
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
@@ -78,7 +79,7 @@ def _declared_authors(authors: list[dict[str, str]]) -> list[dict[str, str]]:
 
 def _field_provenance(field_name: str) -> str:
     """Return the standard provenance string for a resolved core-metadata field."""
-    return f"{_PROVENANCE_SOURCE} | Field: project.{field_name}"
+    return provenance_segment(_PROVENANCE_SOURCE, "Field", f"project.{field_name}")
 
 
 def _hatchling_field_declared(core: Any, project_key: str) -> bool:

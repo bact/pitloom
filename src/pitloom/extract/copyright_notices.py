@@ -23,8 +23,10 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license_detect import (
     decode_text,
+    member_source,
     pick_license_names,
     read_license_file,
 )
@@ -197,9 +199,8 @@ def copyright_from_members(
     if found is None:
         return None
     text, names = found
-    within = "" if archive is None else f" | File: {archive}"
-    source = f"Source: {', '.join(names)}{within}"
-    return text, f"{source} | Method: {COPYRIGHT_NOTICE_METHOD}"
+    source = member_source(", ".join(names), archive)
+    return text, provenance_segment(source, "Method", COPYRIGHT_NOTICE_METHOD)
 
 
 def apply_in_package_copyright(

@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import parse_provenance_value, provenance_source
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract.project._optional_dependencies import (
     OPTIONAL_DEPENDENCIES_FIELD,
@@ -272,7 +272,7 @@ def _from_setup_files(
     if "extras_require" in merged:
         unconditional, optional = split_extras(merged, quiet)
         option = parse_provenance_value(merged["extras_require"].source)
-        optional_source = (f"Source: {option['source']}", option["location"])
+        optional_source = (provenance_source(option["source"]), option["location"])
         if unconditional and deps is None:
             deps_source = merged["extras_require"].source
         if unconditional:
