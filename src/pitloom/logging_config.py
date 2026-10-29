@@ -53,13 +53,11 @@ OVER_CAP_WARNING = "%s=%s: %s; %s"
 # The LogRecord attribute holding (cap, outcome) of an OVER_CAP_WARNING.
 _OVER_CAP_ATTR = "pitloom_over_cap"
 
-#: The LogRecord attribute holding a catalogued message's code
-#: (:mod:`pitloom.messages`), printed as a trailing `` [code]``; an exception
-#: carries its code in an attribute of the same name.
+#: The LogRecord (and exception) attribute holding a catalogued message's
+#: code (:mod:`pitloom.messages`), printed as a trailing `` [code]``.
 CODE_ATTR = "pitloom_code"
-#: What a reader takes for a code (``family`` or ``family/variant``); one
-#: that does not match whole is never printed. The catalogue's own grammar is
-#: stricter (:data:`pitloom.messages.CODE_GRAMMAR`).
+#: What a reader takes for a code; one that does not match whole is never
+#: printed. :data:`pitloom.messages.CODE_GRAMMAR` is stricter.
 CODE_PATTERN = r"[a-z][a-z0-9/-]*"
 _CODE_RE = re.compile(CODE_PATTERN)
 #: A `` [x]`` ending a text that would read as a code.
@@ -222,11 +220,10 @@ def _code_suffix(code: object) -> str:
 
 
 def _with_code(text: str, code: object) -> str:
-    """*text* (escaped already) as a line ends: `` [code]`` after it when
-    *code* is one (:func:`_code_suffix`); else a `` [x]`` ending it that
-    would read as a code has its ``[`` written ``\\x5b``, so the last
-    `` [code]`` of a line is always Pitloom's, never a value it printed (a
-    file named ``m [lfs-pointer]``)."""
+    """*text* (escaped already) ending in `` [code]`` when *code* is one
+    (:func:`_code_suffix`); else with the ``[`` of a code-like `` [x]`` ending
+    written ``\\x5b``, so a line's last `` [code]`` is always Pitloom's, never
+    a value it printed (a file named ``m [lfs-pointer]``)."""
     suffix = _code_suffix(code)
     return text + suffix if suffix else CODE_LIKE_END.sub(r" \\x5b\1]", text)
 
@@ -234,9 +231,8 @@ def _with_code(text: str, code: object) -> str:
 class _OneLineFormatter(logging.Formatter):
     """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
     whatever a call site interpolated, one record is one tagged line on
-    stderr; a record's :data:`CODE_ATTR` follows it (``DEBUG`` lines carry
-    none, :func:`_with_code`). A traceback (``exc_info``) is appended as it
-    is."""
+    stderr, then its :data:`CODE_ATTR` (:func:`_with_code`; none on ``DEBUG``).
+    A traceback (``exc_info``) is appended as it is."""
 
     def formatMessage(self, record: logging.LogRecord) -> str:
         code = (
