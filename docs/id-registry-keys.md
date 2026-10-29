@@ -63,7 +63,11 @@ records what the SBOM states, so an imported wheel or sdist SBOM holds the
 text's digest, and the next run misses once for each pointer (a new id), then
 holds; a registry written by an earlier Pitloom release does the same. The
 document id, taken from the package's Merkle root, differs between the hook
-and `loom project` for a project with pointers; the file ids do not.
+and `loom project` for a project with pointers; the file ids do not. A
+merged loom fragment that names the pointer (`loom.add_dataset`) states the
+`oid`: an `--allow-build` or hook SBOM then lists the path twice, the
+fragment's element beside its own, and its own element keeps the
+registry's id.
 
 A **dataset package** has a hybrid gate:
 

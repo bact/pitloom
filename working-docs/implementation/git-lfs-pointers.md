@@ -65,6 +65,16 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
   helper, `_ambiguous.harvest_sha256`, so they cannot disagree. `id
   generate` and `-e` store the `oid` (`sha256_file`); a loom `path=` looks
   up the `oid`. `id import` records what the SBOM states.
+- **A merged loom fragment's twin.** On an archive route (`--allow-build`)
+  the merge keeps a fragment's element of the pointer (it states the `oid`)
+  beside the run's (the text's digest): two elements of one path. Harvest
+  reads both as the `oid`, which made the key ambiguous, so nothing was
+  recorded and the next checkout minted. `_ambiguous.pointer_twins` now
+  names such an element (no recorded key, its key held by a file of
+  `hashes` with that same `oid`): it is never written and blocks nothing
+  (`_harvest_elements`, its id reserved, one DEBUG line), and
+  `unique_file_keys` does not count it. Without `hashes` (no pointer, `id
+  import`) there is no twin, so a project with no pointer is unchanged.
 
 ## Decisions
 
@@ -105,8 +115,9 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 - The ceilings and the clone cap have no flag yet; see known-bugs.
 - `id import` of a wheel or sdist SBOM records the text's digest, so the
   next run misses once for each pointer. A merged loom fragment's element of
-  a pointer (it states the `oid`) does not unify with the hook's or a wheel's
-  (the text's digest). Both in known-bugs.
+  a pointer (it states the `oid`) does not unify with the hook's or an
+  `--allow-build` run's (the text's digest): the SBOM lists the path twice.
+  The id holds (the twin rule above); folding the two is in known-bugs.
 
 ## Lessons and traps
 
@@ -128,8 +139,10 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 `test_registry_lfs_pointer_routes.py`, `test_registry_lfs_pointer_order.py`
 (the route-and-order matrix: one id and the `oid` held after any sequence,
 no rewrite on alternation, files alike by bytes, look-alikes),
-`test_registry_lfs_pointer_harvest.py` (the harvest readers agree; a project
-without pointers is byte-identical to the stated-hash rule),
+`test_registry_lfs_pointer_harvest.py` (the harvest readers agree; a
+fragment's twin; a project without pointers is byte-identical to the
+stated-hash rule), `test_registry_lfs_pointer_fragment.py` (a merged loom
+fragment through the routes; a project with no pointer unchanged),
 `tests/core/models_wheel/test_models_wheel_lfs_pointer.py`,
 `tests/extract/project/test_hatch_hook_lfs_pointer.py`; per surface (CLI,
 library, hook, Action): `tests/test_lfs_pointer_surfaces.py` and

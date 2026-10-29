@@ -383,10 +383,17 @@ From the Git LFS pointer work. Open:
 - [ ] **`id import` of a wheel or sdist SBOM holds the text's digest (S,
   decided: kept).** `id import` records what an SBOM states; the next run
   misses once for each pointer (a new id), then holds.
-- [ ] **A loom fragment's pointer does not unify with the hook's or a
-  wheel's (S-M).** The fragment's element states the `oid`, the archive's
-  the text's digest: a merge keeps two elements for one path, and harvest
-  leaves that key as it is.
+- [ ] **A loom fragment's pointer does not unify with the hook's or an
+  `--allow-build` run's (S-M).** The fragment's element states the `oid`,
+  the archive's the text's digest: the merge keeps two `software_File`
+  elements for one path. Harvest no longer loses the id over it (#378: the
+  fragment's element is the pointer's twin, never written; before, the key
+  was ambiguous, nothing was recorded, and the next checkout minted).
+  Long-term fix: fold the two in the merge by the registry hash
+  (`_MergeIndex` indexing a document file under its `registry_hashes`
+  entry). Not done: it changes SBOM output, and the survivor's hash list
+  must not take the `oid`, which is not the digest of the shipped bytes
+  (`RECORD`), nor drop the fragment's provenance.
 - [ ] **A loom dataset package over a pointer differs from the main
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.

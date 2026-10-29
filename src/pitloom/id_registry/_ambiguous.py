@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The key harvest writes an element under, and the keys it cannot pin.
+"""The key harvest writes an element under, the keys it cannot pin, and the
+elements it never writes (stale, or a Git LFS pointer's twin).
 
 See also: :mod:`pitloom.id_registry._harvest` (its
 ``_import_sbom_element`` writes the keys this module predicts).
@@ -17,24 +18,35 @@ from collections.abc import Set as AbstractSet
 from typing import Any, NamedTuple
 
 from pitloom.export.hashes import sha256_of
-from pitloom.id_registry._types import FILE_TYPE, _element_key
+from pitloom.id_registry._types import AI_PACKAGE_TYPE, FILE_TYPE, _element_key
 
 __all__ = [
+    "GATED_TYPES",
     "MODEL_NOT_RECORDED_INFO",
     "NO_UNIQUE_FILE",
     "DerivedKeys",
     "KeptPairs",
     "RecordedHashes",
     "RecordedKeys",
+    "Skipped",
+    "TWIN_DEBUG",
     "WrittenKey",
     "_ambiguous_keys",
     "_compact_type_of",
     "_element_key_of",
+    "_stale",
     "_written_key",
     "ambiguous_keys_message",
     "harvest_sha256",
+    "pointer_twins",
     "unique_file_keys",
 ]
+
+#: The types a lookup always gates on content: the only ones a run's harvest
+#: records a SHA-256 for. Any other type's hash is ignored (a package's
+#: Merkle root differs between a project and its wheel, and would flip the
+#: entry).
+GATED_TYPES = frozenset({AI_PACKAGE_TYPE, FILE_TYPE})
 
 #: Why a hashed model is not keyed by its file: no file, or several, hold
 #: its SHA-256. Shared by every model ``INFO:`` that says so.
@@ -42,6 +54,9 @@ NO_UNIQUE_FILE = "no unique file with its SHA-256"
 #: ``log.info()`` format for a hashed model a run's auto-harvest leaves out
 #: (no recorded key, no :func:`unique_file_keys` file). Argument: its name.
 MODEL_NOT_RECORDED_INFO = f"ID registry: model %s not recorded: {NO_UNIQUE_FILE}"
+#: ``log.debug()`` format for a :func:`pointer_twins` element left out.
+#: Arguments: its key's type and name, its id, the pointer's id.
+TWIN_DEBUG = "ID registry: %s %r: element id %s not harvested: same oid as %s"
 
 #: spdxId -> (compact type, raw key) a run's lookups recorded for it
 #: (:meth:`~pitloom.id_registry.IdRegistrySession.recorded_keys`).
@@ -52,6 +67,9 @@ RecordedKeys = Mapping[str, tuple[str, str]]
 RecordedHashes = Mapping[str, str]
 #: (spdxId, written key) pairs of elements harvest never writes (R-keep).
 KeptPairs = AbstractSet[tuple[str, tuple[str, str]]]
+#: spdxId -> (written key, the id of the element written under it) of each
+#: element harvest never writes (:func:`_stale`, :func:`pointer_twins`).
+Skipped = dict[str, tuple[tuple[str, str], str]]
 
 
 class DerivedKeys(dict[str, tuple[str, str]]):
@@ -131,6 +149,66 @@ def harvest_sha256(obj: Any, hashes: RecordedHashes | None) -> str | None:
     return sha256_of(obj)
 
 
+def _stale(
+    objects: list[Any],
+    keys: RecordedKeys | None,
+    hashes: RecordedHashes | None = None,
+) -> Skipped:
+    """Each hashed :data:`GATED_TYPES` element with no recorded key whose
+    key an element with a recorded key and another SHA-256 is written
+    under: the run's own lookup is the current content, so the other is
+    never written and blocks nothing. Hashes are read with *hashes*
+    (:func:`harvest_sha256`)."""
+    current: dict[tuple[str, str], tuple[str | None, str]] = {}
+    unrecorded = []
+    for obj in objects:
+        written = _written_key(obj, keys)
+        if written is None or written.key[0] not in GATED_TYPES:
+            continue
+        sha = harvest_sha256(obj, hashes)
+        if written.recorded:
+            current.setdefault(written.key, (sha, str(obj.spdxId)))
+        elif sha is not None:
+            unrecorded.append((str(obj.spdxId), written.key, sha))
+    return {
+        spdx_id: (key, current[key][1])
+        for spdx_id, key, sha in unrecorded
+        if key in current and current[key][0] != sha
+    }
+
+
+def pointer_twins(
+    objects: Iterable[Any],
+    keys: RecordedKeys | None,
+    hashes: RecordedHashes | None,
+) -> Skipped:
+    """Each ``software_File`` with no recorded key (a merged fragment's)
+    whose key a file of *hashes* (a Git LFS pointer, whose run states the
+    pointer text's digest) is written under, with the SHA-256 recorded for
+    it there (:func:`harvest_sha256`, the ``oid``): one content stated
+    twice, as the merge keeps both elements. Never written, it blocks
+    nothing, so the run's own element is written. None without *hashes*:
+    a file that is no pointer is never a twin."""
+    if not hashes:
+        return {}
+    files = [
+        (obj, written)
+        for obj in objects
+        if _compact_type_of(obj) == FILE_TYPE
+        and (written := _written_key(obj, keys)) is not None
+    ]
+    pointers: dict[tuple[tuple[str, str], str | None], str] = {}
+    for obj, written in sorted(files, key=lambda f: str(f[0].spdxId)):
+        if written.recorded and (spdx_id := str(obj.spdxId)) in hashes:
+            pointers.setdefault((written.key, hashes[spdx_id]), spdx_id)
+    return {
+        str(obj.spdxId): (written.key, holder)
+        for obj, written in files
+        if not written.recorded
+        and (holder := pointers.get((written.key, harvest_sha256(obj, hashes))))
+    }
+
+
 def unique_file_keys(
     objects: Iterable[Any],
     keys: RecordedKeys | None,
@@ -139,11 +217,15 @@ def unique_file_keys(
     """SHA-256 (:func:`harvest_sha256`, with *hashes*) -> the
     :func:`_written_key` (with *keys*) of the one ``software_File`` of
     *objects* holding it, for each SHA-256 exactly one file holds: the key
-    a model of those bytes is written under."""
+    a model of those bytes is written under. A :func:`pointer_twins` file
+    is the same file as its pointer, so it does not count."""
+    objects = list(objects)
+    twins = pointer_twins(objects, keys, hashes)
     files = [
         (sha, _written_key(obj, keys))
         for obj in objects
         if _compact_type_of(obj) == FILE_TYPE
+        and str(obj.spdxId) not in twins
         and (sha := harvest_sha256(obj, hashes)) is not None
     ]
     counts = Counter(sha for sha, _ in files)
