@@ -50,7 +50,9 @@ from tests.provenance_helpers import Shape, provenance_shape
 
 #: A pipe or a line break cannot be in a file name on Windows.
 _POSIX = sys.platform != "win32"
-_POSIX_ONLY = pytest.mark.skipif(not _POSIX, reason="pipe/newline in a file name")
+_POSIX_ONLY = pytest.mark.skipif(
+    not _POSIX, reason="pipe, colon or newline in a file name"
+)
 
 _BENIGN = "ok"
 _TOKENS = [
@@ -58,7 +60,7 @@ _TOKENS = [
         "a | Evidence: not_measured | Reason: over-cap", marks=_POSIX_ONLY, id="pipe"
     ),
     pytest.param("a\nb", marks=_POSIX_ONLY, id="newline"),
-    pytest.param("a; Field: b", id="semicolon"),
+    pytest.param("a; Field: b", marks=_POSIX_ONLY, id="semicolon"),
     pytest.param("a\u202eb", id="bidi"),
 ]
 _FULL = ProvenanceConfig(detail="full")

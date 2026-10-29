@@ -66,15 +66,20 @@ _PKG_INFO = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
 _PYPROJECT = '[project]\nname = "demo"\nversion = "1.0.0"\n'
 
 
-def _rows(*texts: str) -> list[object]:
-    """The hostile *texts* as file-name rows: those with a pipe or a line
-    break skipped on Windows."""
-    skip = pytest.mark.skipif(not _POSIX, reason="no pipe or newline in a file name")
+def _rows(*texts: str, file_name: bool = False) -> list[object]:
+    """The hostile *texts* as rows: those with a pipe or a line break (and,
+    for a *file_name*, a colon) skipped on Windows, which cannot name a file
+    so."""
+    skip = pytest.mark.skipif(
+        not _POSIX, reason="no pipe, colon or newline in a Windows file name"
+    )
     return [
         pytest.param(
             text,
             id=name,
-            marks=[skip] if ("|" in text or "\n" in text) else [],
+            marks=[skip]
+            if ("|" in text or "\n" in text or (file_name and ":" in text))
+            else [],
         )
         for text, name in ((t, _ID[t]) for t in texts)
     ]
@@ -82,7 +87,7 @@ def _rows(*texts: str) -> list[object]:
 
 _ID = {_PIPE: "pipe", _SEMI: "semicolon", _LINE_BREAK: "newline", _RLO: "rlo"}
 #: A file name; a setup.cfg value cannot hold a line break.
-_NAMES = _rows(_PIPE, _SEMI, _LINE_BREAK, _RLO)
+_NAMES = _rows(_PIPE, _SEMI, _LINE_BREAK, _RLO, file_name=True)
 _CFG_NAMES = _rows(_PIPE, _SEMI, _RLO)
 
 
