@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -327,3 +327,16 @@ SBOM" without colliding with plain generate/enrich asks.
 Possible drift guard (not built): a test asserting every CLI subcommand
 name appears in some `skills/*/SKILL.md` description, with an explicit
 allowlist for the commands above that still have no trigger.
+
+## Skill size (2026-10-29)
+
+Both large bodies moved detail into `references/`: `sbom-enrich` 26,181 to
+14,756 bytes, `sbom-generate` 26,267 to 14,951. The test ratchet is now 16 KB
+and 400 lines (the limit the specification sets is 20 KB and 500). Each body
+pointer states, in the same sentence, when to read the reference
+(`test_every_body_pointer_says_when_to_read`): a bare link list is read never
+or always. An independent review found what a move loses silently: a rule
+narrowed to its typical case, a "relay, do not run" instruction, a fact
+paraphrased wrongly (one flag scope, one exit code) and a vague pointer. Check
+those four on the next move. The `sbomcheck` recipe lives in step 7 and in the
+minimum-elements steps, not in step 7 only.

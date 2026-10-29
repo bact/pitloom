@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -122,6 +122,20 @@ uvx --from 'pitloom[huggingface_hub]>=0.21.0' loom model mistralai/Mistral-7B-v0
 
 ```bash
 loom env -o env.spdx3.json
+```
+
+## Explicit target subcommands (CI/CD, sandboxed runners)
+
+For deterministic execution, name the target kind instead of `loom generate`:
+
+```bash
+loom project . -o sbom.spdx3.json
+loom project dist/mypackage-1.0.0.tar.gz
+loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
+loom model models/model.safetensors
+loom model mistralai/Mistral-7B-v0.1        # Hugging Face model ID
+loom env -o env.spdx3.json
+loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
 
 ## Project SBOM with a real build, capped build time

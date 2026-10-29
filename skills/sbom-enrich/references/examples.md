@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 Companion to `../SKILL.md`. This recipe is meant to be run as-is or
 adapted with minimal edits. Snippets are POSIX shell; on Windows use
-`python` or `py` for `python3`, and PowerShell equivalents.
+`python` or `py` for `python3`, and PowerShell equivalents (PowerShell 5.1
+has no `&&`: run the commands one per line).
 
 The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
 project whose `model.safetensors` has an adjacent `README.md` with YAML
@@ -267,9 +268,9 @@ Notes:
 Read both fragments -- `model.enrich.spdx3.json` from step 1 and
 `fragments/agent-enrichment.spdx3.json` from step 2 -- with the SPDX 3
 JSON-LD deserialiser `merge_fragments()` itself uses, as `../SKILL.md`'s
-step 7 describes: run its one-line snippet (with the interpreter Pitloom
-is installed in; `uvx --from "pitloom>=0.21.0" python` for a `uvx` run) on
-those two files. Exit 0 is a pass.
+step 7 describes: run the one-line snippet in `pre-merge-check.md` (with the
+interpreter Pitloom is installed in; `uvx --from "pitloom>=0.21.0" python` for
+a `uvx` run) on those two files. Exit 0 is a pass.
 
 Do not run `loom fragment validate` on a fragment: it names the base
 SBOM's ids without an `ExternalMap`, so it usually fails SHACL on its own, even
