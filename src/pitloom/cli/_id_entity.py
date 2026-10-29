@@ -16,7 +16,6 @@ from pathlib import Path
 
 from pitloom._loom_dataset import PIN_WITHOUT_HASH_INFO, dataset_digest
 from pitloom.core import dataset_hash
-from pitloom.core.config import PitloomConfig
 from pitloom.core.path_probe import is_regular_file
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -55,15 +54,12 @@ class _Held(logging.Filter):
         return False
 
 
-def _pin_hash_ceiling() -> int:
-    """The ``-e`` dataset hash ceiling: ``max-dataset-hash-bytes``'s
-    default."""
-    return PitloomConfig().max_dataset_hash_bytes
-
-
-def _pin_digest(registry: IdRegistry, path: Path) -> tuple[str | None, str]:
+def _pin_digest(
+    registry: IdRegistry, path: Path, max_bytes: int
+) -> tuple[str | None, str]:
     """The digest a loom package of the dataset at *path* carries
-    (:func:`~pitloom._loom_dataset.dataset_digest`) and ``""``; or ``None``
+    (:func:`~pitloom._loom_dataset.dataset_digest`, reading at most
+    *max_bytes*) and ``""``; or ``None``
     and why: what hashing logged (over the ceiling, unreadable), taken
     instead of logged, else ``nothing to hash`` (an empty directory). With
     a digest, whatever hashing logged is passed on unchanged."""
@@ -71,7 +67,7 @@ def _pin_digest(registry: IdRegistry, path: Path) -> tuple[str | None, str]:
     hash_log = logging.getLogger(dataset_hash.__name__)
     hash_log.addFilter(hold)
     try:
-        found = dataset_digest(registry, path, max_bytes=_pin_hash_ceiling())
+        found = dataset_digest(registry, path, max_bytes=max_bytes)
     finally:
         hash_log.removeFilter(hold)
     if found.hex_digest is not None:
@@ -83,10 +79,11 @@ def _pin_digest(registry: IdRegistry, path: Path) -> tuple[str | None, str]:
 
 
 def _dataset_entry(
-    registry: IdRegistry, path: Path, name: str
+    registry: IdRegistry, path: Path, name: str, max_bytes: int
 ) -> tuple[str, str | None]:
     """A dataset's key and digest: its path key and the digest its loom
-    package carries when it exists below the root; else *name* and none,
+    package carries (hashing at most *max_bytes*) when it exists below the
+    root; else *name* and none,
     with one :data:`~pitloom._loom_dataset.PIN_WITHOUT_HASH_INFO`."""
     key = artifact_key(registry, path=path, name=name)
     if not key.path:
@@ -94,7 +91,7 @@ def _dataset_entry(
         return name, None
     if key.key != name:
         log.info(ENTITY_STORED_AS_INFO, loggable(name), loggable(key.key))
-    digest, reason = _pin_digest(registry, path)
+    digest, reason = _pin_digest(registry, path, max_bytes)
     if digest is None:
         log.info(PIN_WITHOUT_HASH_INFO, loggable(key.key), reason)
     return key.key, digest
@@ -121,15 +118,20 @@ def _file_entry(
 
 
 def entity_entry(
-    registry: IdRegistry, project_dir: Path, type_name: str, name: str
+    registry: IdRegistry,
+    project_dir: Path,
+    type_name: str,
+    name: str,
+    max_dataset_hash_bytes: int,
 ) -> tuple[str, str | None]:
     """The key and SHA-256 ``-e NAME:TYPE`` is stored under, NAME taken
-    from *project_dir*: a dataset by :func:`_dataset_entry`, a model or a
+    from *project_dir*: a dataset by :func:`_dataset_entry` (hashing at most
+    *max_dataset_hash_bytes*), a model or a
     file by :func:`_file_entry` (both content-gated when keyed by path);
     any other type NAME as given and no hash."""
     path = project_dir / name
     if type_name == DATASET_PACKAGE_TYPE:
-        return _dataset_entry(registry, path, name)
+        return _dataset_entry(registry, path, name, max_dataset_hash_bytes)
     if type_name in (AI_PACKAGE_TYPE, FILE_TYPE):
         return _file_entry(registry, path, type_name, name)
     return name, None

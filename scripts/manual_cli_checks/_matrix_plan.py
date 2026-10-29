@@ -359,6 +359,13 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--fail-on-mismatch": [_v("--fail-on-mismatch", "same", "--fail-on-mismatch")],
     "--no-merge": [_v("--no-merge", "same", "--no-merge")],
     "-e": [_v("entity", "changes", "-e", "matrix-entity")],
+    # `id generate` only. No cell pins a dataset, so a cap changes nothing;
+    # what it does is check 24 (id generate -e vs loom.run).
+    "--max-dataset-hash-bytes": [
+        _v("1", "same", "--max-dataset-hash-bytes", "1"),
+        _v("0", "exit:2", "--max-dataset-hash-bytes", "0"),
+        _v("-1", "exit:2", "--max-dataset-hash-bytes", "-1"),
+    ],
     "--namespace": [
         _v("IRI", f"contains:{_NAMESPACE}", "--namespace", _NAMESPACE),
         _v("relative", "exit:2", "--namespace", "relative/ns"),

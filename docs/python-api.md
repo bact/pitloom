@@ -316,8 +316,10 @@ and content, its `comment` saying so, and no file elements. Below a dataset
 directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)
 and symbolic links to directories are left out of the root, as is the
 declared registry file. A missing or remote dataset name gets no hash.
-Hashing one dataset reads at most `max-dataset-hash-bytes` (4 GiB by
-default); over it, the dataset gets no hash and one `WARNING:`.
+Hashing one dataset reads at most `max_dataset_hash_bytes=` (else the
+config's `max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets
+no hash and one `WARNING:`. The keyword is an integer of at least 1:
+`0` and a `bool` raise `ValueError` as the run begins.
 A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the
 hash of the file it replaces. One name holding one content is one package per
@@ -467,7 +469,8 @@ work happens.
 relative to the current directory) to set `id-registry`,
 `update-id-registry` or `max-dataset-hash-bytes`; no other key has an
 effect there.
-`id_registry=` wins over the config's `id-registry`. A config file that is
+`id_registry=` wins over the config's `id-registry`, and
+`max_dataset_hash_bytes=` over its `max-dataset-hash-bytes`. A config file that is
 missing, unreadable or invalid raises `ValueError` as the run begins.
 
 The merge itself (`pitloom.assemble.merge_fragments`, run by
