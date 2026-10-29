@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,3 +115,5 @@ guess. Legal readings need review before they reach user docs.
 3. Does the `Agent` fallback belong now for every unknown author, or only for
    hub namespaces?
 4. Evaluation set: how many real `Author` strings, labelled by whom?
+5. A list of known organisations
+   ([#170](https://github.com/bact/pitloom/issues/170)) is one candidate.

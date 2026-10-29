@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,6 +136,11 @@ it). §1/§2 below and the drafted page content are updated to match.
    broader than item 5's casing question, and not yet started. Do this as
    part of the same deferred vocabulary-review pass, not a quick
    drive-by fix.
+9. **Renames**: the vocabulary work includes renaming the fragment `role` and
+   `DatasetReference.role`, whose names are provisional. Issues
+   [#154](https://github.com/bact/pitloom/issues/154) and
+   [#110](https://github.com/bact/pitloom/issues/110) (the `Annotation` schema
+   as an SPDX 3 extension).
 
 ## Full inventory (from the `Explore` agent's repo-wide research)
 

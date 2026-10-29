@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,9 @@ The System Package Data Exchange (SPDX) 3.0 specification represents
 a complete re-architecting of the world's most widely used SBOM format.
 Moving away from the document-centric model of SPDX 2.x, version 3.0 adopts
 an object-oriented, ontological approach based on linked data (JSON-LD)
-(SPDX Group 2024).
+(SPDX Group 2024). Open: SPDX 3.1 output beside 3.0.1
+([#147](https://github.com/bact/pitloom/issues/147)); pick the version by CLI,
+config or Skill keyword and validate against its schema.
 
 ### Core elements and profile modularity
 
