@@ -153,12 +153,19 @@ Size: S under half a day, M about a day.
   #405: a package any declared string names by URL
   (`core.pep508.is_direct_reference`) is neither prefetched nor enriched
   from PyPI.
-- [ ] **A private-index or URL-installed package is still looked up on
-  PyPI by name (S-M).** A private-index dependency (`[tool.uv.sources]`,
-  `--index-url`) is read as a PyPI name, and `loom env` looks up a package
-  installed from a URL: pipdeptree's JSON has no `direct_url.json`. A
-  direct reference's version and installed metadata still come from
-  Pitloom's own environment by name, and its PURL is `pkg:pypi`.
+- [ ] **A `loom env` package installed from a URL, and a private-index
+  package, are still looked up on PyPI by name (S-M).** `loom env` gets its
+  packages from pipdeptree, whose JSON has no `direct_url.json`, so a URL
+  install is not told apart. A private-index dependency (`[tool.uv.sources]`,
+  `--index-url`) is read as a PyPI name. Same wrong licence, supplier and
+  hash as the fixed project-route bug (#405).
+- [ ] **A direct reference still takes its version and installed metadata
+  from Pitloom's own environment by name, and keeps a `pkg:pypi` PURL
+  (S).** #405 stops the PyPI lookup only. A `name @ URL` dependency can still
+  get the version of a same-named package installed beside Pitloom, and a
+  PURL that names a registry package it may not be. The skip is also silent:
+  a coded `INFO:` ("direct reference, not looked up on PyPI") waits for a
+  catalogue family PR.
 - [x] **`license = {text = "MIT License"}` plus an Apache LICENSE file
   gives declared `Apache-2.0` (S).** The `project.license.text` value goes
   through licence-file detection (seen in the #276 sweep). Fixed by #276:
