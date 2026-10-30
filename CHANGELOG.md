@@ -18,9 +18,15 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.21.1...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.22.0...HEAD>
 
 ## [Unreleased]
+
+## [0.22.0] - 2026-10-30
+
+**Breaking:** an ID registry of format version 3 is refused (regenerate it with
+`loom id generate` or `loom id import`); a missing `magika` or `build` raises
+`ImportError`; catalogued messages end in a `[code]`.
 
 ### Added
 
@@ -28,8 +34,9 @@ and this project adheres to
   `general.license` is blank or `other`) are read as the model licence ([#376])
 - A Git LFS pointer in a checkout is listed by its `oid` (SHA-256 only) with one
   `WARNING:` per SBOM; the ID registry keys it by `oid` ([#378])
-- `--max-model-extract-bytes` and `--max-dataset-hash-bytes` (`loom id generate`)
-  set the size ceilings; `loom id generate -e` honours the project's own ([#381])
+- `--max-model-extract-bytes` and `--max-dataset-hash-bytes` (`loom id
+  generate`) set the size ceilings; `loom id generate -e` honours the project's
+  own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
 - Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, every
@@ -41,6 +48,9 @@ and this project adheres to
 
 - `DatasetMetadata.dataset_size` is `byte_size` (bytes); no reader sets it
   ([#382])
+- Skills: `sbom-generate` detail moves into `references/`; the licence database
+  is prepared (`licenseid update --source packaged`) before the first run
+  ([#385], [#392])
 - Merged provenance comments start a new line; a `not_measured` entry is dropped
   when a merge supplies the value ([#386])
 - A file that only opens like a Git LFS pointer is said to "look like" one, not
@@ -48,7 +58,7 @@ and this project adheres to
 - A Git LFS pointer refused by `read_ai_model()`, `generate_model_sbom()` or
   `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
 - `licenseid` is capped below 0.7 (0.7 renames the API Pitloom imports) until
-  the 0.7 adoption ([#401])
+  the 0.7 adoption, as in 0.21.2 ([#401])
 - A missing extra is named (`install pitloom[gguf]`, not `pip install gguf`); a
   missing `magika` or PyPA `build` raises `ImportError`, not `RuntimeError`
   ([#404])
@@ -93,10 +103,12 @@ and this project adheres to
 [#378]: https://github.com/bact/pitloom/pull/378
 [#381]: https://github.com/bact/pitloom/pull/381
 [#382]: https://github.com/bact/pitloom/pull/382
+[#385]: https://github.com/bact/pitloom/pull/385
 [#386]: https://github.com/bact/pitloom/pull/386
 [#387]: https://github.com/bact/pitloom/pull/387
 [#389]: https://github.com/bact/pitloom/pull/389
 [#390]: https://github.com/bact/pitloom/pull/390
+[#392]: https://github.com/bact/pitloom/pull/392
 [#395]: https://github.com/bact/pitloom/pull/395
 [#396]: https://github.com/bact/pitloom/pull/396
 [#401]: https://github.com/bact/pitloom/pull/401
@@ -774,6 +786,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.22.0]: https://github.com/bact/pitloom/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/bact/pitloom/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/bact/pitloom/compare/v0.20.2...v0.21.0
