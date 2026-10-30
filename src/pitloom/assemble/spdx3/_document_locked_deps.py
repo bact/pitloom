@@ -29,6 +29,7 @@ from packaging.utils import canonicalize_name
 from pitloom.assemble.spdx3.deps import _parse_dep_name, _resolve_version
 from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
+from pitloom.core.pep508 import is_direct_reference
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock.common import (
     group_by_canonical_name,
@@ -225,9 +226,12 @@ def _prefetch_combined_release_info(
     """Prefetch PyPI release info once for every dependency a document will
     emit -- direct and lock-resolved-transitive alike -- so the result can
     be shared across both :func:`add_dependencies` calls in :func:`build`
-    instead of each call paying for its own network round-trip."""
+    instead of each call paying for its own network round-trip. A direct
+    reference (``name @ URL``) is not fetched."""
     name_version_pairs = []
     for dep in dependencies:
+        if is_direct_reference(dep):
+            continue  # not PyPI's: its record of the name may be another project
         dep_name = _parse_dep_name(dep)
         locked_ver = (
             locked_versions.get(canonicalize_name(dep_name))

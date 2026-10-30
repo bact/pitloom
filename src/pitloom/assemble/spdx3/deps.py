@@ -60,6 +60,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
 )
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
+from pitloom.core.pep508 import is_direct_reference
 from pitloom.core.provenance import ProvenanceConfig, provenance_note
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
@@ -192,11 +193,14 @@ def _finish_dependency_enrichment(
     locked_hashes: dict[str, str] | None = None,
     locked_versions: dict[str, str] | None = None,
     installed_source: str = INSTALLED_DEPENDENCY_SOURCE,
+    pypi: bool = True,
 ) -> None:
     """Apply the shared dependency-package completeness policy.
 
     *installed_source* names the installed-metadata record: a project's
-    dependency (default) or a deployed package's own (``loom env``)."""
+    dependency (default) or a deployed package's own (``loom env``).
+    *pypi* false reads no PyPI record, as *offline* does, for a package
+    PyPI's record of the name may not describe (a direct reference)."""
     dep_package.software_packageUrl = build_pypi_purl(
         dep_name, dep_version if dep_version != "unknown" else None
     )
@@ -242,7 +246,7 @@ def _finish_dependency_enrichment(
                 dep_package.verifiedUsing = [sha256_hash(digest)]
                 filled.add("hash")
 
-    if not offline:
+    if pypi and not offline:
         filled |= _enrich_from_pypi(
             dep_name,
             dep_version,
@@ -382,7 +386,8 @@ def add_dependencies(
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(
             (dep_name, dep_version)
-            for _dep, dep_name, dep_version, _note, _conflict in resolved
+            for dep, dep_name, dep_version, _note, _conflict in resolved
+            if not is_direct_reference(dep)
         )
 
     grouped: dict[
@@ -462,6 +467,7 @@ def add_dependencies(
             content_type_method=content_type_method,
             locked_hashes=locked_hashes,
             locked_versions=locked_versions,
+            pypi=not any(map(is_direct_reference, declared_constraints)),
         )
 
         exporter.add_package(dep_package)

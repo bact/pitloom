@@ -72,6 +72,9 @@ and this project adheres to
   ([#402])
 - Provenance free text holding a `:` (a requirement's URL or marker, the
   AUTHORS URL, a version note) is read as a note, not as a key ([#402])
+- A direct-reference dependency (`name @ URL`) is no longer looked up on PyPI
+  by name, so it no longer takes another project's licence, supplier and hash
+  ([#405])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -88,6 +91,7 @@ and this project adheres to
 [#401]: https://github.com/bact/pitloom/pull/401
 [#402]: https://github.com/bact/pitloom/pull/402
 [#404]: https://github.com/bact/pitloom/pull/404
+[#405]: https://github.com/bact/pitloom/pull/405
 
 ## [0.21.2] - 2026-10-30
 
