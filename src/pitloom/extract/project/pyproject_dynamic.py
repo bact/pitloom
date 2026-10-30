@@ -25,8 +25,8 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.extract.project._setup_cfg_directives import (
+    directive_source,
     read_listed_file,
-    source_name,
 )
 from pitloom.extract.project.flit import resolve_flit_dynamic_metadata
 from pitloom.extract.project.pdm import resolve_pdm_dynamic_version
@@ -238,5 +238,5 @@ def _read_dynamic_version(
             version = value.strip().strip('"').strip("'")
             if not version:
                 return None, None
-            return version, f"Source: {source_name(name)} | Method: dynamic_extraction"
+            return version, directive_source(name, "dynamic_extraction")
     return None, None

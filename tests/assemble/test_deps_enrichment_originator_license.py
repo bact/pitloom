@@ -266,11 +266,14 @@ def test_find_license_copyright(
     meta = _FakeMetadata({}, license_files=license_files)
     with caplog.at_level(logging.WARNING):
         assert _find_license_copyright("mypkg", meta) == expected
-    failed = [path for path, text in files if text is None or text == _OVER_CAP]
+    failed = [(p, text) for p, text in files if text is None or text == _OVER_CAP]
     messages = [r.getMessage() for r in caplog.records]
     assert len(messages) == len(failed)
-    for message, path in zip(messages, failed, strict=True):
-        assert message.startswith(f"FILE={tmp_path / path}: ")
+    for message, (path, _) in zip(messages, failed, strict=True):
+        # Unreadable or over the cap: named by its RECORD entry, no
+        # directory of this machine.
+        assert message.startswith(f"FILE={path}: ")
+        assert str(tmp_path) not in message
 
 
 _SECRET = "Copyright (c) 2026 Secret\n"
@@ -322,7 +325,7 @@ def test_find_license_copyright_record_entry_confined(
     messages = [r.getMessage() for r in caplog.records]
     assert messages == (
         [
-            f"FILE={site / record}: could not read for license files; "
+            f"FILE={record}: could not read for license files; "
             "outside the project directory"
         ]
         if warned

@@ -21,7 +21,8 @@ import logging
 import re
 from collections.abc import Iterable
 
-from pitloom.logging_config import Cap, loggable, warn_over_cap
+from pitloom.logging_config import loggable
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

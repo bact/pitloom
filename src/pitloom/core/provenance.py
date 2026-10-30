@@ -4,27 +4,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Provenance settings (:class:`ProvenanceConfig`) and the provenance-string
-helpers :func:`parse_provenance_value` and
-:func:`escape_provenance_comment_part`.
+helpers: the parser :func:`parse_provenance_value`, the builders
+:func:`provenance_source`, :func:`provenance_segment` and
+:func:`provenance_note` with their sanitiser :func:`sanitize_provenance_text`,
+and :func:`escape_provenance_comment_part`.
 
-``extract`` and ``assemble`` both read provenance strings, so the parser sits
-below both and neither imports the other for it.
+``extract`` and ``assemble`` both write and read provenance strings, so the
+helpers sit below both and neither imports the other for them.
 """
 
 from __future__ import annotations
 
 import operator
+import re
 from dataclasses import dataclass
 
 import rfc8785
+
+from pitloom.core.internal_error import InternalError
+from pitloom.core.untrusted_text import escape_display_controls, escape_lone_surrogates
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
 #: Segment-key normalization for "Key: value | Key: value" strings. The
 #: grammar's segment order is Source | Field | Method | Evidence | Reason;
 #: ``Evidence`` and ``Reason`` are written only by
-#: :func:`pitloom.core.evidence.evidence_segment`. A key not listed passes
-#: through lower-cased.
+#: :func:`pitloom.core.evidence.evidence_segment`. Any other known key
+#: (:data:`PROVENANCE_SEGMENT_KEYS`, a numbered one) passes through
+#: lower-cased; text before a ``:`` that is no known key is a note.
 _KEY_MAP = {
     "source": "source",
     "field": "location",
@@ -110,8 +117,113 @@ def escape_provenance_comment_part(text: str, *, field: bool = False) -> str:
     return text.translate(_COMMENT_FIELD_ESCAPES if field else _COMMENT_SOURCE_ESCAPES)
 
 
+#: The keys :func:`provenance_segment` writes a value under, as spelled in
+#: the string. ``Source`` is :func:`provenance_source`'s (one per string);
+#: ``Evidence`` and ``Reason`` are
+#: :func:`pitloom.core.evidence.evidence_segment`'s, a fixed vocabulary.
+PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
+    {
+        "Deprecated-License-Id",
+        "Field",
+        "File",
+        "Method",
+        "Normalized-From",
+        "Normalizer",
+        "Note",
+        "Package",
+        "Role",
+        "Tool",
+    }
+)
+
+#: The numbered keys of a licence value's resolution steps
+#: (``Resolution-1``, ``Expansion-1``).
+_NUMBERED_SEGMENT_KEY = re.compile(r"(?:Resolution|Expansion)-[1-9][0-9]*")
+
+#: Every key :func:`parse_provenance_value` reads, lower-cased: the segment
+#: keys, ``Source`` and the ``Evidence``/``Reason`` pair; with the numbered
+#: keys, the closed set no free text can extend.
+_KNOWN_KEYS: frozenset[str] = frozenset(
+    key.lower() for key in PROVENANCE_SEGMENT_KEYS | {"Source", "Evidence", "Reason"}
+)
+_NOTE_KEY = "note"
+
+
+def sanitize_provenance_text(text: str) -> str:
+    """*text*, untrusted, made safe to write into a provenance string.
+
+    :func:`parse_provenance_value` splits a provenance string on ``|`` to
+    find its ``Source:``/``Field:``/``Method:`` segments, so a ``|`` in a
+    file name or a key read from a model would forge a segment (an
+    ``Evidence: not_measured`` a merge acts on, a ``Source:`` that drops
+    the entry in minimal detail mode). It becomes ``/``: ``a|b`` and
+    ``a/b`` then read the same in provenance text, which never serves as
+    an identity (registry keys come from
+    :func:`pitloom.id_registry.keys.file_lookup_key`).
+
+    The string is shown to a reader (an Annotation ``statement``, the
+    element's ``comment``), so each code point of
+    :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is written as
+    ``\\uXXXX`` (:func:`~pitloom.core.untrusted_text.escape_display_controls`),
+    and each lone surrogate (a non-UTF-8 POSIX file name, ``b"\\xff"`` read
+    as ``"\\udcff"``), which no UTF-8 output can hold, too
+    (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
+
+    Left as they are: LF, CR and TAB (the comment writer,
+    :func:`escape_provenance_comment_part`, escapes ``;``, CR and LF, and
+    JSON escapes the Annotation); ``;``, ``,`` and ``:`` (a name with a
+    comma reads like a joined source list; only the first ``:`` of a
+    segment ends its key). No length cap. Clean text comes back unchanged.
+    """
+    return escape_display_controls(escape_lone_surrogates(text.replace("|", "/")))
+
+
+def provenance_source(label: str, *, file: str | None = None) -> str:
+    """``"Source: <label>"``, plus ``" | File: <file>"`` when *file* is
+    given, both through :func:`sanitize_provenance_text`: the first part of
+    a provenance string."""
+    source = f"Source: {sanitize_provenance_text(label)}"
+    return source if file is None else provenance_segment(source, "File", file)
+
+
+def provenance_segment(base: str, key: str, value: str) -> str:
+    """*base*, a provenance string, with ``" | <key>: <value>"`` appended,
+    *value* through :func:`sanitize_provenance_text`; *base* is taken as
+    built (by :func:`provenance_source` or this function).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *key* is neither in
+            :data:`PROVENANCE_SEGMENT_KEYS` nor a numbered
+            ``Resolution-<n>``/``Expansion-<n>`` key (a programming error).
+    """
+    if key not in PROVENANCE_SEGMENT_KEYS and not _NUMBERED_SEGMENT_KEY.fullmatch(key):
+        raise InternalError(f"unknown provenance segment key: {key!r}")
+    return f"{base} | {key}: {sanitize_provenance_text(value)}"
+
+
+def provenance_note(text: str) -> str:
+    """*text*, free text (a declared requirement, a sentence holding a URL),
+    as one provenance note segment, through :func:`sanitize_provenance_text`:
+    after ``"Note: "`` when it holds a ``:``, so no part of it is read as a
+    key (``pkg @ https://x/p.whl`` is no ``pkg @ https`` key), as itself
+    otherwise. Join several with ``" | "``."""
+    shown = sanitize_provenance_text(text)
+    return f"Note: {shown}" if ":" in shown else shown
+
+
+def _is_known_key(key: str) -> bool:
+    """Whether *key*, lower-cased, is a key :func:`parse_provenance_value`
+    reads (:data:`_KNOWN_KEYS`, a numbered ``resolution-<n>``)."""
+    return key in _KNOWN_KEYS or bool(_NUMBERED_SEGMENT_KEY.fullmatch(key.capitalize()))
+
+
 def parse_provenance_value(value: str) -> dict[str, str]:
-    """Parse ``"Source: X | Field: Y"`` into a structured dict."""
+    """Parse ``"Source: X | Field: Y"`` into a structured dict.
+
+    A segment is ``Key: value`` only for a known key (:func:`_is_known_key`),
+    case-insensitive; any other segment, ``:`` or not, is a note, as is the
+    value of a ``Note:`` segment. The notes, in order, are joined by
+    ``" | "`` into ``note``."""
     parsed: dict[str, str] = {}
     notes: list[str] = []
     for raw in value.split("|"):
@@ -119,13 +231,15 @@ def parse_provenance_value(value: str) -> dict[str, str]:
         if not segment:
             continue
         key, sep, val = segment.partition(":")
-        if sep:
-            norm = _KEY_MAP.get(key.strip().lower(), key.strip().lower())
-            parsed[norm] = val.strip()
-        else:
+        key = key.strip().lower()
+        if not sep or not _is_known_key(key):
             notes.append(segment)
+        elif key == _NOTE_KEY:
+            notes.append(val.strip())
+        else:
+            parsed[_KEY_MAP.get(key, key)] = val.strip()
     if notes:
-        parsed.setdefault("note", " | ".join(notes))
+        parsed[_NOTE_KEY] = " | ".join(notes)
     return parsed
 
 

@@ -24,6 +24,7 @@ from hatchling.builders.wheel import WheelBuilder
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.models import get_wheel_files
 from pitloom.extract._file_headers import _get_magika
+from pitloom.messages import code_of
 
 from ..test_models import _FakeIncludedFile
 
@@ -316,8 +317,8 @@ def test_get_wheel_files_content_type_method_magika_missing_raises_before_any_fi
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """content_type_method='magika' with the package unavailable raises
-    RuntimeError up front -- before recursing into any file at all, not
-    partway through a scan."""
+    the ``library-missing`` ImportError up front -- before recursing into
+    any file at all, not partway through a scan."""
     tagged_file, plain_file = _make_header_project(tmp_path)
     _patch_recurse(monkeypatch, tagged_file, plain_file)
     monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
@@ -331,11 +332,12 @@ def test_get_wheel_files_content_type_method_magika_missing_raises_before_any_fi
 
     monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
 
-    with pytest.raises(RuntimeError, match="content-type-method 'magika'"):
+    with pytest.raises(ImportError, match=r"install pitloom\[content-type\]") as e:
         get_wheel_files(
             tmp_path, detect_content_type=True, content_type_method="magika"
         )
 
+    assert code_of(e.value) == "library-missing"
     assert not recurse_calls
 
 

@@ -94,8 +94,11 @@ on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
-`git.not-found`, `git.output-too-large`, `git.too-large`); *check_url* may raise
-any exception to refuse an address, and it reaches you unchanged. To read the
+`git.not-found`, `git.output-too-large`, `git.too-large`); the two size codes
+also carry the catalogued code `over-cap` as `pitloom_code`
+(`pitloom.messages.code_of(exc)`; see
+[Message codes](message-codes.md#over-cap)). *check_url* may raise any
+exception to refuse an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Its *max_bytes*, and
@@ -238,8 +241,17 @@ A local model is read as a project scan reads it: one whose read fails
 and `generate_model_sbom()` log the scan's one `WARNING:`, and the model is a
 format-only entry. Both raise `ValueError` for a file that is not a model
 (empty, an unknown format, a header that contradicts the suffix),
-`FileNotFoundError` for an absent one and `OSError` for an unreadable one; see [AI model scan
-limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+`FileNotFoundError` for an absent one and `OSError` for an unreadable one; see
+[AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+
+The refusal of a file that is not a model carries the code
+`model-wrong-format`, and of a file that opens like a Git LFS pointer
+`lfs-pointer` or `lfs-pointer-malformed` (see [Message
+codes](message-codes.md)): the `ValueError` carries the text `loom model`
+prints and the attribute `pitloom_code` (`pitloom.messages.code_of(exc)`).
+`read_ai_model()` in `pitloom.extract.ai_model.reader` raises the same errors.
+A Hugging Face model read without `huggingface_hub` raises an `ImportError`
+coded `library-missing`, naming the extra to install.
 
 ## Tracking decorator
 

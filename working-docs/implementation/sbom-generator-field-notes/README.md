@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-15).
+the day it was added (2026-10-02 to 2026-10-30).
 
 ## Files
 
@@ -63,10 +63,45 @@ the day it was added (2026-10-02 to 2026-10-15).
   GitLab's 301, page-URL syntax per platform, ref versus folder, measured
   platforms; git-lfs, forged log lines and symlinks from an untrusted
   repository; where the logic should live; rejections said once; test traps.
+- [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md):
+  caps bound reading, never reporting; five evidence levels; recording why a
+  value is missing; a record count in a bytes property.
+- [provenance-injection-and-message-contract.md](provenance-injection-and-message-contract.md):
+  a `|` in a name forging a provenance segment; stderr codes as the contract
+  with the AI skills; what moving skill text to references loses.
+- [message-catalogue-decisions.md](message-catalogue-decisions.md): the
+  catalogue's taxonomy repaired at three entries (causes only, `/` for
+  variants); effect and actor; forged codes and the accepted residual; the
+  exception carrier; the ratchet; skills as consumers.
+- [name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md):
+  a `name @ URL` dependency given another project's licence, supplier and
+  hash by a lookup on its name; what #405 fixed, left open and keeps silent.
+- [registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md):
+  a package id shared by every release; the `name@version` key (in review,
+  #407), no migration, and the remote-entry findings behind a second PR.
+- [provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md):
+  a non-UTF-8 file name crashing the writer; a `:` in free text read as a
+  provenance key; a closed reader vocabulary (#402).
+- [raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md):
+  an exception's text leaking absolute paths and forging lines; a typed
+  `failure` field; absent is quiet (in review, #408).
+- [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md): why a
+  model has no metadata, as six coded causes; decisions D1 to D12 and what
+  stays open (#404).
+- [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md): what the
+  CI repeats, measured and estimated, with sample sizes; the two-gate rule
+  (#406); a stale premise in the brief.
+- [agent-work-lessons-oct30.md](agent-work-lessons-oct30.md): a stale
+  premise, unpushed work lost, a patch-coverage gap derived before the
+  push, and tests that fake the failing call.
+- [maintainer-decision-log-oct30.md](maintainer-decision-log-oct30.md): a
+  dated table of the decisions of 2026-10-29 and 2026-10-30 (the 0.22.0
+  cut, the registry key, the catalogue families, the policy).
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
-  hostile input, name or path keys for ids); each item says what was measured, chosen and left open.
+  hostile input, name or path keys for ids); each item says what was
+  measured, chosen and left open.
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
 

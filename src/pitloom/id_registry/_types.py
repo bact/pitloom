@@ -23,17 +23,15 @@ from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from packaging.utils import canonicalize_name
+from packaging.utils import canonicalize_name, canonicalize_version
 
 from pitloom.core.file_hash import stated_sha256_hex
-from pitloom.core.path_probe import (
-    UNLISTABLE_DIR_WARNING,
-    UNREADABLE_FILE_WARNING,
-    stat_if_present,
-)
+from pitloom.core.path_probe import is_missing_errno, stat_if_present
+from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
+from pitloom.messages import warn_dir_unlistable, warn_file_unreadable
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -51,7 +49,10 @@ __all__ = [
     "_require_names",
     "_unstorable_name_error",
     "is_utf8_text",
+    "package_key",
+    "package_version_key",
     "registry_file_error",
+    "split_package_key",
     "sha256_file",
     "type_id_prefix",
     "unencodable_message",
@@ -74,7 +75,12 @@ PACKAGE_TYPE = "software_Package"
 AI_PACKAGE_TYPE = "ai_AIPackage"
 DATASET_PACKAGE_TYPE = "dataset_DatasetPackage"
 
-_REGISTRY_VERSION = 3
+#: Version 4: a ``software_Package`` key holds the package's version.
+_REGISTRY_VERSION = 4
+
+#: The texts that state no version (Pitloom's ``unknown``, SPDX's
+#: ``NOASSERTION``, blank), compared stripped and case-folded.
+_NO_VERSION = frozenset({"", "unknown", "noassertion"})
 
 #: ``WARNING:`` for files whose keys are one key once NFC-normalised (two
 #: spellings of a name on a file system that keeps both): none is indexed.
@@ -103,18 +109,61 @@ class RegistryEntry:
             self.sha256 = self.sha256.lower()
 
 
+def package_version_key(version: str | None) -> str | None:
+    """The version part of a :data:`PACKAGE_TYPE` key: *version*'s canonical
+    PEP 440 form (:func:`packaging.utils.canonicalize_version` of
+    :func:`~pitloom.core.pep440.parse_version`, so ``1.0``, ``1.0.0``,
+    ``v1.0`` and ``01.00`` are all ``1``), else *version* as given when it
+    does not parse (a ``===`` string, an overlong number), NFC; ``None``
+    when it states no version (``None``, blank, ``unknown``,
+    ``NOASSERTION``, in any case). Two stated versions get one part exactly
+    when :func:`pitloom.extract.lock.common.is_same_version` calls them the
+    same release, but for an NFC/NFD pair of one unparsable text."""
+    if version is None or version.strip().casefold() in _NO_VERSION:
+        return None
+    parsed = parse_version(version)
+    text = version if parsed is None else canonicalize_version(parsed)
+    return unicodedata.normalize("NFC", text)
+
+
+def package_key(name: str, version: str | None) -> str:
+    """The :data:`PACKAGE_TYPE` key of the package *name* at *version*:
+    the PEP 503 name (:func:`packaging.utils.canonicalize_name`), a ``%``
+    or ``@`` in it percent-encoded (``%25``, ``%40``) so the first ``@`` is
+    always the separator, then ``@`` and :func:`package_version_key` when a
+    version is stated; NFC. A key with no version (``requests``) never
+    matches a versioned one (``requests@2.31``): each release is its own
+    package."""
+    encoded = canonicalize_name(name).replace("%", "%25").replace("@", "%40")
+    part = package_version_key(version)
+    return unicodedata.normalize(
+        "NFC", encoded if part is None else f"{encoded}@{part}"
+    )
+
+
+def split_package_key(key: str) -> tuple[str, str | None]:
+    """The name and version a :data:`PACKAGE_TYPE` key, stored or typed
+    (``-e NAME@VERSION``), states: split at its first ``@``, ``%40`` and
+    ``%25`` decoded in the name; no version without an ``@``. Its
+    :func:`package_key` is the key normalised."""
+    name, separator, version = key.partition("@")
+    decoded = name.replace("%40", "@").replace("%25", "%")
+    return decoded, (version if separator else None)
+
+
 def _element_key(*, type_name: str, name: str) -> tuple[str, str]:
     """Return the registry key ``(type_name, name)`` for an element.
 
-    The one place a key is normalised: a :data:`PACKAGE_TYPE` name is PEP 503
-    canonicalised (:func:`packaging.utils.canonicalize_name`), so a declared
-    ``"PyYAML"`` and a looked-up ``"pyyaml"`` hit one entry; then every
-    name is NFC, so a macOS (NFD) spelling and a Linux (NFC) one hit one
-    entry. Nothing is case-folded. Keyword-only: both arguments are ``str``,
+    The one place a key is normalised: a :data:`PACKAGE_TYPE` key is rebuilt
+    by :func:`package_key` from what it states (:func:`split_package_key`),
+    so a declared ``"PyYAML@6.0"`` and a looked-up ``"pyyaml@6"`` hit one
+    entry, and normalising a key again changes nothing; then every name is
+    NFC, so a macOS (NFD) spelling and a Linux (NFC) one hit one entry.
+    Nothing else is case-folded. Keyword-only: both arguments are ``str``,
     so a swapped positional call would still type-check.
     """
     if type_name == PACKAGE_TYPE:
-        name = canonicalize_name(name)
+        name = package_key(*split_package_key(name))
     return (type_name, unicodedata.normalize("NFC", name))
 
 
@@ -186,36 +235,39 @@ def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
         return os.fspath(path)
 
 
+#: ``log.warning()`` format for a file whose name a registry cannot hold:
+#: not catalogued yet. Arguments: the file, what the name cannot be.
+_UNSTORABLE_NAME_WARNING = "FILE=%s: could not read for ID registry indexing; %s"
+
+
 def warn_unreadable_file(
     path: Path, project_root: Path, error: OSError | ValueError
 ) -> None:
-    """Log the shared ``FILE=`` warning for *path*, which ``id generate``
-    could not read (or whose name a registry cannot hold) and leaves out
-    of the index."""
-    log.warning(
-        UNREADABLE_FILE_WARNING,
-        loggable(_shown(path, project_root)),
-        _PURPOSE,
-        one_line(error),
-    )
+    """Log the ``FILE=`` warning for *path*, which ``id generate`` could
+    not read (``file-unreadable``), or whose name a registry cannot hold,
+    and leaves out of the index; nothing for one gone since it was listed
+    (absent)."""
+    shown = _shown(path, project_root)
+    if isinstance(error, ValueError):
+        log.warning(_UNSTORABLE_NAME_WARNING, loggable(shown), one_line(error))
+    elif not is_missing_errno(error):
+        warn_file_unreadable(log, error, file=shown, use=_PURPOSE)
 
 
 def _walk_files(root: Path, project_root: Path, strict: bool = True) -> list[Path]:
     """Every file name below the directory *root*, sorted as ``Path``s; a
     directory named in :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES`
     is pruned, a symlink to a directory is not followed, and one that
-    cannot be listed gets the shared ``DIR=`` warning. *root* itself
-    failing to list raises when *strict*, else gets that warning too."""
+    cannot be listed gets the ``dir-unlistable`` warning (one gone since it
+    was found, none). *root* itself failing to list raises when *strict*,
+    else gets that warning too."""
 
     def _warn_unlistable(error: OSError) -> None:
         if strict and error.filename == os.fspath(root):
             raise error
-        log.warning(
-            UNLISTABLE_DIR_WARNING,
-            loggable(_shown(error.filename, project_root)),
-            _PURPOSE,
-            one_line(error),
-        )
+        if not is_missing_errno(error):
+            shown = _shown(error.filename, project_root)
+            warn_dir_unlistable(log, error, directory=shown, use=_PURPOSE)
 
     found: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root, onerror=_warn_unlistable):

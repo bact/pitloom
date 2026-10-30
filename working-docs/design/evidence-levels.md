@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,8 +21,11 @@ Built so far: Git LFS pointers (#378), flags for both size ceilings (#381),
 the dataset-size unit fix (#382); the `evidence_segment` helper, `minimal`
 keeping an entry with `Evidence:`, and the merge drop of a superseded
 `not_measured` entry with the comment-join fix it needs (#386); and step 1,
-sizes under a cap for a single-file dataset (#387). Everything else below is
-unbuilt.
+sizes under a cap for a single-file dataset (#387); and step 2's value type
+(`Fact`, `count_fact`, `record_fact`, `record_stated` in `core/evidence.py`;
+the loom dataset digest's hash and size moved onto it, output unchanged; a
+source's statement no longer replaces loom's own entry, Risk 7). Everything
+else below is unbuilt.
 
 ## Principle
 
@@ -59,7 +62,7 @@ artefact the bytes may never arrive:
 | Wait too long | a network timeout, a slow server | `timeout` |
 | Not reachable | a refused or failed fetch | `network-failed` |
 | Not resolved | an unpulled Git LFS file (only the pointer arrived) | `lfs-pointer` |
-| Not readable | a permission error, a vanished file | `unreadable-file` |
+| Not readable | a permission error; a directory that cannot be listed (a vanished file is absent: no reason) | `file-unreadable`, `dir-unlistable` |
 
 The declared route stays open: a remote API or a pointer often states the size
 and hash of something Pitloom did not download (the Hub API lists each LFS
@@ -167,7 +170,7 @@ carries it).
 | - | - | - |
 | File hash, project files | `measured_read` | none |
 | Git LFS pointer hash and size | `declared` (#378) | the provenance says `Method: lfs_pointer`, not the level |
-| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using` | none for a file or directory; no `unreadable-file` entry yet |
+| Dataset hash | `measured_read`; over `max-dataset-hash-bytes` (flag and keyword since #381): omitted with a warning and, since #387, `Evidence: not_measured \| Reason: over-cap` on `verified_using`; unreadable or unlistable: the same with `file-unreadable` or `dir-unlistable`, since #408 | none for a file or directory |
 | Dataset size | a single-file `loom` dataset: the bytes hashed, or the `stat()` size over the cap (`measured_stat`), since #387; else what the library caller supplies (`DatasetMetadata.byte_size`). No size for a directory, an LFS pointer, an over-cap file under 1,024 bytes or above 2^53-1 (the
 last two say `not_measured`); a Croissant item count is not recorded (#382) | a directory's size (the walk budget is undecided) |
 | Hashed file sizes | measured (`FileDigests.size`) and discarded; `ProjectFile` has no size | kept for 3.1 `byteSize` |
@@ -191,7 +194,7 @@ count is no longer read (no SPDX 3.0.1 property; FG-12). A byte size from
    `hash_provenance` slot. Directories wait: pointer files in them stat at about
    130 bytes, so one sum would mix levels, and the walk budget is undecided.
 2. **The value type and the helper** (`core/evidence.py`; the helper is built,
-   #386, the value type is not), then models, the Hub and unreadable files;
+   #386, and so is the value type), then models, the Hub and unreadable files;
    hashes move onto it.
 3. **The catalogue codes** in the provenance, once `lfs-pointer` and `over-cap`
    exist.

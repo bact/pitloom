@@ -17,7 +17,8 @@ directory the block asks ``os.scandir()``/``os.listdir()`` to list in the
 current context. When the block ends, each recorded directory under the
 project is opened again, and one ``WARNING:`` is logged for each that
 fails for a reason other than absence (per
-:func:`~pitloom.core.path_probe.is_missing_errno`). The warning names only
+:func:`~pitloom.core.path_probe.is_missing_errno`), ``dir-unlistable``,
+the directory's name escaped. The warning names only
 directories the backend tried to list. A backend that prunes before
 listing (Hatchling) never lists a directory its rules exclude; one that
 globs first and filters after (poetry-core, pdm-backend, setuptools'
@@ -33,7 +34,8 @@ A real build (``--allow-build``) walks in a child process the hook
 cannot see.
 
 See also: :mod:`pitloom.core._models_wheel` (the caller),
-:mod:`pitloom.core.path_probe` (shared classification and wording).
+:mod:`pitloom.core.path_probe` (shared classification) and
+:func:`pitloom.messages.warn_dir_unlistable` (the wording).
 """
 
 from __future__ import annotations
@@ -48,8 +50,8 @@ from contextvars import ContextVar
 from pathlib import Path, PurePath
 
 from pitloom.core.file_identity import FileId, file_id
-from pitloom.core.path_probe import UNLISTABLE_DIR_WARNING, is_missing_errno
-from pitloom.logging_config import one_line
+from pitloom.core.path_probe import is_missing_errno
+from pitloom.messages import warn_dir_unlistable
 
 __all__ = ["warn_unlistable_dirs"]
 
@@ -136,11 +138,8 @@ def _warn(attempted: set[str], project_dir: Path) -> None:
                 pass
         except OSError as exc:
             if not is_missing_errno(exc):
-                log.warning(
-                    UNLISTABLE_DIR_WARNING,
-                    relative,
-                    "for file discovery",
-                    one_line(exc),
+                warn_dir_unlistable(
+                    log, exc, directory=relative, use="for file discovery"
                 )
 
 

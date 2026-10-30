@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,8 +31,8 @@ python3 -c "import sys,io,pathlib; from spdx_python_model.bindings import v3_0_1
 ```
 
 With no persistent install, replace `python3` by `uvx --from
-"pitloom>=0.21.0" python` (or, with pipx, `pipx run --spec
-"pitloom>=0.21.0" python`; its "already on your PATH" notice is harmless). With
+"pitloom>=0.22.0" python` (or, with pipx, `pipx run --spec
+"pitloom>=0.22.0" python`; its "already on your PATH" notice is harmless). With
 `pipx install`, use the venv's interpreter (`$(pipx environment --value
 PIPX_LOCAL_VENVS)/pitloom/bin/python`; `Scripts\python.exe` on Windows); on
 Windows otherwise use `py` or `python`.

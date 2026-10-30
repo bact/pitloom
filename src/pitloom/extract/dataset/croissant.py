@@ -50,6 +50,7 @@ from pitloom.extract.dataset.licence import (
     DatasetLicence,
     apply_dataset_licence,
     dataset_licence,
+    field_provenance,
 )
 from pitloom.extract.dataset.values import (
     stated_name,
@@ -59,12 +60,8 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import (
-    LONE_SURROGATES_WARNING,
-    Cap,
-    loggable,
-    one_line,
-)
+from pitloom.logging_config import loggable, one_line, warn_lone_surrogates
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 
@@ -162,17 +159,17 @@ def _extract_croissant_core_fields(
     """Extract version, description, download_url, license, keywords, creator."""
     version = stated_version(get_first(data, *VERSION_KEYS), src_label, numbers=True)
     if version:
-        provenance["version"] = f"Source: {src_label} | Field: version"
+        provenance["version"] = field_provenance(src_label, "version")
 
     description = stated_text(
         get_first(data, *DESCRIPTION_KEYS), src_label, "description"
     )
     if description:
-        provenance["description"] = f"Source: {src_label} | Field: description"
+        provenance["description"] = field_provenance(src_label, "description")
 
     download_url = stated_url(get_first(data, *URL_KEYS), src_label, "url")
     if download_url:
-        provenance["download_url"] = f"Source: {src_label} | Field: url"
+        provenance["download_url"] = field_provenance(src_label, "url")
 
     licence = dataset_licence(
         get_first(data, *LICENSE_KEYS), source=src_label, lister="Croissant file"
@@ -182,11 +179,11 @@ def _extract_croissant_core_fields(
 
     keywords = stated_texts(get_first(data, *KEYWORDS_KEYS), src_label, "keywords")
     if keywords:
-        provenance["keywords"] = f"Source: {src_label} | Field: keywords"
+        provenance["keywords"] = field_provenance(src_label, "keywords")
 
     creator = _extract_creator_name(get_first(data, *CREATOR_KEYS), src_label)
     if creator:
-        provenance["creator"] = f"Source: {src_label} | Field: creator"
+        provenance["creator"] = field_provenance(src_label, "creator")
 
     return version, description, download_url, licence, keywords, creator
 
@@ -199,8 +196,8 @@ def _extract_croissant_rai_fields(
         get_first(data, *RAI_COLLECTION_KEYS), src_label, "rai:dataCollection"
     )
     if data_collection_process:
-        provenance["data_collection_process"] = (
-            f"Source: {src_label} | Field: rai:dataCollection"
+        provenance["data_collection_process"] = field_provenance(
+            src_label, "rai:dataCollection"
         )
 
     data_preprocessing = stated_texts(
@@ -209,22 +206,22 @@ def _extract_croissant_rai_fields(
         "rai:dataPreprocessingProtocol",
     )
     if data_preprocessing:
-        provenance["data_preprocessing"] = (
-            f"Source: {src_label} | Field: rai:dataPreprocessingProtocol"
+        provenance["data_preprocessing"] = field_provenance(
+            src_label, "rai:dataPreprocessingProtocol"
         )
 
     known_bias = stated_texts(
         get_first(data, *RAI_BIASES_KEYS), src_label, "rai:dataBiases"
     )
     if known_bias:
-        provenance["known_bias"] = f"Source: {src_label} | Field: rai:dataBiases"
+        provenance["known_bias"] = field_provenance(src_label, "rai:dataBiases")
 
     has_sensitive = _normalize_sensitivity(
         get_first(data, *RAI_SENSITIVITY_KEYS), src_label
     )
     if has_sensitive is not None:
-        provenance["has_sensitive_personal_information"] = (
-            f"Source: {src_label} | Field: rai:personalSensitiveInformation"
+        provenance["has_sensitive_personal_information"] = field_provenance(
+            src_label, "rai:personalSensitiveInformation"
         )
 
     return (
@@ -298,7 +295,7 @@ def _metadata(
     """The :class:`DatasetMetadata` the Croissant *data* read from *source*
     states."""
     name = _name(data, source)
-    provenance: dict[str, str] = {"name": f"Source: {src_label} | Field: name"}
+    provenance: dict[str, str] = {"name": field_provenance(src_label, "name")}
 
     (
         version,
@@ -311,8 +308,8 @@ def _metadata(
 
     dataset_types = _infer_dataset_types(data, src_label)
     if dataset_types:
-        provenance["dataset_types"] = (
-            f"Source: {src_label} | Field: cr:recordSet, sc:dataType"
+        provenance["dataset_types"] = field_provenance(
+            src_label, "cr:recordSet, sc:dataType"
         )
 
     (
@@ -345,5 +342,5 @@ def _metadata(
     )
     apply_dataset_licence(meta, licence)
     if escape_lone_surrogates_in(meta)[1]:
-        log.warning(LONE_SURROGATES_WARNING, "", loggable(src_label))
+        warn_lone_surrogates(log, loggable(src_label))
     return meta

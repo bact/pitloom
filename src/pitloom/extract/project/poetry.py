@@ -88,6 +88,7 @@ from typing import Any
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.requirements import flatten_optional_dependencies
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
@@ -203,7 +204,7 @@ def extract_poetry_metadata(
     )
     if deps_ignored:
         prov.pop("dependencies", None)
-    prov = {"name": f"Source: pyproject.toml | Field: {name_field}", **prov}
+    prov = {"name": _pyproject_source(name_field), **prov}
 
     return ProjectMetadata(
         name=name,
@@ -232,6 +233,11 @@ def _project_table_name(data: dict[str, Any]) -> str:
     project = data.get("project")
     name = project.get("name") if isinstance(project, dict) else None
     return name.strip() if isinstance(name, str) else ""
+
+
+def _pyproject_source(field: str) -> str:
+    """``"Source: pyproject.toml | Field: <field>"``."""
+    return provenance_segment(provenance_source("pyproject.toml"), "Field", field)
 
 
 def _build_poetry_provenance(
@@ -272,7 +278,7 @@ def _build_poetry_provenance(
         fields = "tool.poetry.dependencies"
         if field_declared(poetry, "extras"):
             fields += ", tool.poetry.extras"
-        prov["dependencies"] = f"Source: pyproject.toml | Field: {fields}"
+        prov["dependencies"] = _pyproject_source(fields)
     # Presence-gated like the container fields above, not truthy-gated --
     # see AGENTS.md's "``None``/absent vs ``[]``/``{}``" rule.
     if python_declared:

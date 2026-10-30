@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Any
 
 from _order_ops import Step
+from packaging.utils import canonicalize_version
+from packaging.version import InvalidVersion, Version
 
 FILE, PACKAGE = "software_File", "software_Package"
 AI, DATASET = "ai_AIPackage", "dataset_DatasetPackage"
@@ -55,22 +57,48 @@ class Element:
     name: str
 
 
-def canonical(type_name: str, name: str) -> Key:
-    """The registry key of an element (``_element_key``: PEP 503 for a
-    ``software_Package`` name, NFC for every other)."""
-    if type_name == PACKAGE:
-        return type_name, re.sub(r"[-_.]+", "-", name).lower()
-    return type_name, unicodedata.normalize("NFC", name)
+#: The version texts that state none: a bare package key.
+_NO_VERSION = ("", "unknown", "noassertion")
+
+
+def _version_part(text: str) -> str | None:
+    """A package key's version: canonical PEP 440, else *text*; ``None``
+    for no version."""
+    if text.strip().casefold() in _NO_VERSION:
+        return None
+    try:
+        return canonicalize_version(Version(text))
+    except InvalidVersion:
+        return text
+
+
+def canonical(type_name: str, name: str, version: str | None = None) -> Key:
+    """The registry key of an element (``_element_key``): for a
+    ``software_Package``, its PEP 503 name (``%`` and ``@`` in it
+    percent-encoded), then ``@`` and its PEP 440 version when it states one
+    (*version*, else what follows the first ``@`` of a stored *name*); NFC
+    for every other type."""
+    if type_name != PACKAGE:
+        return type_name, unicodedata.normalize("NFC", name)
+    if version is None:
+        name, at, rest = name.partition("@")
+        name = name.replace("%40", "@").replace("%25", "%")
+        version = rest if at else ""
+    key = re.sub(r"[-_.]+", "-", name).lower().replace("%", "%25").replace("@", "%40")
+    part = _version_part(version)
+    return type_name, unicodedata.normalize(
+        "NFC", key if part is None else f"{key}@{part}"
+    )
 
 
 def parse_registry(raw: bytes) -> dict[Key, Entry] | None:
-    """A v3 registry file's entries; None for anything else (an injected
+    """A v4 registry file's entries; None for anything else (an injected
     failure, a partly written file)."""
     try:
         data = json.loads(raw)
     except ValueError:
         return None
-    if not isinstance(data, dict) or data.get("version") != 3:
+    if not isinstance(data, dict) or data.get("version") != 4:
         return None
     table: dict[Key, Entry] = {}
     for type_name, names in data.get("elements", {}).items():
@@ -94,7 +122,11 @@ def elements(graph: Iterable[Mapping[str, Any]]) -> list[Element]:
         if type_name in PREFIX and "name" in item and "spdxId" in item:
             found.append(
                 Element(
-                    canonical(type_name, item["name"]),
+                    canonical(
+                        type_name,
+                        item["name"],
+                        str(item.get("software_packageVersion", "")),
+                    ),
                     item["spdxId"],
                     _sha(item),
                     item["name"],

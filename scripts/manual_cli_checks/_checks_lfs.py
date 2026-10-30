@@ -70,7 +70,7 @@ def _write_project(root: Path) -> dict[str, bytes]:
         pointers[rel] = (_FIXTURES / fixture).read_bytes()
         shutil.copyfile(_FIXTURES / fixture, target)
     (root / _NORMAL).write_text("Demo\n", encoding="utf-8")
-    # Opens like a pointer but is over 1 KiB, so it is not one.
+    # Opens like a pointer but is 1 KiB or larger, so it is not one.
     pointer = b"version https://git-lfs.github.com/spec/v1\noid sha256:" + b"ab" * 32
     (root / _LOOKALIKE).write_bytes(pointer + b"\nsize 5\n" + b"x" * 1100)
     (root / "pyproject.toml").write_text(_PYPROJECT, encoding="utf-8")
@@ -94,7 +94,7 @@ def _lfs_warnings(stderr_lines: list[str], text: str) -> list[str]:
 def check_lfs_pointers(ctx: Context) -> None:
     """A project holding real Hub pointers (a dataset ``.parquet``, a model
     ``.bin``, a ``.zip``, a ``.js``), a normal file and a file that opens like
-    a pointer but is over 1 KiB. ``project`` exits 0 with exactly one
+    a pointer but is 1 KiB or larger. ``project`` exits 0 with exactly one
     ``WARNING:`` (``Git LFS pointer, content not read (4 files)``, naming
     ``git lfs pull``), no per-file model warning and no ``ai_AIPackage``; each
     pointer has one SHA-256 (its ``oid``, with the size in a comment) and no

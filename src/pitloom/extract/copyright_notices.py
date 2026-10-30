@@ -23,8 +23,10 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license_detect import (
     decode_text,
+    member_source,
     pick_license_names,
     read_license_file,
 )
@@ -152,12 +154,14 @@ def find_copyright_notices(text: str) -> list[str]:
     return list(dict.fromkeys(notices))
 
 
-def read_license_text(path: Path, root: Path | None = None) -> str | None:
+def read_license_text(
+    path: Path, root: Path | None = None, *, shown: str | None = None
+) -> str | None:
     """The text of the licence file *path*, read as a project's own
     (:func:`~pitloom.extract._license_detect.read_license_file`: capped,
     with *root* not read outside it, a present file that is not read warned
-    about); ``None`` when not read."""
-    raw = read_license_file(path, root)
+    about, named *shown*); ``None`` when not read."""
+    raw = read_license_file(path, root, shown=shown)
     return None if raw is None else decode_text(raw, errors="replace")
 
 
@@ -197,9 +201,8 @@ def copyright_from_members(
     if found is None:
         return None
     text, names = found
-    within = "" if archive is None else f" | File: {archive}"
-    source = f"Source: {', '.join(names)}{within}"
-    return text, f"{source} | Method: {COPYRIGHT_NOTICE_METHOD}"
+    source = member_source(", ".join(names), archive)
+    return text, provenance_segment(source, "Method", COPYRIGHT_NOTICE_METHOD)
 
 
 def apply_in_package_copyright(

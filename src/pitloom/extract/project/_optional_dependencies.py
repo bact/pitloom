@@ -21,7 +21,11 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import (
+    parse_provenance_value,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.core.requirements import flatten_optional_dependencies
 
 OPTIONAL_DEPENDENCIES_FIELD = "project.optional-dependencies"
@@ -58,6 +62,6 @@ def add_optional_dependencies(
         own = parse_provenance_value(source)["source"]
         sources = dict.fromkeys(s for s in (entry.get("source"), own) if s)
         fields = dict.fromkeys(f for f in (entry.get("location"), field) if f)
-        metadata.provenance["dependencies"] = (
-            f"Source: {', '.join(sources)} | Field: {', '.join(fields)}"
+        metadata.provenance["dependencies"] = provenance_segment(
+            provenance_source(", ".join(sources)), "Field", ", ".join(fields)
         )

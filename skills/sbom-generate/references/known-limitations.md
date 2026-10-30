@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,44 +85,26 @@ suffixes).
 A **stub** is an `ai_AIPackage` with no `ai_*` property and no `comment`
 entry `Source: <model file> | Field: ...`; its `name` is the file's stem
 (`Method: file_name_stem`). A `comment` citing the README (`--enrich`,
-`Method: yaml_frontmatter`) does not make it read. The stderr line says why:
+`Method: yaml_frontmatter`) does not make it read. The stderr line says why
+and ends in its code, which `messages.md` explains (what it means, what
+Pitloom did, what to tell the user):
 
-- `INFO: AI models in a wheel in these formats are listed without metadata
-  ...: onnx. Pass --trust-wheel-model ...` -- the wheel gate (fastText, GGUF,
-  HDF5, ONNX, PyTorch `.pt`/`.pth`); tell the user, never add the flag.
-- `WARNING: FORMAT=<fmt> FILE=<path>: required library not installed; ...` --
-  install `pitloom[ai]` and regenerate.
-- `... failed to extract metadata; ...` -- the file has a model's header but
-  could not be parsed (truncated or corrupt): check the file.
-- `... max-model-extract-bytes cap; metadata not read` -- the ceiling (512
-  MiB, wheel scans; `--max-model-extract-bytes BYTES` or the config key);
-  `WARNING: ... model-scan budget cap; ...`
-  -- the per-wheel budget (4x the ceiling, one line); any other `...; metadata
-  not read` is a fixed bound. Lists past 1000 entries are cut with one
-  `WARNING:`. Never raise a ceiling on your own.
-- `... header is not <fmt>; not listed as an AI model` -- the file is no model
-  and gets no `ai_AIPackage`.
-- Git LFS messages. A pointer is a small placeholder file that stands in for
-  the real content in a repository. Pitloom lists it by the SHA-256 the
-  placeholder states and never reads or downloads the content. You explain
-  and relay; you do not run the fix.
-  - `WARNING: FILE=<first>: Git LFS pointer, content not read (N files); run
-    'git lfs pull' for the content` (local directory) or `...; clone with git
-    lfs, then run on the directory` (Git URL): the repository holds
-    placeholders instead of the real files. They carry the SHA-256 only (no
-    SHA-512, no content type) and no `ai_AIPackage`. Tell the user the
-    message's advice is theirs to follow outside Pitloom, then rerun.
-  - `WARNING: FILE=<first>: Git LFS pointer shipped (N files); the build did
-    not pull LFS content`: a wheel, sdist or build contains placeholders. It
-    is a build problem; the SBOM keeps the placeholder text's hashes.
-  - `ERROR: <command> failed: '<path>': header is a Git LFS pointer, content
-    not pulled (oid sha256:<oid>, size <N> bytes); run 'git lfs pull'` (exit
-    1; the words before the path name the command, e.g. `model command
-    failed`, `SBOM generation failed`, `enrichment fragment generation
-    failed`): the named file is a placeholder; no SBOM was written. Relay the
-    advice and rerun.
-  - `... header is a Git LFS pointer; not listed as an AI model` (no `oid`):
-    the file only looks like a placeholder; it is not usable as a model.
+- A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
+  in these formats are listed without metadata ...: onnx. Pass
+  --trust-wheel-model ...` per scan), `[library-missing]`,
+  `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
+  metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
+  model-scan budget cap; ...` the per-wheel budget). Lists past 1000 entries
+  are cut with one `WARNING:` ending in `[over-cap]`.
+- No `ai_AIPackage`, the file is no model: `[model-wrong-format]`, or a Git
+  LFS pointer (`[lfs-pointer]`, `[lfs-pointer/shipped]`,
+  `[lfs-pointer-malformed]`). A Git LFS pointer is a small placeholder file
+  that stands in for the real content in a repository: Pitloom lists it by
+  the SHA-256 the placeholder states (no SHA-512, no content type) and never
+  reads or downloads the content.
+
+You explain and relay the advice; you never run the fix, install an extra,
+add `--trust-wheel-model` or raise a cap.
 
 A model whose read fails is a stub, never dropped, with the same `WARNING:`
 from a scan and from `loom model FILE` (exit 0). Beyond that:
@@ -160,13 +142,15 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
   read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
   hostile or malformed shape, or a count over 10^15, gives no count
-  (`... parameter count not recorded`); an ONNX `model_author` is cut at
+  (`... parameter count not recorded`, `[parameter-count-invalid]` or
+  `[over-cap]`); an ONNX `model_author` is cut at
   1000 distinct names (`larger than the 1000-entry per-field cap; the first
   1000 kept in originators`) and read to at most 16016 non-empty parts,
   repeats included (`larger than the 16016-part model-author cap; rest of
   model_author not read`); a model's own
   `parameters` hyperparameter gives way to the count (`hyperparameter
-  parameters replaced by the parameter count`). Detail:
+  parameters replaced by the parameter count`, `[hyperparameter-conflict]`:
+  nothing to do). Detail:
   <https://bact.github.io/pitloom/ai-model-formats/#producer-and-parameter-count>
   and
   <https://bact.github.io/pitloom/ai-model-formats/#what-the-count-counts>.
@@ -228,7 +212,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   cap; the hash's provenance says `not_measured | Reason: over-cap` and a
   single-file dataset keeps its size, from `stat()`.
 
-Every cap, its value and message (the single source of truth):
+Every cap and its value (the single source of truth):
 <https://bact.github.io/pitloom/ai-model-scan-limits/#size-and-count-caps>.
 
 ## Unsupported build backend
@@ -303,20 +287,41 @@ does not name. It is not a model bound.
 
 ## Licence detection unavailable
 
+Prepare the database before the first run of a session that reads licences:
+`licenseid update --source packaged` (without an install, `uvx --from
+"licenseid>=0.6.0,<0.7" licenseid update --source packaged`). It uses the copy in
+the `licenseid` wheel: no network. On a missing database it creates it
+(`Update complete. Database updated at <path>`); on a current one it prints
+`Database is already at version <v>. Skipping update.` and changes nothing, so
+run it again without checking first. It may print `WARNING: popularity.csv:
+missing` (no ranking data offline): harmless, not a Pitloom line. A packaged
+copy older than the database is refused (`older than the database`): the
+database is kept and the preflight counts as failed. The database is per user,
+`~/.local/share/licenseid/licenses.db` (a platform directory on Windows), so
+any environment's Pitloom reads it.
+
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
 and license id reading skipped` (once per run; the reason ends `run 'licenseid
-update'` when the file is missing or empty): the `licenseid` SPDX database is missing
-or empty. `licenseid update` builds it (network; `licenseid update --source
-packaged` uses the copy in the `licenseid` wheel, no network; without an
-install, `uvx --from "licenseid>=0.6.0" licenseid update`: the database is per
-user, `~/.local/share/licenseid/licenses.db`, so any environment's Pitloom reads
-it). Licences are then taken as written: no
-`LICENSE` text is matched to an id and no respelt id (`Apache2`) is read as the
-id it names. Report the line and the command. When the declared licence is
-already an SPDX expression and the file is only missing, the line is `INFO:
-licenseid database not found: <path> -- license text detection skipped; run
-'licenseid update --source packaged'` (0.21.1 and later): the declared value
-is recorded as written and only the `LICENSE` file is not matched.
+update'` when the file is missing or empty): the `licenseid` SPDX database is
+missing or empty, so the preflight was skipped or failed. Licences are taken as
+written: no `LICENSE` text is matched to an id and no respelt id (`Apache2`) is
+read as the id it names, so the SBOM is thinner. Report the line and the
+command. When the declared licence is already an SPDX expression and the file
+is only missing, the line is `INFO: licenseid database not found: <path> --
+license text detection skipped; run 'licenseid update --source packaged'`
+(0.21.1 and later): the declared value is recorded as written and only the
+`LICENSE` file is not matched.
+
+If the preflight failed, generate anyway and report the line. Do not run a
+network `licenseid update` or regenerate unasked: ask; non-interactive: report
+only. A regenerate after fixing needs the same `-o`, `--config` and target.
+With an ID registry, file, package and model ids are unchanged (keyed by path
+or name), but the licence, relationship and annotation ids can change, and a
+run updates the declared registry unless `--no-update-id-registry` is given (a
+thin run stores a `SimpleLicensingText` entry that the later run replaces by a
+`LicenseExpression` one).
+Ask before regenerating over a registry the user pinned; non-interactive:
+report only.
 
 ## A licence that looks like a broken expression
 

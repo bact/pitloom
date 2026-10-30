@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,6 +32,10 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
+- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, every
+  cap warning and error, why a model was not read), also on log records and
+  exceptions as `pitloom_code`; see `docs/message-codes.md` ([#390], [#396],
+  [#404])
 
 ### Changed
 
@@ -39,6 +43,23 @@ and this project adheres to
   ([#382])
 - Merged provenance comments start a new line; a `not_measured` entry is dropped
   when a merge supplies the value ([#386])
+- A file that only opens like a Git LFS pointer is said to "look like" one, not
+  to be one; `read_ai_model()` refuses a pointer as `loom model` does ([#390])
+- A Git LFS pointer refused by `read_ai_model()`, `generate_model_sbom()` or
+  `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
+- `licenseid` is capped below 0.7 (0.7 renames the API Pitloom imports) until
+  the 0.7 adoption ([#401])
+- A missing extra is named (`install pitloom[gguf]`, not `pip install gguf`); a
+  missing `magika` or PyPA `build` raises `ImportError`, not `RuntimeError`
+  ([#404])
+- `read_ai_model()` refuses a file no reader reads as `loom model` does: `not an
+  AI model file of a supported format` ([#404])
+- **Breaking:** ID registry format 4 keys a package by name and version; a
+  version 3 registry is refused: regenerate it with `loom id generate` or `loom
+  id import` ([#407])
+- A file or directory Pitloom cannot read warns with `[file-unreadable]` or
+  `[dir-unlistable]`, the system's error only; a `loom` dataset's provenance
+  says why ([#408])
 
 ### Fixed
 
@@ -48,8 +69,23 @@ and this project adheres to
   path ([#375])
 - A Croissant `totalItems` count no longer fills `dataset_datasetSize` (bytes);
   it is not recorded ([#382])
-- A `|` in a project file name no longer adds a segment to its provenance
-  ([#386])
+- A `|` in a file, label, archive or licence name, or a dependency marker, no
+  longer adds a segment to its provenance ([#386], [#389])
+- A `RemoteSourceError` can be copied and pickled; it raised `TypeError`
+  ([#396])
+- A project, sdist or dataset file whose POSIX name is not UTF-8 no longer
+  stops generation: its name is written as `\udcff`, with one `WARNING:`
+  ([#402])
+- Provenance free text holding a `:` (a requirement's URL or marker, the
+  AUTHORS URL, a version note) is read as a note, not as a key ([#402])
+- A direct-reference dependency (`name @ URL`) is no longer looked up on PyPI
+  by name, so it no longer takes another project's licence, supplier and hash
+  ([#405])
+- Each release of a package gets its own registry id (`requests@2.31`); `-e
+  Requests@2.31.0:software_Package` is no longer stored as `requests@2-31-0`
+  ([#407])
+- An unreadable file's warning no longer prints the absolute path the OS error
+  names, and a newline in a directory name can no longer forge a line ([#408])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -59,6 +95,28 @@ and this project adheres to
 [#382]: https://github.com/bact/pitloom/pull/382
 [#386]: https://github.com/bact/pitloom/pull/386
 [#387]: https://github.com/bact/pitloom/pull/387
+[#389]: https://github.com/bact/pitloom/pull/389
+[#390]: https://github.com/bact/pitloom/pull/390
+[#395]: https://github.com/bact/pitloom/pull/395
+[#396]: https://github.com/bact/pitloom/pull/396
+[#401]: https://github.com/bact/pitloom/pull/401
+[#402]: https://github.com/bact/pitloom/pull/402
+[#404]: https://github.com/bact/pitloom/pull/404
+[#405]: https://github.com/bact/pitloom/pull/405
+[#407]: https://github.com/bact/pitloom/pull/407
+[#408]: https://github.com/bact/pitloom/pull/408
+
+## [0.21.2] - 2026-10-30
+
+Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
+
+### Fixed
+
+- Requires `licenseid>=0.6.0,<0.7`: licenseid 0.7.0 renames the API Pitloom
+  0.21 imports (`AggregatedLicenseMatcher`, `resolve`, `LicenseMatch`)
+  ([#400])
+
+[#400]: https://github.com/bact/pitloom/pull/400
 
 ## [0.21.1] - 2026-10-28
 
@@ -716,6 +774,7 @@ and this project adheres to
 
 ---
 
+[0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/bact/pitloom/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/bact/pitloom/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/bact/pitloom/compare/v0.20.1...v0.20.2

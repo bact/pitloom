@@ -28,6 +28,8 @@ from pitloom.extract.remote import (
 )
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote.git import RESOLVED_INFO
+from pitloom.messages import OVER_CAP
+from tests._message_drift import raised_as
 
 pytestmark = [
     pytest.mark.skipif(shutil.which("git") is None, reason="needs git"),
@@ -309,6 +311,7 @@ def test_the_time_and_output_of_git_are_limited(
         with fetch_git_project(_url(repo[0], "/tree/main")):
             pass  # pragma: no cover
     assert excinfo.value.code == "git.output-too-large"
+    assert raised_as(excinfo.value, OVER_CAP)
 
 
 def test_the_monorepo_hint_names_projects_and_escapes_names(tmp_path: Path) -> None:

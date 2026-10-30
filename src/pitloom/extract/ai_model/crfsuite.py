@@ -27,14 +27,14 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
 from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
             f"Failed to read CRFsuite file {quote_source(model_path)}: {exc}"
         ) from exc
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     count = model.num_labels
     labels: tuple[str, ...] = ()
     if model.labels_unread is not None:

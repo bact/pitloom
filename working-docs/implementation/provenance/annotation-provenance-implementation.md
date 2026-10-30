@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,6 +26,13 @@ Segment key normalization mapping (case-insensitive):
 - `Package` → `package`
 - anything else → keep lower-cased key as-is
 - segment with no `:` → append to `note`
+
+Revised (#402): "anything else" read free text as a key (`pkg @
+https://x/p.whl` gave `pkg @ https`). The key set is now closed: the
+segment keys `provenance_segment` writes, `Source`, `Evidence`, `Reason` and
+the numbered `Resolution-<n>`/`Expansion-<n>` keep their lower-cased key;
+any other segment, and a `Note:` segment's value, is appended to `note`, in
+order. The snippet below is the original.
 
 ### 5.2 New module `src/pitloom/assemble/spdx3/provenance.py`
 

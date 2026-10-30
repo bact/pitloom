@@ -342,6 +342,56 @@ def test_percent_in_annotation_text_is_escaped(
     assert "::warning::100%2525 x%250Ay\n" in result.output
 
 
+_POINTER = "FILE={}: Git LFS pointer, content not read; run 'git lfs pull'"
+_OVER_CAP = "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
+_UNREAD = "FILE=demo/secret.txt: could not read for file scanning; Permission denied"
+_GATE = (
+    "AI models in a wheel in these formats are listed without metadata, their "
+    "reader not being run on a wheel's files: gguf, onnx. Pass "
+    "--trust-wheel-model for a wheel you trust."
+)
+
+
+@pytest.mark.parametrize(
+    ("level", "text", "code", "eol"),
+    [
+        ("WARNING", _POINTER.format("m.bin"), "lfs-pointer", "\\n"),
+        ("WARNING", _POINTER.format("x [lfs-pointer]"), "lfs-pointer/shipped", "\\n"),
+        ("WARNING", _POINTER.format("100%%25 m"), "lfs-pointer", "\\r\\n"),
+        ("WARNING", _OVER_CAP, "over-cap", "\\r\\n"),
+        ("WARNING", _UNREAD, "file-unreadable", "\\n"),
+        ("INFO", _GATE, "reader-unsafe", "\\r\\n"),
+    ],
+    ids=[
+        "plain",
+        "hostile-name",
+        "percent-crlf",
+        "over-cap-crlf",
+        "file-unreadable",
+        "info-crlf",
+    ],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_catalogued_code_ends_the_annotation_after_the_fence(
+    generate: Callable[..., _Result], level: str, text: str, code: str, eol: str
+) -> None:
+    """``::warning::<text> [code]`` (``::notice::`` for an ``INFO:``): the
+    annotation carries the code as the last token, is emitted after the
+    closing ``::<token>::`` fence (the raw line, with its level prefix, inside
+    it) and the code survives the ``%`` escaping and a Windows carriage
+    return."""
+    result = generate(LOOM_STDERR=f"{level}: {text} [{code}]{eol}")
+    lines = result.output.splitlines()
+    stop = next(line for line in lines if line.startswith("::stop-commands::"))
+    resume = f"::{stop.removeprefix('::stop-commands::')}::"
+    escaped = text.replace("%%", "%").replace("%", "%25")
+    command = {"WARNING": "warning", "INFO": "notice"}[level]
+    annotation = f"::{command}::{escaped} [{code}]"
+    assert lines.index(annotation) > lines.index(resume) > lines.index(stop)
+    raw = [line.rstrip("\r") for line in lines[lines.index(stop) : lines.index(resume)]]
+    assert f"{level}: {text.replace('%%', '%')} [{code}]" in raw
+
+
 def test_last_stderr_line_is_annotated_after_a_slow_loom(
     stub_bin: "StubBin", generate: Callable[..., _Result]
 ) -> None:

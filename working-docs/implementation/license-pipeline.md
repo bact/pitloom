@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -172,7 +172,7 @@ through the directory's rule (`license_from_project_table()`); a
 - **Size cap** (reader; the directory adapter and the sdist scan): a root
   file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
   than one byte past the cap, with one `WARNING:` naming it
-  (`logging_config.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
+  (`pitloom.messages.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
   the wording the usage scan shares). Once per file and process:
   one run reads a project twice when a lock-file re-read follows the peek.
   Real licence texts are a few KiB to some tens of KiB, and `licenseid` is
@@ -435,7 +435,7 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents and a lone `License :: OSI Approved` dropped) |
 | `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
 | `src/pitloom/extract/project/_installed_reconcile.py` | static vs installed licence check by `same_licence()`; a weak static value gives way |
-| `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; `file:` lists as setuptools reads them (wrapped, blank entries dropped), missing classified by `path_probe`, an unreadable file (a `version` file too) one `UNREADABLE_FILE_WARNING` per run |
+| `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; `file:` lists as setuptools reads them (wrapped, blank entries dropped), missing classified by `path_probe`, an unreadable file (a `version` file too) one `file-unreadable` warning per run |
 | `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
 | `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |

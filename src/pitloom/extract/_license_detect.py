@@ -15,12 +15,15 @@ import json
 import logging
 import re
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 
 from pitloom.core.lfs_pointer import log_pointer_not_read, parse_lfs_pointer
 from pitloom.core.path_confine import open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
-from pitloom.logging_config import Cap, loggable, one_line, warn_once, warn_over_cap
+from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.project import project_relative_or_fallback
+from pitloom.core.provenance import provenance_segment, provenance_source
+from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ CODEMETA_JSON = "codemeta.json"
 #: larger one is skipped with one ``WARNING:`` (:data:`LICENSE_FILE_CAP`).
 LICENSE_FILE_MAX_BYTES = 256 * 1024
 #: :data:`LICENSE_FILE_MAX_BYTES` as every reader of a licence source warns
-#: of it: through :func:`~pitloom.logging_config.warn_over_cap`, with
+#: of it: through :func:`~pitloom.messages.warn_over_cap`, with
 #: ``once=True`` (one run reads a project more than once: a lock-file
 #: re-read, a declared and a concluded licence, always alike).
 LICENSE_FILE_CAP = Cap(LICENSE_FILE_MAX_BYTES, "byte", "license-detection")
@@ -154,6 +157,16 @@ def _license_from_codemeta_json(raw: bytes) -> str | None:
     return value if _looks_like_spdx_license_id(value) else None
 
 
+def member_source(label: str, archive: str | None, *, field: str | None = None) -> str:
+    """The provenance of what *label*, a project file, held: ``Source:
+    <label>``, then ``File: <archive>`` when it was read from the archive
+    named *archive*, then ``Field: <field>`` when given. The names are
+    untrusted and go through
+    :func:`~pitloom.core.provenance.provenance_source`."""
+    source = provenance_source(label, file=archive)
+    return source if field is None else provenance_segment(source, "Field", field)
+
+
 def license_candidates_from_members(
     members: Mapping[str, bytes], archive: str | None = None
 ) -> list[tuple[str, str]]:
@@ -167,12 +180,13 @@ def license_candidates_from_members(
     See also: :func:`collect_license_candidates`, the directory adapter.
     """
     candidates: list[tuple[str, str]] = []
-    within = "" if archive is None else f" | File: {archive}"
 
     cff = members.get(CITATION_CFF)
     cff_id = _license_from_citation_cff(cff) if cff is not None else None
     if cff_id:
-        candidates.append((cff_id, f"Source: {CITATION_CFF}{within} | Field: license"))
+        candidates.append(
+            (cff_id, member_source(CITATION_CFF, archive, field="license"))
+        )
 
     codemeta = members.get(CODEMETA_JSON)
     codemeta_id = (
@@ -180,42 +194,60 @@ def license_candidates_from_members(
     )
     if codemeta_id:
         candidates.append(
-            (codemeta_id, f"Source: {CODEMETA_JSON}{within} | Field: license")
+            (codemeta_id, member_source(CODEMETA_JSON, archive, field="license"))
         )
 
     for name in pick_license_names(members):
         text = decode_text(members[name], errors="replace")
         if text.strip():
-            candidates.append((text, f"Source: {name}{within}"))
+            candidates.append((text, member_source(name, archive)))
 
     return candidates
 
 
-def read_license_file(path: Path, root: Path | None = None) -> bytes | None:
+def _shown(path: Path, root: Path | None) -> str:
+    """*path* as a warning names it: below *root* as spelled, relative to
+    it (a project's ``LICENSE``); else as given, unless absolute (a
+    directory of this machine's), then its name."""
+    if root is not None:
+        with suppress(ValueError):
+            return path.relative_to(root).as_posix()
+    return project_relative_or_fallback(str(path), path.name)
+
+
+def read_license_file(
+    path: Path, root: Path | None = None, *, shown: str | None = None
+) -> bytes | None:
     """*path*'s bytes, read no further than one byte past the cap; ``None``
     when it is absent, cannot be read or is over the cap. With *root*, a
     file not inside it (a symlink out) is not read
     (:func:`~pitloom.core.path_confine.open_inside`): its content is no
     part of the project. A file present but not read is warned about, once
-    per file and process. A Git LFS pointer is no licence text: ``None``, with
-    a ``DEBUG`` line only (one among the project's files is also in the
-    run's one pointer warning)."""
+    per file and process, named *shown* (default: below *root*, relative to
+    it); a file over the cap is named the same way. A Git LFS pointer is no
+    licence text: ``None``, with a ``DEBUG`` line only (one among the
+    project's files is also in the run's one pointer warning)."""
     try:
         with path.open("rb") if root is None else open_inside(path, root) as fh:
             raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
     except OSError as exc:
         if not is_missing_errno(exc):
-            warn_once(
+            warn_file_unreadable(
                 log,
-                f"license-unreadable:{path}",
-                UNREADABLE_FILE_WARNING,
-                loggable(str(path)),
-                "for license files",
-                one_line(exc),
+                exc,
+                file=_shown(path, root) if shown is None else shown,
+                use="for license files",
+                once=f"license-unreadable:{path}",
             )
         return None
     if len(raw) > LICENSE_FILE_MAX_BYTES:
-        warn_over_cap(log, LICENSE_FILE_CAP, str(path), once=True)
+        warn_over_cap(
+            log,
+            LICENSE_FILE_CAP,
+            _shown(path, root) if shown is None else shown,
+            once=True,
+            key=str(path),
+        )
         return None
     pointer = parse_lfs_pointer(raw)
     if pointer is not None:

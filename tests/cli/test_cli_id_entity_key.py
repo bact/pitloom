@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.cli._id_entity import entity_entry
 from pitloom.cli.id import _run_id_command
 from pitloom.cli.parser import _build_parser
 from pitloom.core import dataset_hash
@@ -244,10 +245,9 @@ def test_entity_dataset_pin_rerun(
             "stored by name: outside the project root",
         ),
         ("m:" + FILE_TYPE, None, "stored by name: not a regular file"),
-        ("requests:" + PACKAGE_TYPE, None, None),
     ],
     ids=["model", "model-dot", "model-hf", "model-dir", "model-outside"]
-    + ["file", "file-dot", "file-missing", "file-outside", "file-dir", "package"],
+    + ["file", "file-dot", "file-missing", "file-outside", "file-dir"],
 )
 def test_entity_model_or_file_path_key(
     tmp_path: Path,
@@ -259,8 +259,7 @@ def test_entity_model_or_file_path_key(
 ) -> None:
     """A model or a file that is a regular file below the root is stored by
     its path key with its SHA-256, the key every lookup of it uses (one INFO
-    when spelt otherwise); else by name, hash-less, one INFO saying why. A
-    package is stored as given, silently."""
+    when spelt otherwise); else by name, hash-less, one INFO saying why."""
     proj = tmp_path / "proj"
     (proj / "m").mkdir(parents=True)
     (proj / "data").mkdir()
@@ -281,3 +280,55 @@ def test_entity_model_or_file_path_key(
     assert key in (None, text) or loaded.get(type_name, text) is None
     said = [m for m in caplog.messages if m.startswith("ID registry: -e ")]
     assert said == ([] if info is None else [f"ID registry: -e {text} {info}"])
+
+
+_NO_VERSION = "stored without a version: holds only a package that states none"
+
+
+@pytest.mark.parametrize(
+    ("spec", "key", "info"),
+    [
+        ("requests", "requests", _NO_VERSION),
+        ("Requests@2.31.0", "requests@2.31", "stored as requests@2.31"),
+        ("foo@2.0.0", "foo@2", "stored as foo@2"),
+        ("foo@2", "foo@2", None),
+        ("foo@1.0+CU-121", "foo@1+cu.121", "stored as foo@1+cu.121"),
+        ("%40scope/pkg@1.0", "%40scope/pkg@1", "stored as %40scope/pkg@1"),
+        ("foo@NOASSERTION", "foo", _NO_VERSION),
+    ],
+    ids=["bare", "versioned", "trailing-zeros", "canonical", "local"]
+    + ["at-in-name", "placeholder"],
+)
+def test_entity_package_key(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    spec: str,
+    key: str,
+    info: str | None,
+) -> None:
+    """A package is stored by its PEP 503 name and PEP 440 version
+    (``NAME@VERSION``, split at the first ``@``), never canonicalised as a
+    whole (``foo@2.0.0`` was ``foo@2-0-0``); with no version it holds only
+    a package that states none. One INFO, none when typed canonical."""
+    proj = tmp_path / "proj"
+    (proj / "data").mkdir(parents=True)  # a default PATH to index
+    caplog.set_level(logging.INFO, logger="pitloom.id_registry")
+
+    entries, code = _entries(tmp_path / "reg.json", proj, f"{spec}:{PACKAGE_TYPE}")
+
+    assert code == 0
+    assert entries == [((PACKAGE_TYPE, key), None)]
+    said = [m for m in caplog.messages if m.startswith("ID registry: -e ")]
+    assert said == ([] if info is None else [f"ID registry: -e {spec} {info}"])
+
+
+def test_entity_entry_keeps_an_unlisted_type_as_given(tmp_path: Path) -> None:
+    """A TYPE the CLI does not accept (it never passes one) is kept as given,
+    hash-less, never read as a path: NAME is a file below the root here."""
+    (tmp_path / "m").write_bytes(b"x\n")
+    registry = IdRegistry(namespace="urn:test", project_root=tmp_path)
+
+    assert entity_entry(registry, tmp_path, "software_Snippet", "m", 1024) == (
+        "m",
+        None,
+    )

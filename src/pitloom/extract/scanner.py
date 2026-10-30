@@ -14,9 +14,11 @@ module imports no producer.
 Invariant: one confirmed model file (its header agrees with a model format)
 gives exactly one entry, whatever its read outcome. A read that fails (a
 parse error, a bound, a missing library, a wheel gate) keeps a format-only
-entry and one ``WARNING:``; it is never dropped, so the entry set does not
-depend on the order of the files, the budget or the installed libraries. A
-file that is not a confirmed model gives no entry
+entry and one catalogued line saying why (``model-unreadable``,
+``library-missing``, ``over-cap``; the wheel gate's ``reader-unsafe`` is one
+``INFO:`` per scan); it is never dropped, so the entry set does not depend
+on the order of the files, the budget or the installed libraries. A file
+that is not a confirmed model gives no entry
 (:class:`~pitloom.extract.ai_model.NotAModel`).
 
 See also: :mod:`pitloom.extract.scanner_project`,
@@ -41,14 +43,16 @@ from pitloom.core.ai_metadata import (
     model_cap,
     model_file_suffixes,
 )
-from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.lfs_pointer import LfsPointer
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
-from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
-from pitloom.extract._scanner_messages import detail, scrub
+from pitloom.extract._scanner_messages import (
+    say_not_a_model,
+    say_unread,
+    scrub,
+)
 from pitloom.extract.ai_model import (
-    LFS_POINTER_REASON,
     NotAModel,
     contradicted_format,
     detect_ai_model_format_from_header,
@@ -58,27 +62,24 @@ from pitloom.extract.ai_model import (
     refusal_reason,
 )
 from pitloom.extract.ai_model.limits import (
-    ModelLimitExceeded,
     ModelOverCap,
     ScanBudgetExceeded,
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import Cap, loggable, over_cap_of, warn_over_cap
+from pitloom.logging_config import CODE_ATTR, loggable
+from pitloom.messages import (
+    READER_UNSAFE,
+    RELAY_FRAME,
+    Cap,
+    emit,
+    over_cap_of,
+    relay_extra,
+    warn_file_unreadable,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
-
-# UNREADABLE_FILE_WARNING with the model format first, as every
-# FORMAT=%s FILE=%s scan warning reads.
-_UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
-
-# Said once per scan, listing the gated formats met that were not announced
-# before.
-_GATE_INFO = (
-    "AI models in a wheel in these formats are listed without metadata, "
-    "their reader not being run on a wheel's files: %s. Pass %s for a "
-    "wheel you trust."
-)
 
 # The usage hint. The setting is spelt per producer: a project reads its own
 # config; a wheel reads none implicitly, so its setting needs a named one.
@@ -129,11 +130,11 @@ class ReaderGate:
     met: set[AiModelFormat] = field(default_factory=set)
 
     def report(self) -> None:
-        """Log one line naming the gated formats met (sorted) that *announce*
-        allows; nothing when it allows none."""
+        """Log one ``reader-unsafe`` line naming the gated formats met
+        (sorted) that *announce* allows; nothing when it allows none."""
         named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
         if named:
-            log.info(_GATE_INFO, ", ".join(named), PARAM_TO_FLAG["trust_wheel_model"])
+            emit(log, READER_UNSAFE, logging.INFO, formats=named)
 
 
 @dataclass(frozen=True)
@@ -199,8 +200,8 @@ def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> N
     """
     if path.name == dist_name:
         return
-    copied = f"Source: {sanitize_provenance_text(path.name)}"
-    real = f"Source: {sanitize_provenance_text(dist_name)}"
+    copied = provenance_source(path.name)
+    real = provenance_source(dist_name)
     for key, value in meta.provenance.items():
         if value == copied or value.startswith(copied + " |"):
             meta.provenance[key] = real + value[len(copied) :]
@@ -227,11 +228,15 @@ def _relog_reader_records(
     path: Path,
 ) -> None:
     """Log what a reader logged, as the scanner's own messages: the stable
-    ``FORMAT=``/``FILE=`` prefix on a warning, the text escaped, the
-    temporary copy's path and name replaced by the model's. An over-cap
-    warning is said again through the shared helper, naming the model."""
+    ``FORMAT=``/``FILE=`` prefix on a warning (the catalogue's
+    :data:`~pitloom.messages.RELAY_FRAME`), the text escaped, the temporary
+    copy's path and name replaced by the model's. An over-cap warning is
+    said again through the shared helper, naming the model. A record's
+    catalogued code is kept while the new text is still one of its
+    message's lines (:func:`~pitloom.messages.relay_extra`)."""
     dist_name = PurePosixPath(candidate.distribution_path).name
-    copied = f"Source: {sanitize_provenance_text(path.name)}"
+    copied = provenance_source(path.name)
+    prefix = RELAY_FRAME.render({"format": fmt, "file": candidate.physical_path})
     for record in records:
         over = over_cap_of(record)
         if over is not None:  # a reader warns over a cap once per read
@@ -240,20 +245,13 @@ def _relog_reader_records(
             continue
         text = record.getMessage()
         if path.name != dist_name:
-            text = text.replace(
-                copied, f"Source: {sanitize_provenance_text(dist_name)}"
-            )
+            text = text.replace(copied, provenance_source(dist_name))
         text = scrub(text, path, candidate.physical_path)
         if record.levelno >= logging.WARNING:
-            log.log(
-                record.levelno,
-                "FORMAT=%s FILE=%s: %s",
-                fmt,
-                loggable(candidate.physical_path),
-                text,
-            )
-        else:
-            log.log(record.levelno, "%s", text)
+            text = prefix + text
+        code = getattr(record, CODE_ATTR, None)
+        extra = relay_extra(code, record.levelname, text)
+        log.log(record.levelno, "%s", text, extra=extra)
 
 
 def _read_materialized(
@@ -328,35 +326,10 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
         warn_over_cap(log, model_cap(e.cap, fmt), path_in, _METADATA_NOT_READ)
     except ScanBudgetExceeded:
         log.debug("Scan budget spent; %s kept without metadata", where)
-    except ModelLimitExceeded as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: %s; %s",
-            fmt,
-            where,
-            loggable(e.reason),
-            _METADATA_NOT_READ,
-        )
-    except ImportError as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: required library not installed; %s",
-            fmt,
-            where,
-            detail(e, path, candidate.physical_path),
-        )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: failed to extract metadata; %s",
-            fmt,
-            where,
-            detail(e, path, candidate.physical_path),
-        )
+        say_unread(log, fmt, candidate, e, path)
     return _stub(fmt, candidate)
-
-
-def _is_whole_pointer(candidate: ModelCandidate) -> bool:
-    """Whether the candidate's whole file is a valid Git LFS pointer."""
-    return candidate.pointer is not None and candidate.pointer() is not None
 
 
 def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
@@ -369,31 +342,18 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
     try:
         return read_model_candidate(candidate)
     except OSError as e:
-        log.warning(
-            _UNREADABLE_MODEL_WARNING,
-            detect_ai_model_format_from_name(candidate.distribution_path),
-            loggable(candidate.physical_path),
-            "header",
-            detail(e, candidate.read_path, candidate.physical_path),
-        )
+        if not is_missing_errno(e):  # gone since it was found: absent
+            warn_file_unreadable(
+                log,
+                e,
+                file=candidate.physical_path,
+                model_format=detect_ai_model_format_from_name(
+                    candidate.distribution_path
+                ),
+            )
     except NotAModel as e:
         if e.reason is not None:
-            # A pointer named x.bin has no format to name.
-            key = "" if e.model_format is None else f"FORMAT={e.model_format} "
-            # A whole, valid pointer is said once for the run (the document
-            # build); an opening whose rest does not parse is a defect.
-            level = (
-                logging.DEBUG
-                if e.reason == LFS_POINTER_REASON and _is_whole_pointer(candidate)
-                else logging.WARNING
-            )
-            log.log(
-                level,
-                "%sFILE=%s: %s; not listed as an AI model",
-                key,
-                loggable(candidate.physical_path),
-                e.reason,
-            )
+            say_not_a_model(log, e, candidate)
     return None
 
 
@@ -447,12 +407,10 @@ def attach_usage_references(
                     )
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
-            log.warning(
-                UNREADABLE_FILE_WARNING,
-                loggable(source.physical_path),
-                "for usage scanning",
-                detail(e, source.read_path, source.physical_path),
-            )
+            if not (isinstance(e, OSError) and is_missing_errno(e)):
+                warn_file_unreadable(
+                    log, e, file=source.physical_path, use="for usage scanning"
+                )
     for meta in models:
         meta.usage_files = sorted(set(meta.usage_files))
 

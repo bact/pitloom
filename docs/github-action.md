@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,6 +126,9 @@ in the raw log. A failing `loom` invocation still fails the step/job
 (its `ERROR:` line is annotated first); this doesn't change the action's
 exit behaviour.
 
+A catalogued message keeps its `[code]` at the end of the annotation text
+(see [Messages and codes](messages.md)).
+
 `-v` in `args` logs each effective option as an `INFO:` line, so each
 becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
@@ -135,10 +138,11 @@ Declare a registry with the `id-registry` input (or `[tool.pitloom] id-registry`
 the action then harvests newly minted ids back into it, in the runner's
 checkout only. To commit it back without relaxing a publish job's permissions,
 see [Loom ID registry: In CI](id-registry.md#in-ci). A registry committed
-under an earlier Pitloom release (format version 2) fails the step with an
-`ERROR:`; regenerate it with `loom id generate` or `loom id import`. A
-version 3 registry needs the action pinned to the first release with registry
-format 3 (`@v0.21.0` or later): `@v0.20.2` reads version 2 only.
+under an earlier Pitloom release (format version 3 or 2) fails the step with
+an `ERROR:` and is left as it is; regenerate it with `loom id generate` or
+`loom id import`. A version 4 registry needs the action pinned to the first
+release with registry format 4 (`@v0.22.0` or later): `@v0.21.x` reads version
+3 only.
 
 ## Configuration
 

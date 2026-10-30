@@ -22,6 +22,7 @@ from pitloom.assemble import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.file_identity import FileId, file_id
+from pitloom.core.optional_libraries import VALIDATE, missing
 from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
@@ -30,6 +31,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
+from pitloom.messages import LIBRARY_MISSING, code_of
 
 
 def cli_error_handler(
@@ -44,7 +46,7 @@ def cli_error_handler(
                 return func(args, *pargs, **kwargs)
             # pylint: disable-next=broad-exception-caught
             except Exception as e:
-                print_error(f"{error_msg}: {e}")
+                print_error(f"{error_msg}: {e}", code=code_of(e))
                 if getattr(args, "verbose", False):
                     print_traceback()
                 return 1
@@ -135,7 +137,7 @@ def report_error_line(exc: Exception) -> None:
     """Print one ``ERROR: <message>`` line to stderr -- the same shape for
     every per-wheel check, so one bad wheel of a batch never aborts the
     others."""
-    print_error(str(exc))
+    print_error(str(exc), code=code_of(exc))
 
 
 def refuse_non_wheel(path: Path) -> bool:
@@ -202,7 +204,8 @@ def _locate_and_detect(
 
 
 def _import_spdx3_validate() -> Any | None:
-    """Import ``spdx3_validate``, printing an install-hint ``ERROR:`` if missing.
+    """Import ``spdx3_validate``, printing the ``library-missing`` ``ERROR:``
+    (the extra to install) if missing.
 
     Called directly by ``fragment validate`` before its own path-existence
     check, since a missing dependency is more fundamental than any one
@@ -214,10 +217,7 @@ def _import_spdx3_validate() -> Any | None:
         # pylint: disable=import-outside-toplevel
         import spdx3_validate
     except ImportError:
-        print_error(
-            "the 'spdx3-validate' package is required for SPDX 3 "
-            'validation. Install it with: pip install "pitloom[validate]"'
-        )
+        print_error(str(missing(VALIDATE)), code=LIBRARY_MISSING.code)
         return None
     return spdx3_validate
 

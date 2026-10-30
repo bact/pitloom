@@ -21,6 +21,7 @@ from pitloom.core.project import (
     ProjectMetadata,
     digest_fields,
 )
+from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
@@ -41,7 +42,7 @@ from pitloom.extract._license_detect import (
 )
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-from pitloom.logging_config import warn_over_cap
+from pitloom.messages import warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -252,7 +253,7 @@ def read_wheel(
     project_files: list[ProjectFile] = []
     provenance: dict[str, str] = {}
     archive = wheel_path_obj.name
-    source = f"Source: wheel METADATA | File: {archive}"
+    source = provenance_source("wheel METADATA", file=archive)
 
     with open_wheel_zip(wheel_path_obj) as zf:
         members = wheel_members(zf, archive, log)

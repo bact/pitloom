@@ -41,6 +41,8 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     scheme_allowed,
 )
+from pitloom.messages import OVER_CAP
+from tests._message_drift import raised_as
 
 posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="a shell script stands in for git"
@@ -77,6 +79,7 @@ def test_a_git_that_floods_its_output_is_killed(
     with pytest.raises(RemoteSourceError) as excinfo:
         GitRunner().run(["ls-remote"], "ls-remote")
     assert excinfo.value.code == "git.output-too-large"
+    assert raised_as(excinfo.value, OVER_CAP)
 
 
 @posix_only

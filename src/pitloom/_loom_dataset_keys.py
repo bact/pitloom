@@ -20,16 +20,18 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._loom_caller import evidence_provenance, pointer_provenance
+from pitloom._loom_caller import pointer_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
 from pitloom.core.evidence import (
     BYTE_SIZE_FIELD,
+    DECLARED,
+    MEASURED_READ,
     MEASURED_STAT,
-    NOT_MEASURED,
-    OVER_CAP,
+    Fact,
+    count_fact,
+    record_fact,
 )
 from pitloom.core.untrusted_text import escape_display_controls
-from pitloom.extract.dataset.values import stated_count
 from pitloom.id_registry import (
     DATASET_PACKAGE_TYPE,
     IdRegistry,
@@ -139,63 +141,66 @@ class DigestEvidence:
     """What a loom dataset package records of its digest beside the hash.
 
     Attributes:
-        hash_provenance: The provenance of its ``verifiedUsing``: copied
-            from a Git LFS pointer, or ``not_measured`` over the cap;
-            ``None`` for a hash read in full and for no hash.
-        size: Its ``dataset_datasetSize``, in bytes; ``None`` when none.
-        size_provenance: The provenance of *size* (``byte_size``):
-            ``measured_stat``, or ``not_measured`` (a file's size withheld
-            over the cap, or over the largest integer canonical JSON
-            writes); ``None`` for a size read in full and
-            for no size.
+        hash: Its ``verifiedUsing``: read in full (``measured_read``),
+            copied from a Git LFS pointer's ``oid`` (``declared``), or
+            ``not_measured`` with the reason it was not read (over the cap,
+            a file unreadable, a directory unlistable); ``None`` for no hash
+            and no reason.
+        size: Its ``dataset_datasetSize``, in bytes: the bytes hashed
+            (``measured_read``), the ``stat()`` size of a file not read
+            (``measured_stat``), or ``not_measured`` (withheld for a file not
+            read that may be a pointer, or over the largest integer
+            canonical JSON writes); ``None`` for no size and no entry.
     """
 
-    hash_provenance: str | None = None
-    size: int | None = None
-    size_provenance: str | None = None
+    hash: Fact[str] | None = None
+    size: Fact[int] | None = None
+
+    @property
+    def hash_provenance(self) -> str | None:
+        """The provenance of :attr:`hash`; a declared one (the pointer's)
+        keeps the pointer's ``Method:`` form."""
+        if self.hash is None:
+            return None
+        if self.hash.level == DECLARED and self.hash.source is not None:
+            return pointer_provenance(self.hash.source)
+        return self.hash.provenance()
+
+    @property
+    def size_provenance(self) -> str | None:
+        """The provenance of :attr:`size` (``byte_size``)."""
+        return None if self.size is None else self.size.provenance()
 
 
 def digest_evidence(found: DatasetDigest, label: str) -> DigestEvidence:
     """What the dataset package of *found*, the file or directory *label*
     names (:func:`~pitloom._loom_caller.cwd_relative_label`), records of it
     beside the hash: the one place its evidence level is decided. A Git LFS
-    pointer: the pointer's provenance and no size (the pointer's own is not
-    the content's). Over the cap: the hash ``not_measured``, and a file's
-    ``stat()`` size when known; a file with none (it may be a pointer) gets
-    a ``not_measured`` size. Hashed: the size read (no provenance). Else
-    (not hashed for any other reason) nothing. A directory has no size and
-    no size entry."""
-    if found.lfs_pointers:
-        return DigestEvidence(pointer_provenance(label))
-    if found.omitted == OVER_CAP:
-        unread = evidence_provenance(label, NOT_MEASURED, OVER_CAP)
-        if found.size is None:
-            return DigestEvidence(
-                unread, None, unread if found.kind == "file" else None
-            )
-        return DigestEvidence(unread, *_bounded_size(found.size, label, MEASURED_STAT))
-    if found.hex_digest is not None:
-        return _read_size(found, label)
-    return DigestEvidence()
-
-
-def _read_size(found: DatasetDigest, label: str) -> DigestEvidence:
-    """The size of the file *found* hashed: the bytes read, with no
-    provenance (``measured_read`` writes none)."""
-    if found.size is None:
+    pointer: its hash declared and no size (the pointer's own is not the
+    content's). Not read, for the reason *found* gives (over the cap, a file
+    unreadable, a directory unlistable): the hash ``not_measured`` with that
+    reason, and a file's ``stat()`` size when known; a file with none (it may
+    be a pointer, or its ``stat()`` failed) gets a ``not_measured`` size.
+    Hashed: the size read. Else (absent, empty, gone since found: no reason)
+    nothing. A directory has no size and no size entry."""
+    hex_digest = found.hex_digest
+    if found.lfs_pointers and hex_digest is not None:
+        return DigestEvidence(Fact.declared(hex_digest, label))
+    if found.omitted is not None:
+        unread: Fact[str] = Fact.not_measured(label, found.omitted)
+        if found.size is not None:
+            size = count_fact(found.size, MEASURED_STAT, label, BYTE_SIZE_FIELD)
+            return DigestEvidence(unread, size)
+        no_size: Fact[int] = Fact.not_measured(label, found.omitted)
+        return DigestEvidence(unread, no_size if found.kind == "file" else None)
+    if hex_digest is None:
         return DigestEvidence()
-    return DigestEvidence(None, *_bounded_size(found.size, label, None))
-
-
-def _bounded_size(
-    size: int, label: str, level: str | None
-) -> tuple[int | None, str | None]:
-    """*size* and its provenance at the evidence *level* (``None``: none);
-    over the largest integer canonical JSON writes, no size and
-    ``not_measured``, with the over-cap ``WARNING:`` of every byte size."""
-    if stated_count(size, label, BYTE_SIZE_FIELD) is None:
-        return None, evidence_provenance(label, NOT_MEASURED, OVER_CAP)
-    return size, None if level is None else evidence_provenance(label, level)
+    read = Fact.measured_read(hex_digest)
+    if found.size is None:
+        return DigestEvidence(read)
+    return DigestEvidence(
+        read, count_fact(found.size, MEASURED_READ, label, BYTE_SIZE_FIELD)
+    )
 
 
 def record_size(
@@ -204,12 +209,11 @@ def record_size(
     evidence: DigestEvidence,
 ) -> None:
     """Record *evidence*'s size on *package* and in its *provenance*, after
-    what its sources stated: a measured size replaces a stated one and its
-    provenance (a declared size loses to a measured one, evidence-levels
-    Rule 1; no loom source states one yet); with none measured, a stated
-    size stands with its own provenance."""
-    if evidence.size is not None:
-        package.dataset_datasetSize = evidence.size
-        provenance.pop(BYTE_SIZE_FIELD, None)
-    if evidence.size_provenance is not None and BYTE_SIZE_FIELD not in provenance:
-        provenance[BYTE_SIZE_FIELD] = evidence.size_provenance
+    what its sources stated (:func:`~pitloom.core.evidence.record_fact`): a
+    measured size replaces a stated one and its provenance; a
+    ``not_measured`` one leaves a stated size and its provenance."""
+
+    def set_size(size: int) -> None:
+        package.dataset_datasetSize = size
+
+    record_fact(provenance, BYTE_SIZE_FIELD, evidence.size, set_size)

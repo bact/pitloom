@@ -17,7 +17,7 @@ from types import MappingProxyType
 
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.id_registry._registry import IdRegistry
-from pitloom.id_registry._types import _require_names
+from pitloom.id_registry._types import PACKAGE_TYPE, _require_names, package_key
 from pitloom.id_registry.keys import (
     LAYOUT_ALIAS_HITS_INFO,
     Alias,
@@ -40,13 +40,16 @@ def info_identity_unknown() -> None:
 
 def warn_claim_collision(spdx_id: str, first: str, second: str) -> None:
     """Log the one ``WARNING:`` for *spdx_id* wanted by *second* after *first*
-    already took it; *second* mints its own id."""
+    already took it; *second* mints its own id. Each is escaped
+    (:func:`~pitloom.logging_config.loggable`): a claimant names a path, or
+    a package and its version, as read."""
+    shown = loggable(second)
     log.warning(
         "ID registry: %s is registered for both %s and %s; %s gets a new id",
-        spdx_id,
-        first,
-        second,
-        second,
+        loggable(spdx_id),
+        loggable(first),
+        shown,
+        shown,
     )
 
 
@@ -106,7 +109,8 @@ class IdRegistrySession:
     project's own, dependency and phantom packages, deployed packages,
     loom fragments), instead goes through one shared session so a
     registry hit reused by two different elements is claimed by only the
-    first -- see :meth:`lookup_key` and :meth:`lookup_id`.
+    first -- see :meth:`lookup_key`, :meth:`lookup_package` and
+    :meth:`lookup_id`.
     """
 
     def __init__(self, registry: IdRegistry | None) -> None:
@@ -179,6 +183,35 @@ class IdRegistrySession:
         if on_miss is not None:
             on_miss()
         return None
+
+    def lookup_package(
+        self, claimant: str, name: str, version: str | None
+    ) -> str | None:
+        """Look up the id registered for the package *name* at *version*,
+        claim it, record its key for harvest, and return it -- or ``None``.
+
+        The key is :func:`~pitloom.id_registry._types.package_key`: with
+        the version a package states, else bare, and a bare key never hits
+        a versioned entry or the reverse. It is tried as built, then built
+        from the display-escaped name and version (a registry imported from
+        an SBOM holds them as the SBOM shows them); a claimed hit records
+        the key as built (see :meth:`recorded_keys`), the key a harvest of
+        the element derives from its name and version. Ungated, as every
+        package lookup."""
+        if self._registry is None:
+            return None
+        key = package_key(name, version)
+        shown = package_key(
+            escape_display_controls(name),
+            None if version is None else escape_display_controls(version),
+        )
+        spdx_id = self._registry.lookup(PACKAGE_TYPE, list(dict.fromkeys((key, shown))))
+        if spdx_id is None:
+            return None
+        claimed = self._claim(claimant, spdx_id)
+        if claimed is not None:
+            self._keys[claimed] = (PACKAGE_TYPE, key)
+        return claimed
 
     # pylint: disable-next=too-many-arguments
     def lookup_key(

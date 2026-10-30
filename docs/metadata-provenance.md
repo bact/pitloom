@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,6 +136,9 @@ order: `Source | Field | Method | Evidence | Reason`. `Evidence` says how
 a number, hash or other fact was obtained, as distinct from where (`Source`)
 and how it was read (`Method`). An entry with no `Evidence` segment is a
 fact Pitloom measured by reading the content, which is nearly every entry.
+Only the keys Pitloom writes are read as keys; any other segment, and the
+value of a `Note` segment, is a note, so free text holding a `:` (a URL)
+adds no key.
 
 | `Evidence` | Meaning |
 | --- | --- |
@@ -146,8 +149,9 @@ fact Pitloom measured by reading the content, which is nearly every entry.
 | `not_measured` | Not read, and nothing declared; always with a `Reason`. |
 
 `Reason` is a short code, never free text: `over-cap`, `timeout`,
-`network-failed`, `lfs-pointer`, `unreadable-file` or `unlistable-dir`.
-Today only `over-cap` is written, for a dataset in `loom` (a file or a
+`network-failed`, `lfs-pointer`, `file-unreadable` or `dir-unlistable`, the
+code of the `WARNING:` that said why. Today `over-cap`, `file-unreadable`
+and `dir-unlistable` are written, for a dataset in `loom` (a file or a
 directory; the [Python API](python-api.md#tracking-decorator)):
 
 - A file over `max-dataset-hash-bytes` has no hash, and its
@@ -160,6 +164,15 @@ directory; the [Python API](python-api.md#tracking-decorator)):
   Pitloom never reads past the cap to tell) and a size above 2^53-1 get no
   size, and `byte_size` reads `Evidence: not_measured | Reason: over-cap`.
 - A Git LFS pointer gets no size (its own is not the content's).
+- A file the system refuses to read has no hash, and its `verified_using`
+  entry reads `... | Evidence: not_measured | Reason: file-unreadable`; its
+  size is from `stat()`, or, under 1,024 bytes, `byte_size` reads the same
+  `not_measured` entry. A path whose `stat()` is refused gets the
+  `verified_using` entry only.
+- A directory holding a file it cannot read, or a subdirectory it cannot
+  list: the `verified_using` entry with `file-unreadable` or
+  `dir-unlistable`, and no size.
+- A file or directory gone while it was read is absent: no entry.
 
 With `detail = "minimal"` (the default), an entry that has an `Evidence`
 segment is kept, even from a source that is otherwise left out.
@@ -206,13 +219,15 @@ concrete version on both sides.
 A dependency's `declared_constraint` annotation holds every string declared
 for that package, extras included (see [Extras and the optional
 edge](dependency-sources.md#extras-and-the-optional-edge)), sorted and
-joined by ` | `. Every route spells a dependency alike: the package name
-is the PEP 503 name its `pkg:pypi` PURL uses (`Foo_Bar` is `foo-bar`), and
-each declared string is spelt as `packaging` writes it, whether the source
-kept the spelling (a setuptools wheel) or not. `loom env` names each
-installed distribution the same way (`PyYAML` is `pyyaml`), whatever its
-`.dist-info` spells. The SBOM's own root package keeps the name the
-project declares (`Foo_Bar`), on every route; only its PURL is PEP 503.
+joined by ` | `, each one a note: one holding a `:` (a direct URL, a
+marker) is written after a `Note:` key. Every route spells a dependency
+alike: the package name is the PEP 503 name its `pkg:pypi` PURL uses
+(`Foo_Bar` is `foo-bar`), and each declared string is spelt as `packaging`
+writes it, whether the source kept the spelling (a setuptools wheel) or
+not. `loom env` names each installed distribution the same way (`PyYAML` is
+`pyyaml`), whatever its `.dist-info` spells. The SBOM's own root package
+keeps the name the project declares (`Foo_Bar`), on every route; only its
+PURL is PEP 503.
 
 ## See also
 

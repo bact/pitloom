@@ -48,7 +48,8 @@ from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
-from pitloom.logging_config import loggable, one_line, warn_over_cap
+from pitloom.logging_config import loggable, one_line
+from pitloom.messages import warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 

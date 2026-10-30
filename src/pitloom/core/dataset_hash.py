@@ -24,7 +24,8 @@ the pointer is read. The ceiling still compares the bytes on disk, never
 the size a pointer states.
 
 A digest's *size* is a file's measured byte count; *omitted* says why a
-hash is missing, as a :data:`~pitloom.core.evidence.REASON_CODES` code.
+hash is missing, as a :data:`~pitloom.core.evidence.REASON_CODES` code: the
+code of the ``WARNING:`` that said why.
 
 See also: :mod:`pitloom.core.file_hash` (the reader),
 :mod:`pitloom.core.walk_rules` (the pruned names) and
@@ -42,7 +43,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Literal
 
-from pitloom.core.evidence import OVER_CAP
+from pitloom.core.evidence import DIR_UNLISTABLE, FILE_UNREADABLE, OVER_CAP
 from pitloom.core.file_hash import (
     HexDigests,
     ReadBudgetExceeded,
@@ -53,14 +54,17 @@ from pitloom.core.lfs_pointer import LFS_POINTER_MAX_BYTES, LfsPointer
 from pitloom.core.model_extract_limit import MAX_DATASET_HASH_BYTES_KEY
 from pitloom.core.models import merkle_root
 from pitloom.core.path_probe import (
-    UNLISTABLE_DIR_WARNING,
-    UNREADABLE_FILE_WARNING,
     is_missing_errno,
     is_regular_file,
     stat_if_present,
 )
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
-from pitloom.logging_config import Cap, loggable, one_line, warn_over_cap
+from pitloom.messages import (
+    Cap,
+    warn_dir_unlistable,
+    warn_file_unreadable,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 
@@ -93,18 +97,22 @@ class DatasetDigest:
         lfs_pointers: The Git LFS pointers among the files *hex_digest*
             covers, in leaf order, each hashed by its ``oid``; empty when
             not hashed.
-        size: A regular file's size in bytes: the bytes hashed, or over
-            the ceiling the ``stat()`` size checked against it (unread, so
-            ``measured_stat``). ``None`` for a Git LFS pointer (its own size
-            is not the content's), for a file over the ceiling whose
+        size: A regular file's size in bytes: the bytes hashed, or the
+            ``stat()`` size of a file not read, over the ceiling or
+            unreadable (so ``measured_stat``). ``None`` for a Git LFS pointer
+            (its own size is not the content's), for a file not read whose
             ``stat()`` size is below
             :data:`~pitloom.core.lfs_pointer.LFS_POINTER_MAX_BYTES` (it may
-            be a pointer, and only the read the ceiling forbids would tell),
-            for a directory, and when not known.
+            be a pointer, and only the read would tell), for a directory,
+            and when not known.
         omitted: Why *hex_digest* is ``None``, as a
-            :data:`~pitloom.core.evidence.REASON_CODES` code: ``"over-cap"``
-            for the ceiling (at ``stat()`` or a file grown during the read);
-            ``None`` when hashed and for every other reason.
+            :data:`~pitloom.core.evidence.REASON_CODES` code, the code of
+            the ``WARNING:`` that said it: ``"over-cap"`` for the ceiling (at
+            ``stat()`` or a file grown during the read), ``"file-unreadable"``
+            for a file that could not be read or ``stat()``-ed (the dataset,
+            or one below it), ``"dir-unlistable"`` for a directory that could
+            not be listed; ``None`` when hashed, and when absent, empty or
+            gone since it was found (quiet).
     """
 
     kind: Literal["file", "dir"] | None
@@ -131,8 +139,8 @@ def _unhashed(
 
 @dataclass(frozen=True)
 class _Failed:
-    """Why :func:`_leaves` gave no leaves: *omitted* as
-    :attr:`DatasetDigest.omitted` has it."""
+    """Why :func:`_listed` gave no members, or :func:`_leaves` no leaves:
+    *omitted* as :attr:`DatasetDigest.omitted` has it."""
 
     omitted: str | None
 
@@ -177,7 +185,14 @@ def _warn_over_ceiling(subject: str, where: str, max_bytes: int) -> None:
 
 
 def _warn_unreadable(where: str, exc: OSError) -> None:
-    log.warning(UNREADABLE_FILE_WARNING, loggable(where), _PURPOSE, one_line(exc))
+    warn_file_unreadable(log, exc, file=where, use=_PURPOSE)
+
+
+def _stat_size(size: int | None) -> int | None:
+    """The ``stat()`` *size* of a file not read, as a digest records it:
+    none below :data:`~pitloom.core.lfs_pointer.LFS_POINTER_MAX_BYTES`, where
+    the file may be a pointer, whose size is not the content's."""
+    return None if size is None or size < LFS_POINTER_MAX_BYTES else size
 
 
 def hash_dataset(
@@ -199,11 +214,11 @@ def hash_dataset(
     *max_bytes* caps the bytes hashed, over a whole directory: sizes are
     checked before any file is opened, and every read keeps to what is left,
     so a file that grows is caught. Over it: one ``WARNING:`` and no hash. A
-    file that cannot be read (one removed between the walk and its read
-    included), or a directory below *path* that cannot be listed: the
-    :mod:`~pitloom.core.path_probe` ``WARNING:`` and no hash -- a root over
-    part of a directory would be wrong. An empty directory: no hash,
-    silently.
+    file that cannot be read, or a directory below *path* that cannot be
+    listed: the ``file-unreadable`` or ``dir-unlistable`` ``WARNING:`` and
+    no hash -- a root over part of a directory would be wrong. An empty
+    directory, or a file or directory gone since the walk found it: no
+    hash, silently.
     """
     where = os.fspath(path)
     try:
@@ -213,7 +228,7 @@ def hash_dataset(
         return _unhashed(None, None, None)
     except OSError as exc:  # present, but stat() fails
         _warn_unreadable(where, exc)
-        return _unhashed(None, None, None)
+        return _unhashed(None, None, FILE_UNREADABLE)
     if os.path.isdir(path):
         return _hash_directory(where, max_bytes, exclude)
     return _unhashed(None, None, None)
@@ -235,7 +250,7 @@ def _hash_file(where: str, max_bytes: int, *, sha512: bool) -> DatasetDigest:
     except ReadBudgetExceeded:
         return _file_over_ceiling(where, max_bytes, size)
     except OSError as exc:
-        return _unreadable_file(where, exc)
+        return _unreadable_file(where, exc, size)
     pointers = () if pointer is None else ((where, pointer),)
     return DatasetDigest(
         "file",
@@ -271,17 +286,19 @@ def _file_over_ceiling(where: str, max_bytes: int, size: int) -> DatasetDigest:
     :data:`~pitloom.core.lfs_pointer.LFS_POINTER_MAX_BYTES` it may be a
     pointer, whose size is not the content's: no size."""
     _warn_over_ceiling("FILE", where, max_bytes)
-    unread = None if size < LFS_POINTER_MAX_BYTES else size
-    return _unhashed("file", unread, OVER_CAP)
+    return _unhashed("file", _stat_size(size), OVER_CAP)
 
 
-def _unreadable_file(where: str, exc: OSError) -> DatasetDigest:
-    """No hash for the file *where* that *exc* stopped: silently when it is
-    gone since it was found, else after the warning."""
+def _unreadable_file(
+    where: str, exc: OSError, size: int | None = None
+) -> DatasetDigest:
+    """No hash for the file *where* that *exc* stopped, whose ``stat()``
+    gave *size* (``None``: it failed): silently when it is gone since it
+    was found, else after the warning."""
     if is_missing_errno(exc):
         return _unhashed(None, None, None)
     _warn_unreadable(where, exc)
-    return _unhashed("file", None, None)
+    return _unhashed("file", _stat_size(size), FILE_UNREADABLE)
 
 
 @dataclass
@@ -322,25 +339,25 @@ def _members(top: str, exclude: Path | None, walk: _Walk) -> None:
     members.sort()
 
 
-def _listed(top: str, exclude: Path | None) -> tuple[list[_Member] | None, bool]:
-    """:func:`_members`, and whether the walk met *exclude*; the members are
-    ``None`` after the warning for a directory that could not be listed or
-    a file that could not be ``stat()``-ed."""
+def _listed(top: str, exclude: Path | None) -> tuple[list[_Member] | _Failed, bool]:
+    """:func:`_members`, and whether the walk met *exclude*; instead of the
+    members, why not: after the warning, a directory that could not be
+    listed or a file that could not be ``stat()``-ed; silently, a directory
+    gone since the walk found it."""
     walk = _Walk()
     try:
         _members(top, exclude, walk)
         return walk.members, walk.excluded
     except _Unlistable as unlistable:
         error = unlistable.error
-        log.warning(
-            UNLISTABLE_DIR_WARNING,
-            loggable(os.fspath(error.filename or top)),
-            _PURPOSE,
-            one_line(error),
-        )
+        if is_missing_errno(error):
+            return _Failed(None), walk.excluded
+        where = os.fspath(error.filename or top)
+        warn_dir_unlistable(log, error, directory=where, use=_PURPOSE)
+        return _Failed(DIR_UNLISTABLE), walk.excluded
     except OSError as exc:
         _warn_unreadable(os.fspath(exc.filename or top), exc)
-    return None, walk.excluded
+        return _Failed(FILE_UNREADABLE), walk.excluded
 
 
 def _leaves(
@@ -349,7 +366,8 @@ def _leaves(
     """The Merkle leaves of *members*, read within *max_bytes* in all, and
     the Git LFS pointers among them; a leaf binds a file's path to its
     content (a pointer's ``oid``). After the warning, why not: a file grew
-    past what is left (``"over-cap"``), or cannot be read (no code)."""
+    past what is left (``"over-cap"``), or cannot be read
+    (``"file-unreadable"``); silently, a file gone since the walk."""
     leaves: list[bytes] = []
     pointers: list[PointerAt] = []
     spent = 0
@@ -360,8 +378,10 @@ def _leaves(
             _warn_over_ceiling("DIR", top, max_bytes)
             return _Failed(OVER_CAP)
         except OSError as exc:
+            if is_missing_errno(exc):
+                return _Failed(None)
             _warn_unreadable(member, exc)
-            return _Failed(None)
+            return _Failed(FILE_UNREADABLE)
         spent += read.size
         if read.lfs_pointer is not None:
             pointers.append((member, read.lfs_pointer))
@@ -375,6 +395,8 @@ def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDi
     members, excluded = _listed(top, exclude)
     # No directory size yet: a pointer below stats at its own size, so one
     # sum would mix the pointer's bytes with the content's.
+    if isinstance(members, _Failed):
+        return _unhashed("dir", None, members.omitted, excluded=excluded)
     if not members:
         return _unhashed("dir", None, None, excluded=excluded)
     if sum(size for _, _, size in members) > max_bytes:

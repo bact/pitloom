@@ -46,10 +46,11 @@ most 1,024 bytes), `UnreadPointers` (one run's pointers, one summary warning).
 - **Model-named pointers** (`.gguf`, `.onnx`, `.bin`, `.model`, `.zip`, ...)
   are files only, no AI package, and no per-file warning when the whole file
   is a valid pointer. A file that only opens like one (malformed rest, or
-  1,024 bytes or more) keeps the per-file `header is a Git LFS pointer`
-  warning and is hashed normally. A named `loom model|enrich|generate` of a
-  pointer errors with the `oid`, size and `git lfs pull`
-  (`assemble/_model_generator.py`).
+  1,024 bytes or more) keeps a per-file warning, `header looks like a Git LFS
+  pointer but is not a valid one` (`lfs-pointer-malformed`), and is hashed
+  normally. A named `loom model|enrich|generate` of a pointer, and
+  `read_ai_model()`, error with the `oid`, size and `git lfs pull`
+  (`core/lfs_pointer.py`, `refuse_named_pointer`).
 - **Loom.** `loom.dataset(path=)` and `use_model(path=)` on a pointer record
   the `oid` (`_loom_dataset.py`, `_loom_dataset_keys.py`, `_loom_model.py`,
   `core/dataset_hash.py`); a directory's Merkle leaf is the `oid`. The

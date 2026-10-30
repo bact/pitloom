@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,7 +126,7 @@ Values are exact; "stub" is the format-only entry described above.
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
 | Model card | 1 MiB (1048576 bytes) of the `README.md`/`MODEL_CARD.md` next to a model; only its YAML frontmatter is used, and a card is read by its path, a symlink into a Hugging Face cache's `blobs/` too | `--enrich`, `loom enrich` | No | A frontmatter closed within the cap is used as from the whole card, and a card starting with none has none: no log line. One not closed within it is skipped, once per card: `WARNING: FILE=<path>: larger than the 1048576-byte model-card cap; frontmatter not closed within it; skipped \| Field(s) affected (skipped): license, datasets` |
 | Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
-| Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; <error>` |
+| Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; not UTF-8: <failure> [file-unreadable/not-utf8]` |
 | Artifact-metadata size | Unlimited by default | The verbatim metadata annotation of any model | `max-source-metadata-bytes`, `--max-source-metadata-bytes` | Largest entries dropped first and marked truncated; see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation) |
 
 There is no limit on the number of model files in a project or wheel. In a
@@ -215,12 +215,13 @@ A file is a candidate when its suffix is a model suffix, or `.bin`,
 An empty file, an absent one or a directory is never a model, and silent. A
 header that cannot be read (permission denied) is an `ERROR:` for `loom model
 FILE` and its siblings. A scan normally drops such a file earlier (`could not
-read ... for file scanning`); `FORMAT=<fmt> FILE=<path>: could not read
-header` and no entry appear only when it turns unreadable between the two
-reads. A file whose header contradicts its model suffix is not listed, with
-one `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an
-AI model`. A file that is a whole Git LFS pointer, under any candidate suffix,
-gets no per-file warning: the SBOM has one `WARNING: FILE=<first>: Git LFS
+read ... for file scanning`, `[file-unreadable]`); `FORMAT=<fmt> FILE=<path>:
+could not read header` (`[file-unreadable]` too) and no entry appear only when
+it turns unreadable between the two reads. A file whose header contradicts its
+model suffix is not listed, with one `WARNING: FORMAT=<fmt> FILE=<path>: header
+is not <fmt>; not listed as an AI model`. A file that is a whole Git LFS
+pointer, under any candidate suffix, gets no per-file warning: the SBOM has one
+`WARNING: FILE=<first>: Git LFS
 pointer, content not read (N files); <advice>` for all of them, where the advice
 is `run 'git lfs pull' for the content` for a local directory and `clone with
 git lfs, then run on the directory` for a Git URL. A pointer shipped inside a
@@ -228,9 +229,9 @@ wheel, an sdist or a build keeps the hashes of its own text and gets `WARNING:
 FILE=<first>: Git LFS pointer shipped (N files); the build did not pull LFS
 content`; the fix is in the build, not `git lfs pull`. A file that only opens
 like a pointer (a malformed rest, or 1 KiB or more) keeps `FILE=<path>: header
-is a Git LFS pointer; not listed as an AI model` (a `.bin`, `.model` or `.zip`
-one has no `FORMAT=`). A `.pt` or `.pth` that is path-configuration text is
-silent.
+looks like a Git LFS pointer but is not a valid one; not listed as an AI model`
+(a `.bin`, `.model` or `.zip` one has no `FORMAT=`). A `.pt` or `.pth` that is
+path-configuration text is silent.
 This also catches a rare real file that fails its signature (a Safetensors
 header of more than 100 MB, a ZIP with data before it). `loom id generate`
 registers a model under its file's path key by the same rule (the suffix

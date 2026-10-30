@@ -4,10 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for :mod:`pitloom.core.pep508`: the one parse of a PEP 508
-requirement or marker, its nesting cap and its ``RecursionError``, and a
-drift guard that no other module calls ``packaging``'s parsers.
+requirement or marker, its nesting cap and its ``RecursionError``, whether
+a requirement is a direct reference, and a drift guard that no other module
+calls ``packaging``'s parsers.
 
-See also: tests/test_deep_marker_surfaces.py (every route, end to end).
+See also: tests/test_deep_marker_surfaces.py (every route, end to end),
+tests/test_direct_reference_surfaces.py (a direct reference on every route).
 """
 
 # pylint: disable=missing-function-docstring
@@ -29,6 +31,7 @@ from pitloom.core import extra_gate, pep508
 from pitloom.core.extra_gate import MarkerShapeError, parse_gate
 from pitloom.core.pep508 import (
     MAX_MARKER_NESTING,
+    is_direct_reference,
     marker_nesting,
     parse_marker,
     parse_requirement,
@@ -148,7 +151,40 @@ def test_a_recursion_error_is_the_invalid_input_error(
     assert isinstance(raised.value.__cause__, RecursionError)
 
 
-@pytest.mark.parametrize("parse", [parse_requirement, parse_marker])
+_DEEP_URL = "a @ https://h/x.whl ; " + "(" * 900 + "os_name == 'b'" + ")" * 900
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("a==1.0", False),
+        ("A_b.C>=1 ; os_name == 'x @ y'", False),
+        ("a; os_name == '@'", False),
+        ("a >= = 1", False),
+        ("a @ git+https://h/r.git@v1", True),
+        ("A_b[x,y]@https://h/a;b.whl ; python_version >= '3.8'", True),
+        ("a @ file:///C:/w/a-1.0-py3-none-any.whl", True),
+        ("a @ C:\\w\\a.whl", True),
+        ("a @ https://h/x @ y", True),
+        (_DEEP_URL, True),
+    ],
+    ids=["pin", "at-in-marker", "at-only-in-marker", "bad-no-url", "git",
+         "extras-semicolon-marker", "windows-file-url", "windows-path",
+         "bad-url-at", "deep-url"],
+)  # fmt: skip
+def test_is_direct_reference(
+    text: str, expected: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``packaging``'s reading, or the URL prefix when it cannot parse the
+    text; a text refused for its nesting is not warned of here."""
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        assert is_direct_reference(text) is expected
+    assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    "parse", [parse_requirement, parse_marker, is_direct_reference]
+)
 def test_a_non_string_raises_type_error(parse: Callable[..., Any]) -> None:
     with pytest.raises(TypeError):
         parse(None)

@@ -114,7 +114,7 @@ def test_scan_warnings_print_stable_paths(
 ) -> None:
     """``FILE=`` is project-relative, never the joined or temporary path."""
     model, model_stable = _put(tmp_path, layout, "model.gguf", _GGUF)
-    py, py_stable = _put(tmp_path, layout, "gone.py", None)
+    py, py_stable = _put(tmp_path, layout, "bad.py", b"\xff\xfe")
     with patch(_READ, autospec=True, side_effect=error):
         with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
             _scan(tmp_path, model, py)
@@ -140,7 +140,9 @@ def test_scan_unreadable_python_warns_and_later_sources_still_scan(
     use, _ = _put(tmp_path, layout, "c_use.py", b"model.gguf")
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
         (meta,) = _scan(tmp_path, model, missing, bad, use)
-    assert file_values(_warnings(caplog)) == [missing_stable, bad_stable]
+    # A source gone since the file scan is absent: quiet, no file-unreadable.
+    assert file_values(_warnings(caplog)) == [bad_stable]
+    assert missing_stable != bad_stable
     assert meta.usage_files == [use.distribution_path]
 
 

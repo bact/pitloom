@@ -5,12 +5,14 @@
 
 """One package name held by several elements of one document.
 
-A name-keyed registry cannot pin a name several looking-up elements hold:
-ids swapped between runs whenever harvest kept one element (the last in
-``spdxId`` order) and lookup handed the id to another (the first
-claimant). Harvest leaves such a name alone; a pinned id goes to the first
+A package key is its name and version, so two releases of one dependency
+are two keys, each pinned and harvested on its own. A key several
+looking-up elements hold (two phantoms of one name and version) cannot be
+pinned: ids swapped between runs whenever harvest kept one element (the
+last in ``spdxId`` order) and lookup handed the id to another (the first
+claimant). Harvest leaves such a key alone; a pinned id goes to the first
 claimant, with the claim ``WARNING:``. A phantom named like another
-package never looks up, so run auto-harvest writes the name for the
+package never looks up, so run auto-harvest writes the key for the
 package that does; a self-referencing extra adds no package at all.
 
 See also: :mod:`tests.id_registry.test_package_ids` (the single-owner
@@ -45,7 +47,7 @@ from tests.id_registry.package_ids_base import (
     sbom_packages,
     wheel_with_libs,
 )
-from tests.id_registry.surfaces_base import DEPENDENCY
+from tests.id_registry.surfaces_base import DEPENDENCY, DEPENDENCY_KEY, MAIN_KEY
 
 #: Runs are compared byte for byte.
 pytestmark = pytest.mark.usefixtures("fixed_epoch")
@@ -89,15 +91,15 @@ def test_wheel_self_reference_adds_no_package_and_root_id_is_stable(
     assert runs[1] == runs[0]
     assert runs[2] == runs[0]
     entries = package_entries(registry_path)
-    assert set(entries) == {DEPENDENCY, MAIN}
-    assert entries[MAIN] == root_element_id(runs[0])  # the main package, pinned
+    assert set(entries) == {DEPENDENCY_KEY, MAIN_KEY}
+    assert entries[MAIN_KEY] == root_element_id(runs[0])  # the main package, pinned
     assert not claim_warnings(caplog)
 
 
 def test_wheel_self_referencing_extra_uses_pinned_main_id(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, pin_namespace: str
 ) -> None:
-    registry_path, (pinned,) = new_registry(tmp_path, [MAIN], pin_namespace)
+    registry_path, (pinned,) = new_registry(tmp_path, [MAIN_KEY], pin_namespace)
     wheel = _wheel(tmp_path, [_SELF_EXTRA])
 
     with caplog.at_level("WARNING"):
@@ -106,7 +108,7 @@ def test_wheel_self_referencing_extra_uses_pinned_main_id(
     for run in runs:
         assert root_element_id(run) == pinned
         assert [p.spdx_id for p in sbom_packages(run)].count(pinned) == 1
-    assert package_entries(registry_path) == {MAIN: pinned}
+    assert package_entries(registry_path) == {MAIN_KEY: pinned}
     assert not claim_warnings(caplog)
 
 
@@ -124,11 +126,11 @@ def test_project_then_wheel_self_referencing_extra_keeps_project_root_id(
         generate_project_sbom(
             project, creation_metadata=None, id_registry=registry_path
         )
-        pinned = package_entries(registry_path)[MAIN]
+        pinned = package_entries(registry_path)[MAIN_KEY]
         for _ in range(2):
             run = generate_wheel_sbom(wheel, id_registry=registry_path)
             assert root_element_id(run) == pinned
-    assert package_entries(registry_path)[MAIN] == pinned
+    assert package_entries(registry_path)[MAIN_KEY] == pinned
     assert not claim_warnings(caplog)
 
 
@@ -150,39 +152,48 @@ def _alternate(tmp_path: Path, registry_path: Path) -> list[tuple[str, str]]:
     return outputs
 
 
+def _foo_ids(sbom: str) -> dict[str, str]:
+    return {p.version: p.spdx_id for p in sbom_packages(sbom) if p.name == "foo"}
+
+
 def test_same_name_two_versions_is_stable_across_runs_and_surfaces(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """The first run harvests both releases under their own keys; every
+    later run, on either surface, takes both ids back."""
     registry_path, _ = new_registry(tmp_path)
-
-    outputs = _alternate(tmp_path, registry_path)
-
-    by_surface: dict[str, set[str]] = {}
-    for surface, sbom in outputs:
-        assert _names(sbom).count("foo") == 2  # non-vacuous
-        by_surface.setdefault(surface, set()).add(sbom)
-    # Same surface, same bytes: run 1 of the two is the one that harvests.
-    assert all(len(runs) == 1 for runs in by_surface.values())
-    entries = package_entries(registry_path)
-    assert "foo" not in entries
-    assert MAIN in entries
-
-
-def test_same_name_two_versions_pinned_id_goes_to_first_claimant(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, pin_namespace: str
-) -> None:
-    registry_path, (pinned,) = new_registry(tmp_path, ["foo"], pin_namespace)
 
     with caplog.at_level("WARNING"):
         outputs = _alternate(tmp_path, registry_path)
 
-    holders = set()
+    ids = [_foo_ids(sbom) for _surface, sbom in outputs]
+    assert len(ids[0]) == 2  # non-vacuous: two releases, two packages
+    assert all(found == ids[0] for found in ids)
+    entries = package_entries(registry_path)
+    assert {key: entries[key] for key in ("foo@1", "foo@2")} == {
+        "foo@1": ids[0]["1.0"],
+        "foo@2": ids[0]["2.0"],
+    }
+    assert "foo" not in entries
+    assert MAIN_KEY in entries
+    assert not claim_warnings(caplog)
+
+
+def test_same_name_two_versions_each_keeps_its_pin(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, pin_namespace: str
+) -> None:
+    registry_path, pinned = new_registry(
+        tmp_path, ["foo@1.0", "foo@2.0"], pin_namespace
+    )
+
+    with caplog.at_level("WARNING"):
+        outputs = _alternate(tmp_path, registry_path)
+
     for _surface, sbom in outputs:
-        foo_pkgs = [p for p in sbom_packages(sbom) if p.name == "foo"]
-        holders.add(tuple(p.version for p in foo_pkgs if p.spdx_id == pinned))
-    assert holders == {("1.0",)}  # one holder, the same version, every run
-    assert package_entries(registry_path)["foo"] == pinned
-    assert len(claim_warnings(caplog)) == len(outputs)
+        assert _foo_ids(sbom) == {"1.0": pinned[0], "2.0": pinned[1]}
+    entries = package_entries(registry_path)
+    assert (entries["foo@1"], entries["foo@2"]) == tuple(pinned)
+    assert not claim_warnings(caplog)
 
 
 # --- (C) a phantom dependency sharing a name --------------------------
@@ -202,7 +213,7 @@ def test_phantom_sharing_a_name_with_a_pin_never_looks_up(
     """The dependency or main package owns the name and takes the pin; the
     phantom mints its own id, silently."""
     registry = IdRegistry.new(pin_namespace)
-    pinned = registry.register(PACKAGE_TYPE, "libfoo")
+    pinned = registry.register(PACKAGE_TYPE, "libfoo@1")
     doc = make_doc(**doc_kwargs)
 
     with caplog.at_level("WARNING"):
@@ -214,7 +225,7 @@ def test_phantom_sharing_a_name_with_a_pin_never_looks_up(
     holders = [p for p in packages(first) if p.spdx_id == pinned]
     assert len(holders) == 1
     assert holders[0].version != "1"  # not the phantom
-    assert registry.lookup(PACKAGE_TYPE, ["libfoo"]) == pinned
+    assert registry.lookup(PACKAGE_TYPE, ["libfoo@1"]) == pinned
     assert not claim_warnings(caplog)
 
 
@@ -242,7 +253,7 @@ def test_wheel_with_phantom_dependencies_is_stable_with_a_registry(
     (declared,) = [
         p for p in sbom_packages(runs[0]) if p.name == DEPENDENCY and p.version == "1.0"
     ]
-    assert entries[DEPENDENCY] == declared.spdx_id
+    assert entries[DEPENDENCY_KEY] == declared.spdx_id
     assert not claim_warnings(caplog)
 
 
@@ -256,7 +267,9 @@ def test_alternating_project_and_wheel_with_a_phantom_named_like_another_package
     """A bundled library named like a dependency or the project never
     looks up: pinned ids stay with the declared and main packages and no
     surface warns."""
-    registry_path, pinned = new_registry(tmp_path, [MAIN, DEPENDENCY], pin_namespace)
+    registry_path, pinned = new_registry(
+        tmp_path, [MAIN_KEY, DEPENDENCY_KEY], pin_namespace
+    )
     project = project_with_dependencies(tmp_path / "run", [f"{DEPENDENCY}==1.0"])
     wheel = wheel_with_libs(tmp_path / "dist", [f"{DEPENDENCY}==1.0"], libs)
 
@@ -272,7 +285,10 @@ def test_alternating_project_and_wheel_with_a_phantom_named_like_another_package
     assert wheels[1] == wheels[0]
     assert wheels[2] == wheels[0]
     assert root_element_id(wheels[0]) == pinned[0]
-    assert package_entries(registry_path) == {MAIN: pinned[0], DEPENDENCY: pinned[1]}
+    assert package_entries(registry_path) == {
+        MAIN_KEY: pinned[0],
+        DEPENDENCY_KEY: pinned[1],
+    }
     assert not claim_warnings(caplog)
 
 
@@ -285,29 +301,41 @@ def _write_sbom(tmp_path: Path, doc_kwargs: dict[str, Any]) -> Path:
     return sbom_path
 
 
-def test_import_sbom_does_not_write_an_ambiguous_name(tmp_path: Path) -> None:
-    sbom_path = _write_sbom(tmp_path, {"dependencies": ["foo==1.0", "Foo==2.0", "bar"]})
+_TWIN_PHANTOMS = {"phantom": [phantom("libz", "1"), phantom("libz", "1.0")]}
+
+
+def test_import_sbom_writes_each_release_and_skips_an_ambiguous_key(
+    tmp_path: Path,
+) -> None:
+    """Two releases of ``foo`` are two keys, both imported; two phantoms of
+    one name and release share a key, which is skipped."""
+    sbom_path = _write_sbom(
+        tmp_path, {"dependencies": ["foo==1.0", "Foo==2.0", "bar"], **_TWIN_PHANTOMS}
+    )
     registry = IdRegistry.new("r")
 
     skipped = registry.import_sbom(sbom_path)
 
-    assert skipped == {(PACKAGE_TYPE, "foo")}
-    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None
-    assert registry.lookup(PACKAGE_TYPE, ["bar"]) is not None
-    assert registry.lookup(PACKAGE_TYPE, [MAIN]) is not None
+    assert skipped == {(PACKAGE_TYPE, "libz@1")}
+    assert registry.lookup(PACKAGE_TYPE, ["libz@1"]) is None
+    assert registry.lookup(PACKAGE_TYPE, ["foo@1"]) is not None
+    assert registry.lookup(PACKAGE_TYPE, ["foo@2"]) is not None
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None  # no bare key
+    assert registry.lookup(PACKAGE_TYPE, ["bar"]) is not None  # no version found
+    assert registry.lookup(PACKAGE_TYPE, [MAIN_KEY]) is not None
 
 
 def test_import_sbom_leaves_an_existing_ambiguous_entry_untouched(
     tmp_path: Path,
 ) -> None:
-    sbom_path = _write_sbom(tmp_path, {"dependencies": ["foo==1.0", "Foo==2.0"]})
+    sbom_path = _write_sbom(tmp_path, _TWIN_PHANTOMS)
     registry = IdRegistry.new("r")
-    pinned = registry.register(PACKAGE_TYPE, "foo")
+    pinned = registry.register(PACKAGE_TYPE, "libz@1")
     before = dict(registry.elements)
 
     registry.import_sbom(sbom_path)
 
-    assert registry.lookup(PACKAGE_TYPE, ["foo"]) == pinned
+    assert registry.lookup(PACKAGE_TYPE, ["libz@1"]) == pinned
     assert {k: v for k, v in registry.elements.items() if k in before} == before
 
 

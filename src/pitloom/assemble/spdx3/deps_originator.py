@@ -27,7 +27,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    provenance_note,
+    provenance_segment,
+)
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     agent_key,
@@ -70,12 +74,13 @@ def _read_candidate_text(candidate: Any, dist: Any) -> str | None:
     when it is under a ``.dist-info`` and resolves inside it, whatever its
     ``RECORD`` entry spells (``..``, a symlink out)
     (:func:`~pitloom.extract.copyright_notices.read_license_text`: capped, a
-    present file that is not read warned about); else ``None``."""
+    present file that is not read warned about, by its ``RECORD`` entry);
+    else ``None``."""
     entry = str(candidate)
     if not is_dist_info_path(entry):
         return None
     dist_info = Path(dist.locate_file(entry.split("/", 1)[0]))
-    return read_license_text(Path(candidate.locate()), dist_info)
+    return read_license_text(Path(candidate.locate()), dist_info, shown=entry)
 
 
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
@@ -309,13 +314,16 @@ def _emit_originator_provenance(
     """Emit provenance annotations for originator assignment."""
     if not provenance_source:
         return
-    method = "parsed_author_list" if originators_count > 1 else ""
     prov_str = (
-        f"{provenance_source} | Method: {method}" if method else provenance_source
+        provenance_segment(provenance_source, "Method", "parsed_author_list")
+        if originators_count > 1
+        else provenance_source
     )
     prov_dict = {"originatedBy": prov_str}
     if dep_package.software_attributionText and repo_url:
-        prov_dict["software_attributionText"] = f"Fetched from AUTHORS at {repo_url}"
+        prov_dict["software_attributionText"] = provenance_note(
+            f"Fetched from AUTHORS at {repo_url}"
+        )
     emit_provenance(
         subject=dep_package,
         provenance=prov_dict,

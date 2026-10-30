@@ -2,7 +2,7 @@
   "elements": {
     "ai_AIPackage": {
       "models/sentimentdemo.bin": {
-        "sha256": "754cea59cec93eecfa10524a7387cbb1822d212c13abc7a393b9c9a63db45100",
+        "sha256": "0dd5caf2de9a034ff5884589edb67fa74a3c9fcbf55f47d37bd7d6161ed363c5",
         "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#AIPackage-1"
       }
     },
@@ -42,7 +42,7 @@
         "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-2"
       },
       "models/sentimentdemo.bin": {
-        "sha256": "754cea59cec93eecfa10524a7387cbb1822d212c13abc7a393b9c9a63db45100",
+        "sha256": "0dd5caf2de9a034ff5884589edb67fa74a3c9fcbf55f47d37bd7d6161ed363c5",
         "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-10"
       },
       "src/sentimentdemo/__about__.py": {
@@ -74,5 +74,5 @@
   },
   "namespace": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7",
   "project_root": ".",
-  "version": 3
+  "version": 4
 }

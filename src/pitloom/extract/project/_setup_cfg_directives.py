@@ -20,10 +20,12 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from pitloom.core.path_confine import open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_detect import decode_text
-from pitloom.logging_config import Cap, loggable, warn_once, warn_over_cap
+from pitloom.logging_config import loggable, warn_once
+from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -78,16 +80,10 @@ def _once_key(path: Path, what: str) -> str:
 
 
 def _warn_unread(path: Path, name: str, what: str, exc: Exception) -> None:
-    """One ``WARNING:`` per *path* and *what*, per process, that the listed
-    file *name* was not read for *what* (*exc*)."""
-    warn_once(
-        log,
-        _once_key(path, what),
-        UNREADABLE_FILE_WARNING,
-        loggable(name),
-        f"for {what}",
-        loggable(str(exc)),
-    )
+    """One ``file-unreadable`` ``WARNING:`` per *path* and *what*, per
+    process, that the listed file *name* was not read for *what* (*exc*:
+    outside the project, not UTF-8, or the file's own failure)."""
+    warn_file_unreadable(log, exc, file=name, field=what, once=_once_key(path, what))
 
 
 def read_listed_file(
@@ -124,7 +120,7 @@ def _resolve_cfg_version_file_directive(
     _, text = read_listed_file(project_dir, value, what)
     content = (text or "").strip()
     if content and "\n" not in content and not content.startswith("#"):
-        return content, f"Source: {source_name(value)} | Method: file_directive"
+        return content, directive_source(value, "file_directive")
     return None, None
 
 
@@ -148,16 +144,21 @@ def _resolve_cfg_attr_directive(
         _, text = read_listed_file(project_dir, name, what)
         version = _read_version_attr(text, attr_name, name, what) if text else None
         if version:
-            return version, f"Source: {source_name(name)} | Method: attr_directive"
+            return version, directive_source(name, "attr_directive")
     return None, None
 
 
-def source_name(name: str) -> str:
-    """*name*, a file read inside the project, as a provenance ``Source``:
+def directive_source(name: str, method: str) -> str:
+    """The provenance of a version read by *method* from the file *name*,
+    inside the project: ``Source: <name> | Method: <method>``. *name* is
     project-relative in POSIX form, or its base name when written absolute
-    (:func:`~pitloom.core.project.project_relative_or_fallback`)."""
+    (:func:`~pitloom.core.project.project_relative_or_fallback`), and goes
+    through :func:`~pitloom.core.provenance.provenance_source`."""
     path = Path(name)
-    return project_relative_or_fallback(posixpath.normpath(path.as_posix()), path.name)
+    source = project_relative_or_fallback(
+        posixpath.normpath(path.as_posix()), path.name
+    )
+    return provenance_segment(provenance_source(source), "Method", method)
 
 
 def _resolve_cfg_version(
@@ -287,14 +288,14 @@ def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | N
     except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
         return None
     except (RecursionError, MemoryError) as exc:
-        reason = f"{type(exc).__name__} parsing the {attr_name} line"
         warn_once(
             log,
             f"attr-line:{name}\x00{what}",
-            UNREADABLE_FILE_WARNING,
+            "FILE=%s: %s parsing the %s line; skipped for %s",
             loggable(name),
-            f"for {what}",
-            reason,
+            type(exc).__name__,
+            loggable(attr_name),
+            what,
         )
         return None
     for node in ast.walk(tree):

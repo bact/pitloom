@@ -28,7 +28,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_env_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry, package_key
 
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "pipdeptree"
 _JSON = FIXTURES / "requests-2.34.2.json"
@@ -149,4 +149,8 @@ def test_registry_runs_never_claim_unknown(
     registered = {
         name for (kind, name) in reloaded.elements if kind == "software_Package"
     }
-    assert registered == {*_EXPECTED_VERSIONS, "deployed-environment"}
+    # Each package keyed by its name and installed version; the root by its.
+    assert registered == {
+        *(package_key(name, version) for name, version in _EXPECTED_VERSIONS.items()),
+        "deployed-environment@0",
+    }

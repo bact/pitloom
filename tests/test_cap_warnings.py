@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The one ``WARNING:`` for an input over a cap
-(:func:`pitloom.logging_config.warn_over_cap`), and a drift guard: every cap
+(:func:`pitloom.messages.warn_over_cap`), and a drift guard: every cap
 Pitloom defines as a module constant is wrapped in a ``Cap`` that its own
 module passes to it, or is listed with why not.
 
@@ -21,8 +21,9 @@ from pathlib import Path
 import pytest
 
 from pitloom import logging_config
+from pitloom.core.ai_metadata import model_cap
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES, read_license_members
-from pitloom.logging_config import Cap, over_cap_of, warn_over_cap
+from pitloom.messages import Cap, over_cap_of, warn_over_cap
 
 _LOG = logging.getLogger("pitloom.test_cap_warnings")
 
@@ -44,14 +45,14 @@ _LOG = logging.getLogger("pitloom.test_cap_warnings")
             " expansion cap; skipped",
         ),
         (
-            Cap(4, "level", "GGUF-array-nesting").after("FORMAT=gguf"),
+            model_cap(Cap(4, "level", "GGUF-array-nesting"), "gguf"),
             "m.gguf",
             True,
             "FORMAT=gguf FILE=m.gguf: larger than the 4-level GGUF-array-nesting"
             " cap; skipped",
         ),
     ],
-    ids=["file", "field-escaped-once", "keys-after"],
+    ids=["file", "field-escaped-once", "model"],
 )
 def test_warn_over_cap(
     caplog: pytest.LogCaptureFixture,
@@ -85,8 +86,9 @@ def test_a_licence_file_over_its_cap_warns_once(
         assert not read_license_members(tmp_path)
         assert not read_license_members(tmp_path)
     assert caplog.messages == [
-        f"FILE={licence}: larger than the 262144-byte license-detection cap; skipped"
+        "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
     ]
+    assert str(tmp_path) not in caplog.text  # named below its project
 
 
 _DISPLAY = "cuts only what a message or an element name shows"
@@ -247,12 +249,12 @@ def _warned(
 
 def _routed(tree: ast.Module, carriers: set[str], holders: set[str]) -> set[str]:
     """The names in the limit of each ``Cap(...)`` of *tree*, imported from
-    :mod:`pitloom.logging_config`, whose value reaches ``warn_over_cap``
+    :mod:`pitloom.messages`, whose value reaches ``warn_over_cap``
     (:func:`_warned`), given the *carriers* and *holders* of every module
     (:func:`_flow`)."""
     if not any(
         isinstance(node, ast.ImportFrom)
-        and node.module == "pitloom.logging_config"
+        and node.module == "pitloom.messages"
         and any(alias.name == "Cap" for alias in node.names)
         for node in ast.walk(tree)
     ):
@@ -271,7 +273,7 @@ def _routed(tree: ast.Module, carriers: set[str], holders: set[str]) -> set[str]
     }
 
 
-_IMPORT = "from pitloom.logging_config import Cap, over_cap_of, warn_over_cap\n"
+_IMPORT = "from pitloom.messages import Cap, over_cap_of, warn_over_cap\n"
 
 
 @pytest.mark.parametrize(
@@ -309,13 +311,14 @@ def test_routed_needs_the_cap_passed_to_the_helper(
 
 def test_every_cap_warns_through_the_shared_helper() -> None:
     """Each cap constant is wrapped in a ``Cap`` whose value reaches
-    :func:`~pitloom.logging_config.warn_over_cap`, in any module
+    :func:`~pitloom.messages.warn_over_cap`, in any module
     (:func:`_routed`), or is listed with a reason; no listed entry is
     stale. Static: it proves the call is written, not that it is reached
     (each cap's own tests drive the warning)."""
     modules = {
         path.relative_to(_SRC).as_posix(): ast.parse(path.read_text(encoding="utf-8"))
         for path in sorted(_SRC.rglob("*.py"))
+        if path.relative_to(_SRC).parts[0] != "messages"  # the catalogue's own
     }
     carriers, holders = _flow(list(modules.values()))
     unrouted: set[str] = set()

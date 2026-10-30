@@ -351,7 +351,7 @@ def test_project_and_wheel_package_hashes_never_flip_the_registry(
         tables.append(gated_and_packages())
 
     assert tables[2:] == tables[1:2] * 4
-    package = tables[-1].get((PACKAGE_TYPE, "demo"))
+    package = tables[-1].get((PACKAGE_TYPE, "demo@1"))
     assert package is not None and package.sha256 is None
 
 

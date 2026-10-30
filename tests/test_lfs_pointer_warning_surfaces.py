@@ -32,6 +32,7 @@ from pitloom.assemble import (
 from pitloom.cli.commands import project as mod_project
 from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.remote.git import GitCheckout
+from pitloom.messages import LFS_POINTER_MALFORMED, trusted_message
 from tests._lfs import lfs_pointer_bytes, pointers, write_project
 from tests._lfs import tree as demo_tree
 from tests._raw_archive import METADATA, write_raw_zip
@@ -124,17 +125,17 @@ def _embedded(wheel: Path) -> str:
         return archive.read(name).decode("utf-8")
 
 
-#: Surface -> (runner, the kind of pointer it reports).
-_SURFACES: dict[str, tuple[Callable[..., str], str]] = {
-    "cli-project": (_cli_project, _CHECKOUT),
-    "lib-project": (_lib_project, _CHECKOUT),
-    "cli-git-url": (_cli_git_url, _CLONE),
-    "lib-git-url": (_lib_git_url, _CLONE),
-    "hook": (_hook, _SHIPPED),
-    "cli-wheel": (_cli_wheel, _SHIPPED),
-    "lib-wheel": (_lib_wheel, _SHIPPED),
-    "cli-embed-wheel": (_cli_embed, _SHIPPED),
-    "lib-embed-wheel": (_lib_embed, _SHIPPED),
+#: Surface -> (runner, the kind of pointer it reports, its code).
+_SURFACES: dict[str, tuple[Callable[..., str], str, str]] = {
+    "cli-project": (_cli_project, _CHECKOUT, "lfs-pointer"),
+    "lib-project": (_lib_project, _CHECKOUT, "lfs-pointer"),
+    "cli-git-url": (_cli_git_url, _CLONE, "lfs-pointer"),
+    "lib-git-url": (_lib_git_url, _CLONE, "lfs-pointer"),
+    "hook": (_hook, _SHIPPED, "lfs-pointer/shipped"),
+    "cli-wheel": (_cli_wheel, _SHIPPED, "lfs-pointer/shipped"),
+    "lib-wheel": (_lib_wheel, _SHIPPED, "lfs-pointer/shipped"),
+    "cli-embed-wheel": (_cli_embed, _SHIPPED, "lfs-pointer/shipped"),
+    "lib-embed-wheel": (_lib_embed, _SHIPPED, "lfs-pointer/shipped"),
 }
 _FIRST = "demo/crlf.dat"
 
@@ -167,11 +168,14 @@ def test_one_warning_names_all_the_pointers(
     surface: str,
 ) -> None:
     """Five pointers (a model-named one among them): one line with the
-    count and the first path, no per-file line, every file still listed."""
+    count and the first path, its code last, no per-file line, every file
+    still listed."""
     sbom, warnings, err = _run(surface, demo_tree(), tmp_path, monkeypatch, capsys)
     assert len(warnings) == 1, warnings
     assert f"FILE={_FIRST}: " in warnings[0] and "(5 files)" in warnings[0]
-    assert _SURFACES[surface][1] in warnings[0]
+    _, kind, code = _SURFACES[surface]
+    assert kind in warnings[0] and warnings[0].endswith(f" [{code}]")
+    assert getattr(trusted_message(warnings[0]), "code", None) == code
     assert "not listed as an AI model" not in err
     names = {e.get("name") for e in json.loads(sbom)["@graph"]}
     assert set(demo_tree()) <= names
@@ -254,9 +258,11 @@ def test_an_opening_that_does_not_parse_keeps_its_warning(
     surface: str,
 ) -> None:
     """The version line is exact, the rest is not a pointer: a defect, said
-    per file; the shape of a model-named pointer, no pointer summary."""
+    per file with its own code; the shape of a model-named pointer, no
+    pointer summary."""
     bad = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
     tree = {"demo/__init__.py": b"", "demo/m.gguf": bad, "demo/m.bin": bad}
     _, warnings, _ = _run(surface, tree, tmp_path, monkeypatch, capsys)
-    per_file = [w for w in warnings if "header is a Git LFS pointer" in w]
+    per_file = [w for w in warnings if "header looks like a Git LFS pointer" in w]
     assert len(per_file) == 2 and len(warnings) == 2
+    assert all(trusted_message(w) is LFS_POINTER_MALFORMED for w in per_file)

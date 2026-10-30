@@ -8,7 +8,7 @@ v2 or unparsable registry, or a read-only one.
 - v2 or invalid JSON (design D10, section 6; rollout section 10): exit 1,
   no output, the broken bytes left as they were, and on a CLI surface
   exactly one ``ERROR:`` naming the registry file (``version 2, expected
-  3`` for a v2 file); ``loom.Run`` raises ``ValueError`` instead.
+  4`` for a v2 file); ``loom.Run`` raises ``ValueError`` instead.
 - Read-only (build notes, order-matrix round): the registry is not
   overwritten; one ``ID registry: failed to save <path>: <reason>`` line,
   the only ``ERROR:`` and exit 1 for ``id generate``/``id import``, else a
@@ -71,12 +71,12 @@ def injected(cap: Captured) -> list[tuple[str, str]]:
     ]
     v2 = cap.step.kind == "v2"
     if cap.step.op in LOOM_SURFACES:
-        needle = "version 2, expected 3" if v2 else "ID registry"
+        needle = "version 2, expected 4" if v2 else "ID registry"
         if needle not in cap.stderr:
             found.append(("H/message", f"no {needle!r}"))
         return found
     errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
-    wanted = "version 2, expected 3" if v2 else "ID registry file"
+    wanted = "version 2, expected 4" if v2 else "ID registry file"
     if len(errors) != 1 or wanted not in errors[0]:
         found.append(
             ("H/message", f"not one ERROR with {wanted!r}: {cap.stderr_lines[:3]}")

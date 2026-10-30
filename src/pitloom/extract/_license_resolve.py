@@ -30,6 +30,7 @@ from typing import Any
 
 from licenseid.resolvertypes import Resolution, Step
 
+from pitloom.core.provenance import provenance_segment
 from pitloom.logging_config import excerpt, log_once, loggable
 
 _logger = logging.getLogger(__name__)
@@ -140,12 +141,12 @@ def resolution_notes(raw: str, expression: str) -> str:
     notes = ""
     if resolved.decided:
         steps = ", ".join(resolved.steps) or resolved.category
-        notes += (
-            f" | Method: licenseid_resolution | Resolution-1: "
-            f"{raw.strip()} -> {expression} ({steps})"
+        notes = provenance_segment(notes, "Method", "licenseid_resolution")
+        notes = provenance_segment(
+            notes, "Resolution-1", f"{raw.strip()} -> {expression} ({steps})"
         )
     if resolved.expansions:
-        notes += f" | Expansion-1: {', '.join(resolved.expansions)}"
+        notes = provenance_segment(notes, "Expansion-1", ", ".join(resolved.expansions))
     if notes and _LICENSEID_VERSION is not None:
-        notes += f" | Tool: licenseid=={_LICENSEID_VERSION}"
+        notes = provenance_segment(notes, "Tool", f"licenseid=={_LICENSEID_VERSION}")
     return notes

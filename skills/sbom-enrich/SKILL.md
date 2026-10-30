@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-29
+# Last-Modified: 2026-10-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.21.0 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.22.0 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -57,9 +57,9 @@ Code plugin; `$sbom-enrich` in Codex). For a worked example, read
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases cannot read ID
-registry format 3): `pip install "pitloom>=0.21.0"`; an AI model file needs
-`"pitloom[ai]>=0.21.0"`, the post-merge check `"pitloom[validate]>=0.21.0"`.
+Python >= 3.10 and **pitloom >= 0.22.0** (earlier releases cannot read ID
+registry format 4): `pip install "pitloom>=0.22.0"`; an AI model file needs
+`"pitloom[ai]>=0.22.0"`, the post-merge check `"pitloom[validate]>=0.22.0"`.
 Ephemeral runs: `sbom-generate`'s "Run without installing anything persistent".
 Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
 PowerShell equivalents (5.1 has no `&&`).
@@ -192,11 +192,13 @@ Steps:
    ```
 
 9. Re-run **the exact command that produced the base SBOM** (step 1) so the
-   merged SBOM is written (`loom generate` without `-o` exits 1).
+   merged SBOM is written (`loom generate` without `-o` exits 1). If either
+   run reads licences, prepare the licence database before both, as
+   `sbom-generate`'s Requirements say: a run without it has other licence ids.
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
     `<merged-sbom-file>` -- a valid fragment can still miss a required property
     or use the wrong relationship type, which only shape/SHACL validation
-    catches. Minimal fallback: `pip install "pitloom[validate]>=0.21.0"` then
+    catches. Minimal fallback: `pip install "pitloom[validate]>=0.22.0"` then
     `loom fragment validate <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), inferred from
     prose (step 6) and supplied by the SBOM author (step 4), and call out any
@@ -270,11 +272,13 @@ licence-`NOASSERTION` recipe and its no-automatable-path list;
 
 `loom enrich`/`project`/`generate`/`merge` log to stderr with the convention in
 `sbom-generate`'s "Check stderr" section: scan it after every call and mention
-any hit, even on exit 0. Expect the dangling-reference `WARNING:` plus `ERROR:`
-above. After an ambiguous-name pin (`sbom-generate`'s
+any hit, even on exit 0. When a line ends in a `[code]`, read
+`references/messages.md` for what it means and what to tell the user; relay
+its advice, never run the fix. Expect the dangling-reference `WARNING:` plus
+`ERROR:` above. After an ambiguous-name pin (`sbom-generate`'s
 `references/id-registry.md`), a `WARNING: ID registry: ... is registered for
-both` line on every run is expected. `ERROR: ID registry file ...: version 2,
-expected 3` means an old-format registry: never delete or rewrite it from this
+both` line on every run is expected. `ERROR: ID registry file ...: version 3,
+expected 4` means an old-format registry: never delete or rewrite it from this
 skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
 non-interactive stop and report the `ERROR:`.
 

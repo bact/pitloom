@@ -26,8 +26,8 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
     source_metadata,
 )
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
 from pitloom.extract.ai_model.archive_member import (
@@ -37,7 +37,8 @@ from pitloom.extract.ai_model.archive_member import (
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.stderr_capture import capture_stderr
-from pitloom.logging_config import Cap, field_loss_suffix, loggable, one_line
+from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 
@@ -173,8 +174,8 @@ def _read_pytorch_zip(
         try:
             type_of_model = _fickling_get_top_class(open_archive_member(zf, pkl_entry))
             if type_of_model:
-                provenance["type_of_model"] = (
-                    f"{source} | Field: {pkl_entry} (fickling)"
+                provenance["type_of_model"] = provenance_segment(
+                    source, "Field", f"{pkl_entry} (fickling)"
                 )
         except ModelLimitExceeded:
             raise
@@ -221,7 +222,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     # pylint: disable=import-outside-toplevel
     import zipfile
 
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    source = provenance_source(model_path.name)
     framework = "pytorch"
     type_of_model: str | None = None
     properties: dict[str, str] = {}

@@ -32,7 +32,11 @@ from typing import NamedTuple
 
 from pitloom.core.file_identity import file_id
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.provenance import (
+    parse_provenance_value,
+    provenance_segment,
+    provenance_source,
+)
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._extra_pins import ExtraPinExtractor, apply_extra_pins
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
@@ -252,7 +256,9 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         if dependencies is None:
             continue
 
-        provenance = f"Source: {source.name} | Method: {source.method}"
+        provenance = provenance_segment(
+            provenance_source(source.name), "Method", source.method
+        )
         if previous is not None:
             superseded = previous_source or "unknown source"
             log.warning(
@@ -263,7 +269,9 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
                 source.name,
                 source.name,
             )
-            provenance += f" | Note: supersedes {superseded}"
+            provenance = provenance_segment(
+                provenance, "Note", f"supersedes {superseded}"
+            )
 
         metadata.locked_dependencies = dependencies
         metadata.provenance["locked_dependencies"] = provenance

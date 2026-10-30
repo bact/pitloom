@@ -41,16 +41,16 @@ from pitloom.core.dataset_names import (
     distinct_dataset_names,
 )
 from pitloom.core.frontmatter import opens_frontmatter, split_frontmatter
+from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
-    LONE_SURROGATES_WARNING,
-    Cap,
     field_loss_suffix,
     loggable,
     one_line,
-    warn_over_cap,
+    warn_lone_surrogates,
 )
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ _MODEL_CARD_STEMS = ("README.md", "MODEL_CARD.md")
 #: ``model-index`` of evaluation results included), so 1 MiB holds any
 #: real frontmatter while a crafted multi-gigabyte card is never read whole.
 MODEL_CARD_MAX_BYTES = 1024 * 1024
-#: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.logging_config.warn_over_cap`
+#: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.messages.warn_over_cap`
 #: names it, once per card and process (each model in a directory reads it).
 MODEL_CARD_CAP = Cap(MODEL_CARD_MAX_BYTES, "byte", "model-card")
 
@@ -247,10 +247,12 @@ class ReadmeEnricher:
         }
         read, lone = escape_lone_surrogates_in(read)
         if lone:
-            log.warning(LONE_SURROGATES_WARNING, "", loggable(str(card_path)))
+            warn_lone_surrogates(log, loggable(str(card_path)))
         license_value, datasets_value = read["license"], read["datasets"]
 
-        source = f"Source: {card_path.name} | Method: yaml_frontmatter"
+        source = provenance_segment(
+            provenance_source(card_path.name), "Method", "yaml_frontmatter"
+        )
         changed: list[EnrichedField] = []
 
         if (

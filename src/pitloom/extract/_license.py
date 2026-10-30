@@ -40,6 +40,7 @@ from licenseid.resolvertypes import Resolution
 from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
@@ -511,7 +512,7 @@ def _with_tool_tag(provenance: str) -> str:
     """Append the ``licenseid`` library version to a detection provenance string."""
     if _LICENSEID_VERSION is None:
         return provenance
-    return f"{provenance} | Tool: licenseid=={_LICENSEID_VERSION}"
+    return provenance_segment(provenance, "Tool", f"licenseid=={_LICENSEID_VERSION}")
 
 
 def license_from_candidates(
@@ -529,7 +530,9 @@ def license_from_candidates(
             return value, source
         detected = detect_license_from_text(value, stated=stated)
         if detected:
-            return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
+            return detected, _with_tool_tag(
+                provenance_segment(source, "Method", "licenseid_detection")
+            )
     return None
 
 

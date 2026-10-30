@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,13 +21,15 @@ plans; the lesson holds without the code.
 ## 1. Identity and integrity
 
 - **A package id keyed by name alone gives every release one id.**
-  Registry v2 keys `software_Package` by PEP 503 name only, so `foo 1.0`
-  and `foo 2.0` share an `spdxId` and merging two releases' SBOMs unifies
-  them. Registry v3 Q-D (decided 2026-10-02, not built): key is PEP 503
-  name plus PEP 440-normalised version, purl-shaped (`pkg:pypi/foo@1.0`),
-  with an empty version part for an unpinned or range dependency;
-  releases are linked by relationships, not by a shared id
-  ([id-registry-v3.md](../id-registry-v3.md)).
+  Registries v2 and v3 key `software_Package` by PEP 503 name only, so `foo
+  1.0` and `foo 2.0` share an `spdxId` and merging two releases' SBOMs
+  unifies them. Q-D, built in #407 (registry version 4): the key is the PEP
+  503 name plus the canonical PEP 440 version, `foo@1`, not a purl; a range
+  dependency is keyed by the version it resolves to (the one the SBOM
+  states), and only a package that states no version keeps the bare name,
+  which never stands for a versioned key. Releases are linked by
+  relationships, not by a shared id
+  ([id-registry-v3.md](../id-registry-v3.md#61-package-keys-q-d-version-4)).
   Do: include the version in any package identity key.
 - **A Merkle root over content digests alone does not bind file names.**
   The wheel `verifiedUsing` hash is a Merkle root over sorted per-file

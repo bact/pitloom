@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,8 +86,21 @@ Size: S under half a day, M about a day.
   by the path-key redesign (PR #305; K9 in
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)): a
   model is keyed by its file's path, two models with one stem have two ids.
-- [ ] **A package key without a version gives every release one id**
-  (Q-D: PEP 503 name plus PEP 440 version). Not built in v3.
+- [x] **A package key without a version gives every release one id**
+  (Q-D: PEP 503 name plus PEP 440 version). Fixed by #407: registry version 4
+  keys a package `name@version` (a range by its resolved version); a version 3
+  file is refused, never migrated.
+- [ ] **A Hugging Face model is named and keyed by the last segment of its repo
+  id (S-M).** `loom model org-a/llama` and `org-b/llama` at one commit get
+  identical spdxIds (no registry needed), and `id import` keys such a model
+  `llama` while `loom.Run` looks it up as `org-a/llama`.
+- [ ] **Remote entries are keyed by bare name, never pinned (M, own PR).** A
+  Hugging Face model or dataset and a URL dataset (`loom.use_model`,
+  `add_*_dataset`) keep one id whatever the revision. Plan: a remote-shaped
+  key (`huggingface.co/<id>@<sha40>`, else the sanitised https URL), entry
+  fields `remote` and `iri`, `revision=` on `loom.use_model` and
+  `add_*_dataset`; an unpinned one keeps the bare key with one `INFO:`, never
+  aliasing a pinned key. Git sources wait for `pkg:git`.
 - [x] **`normcase` does not fold case on macOS**, so a `same_path`
   helper built on it misses case variants. Fixed by registry v3 (PR #305):
   `core/walk_rules.same_path` falls back to `(st_dev, st_ino)`.
@@ -147,10 +160,25 @@ Size: S under half a day, M about a day.
   stated one (S).** Found in the #287 review, same on `main`: a file
   tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and
   drops `Apache-2.0`.
-- [ ] **A direct-URL dependency is looked up on PyPI by name (S-M).**
-  `foo @ git+...` or a private-index package picks up the licence and
-  supplier of whatever PyPI project shares its name, possibly a
-  different package.
+- [x] **A direct-URL dependency is looked up on PyPI by name (S-M).**
+  `foo @ git+...` picked up the licence, supplier and hash of whatever
+  PyPI project shares its name, possibly a different package. Fixed by
+  #405: a package any declared string names by URL
+  (`core.pep508.is_direct_reference`) is neither prefetched nor enriched
+  from PyPI.
+- [ ] **A `loom env` package installed from a URL, and a private-index
+  package, are still looked up on PyPI by name (S-M).** `loom env` gets its
+  packages from pipdeptree, whose JSON has no `direct_url.json`, so a URL
+  install is not told apart. A private-index dependency (`[tool.uv.sources]`,
+  `--index-url`) is read as a PyPI name. Same wrong licence, supplier and
+  hash as the fixed project-route bug (#405).
+- [ ] **A direct reference still takes its version and installed metadata
+  from Pitloom's own environment by name, and keeps a `pkg:pypi` PURL
+  (S).** #405 stops the PyPI lookup only. A `name @ URL` dependency can still
+  get the version of a same-named package installed beside Pitloom, and a
+  PURL that names a registry package it may not be. The skip is also silent:
+  a coded `INFO:` ("direct reference, not looked up on PyPI") waits for a
+  catalogue family PR.
 - [x] **`license = {text = "MIT License"}` plus an Apache LICENSE file
   gives declared `Apache-2.0` (S).** The `project.license.text` value goes
   through licence-file detection (seen in the #276 sweep). Fixed by #276:
@@ -271,7 +299,7 @@ Seen in past sessions, not reproduced on current `main`:
 From the combined review of #352 to #357. Open:
 
 - [x] **A Git URL's messages name the random temporary checkout (S).**
-  Fixed in the next release: `logging_config.mask_checkout`, called by
+  Fixed in the next release: `core.url_masking.mask_checkout`, called by
   `escape_controls` (so by `quote_source`, the stderr formatter and
   `print_error`), writes it `<checkout>` in every message; a path below it
   keeps its tail (`<checkout>/setup.cfg`). Only a directory of `tempfile`'s
@@ -447,25 +475,62 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   provenance line now starts a line of its own on either side of the join, and
   a `not_measured` entry goes when the merged element gains the value
   (`_fragments_evidence.py`).
-- [ ] **An unreadable project file is logged with the raw exception (S).** The
-  skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
-  `OSError` text can hold an absolute path.
+- [x] **An unreadable project file is logged with the raw exception (S),
+  fixed (#408).** The skip in `core/_models_wheel.py` logged `exc`, and an
+  `OSError` text holds an absolute path. Every unreadable-file and
+  unlistable-directory line now says the system's description only
+  (`file-unreadable`, `dir-unlistable`), and a directory's name is escaped.
+- [ ] **`file-unreadable` is not in the generated model table (S), decided
+  2026-10-30: later (0.22.x or 0.23.0).** The model header line drops the
+  model, and the model hash leaves no `verifiedUsing`; add the code to the
+  generated table so both are said.
+- [ ] **A dataset member that disappears mid-walk is silent and leaves no hash
+  (S), decided 2026-10-30: later (0.22.x or 0.23.0).** The current behaviour
+  is kept (absent is quiet, no root); skipping the member and hashing the rest
+  was not chosen.
+- [ ] **Where the `ERROR` template of the unreadable family first lands is
+  open (S), decided 2026-10-30: later (0.22.x or 0.23.0).** Either 2b
+  `fetch_json` (recommended) or the registry PRs 5-7; undecided, 2b unless
+  said otherwise.
 - [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
   and logs DEBUG only, so no `failed` entry is possible there without the 404
   check `huggingface_dataset.py` already has.
-- [ ] **Provenance `Source:` strings built from a file or label name outside
-  `assemble/spdx3` are not sanitised (S).** A `|` or `;` in the name adds a
-  segment (a forged `Evidence:` or `Method:`). Seen, not exploited:
-  `extract/project/_setup_cfg_directives.py:127,151`, `pyproject_dynamic.py:241`,
-  `reader.py:242`, `_pyproject_license.py:77`, `_license_detect.py:189`,
-  `copyright_notices.py:201`, `extract/dataset/{croissant,card,licence}.py`
-  (`src_label`), `extract/lock/cascade.py:255`, `_setuptools_options.py:313`,
-  `_optional_dependencies.py:62`. Route them through one helper
-  (`sanitize_provenance_text`); `assemble/spdx3` (#386) is done.
-- [ ] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S).**
-  `core/lfs_pointer.py` does not use `quote_source` for a path with `|` or a
-  space.
+- [x] **Provenance `Source:` strings built from a file or label name outside
+  `assemble/spdx3` were not sanitised (S), fixed (#389).** A `|` in the name
+  added a segment (a forged `Evidence:` or `Method:`). Every provenance
+  string is now built by `provenance_source`/`provenance_segment`
+  (`core/provenance.py`): the setup.cfg/pyproject directives, the installed
+  dist-info label, licence and copyright file and archive names, the dataset
+  labels (Croissant, card, licence), the lock-file cascade, the merged
+  setuptools and optional-dependency sources, `Normalized-From` and the
+  `Resolution-1`/`Expansion-1` steps, a dependency marker in
+  `declared_constraint` (a real forge: `os_name == "x | Evidence: ..."`),
+  the loom caller and the AI-model readers. The pdm, Poetry, setuptools,
+  Hugging Face and README-card sites interpolated constants only (defence in
+  depth). `tests/test_provenance_builders_lint.py` keeps it so.
+- [x] **The LFS-pointer `WARNING: FILE=...` line prints the path unquoted (S),
+  decided: kept.** The path goes through `loggable`, as in every sibling
+  `FILE=` line: a newline is escaped (one record), `|` is inert in a log
+  line, and a bare space is family-wide. A quoted `FILE=` would be one PR for
+  the whole family; characterised in `tests/core/test_lfs_pointer_warning.py`.
+- [x] **A project file whose name is not valid UTF-8 crashed generation (S),
+  fixed (#402).** For `src/demo/\xff.py` the provenance Annotation passed (the
+  sanitiser escapes the lone surrogate), but
+  `export/spdx3_json.py::_graph_sort_key` raised an `rfc8785` error on the
+  element's own `name`, on every surface (`loom project`/`generate`, the
+  library on a directory or an sdist, the hook, a loom dataset). `to_json`
+  now escapes every lone surrogate of the graph, with one `WARNING:` naming
+  the first element. A model file was already escaped by its reader.
+- [x] **A plain-text provenance value with a `:` read as a key (S), fixed
+  (#402).** `declared_constraint` holds requirement text, but `emit_provenance`
+  parsed every value as `Key: value`: `pkg @ https://x/p.whl` gave the key
+  `pkg @ https`, a marker holding a `:` one too, as did the AUTHORS URL
+  (`fetched from authors at https`) and the version note (`version
+  resolved`). `parse_provenance_value` now reads only its closed key set
+  (the segment keys, `Source`, `Evidence`, `Reason`, the numbered ones);
+  any other segment is a note. `provenance_note` writes requirement text
+  and the AUTHORS sentence after `Note:` when they hold a `:`.
 - [ ] **A base element holding both a value and a `not_measured` entry loses the
   entry when a fragment folds into it for an unrelated field (S).** Needs a
   forged entry, which sanitising now blocks; ruling it out means tracking which

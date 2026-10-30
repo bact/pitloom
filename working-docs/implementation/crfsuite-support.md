@@ -122,8 +122,9 @@ number.
     a Git LFS pointer:** a pointer named `.model` (an unfetched
     `tokenizer.model`, `spiece.model`, common in Hugging Face repos) is listed
     as a file only and counted in the one per-SBOM Git LFS pointer warning,
-    as a pointer named `.bin` is (the per-file `header is a Git LFS pointer`
-    warning stays for a file that only opens like one). Decided 2026-10-08:
+    as a pointer named `.bin` is (a per-file warning stays for a file that
+    only opens like one, worded `header looks like a Git LFS pointer but is
+    not a valid one` since #390). Decided 2026-10-08:
     accept that (consistent with `.bin`); the summary warning of
     [git-lfs-pointers.md](git-lfs-pointers.md) has since quieted both.
     Test it explicitly so the behaviour is chosen, not accidental.

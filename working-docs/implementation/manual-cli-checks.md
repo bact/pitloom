@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,8 +27,9 @@ The full run takes minutes; pytest already runs a slice of it in CI
 `B7` and the `M/project/debug/*` cells). So:
 
 - Docs-, tests- or `working-docs/`-only change: skip.
-- Each review/fix round: only the touched area's checks, by `--only`
-  (ids and globs, comma-separated):
+- Gate A (see
+  [testing-and-review-policy.md](testing-and-review-policy.md)): only the
+  touched area's checks, by `--only` (ids and globs, comma-separated):
 
   | Area | `--only` |
   |---|---|
@@ -40,12 +41,13 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
   | AI model scan, model producer and count | `15,17,19,22,23,M/model/*` |
 | Git LFS pointers | `17,20,23` |
+  | unreadable files, unlistable directories | `9,20,24,25` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
 
-- Once before handoff, and again after merging main into the branch: the
-  full run (`-j 8`; add `--network` when network code changed).
+- Gate B, once before handoff, and again after a merge of main that
+  brought code: the full run (`-j 8`; add `--network` when network code changed).
 
 A new numbered check gets a row here. The map is by hand and can drift;
 an area field on each check, selectable by `--only`, is a possible
@@ -66,7 +68,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`23`, `B1`-`B7`) it runs:
+checks (`1`-`25`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -291,13 +293,13 @@ must both apply it; `-v` on the archive labels it
 with `--config good.toml` succeeds. Automated as check 13; the
 library-level counterpart is `tests/assemble/test_sdist_own_config.py`.
 
-**14. Declared-but-missing/invalid/v2 `--id-registry` is one ERROR, every
+**14. Declared-but-missing/invalid/v3 `--id-registry` is one ERROR, every
 CLI surface**: `--id-registry` pointing at a missing file, at
-one containing `"{"` (invalid JSON), and at a `"version": 2` file, on
+one containing `"{"` (invalid JSON), and at a `"version": 3` file, on
 `project`, `wheel`, `env`, `model` and `embed-wheel` -- each of the 15
 runs must exit 1 with exactly one `ERROR:` line containing
-`ID registry file` (the v2 one also `version 2, expected 3`) and no
-output file written. Automated as check 14
+`ID registry file` (the v3 one also `version 3, expected 4`, its bytes left
+as they were) and no output file written. Automated as check 14
 (`scripts/manual_cli_checks/_checks_core.py::check_registry_missing_invalid`).
 This check is flag-only, on those five CLI surfaces; it does not cover
 a registry declared via the project's own `[tool.pitloom] id-registry`
@@ -347,10 +349,11 @@ the truncated model and none for the pointer, and warn exactly once per file
 and each warns on its own; a real whole pointer is check 23's one summary);
 the two runs' `WARNING:` text is equal once the path is replaced (`failed to
 extract metadata ...` or, without the `safetensors` extra, `required library
-not installed ...`; `header is a Git LFS pointer; not listed as an AI model`). `loom
-model` of the truncated file writes one `ai_AIPackage` with that same warning
-and exits 0; `loom model` of any pointer exits 1 with exactly one `ERROR:` and
-writes nothing. Automated as check 17
+not installed ...`; `header looks like a Git LFS pointer but is not a valid
+one; not listed as an AI model [lfs-pointer-malformed]`). `loom model` of the
+truncated file writes one `ai_AIPackage` with that same warning and exits 0;
+`loom model` of any pointer exits 1 with exactly one `ERROR:` (code
+`lfs-pointer-malformed`) and writes nothing. Automated as check 17
 (`scripts/manual_cli_checks/_checks_model.py::check_model_outcome_parity`).
 Per-kind detail (parse, bound, library, empty, `.pth` text) is in
 `tests/assemble/test_model_outcome_parity.py`.
@@ -369,8 +372,9 @@ read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
 **23. Git LFS pointers: recorded by `oid`, reported once, refused as models**:
 a project holding the real Hub pointers of `tests/fixtures/lfs-pointers/` (a
 dataset `.parquet`, a model `.bin`, a `.zip`, a `.js`), a normal file and a
-file over 1 KiB that opens like a pointer. `loom project --offline` exits 0
-with exactly one `WARNING:` (`Git LFS pointer, content not read (4 files)`,
+file of 1 KiB or more that opens like a pointer. `loom project --offline`
+exits 0 with exactly one `WARNING:` (`Git LFS pointer, content not read (4
+files)`,
 naming `git lfs pull`; the per-file detail is `DEBUG:`), no model warning and
 no `ai_AIPackage`. Each pointer's `software_File` has one SHA-256 equal to
 the fixture's `oid`, no SHA-512 and the comment `Git LFS pointer oid; content
@@ -470,6 +474,25 @@ Skips without the `safetensors` extra.
 Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_producer_and_count`);
 per-route detail, the ONNX comma list and Hugging Face in
 `tests/test_model_producer_surfaces.py`.
+
+**25. A file and a directory the system refuses, with real permission
+bits**: a project whose `demo/secret.txt` and `demo/closed/` are `chmod 000`.
+`loom project` exits 0 with one `WARNING: FILE=demo/secret.txt: could not
+read for file scanning; Permission denied [file-unreadable]` and one
+`WARNING: DIR=demo/closed: could not list for file discovery; ...
+[dir-unlistable]`, and no stderr line names the work directory (the OS
+error's own text would). Skips on Windows and as root (root reads through
+the bits); run it in a user namespace there (`unshare -U`). Automated as
+check 25 (`scripts/manual_cli_checks/_checks_unreadable.py::check_unreadable`);
+per-surface detail in `tests/test_unreadable_file_surfaces.py`.
+
+**26. Each release of a dependency gets its own id**: the fixture project with
+a registry from `id generate`, run three times with its dependency pinned
+`packaging==24.0`, `25.0`, then `24.0` again. The two releases get two ids, the
+third run gets the first's, the main package keeps one id and the registry
+holds `packaging@24` and `packaging@25`. Automated as check 26
+(`scripts/manual_cli_checks/_checks_registry_versions.py::check_package_version_ids`);
+per-case detail in `tests/id_registry/test_package_version_keys.py`.
 
 ## Order matrix (`O1`-`O6`)
 

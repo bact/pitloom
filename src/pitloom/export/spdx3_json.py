@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -20,10 +21,14 @@ from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
+from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
+from pitloom.logging_config import loggable, warn_lone_surrogates
 
 if TYPE_CHECKING:
     from pitloom.core.lfs_pointer import LfsPointer
+
+log = logging.getLogger(__name__)
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
@@ -104,6 +109,17 @@ def _hash(algorithm: str, hex_digest: str, comment: str | None) -> spdx3.Hash:
     if comment:
         hash_element.comment = comment
     return hash_element
+
+
+def _escape_lone_surrogates(graph: list[dict[str, Any]]) -> None:
+    """Every lone surrogate in *graph*, which no UTF-8 output can hold,
+    written as text (``\\udcff``), with one ``WARNING:`` naming the first
+    element changed, by name: the one place every surface's SBOM passes, so
+    a name read from anywhere (a non-UTF-8 POSIX file name) is covered.
+    Registry keys come from the on-disk spelling, not from this text."""
+    changed = escape_lone_surrogates_in_elements(graph)
+    if changed:
+        warn_lone_surrogates(log, loggable(min(changed)))
 
 
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
@@ -520,6 +536,7 @@ class Spdx3JsonExporter:
         serializer = spdx3.JSONLDSerializer()
         serializer.write(self.object_set, out_f)
         data = json.loads(out_f.getvalue())
+        _escape_lone_surrogates(data.get("@graph", [data]))
         if "@graph" in data:
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])

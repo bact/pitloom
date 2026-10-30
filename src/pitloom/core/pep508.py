@@ -33,12 +33,13 @@ from packaging.markers import InvalidMarker, Marker
 from packaging.requirements import InvalidRequirement, Requirement
 
 from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
 __all__ = [
     "MAX_MARKER_NESTING",
+    "is_direct_reference",
     "is_over_nesting_cap",
     "is_over_number_cap",
     "marker_nesting",
@@ -81,6 +82,23 @@ def marker_nesting(text: str, *, marker: bool = False) -> int:
         elif char == ")":
             depth = max(depth - 1, 0)
     return deepest
+
+
+def is_direct_reference(text: str) -> bool:
+    """Whether *text*, a requirement, is a direct reference
+    (``name [extras] @ URL``): its package is the one at the URL, so an
+    index's release of the same name may be another project. Text
+    ``packaging`` cannot parse is one when it starts as one does
+    (:data:`_URL_PREFIX`: ``a @ https://h/x @ y``). Logs nothing: the
+    caller's own parse of *text* warns of a refusal.
+
+    Raises:
+        TypeError: *text* is not a string.
+    """
+    try:
+        return parse_requirement(text, quiet=True).url is not None
+    except InvalidRequirement:
+        return _URL_PREFIX.match(text) is not None
 
 
 def is_over_nesting_cap(

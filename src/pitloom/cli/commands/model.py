@@ -29,13 +29,14 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
     log_hf_url_rewrite,
     parse_hf_model_id,
 )
-from pitloom.logging_config import print_error, sanitize_url
+from pitloom.logging_config import print_error
 
 
 @cli_error_handler("model command failed")

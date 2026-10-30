@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ file is the detail behind it. Full reference:
 ## Declaring a registry
 
 Element ids are content-addressed: rerunning on unchanged source
-reproduces them with no registry. A registry (format version 3, a JSON
+reproduces them with no registry. A registry (format version 4, a JSON
 file) pins ids across runs whose inputs differ -- e.g. a fragment written
 today, merged into next week's regeneration after the source changed (see
 `sbom-enrich`), or a `loom.run` script's datasets and models.
@@ -29,23 +29,26 @@ project's own `[tool.pitloom]`/`[tool:pitloom]` (relative to the
 project). Wheel, env and model-file targets, and `enrich`/`embed-wheel`
 without `--project-dir`, read no project config; an sdist's own key is
 ignored. Nothing declared: no registry, silently. Declared but missing,
-invalid or an old version 2 file: one `ERROR:`, exit 1. Generating runs also
-add newly minted ids to a declared registry; no run ever creates one.
+invalid or an old version 3 or 2 file: one `ERROR:`, exit 1. Generating runs
+also add newly minted ids to a declared registry; no run ever creates one.
 
 ## What a registry pins
 
 One table, keyed by element type and key; each entry holds an `spdxId` and,
 when the element has content, its SHA-256. A key is a **path key** (the path
 from the registry's project root, `/`-separated, case kept) for anything that
-is a file or directory below the root, else a **name key** (a package's PEP 503
-name, a Hugging Face model id, a URL or missing dataset). One helper computes
-every key, so every command and the Python SDK agree on it.
+is a file or directory below the root, else a **name key** (a package's PEP
+503 name and PEP 440 version, a Hugging Face model id, a URL or missing
+dataset). One helper computes every key, so every command and the Python SDK
+agree on it.
 
 - **Files and directories** (`software_File`): a file is keyed by path from
   the registry's project root and its entry is content-gated: changed bytes
   get a new id. A directory is the exception: it is keyed by its distribution
   path (`demo`, not `src/demo`), and `id generate` does not index directories.
-- **Packages** (`software_Package`, keyed by PEP 503 name): dependencies,
+- **Packages** (`software_Package`, keyed `<PEP 503 name>@<PEP 440
+  version>`, `requests@2.31`; bare for no stated version, never matched by a
+  versioned key): each release its own id. Dependencies,
   and the project's own package for `project`, `wheel`, `embed-wheel` and
   the Hatchling hook. `env` pins dependency packages only; its root
   package is minted on every run.
@@ -94,13 +97,13 @@ every key, so every command and the Python SDK agree on it.
   its path key with its digest, so pin after the data exists), or by `loom id
   import` of an SBOM or loom fragment that has it (records the digest).
 
-A package name held by several registry-reading elements of one document
-(e.g. one dependency at two versions) is never written by a run, and `id
-import` skips it. A name-keyed registry holds one id per name, so it can pin
-only one holder: `loom id generate <PATH> -e NAME:software_Package
--o <registry>` pins the first claimant (order: main package, dependencies,
-phantom dependencies). Every later run then logs the `registered for both`
-`WARNING:` below for the other holder -- expected here, not a stale entry.
+A package key held by several registry-reading elements of one document
+(two bundled libraries of one name and version; two versions are two keys)
+is never written by a run, and `id import` skips it. A pin for it (`loom id
+generate <PATH> -e NAME@VERSION:software_Package -o <registry>`) goes to the
+first claimant (main package, dependencies, phantom dependencies); every
+later run logs the `registered for both` `WARNING:` below for the other --
+expected here, not a stale entry.
 The pin goes into the **declared** registry; if none is declared and the
 user did not ask to pin ids, do not create one -- tell the user. A
 self-referencing extra (`demo[x]`) and a phantom dependency named like the
@@ -123,7 +126,7 @@ registry", "run `loom id generate`/`import`"): do it, without asking again.
    `INFO:`/`WARNING:`/`ERROR:` it printed. An `INFO: ID registry: to use this
    registry, ...` line is the declaration the user still has to add: relay it
    verbatim, and do not edit their config yourself.
-4. A registry file the command rejects (a version 2 file, an invalid one):
+4. A registry file the command rejects (a version 3 or 2 file, an invalid one):
    relay the `ERROR:`. Delete it and re-run only if the user agrees (its pins
    are lost); non-interactive: change nothing and report the `ERROR:` and the
    commands.
@@ -167,9 +170,10 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   existing file is stored as its path key with its SHA-256).
 - **Packages**: `id generate` registers none. Seed them with one `project`
   run into a declared registry, with `id import <sbom>`, or by hand:
-  `loom id generate <PATH> -e NAME:software_Package -o <registry>` pins a
-  dependency's or the project's own package id (the `:software_Package`
-  suffix is required).
+  `loom id generate <PATH> -e NAME@VERSION:software_Package -o <registry>`
+  pins one release of a dependency or the project's own package (the
+  `:software_Package` suffix is required; with no `@VERSION`, only a package
+  that states no version, with an `INFO:`).
 - **Datasets**: `-e NAME:dataset_DatasetPackage`, `NAME` the path from the
   project root (`-e` resolves it against `--project-dir`, not the script's
   directory: a script in `scripts/` declaring `../data/t.txt` is looked up as
@@ -190,12 +194,14 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   registry: -e NAME stored by name: <reason>` (an `ai_AIPackage` name applies
   only to a model with no file), and a dataset that is missing, outside the
   root or unhashable by name with no hash and `INFO: ID registry: dataset NAME
-  pinned without SHA-256: <reason>`. `software_Package` is always by name. A
+  pinned without SHA-256: <reason>`. `software_Package` is by name and
+  version, split at the first `@` (`-e Requests@2.31.0` is `requests@2.31`). A
   trailing `:`, white space around the `TYPE`, a control character or a blank
   `NAME` is also a usage error (exit 2).
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
-  read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
-  and the run continues (so does a file whose name is not UTF-8 encodable); an
+  read or listed is a `WARNING: FILE=... [file-unreadable]`/`DIR=...
+  [dir-unlistable]` (project-relative path) and the run continues (so does a
+  file whose name is not UTF-8 encodable, warned with no code); an
   unreadable `PATH` argument is `ERROR: PATH '<path>': could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
@@ -213,23 +219,22 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   explicit `--project-dir`, into a registry made for another project directory
   is an `ERROR:`, exit 1: pick one root per registry.
 
-The file is JSON with `version: 3`, `namespace`, `project_root`, an
+The file is JSON with `version: 4`, `namespace`, `project_root`, an
 `elements` table and `id_counters` (per id prefix, the highest number
 issued, so a retired id is never minted again; do not lower or drop it by
 hand: a file without it does not load; neither does one with a non-integer
-`version` or a repeated JSON key). A **version 2** registry (a committed file
-from an earlier release, with `files` and `entities`) is rejected, on every
-command, with one `ERROR:` and nothing written. `id generate`/`id import` print
+`version` or a repeated JSON key). A **version 3** registry (Pitloom 0.21, its
+package keys without a version) or a version 2 one is rejected, on every
+command, with one `ERROR:`; nothing is written and the file is left as it is.
+`id generate`/`id import` print
 it as below; other commands prefix their own (`ERROR: SBOM generation
 failed: ...`):
 
 ```text
-ERROR: ID registry file '<path>': version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
+ERROR: ID registry file '<path>': version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`)
 ```
 
-Pitloom releases before registry format 3 write version 2, so a registry
-committed under one needs this; a version 3 file needs a release that ships
-the format. Relay the `ERROR:`. Deleting the file loses its pins
+Relay the `ERROR:`. Deleting the file loses its pins
 (every id is minted again), so ask first. If the user agrees: delete the file,
 then re-run `loom id generate <PATH> -o <REGISTRY>` (add `-e` as before),
 or `loom id import <SBOM> -o <REGISTRY>` to carry an earlier SBOM's ids
@@ -334,11 +339,6 @@ hash. An element with no recorded key (merged fragment, `id import`) never
 moves an id held under another key of the same type, and a stale element (an
 older SHA-256) never rolls a newer entry back.
 
-Pins made by an earlier branch of format 3 (model stem keys, own-name model
-keys, dataset strings that differ from the canonical path such as
-`./data/t.txt`) no longer match: ids renumber once. Re-run `loom id generate`
-(add `-e` pins again) into a fresh file, or `loom id import` an earlier SBOM.
-
 ## Log lines that are not a broken registry
 
 - `INFO: ID registry: added N new id(s) to <path>` (N counts ids under keys
@@ -388,7 +388,8 @@ keys, dataset strings that differ from the canonical path such as
   their layout alias: their own key holds other content`). Other layouts
   (`python/`, `packages/`) get no alias: a wheel-only run mints its own ids
   for them.
-- `INFO: ID registry: -e NAME stored as KEY` / `stored by name: <why>` --
+- `INFO: ID registry: -e NAME stored as KEY` / `stored by name: <why>` /
+  `stored without a version: holds only a package that states none` --
   `id generate -e` (see above). `INFO: ID registry: dataset|model X keyed by
   its name: <why>` -- `id import`/`loom` kept a name key because no file
   below the root matched (`dataset X keyed by its path: KEY` only when `id
@@ -453,13 +454,15 @@ keys, dataset strings that differ from the canonical path such as
 - `WARNING: ID registry: not adopting the namespace ...` -- `id import` met
   an SBOM whose document id is not a valid namespace IRI; the registry keeps
   its own namespace.
-- `WARNING: DIR=<dir>: could not list for ID registry indexing` -- `id
-  generate` skipped an unlistable subdirectory; fix its permissions and re-run.
+- `WARNING: DIR=<dir>: could not list for ID registry indexing; <failure>
+  [dir-unlistable]` -- `id generate` left out the files of a directory it
+  could not list; if you see it, relay the advice of
+  [messages.md](messages.md#dir-unlistable).
 - `WARNING: ID registry: <path> is inside the project's file set; left out
   of it` -- keep the registry outside the
   package tree (above).
 
-A declared registry that is missing or invalid (a version 2 file included)
+A declared registry that is missing or invalid (a version 3 file included)
 is different: one `ERROR:`, exit 1, nothing written.
 
 ## Choosing the registry before generating

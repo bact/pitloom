@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,7 +128,7 @@ Review of the final tree (security, performance, correctness):
   splitting is one pass (a wheel `Author` of `"a,"*80000` took 50 s, now
   0.03 s), the copyright placeholder check is linear, setuptools dynamic
   files are read once with a 4 MiB total budget.
-- Every cap warns through ONE helper (`logging_config.warn_over_cap`, `Cap`);
+- Every cap warns through ONE helper (`pitloom.messages.warn_over_cap`, `Cap`);
   `tests/test_cap_warnings.py` fails when a `MAX_*`/`*_CAP`/`*_LIMIT`
   constant neither uses it nor has an allow-list reason.
 - Licence files are read only inside the project (symlinks out refused with a

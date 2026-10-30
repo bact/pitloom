@@ -26,9 +26,11 @@ import pytest
 from pitloom import loom
 from pitloom._loom_dataset_keys import DigestEvidence, digest_evidence
 from pitloom._loom_dataset_meta import DatasetSources
+from pitloom.core import dataset_hash
 from pitloom.core.dataset_hash import DatasetDigest
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.provenance import parse_provenance_value
+from pitloom.logging_config import CODE_ATTR
 from tests._lfs import lfs_pointer_bytes
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.hash_helpers import file_hashes_json
@@ -287,5 +289,94 @@ def test_an_injected_file_name_is_escaped_in_the_comment(project: Path) -> None:
 
 
 def test_nothing_is_recorded_for_a_digest_with_no_hash_or_reason() -> None:
-    """Unreadable or missing: no hash and no reason, so nothing."""
+    """Missing, or gone since it was found: no hash and no reason, so
+    nothing (absent is quiet)."""
     assert digest_evidence(DatasetDigest("file", size=_BIG), "x") == DigestEvidence()
+
+
+@pytest.mark.parametrize(
+    ("found", "size"),
+    [
+        (DatasetDigest("file", size=_BIG, omitted="file-unreadable"), "stat"),
+        (DatasetDigest("file", omitted="file-unreadable"), "not_measured"),
+        (DatasetDigest(None, omitted="file-unreadable"), None),
+        (DatasetDigest("dir", omitted="file-unreadable"), None),
+        (DatasetDigest("dir", omitted="dir-unlistable"), None),
+    ],
+    ids=["file-stat", "file-no-size", "stat-failed", "dir-member", "dir-unlistable"],
+)
+def test_a_refused_read_is_not_measured_with_its_own_reason(
+    found: DatasetDigest, size: str | None
+) -> None:
+    """Any reason a digest gives, not only the cap's: the hash is
+    ``not_measured`` with it, and a file's size is its ``stat()`` size, or
+    ``not_measured`` with the same reason when none is known."""
+    assert found.omitted is not None
+    evidence = digest_evidence(found, "x")
+    reason = f"Source: x | Evidence: not_measured | Reason: {found.omitted}"
+    assert evidence.hash_provenance == reason
+    expected = {
+        "stat": "Source: x | Evidence: measured_stat",
+        "not_measured": reason,
+        None: None,
+    }[size]
+    assert evidence.size_provenance == expected
+
+
+def test_an_unreadable_dataset_file_says_why_in_the_sbom(
+    project: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The loom SDK: one ``file-unreadable`` warning, naming the file as
+    given, the system's description and no directory of this machine; no
+    hash and no size (below a pointer's largest, it may be one), each
+    ``not_measured`` with the warning's code as its reason."""
+
+    def denied(path: str, **_kwargs: Any) -> Any:
+        raise PermissionError(13, "Permission denied", os.path.abspath(path))
+
+    monkeypatch.setattr(dataset_hash, "file_digests", denied)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        graph = _run(project / "o.json", "t.txt")
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert getattr(record, CODE_ATTR) == "file-unreadable"
+    assert record.getMessage() == (
+        "FILE=t.txt: could not read for dataset hashing; Permission denied"
+    )
+    package = _package(graph, "t.txt")
+    assert "verifiedUsing" not in package and "dataset_datasetSize" not in package
+    unread = {
+        "source": "t.txt",
+        "evidence": "not_measured",
+        "reason": "file-unreadable",
+    }
+    fields = _fields(graph, "t.txt")
+    assert (fields["verified_using"], fields["byte_size"]) == (unread, unread)
+    assert_spdx3_valid(project / "o.json")
+
+
+def test_a_size_read_past_canonical_json_is_not_measured() -> None:
+    """The bytes read go through the same bound as a ``stat()`` size."""
+    found = DatasetDigest("file", "ab" * 32, 1, size=_MAX_SAFE + 1)
+    evidence = digest_evidence(found, "x")
+    assert evidence.size_provenance == f"Source: x | {_UNREAD}"
+    assert evidence.hash_provenance is None
+
+
+@pytest.mark.parametrize("name", ["big.bin", "p.bin"], ids=["over-cap", "pointer"])
+def test_a_stated_entry_never_replaces_the_hash_evidence(
+    project: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """A source stating ``verified_using`` (none does) cannot replace the
+    entry loom wrote of the hash it did or did not read."""
+
+    def merged(_: DatasetSources, named: str) -> DatasetMetadata:
+        return DatasetMetadata(
+            name=named,
+            version="9",
+            provenance={"version": "Source: c", "verified_using": "Source: c"},
+        )
+
+    monkeypatch.setattr(DatasetSources, "merged", merged)
+    fields = _fields(_run(project / "o.json", name), name)
+    assert fields["version"] == {"source": "c"}
+    assert fields["verified_using"]["source"] == name

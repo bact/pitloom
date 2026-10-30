@@ -19,7 +19,7 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
+from pitloom.logging_config import loggable, warn_lone_surrogates
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def read_fragment_set(fragment_path: Path) -> spdx3.SHACLObjectSet:
     data, lone = escape_lone_surrogates_in(json.loads(raw))
     rfc8785.dumps(data)
     if lone:
-        log.warning(LONE_SURROGATES_WARNING, "", loggable(str(fragment_path)))
+        warn_lone_surrogates(log, loggable(str(fragment_path)))
         raw = json.dumps(data).encode("ascii")
     fragment_set = spdx3.SHACLObjectSet()
     spdx3.JSONLDDeserializer().read(io.BytesIO(raw), fragment_set)

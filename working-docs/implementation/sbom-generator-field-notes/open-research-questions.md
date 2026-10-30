@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -254,3 +254,114 @@ regenerate.
 *Unverified:* the claim that `os.path.normcase` does nothing on macOS was
   checked against the Python documentation ("no effect under POSIX"), not on a
   Mac.
+
+## Evidence, messages and skills (2026-10-29)
+
+*Open:* how should an SBOM state the evidence level of a value, or that a
+value was deliberately not computed? SPDX 3.0.1 and 3.1-dev have no property
+for either (FG-13 in the format-gaps ledger); Pitloom writes `Evidence:` and
+`Reason:` segments into its own provenance Annotation and comment, which no
+other tool reads. A consumer cannot tell "no hash known" from "hash skipped
+over the read cap" from SPDX alone. See
+[evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md).
+
+*Partly answered:* are catalogue codes the right unit for SARIF `ruleId`s?
+The #390 review left room without a scheme: a family is a SARIF rule `id`,
+a code a hierarchical `ruleId` (`lfs-pointer/shipped`, hence `/` and not
+`.` for a variant), a code's reference section its help link. Still open:
+a code names a condition (`lfs-pointer`) shared by several subjects and
+surfaces, while a SARIF rule usually names one check; no SARIF output is
+built (0.23.0). See
+[message-catalogue-decisions.md](message-catalogue-decisions.md),
+section 1.
+
+*Partly answered:* how do you version a message contract whose consumers
+are AI agents? Decision L promises a code stable from the release that
+first prints it (never renamed, reused or removed while its condition can
+occur; a retired code stays; a rename carries `replaces` for one minor
+release), and the wording is not promised. The skills now point to a
+reference generated from the catalogue rather than quoting wording by hand,
+and the ratchet and the drift test hold code, reference and quotes
+together. Still open: a skill body still quotes some wording, an agent may
+key on either, and nothing measures whether an agent behaves the same after
+a wording change, or after a new variant appears.
+
+*Open:* a shared contract across Pitloom, `licenseid` and the conformance
+checker that Lumina runs. `licenseid` words its diagnostics
+`LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]` with its own closed set of
+conditions (`not found`, `download failed`) and no code; the checker's
+notification ids are dotted (`spdx.parsing-error`); Pitloom's codes are
+kebab words with `/` and no producer prefix, with tool names reserved as
+families so a namespace stays possible. Lumina's SARIF ingest reads only
+`BOM-` rule ids, so the other tools' diagnostics reach it as notifications.
+Whether the three share one condition vocabulary, and how a code is
+namespaced when one tool's diagnostic reaches the user through another, is
+not designed; *session record:* the maintainer has the
+`licenseid` 0.8.0 release in mind for it.
+
+*Open:* does an agent that reads a `[code]` and the generated reference
+behave better than one reading free text? Static tests hold the code, the
+reference and the skill pointers together; none measures the agent. A
+candidate evaluation: the same Pitloom output with and without codes, the
+same scenarios, scored on whether the agent states the SBOM effect, relays
+the advice to the right actor and does not run the fix itself.
+
+*Open:* how do you measure whether progressive disclosure in a skill loses
+behaviour? Static tests check size, orphan references and that each pointer
+states a condition; the four kinds of loss in #385 were found by a read-only
+agent review, not a test. Candidate: scenario evals (Pitloom output in, expected
+explanation out), planned but not built.
+
+## Identity, lookups and process cost (2026-10-30)
+
+*Open:* does a registry keyed by release make a union of SBOM graphs across
+releases sound? With #407 (in review) two releases of a package have two ids,
+so a consumer that merges graphs by id never conflates them, but it also
+never learns they are releases of one thing, and Pitloom writes no
+relationship that says so. Whether such a link belongs in the SBOM, and with
+which SPDX relationship, is not decided. See
+[registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md).
+
+*Open:* how is a remote revision (a Hub model's `sha`) pinned for an offline
+or reproducible run? The revision is learned from the network, so a registry
+can hold the pin only after one online run. The plan keeps an unpinned
+remote entry on the bare key with one `INFO:` and never aliases it to a
+pinned key; nothing measures how often users run the second, offline step.
+
+*Open:* in the same note, the `project` route of a project with a dynamic
+version states `unknown` and keys its package bare, while a wheel or hook run
+states the real version: one project, two package ids across routes (accepted,
+D3). Can the project route learn the version a build would state?
+
+*Open:* does a skipped lookup need a recorded reason in the SBOM? #405 keeps a
+direct-reference dependency off PyPI silently; from the SBOM alone "no
+licence, lookup skipped" and "the index had none" look the same. See
+[name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md).
+*Unverified:* that npm (`git+` and `file:` specifiers), Cargo (`git`, `path`,
+alternative registries) and Go (`replace`) have the same name-keyed lookup
+exposure; only Python was measured.
+
+*Open:* is a lone surrogate written as the text `\udcff` unambiguous? It
+stands for the byte `0xFF` of a non-UTF-8 file name, and a file literally
+named with a backslash and `udcff` has the same output spelling. Not
+checked whether two such names can reach one SBOM. See
+[provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md).
+
+*Unverified:* is an `OSError`'s `strerror` stable enough to print in a line a
+skill may match? On POSIX it is the C library's text; on Windows the system
+message may follow the user's language. #408 (in review) prints it as the
+`failure` field; no non-English Windows run was made. See
+[raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md).
+
+*Open:* an import that is found but fails (a native library for another ABI)
+is reported as "not installed", so the advice to install the extra misleads
+the user who has done so (#404 left it as it was). How often it happens is
+not measured. See [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md).
+
+*Open:* how much of a CI's work is needed signal? Measured on 2026-10-30: about
+2.9 `test.yml` runs per merged PR, and in 8 of 8 merges checked the push run
+repeated the tree of a green PR head. Whether skipping it loses a signal
+(a partial or cancelled PR run) and whether the two-gate policy (#406)
+removed local repetition are not measured; a before and after count over the
+next PRs would answer the second. See
+[ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md).

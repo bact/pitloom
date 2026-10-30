@@ -22,13 +22,11 @@ import re
 import sys
 import threading
 import traceback
-from collections import deque
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
 from typing import Any, TextIO, cast
-from urllib.parse import unquote
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
+from pitloom.core.url_masking import mask_checkout
 
 # Guards the handlers.clear()/addHandler() swap below (see
 # configure_logging()'s docstring) and the _WARNED_ONCE read-then-write in
@@ -44,19 +42,20 @@ PITLOOM_DEBUG_ENV_VAR = "PITLOOM_DEBUG"
 # (including unset) leaves DEBUG suppressed.
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
-#: The one ``WARNING:`` for an input over a cap, logged by
-#: :func:`warn_over_cap`. Arguments: the key naming the input
-#: (:attr:`Cap.subject`), the input (through :func:`loggable`), the cap
-#: (:attr:`Cap.reason`), and what was and was not read or done.
-OVER_CAP_WARNING = "%s=%s: %s; %s"
-
-# The LogRecord attribute holding (cap, outcome) of an OVER_CAP_WARNING.
-_OVER_CAP_ATTR = "pitloom_over_cap"
+#: The LogRecord (and exception) attribute holding a catalogued message's
+#: code (:mod:`pitloom.messages`), printed as a trailing `` [code]``.
+CODE_ATTR = "pitloom_code"
+#: What a reader takes for a code; one that does not match whole is never
+#: printed. :data:`pitloom.messages.CODE_GRAMMAR` is stricter.
+CODE_PATTERN = r"[a-z][a-z0-9/-]*"
+_CODE_RE = re.compile(CODE_PATTERN)
+#: A `` [x]`` ending a text that would read as a code.
+CODE_LIKE_END = re.compile(rf" \[({CODE_PATTERN})\]\Z")
 
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
 #: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
 #: Arguments: a prefix (``"FORMAT=<fmt> "`` for a model, else ``""``) and
-#: the file, through :func:`loggable`.
+#: the file, through :func:`loggable`. Logged by :func:`warn_lone_surrogates`.
 LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
 
 #: Keys already surfaced once via :func:`log_once` (and :func:`warn_once`)
@@ -66,132 +65,14 @@ LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
 _WARNED_ONCE: set[tuple[str, str]] = set()
 
 
-#: ``://`` and a userinfo (non-empty, up to the last ``@`` before a ``/`` or
-#: whitespace: a password holding ``?`` or ``#`` is masked whole).
-_URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
-
-
-#: A URL in a text, to its end at whitespace.
-_URL_RE = re.compile(r"://\S+")
-
-#: A query or fragment parameter (name at most 64 characters, so matching is
-#: linear), as ``(delimiter, name, value)``.
-_PARAM_RE = re.compile(r"([?&;#])([\w.%-]{1,64})=([^&;#\s]*)")
-
-#: Names (lower case) of a parameter that holds a secret, and the endings of
-#: such a name (``access_token``, ``db-password``).
-_SECRET_NAMES = frozenset(
-    {
-        "token",
-        "key",
-        "apikey",
-        "secret",
-        "password",
-        "passwd",
-        "pass",
-        "pwd",
-        "pw",
-        "sig",
-        "signature",
-        "jwt",
-        "credential",
-        "credentials",
-    }
-)
-_SECRET_ENDINGS = ("_token", "-token", "_secret", "-secret", "_key", "-key") + (
-    "_password",
-    "-password",
-    "_signature",
-    "-signature",
-)
-
-#: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
-#: before the first ``/``, whatever characters (a newline, a space) it holds.
-#: ``:/`` and ``:\\`` too, for a URL a path normalisation collapsed.
-_WHOLE_URL_USERINFO_RE = re.compile(r":[/\\]{1,2}[^/\\@][^/\\]*@")
-
-
-def _mask_param(match: re.Match[str]) -> str:
-    delimiter, name, value = match.groups()
-    plain = unquote(name).lower()
-    if plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS):
-        value = "***"
-    return f"{delimiter}{name}={value}"
-
-
-def _mask_url_secrets(match: re.Match[str]) -> str:
-    return _PARAM_RE.sub(_mask_param, match.group(0))
-
-
-def sanitize_url_credentials(text: str) -> str:
-    """Redact username and password from URLs in *text* (e.g.
-    ``https://user:pass@host/`` -> ``https://***:***@host/``), and the value of
-    a query parameter named like a secret (``?private_token=***``).
-
-    Used across extractors, build backends, and error loggers to prevent
-    sensitive auth tokens from leaking into error messages or SBOM output.
-    The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
-    so a password holding ``@``, ``?`` or ``#`` is redacted whole. For a text
-    that is one URL, use :func:`sanitize_url`.
-    """
-    return _URL_RE.sub(_mask_url_secrets, _URL_USERINFO_RE.sub("://***:***@", text))
-
-
-def sanitize_url(url: str) -> str:
-    """:func:`sanitize_url_credentials` for a text that is one URL: the
-    userinfo is redacted whole even when it holds a newline or a space."""
-    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
-
-
-#: The name prefix of the temporary directory a Git URL is checked out in.
-CHECKOUT_DIR_PREFIX = "pitloom-git-"
-#: What a message shows for that directory, so two runs read the same.
-CHECKOUT_PLACEHOLDER = "<checkout>"
-#: ``tempfile.mkdtemp`` appends eight characters of ``[a-z0-9_]``: a directory
-#: of another name (a worktree called ``pitloom-git-fix``) is not the checkout.
-_CHECKOUT_DIR = re.compile(
-    re.escape(CHECKOUT_DIR_PREFIX) + r"[a-z0-9_]{8}(?![a-z0-9_])"
-)
-#: A word of a message: a run without a space, quote, bracket, backtick, ``=``,
-#: ``,`` or ``;`` (where a path ends in a message that quotes, brackets or
-#: follows ``KEY=``).
-_WORD = re.compile(r"[^\s'\"`()\[\]<>=,;]+")
-#: ``user@host:path``, the scp-style address of a repository.
-_SCP_ADDRESS = re.compile(r"[\w.+-]+@[\w.-]+:")
-
-
-def _mask_word(found: re.Match[str]) -> str:
-    word = found.group(0)
-    if (
-        CHECKOUT_DIR_PREFIX not in word
-        or "://" in word
-        or _SCP_ADDRESS.match(word) is not None
-    ):
-        return word
-    last = deque(_CHECKOUT_DIR.finditer(word), maxlen=1)
-    return CHECKOUT_PLACEHOLDER + word[last[0].end() :] if last else word
-
-
-def mask_checkout(text: str) -> str:
-    """*text* with the temporary checkout of a Git URL written as
-    ``<checkout>``: each word that is a path holding the directory
-    (``pitloom-git-`` and its eight random characters) becomes ``<checkout>``
-    and what follows the directory, so a path below it keeps its tail
-    (``<checkout>/setup.cfg``). A word that is an address (``https://host/o/
-    pitloom-git-abcdefgh``, ``git@host:o/pitloom-git-abcdefgh``) is kept. One
-    pass over the words; text without the prefix is returned as it is."""
-    if CHECKOUT_DIR_PREFIX not in text:
-        return text
-    return _WORD.sub(_mask_word, text)
-
-
 def escape_controls(text: str) -> str:
     """*text* with the temporary checkout of a Git URL masked
-    (:func:`mask_checkout`), each character that is not printable, and each
-    code point of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`,
-    written as its ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything
-    else, non-ASCII letters included, is kept. Unlike :func:`loggable` it never
-    quotes, so a message already built stays readable."""
+    (:func:`~pitloom.core.url_masking.mask_checkout`), each character that is
+    not printable, and each code point of
+    :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its ASCII
+    escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
+    letters included, is kept. Unlike :func:`loggable` it never quotes, so a
+    message already built stays readable."""
     text = mask_checkout(text)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
@@ -203,13 +84,32 @@ def escape_controls(text: str) -> str:
     )
 
 
+def _code_suffix(code: object) -> str:
+    """`` [code]`` for a *code* :data:`CODE_PATTERN` matches whole, else
+    ``""``: a code is printed only as Pitloom's own token."""
+    return f" [{code}]" if isinstance(code, str) and _CODE_RE.fullmatch(code) else ""
+
+
+def _with_code(text: str, code: object) -> str:
+    """*text* (escaped already) ending in `` [code]`` when *code* is one
+    (:func:`_code_suffix`); else with the ``[`` of a code-like `` [x]`` ending
+    written ``\\x5b``, so a line's last `` [code]`` is always Pitloom's, never
+    a value it printed (a file named ``m [lfs-pointer]``)."""
+    suffix = _code_suffix(code)
+    return text + suffix if suffix else CODE_LIKE_END.sub(r" \\x5b\1]", text)
+
+
 class _OneLineFormatter(logging.Formatter):
     """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
     whatever a call site interpolated, one record is one tagged line on
-    stderr. A traceback (``exc_info``) is appended as it is."""
+    stderr, then its :data:`CODE_ATTR` (:func:`_with_code`; none on ``DEBUG``).
+    A traceback (``exc_info``) is appended as it is."""
 
     def formatMessage(self, record: logging.LogRecord) -> str:
-        record.message = escape_controls(record.message)
+        code = (
+            getattr(record, CODE_ATTR, None) if record.levelno > logging.DEBUG else None
+        )
+        record.message = _with_code(escape_controls(record.message), code)
         return super().formatMessage(record)
 
 
@@ -221,11 +121,13 @@ def print_traceback() -> None:
         print(f"  {escape_controls(line)}", file=sys.stderr)
 
 
-def print_error(message: str) -> None:
+def print_error(message: str, *, code: str | None = None) -> None:
     """Print one ``ERROR: <message>`` line to stderr, the message escaped by
     :func:`escape_controls`: the one way the CLI writes an error, so a newline
-    in a path or an exception text cannot start a second, forged line."""
-    print(f"ERROR: {escape_controls(message)}", file=sys.stderr)
+    in a path or an exception text cannot start a second, forged line. A
+    catalogued *code* follows as `` [code]``; without one, nothing at the end
+    reads as a code (:func:`_with_code`)."""
+    print(f"ERROR: {_with_code(escape_controls(message), code)}", file=sys.stderr)
 
 
 def loggable(text: str) -> str:
@@ -243,6 +145,14 @@ def loggable(text: str) -> str:
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return ascii(text)
+
+
+def warn_lone_surrogates(logger: logging.Logger, where: str, prefix: str = "") -> None:
+    """Log :data:`LONE_SURROGATES_WARNING` on *logger*: text read from
+    *where* (a file, already through :func:`loggable`) held a lone surrogate,
+    now written as text. *prefix* is ``"FORMAT=<fmt> "`` for a model file.
+    The one emitter of that wording; each caller says it once per file."""
+    logger.warning(LONE_SURROGATES_WARNING, prefix, where)
 
 
 #: Characters of a value :func:`excerpt` shows.
@@ -381,64 +291,6 @@ def log_once(
         first_occurrence = dedup_key not in _WARNED_ONCE
         _WARNED_ONCE.add(dedup_key)
     log.log(level if first_occurrence else logging.DEBUG, msg, *args, extra=extra)
-
-
-@dataclass(frozen=True)
-class Cap:
-    """A limit Pitloom puts on an input, as :func:`warn_over_cap` names it:
-    ``<subject>=<where>: larger than the <limit>-<unit> <purpose> cap``."""
-
-    #: The most the input may hold, in *unit*.
-    limit: int
-    #: What *limit* counts, singular (``"byte"``, ``"entry"``).
-    unit: str
-    #: What the cap is for (``"license-detection"``).
-    purpose: str
-    #: The key naming the input, ``"FILE"`` or ``"FIELD"``, after the keys
-    #: of :meth:`after` (``"FORMAT=gguf FILE"``).
-    subject: str = "FILE"
-
-    @property
-    def reason(self) -> str:
-        """What an input over this cap is, the same in a ``WARNING:`` and
-        in an error's text."""
-        return f"larger than the {self.limit}-{self.unit} {self.purpose} cap"
-
-    def after(self, keys: str) -> Cap:
-        """This cap, its input named after *keys* (``"FORMAT=gguf"``,
-        trusted text): the keys a subsystem puts first."""
-        return replace(self, subject=f"{keys} {self.subject}")
-
-
-def warn_over_cap(
-    log: logging.Logger,
-    cap: Cap,
-    where: str,
-    outcome: str = "skipped",
-    *,
-    once: bool = False,
-    key: str | None = None,
-) -> None:
-    """The one ``WARNING:`` for an input over *cap*: *where* names the
-    input (escaped through :func:`loggable`), *outcome* what was read and
-    what was not. *once*: through :func:`warn_once`, once per cap and
-    input in this process, the input known by *key* (default *where*)
-    when two spellings name one input. The record carries *cap* and
-    *outcome* for :func:`over_cap_of`."""
-    args = (cap.subject, loggable(where), cap.reason, outcome)
-    extra = {_OVER_CAP_ATTR: (cap, outcome)}
-    if once:
-        seen = f"over-cap:{cap.purpose}:{where if key is None else key}"
-        warn_once(log, seen, OVER_CAP_WARNING, *args, extra=extra)
-    else:
-        log.warning(OVER_CAP_WARNING, *args, extra=extra)
-
-
-def over_cap_of(record: logging.LogRecord) -> tuple[Cap, str] | None:
-    """The cap and outcome of a record :func:`warn_over_cap` logged, so a
-    caller relaying it can name the input in its own words; else ``None``."""
-    found: tuple[Cap, str] | None = getattr(record, _OVER_CAP_ATTR, None)
-    return found
 
 
 def field_loss_suffix(status: str, *fields: str) -> str:

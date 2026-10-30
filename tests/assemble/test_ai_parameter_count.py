@@ -82,7 +82,9 @@ def _entries(package: dict[str, Any]) -> list[tuple[str, str]]:
     return [(e["key"], e["value"]) for e in package.get("ai_hyperparameter", [])]
 
 
-def test_the_count_is_sorted_among_hyperparameters_after_quantization() -> None:
+def test_the_count_is_sorted_among_hyperparameters_after_quantization(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     model = _model(7, quantization="Q4", hyperparameters={"z": 1, "a": 2, "q": 3})
     package = _package(_single(model))
     assert _entries(package) == [
@@ -93,6 +95,7 @@ def test_the_count_is_sorted_among_hyperparameters_after_quantization() -> None:
         ("z", "1"),
     ]
     assert package["comment"] == PARAMETER_COUNT_NOTE
+    assert not logged_warnings(caplog)  # no ``parameters`` of its own: no conflict
 
 
 class _Seven(IntEnum):

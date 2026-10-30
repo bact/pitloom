@@ -27,7 +27,13 @@ import struct
 from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
-from pitloom.logging_config import Cap
+from pitloom.messages import (
+    LIMIT_GGUF_ARRAY,
+    LIMIT_GGUF_PAIRS,
+    LIMIT_GGUF_TENSORS,
+    LIMIT_GGUF_VERSION,
+    Cap,
+)
 
 #: Budget for the tensors, key/value pairs and array elements (scalar, string
 #: and nested-array, at every depth) a header declares, all together. Real
@@ -130,14 +136,10 @@ class _Walker:
         if elem in _SCALAR_BYTES:
             end = offset + count * _SCALAR_BYTES[elem]
             if end > self.size:
-                raise ModelLimitExceeded(
-                    f"GGUF array of {count} elements, more than the file holds"
-                )
+                raise ModelLimitExceeded(LIMIT_GGUF_ARRAY % count)
             return end
         if count * 8 > self.size - offset:  # a string or array takes >= 8 bytes
-            raise ModelLimitExceeded(
-                f"GGUF array of {count} elements, more than the file holds"
-            )
+            raise ModelLimitExceeded(LIMIT_GGUF_ARRAY % count)
         for _ in range(count):
             offset = self.value(elem, offset, depth)
         return offset
@@ -149,9 +151,9 @@ def _walk(data: mmap.mmap, endian: str) -> None:
     n_tensors = walker.number(walker.u64, 8)
     n_kv = walker.number(walker.u64, 16)
     if n_tensors * _MIN_TENSOR_INFO_BYTES > size:
-        raise ModelLimitExceeded(f"GGUF header declares {n_tensors} tensors")
+        raise ModelLimitExceeded(LIMIT_GGUF_TENSORS % n_tensors)
     if n_kv * _MIN_KV_BYTES > size:
-        raise ModelLimitExceeded(f"GGUF header declares {n_kv} key/value pairs")
+        raise ModelLimitExceeded(LIMIT_GGUF_PAIRS % n_kv)
     walker.charge(n_tensors * _RECORD_WEIGHT)
     walker.charge(n_kv * _RECORD_WEIGHT)
     offset = _HEADER_BYTES
@@ -184,7 +186,7 @@ def check_gguf_header(path: Path) -> None:
             version, endian = struct.unpack(">I", head[4:8])[0], ">"
         if version not in _SUPPORTED_VERSIONS:
             if _reader_accepts(version):
-                raise ModelLimitExceeded(f"GGUF version {version}, not bounded")
+                raise ModelLimitExceeded(LIMIT_GGUF_VERSION % version)
             return
         with mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as data:
             try:

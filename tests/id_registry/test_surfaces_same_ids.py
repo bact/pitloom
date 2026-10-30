@@ -42,6 +42,9 @@ from pitloom.assemble import (
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, PACKAGE_TYPE, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.extract.conftest import make_hook, staged_sbom
+from tests.id_registry._surfaces_path_keys_shared import REGISTRY, src_project
+from tests.id_registry._surfaces_path_keys_shared import SURFACES as ROUTES
+from tests.id_registry.surfaces_base import DEPENDENCY_KEY, MAIN_KEY
 from tests.id_registry.surfaces_shared import (
     DEPENDENCY,
     demo_project,
@@ -54,7 +57,8 @@ from tests.id_registry.surfaces_shared import (
 _DIRECTORY_NAME = "demo"
 
 #: The demo project's own name: its main ``software_Package``, registered
-#: under :data:`~pitloom.id_registry.PACKAGE_TYPE`.
+#: under :data:`~pitloom.id_registry.PACKAGE_TYPE` with its version
+#: (``MAIN_KEY``).
 _MAIN_PACKAGE_NAME = "demo"
 
 _MODEL_STEM = SAFETENSORS_FIXTURE.stem
@@ -70,8 +74,8 @@ def _snapshot_path(tmp_path: Path) -> Path:
     registry = IdRegistry.new("snapshot")
     registry.generate([project / "demo"], project)
     registry.register(FILE_TYPE, _DIRECTORY_NAME)
-    registry.register(PACKAGE_TYPE, _MAIN_PACKAGE_NAME)
-    registry.register(PACKAGE_TYPE, DEPENDENCY)
+    registry.register(PACKAGE_TYPE, MAIN_KEY)
+    registry.register(PACKAGE_TYPE, DEPENDENCY_KEY)
     # With its bytes' SHA-256: a model lookup is gated by its file's hash.
     model_sha = hashlib.sha256(SAFETENSORS_FIXTURE.read_bytes()).hexdigest()
     registry.register(AI_PACKAGE_TYPE, _MODEL_STEM, sha256=model_sha)
@@ -95,8 +99,8 @@ def _snapshot_ids(snapshot_path: Path) -> dict[str, str | None]:
             FILE_TYPE, ["demo/__init__.py"], sha256=_init_sha(snapshot_path)
         ),
         "directory": registry.lookup(FILE_TYPE, [_DIRECTORY_NAME]),
-        "main": registry.lookup(PACKAGE_TYPE, [_MAIN_PACKAGE_NAME]),
-        "dependency": registry.lookup(PACKAGE_TYPE, [DEPENDENCY]),
+        "main": registry.lookup(PACKAGE_TYPE, [MAIN_KEY]),
+        "dependency": registry.lookup(PACKAGE_TYPE, [DEPENDENCY_KEY]),
         "model": registry.lookup(AI_PACKAGE_TYPE, [_MODEL_STEM]),
     }
 
@@ -241,3 +245,60 @@ def test_snapshot_ids_are_all_distinct_guard(snapshot_path: Path) -> None:
     ids = _snapshot_ids(snapshot_path)
     assert all(ids.values()), ids
     assert len(set(ids.values())) == len(ids), ids
+
+
+# --- every route keys the main package by its name and version ---------
+
+#: The routes of one ``src/``-layout project ``demo`` 1.0.0, each against
+#: one registry; ``lib-project`` is the reference every other is paired
+#: with, in both orders where the other harvests (the hook and
+#: ``embed-wheel`` never write the registry).
+_REFERENCE = "lib-project"
+_OTHERS = ["cli-project", "wheel", "hook", "embed-wheel", "sdist", "allow-build"]
+_PAIRS = [(_REFERENCE, o) for o in _OTHERS] + [
+    (o, _REFERENCE) for o in _OTHERS if ROUTES[o].harvests
+]
+
+
+def _main_id(route: str, project: Path, registry: Path, mp: pytest.MonkeyPatch) -> str:
+    scratch = project.parent / f"run-{route}"
+    scratch.mkdir()
+    sbom = ROUTES[route].run(project, registry, scratch, mp)
+    found = _spdx_id(_elements(sbom), "software_Package", _MAIN_PACKAGE_NAME)
+    assert found is not None
+    return found
+
+
+@pytest.mark.usefixtures("fixed_epoch")
+@pytest.mark.parametrize("pinned", [False, True], ids=["fresh", "populated"])
+@pytest.mark.parametrize(
+    ("first", "second"), _PAIRS, ids=[f"{a}-then-{b}" for a, b in _PAIRS]
+)
+def test_route_pairs_share_the_main_package_id(
+    first: str,
+    second: str,
+    pinned: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every route states ``demo`` 1.0.0, so every route looks it up and
+    harvests it under one key, ``demo@1``: the second route takes the
+    first's id from a fresh registry, or both take the pin, in either
+    order; no bare ``demo`` key is ever written."""
+    project = src_project(tmp_path / "proj")
+    registry = IdRegistry.new("demo")
+    pin = registry.register(PACKAGE_TYPE, "demo@1.0.0") if pinned else None
+    registry.save(project / REGISTRY)
+
+    ids = [
+        _main_id(r, project, project / REGISTRY, monkeypatch) for r in (first, second)
+    ]
+
+    assert ids[1] == ids[0]
+    assert pin in (None, ids[0])
+    keys = [
+        name
+        for type_name, name in IdRegistry.load(project / REGISTRY).elements
+        if type_name == PACKAGE_TYPE
+    ]
+    assert keys == [MAIN_KEY]

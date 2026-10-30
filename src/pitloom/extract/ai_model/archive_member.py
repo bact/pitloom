@@ -32,7 +32,7 @@ from pitloom.extract.ai_model.limits import (
     ModelOverCap,
     charge_read,
 )
-from pitloom.logging_config import Cap
+from pitloom.messages import LIMIT_ZIP_MALFORMED, LIMIT_ZIP_UNCHECKABLE, Cap
 
 #: Largest metadata member read whole: 8 MiB. A ``.keras`` ``config.json``,
 #: a ``.pt`` ``data.pkl`` (structure only, the tensors are other members)
@@ -98,8 +98,6 @@ _ZIPFILE_PRIVATES = (
     "sizeEndCentDir64",
     "sizeEndCentDir64Locator",
 )
-_UNCHECKABLE = "ZIP archive not checkable: zipfile internals changed"
-_MALFORMED = "malformed ZIP central directory"
 _ZIP64_RECORD = struct.Struct("<4sQ2H2L4Q")
 _ZIP64_LOCATOR = struct.Struct("<4sLQL")
 _END_RECORD = struct.Struct("<4s4H2LH")
@@ -177,11 +175,11 @@ def _zip64_start_shift(api: _ZipfileApi) -> int:
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+        raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     signature, size, location = values
     if (signature, size) == (api.zip64_signature, 0) and location in (0, both):
         return both if location else 0
-    raise ModelLimitExceeded(_UNCHECKABLE)
+    raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE)
 
 
 def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
@@ -206,7 +204,7 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
     try:
         api = _ZipfileApi(*(getattr(zipfile, name) for name in _ZIPFILE_PRIVATES))
     except AttributeError as exc:
-        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+        raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     shift = _zip64_start_shift(api)
     try:
         endrec = api.end_record(fh)
@@ -214,19 +212,19 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
         return None  # ZipFile turns both into BadZipFile
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+        raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     if not endrec:
         return None
     try:
         size, location = int(endrec[api.size_at]), int(endrec[api.location_at])
         is_zip64 = endrec[api.signature_at] == api.zip64_signature
     except (IndexError, KeyError, TypeError, ValueError) as exc:
-        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+        raise ModelLimitExceeded(LIMIT_ZIP_UNCHECKABLE) from exc
     start = location - size - (shift if is_zip64 else 0)
     if start < 0:
         # zipfile refuses its own negative start, but ours being negative
         # while its is not would be a disagreement: refuse, never bypass.
-        raise ModelLimitExceeded(_MALFORMED)
+        raise ModelLimitExceeded(LIMIT_ZIP_MALFORMED)
     return start, size
 
 
@@ -253,7 +251,7 @@ def _count_exceeds_cap(fh: IO[bytes], start: int, size: int, cap: int) -> bool:
             or len(header) != _CENTRAL_HEADER.size
             or not header.startswith(_CENTRAL_SIGNATURE)
         ):
-            raise ModelLimitExceeded(_MALFORMED)
+            raise ModelLimitExceeded(LIMIT_ZIP_MALFORMED)
         count += 1
         if count > cap:
             return True

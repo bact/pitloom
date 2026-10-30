@@ -23,15 +23,16 @@ from dataclasses import dataclass, field
 from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
-from pitloom.extract.remote import git_url
-from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
-from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import (
-    loggable,
+from pitloom.core.url_masking import (
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
 )
+from pitloom.extract.remote import git_url
+from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import loggable
+from pitloom.messages import CLONE_LINE, GIT_OUTPUT_LINE, OVER_CAP
 
 log = logging.getLogger(__name__)
 
@@ -143,8 +144,10 @@ class GitRunner:
         if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
             raise RemoteSourceError(
                 "git.too-large",
-                f"the repository is larger than {readable_bytes(cap.limit)}; "
-                f"git {what} was stopped",
+                CLONE_LINE.render(
+                    {"amount": readable_bytes(cap.limit), "command": what}
+                ),
+                pitloom_code=OVER_CAP.code,
             )
         if status is None:
             raise RemoteSourceError(
@@ -153,7 +156,8 @@ class GitRunner:
         if out is None:
             raise RemoteSourceError(
                 "git.output-too-large",
-                f"git {what} produced more than {MAX_OUTPUT_BYTES} bytes",
+                GIT_OUTPUT_LINE.render({"command": what, "size": MAX_OUTPUT_BYTES}),
+                pitloom_code=OVER_CAP.code,
             )
         if status != 0:
             raise RemoteSourceError("git.clone-failed", _failure(err, status))

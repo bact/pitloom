@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-29
+# Last-Modified: 2026-10-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   sbom-validate; enriching one is sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.21.0 (pip, uvx or pipx).
+  Requires a shell, Python 3.10+ and pitloom >= 0.22.0 (pip, uvx or pipx).
   AI model targets need pitloom[ai] (or a format extra such as
   pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
   pitloom[content-type]. Needs network access to install pitloom and for
@@ -64,21 +64,27 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases lack ID
-  registry format 3 and Git URL targets): `pip install "pitloom>=0.21.0"`, or
+- Python >= 3.10 and **pitloom >= 0.22.0** (earlier releases lack ID
+  registry format 4 and Git URL targets): `pip install "pitloom>=0.22.0"`, or
   run ephemeral via `uvx`/`pipx`. Extras take the floor after the extra:
-  `"pitloom[ai]>=0.21.0"`.
+  `"pitloom[ai]>=0.22.0"`.
 - AI model targets, and any project or wheel that ships model files, need
   the `ai` extra (`pitloom[ai]`) or a format-specific one
   (`pitloom[gguf]`, `pitloom[huggingface_hub]`, ...; see
   `pyproject.toml` extras:
   <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
   `--allow-build` needs `build`; `--content-type` needs `content-type`.
-- Licence reading needs the per-user `licenseid` (>= 0.6.0) database:
-  `licenseid update` once (ephemeral: `uvx --from "licenseid>=0.6.0"
-  licenseid update`; `--source packaged`: no network). Without it: one
-  `WARNING: licenseid database cannot be used: ...` and licences stay as
-  written (`INFO:` if only the `LICENSE` check is lost).
+- **Prepare the licence database before the first `loom` run** of a session
+  that reads licences (project, wheel, sdist, model, Git URL): run
+  `licenseid update --source packaged` (ephemeral: `uvx --from
+  "licenseid>=0.6.0,<0.7" licenseid update --source packaged`; one command
+  per line in PowerShell). No network, skips when current, safe to repeat. Do not
+  generate first and fix after: without the database licences stay as written.
+  If it fails, say so once, generate anyway and report the resulting
+  `WARNING:`/`INFO:` line; never run a network `licenseid update` or
+  regenerate unasked (ask; non-interactive: report only). If the preflight
+  fails or that line appears, read "Licence detection unavailable" in
+  `references/known-limitations.md`.
 
 ## Run without installing anything persistent
 
@@ -87,14 +93,14 @@ are POSIX shell; on Windows use `python` or `py` for `python3` and PowerShell
 equivalents (PowerShell 5.1 has no `&&`: one command per line):
 
 ```bash
-uvx --from "pitloom>=0.21.0" loom generate <target> -o sbom.spdx3.json
-pipx run --spec "pitloom>=0.21.0" loom generate <target> -o sbom.spdx3.json
+uvx --from "pitloom>=0.22.0" loom generate <target> -o sbom.spdx3.json
+pipx run --spec "pitloom>=0.22.0" loom generate <target> -o sbom.spdx3.json
 ```
 
 Install normally only if neither `uv` nor `pipx` is available:
 
 ```bash
-pip install "pitloom>=0.21.0"
+pip install "pitloom>=0.22.0"
 loom generate <target> -o sbom.spdx3.json
 ```
 
@@ -262,7 +268,12 @@ means it did not apply to that target: drop it next time.
 
 For `Build: ...` lines from an `--allow-build` run, read
 `references/build-timeout.md`; for `ID registry: ...` lines (which are
-expected), `references/id-registry.md`.
+expected), `references/id-registry.md`. When a line ends in a `[code]`
+(`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
+means and what to tell the user; relay its advice, never run the fix. A
+`[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
+read is left out: never change permissions or ownership, or move files,
+yourself.
 
 ## Known limitations -- say so, don't paper over it
 
@@ -284,14 +295,15 @@ but isn't. For the wording and bounds of any case, read
 - **AI model formats** are broad, not universal: say so when one is not
   scanned.
 - **AI model stubs:** an `ai_AIPackage` with no `ai_*` property and no
-  `Source: <model file> | Field: ...` comment was not read. Name the cause
-  from stderr (wheel gate `INFO:`, missing library: install `pitloom[ai]`,
-  corrupt file, size cap or budget, Git LFS pointer: relay Pitloom's advice,
-  never run the fix yourself) and tell the user. Never raise a ceiling or add
-  `--trust-wheel-model` on your own. A failed read leaves a stub with a
-  `WARNING:` (exit 0); a file whose header contradicts its suffix is no model
-  (`WARNING:`, no `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse
-  it (`ERROR:`, exit 1).
+  `Source: <model file> | Field: ...` comment was not read. Its stderr line
+  ends in the cause's code (`[reader-unsafe]`, `[library-missing]`,
+  `[model-unreadable]`, `[over-cap]`); when one does, read
+  `references/messages.md` and relay its advice to the user. Never install an
+  extra, raise a ceiling or add `--trust-wheel-model` on your own. A failed
+  read leaves a stub with a `WARNING:` (exit 0); a file whose header
+  contradicts its suffix is no model (`[model-wrong-format]`, no
+  `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse it (`ERROR:`,
+  exit 1).
 - **Model producer, parameter count** exist for some formats only (absence is
   no failure); **a name ending `...~<hex>`, missing labels or `\u202e` in
   text** are Pitloom's caps and escapes (one `WARNING: FORMAT=<fmt>

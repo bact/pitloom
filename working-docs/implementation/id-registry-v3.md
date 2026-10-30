@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,6 +24,10 @@ open), [ai-model-id-stability.md](../design/ai-model-id-stability.md),
 keys are path keys for anything with a file below the root (D3, D9, D16, I3,
 I4 and the lookup table of section 7 are amended in place below); the file
 shape is unchanged.
+
+**Amended 2026-10-30 (#407, file version 4):** a `software_Package` key holds
+the package's version (Q-D, [section 6.1](#61-package-keys-q-d-version-4)); D10,
+section 4 and the package row of section 7 are amended in place.
 
 **Status: built (PR #305, 2026-10-15).** The body below is the design as
 agreed (user, 2026-09-30; D10 and the ceiling key confirmed 2026-10-14);
@@ -151,9 +155,12 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   creation, and add `--namespace IRI`. See section 9.
 - **D9: loom path base.** The registry stores `project_root`; loom keys
   a file relative to it. See 8.3.
-- **D10: no v2 migration.** A v2 file fails to load with one `ERROR:`
-  telling the user to delete it and re-run `pitloom id generate` or
-  `pitloom id import`. Why: private alpha, no compatibility code.
+- **D10: no migration.** A v2 file, and since version 4 a v3 one, fails to
+  load with one `ERROR:` telling the user to delete it and re-run `loom id
+  generate` or `loom id import`; the file is left as it is. Why: private
+  alpha, no compatibility code. Rejected for v3 (2026-10-30): loading a v3
+  file and dropping its package entries with one `INFO:` (a silent loss of
+  pins, and a second load path to keep).
 - **D11: merge by id requires the same type (problem 9).** A fragment
   element whose id matches an existing element of another type logs one
   `WARNING:` and gets a freshly minted id in the main document's
@@ -243,7 +250,7 @@ Smaller decisions (user, 2026-09-30):
 ## 4. v3 model and invariants
 
 ```text
-key   = (compact type, name)   # _element_key(type, name): PEP 503 name for software_Package
+key   = (compact type, name)   # _element_key(type, name): name@version for software_Package
 entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, when the element has one
 ```
 
@@ -364,7 +371,7 @@ v2 behaviours v3 keeps:
   `detect_ai_model_format != UNKNOWN` as models.
 - `save()` writes via `canonical_json_indented`.
 
-## 6. File format, version 3
+## 6. File format, version 3 (4 since #407)
 
 As `save()` writes it (keys sorted at every level):
 
@@ -413,11 +420,49 @@ As `save()` writes it (keys sorted at every level):
   unreadable, bad JSON (parsed from bytes, so a UTF-8 BOM still works),
   not an object, namespace, version, malformed entry, and a duplicate,
   which here means the same key after `_element_key` canonicalisation.
-- Version error (D10), one `ERROR:` on every surface:
+- Version error (D10), one `ERROR:` on every surface (version 4 and later
+  wording; a v2 file says `version 2`):
 
   ```text
-  ID registry file <path>: version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
+  ID registry file <path>: version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`)
   ```
+
+### 6.1 Package keys (Q-D, version 4)
+
+Built in #407. Version 4 differs from 3 only in the `software_Package` key:
+`<PEP 503 name>[@<canonical PEP 440 version>]` (`package_key` in
+`id_registry/_types.py`, re-exported from `keys.py`). Rulings (user,
+2026-10-30):
+
+- D1: a range dependency is keyed by the version the SBOM states (resolved
+  from the lock file or the environment), not by its range.
+- D2: no migration; a v3 file is the D10 `ERROR:` (above), never rewritten.
+- D3: a `project` run of a dynamic-version project states `unknown` and keys
+  its own package bare; a wheel or hook run states the version: two ids,
+  documented in `docs/id-registry-keys.md`.
+- D4: local and dev versions are distinct releases (`1.0+cu121` is not `1.0`).
+- D5: old releases are never pruned.
+- D6: the version part is `canonicalize_version` of
+  `pitloom.core.pep440.parse_version` (bounded), the text as given when it
+  does not parse, NFC; the bare key only for no stated version (`unknown`,
+  `NOASSERTION`, blank). A bare key never matches a versioned one, with no
+  fallback and no table scan. `@` and `%` in a non-PEP 508 name are written
+  `%40`, `%25`, so the first `@` separates. Rejected: purl as the key (a
+  second spelling of the same two facts), exact pins only (ranges would
+  share ids), stripping local or dev labels.
+
+`_element_key` rebuilds a package key from what it states
+(`split_package_key`), so a load, `-e`, `get` and `register` normalise one
+key to one fixed point (v3 stored `-e Requests@2.31.0` as `requests@2-31-0`).
+The lookup (`IdRegistrySession.lookup_package`) records the key it used, and
+harvest, `id import` and a merged fragment derive the same key from the
+element's name and `software_packageVersion` (`_ambiguous._element_key_of`);
+a drift test holds the two equal. `document.build` resolves and groups the
+dependency strings once (`_dep_groups.group_dependencies`), before the
+lookups, and both the pre-resolution and `add_dependencies` use those
+groups: resolving twice repeated the conflict `WARNING:` lines and could let
+two identity rules drift. Two versions of one dependency in one document are
+two keys now, no longer an ambiguous name.
 
 ## 7. Lookup table after v3 (every caller)
 
@@ -425,7 +470,7 @@ As `save()` writes it (keys sorted at every level):
 | --- | --- | --- | --- |
 | Project file (`_document_files.py`) | `software_File` | `keys.file_lookup_key` (path key, layout alias) | sha256 |
 | Directory (`_document_files.py`) | `software_File` | directory path | none |
-| Own, dependency, phantom package (`_package_ids.py`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
+| Own, dependency, phantom package (`_package_ids.py`); deployed package (`_document_deployed.py`) | `software_Package` | `package_key(name, version)` (6.1) | none |
 | AI model in a project or wheel (`ai.py`) | `ai_AIPackage` | its own `software_File`'s key | sha256 |
 | `loom model` / `enrich` (`assemble/_model_generator.py`) | `ai_AIPackage` | `artifact_key(path=, name=stem)` | sha256 |
 | loom model (`_loom_active_run.py`, `set_model`; 8.4) | `ai_AIPackage` | path key of `path=` (else name), at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |

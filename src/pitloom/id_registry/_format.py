@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The Loom ID registry file, version 3: read and write.
+"""The Loom ID registry file, version 4: read and write.
 
 The file is one JSON object with exactly five keys::
 
@@ -12,11 +12,14 @@ The file is one JSON object with exactly five keys::
       "id_counters": {"<id prefix>": <highest number minted or seen>},
       "namespace": "<IRI>",
       "project_root": "<POSIX path relative to this file's directory>",
-      "version": 3
+      "version": 4
     }
 
 ``sha256`` is omitted when an element has no hash, never written as
 ``null``. Keys are sorted at every level, and the text ends in one LF.
+Version 4 differs from 3 only in a ``software_Package`` key, which holds
+the package's version (:func:`~pitloom.id_registry._types.package_key`);
+an older file is refused, never migrated.
 
 See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.load`` and
 ``IdRegistry.save`` call this module), :mod:`pitloom.id_registry._types`
@@ -112,8 +115,8 @@ def read_registry_file(path: Path) -> RegistryFileContents:
 
     Every failure raises one ``ValueError`` built by
     :func:`~pitloom.id_registry._types.registry_file_error`. The version is
-    checked before the key set, so a version 2 file gets the version
-    message, not an "unknown key" one.
+    checked before the key set, so a version 2 or 3 file gets the version
+    message, not an "unknown key" one, and is left as it is.
     """
     data = _read_json(path)
     if not isinstance(data, dict):
@@ -132,8 +135,8 @@ def read_registry_file(path: Path) -> RegistryFileContents:
         raise registry_file_error(
             path,
             f"version {version!r}, expected {_REGISTRY_VERSION} (no "
-            "migration support -- delete it and re-run `pitloom id "
-            "generate` or `pitloom id import`)",
+            "migration support -- delete it and re-run `loom id "
+            "generate` or `loom id import`)",
         )
 
     unknown = sorted(set(data) - _TOP_LEVEL_KEYS)
@@ -298,7 +301,7 @@ def write_registry_file(
     project_root: Path,
     id_counters: Counters,
 ) -> None:
-    """Write a version 3 registry file to *target*: canonical JSON,
+    """Write a version 4 registry file to *target*: canonical JSON,
     indented, LF line endings and one trailing newline. Replaced atomically
     (:func:`~pitloom._sbom_io.replace_text_lf`): a run reading it meanwhile
     sees the old file or the new one, never part. A counter the loader

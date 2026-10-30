@@ -150,9 +150,12 @@ def test_generate_skips_a_name_that_is_not_utf8_with_one_warning(
     finally:
         logger.removeHandler(handler)
 
-    (warning,) = [r.getMessage() for r in caplog.records]
+    (record,) = caplog.records
+    warning = record.getMessage()
     assert warning.startswith("FILE=") and "lone surrogate" in warning
     assert "\\udcff" in warning
+    # A name, not a file the system refused: no file-unreadable.
+    assert getattr(record, "pitloom_code", None) is None
     assert not failures
     assert set(_files(registry)) == {"src/a.py"}
 

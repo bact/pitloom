@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,13 +31,17 @@ A model the base holds as a stub (`../SKILL.md` step 3) because of a bound, a
 missing library or a parse failure is no obstacle: `loom enrich` reads the model
 too (native readers included, so a format a wheel scan's gate leaves unread is
 read here) and the README or model card next to it. It writes the fragment and
-exits 0 with the one `WARNING:` the scan gave (its `FILE=` is the path as given,
-not the scan's project-relative one), and the model stays a stub. (A wheel's
-gate, ceiling and budget do not apply to a local file.)
+exits 0 with the one `WARNING:` the scan gave, ending in its code
+(`[model-unreadable]`, `[library-missing]` or `[over-cap]`; its `FILE=` is the
+path as given, not the scan's project-relative one), and the model stays a
+stub: `messages.md` says what to tell the user. (A wheel's gate, ceiling and
+budget do not apply to a local file.)
 
-Only `ERROR: enrichment fragment generation failed: ... not an AI model ...`,
-`header is not <fmt>` or `header is a Git LFS pointer, ...` means the file is
-not a model: skip the step for it and relay Pitloom's own advice.
+Only an `ERROR: enrichment fragment generation failed: ...` line ending in
+`[model-wrong-format]` (`header is not <fmt>`, `file is empty`, `not an AI
+model file ...`), `[lfs-pointer]` or `[lfs-pointer-malformed]` means the file
+is not a model: skip the step for it and relay Pitloom's own advice (a code's
+advice is in `messages.md`).
 
 ## Attaching
 

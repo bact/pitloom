@@ -35,6 +35,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.file_hash import FileDigests, file_digests
 from pitloom.core.models import _clear_doc_counters
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
+from pitloom.logging_config import CODE_ATTR
 from tests._spdx3_validate import assert_spdx3_valid
 from tests._unreadable import POSIX_NON_ROOT, deny
 from tests.registry_helpers import Entries, entries_of, make_registry
@@ -289,6 +290,7 @@ def test_without_a_usable_file_the_name_is_looked_up_ungated(
     assert "verifiedUsing" not in model
     warning, *miss = _logged(caplog, logging.WARNING)
     assert needle in warning
+    assert str(project) not in warning  # the path as given, never this machine's
     assert [("records a SHA-256" in m) for m in miss] == [True] * (held_sha is not None)
     assert path.read_bytes() == before
 
@@ -485,16 +487,19 @@ def test_a_hashed_model_validates(project: Path) -> None:
     assert_spdx3_valid(project / "out.json")
 
 
-def test_model_path_with_nul_warns_unreadable_and_run_ends(
+def test_model_path_with_nul_warns_not_a_file_and_run_ends(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A NUL in ``path=`` is not a path: the model is not hashed, with the
-    unreadable-file ``WARNING:``, and the fragment is still written."""
+    """A NUL in ``path=`` names no file: the model is not hashed, with the
+    not-a-file ``WARNING:`` (no ``file-unreadable``: no file refused a read),
+    and the fragment is still written."""
     out = tmp_path / "frag.json"
     with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
         with loom.run(out):
             loom.set_model("m", path="a\x00b")
     assert out.exists()
-    assert any("for the model hash" in r.message for r in caplog.records)
+    (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert "is not a file at exit" in warning.getMessage()
+    assert getattr(warning, CODE_ATTR, None) is None
     # pylint: disable-next=protected-access
     assert loom._active_run is None

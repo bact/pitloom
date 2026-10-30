@@ -24,6 +24,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_model_sbom
 from pitloom.core.lfs_pointer import read_lfs_pointer
+from pitloom.messages import MESSAGES, code_of, trusted_message
 from tests._lfs import lfs_pointer_bytes, pointer_fixture
 from tests.warning_helpers import error_lines
 
@@ -35,7 +36,7 @@ def _real() -> bytes:
 
 
 _PULL = "run 'git lfs pull'"
-_PLAIN = "m.gguf': header is a Git LFS pointer"
+_LOOKS = "m.gguf': header looks like a Git LFS pointer but is not a valid one"
 
 #: name, bytes (made on use: the real one reads a fixture), text every refusal holds
 _CASES: dict[str, tuple[str, Callable[[], bytes], str]] = {
@@ -74,12 +75,13 @@ def test_the_library_states_the_pointer_and_the_pull(
     assert "\n" not in message and text in message and _PULL in message
     assert f"oid sha256:{pointer.oid}" in message
     assert f"size {pointer.size} bytes" in message
+    assert code_of(caught.value) == "lfs-pointer"
     assert not (tmp_path / "out.json").exists()
 
 
 @pytest.mark.parametrize("look", _LOOKALIKES)
 @pytest.mark.parametrize("surface", ("generate_model_sbom", "enrich_model"))
-def test_a_lookalike_keeps_the_plain_reason(
+def test_a_lookalike_says_it_only_looks_like_a_pointer(
     look: str, surface: str, tmp_path: Path
 ) -> None:
     path = tmp_path / "m.gguf"
@@ -87,8 +89,9 @@ def test_a_lookalike_keeps_the_plain_reason(
     with pytest.raises(ValueError) as caught:
         _run(surface, path, tmp_path / "out.json")
     message = str(caught.value)
-    assert message.endswith(_PLAIN)
+    assert message.endswith(_LOOKS)
     assert "content not pulled" not in message and _PULL not in message
+    assert code_of(caught.value) == "lfs-pointer-malformed"
 
 
 @pytest.mark.parametrize("command", ["model", "enrich", "generate"])
@@ -108,4 +111,6 @@ def test_the_cli_exits_1_with_one_error_line(
     err = capsys.readouterr().err
     (line,) = error_lines(err)
     assert ("oid sha256:" in line and _PULL in line) == (case == "real")
+    code = "lfs-pointer" if case == "real" else "lfs-pointer-malformed"
+    assert line.endswith(f" [{code}]") and trusted_message(line) is MESSAGES[code]
     assert "WARNING:" not in err and not out.exists()

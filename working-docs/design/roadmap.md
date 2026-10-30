@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -81,6 +81,27 @@ in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 2026-09-17):** deterministic field population belongs in core; fuzzy mapping (a
 free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
+
+**Focus (decided 2026-10-29): two priorities.** (1) CLI, API and skill
+contracts through catalogued messages: the catalogue in code, the grammar
+ratchet and the families that matter most to skills (see
+[message-catalogue-and-skills.md](message-catalogue-and-skills.md)). (2) The
+adoption of `licenseid` 0.7.0 (waits on its release; see
+[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). The items below
+follow, in this order of need; evidence-level work (`Fact` PR-A done) continues
+only where it pairs with a catalogue family (over-cap, unreadable file, Hub
+failure); the rest may move to 0.23.0, with `--report` and SARIF.
+
+**The 0.22.0 cut (decided 2026-10-30):** catalogue PRs 1 (model stub) and 2
+(unreadable files and directories), the `licenseid` 0.7.0 adoption, the
+licence provenance mapping ([#384](https://github.com/bact/pitloom/pull/384)),
+catalogue PR 18 (licence) and the serious known bugs. The other catalogue
+PRs go to 0.22.x or 0.23.0. List, sizes and bugs:
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
+**Process (decided 2026-10-30):** two test gates per PR and a pre-release
+review before the 0.22.0 tag. See
+[testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
 
 Open:
 
@@ -207,8 +228,10 @@ unless the linked doc says so.
   changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
-  (decided 2026-10-29): design done (#379); skill size cap built (#385); next
-  (0.22.0): catalogue in code, grammar ratchet; `--report` in 0.23.0. See
+  (decided 2026-10-29): design done (#379); skill size cap built (#385);
+  catalogue in code, schema and ratchet with the `lfs-pointer` families in
+  review (#390); next (0.22.0): `over-cap`, then the migration order there;
+  `--report` in 0.23.0. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under
