@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -323,3 +323,26 @@ Ways a test passes, fails or floods the log for the wrong reason.
   of 10 it flags (`test_the_guard_sees_a_raw_name`); a lint that matches
   nothing would otherwise pass on every tree. Its allow-list is asserted
   to be still needed, so it cannot go stale (#389).
+- **A permission test passes nothing as root.** Root bypasses mode bits, so a
+  `chmod 000` test cannot fail the read; a sandbox that runs agents as root
+  skips it, and the arms that handle the failure stay uncovered. #408 (in
+  review) makes the failure by monkeypatch (`open` or `stat` raising
+  `PermissionError`) on every platform and as root, keeps the real bits for a
+  non-root POSIX user, and `Path.is_file()` raises on 3.10 to 3.13 but returns
+  `False` on 3.14, so the `stat` mode reaches a different branch per version
+  (`tests/_unreadable.py` on that branch).
+  Do: drive every failing syscall by a fake, and keep one real-permission
+  test where the platform allows it
+  ([agent-work-lessons-oct30.md](agent-work-lessons-oct30.md), section 4).
+- **A test of "no path in the message" asserts the path is absent.** The
+  regression for the raw-exception bug asserts `str(tmp_path)` is not in the
+  logged message; on the base tree the message holds `[Errno 13] ...
+  '/tmp/...'` and the test fails (#408 plan, in review).
+  Do: assert the absence of the thing the bug leaked, not only the presence
+  of the new wording
+  ([raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md)).
+- **A fake index whose answers name the query cannot hide a leak.** The #405
+  test serves a PyPI record whose licence, author and hash all carry the
+  looked-up name, so a direct-reference dependency that took another
+  project's facts shows them in the SBOM at once
+  ([name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md)).

@@ -311,3 +311,57 @@ behaviour? Static tests check size, orphan references and that each pointer
 states a condition; the four kinds of loss in #385 were found by a read-only
 agent review, not a test. Candidate: scenario evals (Pitloom output in, expected
 explanation out), planned but not built.
+
+## Identity, lookups and process cost (2026-10-30)
+
+*Open:* does a registry keyed by release make a union of SBOM graphs across
+releases sound? With #407 (in review) two releases of a package have two ids,
+so a consumer that merges graphs by id never conflates them, but it also
+never learns they are releases of one thing, and Pitloom writes no
+relationship that says so. Whether such a link belongs in the SBOM, and with
+which SPDX relationship, is not decided. See
+[registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md).
+
+*Open:* how is a remote revision (a Hub model's `sha`) pinned for an offline
+or reproducible run? The revision is learned from the network, so a registry
+can hold the pin only after one online run. The plan keeps an unpinned
+remote entry on the bare key with one `INFO:` and never aliases it to a
+pinned key; nothing measures how often users run the second, offline step.
+
+*Open:* in the same note, the `project` route of a project with a dynamic
+version states `unknown` and keys its package bare, while a wheel or hook run
+states the real version: one project, two package ids across routes (accepted,
+D3). Can the project route learn the version a build would state?
+
+*Open:* does a skipped lookup need a recorded reason in the SBOM? #405 keeps a
+direct-reference dependency off PyPI silently; from the SBOM alone "no
+licence, lookup skipped" and "the index had none" look the same. See
+[name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md).
+*Unverified:* that npm (`git+` and `file:` specifiers), Cargo (`git`, `path`,
+alternative registries) and Go (`replace`) have the same name-keyed lookup
+exposure; only Python was measured.
+
+*Open:* is a lone surrogate written as the text `\udcff` unambiguous? It
+stands for the byte `0xFF` of a non-UTF-8 file name, and a file literally
+named with a backslash and `udcff` has the same output spelling. Not
+checked whether two such names can reach one SBOM. See
+[provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md).
+
+*Unverified:* is an `OSError`'s `strerror` stable enough to print in a line a
+skill may match? On POSIX it is the C library's text; on Windows the system
+message may follow the user's language. #408 (in review) prints it as the
+`failure` field; no non-English Windows run was made. See
+[raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md).
+
+*Open:* an import that is found but fails (a native library for another ABI)
+is reported as "not installed", so the advice to install the extra misleads
+the user who has done so (#404 left it as it was). How often it happens is
+not measured. See [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md).
+
+*Open:* how much of a CI's work is needed signal? Measured on 2026-10-30: about
+2.9 `test.yml` runs per merged PR, and in 8 of 8 merges checked the push run
+repeated the tree of a green PR head. Whether skipping it loses a signal
+(a partial or cancelled PR run) and whether the two-gate policy (#406)
+removed local repetition are not measured; a before and after count over the
+next PRs would answer the second. See
+[ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md).
