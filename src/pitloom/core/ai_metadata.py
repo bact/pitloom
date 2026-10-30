@@ -152,7 +152,7 @@ def model_cap(cap: Cap, fmt: str) -> Cap:
     """*cap* naming a model as every model warning does,
     ``FORMAT=<fmt> FILE=<path>`` (:attr:`~pitloom.messages.Cap.model_format`);
     *cap* names its file. The same cap again for a model already named."""
-    return replace(cap, model_format=str(fmt))
+    return replace(cap, model_format=fmt)
 
 
 def value_text(value: Any) -> str:
