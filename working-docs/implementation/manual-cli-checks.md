@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,6 +40,7 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
   | AI model scan, model producer and count | `15,17,19,22,23,M/model/*` |
 | Git LFS pointers | `17,20,23` |
+  | unreadable files, unlistable directories | `9,20,24,25` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
@@ -66,7 +67,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`23`, `B1`-`B7`) it runs:
+checks (`1`-`25`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -472,6 +473,17 @@ Skips without the `safetensors` extra.
 Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_producer_and_count`);
 per-route detail, the ONNX comma list and Hugging Face in
 `tests/test_model_producer_surfaces.py`.
+
+**25. A file and a directory the system refuses, with real permission
+bits**: a project whose `demo/secret.txt` and `demo/closed/` are `chmod 000`.
+`loom project` exits 0 with one `WARNING: FILE=demo/secret.txt: could not
+read for file scanning; Permission denied [file-unreadable]` and one
+`WARNING: DIR=demo/closed: could not list for file discovery; ...
+[dir-unlistable]`, and no stderr line names the work directory (the OS
+error's own text would). Skips on Windows and as root (root reads through
+the bits); run it in a user namespace there (`unshare -U`). Automated as
+check 25 (`scripts/manual_cli_checks/_checks_unreadable.py::check_unreadable`);
+per-surface detail in `tests/test_unreadable_file_surfaces.py`.
 
 ## Order matrix (`O1`-`O6`)
 
