@@ -63,7 +63,9 @@ dependencies = [
     "auditwheel>=6.8.2; sys_platform == 'linux'",
     "flit_core>=3.9",
     "hatchling>=1.29.0",
-    "licenseid>=0.6.0",
+    # < 0.7: licenseid 0.7 renames the API Pitloom imports (and the
+    # 0.21 line hit a cyclic import with it); the 0.7 adoption lifts the cap.
+    "licenseid>=0.6.0,<0.7",
     # 25.0 floor: `packaging.markers.Marker` only accepts the PEP 751
     # `extras`/`dependency_groups` pseudo-environment variable names
     # starting at this release (24.x raises InvalidMarker for them) --
