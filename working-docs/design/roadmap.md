@@ -92,6 +92,13 @@ follow, in this order of need; evidence-level work (`Fact` PR-A done) continues
 only where it pairs with a catalogue family (over-cap, unreadable file, Hub
 failure); the rest may move to 0.23.0, with `--report` and SARIF.
 
+**The 0.22.0 cut (decided 2026-10-30):** catalogue PRs 1 (model stub) and 2
+(unreadable files and directories), the `licenseid` 0.7.0 adoption, the
+licence provenance mapping ([#384](https://github.com/bact/pitloom/pull/384)),
+catalogue PR 18 (licence) and the serious known bugs. The other catalogue
+PRs go to 0.22.x or 0.23.0. List, sizes and bugs:
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
 Open:
 
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
