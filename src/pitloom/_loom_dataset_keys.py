@@ -27,7 +27,6 @@ from pitloom.core.evidence import (
     DECLARED,
     MEASURED_READ,
     MEASURED_STAT,
-    OVER_CAP,
     Fact,
     count_fact,
     record_fact,
@@ -144,13 +143,14 @@ class DigestEvidence:
     Attributes:
         hash: Its ``verifiedUsing``: read in full (``measured_read``),
             copied from a Git LFS pointer's ``oid`` (``declared``), or
-            ``not_measured`` over the cap; ``None`` for no hash and no
-            reason.
+            ``not_measured`` with the reason it was not read (over the cap,
+            a file unreadable, a directory unlistable); ``None`` for no hash
+            and no reason.
         size: Its ``dataset_datasetSize``, in bytes: the bytes hashed
-            (``measured_read``), a file's ``stat()`` size over the cap
-            (``measured_stat``), or ``not_measured`` (withheld over the
-            cap, or over the largest integer canonical JSON writes);
-            ``None`` for no size and no entry.
+            (``measured_read``), the ``stat()`` size of a file not read
+            (``measured_stat``), or ``not_measured`` (withheld for a file not
+            read that may be a pointer, or over the largest integer
+            canonical JSON writes); ``None`` for no size and no entry.
     """
 
     hash: Fact[str] | None = None
@@ -177,19 +177,21 @@ def digest_evidence(found: DatasetDigest, label: str) -> DigestEvidence:
     names (:func:`~pitloom._loom_caller.cwd_relative_label`), records of it
     beside the hash: the one place its evidence level is decided. A Git LFS
     pointer: its hash declared and no size (the pointer's own is not the
-    content's). Over the cap: the hash ``not_measured``, and a file's
-    ``stat()`` size when known; a file with none (it may be a pointer) gets
-    a ``not_measured`` size. Hashed: the size read. Else (not hashed for any
-    other reason) nothing. A directory has no size and no size entry."""
+    content's). Not read, for the reason *found* gives (over the cap, a file
+    unreadable, a directory unlistable): the hash ``not_measured`` with that
+    reason, and a file's ``stat()`` size when known; a file with none (it may
+    be a pointer, or its ``stat()`` failed) gets a ``not_measured`` size.
+    Hashed: the size read. Else (absent, empty, gone since found: no reason)
+    nothing. A directory has no size and no size entry."""
     hex_digest = found.hex_digest
     if found.lfs_pointers and hex_digest is not None:
         return DigestEvidence(Fact.declared(hex_digest, label))
-    if found.omitted == OVER_CAP:
-        unread: Fact[str] = Fact.not_measured(label, OVER_CAP)
+    if found.omitted is not None:
+        unread: Fact[str] = Fact.not_measured(label, found.omitted)
         if found.size is not None:
             size = count_fact(found.size, MEASURED_STAT, label, BYTE_SIZE_FIELD)
             return DigestEvidence(unread, size)
-        no_size: Fact[int] = Fact.not_measured(label, OVER_CAP)
+        no_size: Fact[int] = Fact.not_measured(label, found.omitted)
         return DigestEvidence(unread, no_size if found.kind == "file" else None)
     if hex_digest is None:
         return DigestEvidence()

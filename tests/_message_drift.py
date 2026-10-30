@@ -44,7 +44,10 @@ SAMPLES: dict[str, object] = {
     "amount": "512 MiB",
     "command": "clone",
     "count": 2,
+    "dir": "m/sub",
     "error": "Error while deserializing header: invalid header length",
+    "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
+    "field": "project.readme",
     "file": "m/a.bin",
     "format": "gguf",
     "formats": ["gguf", "onnx"],
@@ -60,6 +63,7 @@ SAMPLES: dict[str, object] = {
     "requirement": "pitloom[gguf]",
     "size": 3,
     "unit": "byte",
+    "use": "for file scanning",
     "value": "-1",
 }
 

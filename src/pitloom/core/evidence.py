@@ -55,6 +55,12 @@ REASON_KEY = "reason"
 #: The reason code of a fact over a read cap: the code of the catalogue's
 #: ``over-cap`` message too (:data:`pitloom.messages.OVER_CAP`).
 OVER_CAP = "over-cap"
+#: The reason codes of a fact whose file could not be read, or whose
+#: directory could not be listed: the codes of the catalogue's messages too
+#: (:data:`pitloom.messages.FILE_UNREADABLE`,
+#: :data:`pitloom.messages.DIR_UNLISTABLE`).
+FILE_UNREADABLE = "file-unreadable"
+DIR_UNLISTABLE = "dir-unlistable"
 
 #: Provenance field names of the facts a ``not_measured`` entry stands in
 #: for: the hash (``verifiedUsing``) of a file, dataset or model, and a
@@ -72,8 +78,8 @@ REASON_CODES: frozenset[str] = frozenset(
         "timeout",
         "network-failed",
         "lfs-pointer",
-        "file-unreadable",
-        "dir-unlistable",
+        FILE_UNREADABLE,
+        DIR_UNLISTABLE,
     }
 )
 

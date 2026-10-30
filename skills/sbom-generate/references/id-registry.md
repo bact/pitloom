@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -194,8 +194,9 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   trailing `:`, white space around the `TYPE`, a control character or a blank
   `NAME` is also a usage error (exit 2).
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
-  read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
-  and the run continues (so does a file whose name is not UTF-8 encodable); an
+  read or listed is a `WARNING: FILE=... [file-unreadable]`/`DIR=...
+  [dir-unlistable]` (project-relative path) and the run continues (so does a
+  file whose name is not UTF-8 encodable, warned with no code); an
   unreadable `PATH` argument is `ERROR: PATH '<path>': could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
@@ -453,8 +454,10 @@ keys, dataset strings that differ from the canonical path such as
 - `WARNING: ID registry: not adopting the namespace ...` -- `id import` met
   an SBOM whose document id is not a valid namespace IRI; the registry keeps
   its own namespace.
-- `WARNING: DIR=<dir>: could not list for ID registry indexing` -- `id
-  generate` skipped an unlistable subdirectory; fix its permissions and re-run.
+- `WARNING: DIR=<dir>: could not list for ID registry indexing; <failure>
+  [dir-unlistable]` -- `id generate` left out the files of a directory it
+  could not list; if you see it, relay the advice of
+  [messages.md](messages.md#dir-unlistable).
 - `WARNING: ID registry: <path> is inside the project's file set; left out
   of it` -- keep the registry outside the
   package tree (above).

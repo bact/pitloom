@@ -30,6 +30,10 @@ most one prefix from the table of prefixes.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
+| [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
+| [`file-unreadable`](#file-unreadable) | WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
+| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
+| [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
 | [`lfs-pointer`](#lfs-pointer) | ERROR, WARNING | A file is a Git LFS pointer: a small text file standing in for content the checkout does not have (made or cloned without Git LFS). | 0.22.0 |
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
@@ -63,7 +67,10 @@ A line may start with one prefix before its text:
 | `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
+| `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
+| `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
+| `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
 | `<file>` | a path as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
@@ -79,7 +86,103 @@ A line may start with one prefix before its text:
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
+| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the model hash`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
+
+### `dir-unlistable`
+
+- **Level**: WARNING.
+- **Means**: A directory could not be listed (no read or search permission): the
+  files under it were not seen.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Went on without them: file discovery leaves them out of the
+  SBOM (a build backend that lists before it excludes can name a directory it
+  would leave out anyway); a dataset directory gets no hash (Evidence:
+  not_measured | Reason: dir-unlistable); ID registry indexing leaves them out
+  of the index.
+- **Tell the user**: which directory could not be listed and what the system
+  reported, as the line says. They give the account Pitloom runs as read and
+  search access to it and generate again. Do not change permissions or
+  ownership, or copy or move files, for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  WARNING: DIR=<dir>: could not list <use>; <failure> [dir-unlistable]
+  ```
+
+### `file-unreadable`
+
+- **Level**: WARNING.
+- **Means**: A file Pitloom found or was named could not be read: the operating
+  system refused it (no read permission, a directory above it without search
+  permission, a file another program holds open on Windows) or the read failed
+  (an I/O error, a file that is no regular file once opened).
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Read nothing more of it and went on without what it holds, as
+  the line says what it was read for: a file scan leaves the file out of the
+  SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash leaves no
+  verifiedUsing (a model's ID registry lookup is then not gated; a dataset's
+  provenance says Evidence: not_measured | Reason: file-unreadable); a project
+  setting's field is not set from the file; the usage scan records no model
+  reference from it; ID registry indexing leaves it out of the index; no
+  dependency pins are read from a lock file; a model whose header could not be
+  read is not listed as an AI model.
+- **Tell the user**: which file could not be read and what the system reported,
+  as the line says. They give the account Pitloom runs as read access to it (or
+  close the program that holds it), or restore a damaged copy, and generate
+  again. Do not change permissions or ownership, or copy, move or replace the
+  file, for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: could not read <use>; <failure> [file-unreadable]
+  WARNING: FILE=<file>: could not read for <field>; <failure> [file-unreadable]
+  WARNING: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
+  ```
+
+### `file-unreadable/not-utf8`
+
+- **Level**: WARNING.
+- **Means**: A text file Pitloom read is not UTF-8, the encoding it must be in:
+  a requirements file or a file a setup.cfg directive lists, or a Python file
+  read for the model usage scan.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Went on without what the file holds: the field is not set
+  from it, or the usage scan records no model reference from it.
+- **Tell the user**: which file is not UTF-8 and what the decoder reported, as
+  the line says. They save it as UTF-8 and generate again. Do not convert, edit
+  or replace the file for them; ask first, and with nobody to ask, report it
+  only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: could not read <use>; not UTF-8: <failure> [file-unreadable/not-utf8]
+  WARNING: FILE=<file>: could not read for <field>; not UTF-8: <failure> [file-unreadable/not-utf8]
+  ```
+
+### `file-unreadable/outside-project`
+
+- **Level**: WARNING.
+- **Means**: A file a project setting names, or a licence file, leads outside
+  the project directory (a .. or absolute path, or a symbolic link out), and
+  Pitloom reads no file outside it: its content is no part of the project. For
+  an installed dependency, the directory is its .dist-info.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Did not read it and went on without what it holds: the field
+  is not set from it, or its licence text and copyright notices are not used.
+- **Tell the user**: which file lies outside the project and which setting or
+  licence file names it, as the line says. They move or copy the file into the
+  project, or point the setting at a file inside it, and generate again; for an
+  installed dependency, only its maintainers can fix it. Do not move, copy or
+  link files, or edit the setting, for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: could not read <use>; outside the project directory [file-unreadable/outside-project]
+  WARNING: FILE=<file>: could not read for <field>; outside the project directory [file-unreadable/outside-project]
+  ```
 
 ### `hyperparameter-conflict`
 

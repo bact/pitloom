@@ -33,7 +33,11 @@ from pitloom.core._models_wheel_unlistable import (
     warn_unlistable_dirs,
 )
 from pitloom.core.models import get_wheel_files
+from pitloom.logging_config import CODE_ATTR
 from tests._unreadable import POSIX_NON_ROOT, unlistable
+
+#: Whether a file name may hold a line break (Windows refuses one).
+_NEWLINE_NAMES = sys.platform != "win32"
 
 _BACKENDS = {
     "hatchling": "hatchling.build",
@@ -95,6 +99,9 @@ def test_unlistable_dir_warns_once_and_keeps_the_rest(
     assert _HIDDEN not in discovered
     (message,) = _dir_warnings(caplog)
     assert message.startswith("DIR=pkg/sub: could not list for file discovery; ")
+    assert str(tmp_path) not in message
+    (record,) = [r for r in caplog.records if r.getMessage() == message]
+    assert getattr(record, CODE_ATTR) == "dir-unlistable"
 
 
 @pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
@@ -146,6 +153,26 @@ def test_denied_listing_is_named_project_relative(
         os.listdir(target)
     (message,) = _dir_warnings(caplog)
     assert message.startswith(f"DIR={expected}: could not list for file discovery")
+
+
+@pytest.mark.skipif(not _NEWLINE_NAMES, reason="a newline in a file name")
+def test_a_newline_in_a_directory_name_cannot_forge_a_line(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, deny_scandir: set[str]
+) -> None:
+    """The name is written escaped, in quotes: one line, never a second,
+    forged ``WARNING:`` one; the system's description, never its text
+    (which names the directory again, absolute)."""
+    target = tmp_path / "a\nWARNING: x"
+    target.mkdir()
+    deny_scandir.add(os.path.abspath(target))
+    with caplog.at_level(logging.WARNING), warn_unlistable_dirs(tmp_path):
+        os.listdir(target)
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert record.getMessage() == (
+        "DIR='a\\nWARNING: x': could not list for file discovery; "
+        f"{os.strerror(errno.EACCES)}"
+    )
+    assert getattr(record, CODE_ATTR) == "dir-unlistable"
 
 
 def test_relative_listing_resolves_against_cwd_at_call_time(

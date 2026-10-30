@@ -21,9 +21,11 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_bytes
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.logging_config import one_line
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger(__name__)
 
@@ -84,8 +86,20 @@ def read_lock_bytes(lock_path: Path) -> bytes:
 
 def warn_unreadable_lock_file(lock_path: Path, exc: BaseException) -> None:
     """The one ``WARNING:`` for a lock/pin file that can't be read or
-    parsed (*exc*: why): ``Cannot read`` for a file refused before parsing,
-    ``Failed to parse`` otherwise."""
+    parsed (*exc*: why): ``file-unreadable`` for one the system does not
+    read, once per file and process (a pin reader and its hash companion
+    read one file); ``Cannot read`` for a file refused before parsing,
+    ``Failed to parse`` for one that does not parse; none for one absent."""
+    if isinstance(exc, OSError):
+        if not is_missing_errno(exc):
+            warn_file_unreadable(
+                log,
+                exc,
+                file=lock_path.name,
+                use="for dependency pins",
+                once=f"lock-unreadable:{lock_path}",
+            )
+        return
     verb = "Cannot read" if isinstance(exc, LockFileRefusedError) else "Failed to parse"
     log.warning("%s %s: %s", verb, quote_source(lock_path), one_line(exc))
 

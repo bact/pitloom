@@ -65,3 +65,12 @@ never by raising a count.
   6 `missing_library()` raises) are detail by where they are, the dispatch
   `reader.py` aside: only the scanner calls it, and only it names a reader.
   No count rose.
+- 2026-10-30 (#408): 511 to 498 sites, 160 to 155 modules. 15 uncoded
+  sites now say `file-unreadable` or `dir-unlistable` through the
+  catalogue's helpers, whose calls the tool counts as coded sites (a
+  catalogue helper that says its message through `emit`, as `warn_over_cap`
+  does); a 16th coded call reads a lock file, whose refusal and parse lines
+  stay uncoded, as does the ID registry's explicit `PATH` error. Two causes
+  left the family's lines for an uncoded line of their own: a listed
+  requirements file not found and a file name an ID registry cannot hold.
+  No count rose.

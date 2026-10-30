@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-29
+# Last-Modified: 2026-10-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -270,7 +270,10 @@ For `Build: ...` lines from an `--allow-build` run, read
 `references/build-timeout.md`; for `ID registry: ...` lines (which are
 expected), `references/id-registry.md`. When a line ends in a `[code]`
 (`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
-means and what to tell the user; relay its advice, never run the fix.
+means and what to tell the user; relay its advice, never run the fix. A
+`[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
+read is left out: never change permissions or ownership, or move files,
+yourself.
 
 ## Known limitations -- say so, don't paper over it
 

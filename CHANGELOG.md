@@ -54,6 +54,9 @@ and this project adheres to
   ([#404])
 - `read_ai_model()` refuses a file no reader reads as `loom model` does: `not an
   AI model file of a supported format` ([#404])
+- A file or directory Pitloom cannot read warns with `[file-unreadable]` or
+  `[dir-unlistable]`, the system's error only; a `loom` dataset's provenance
+  says why ([#408])
 
 ### Fixed
 
@@ -75,6 +78,8 @@ and this project adheres to
 - A direct-reference dependency (`name @ URL`) is no longer looked up on PyPI
   by name, so it no longer takes another project's licence, supplier and hash
   ([#405])
+- An unreadable file's warning no longer prints the absolute path the OS error
+  names, and a newline in a directory name can no longer forge a line ([#408])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -92,6 +97,7 @@ and this project adheres to
 [#402]: https://github.com/bact/pitloom/pull/402
 [#404]: https://github.com/bact/pitloom/pull/404
 [#405]: https://github.com/bact/pitloom/pull/405
+[#408]: https://github.com/bact/pitloom/pull/408
 
 ## [0.21.2] - 2026-10-30
 

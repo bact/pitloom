@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
     from ._index import FuncNode
 
 _WRAPPERS = set(KV_HELPERS) | set(EXPLICIT_MSG) | set(OVER_CAP_HELPERS)
+#: The catalogue package, whose helpers say a message through ``emit``.
+_CATALOGUE = "src/pitloom/messages/"
 #: Call text -> (emitter, level, note) of the calls that emit their first
 #: argument as it is.
 _SIMPLE_EMITTERS: dict[str, tuple[str, str, str | None]] = {
@@ -196,16 +199,37 @@ class Walker(CallSites):
 
     def resolve_helpers(self) -> None:
         """Second pass: mark the sites inside emitter functions as helper
-        bodies and add a record for each call of such a function."""
+        bodies and add a record for each call of such a function. Then the
+        same for a catalogue helper (:data:`_CATALOGUE`) that says its
+        message through ``emit``, whose own call of ``emit`` the first round
+        recorded, coded: each call of it is a coded site."""
+        found = self._resolve_round(
+            lambda rec: rec["site_kind"] == "raw" and rec["emitter"] != "raise",
+            set(),
+        )
+        self._resolve_round(
+            lambda rec: (
+                rec["file"].startswith(_CATALOGUE)
+                and rec["site_kind"] == "helper_call"
+                and bool(rec["coded"])
+            ),
+            found,
+        )
+
+    def _resolve_round(
+        self, body: Callable[[Record], bool], done: set[str]
+    ) -> set[str]:
+        """Resolve the pending calls of the helpers not in *done* whose body
+        holds a record *body* accepts; their names."""
         by_func: dict[tuple[str, str], list[Record]] = defaultdict(list)
         for rec in self.records:
-            if rec["site_kind"] == "raw" and rec["emitter"] != "raise":
+            if body(rec):
                 by_func[(rec["file"], rec["function"])].append(rec)
         defs: dict[str, list[tuple[Module, FuncNode, list[Record]]]] = defaultdict(list)
         for mod in self.idx.mods.values():
             for fname, fn in mod.funcs.items():
                 recs = by_func.get((mod.rel, fname))
-                if HELPER_NAME.match(fname) and recs:
+                if HELPER_NAME.match(fname) and recs and fname not in done:
                     defs[fname].append((mod, fn, recs))
         for fname, found in defs.items():
             for _mod, _fn, recs in found:
@@ -215,6 +239,7 @@ class Walker(CallSites):
         for mod, call, stack, clsname, name in self.pending:
             if name in defs:
                 self._resolved_call(mod, call, (stack, clsname), name, defs[name])
+        return set(defs)
 
     def _resolved_call(
         self,

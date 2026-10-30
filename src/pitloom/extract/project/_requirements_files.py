@@ -45,11 +45,11 @@ from packaging.requirements import InvalidRequirement
 
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.requirements import NOT_PEP_508, warn_skipped_dependency
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +67,12 @@ _FileKey = FileId | Path
 
 #: Splits a requirements text into requirement lines.
 LineSplitter = Callable[[str], list[str]]
+
+#: ``log.warning()`` format for a listed file that is absent, or whose name
+#: holds a NUL (it names no file): no ``file-unreadable``, which an absent
+#: file never is; not catalogued yet. Arguments: the file as listed, the
+#: directive, ``not found`` or what refused the name.
+_NOT_FOUND_WARNING = "FILE=%s: could not read for %s; %s"
 
 
 def requirement_lines(text: str) -> list[str]:
@@ -173,7 +179,11 @@ def pep508_only(requirements: list[str], field: str, quiet: bool) -> list[str]:
 
 
 class _Unreadable(Exception):
-    """A listed file is not read; the message says why."""
+    """A listed file is not read: *cause* says why."""
+
+    def __init__(self, cause: OSError | ValueError) -> None:
+        super().__init__(type(cause).__name__)
+        self.cause = cause
 
 
 class _TooLarge(Exception):
@@ -197,7 +207,7 @@ class RequirementsFiles:
         self._config = config
         self._project_dir = project_dir
         # File -> (text, its size in bytes), or why it is not read.
-        self._read: dict[_FileKey, tuple[str, int] | Exception] = {}
+        self._read: dict[_FileKey, tuple[str, int] | _TooLarge | _Unreadable] = {}
         self._spent = 0
         self._skipped = 0
         #: The files read, as listed, in order: a dict as an ordered set.
@@ -258,7 +268,7 @@ class RequirementsFiles:
             handle = open_inside(written, self._project_dir)
         except (OSError, ValueError) as exc:
             if self._first(written, seen):
-                self._warn_unreadable(name, key, _unreadable(exc))
+                self._warn_unreadable(name, key, _Unreadable(exc))
             return None
         with handle:
             file = file_id(handle.fileno()) or written
@@ -270,7 +280,7 @@ class RequirementsFiles:
         if isinstance(read, _TooLarge):
             self._warn_over_cap(name, key, file)
             return None
-        if isinstance(read, Exception):
+        if isinstance(read, _Unreadable):
             self._warn_unreadable(name, key, read)
             return None
         text, size = read
@@ -307,25 +317,24 @@ class RequirementsFiles:
                 key=f"{self._project_dir}\x00{file}",
             )
 
-    def _warn_unreadable(self, name: str, key: str, exc: Exception) -> None:
-        if not self.quiet:
-            log.warning(
-                UNREADABLE_FILE_WARNING,
-                loggable(name),
-                f"for {loggable(self.field(key))}",
-                exc,
-            )
+    def _warn_unreadable(self, name: str, key: str, read: _Unreadable) -> None:
+        """The ``WARNING:`` for the file *name* that *key* lists, not
+        *read*: ``file-unreadable`` (``/outside-project``, ``/not-utf8``)
+        for one present, the uncoded line for one absent or no file name."""
+        if self.quiet:
+            return
+        cause = read.cause
+        if isinstance(cause, OSError) and is_missing_errno(cause):
+            why = "not found"
+        elif isinstance(cause, (OSError, UnicodeDecodeError)):
+            warn_file_unreadable(log, cause, file=name, field=self.field(key))
+            return
+        else:  # a NUL: the name names no file
+            why = one_line(cause)
+        log.warning(_NOT_FOUND_WARNING, loggable(name), loggable(self.field(key)), why)
 
 
-def _unreadable(exc: Exception) -> _Unreadable:
-    """*exc*, raised opening or reading a listed file, as the reason it is
-    not read."""
-    if isinstance(exc, OSError):
-        return _Unreadable("not found" if is_missing_errno(exc) else one_line(exc))
-    return _Unreadable(one_line(exc))  # an embedded NUL
-
-
-def _read_text(handle: BinaryIO) -> tuple[str, int] | Exception:
+def _read_text(handle: BinaryIO) -> tuple[str, int] | _TooLarge | _Unreadable:
     """The UTF-8 text of the listed file open as *handle*, less a leading
     byte-order mark (as pip reads a requirements file), and its size in
     bytes, else why it is not read: :class:`_TooLarge` over
@@ -334,10 +343,10 @@ def _read_text(handle: BinaryIO) -> tuple[str, int] | Exception:
     try:
         raw = handle.read(MAX_REQUIREMENTS_FILE_BYTES + 1)
     except OSError as exc:
-        return _unreadable(exc)
+        return _Unreadable(exc)
     if len(raw) > MAX_REQUIREMENTS_FILE_BYTES:
         return _TooLarge()
     try:
         return raw.decode("utf-8-sig"), len(raw)  # a leading BOM is no text
     except UnicodeDecodeError as exc:
-        return _Unreadable(f"not UTF-8: {one_line(exc)}")
+        return _Unreadable(exc)

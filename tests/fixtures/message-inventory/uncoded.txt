@@ -9,10 +9,10 @@ pitloom._embed_stale 1
 pitloom._embed_wheel 7
 pitloom._loom_active_run 3
 pitloom._loom_caller 6
-pitloom._loom_dataset 4
+pitloom._loom_dataset 3
 pitloom._loom_dataset_keys 3
 pitloom._loom_dataset_meta 2
-pitloom._loom_model 4
+pitloom._loom_model 3
 pitloom._sbom_format 3
 pitloom._sbom_io 2
 pitloom._wheel_sbom_location 3
@@ -20,7 +20,7 @@ pitloom.assemble._generators 1
 pitloom.assemble._generators_git 1
 pitloom.assemble._generators_merge 2
 pitloom.assemble._generators_shared 1
-pitloom.assemble._model_generator 4
+pitloom.assemble._model_generator 3
 pitloom.assemble.spdx3._ai_package 2
 pitloom.assemble.spdx3._dep_scope 2
 pitloom.assemble.spdx3._document_file_hits 1
@@ -60,7 +60,6 @@ pitloom.core._config_legacy 5
 pitloom.core._config_parse 20
 pitloom.core._config_parse_scan 3
 pitloom.core._config_read 5
-pitloom.core._models_wheel 1
 pitloom.core._models_wheel_build_and_read 4
 pitloom.core._models_wheel_build_kill 2
 pitloom.core._models_wheel_build_subprocess 4
@@ -69,11 +68,9 @@ pitloom.core._models_wheel_flit 1
 pitloom.core._models_wheel_setuptools 3
 pitloom.core._models_wheel_setuptools_relay 1
 pitloom.core._models_wheel_types 4
-pitloom.core._models_wheel_unlistable 1
 pitloom.core.archive_member_names 2
 pitloom.core.config_cascade 3
 pitloom.core.creation 2
-pitloom.core.dataset_hash 2
 pitloom.core.dataset_merge 1
 pitloom.core.dataset_names 1
 pitloom.core.file_names 2
@@ -95,7 +92,6 @@ pitloom.extract._core_metadata 1
 pitloom.extract._extract_utils 7
 pitloom.extract._license 2
 pitloom.extract._license_classify 3
-pitloom.extract._license_detect 1
 pitloom.extract._license_resolve 1
 pitloom.extract.ai_model.fasttext 2
 pitloom.extract.ai_model.gguf 1
@@ -123,11 +119,10 @@ pitloom.extract.project._installed_reconcile 1
 pitloom.extract.project._poetry_extras 1
 pitloom.extract.project._poetry_fields 1
 pitloom.extract.project._poetry_requirements 2
-pitloom.extract.project._pyproject_fields 1
 pitloom.extract.project._requirements_files 2
 pitloom.extract.project._sdist_pyproject 2
 pitloom.extract.project._sdist_scan 1
-pitloom.extract.project._setup_cfg_directives 2
+pitloom.extract.project._setup_cfg_directives 1
 pitloom.extract.project._setuptools_dynamic 2
 pitloom.extract.project._setuptools_options 1
 pitloom.extract.project.flit 1
@@ -148,7 +143,7 @@ pitloom.extract.remote.git_url 3
 pitloom.extract.remote.huggingface 2
 pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 6
-pitloom.extract.scanner 3
+pitloom.extract.scanner 1
 pitloom.extract.scanner_wheel 2
 pitloom.extract.wheel 1
 pitloom.id_registry._format 25
@@ -158,7 +153,7 @@ pitloom.id_registry._persist 4
 pitloom.id_registry._registry 7
 pitloom.id_registry._sbom_read 2
 pitloom.id_registry._session 4
-pitloom.id_registry._types 5
+pitloom.id_registry._types 4
 pitloom.id_registry.import_keys 3
 pitloom.plugins._hatch_config 3
 pitloom.plugins.hatch 9
