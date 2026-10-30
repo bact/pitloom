@@ -8,7 +8,7 @@ name: Version consistency
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - "pyproject.toml"
       - "scripts/check_version_consistency.py"
@@ -16,7 +16,7 @@ on:
       - "codemeta.json"
       - ".claude-plugin/plugin.json"
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - "pyproject.toml"
       - "scripts/check_version_consistency.py"

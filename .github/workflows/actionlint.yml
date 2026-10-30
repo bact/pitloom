@@ -5,13 +5,13 @@ name: Validate GitHub Actions
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - "action.yml"
       - ".github/actions/**"
       - ".github/workflows/**"
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - "action.yml"
       - ".github/actions/**"
