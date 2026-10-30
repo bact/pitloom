@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -329,6 +329,12 @@ setting -- there's no network involved in reading it. When a supported lock
 file contains SHA-256 digests, Pitloom uses them for `verifiedUsing`
 checksums across both online and offline builds, taking priority over
 PyPI JSON API lookups and eliminating the need for network access.
+
+A direct reference (`name @ URL`: a Git repository, an archive, a local
+`file:` path) is never looked up on PyPI, online or offline: PyPI knows a
+package by name alone, and its project of that name may be a different
+package. Its package is listed with its declared constraint; its licence,
+supplier and hash come from its installed copy, if any, or stay unset.
 
 ## See also
 

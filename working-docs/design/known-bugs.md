@@ -147,10 +147,18 @@ Size: S under half a day, M about a day.
   stated one (S).** Found in the #287 review, same on `main`: a file
   tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and
   drops `Apache-2.0`.
-- [ ] **A direct-URL dependency is looked up on PyPI by name (S-M).**
-  `foo @ git+...` or a private-index package picks up the licence and
-  supplier of whatever PyPI project shares its name, possibly a
-  different package.
+- [x] **A direct-URL dependency is looked up on PyPI by name (S-M).**
+  `foo @ git+...` picked up the licence, supplier and hash of whatever
+  PyPI project shares its name, possibly a different package. Fixed by
+  #405: a package any declared string names by URL
+  (`core.pep508.is_direct_reference`) is neither prefetched nor enriched
+  from PyPI.
+- [ ] **A private-index or URL-installed package is still looked up on
+  PyPI by name (S-M).** A private-index dependency (`[tool.uv.sources]`,
+  `--index-url`) is read as a PyPI name, and `loom env` looks up a package
+  installed from a URL: pipdeptree's JSON has no `direct_url.json`. A
+  direct reference's version and installed metadata still come from
+  Pitloom's own environment by name, and its PURL is `pkg:pypi`.
 - [x] **`license = {text = "MIT License"}` plus an Apache LICENSE file
   gives declared `Apache-2.0` (S).** The `project.license.text` value goes
   through licence-file detection (seen in the #276 sweep). Fixed by #276:
