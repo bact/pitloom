@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,8 +20,9 @@ the licence preflight), [known-bugs.md](../../design/known-bugs.md)
 Two text channels that machines parse: the provenance strings inside the
 SBOM, and the stderr lines the AI skills read. Both turned out to be
 in-band signalling, where data and structure share one string. Work of
-2026-10-29: #385, #386, #389, #392; the catalogue plumbing (#390) is in
-review.
+2026-10-29: #385, #386, #389, #392; the catalogue plumbing (#390, then
+follow-ups in #395), whose decisions are in
+[message-catalogue-decisions.md](message-catalogue-decisions.md).
 
 ## 1. A provenance string is a grammar, and names can forge it
 
@@ -90,7 +91,9 @@ review.
   subject (155 of 545 templates have no `KEY=` subject) and a leading
   condition word (rewrites every line). Advice is a catalogue field, not
   parsed from the `;` separator, because another tool's own `; ACTION` can
-  sit inside a detail. Codes may hold dots (`git.too-large` existed).
+  sit inside a detail. Codes were first to hold dots (`git.too-large`
+  existed); the #390 review replaced them with `/`
+  ([message-catalogue-decisions.md](message-catalogue-decisions.md)).
 - **A code at the end of a line is not trusted by position.** A file named
   `x [lfs-pointer]` makes the uncatalogued `WARNING: skipped x
   [lfs-pointer]` end in a code Pitloom never said. `trusted_message` trusts
@@ -100,7 +103,8 @@ review.
 - **The reader regex matched false codes in Pitloom's own text.** A static
   test lists every string constant ending in a token the line regex reads
   as a code: `[tool.pitloom.content-type]` and `[tool.poetry.dependencies]`
-  (TOML table names; dots are legal in codes). The list may only shrink.
+  (TOML table names; dots were then legal in codes). The list could only
+  shrink; it is now empty (section 6 of the decisions note).
   Do: when you add an in-band marker, scan your own literals for it.
 - **A forwarded code counts as uncoded.** A site that prints the code read
   from an exception at run time (`code_extra_of(exc)`) carries the cause's

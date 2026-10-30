@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-29).
+the day it was added (2026-10-02 to 2026-10-30).
 
 ## Files
 
@@ -69,10 +69,15 @@ the day it was added (2026-10-02 to 2026-10-29).
 - [provenance-injection-and-message-contract.md](provenance-injection-and-message-contract.md):
   a `|` in a name forging a provenance segment; stderr codes as the contract
   with the AI skills; what moving skill text to references loses.
+- [message-catalogue-decisions.md](message-catalogue-decisions.md): the
+  catalogue's taxonomy repaired at three entries (causes only, `/` for
+  variants); effect and actor; forged codes and the accepted residual; the
+  exception carrier; the ratchet; skills as consumers.
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
-  hostile input, name or path keys for ids); each item says what was measured, chosen and left open.
+  hostile input, name or path keys for ids); each item says what was
+  measured, chosen and left open.
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
 
