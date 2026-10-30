@@ -1,0 +1,478 @@
+{
+  "header": {
+    "checker": "2355afcd7ec9af732f80680928849db6008e6e9a",
+    "mapping_sha256": "1eebb4f198087073b25ef95b80fca37c7cf8a6dd58942b374cbfa0a14188c22d",
+    "pitloom": "0.22.0",
+    "rules": 13,
+    "standard": "fsct3"
+  },
+  "scenarios": {
+    "fasttext": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 50.0,
+        "outcomes": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        },
+        "properties_written": 6,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "gguf": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 50.0,
+        "outcomes": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        },
+        "properties_written": 4,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "hub": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "present",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 3,
+            "out-of-scope": 2,
+            "present": 3
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 60.0,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        },
+        "properties_written": 11,
+        "requirement_coverage_percent": 60.0,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "library": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "present",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 3,
+            "out-of-scope": 2,
+            "present": 3
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 60.0,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        },
+        "properties_written": 10,
+        "requirement_coverage_percent": 60.0,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "numpy": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 50.0,
+        "outcomes": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "onnx": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 50.0,
+        "outcomes": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        },
+        "properties_written": 5,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-hatchling": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "present"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 1,
+            "present": 4
+          }
+        },
+        "coverage_percent": 60.0,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 60.0,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-poetry": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "present"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 1,
+            "present": 4
+          }
+        },
+        "coverage_percent": 60.0,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 60.0,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-setuptools": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "present"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 1,
+            "present": 4
+          }
+        },
+        "coverage_percent": 60.0,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 60.0,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "safetensors": {
+      "outcomes": {
+        "BOM-FSCT2024-COMP-001": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
+        "BOM-FSCT2024-COMP-004": "present",
+        "BOM-FSCT2024-COMP-005": "out-of-scope",
+        "BOM-FSCT2024-COMP-006": "out-of-scope",
+        "BOM-FSCT2024-COMP-007": "missing",
+        "BOM-FSCT2024-COMP-008": "missing",
+        "BOM-FSCT2024-META-001": "present",
+        "BOM-FSCT2024-META-002": "present",
+        "BOM-FSCT2024-META-003": "present",
+        "BOM-FSCT2024-META-004": "out-of-scope",
+        "BOM-FSCT2024-META-005": "missing"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 4,
+            "out-of-scope": 2,
+            "present": 2
+          },
+          "META": {
+            "coverage_percent": 75.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 3
+          }
+        },
+        "coverage_percent": 50.0,
+        "outcomes": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 5,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": null
+    }
+  }
+}
