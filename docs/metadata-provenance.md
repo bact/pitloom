@@ -210,13 +210,14 @@ A dependency's `declared_constraint` annotation holds every string declared
 for that package, extras included (see [Extras and the optional
 edge](dependency-sources.md#extras-and-the-optional-edge)), sorted and
 joined by ` | `, each one a note: one holding a `:` (a direct URL, a
-marker) is written after `Note: `. Every route spells a dependency alike: the package name
-is the PEP 503 name its `pkg:pypi` PURL uses (`Foo_Bar` is `foo-bar`), and
-each declared string is spelt as `packaging` writes it, whether the source
-kept the spelling (a setuptools wheel) or not. `loom env` names each
-installed distribution the same way (`PyYAML` is `pyyaml`), whatever its
-`.dist-info` spells. The SBOM's own root package keeps the name the
-project declares (`Foo_Bar`), on every route; only its PURL is PEP 503.
+marker) is written after a `Note:` key. Every route spells a dependency
+alike: the package name is the PEP 503 name its `pkg:pypi` PURL uses
+(`Foo_Bar` is `foo-bar`), and each declared string is spelt as `packaging`
+writes it, whether the source kept the spelling (a setuptools wheel) or
+not. `loom env` names each installed distribution the same way (`PyYAML` is
+`pyyaml`), whatever its `.dist-info` spells. The SBOM's own root package
+keeps the name the project declares (`Foo_Bar`), on every route; only its
+PURL is PEP 503.
 
 ## See also
 
