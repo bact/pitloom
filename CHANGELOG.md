@@ -26,9 +26,9 @@ and this project adheres to
 
 - Requires `licenseid>=0.6.0,<0.7`: licenseid 0.7.0 renames the API Pitloom
   0.21 imports (`AggregatedLicenseMatcher`, `resolve`, `LicenseMatch`)
-  ([#399])
+  ([#400])
 
-[#399]: https://github.com/bact/pitloom/pull/399
+[#400]: https://github.com/bact/pitloom/pull/400
 
 ## [0.21.1] - 2026-10-28
 
