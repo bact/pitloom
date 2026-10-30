@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,11 @@ See also: [README.md](README.md) (index of these notes),
 section 2 (the nine review rounds of #263: measure, alternate narrow and
 wide, mutation testing),
 [manual-cli-checks.md](../manual-cli-checks.md) ("When to run"),
-[AGENTS.md](../../../AGENTS.md) ("Testing": the test tiers).
+[AGENTS.md](../../../AGENTS.md) ("Testing": the test tiers),
+[ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md) (the
+two-gate rule and the CI measurement, 2026-10-30),
+[agent-work-lessons-oct30.md](agent-work-lessons-oct30.md) (stale premises,
+unpushed work, a patch-coverage gap).
 
 How the work behind #276 (licence typing, ten numbered review rounds),
 #282, #283 and #284 was reviewed and tested, for a paper's method
