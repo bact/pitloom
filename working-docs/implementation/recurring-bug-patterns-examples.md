@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,8 +132,8 @@ Detail (war stories, PRs, code shapes) is in
 - **Runtime warnings are test failures** (`filterwarnings = ["error"]`): an unavoidable third-party warning gets a narrow module/category-qualified `ignore::` entry with a comment saying why, never a blanket one.
 - **Drift-guard test for two independent implementations of one operation**: don't merge them just to dedup; assert both give the same result on one shared fixture.
 - **Adversarial edge cases pay most on tri-state (None/empty/absent) and cascade/tie-break logic**: per new field or merge path, one test per boundary (declared-but-empty vs absent, spec-equivalent spellings, candidates needing a tie-break, malformed/truncated input).
-  - Tier 2, each review/fix round: full suite (xdist), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files, the manual CLI checks for the touched area.
-  - Tier 3, once per PR before merge: mutation testing (each mutant runs only its module's tests), the full manual CLI checks (before handoff, after merging main), the parity/determinism harness, the Windows dry-run, one fresh-context sweep, a fresh-eyes read of any changed `SKILL.md`.
+  - Gate A, once before the first push: full suite (`-n 4` max), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files, the manual CLI checks for the touched area.
+  - Gate B (Tier 3), once before handoff: mutation testing (each mutant runs only its module's tests), the full manual CLI checks (again after a main merge that brought code), the parity/determinism harness, the Windows dry-run, one fresh-context sweep, a fresh-eyes read of any changed `SKILL.md`. Between gates: touched tests and linters, a diff vs main. See [testing-and-review-policy.md](testing-and-review-policy.md).
 
 ## Manual CLI integration checks (post-pytest, pre-commit)
 

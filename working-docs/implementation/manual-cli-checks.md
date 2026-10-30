@@ -27,8 +27,9 @@ The full run takes minutes; pytest already runs a slice of it in CI
 `B7` and the `M/project/debug/*` cells). So:
 
 - Docs-, tests- or `working-docs/`-only change: skip.
-- Each review/fix round: only the touched area's checks, by `--only`
-  (ids and globs, comma-separated):
+- Gate A (see
+  [testing-and-review-policy.md](testing-and-review-policy.md)): only the
+  touched area's checks, by `--only` (ids and globs, comma-separated):
 
   | Area | `--only` |
   |---|---|
@@ -45,8 +46,8 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
 
-- Once before handoff, and again after merging main into the branch: the
-  full run (`-j 8`; add `--network` when network code changed).
+- Gate B, once before handoff, and again after a merge of main that
+  brought code: the full run (`-j 8`; add `--network` when network code changed).
 
 A new numbered check gets a row here. The map is by hand and can drift;
 an area field on each check, selectable by `--only`, is a possible

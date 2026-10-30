@@ -216,28 +216,29 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 
 ## Testing
 
-- **Bug fixes and regressions**: add a regression test that fails without the fix and passes with it.
+- **Bug fix**: add a regression test failing without the fix, passing with it.
 - **Guard against vacuous passes**: in a "changed input -> unchanged output" test, assert the input changed.
-- Use pytest patterns, `spec`/`autospec` for mocks, `@pytest.mark.parametrize`.
-- **Keep tests compact**: same coverage and adversarial nature, no redundancy; fold near-duplicates into one `parametrize` (a case per boundary), share fixtures; never drop the only case killing a mutant.
-- **Structure**: source file size limits apply. Naming `test_<area>.py`, 1:1 with the source module (disambiguate tail clashes). Group tests in same-named subfolders mirroring `src/pitloom/<package>/` at 3+ related files (no `__init__.py`).
-- **No non-deterministic assertions**: no real wall-clock time, unseeded random/UUID, or set/dict iteration order; freeze time, mock the source or sort. Generous elapsed-duration bounds (`time.monotonic()` deltas) are fine.
-- **Don't couple tests to undocumented internals**: `raises(match=...)` and log assertions target wording the source documents as intentional (a short stable substring); SPDX3 field/type assertions come from the spec (`spdx_python_model.bindings`).
+- Pytest style; `spec`/`autospec` for mocks.
+- **Keep tests compact**: same coverage and adversarial nature; fold near-duplicates into one `parametrize` (a case per boundary), share fixtures; never drop the only case killing a mutant.
+- **Structure**: naming `test_<area>.py`, 1:1 with the source module (disambiguate tail clashes). Group tests in same-named subfolders mirroring `src/pitloom/<package>/` at 3+ related files (no `__init__.py`).
+- **No non-deterministic assertions**: no real wall-clock time, unseeded random/UUID, or set/dict iteration order; freeze time, mock the source or sort. Generous `time.monotonic()` bounds are fine.
+- **Don't couple tests to undocumented internals**: `raises(match=...)` and log assertions target wording documented as intentional (a short stable substring); SPDX3 field/type assertions come from the spec (`spdx_python_model.bindings`).
 - **Runtime warnings are test failures** (`filterwarnings = ["error"]`): an unavoidable third-party warning gets a narrow module/category-qualified `ignore::` entry with a comment, never a blanket one.
-- **Drift-guard test for two independent implementations of one operation**: assert both give the same result on one shared fixture rather than merging them.
+- **Drift-guard test for two independent implementations of one operation**: assert both agree on one shared fixture rather than merging them.
 - **Adversarial edge cases pay most on tri-state (None/empty/absent) and cascade/tie-break logic**: per new field or merge path, one test per boundary (declared-but-empty vs absent, equivalent spellings, a tie-break, malformed input).
-- **Test tiers**:
-  - Tier 1, editing: touched tests only (`pytest tests/<area> -k ...`, `--lf`), ruff, mypy.
-  - Tier 2, each review/fix round: full suite (xdist), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files, the area's manual CLI checks.
-  - Tier 3, once per PR before merge: mutation testing (a mutant runs only its module's tests), the full manual CLI checks (before handoff and after merging main), the parity/determinism harness, the Windows dry-run, one fresh-context sweep, a fresh read of any changed `SKILL.md`.
+- **Test tiers, two gates per PR** ([policy](working-docs/implementation/testing-and-review-policy.md)):
+  - Tier 1, editing and between gates: touched tests (`-k`, `--lf`) and linters, an SBOM/stderr/`--json` diff vs main.
+  - Gate A, before the first push: full suite (`-n 4` max), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files.
+  - Gate B (Tier 3), before handoff: mutation testing (a mutant runs only its module's tests), full manual CLI checks, the parity/determinism harness, the Windows dry-run, a fresh-context sweep, a fresh read of changed `SKILL.md`s.
+  - Batch review fixes; a main merge of only CHANGELOG links, baselines or generated pages runs just the tests reading them.
 
 ### Manual CLI integration checks (post-pytest, pre-commit)
 
 pytest runs in-process and misses the `loom` entry point, argv parsing, real filesystem/archive I/O and CLI/library/hook/skills drift. `.venv/bin/python scripts/manual_cli_checks` covers them (`--only` takes ids/globs, `--network` adds network ones). When to run:
 
 - docs-, tests- or `working-docs/`-only change: skip;
-- each round touching `assemble/`, `extract/`, `core/`, `embed.py`, `__main__.py` or `plugins/hatch.py`: the checks for that area via `--only` ([manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md#when-to-run));
-- before handoff, and again after merging main: the full run (`-j 8`).
+- Gate A touching `assemble/`, `extract/`, `core/`, `embed.py`, `__main__.py` or `plugins/hatch.py`: that area's checks via `--only` ([manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md#when-to-run));
+- Gate B, and after a main merge with code: the full run (`-j 8`).
 
 A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_matrix_plan.py` (`M/completeness` fails in CI otherwise).
 

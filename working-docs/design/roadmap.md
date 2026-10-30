@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,6 +98,10 @@ licence provenance mapping ([#384](https://github.com/bact/pitloom/pull/384)),
 catalogue PR 18 (licence) and the serious known bugs. The other catalogue
 PRs go to 0.22.x or 0.23.0. List, sizes and bugs:
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
+**Process (decided 2026-10-30):** two test gates per PR and a pre-release
+review before the 0.22.0 tag. See
+[testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
 
 Open:
 
