@@ -30,7 +30,7 @@ from pitloom.core.file_hash import Sha256Read, sha256_read
 from pitloom.core.models import merkle_root
 from pitloom.logging_config import CODE_ATTR
 from tests._symlink import CAN_SYMLINK
-from tests._unreadable import POSIX_NON_ROOT, deny, unlistable
+from tests._unreadable import POSIX_NON_ROOT, deny, unlistable, unlistable_with
 
 _BIG = 1 << 40
 _NEEDS_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="needs symlinks")
@@ -385,6 +385,40 @@ def test_real_unreadable_member_and_unlistable_subdirectory(
     first, second = _warnings(caplog)
     assert first.startswith(f"FILE={top / 'a.txt'}: could not read for dataset")
     assert second.startswith(f"DIR={top / 'sub'}: could not list for dataset")
+
+
+@pytest.mark.parametrize(
+    ("code", "omitted", "warned"),
+    [
+        (errno.EACCES, "dir-unlistable", True),
+        (errno.ENOENT, None, False),
+    ],
+    ids=["refused", "gone-since-found"],
+)
+def test_subdirectory_that_cannot_be_listed_is_warned_unless_gone(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    code: int,
+    omitted: str | None,
+    warned: bool,
+) -> None:
+    """A subdirectory whose listing fails (as for ``chmod 000``, on every
+    platform and as root) gives no root, with the ``dir-unlistable`` reason
+    and warning; one gone since the walk found it, no reason and no
+    warning: absent, not unlistable."""
+    top = _tree(tmp_path / "d", {"a.txt": b"a", "sub/x.txt": b"x"})
+    with (
+        caplog.at_level(logging.WARNING),
+        unlistable_with(top / "sub", code, monkeypatch),
+    ):
+        found = hash_dataset(top, max_bytes=_BIG)
+    assert found == DatasetDigest("dir", omitted=omitted)
+    records = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert [getattr(r, CODE_ATTR) for r in records] == (
+        ["dir-unlistable"] if warned else []
+    )
+    assert all(str(tmp_path) not in r.getMessage().partition(": ")[2] for r in records)
 
 
 @pytest.mark.parametrize(

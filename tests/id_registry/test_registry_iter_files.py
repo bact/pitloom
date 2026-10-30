@@ -28,7 +28,13 @@ from pitloom.id_registry import IdRegistry, sha256_file
 from pitloom.id_registry._types import _iter_files
 from pitloom.logging_config import CODE_ATTR
 from tests._symlink import CAN_SYMLINK
-from tests._unreadable import POSIX_NON_ROOT, STAT_MODES, deny, unlistable
+from tests._unreadable import (
+    POSIX_NON_ROOT,
+    STAT_MODES,
+    deny,
+    unlistable,
+    unlistable_with,
+)
 
 _POSIX = pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX, non-root")
 _SKIPPED = "could not read for ID registry indexing;"
@@ -84,6 +90,29 @@ def test_unlistable_subdirectory_warns(
     with caplog.at_level(logging.WARNING), unlistable(sub), unlistable(ignored):
         files = list(_iter_files([Path("src")], root))
     assert files == [root / "src" / "a.py"]
+    warning = _said(caplog, "dir-unlistable")
+    assert warning.startswith("DIR=src/sub: could not list for ID registry indexing;")
+    assert str(tmp_path) not in warning
+
+
+@pytest.mark.parametrize("code", [errno.EACCES, errno.ENOENT], ids=["refused", "gone"])
+def test_subdirectory_whose_listing_fails_is_warned_about_unless_gone(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    code: int,
+) -> None:
+    """A subdirectory whose listing fails (on every platform, root
+    included): ``dir-unlistable`` naming it project-relative, the rest still
+    indexed; one gone since the walk found it is absent: no warning."""
+    root = _project(tmp_path)
+    with caplog.at_level(logging.WARNING):
+        with unlistable_with(root / "src" / "sub", code, monkeypatch):
+            files = list(_iter_files([Path("src")], root))
+    assert files == [root / "src" / "a.py"]
+    if code == errno.ENOENT:
+        assert not caplog.records
+        return
     warning = _said(caplog, "dir-unlistable")
     assert warning.startswith("DIR=src/sub: could not list for ID registry indexing;")
     assert str(tmp_path) not in warning

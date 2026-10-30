@@ -17,9 +17,11 @@ See also: :mod:`tests.extract.scanner.test_scanner_project` for the project prod
 from __future__ import annotations
 
 import contextlib
+import errno
 import io
 import itertools
 import logging
+import os
 import zlib
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import AbstractContextManager
@@ -257,6 +259,25 @@ def test_discover_unreadable_sniff_warns_once_and_skips(
     (message,) = _warnings(caplog)
     assert message.startswith(f"FORMAT={fmt} ")
     assert file_values([message]) == [f"src/{dist}"]
+
+
+@pytest.mark.parametrize("dist", ["m.npy", "m.bin"])
+def test_discover_sniff_of_a_file_gone_since_found_is_absent(
+    caplog: pytest.LogCaptureFixture, dist: str
+) -> None:
+    """A header that cannot be read because the file is gone is absent, not
+    ``file-unreadable``: no model and no warning."""
+    gone = FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT))
+    sniff = Mock(side_effect=gone)
+    with patch(_READ, autospec=True) as reader:
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            found = discover_ai_models(
+                [_cand(f"pkg/{dist}", f"src/{dist}", sniff=sniff)]
+            )
+    assert not found
+    sniff.assert_called_once_with()  # not vacuous: the read was tried
+    reader.assert_not_called()
+    assert not _warnings(caplog)
 
 
 def test_discover_non_oserror_from_sniff_propagates() -> None:

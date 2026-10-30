@@ -29,9 +29,11 @@ from pitloom.extract._license_detect import (
     find_license_files,
     license_candidates_from_members,
     pick_license_names,
+    read_license_file,
     read_license_members,
 )
 from tests._symlink import CAN_SYMLINK, case_sensitive
+from tests._unreadable import deny
 
 
 @pytest.mark.parametrize(
@@ -153,6 +155,28 @@ def test_a_licence_symlink_is_read_only_inside_the_project(
     inside = target != "outside"
     assert list(members) == (["LICENSE"] if inside else [])
     assert caplog.messages == ([] if inside else [f"FILE=LICENSE: {_OUTSIDE}"])
+
+
+@pytest.mark.parametrize("rooted", [False, True], ids=["no-root", "outside-root"])
+def test_an_unreadable_licence_file_not_below_a_root_is_named_by_its_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    rooted: bool,
+) -> None:
+    """A file with no project to be relative to (no *root*, or one outside
+    it) is named by its file name, never by the absolute directory of this
+    machine."""
+    (tmp_path / "project").mkdir()
+    licence = tmp_path / "elsewhere" / "LICENSE"
+    licence.parent.mkdir()
+    licence.write_text("MIT\n", encoding="utf-8")
+    root = tmp_path / "project" if rooted else None
+    with caplog.at_level(logging.WARNING), deny(licence, "open", monkeypatch):
+        assert read_license_file(licence, root) is None
+    (message,) = caplog.messages
+    assert message.startswith("FILE=LICENSE: could not read for license files;")
+    assert str(tmp_path) not in message
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")

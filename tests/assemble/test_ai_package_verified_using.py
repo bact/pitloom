@@ -18,6 +18,7 @@ harvested).
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import logging
@@ -237,10 +238,20 @@ def test_only_a_model_listed_among_the_files_is_hashed_and_gated(
     assert package.verifiedUsing[0] is not file.verifiedUsing[0]
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        PermissionError(errno.EACCES, "Permission denied"),
+        FileNotFoundError(errno.ENOENT, "No such file"),
+    ],
+    ids=["refused", "gone-since-read"],
+)
 @pytest.mark.parametrize("route", ["model", "enrich"])
 def test_an_unreadable_model_file_is_neither_hashed_nor_gated(
-    route: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    route: str, error: OSError, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """A model file refused at the hash: ``file-unreadable``, no hash, the
+    lookup ungated; one gone since it was read is absent: the same, quietly."""
     make_registry(
         {(AI_PACKAGE_TYPE, _KEYS[route]): (_PIN, None)}, path=tmp_path / "ids.json"
     )
@@ -249,16 +260,22 @@ def test_an_unreadable_model_file_is_neither_hashed_nor_gated(
     with patch(
         f"pitloom.assemble._model_generator.{reader}",
         autospec=True,
-        side_effect=PermissionError(13, "Permission denied"),
+        side_effect=error,
     ):
         sbom = _ROUTES[route](tmp_path, _OLD)
     assert _model_id(sbom) == _PIN  # ungated: the hash-less entry hits
     if route == "model":
         assert _package_sha(sbom) is None
     # What follows (no verifiedUsing, the lookup not gated) is the entry's.
-    unread = "could not read for the model hash; Permission denied"
-    (warning,) = [r for r in caplog.records if unread in r.getMessage()]
+    unread = [r for r in caplog.records if "for the model hash" in r.getMessage()]
+    if isinstance(error, FileNotFoundError):
+        assert not unread
+        return
+    (warning,) = unread
     assert warning.levelno == logging.WARNING
+    assert warning.getMessage().endswith(
+        "could not read for the model hash; Permission denied"
+    )
     assert getattr(warning, CODE_ATTR) == "file-unreadable"
     assert "verifiedUsing" in MESSAGES["file-unreadable"].did
 
