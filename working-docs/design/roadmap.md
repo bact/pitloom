@@ -239,6 +239,10 @@ unless the linked doc says so.
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete
   about 250 lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan:
   [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
+- [ ] **Licence resolution provenance** (T14: one `license` entry with a
+  `Resolution-n`/`Expansion-n` per operand, one `Tool` list, `License-List`,
+  `Reason:` for an unread SPDX field; after the adoption). See
+  [licence-resolution-provenance.md](licence-resolution-provenance.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
   taxonomy; parked draft). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
