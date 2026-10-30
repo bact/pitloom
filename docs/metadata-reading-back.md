@@ -23,6 +23,12 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    escape gives) cannot be written as UTF-8, so it is written as the six
    characters `\udXXX` here, with one `WARNING: FORMAT=<fmt> FILE=<path>:
    lone surrogates written as \uXXXX`; the annotation holds that text too.
+   A file name that is not UTF-8 (a POSIX name holding the byte `0xff`,
+   which Python reads as U+DCFF) is written the same way, as `\udcff`, in
+   every element of the SBOM, on every surface: one `WARNING:` per SBOM
+   names the first such element, by name. An ID registry cannot hold such
+   a name and skips it with its own `WARNING:` (see
+   [ID registry](id-registry.md)).
 2. **Caps.** A name over 1024 characters (a model's, its base model's, a
    dataset's, a dataset creator's, a model originator's or its supplier's)
    is cut to its first 1012, `...`, `~` and 8 hex digits of the SHA-256 of

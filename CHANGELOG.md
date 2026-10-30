@@ -59,6 +59,9 @@ and this project adheres to
   longer adds a segment to its provenance ([#386], [#389])
 - A `RemoteSourceError` can be copied and pickled; it raised `TypeError`
   ([#396])
+- A project, sdist or dataset file whose POSIX name is not UTF-8 no longer
+  stops generation: its name is written as `\udcff`, with one `WARNING:`
+  ([#402])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -72,6 +75,7 @@ and this project adheres to
 [#390]: https://github.com/bact/pitloom/pull/390
 [#395]: https://github.com/bact/pitloom/pull/395
 [#396]: https://github.com/bact/pitloom/pull/396
+[#402]: https://github.com/bact/pitloom/pull/402
 
 ## [0.21.1] - 2026-10-28
 

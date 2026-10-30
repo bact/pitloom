@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -472,11 +472,14 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   `FILE=` line: a newline is escaped (one record), `|` is inert in a log
   line, and a bare space is family-wide. A quoted `FILE=` would be one PR for
   the whole family; characterised in `tests/core/test_lfs_pointer_warning.py`.
-- [ ] **A project file whose name is not valid UTF-8 crashes generation (S).**
-  For `src/demo/\xff.py` the provenance Annotation now passes (the
+- [x] **A project file whose name is not valid UTF-8 crashed generation (S),
+  fixed (#402).** For `src/demo/\xff.py` the provenance Annotation passed (the
   sanitiser escapes the lone surrogate), but
-  `export/spdx3_json.py::_graph_sort_key` raises an `rfc8785` error on the
-  element's own `name`. Needs its own fix and an end-to-end regression test.
+  `export/spdx3_json.py::_graph_sort_key` raised an `rfc8785` error on the
+  element's own `name`, on every surface (`loom project`/`generate`, the
+  library on a directory or an sdist, the hook, a loom dataset). `to_json`
+  now escapes every lone surrogate of the graph, with one `WARNING:` naming
+  the first element. A model file was already escaped by its reader.
 - [ ] **A plain-text provenance value with a `:` reads as a key (S).**
   `declared_constraint` holds requirement text, but `emit_provenance` parses
   every value as `Key: value`: `pkg @ https://x/p.whl` gives the key
