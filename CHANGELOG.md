@@ -47,7 +47,7 @@ and this project adheres to
 - A Git LFS pointer refused by `read_ai_model()`, `generate_model_sbom()` or
   `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
 - `licenseid` is capped below 0.7 (0.7 renames the API Pitloom imports) until
-  the 0.7 adoption ([#403])
+  the 0.7 adoption ([#401])
 
 ### Fixed
 
@@ -74,7 +74,7 @@ and this project adheres to
 [#390]: https://github.com/bact/pitloom/pull/390
 [#395]: https://github.com/bact/pitloom/pull/395
 [#396]: https://github.com/bact/pitloom/pull/396
-[#403]: https://github.com/bact/pitloom/pull/403
+[#401]: https://github.com/bact/pitloom/pull/401
 
 ## [0.21.1] - 2026-10-28
 
