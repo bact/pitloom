@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The message reference in ``docs/messages.md`` and in each skill's
+"""The message reference in ``docs/message-codes.md`` and in each skill's
 ``references/messages.md`` is generated from the catalogue by
 ``scripts/generate_message_reference.py``: the files hold exactly what the
 script renders (bytes, LF), the script rewrites only its block, and the block
@@ -57,6 +57,21 @@ def test_a_target_holds_what_the_script_renders(path: Path) -> None:
         "'python scripts/generate_message_reference.py' and commit it"
     )
     assert b"\r" not in current
+
+
+def test_git_checks_every_target_out_with_lf() -> None:
+    """A Windows checkout (``core.autocrlf``) writes CRLF, so the bytes
+    differ from the render, unless ``.gitattributes`` pins the file to LF."""
+    rules = (_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    for path in gen.TARGETS:
+        assert f"{path.relative_to(_ROOT).as_posix()} text eol=lf" in rules
+
+
+def test_the_docs_catalogue_has_its_own_page() -> None:
+    """The guide links the page that holds the codes, and holds none itself."""
+    guide = (_ROOT / "docs" / "messages.md").read_text(encoding="utf-8")
+    assert gen.BEGIN not in guide and "(message-codes.md)" in guide
+    assert _ROOT / "docs" / "message-codes.md" in gen.TARGETS
 
 
 def _sections() -> dict[str, list[str]]:

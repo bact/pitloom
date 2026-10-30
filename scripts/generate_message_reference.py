@@ -43,7 +43,7 @@ ROOT: Final = Path(__file__).resolve().parents[1]
 
 #: The files holding a generated block.
 TARGETS: Final = (
-    ROOT / "docs" / "messages.md",
+    ROOT / "docs" / "message-codes.md",
     ROOT / "skills" / "sbom-enrich" / "references" / "messages.md",
     ROOT / "skills" / "sbom-generate" / "references" / "messages.md",
 )

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,7 +34,7 @@ and this project adheres to
   says why ([#387])
 - Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, then
   every cap warning and error, `[over-cap]`), also on log records and
-  exceptions as `pitloom_code`; see `docs/messages.md` ([#390], [#396])
+  exceptions as `pitloom_code`; see `docs/message-codes.md` ([#390], [#396])
 
 ### Changed
 
