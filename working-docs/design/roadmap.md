@@ -24,16 +24,15 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.21.1 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
-0.20.2 on 2026-10-09, 0.21.0 #300-#350 and 0.21.1 #364-#366 on 2026-10-28),
-including their release-plan items,
-and the 0.22.0 items built so far. User-facing documentation is in `docs/`
-([index](../../docs/index.md)).
+shipped up to 0.22.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+0.20.2 on 2026-10-09, 0.21.0 #300-#350 and 0.21.1 #364-#366 on 2026-10-28,
+0.22.0 #374-#408 on 2026-10-30), including their release-plan items.
+User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
-Order (2026-10-09): 0.20.0 -> 0.20.1 -> 0.20.2 -> 0.21.0 -> 0.21.1 -> 0.22.0
--> 1.0. No date for 1.0 until 0.22.0 lands.
+Order (2026-10-30): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 1.0.
+No date for 1.0 until 0.23.0 lands.
 
 ### 0.21.0
 
@@ -74,7 +73,23 @@ Built for 0.21.0 (#300-#350): registry v3, Git URL ingestion and hosts,
 G7/CISA/FSCT/BSI conformance tests, SHA-512. See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0210-prs-300-350).
 
-### 0.22.0: G7 SBOM for AI field coverage
+### 0.22.0
+
+**Released 2026-10-30** (v0.22.0). See [CHANGELOG.md](../../CHANGELOG.md) and
+[release-checklist.md](../implementation/release-checklist.md). Highlights:
+catalogued messages end in a `[code]` (Git LFS pointers, size caps, why a model
+was not read, unreadable files and directories); **breaking:** ID registry
+format 4 keys a package by name and version (format 3 is refused); fixes for a
+non-UTF-8 file name, a `:` in provenance text and direct-URL dependencies. Keeps
+`licenseid>=0.6.0,<0.7`.
+
+### 0.22.1
+
+- [ ] **Small remaining bug fixes** and the 0.22.0 release checks left to CI.
+  The path-in-message fix (#410) landed before the tag. See
+  [known-bugs.md](known-bugs.md).
+
+### 0.23.0: G7 SBOM for AI field coverage
 
 The 1.0 headline ([#77](https://github.com/bact/pitloom/issues/77)); breakdown
 in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
@@ -82,25 +97,18 @@ in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
 
-**Focus (decided 2026-10-29): two priorities.** (1) CLI, API and skill
-contracts through catalogued messages: the catalogue in code, the grammar
-ratchet and the families that matter most to skills (see
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md)). (2) The
-adoption of `licenseid` 0.7.0 (waits on its release; see
-[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). The items below
-follow, in this order of need; evidence-level work (`Fact` PR-A done) continues
-only where it pairs with a catalogue family (over-cap, unreadable file, Hub
-failure); the rest may move to 0.23.0, with `--report` and SARIF.
-
-**The 0.22.0 cut (decided 2026-10-30):** catalogue PRs 1 (model stub) and 2
-(unreadable files and directories), the `licenseid` 0.7.0 adoption, the
-licence provenance mapping ([#384](https://github.com/bact/pitloom/pull/384)),
-catalogue PR 18 (licence) and the serious known bugs. The other catalogue
-PRs go to 0.22.x or 0.23.0. List, sizes and bugs:
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+**The 0.23.0 list (decided 2026-10-30):** the adoption of `licenseid` 0.7.0
+(`match` becomes `detect`, `resolve` becomes `match`; see
+[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)), the licence provenance
+mapping ([#384](https://github.com/bact/pitloom/pull/384)), the remaining
+catalogue families (1b, 2b and 3 to 18, the licence families included; see
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md) and
+[message-catalogue-and-skills.md](message-catalogue-and-skills.md)), `--report`
+and SARIF. Evidence-level work continues where it pairs with a catalogue
+family (over-cap, unreadable file, Hub failure).
 
 **Process (decided 2026-10-30):** two test gates per PR and a pre-release
-review before the 0.22.0 tag. See
+review before each release tag. See
 [testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
 
 Open:
@@ -118,8 +126,8 @@ Open:
 - [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
   item below.
 
-Built so far (#374-#376, #378, #381, #382, #385-#387). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-so-far).
+Built in 0.22.0 (#374-#408). See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-408).
 
 ### 1.0
 
@@ -229,15 +237,15 @@ unless the linked doc says so.
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
   (decided 2026-10-29): design done (#379); skill size cap built (#385);
-  catalogue in code, schema and ratchet with the `lfs-pointer` families in
-  review (#390); next (0.22.0): `over-cap`, then the migration order there;
-  `--report` in 0.23.0. See
+  catalogue in code, schema and ratchet; the `lfs-pointer`, `over-cap`,
+  model-stub and unreadable-file families built (#390, #396, #404, #408;
+  0.22.0); the other families and `--report` in 0.23.0. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under
   a cap #387. See [evidence-levels.md](evidence-levels.md).
 - [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete
-  about 250 lines of Pitloom's own parsing; Pitloom 0.22.0). Data and plan:
+  about 250 lines of Pitloom's own parsing; Pitloom 0.23.0). Data and plan:
   [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
   taxonomy; parked draft). See

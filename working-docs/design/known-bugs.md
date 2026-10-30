@@ -23,8 +23,8 @@ Size: S under half a day, M about a day.
 
 ## Planned releases (decided 2026-10-30)
 
-- 0.22.1: the path-in-message fix (#410) and small remaining bug fixes.
-  Also re-run the 0.22.0 release checks that were left to CI (decided
+- 0.22.1: small remaining bug fixes. (The path-in-message fix, #410, landed
+  before the 0.22.0 tag.) Also re-run the 0.22.0 release checks that were left to CI (decided
   2026-10-30): the full manual CLI checks, the CHANGELOG-against-merged-PRs
   cross-check, the leftover `0.21.2` review, the coverage-snapshot diffs and
   the `scripts/` lint; fix what they find.

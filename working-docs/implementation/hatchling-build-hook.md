@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,7 +101,7 @@ The user adds `pitloom` to their build dependencies and enables the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.21.1"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.22.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -372,7 +372,7 @@ The G7 and conformance work; full breakdown in
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger on
   `docs/g7-sbom-for-ai.md`; open gaps are under
-  [0.22.0](../design/roadmap.md#0220-g7-sbom-for-ai-field-coverage).
+  [0.23.0](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element SPDX 3.0.1 has no property for (today the architecture, in
   `ai_typeOfModel`; no reader drops a value). Always on, stderr only
@@ -428,11 +428,11 @@ Moved from [known-bugs.md](../design/known-bugs.md).
   [extras-parity.md](extras-parity.md). PyThaiNLP 5.4.0: 79 packages from the
   wheel route, 3 from `loom project .` before the fix.
 
-## Shipped in 0.22.0 so far
+## Shipped in 0.22.0 (PRs #374-#410)
 
-Moved from [roadmap.md](../design/roadmap.md) on 2026-10-29, as they stood
-there. Open 0.22.0 items:
-[roadmap.md](../design/roadmap.md#0220-g7-sbom-for-ai-field-coverage).
+Released 2026-10-30. Moved from [roadmap.md](../design/roadmap.md), as they
+stood there. Open items:
+[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
 
 - [x] **`embed-wheel --sbom` input check** (#374): invalid JSON, a non-object
   or a non-SPDX-3 `.spdx3.json` is refused before the wheel is written.
@@ -453,3 +453,15 @@ there. Open 0.22.0 items:
   comment-join fix it needs.
 - [x] **Sizes under a cap** (#387): a single-file dataset's size and why its
   hash is missing. See [evidence-levels.md](../design/evidence-levels.md).
+- [x] **Skills** (#392): prepare the licence database before the first run.
+- [x] **Provenance segments** (#389): a `|` in a name no longer adds one.
+- [x] **Message catalogue** (#390, #395, #396, #404, #408): catalogued messages
+  end in a `[code]`: Git LFS pointers, size caps, why a model was not read,
+  unreadable files and directories. See
+  [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md).
+- [x] **`licenseid` cap** (#401): `>=0.6.0,<0.7` until the 0.7 adoption.
+- [x] **Serious bugs** (#402, #405, #407): a non-UTF-8 name no longer stops
+  generation, a `:` in provenance text is a note, a direct-URL dependency is not
+  looked up on PyPI by name.
+- [x] **ID registry format 4** (#407): a package keyed by name and version;
+  format 3 is refused.

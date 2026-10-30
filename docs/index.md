@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,7 +103,7 @@ please read our [Security policy][security].
 
 If you use Pitloom in your academic work, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.21.1) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.22.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -114,7 +114,7 @@ BibTeX:
     month = oct,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.21.1},
+    version = {0.22.0},
     year = {2026}
 }
 ```

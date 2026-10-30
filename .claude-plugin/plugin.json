@@ -1,6 +1,6 @@
 {
   "name": "pitloom",
-  "version": "0.21.1",
+  "version": "0.22.0",
   "description": "Generate, enrich and validate SPDX 3 SBOMs/AIBOMs with Pitloom for Python projects, wheels (PEP 770 embedding), Git URLs and AI models, and complete NTIA, FSCT, CISA 2026, G7 SBOM for AI and BSI TR-03183-2 minimum elements.",
   "author": {
     "name": "Arthit Suriyawongkul",
