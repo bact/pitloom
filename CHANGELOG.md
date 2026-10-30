@@ -47,6 +47,8 @@ and this project adheres to
   to be one; `read_ai_model()` refuses a pointer as `loom model` does ([#390])
 - A Git LFS pointer refused by `read_ai_model()`, `generate_model_sbom()` or
   `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
+- `licenseid` is capped below 0.7 (0.7 renames the API Pitloom imports) until
+  the 0.7 adoption ([#401])
 - A missing extra is named (`install pitloom[gguf]`, not `pip install gguf`); a
   missing `magika` or PyPA `build` raises `ImportError`, not `RuntimeError`
   ([#403])
@@ -65,6 +67,11 @@ and this project adheres to
   longer adds a segment to its provenance ([#386], [#389])
 - A `RemoteSourceError` can be copied and pickled; it raised `TypeError`
   ([#396])
+- A project, sdist or dataset file whose POSIX name is not UTF-8 no longer
+  stops generation: its name is written as `\udcff`, with one `WARNING:`
+  ([#402])
+- Provenance free text holding a `:` (a requirement's URL or marker, the
+  AUTHORS URL, a version note) is read as a note, not as a key ([#402])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -78,7 +85,21 @@ and this project adheres to
 [#390]: https://github.com/bact/pitloom/pull/390
 [#395]: https://github.com/bact/pitloom/pull/395
 [#396]: https://github.com/bact/pitloom/pull/396
+[#401]: https://github.com/bact/pitloom/pull/401
+[#402]: https://github.com/bact/pitloom/pull/402
 [#403]: https://github.com/bact/pitloom/pull/403
+
+## [0.21.2] - 2026-10-30
+
+Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
+
+### Fixed
+
+- Requires `licenseid>=0.6.0,<0.7`: licenseid 0.7.0 renames the API Pitloom
+  0.21 imports (`AggregatedLicenseMatcher`, `resolve`, `LicenseMatch`)
+  ([#400])
+
+[#400]: https://github.com/bact/pitloom/pull/400
 
 ## [0.21.1] - 2026-10-28
 
@@ -736,6 +757,7 @@ and this project adheres to
 
 ---
 
+[0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/bact/pitloom/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/bact/pitloom/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/bact/pitloom/compare/v0.20.1...v0.20.2

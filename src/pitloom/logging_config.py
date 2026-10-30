@@ -55,7 +55,7 @@ CODE_LIKE_END = re.compile(rf" \[({CODE_PATTERN})\]\Z")
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
 #: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
 #: Arguments: a prefix (``"FORMAT=<fmt> "`` for a model, else ``""``) and
-#: the file, through :func:`loggable`.
+#: the file, through :func:`loggable`. Logged by :func:`warn_lone_surrogates`.
 LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
 
 #: Keys already surfaced once via :func:`log_once` (and :func:`warn_once`)
@@ -145,6 +145,14 @@ def loggable(text: str) -> str:
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return ascii(text)
+
+
+def warn_lone_surrogates(logger: logging.Logger, where: str, prefix: str = "") -> None:
+    """Log :data:`LONE_SURROGATES_WARNING` on *logger*: text read from
+    *where* (a file, already through :func:`loggable`) held a lone surrogate,
+    now written as text. *prefix* is ``"FORMAT=<fmt> "`` for a model file.
+    The one emitter of that wording; each caller says it once per file."""
+    logger.warning(LONE_SURROGATES_WARNING, prefix, where)
 
 
 #: Characters of a value :func:`excerpt` shows.

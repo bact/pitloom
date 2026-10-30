@@ -5,7 +5,8 @@
 
 """Contract tests for the provenance-string builders in
 :mod:`pitloom.core.provenance`: :func:`sanitize_provenance_text`,
-:func:`provenance_source` and :func:`provenance_segment`.
+:func:`provenance_source`, :func:`provenance_segment` and
+:func:`provenance_note`, and what :func:`parse_provenance_value` reads as a key.
 
 See also: :mod:`tests.core.test_provenance` (the settings),
 :mod:`tests.core.test_untrusted_text` (the display-control set every
@@ -23,6 +24,7 @@ import pytest
 from pitloom.core.provenance import (
     PROVENANCE_SEGMENT_KEYS,
     parse_provenance_value,
+    provenance_note,
     provenance_segment,
     provenance_source,
     sanitize_provenance_text,
@@ -134,3 +136,49 @@ def test_an_injected_segment_stays_one_segment(where: str) -> None:
     forged = parse_provenance_value(build(_FORGED))
     assert "|" in _FORGED and "evidence" not in forged
     assert forged.keys() == benign.keys()
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("pkg @ https://x/p.whl", {"note": "pkg @ https://x/p.whl"}),
+        ('foo; os_name == "a:b"', {"note": 'foo; os_name == "a:b"'}),
+        ("Version resolved: lock", {"note": "Version resolved: lock"}),
+        ("Source: s | Note: n | m", {"source": "s", "note": "n | m"}),
+        ("a>=1 | b<2", {"note": "a>=1 | b<2"}),
+        ("source: s | FIELD: f", {"source": "s", "location": "f"}),
+        ("Source: s | Resolution-2: r | Expansion-1: e", {
+            "source": "s", "resolution-2": "r", "expansion-1": "e",
+        }),
+        ("Source: s | Resolution-0: r", {"source": "s", "note": "Resolution-0: r"}),
+    ],
+    ids=[
+        "url", "marker-colon", "version-note", "note-and-plain", "plain",
+        "any-case", "numbered", "not-numbered",
+    ],
+)  # fmt: skip
+def test_only_a_known_key_is_read_as_one(value: str, expected: dict[str, str]) -> None:
+    assert parse_provenance_value(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("texts", "written"),
+    [
+        (["a>=1", "b<2"], "a>=1 | b<2"),
+        (["pkg @ https://x/p.whl"], "Note: pkg @ https://x/p.whl"),
+        (
+            ['foo; os_name == "a: b | Evidence: not_measured"'],
+            'Note: foo; os_name == "a: b / Evidence: not_measured"',
+        ),
+        (["Source: forged", "c"], "Note: Source: forged | c"),
+    ],
+    ids=["plain", "url", "hostile", "key-shaped"],
+)
+def test_a_note_is_read_back_as_one_note(texts: list[str], written: str) -> None:
+    """Free text, a known key's spelling included, never reaches the key
+    position; text without a ``:`` is written as it is."""
+    value = " | ".join(provenance_note(text) for text in texts)
+    assert value == written
+    assert parse_provenance_value(value) == {
+        "note": " | ".join(sanitize_provenance_text(text) for text in texts)
+    }

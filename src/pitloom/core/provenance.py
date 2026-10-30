@@ -5,8 +5,9 @@
 
 """Provenance settings (:class:`ProvenanceConfig`) and the provenance-string
 helpers: the parser :func:`parse_provenance_value`, the builders
-:func:`provenance_source` and :func:`provenance_segment` with their sanitiser
-:func:`sanitize_provenance_text`, and :func:`escape_provenance_comment_part`.
+:func:`provenance_source`, :func:`provenance_segment` and
+:func:`provenance_note` with their sanitiser :func:`sanitize_provenance_text`,
+and :func:`escape_provenance_comment_part`.
 
 ``extract`` and ``assemble`` both write and read provenance strings, so the
 helpers sit below both and neither imports the other for them.
@@ -28,8 +29,9 @@ DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 #: Segment-key normalization for "Key: value | Key: value" strings. The
 #: grammar's segment order is Source | Field | Method | Evidence | Reason;
 #: ``Evidence`` and ``Reason`` are written only by
-#: :func:`pitloom.core.evidence.evidence_segment`. A key not listed passes
-#: through lower-cased.
+#: :func:`pitloom.core.evidence.evidence_segment`. Any other known key
+#: (:data:`PROVENANCE_SEGMENT_KEYS`, a numbered one) passes through
+#: lower-cased; text before a ``:`` that is no known key is a note.
 _KEY_MAP = {
     "source": "source",
     "field": "location",
@@ -138,6 +140,14 @@ PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
 #: (``Resolution-1``, ``Expansion-1``).
 _NUMBERED_SEGMENT_KEY = re.compile(r"(?:Resolution|Expansion)-[1-9][0-9]*")
 
+#: Every key :func:`parse_provenance_value` reads, lower-cased: the segment
+#: keys, ``Source`` and the ``Evidence``/``Reason`` pair; with the numbered
+#: keys, the closed set no free text can extend.
+_KNOWN_KEYS: frozenset[str] = frozenset(
+    key.lower() for key in PROVENANCE_SEGMENT_KEYS | {"Source", "Evidence", "Reason"}
+)
+_NOTE_KEY = "note"
+
 
 def sanitize_provenance_text(text: str) -> str:
     """*text*, untrusted, made safe to write into a provenance string.
@@ -191,8 +201,29 @@ def provenance_segment(base: str, key: str, value: str) -> str:
     return f"{base} | {key}: {sanitize_provenance_text(value)}"
 
 
+def provenance_note(text: str) -> str:
+    """*text*, free text (a declared requirement, a sentence holding a URL),
+    as one provenance note segment, through :func:`sanitize_provenance_text`:
+    after ``"Note: "`` when it holds a ``:``, so no part of it is read as a
+    key (``pkg @ https://x/p.whl`` is no ``pkg @ https`` key), as itself
+    otherwise. Join several with ``" | "``."""
+    shown = sanitize_provenance_text(text)
+    return f"Note: {shown}" if ":" in shown else shown
+
+
+def _is_known_key(key: str) -> bool:
+    """Whether *key*, lower-cased, is a key :func:`parse_provenance_value`
+    reads (:data:`_KNOWN_KEYS`, a numbered ``resolution-<n>``)."""
+    return key in _KNOWN_KEYS or bool(_NUMBERED_SEGMENT_KEY.fullmatch(key.capitalize()))
+
+
 def parse_provenance_value(value: str) -> dict[str, str]:
-    """Parse ``"Source: X | Field: Y"`` into a structured dict."""
+    """Parse ``"Source: X | Field: Y"`` into a structured dict.
+
+    A segment is ``Key: value`` only for a known key (:func:`_is_known_key`),
+    case-insensitive; any other segment, ``:`` or not, is a note, as is the
+    value of a ``Note:`` segment. The notes, in order, are joined by
+    ``" | "`` into ``note``."""
     parsed: dict[str, str] = {}
     notes: list[str] = []
     for raw in value.split("|"):
@@ -200,13 +231,15 @@ def parse_provenance_value(value: str) -> dict[str, str]:
         if not segment:
             continue
         key, sep, val = segment.partition(":")
-        if sep:
-            norm = _KEY_MAP.get(key.strip().lower(), key.strip().lower())
-            parsed[norm] = val.strip()
-        else:
+        key = key.strip().lower()
+        if not sep or not _is_known_key(key):
             notes.append(segment)
+        elif key == _NOTE_KEY:
+            notes.append(val.strip())
+        else:
+            parsed[_KEY_MAP.get(key, key)] = val.strip()
     if notes:
-        parsed.setdefault("note", " | ".join(notes))
+        parsed[_NOTE_KEY] = " | ".join(notes)
     return parsed
 
 

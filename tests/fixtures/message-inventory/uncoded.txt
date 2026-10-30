@@ -31,7 +31,6 @@ pitloom.assemble.spdx3._fragments_hashes 1
 pitloom.assemble.spdx3._fragments_ids 1
 pitloom.assemble.spdx3._fragments_model_names 1
 pitloom.assemble.spdx3._fragments_props 2
-pitloom.assemble.spdx3._fragments_read 1
 pitloom.assemble.spdx3.ai 1
 pitloom.assemble.spdx3.creation_info 1
 pitloom.assemble.spdx3.deps_installed 3
@@ -90,7 +89,7 @@ pitloom.core.walk_rules 1
 pitloom.core.wheel_dist_info 5
 pitloom.embed 3
 pitloom.enrich 1
-pitloom.enrich.readme 3
+pitloom.enrich.readme 2
 pitloom.extract._author_warnings 5
 pitloom.extract._core_metadata 1
 pitloom.extract._extract_utils 7
@@ -101,14 +100,12 @@ pitloom.extract._license_resolve 1
 pitloom.extract.ai_model.fasttext 2
 pitloom.extract.ai_model.gguf 1
 pitloom.extract.ai_model.hdf5_config 5
-pitloom.extract.ai_model.limits 1
 pitloom.extract.ai_model.onnx 1
 pitloom.extract.ai_model.pytorch 3
 pitloom.extract.ai_model.pytorch_pt2 5
 pitloom.extract.ai_model.reader 1
 pitloom.extract.ai_model.unrecordable 1
-pitloom.extract.dataset.card 1
-pitloom.extract.dataset.croissant 5
+pitloom.extract.dataset.croissant 4
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
 pitloom.extract.lock._common_warnings 7

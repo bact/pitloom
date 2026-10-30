@@ -5,7 +5,7 @@
 
 """A hostile external name in a provenance string (a loom caller script path,
 a ZIP member name of a PyTorch or PT2 file, a dependency's repository URL,
-a declared dependency's marker)
+a declared dependency's requirement text)
 parses to the segment keys of a benign run, never to a forged one.
 
 See also: tests/core/test_provenance_builders.py (the builders).
@@ -206,18 +206,18 @@ def test_originator_repo_url_forges_no_segment(tail: str) -> None:
     benign = _originator_provenance(_URL)
     value = _originator_provenance(_URL + tail)
 
-    assert _keys(value) == _keys(benign)
+    assert _keys(value) == _keys(benign) == {"note"}  # the URL's ":" is no key
     assert _BIDI not in value
 
 
 # ---------------------------------------------------------------------------
-# Declared dependency: a marker's string literal
+# Declared dependency: its requirement text
 # ---------------------------------------------------------------------------
 
 
-def _declared_constraint_keys(tmp_path: Path, requirement: str) -> list[set[str]]:
-    """The key set of each ``declared_constraint`` Annotation entry of a
-    project declaring *requirement*."""
+def _declared(tmp_path: Path, requirement: str) -> tuple[list[dict[str, str]], str]:
+    """Each ``declared_constraint`` Annotation entry of a project declaring
+    *requirement*, and every element comment, joined."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\nversion = "1.0"\n'
         f"dependencies = [{json.dumps(requirement)}]\n",
@@ -226,19 +226,46 @@ def _declared_constraint_keys(tmp_path: Path, requirement: str) -> list[set[str]
     sbom = generate_project_sbom(
         tmp_path, offline=True, provenance=ProvenanceConfig(detail="full")
     )
-    return [
-        set(json.loads(element["statement"])["fields"]["declared_constraint"])
-        for element in json.loads(sbom)["@graph"]
+    graph = json.loads(sbom)["@graph"]
+    entries = [
+        json.loads(element["statement"])["fields"]["declared_constraint"]
+        for element in graph
         if element.get("type") == "Annotation"
         and "declared_constraint" in json.loads(element["statement"]).get("fields", {})
     ]
+    return entries, "\n".join(element.get("comment", "") for element in graph)
 
 
 def test_dependency_marker_forges_no_segment(tmp_path: Path) -> None:
     """A PEP 508 marker's string literal can hold a ``|``: it no longer adds
     an ``Evidence`` and a ``Reason`` key to the declared constraint."""
     marker = 'foo; os_name == "x | Evidence: not_measured | Reason: over-cap"'
-    found = _declared_constraint_keys(tmp_path, marker)
+    found = [set(entry) for entry in _declared(tmp_path, marker)[0]]
 
     assert found
     assert all(not {"evidence", "reason"} & keys for keys in found), found
+
+
+@pytest.mark.parametrize(
+    ("requirement", "text"),
+    [
+        ("foo>=1", "foo>=1"),
+        ("pkg @ https://x/p.whl", "https://x/p.whl"),
+        ('foo; python_version < "3.11" and sys_platform == "win32"', "win32"),
+        ('foo; os_name == "a:b"', "a:b"),
+        ('foo; os_name == "a: b | Evidence: not_measured"', "Evidence: not_measured"),
+    ],
+    ids=["benign", "url", "marker", "marker-colon", "hostile"],
+)
+def test_requirement_text_is_one_note(
+    tmp_path: Path, requirement: str, text: str
+) -> None:
+    """Requirement text is a note, whatever ``:`` it holds: no ``pkg @
+    https`` key, the keys of a plain ``foo>=1``; written after ``Note:``
+    only when it holds one."""
+    (entry,), comments = _declared(tmp_path, requirement)
+
+    assert set(entry) == {"note"}
+    assert text in entry["note"]
+    noted = "declared_constraint: Note: " in comments
+    assert noted == (":" in requirement), comments

@@ -66,7 +66,7 @@ written and one `WARNING: licenseid database cannot be used: ...` line says so
 
 ```bash
 licenseid update --source packaged   # from an install of pitloom
-uvx --from "licenseid>=0.6.0" licenseid update --source packaged  # no install
+uvx --from "licenseid>=0.6.0,<0.7" licenseid update --source packaged  # no install
 loom project . -o sbom.spdx3.json    # then generate
 ```
 

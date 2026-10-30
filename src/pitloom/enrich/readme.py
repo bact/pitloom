@@ -45,10 +45,10 @@ from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
-    LONE_SURROGATES_WARNING,
     field_loss_suffix,
     loggable,
     one_line,
+    warn_lone_surrogates,
 )
 from pitloom.messages import Cap, warn_over_cap
 
@@ -247,7 +247,7 @@ class ReadmeEnricher:
         }
         read, lone = escape_lone_surrogates_in(read)
         if lone:
-            log.warning(LONE_SURROGATES_WARNING, "", loggable(str(card_path)))
+            warn_lone_surrogates(log, loggable(str(card_path)))
         license_value, datasets_value = read["license"], read["datasets"]
 
         source = provenance_segment(

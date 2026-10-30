@@ -29,7 +29,9 @@ and :func:`pitloom.core.file_names.escape_file_name_part` cover it too.
 A lone surrogate (U+D800 to U+DFFF, which ``json.loads`` accepts from
 ``"\\ud800"``) is not a display control: no UTF-8 text can hold it, so it
 is written as text where model metadata is read
-(:func:`escape_lone_surrogates`), in the same spelling.
+(:func:`escape_lone_surrogates`), in the same spelling, and in every
+element of an SBOM as it is written
+(:func:`escape_lone_surrogates_in_elements`; a non-UTF-8 POSIX file name).
 
 Layering with RFC 8785 (JCS, :mod:`pitloom.core.canonical_json`): JCS is a
 lossless serialisation. Its string rule (section 3.2.2.2) writes ``\\b``,
@@ -60,6 +62,7 @@ __all__ = [
     "escape_display_controls_in_json",
     "escape_lone_surrogates",
     "escape_lone_surrogates_in",
+    "escape_lone_surrogates_in_elements",
 ]
 
 #: The code points every display-safety helper neutralises: a fixed list
@@ -210,6 +213,21 @@ def escape_lone_surrogates_in(value: Any) -> tuple[Any, bool]:
             object.__setattr__(value, name, shown)
             changed_any = True
     return value, changed_any
+
+
+def escape_lone_surrogates_in_elements(elements: list[dict[str, Any]]) -> list[str]:
+    """Each JSON object of *elements* (the decoded ``@graph`` of an SBOM)
+    with :func:`escape_lone_surrogates_in` applied, in place. Returns the
+    ``name`` (else the ``spdxId``) of each object that changed, as it was
+    before, in the order of *elements*: a project file whose POSIX name is
+    not UTF-8 (``b"\\xff.py"`` read as ``"\\udcff.py"``) reaches the output
+    as the text ``\\udcff.py``."""
+    changed: list[str] = []
+    for element in elements:
+        label = str(element.get("name") or element.get("spdxId") or "")
+        if escape_lone_surrogates_in(element)[1]:
+            changed.append(label)
+    return changed
 
 
 def _escape_lone_surrogates_in_sequence(
