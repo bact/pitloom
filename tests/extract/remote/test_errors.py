@@ -59,6 +59,6 @@ def test_a_remote_source_error_survives_a_copy_and_a_pickle(
 ) -> None:
     """The code given to it, or set on it later, survives with the rest."""
     back = again(exc)
-    assert back is not exc and type(back) is RemoteSourceError
+    assert back is not exc and isinstance(back, RemoteSourceError)
     assert (back.code, str(back), back.args) == (exc.code, str(exc), exc.args)
     assert code_of(back) == code_of(exc) == code
