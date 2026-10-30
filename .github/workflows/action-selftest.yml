@@ -12,7 +12,7 @@ name: Action self-test
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths-ignore: &ignore-paths
       - "docs/**"
       - "**/*.md"
@@ -21,7 +21,7 @@ on:
       - "codemeta.json"
       - ".gitignore"
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths-ignore: *ignore-paths
 
 permissions: read-all

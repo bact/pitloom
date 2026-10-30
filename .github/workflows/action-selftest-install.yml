@@ -14,7 +14,7 @@ name: Action self-test (install)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths: &action-paths
       - "action.yml"
       - "scripts/action/**"
@@ -23,7 +23,7 @@ on:
       - ".gitattributes"
       - ".github/workflows/action-selftest-install.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths: *action-paths
 
 permissions: read-all

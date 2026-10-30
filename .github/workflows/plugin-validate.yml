@@ -5,13 +5,13 @@ name: Validate Claude Code plugin
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - ".claude-plugin/**"
       - "skills/**"
       - ".github/workflows/plugin-validate.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "maint-*"]
     paths:
       - ".claude-plugin/**"
       - "skills/**"
