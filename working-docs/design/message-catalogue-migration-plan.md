@@ -64,8 +64,7 @@ PR counts shown).
 ## Serious known bugs for 0.22.0
 
 "Serious" means a crash, silently wrong data or identity, or a leak. The
-entries are in [known-bugs.md](known-bugs.md). Proposed list; the maintainer
-confirms:
+entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
 
 - A project file whose name is not valid UTF-8 crashes generation.
 - A plain-text provenance value with a `:` reads as a key.
