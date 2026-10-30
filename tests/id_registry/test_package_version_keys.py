@@ -376,3 +376,23 @@ def test_env_upgrade_gives_only_the_upgraded_package_a_new_id(
     assert after["bar"] == before["bar"]
     assert after["deployed-environment"] == before["deployed-environment"]
     assert registry.get(PACKAGE_TYPE, "deployed-environment@0.0.0") is not None
+
+
+def test_an_nfc_and_an_nfd_spelling_of_one_version_share_one_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``is_same_version`` compares an unparsable version as text, so the
+    two spellings are two packages; the key is NFC, so they share one key:
+    its lookup is made once and its pin goes to the first, the second gets
+    the claim WARNING and its own id."""
+    nfc = unicodedata.normalize("NFC", _NFD)
+    registry = IdRegistry.new("r")
+    pinned = registry.register(PACKAGE_TYPE, package_key("foo", nfc))
+    doc = make_doc(dependencies=[f"foo==={nfc}", f"foo==={_NFD}"])
+
+    with caplog.at_level("WARNING"):
+        found = [p for p in packages(build_doc(doc, registry)) if p.name == "foo"]
+
+    assert len(found) == 2  # non-vacuous: two packages
+    assert [p.spdx_id for p in found].count(pinned) == 1
+    assert len(claim_warnings(caplog)) == 1
