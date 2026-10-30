@@ -37,7 +37,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel
+from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_error
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
@@ -70,9 +70,11 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     Raises:
         FileNotFoundError: *model_path* does not exist.
         ValueError: The file is not a model of a supported format (an empty
-            file, an unknown format, a header that contradicts the suffix);
-            a :class:`~pitloom.messages.CodedValueError` for a Git LFS
-            pointer (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
+            file, an unknown format, a header that contradicts the suffix): a
+            :class:`~pitloom.messages.CodedValueError`, ``model-wrong-format``
+            (:func:`~pitloom.extract.ai_model.refusal_error`), or for a Git
+            LFS pointer ``lfs-pointer`` or ``lfs-pointer-malformed``
+            (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
         OSError: The header cannot be read.
     """
     if not model_path.exists():
@@ -82,7 +84,7 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     except NotAModel as e:
         if e.reason == LFS_POINTER_REASON:
             refuse_named_pointer(model_path, e)
-        raise ValueError(f"{quote_source(model_path)}: {e}") from e
+        raise refusal_error(model_path, e.model_format, str(e)) from e
 
 
 #: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model

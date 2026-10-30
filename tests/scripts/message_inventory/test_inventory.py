@@ -44,6 +44,7 @@ SITES = [
     ("pitloom.caps", 16, True, False),  # warn_over_cap(...)
     ("pitloom.caps", 17, True, False),  # a wrapper of it
     ("pitloom.caps", 19, True, False),  # raise ...(pitloom_code=M.code)
+    ("pitloom.extract.ai_model.reader", 9, True, False),  # raise CodedImportError
 ]
 IDS = [f"{m.rsplit('.', 1)[-1]}:{n}" for m, n, _, _ in SITES]
 
@@ -78,14 +79,29 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
     assert not [r for r in records if r["module"] == "pitloom.caps" and r["line"] == 12]
     assert mi.uncoded_counts(records) == {
         "pitloom.callers": 1,
+        "pitloom.extract.ai_model.reader": 1,
         "pitloom.helpers": 1,
         "pitloom.internal": 1,
         "pitloom.relay": 1,
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (17, 9)
-    assert counts["IN_SCOPE_UNCODED"] == 8 == sum(mi.uncoded_counts(records).values())
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (19, 10)
+    assert counts["IN_SCOPE_UNCODED"] == 9 == sum(mi.uncoded_counts(records).values())
+
+
+def test_a_readers_raise_is_detail_and_its_dispatchs_is_not(
+    mi: ModuleType, tree: Path
+) -> None:
+    """Decision J: a raise in a model reader's module is the detail of the
+    scanner's line, whatever its class; the dispatch's refusal, which a
+    single-file command prints, is a message."""
+    records = mi.inventory(tree)
+    reader = _site(records, "pitloom.extract.ai_model.gguf", 2)
+    dispatch = _site(records, "pitloom.extract.ai_model.reader", 5)
+    assert (reader["emitter"], dispatch["emitter"]) == ("raise", "raise")
+    assert mi.reach(reader) == "detail" and not mi.in_scope(reader)
+    assert mi.reach(dispatch) == "ERROR(raise)" and mi.in_scope(dispatch)
 
 
 @pytest.mark.parametrize(

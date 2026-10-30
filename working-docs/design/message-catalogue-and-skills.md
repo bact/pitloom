@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,7 +20,8 @@ the review of #390, then M proposed, at the end); scope split between 0.22.0 and
 below. The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
 the plumbing, schema and ratchet, is #390 (merged); migration step 2, the
-`over-cap` family, is #396 (decisions in "The `over-cap` family").
+`over-cap` family, is #396 (decisions in "The `over-cap` family"); step 3,
+the model-stub causes, is #404 (PR 1a; decisions in "The model-stub causes").
 
 ## Core idea
 
@@ -149,9 +150,11 @@ and C):
    sdist's config file, a Git URL's checkout and `git` output). The helper,
    `Cap` (46 calls in 27 modules) and `over_cap_of` moved into
    `pitloom.messages`: 35 modules and 2 tests import them from there.
-3. The model-stub causes in `extract/scanner.py`: `model-unreadable`,
-   `library-missing`, `model-gated`, `not-a-model` (condition
-   `wrong-format`).
+3. The model-stub causes (#404, PR 1a): `library-missing`,
+   `reader-unsafe`, `model-unreadable`, `model-wrong-format`,
+   `parameter-count-invalid`, `hyperparameter-conflict` (not `model-gated`,
+   a response, nor `not-a-model`, merged into `wrong-format`). The model
+   fields a reader reads in part follow in PR 1b.
 4. `file-unreadable` and `dir-unlistable`, paired with the evidence reasons of
    the same names.
 5. `option-no-effect`: the first entry whose actor is the `caller`.
@@ -329,6 +332,68 @@ Not `over-cap`: `git.too-many-redirects` (its advice is to give the final
 URL), the build-timeout and `MAX_ID_NUMBER` ranges (invalid input). The
 `Git source: <reason>` warning that repeats a Git URL's refusal before its
 `ERROR:` stays uncoded: its prefix is no frame yet (step 6).
+
+## The model-stub causes
+
+Decided 2026-10-30 for #404 (PR 1a of row 1; the maintainer took the
+recommendations D1 to D12 of its plan):
+
+1. **Six codes, named by cause (D1, decision B)**: `library-missing`
+   (`missing`), `reader-unsafe` (`unsafe`), `model-unreadable`
+   (`unreadable`), `model-wrong-format` (`wrong-format`),
+   `parameter-count-invalid` (`invalid`) and `hyperparameter-conflict`
+   (`conflict`). A test holds every family to its condition, or a subject
+   and `-<condition>`.
+2. **`library-missing` owns its text (D2)**: `required library not
+   installed: <module>; install pitloom[<extra>]`, the extra a closed field,
+   never a bare `pip install <package>`; actor `user` (D3), since an extra
+   changes the environment and runs native parsers on the files. It covers
+   every optional library a step imports (`pitloom.core.optional_libraries`):
+   the model readers, the Hugging Face Hub client, `spdx3-validate`, PyPA
+   `build` and `magika`. `CodedImportError` stands beside `CodedValueError`,
+   both copyable and picklable through one mixin. No field may share a name
+   with a parameter of `emit` or of a coded exception (a field `extra` was
+   swallowed by `emit`'s own; tested).
+3. **One `model-unreadable`, no variant (D4)**: a reader's failure
+   (`<error>`, free) and a bound check's (`<reason>`, a closed table of six
+   texts the readers raise from `pitloom.messages`, D5; an AST test holds
+   every `ModelLimitExceeded` raise to it).
+4. **A closed field may repeat in a line (D6)**: `FORMAT=<format>
+   FILE=<file>: header is not <format>; ...`; a free one may not.
+5. **`read_ai_model()` refuses a file no reader reads as `not an AI model
+   file of a supported format` (D7)**, the single-file commands' words, not
+   "Unsupported model format ... Supported extensions": one code,
+   `model-wrong-format`, on every surface; its effect is `thinner` (D8).
+6. **A model reader's raise is detail (D9, decision J)**: a raise in
+   `extract/ai_model/` but the dispatch `reader.py` is out of the ratchet by
+   where it is, since only the scanner calls the dispatch and only the
+   dispatch names a reader (both tested): 25 sites. With 15 sites coded, the
+   ratchet fell from 556 to 516 (172 to 163 modules).
+7. **Row 1 is split (D10)**: PR 1a is this one (the 18 covered sites and the
+   detail rule); PR 1b, also 0.22.0, takes the 27 sites of model fields read
+   in part (`model-field-unreadable`, `model-field-conflict`,
+   `model-field-invalid`, `field-not-recordable`; fickling's own stderr
+   stays a relay). Six sites move: `git.not-found` and the interpreter to
+   PRs 13 and 14, poetry-core's "API not found" (installed, its API moved:
+   `unusable`) to PR 12, and the model command's URL, the project's Hub
+   model and the usage hint (actor `caller`) to PR 3. The migration plan's
+   row 1 follows once it is merged.
+8. **The generated catalogue has its own page (D11)**:
+   `docs/message-codes.md`; `docs/messages.md` keeps the grammar, the
+   guarantees and the trust rule. The generator writes it, both skills'
+   `references/messages.md` and, behind a second marker, the model table of
+   `model-stub-diagnosis.md` (what each code leaves of a model; tested
+   complete).
+9. **Parked (D12)**: the stub's cause in the SBOM (`Reason:` on a
+   format-only entry). No field carries it; it needs three more reason
+   codes, a carrier on `AiModelMetadata`, merge semantics and edits to the
+   frozen scan-limits page. After 0.22.0.
+
+Left open: the `Build:` warning reporting a missing PyPA `build` keeps no
+code, its prefix being no frame (step 6); an import that is found but fails
+is reported as not installed, as before (the readers raise
+`missing_library()` from any `ImportError`); `hyperparameter-conflict` is
+the first entry whose actor and effect are `none`.
 
 ## The `AGENTS.md` rule
 

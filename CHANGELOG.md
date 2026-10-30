@@ -32,9 +32,10 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
-- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, then
-  every cap warning and error, `[over-cap]`), also on log records and
-  exceptions as `pitloom_code`; see `docs/messages.md` ([#390], [#396])
+- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, every
+  cap warning and error, why a model was not read), also on log records and
+  exceptions as `pitloom_code`; see `docs/message-codes.md` ([#390], [#396],
+  [#404])
 
 ### Changed
 
@@ -48,6 +49,11 @@ and this project adheres to
   `enrich_model()` carries the `lfs-pointer` code as `pitloom_code` ([#395])
 - `licenseid` is capped below 0.7 (0.7 renames the API Pitloom imports) until
   the 0.7 adoption ([#401])
+- A missing extra is named (`install pitloom[gguf]`, not `pip install gguf`); a
+  missing `magika` or PyPA `build` raises `ImportError`, not `RuntimeError`
+  ([#404])
+- `read_ai_model()` refuses a file no reader reads as `loom model` does: `not an
+  AI model file of a supported format` ([#404])
 
 ### Fixed
 
@@ -81,6 +87,7 @@ and this project adheres to
 [#396]: https://github.com/bact/pitloom/pull/396
 [#401]: https://github.com/bact/pitloom/pull/401
 [#402]: https://github.com/bact/pitloom/pull/402
+[#404]: https://github.com/bact/pitloom/pull/404
 
 ## [0.21.2] - 2026-10-30
 

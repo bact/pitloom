@@ -19,6 +19,7 @@ See also: ``scripts/message_inventory/`` (the tool and what counts),
 
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 import sys
@@ -28,8 +29,10 @@ import pytest
 
 from tests._message_inventory import REPO_ROOT, load
 
-#: Sites already coded: (file, emitter) of the Git LFS pointer families and of
-#: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises).
+#: Sites already coded: (file, emitter) of the Git LFS pointer families, of
+#: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises) and
+#: of the model-stub causes (the scan's lines, the single-file refusal, the
+#: missing libraries, the parameter count).
 CODED_SITES = [
     ("src/pitloom/core/lfs_pointer.py", "emit"),
     ("src/pitloom/core/lfs_pointer.py", "raise"),
@@ -38,6 +41,14 @@ CODED_SITES = [
     ("src/pitloom/extract/authors.py", "warn_field_cap"),
     ("src/pitloom/extract/project/sdist.py", "raise"),
     ("src/pitloom/extract/remote/_git_run.py", "raise"),
+    ("src/pitloom/extract/ai_model/reader.py", "raise"),
+    ("src/pitloom/assemble/_model_generator.py", "raise"),
+    ("src/pitloom/extract/remote/huggingface.py", "raise"),
+    ("src/pitloom/cli/commands/utils.py", "print_error"),
+    ("src/pitloom/core/_models_wheel_build_subprocess.py", "raise"),
+    ("src/pitloom/extract/_file_headers.py", "raise"),
+    ("src/pitloom/extract/ai_model/parameter_count.py", "emit"),
+    ("src/pitloom/assemble/spdx3/_ai_package.py", "emit"),
 ]
 
 
@@ -67,6 +78,14 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
         "over-cap-wrapper",
         "over-cap-sdist",
         "over-cap-git",
+        "model-refusal",
+        "model-file-refusal",
+        "hub-library",
+        "validate-library",
+        "build-library",
+        "magika-library",
+        "parameter-count",
+        "hyperparameter",
     ],
 )
 def test_the_tool_sees_the_catalogued_sites_as_coded(
@@ -102,6 +121,63 @@ def test_a_programming_error_is_out_of_scope(
         if r["file"] == file and r.get("exc_class") == "InternalError"
     ]
     assert internal and not any(load().in_scope(r) for r in internal)
+
+
+def _calls_of(name: str) -> set[str]:
+    """The modules of ``src/pitloom`` (POSIX, under it) that call *name*."""
+    root = REPO_ROOT / "src" / "pitloom"
+    found = set()
+    for path in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_bytes())):
+            if isinstance(node, ast.Call) and name in (
+                getattr(node.func, "id", None),
+                getattr(node.func, "attr", None),
+            ):
+                found.add(path.relative_to(root).as_posix())
+    return found
+
+
+def test_a_model_readers_raise_reaches_a_user_only_through_the_scan(
+    records: list[dict[str, Any]],
+) -> None:
+    """Why a raise in ``extract/ai_model/`` (its dispatch aside) is detail,
+    out of scope: only the scanner calls the dispatch, ``read_ai_model``, and
+    only the dispatch's registry names a reader, so what a reader raises is
+    the ``<error>`` of the scanner's ``model-unreadable`` line (or turned
+    into ``library-missing``)."""
+    assert _calls_of("read_ai_model") == {"extract/scanner.py"}
+    readers = {
+        f"read_{name}"
+        for name in (
+            "crfsuite",
+            "fasttext",
+            "gguf",
+            "hdf5",
+            "keras",
+            "numpy",
+            "onnx",
+            "pytorch",
+            "pytorch_pt2",
+            "safetensors",
+        )
+    }
+    root = REPO_ROOT / "src" / "pitloom"
+    for path in sorted(root.rglob("*.py")):
+        names = {
+            n.id
+            for n in ast.walk(ast.parse(path.read_bytes()))
+            if isinstance(n, ast.Name)
+        }
+        rel = path.relative_to(root).as_posix()
+        if names & readers:
+            assert rel == "extract/ai_model/reader.py", rel
+    mi = load()
+    sites = [r for r in records if r["file"].startswith(mi.READER_PACKAGE)]
+    raised = [r for r in sites if r["emitter"] == "raise"]
+    assert len(raised) > 30  # the scan finds them
+    for record in raised:
+        dispatch = record["file"] == mi.READER_DISPATCH
+        assert (mi.reach(record) == "detail") is not dispatch, record["line"]
 
 
 def test_the_documented_command_runs_the_ratchet() -> None:

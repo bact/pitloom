@@ -46,6 +46,7 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.optional_libraries import MAGIKA, missing
 from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
@@ -218,7 +219,9 @@ def _get_magika() -> Any:
 
 
 def require_magika_available() -> None:
-    """Raise ``RuntimeError`` when ``magika`` isn't importable.
+    """Raise the ``library-missing`` error
+    (:class:`~pitloom.messages.CodedImportError`) when ``magika`` isn't
+    importable.
 
     Called once, up front (not per file), when
     ``[tool.pitloom.content-type] method = "magika"`` is explicitly
@@ -228,10 +231,7 @@ def require_magika_available() -> None:
     are lower-quality than requested.
     """
     if _get_magika() is None:
-        raise RuntimeError(
-            "content-type-method 'magika' requires the magika package "
-            "(pip install pitloom[content-type])"
-        )
+        raise missing(MAGIKA)
 
 
 def guess_content_type(

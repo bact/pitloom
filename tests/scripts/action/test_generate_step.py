@@ -344,34 +344,43 @@ def test_percent_in_annotation_text_is_escaped(
 
 _POINTER = "FILE={}: Git LFS pointer, content not read; run 'git lfs pull'"
 _OVER_CAP = "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
+_GATE = (
+    "AI models in a wheel in these formats are listed without metadata, their "
+    "reader not being run on a wheel's files: gguf, onnx. Pass "
+    "--trust-wheel-model for a wheel you trust."
+)
 
 
 @pytest.mark.parametrize(
-    ("text", "code", "eol"),
+    ("level", "text", "code", "eol"),
     [
-        (_POINTER.format("m.bin"), "lfs-pointer", "\\n"),
-        (_POINTER.format("x [lfs-pointer]"), "lfs-pointer/shipped", "\\n"),
-        (_POINTER.format("100%%25 m"), "lfs-pointer", "\\r\\n"),
-        (_OVER_CAP, "over-cap", "\\r\\n"),
+        ("WARNING", _POINTER.format("m.bin"), "lfs-pointer", "\\n"),
+        ("WARNING", _POINTER.format("x [lfs-pointer]"), "lfs-pointer/shipped", "\\n"),
+        ("WARNING", _POINTER.format("100%%25 m"), "lfs-pointer", "\\r\\n"),
+        ("WARNING", _OVER_CAP, "over-cap", "\\r\\n"),
+        ("INFO", _GATE, "reader-unsafe", "\\r\\n"),
     ],
-    ids=["plain", "hostile-name", "percent-crlf", "over-cap-crlf"],
+    ids=["plain", "hostile-name", "percent-crlf", "over-cap-crlf", "info-crlf"],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_a_catalogued_code_ends_the_annotation_after_the_fence(
-    generate: Callable[..., _Result], text: str, code: str, eol: str
+    generate: Callable[..., _Result], level: str, text: str, code: str, eol: str
 ) -> None:
-    """``::warning::<text> [code]``: the annotation carries the code as the
-    last token, is emitted after the closing ``::<token>::`` fence (the raw
-    line, with its ``WARNING:`` prefix, inside it) and the code survives the
-    ``%`` escaping and a Windows carriage return."""
-    result = generate(LOOM_STDERR=f"WARNING: {text} [{code}]{eol}")
+    """``::warning::<text> [code]`` (``::notice::`` for an ``INFO:``): the
+    annotation carries the code as the last token, is emitted after the
+    closing ``::<token>::`` fence (the raw line, with its level prefix, inside
+    it) and the code survives the ``%`` escaping and a Windows carriage
+    return."""
+    result = generate(LOOM_STDERR=f"{level}: {text} [{code}]{eol}")
     lines = result.output.splitlines()
     stop = next(line for line in lines if line.startswith("::stop-commands::"))
     resume = f"::{stop.removeprefix('::stop-commands::')}::"
     escaped = text.replace("%%", "%").replace("%", "%25")
-    annotation = f"::warning::{escaped} [{code}]"
+    command = {"WARNING": "warning", "INFO": "notice"}[level]
+    annotation = f"::{command}::{escaped} [{code}]"
     assert lines.index(annotation) > lines.index(resume) > lines.index(stop)
     raw = [line.rstrip("\r") for line in lines[lines.index(stop) : lines.index(resume)]]
-    assert f"WARNING: {text.replace('%%', '%')} [{code}]" in raw
+    assert f"{level}: {text.replace('%%', '%')} [{code}]" in raw
 
 
 def test_last_stderr_line_is_annotated_after_a_slow_loom(

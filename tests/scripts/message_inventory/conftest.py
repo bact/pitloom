@@ -137,6 +137,24 @@ def check(path, cap):
     warn_over_cap(_log, model_cap(NAME_CAP, "gguf"), path, "cut")
     raise RemoteSourceError("git.too-large", "too large", pitloom_code=OVER_CAP.code)
 """,
+    # A model reader's raise is the detail of the scanner's line, by where
+    # it is; its dispatch's own refusal is a message, and a CodedImportError
+    # is coded by its class, whatever message it is given.
+    "extract/ai_model/gguf.py": """\
+def read_gguf(path, exc):
+    raise ValueError(f"Failed to read GGUF file {path}: {exc}")
+""",
+    "extract/ai_model/reader.py": """\
+from pitloom.messages import CodedImportError
+
+
+def read_ai_model(path):
+    raise ValueError(f"{path}: not a model")
+
+
+def need(message, module):
+    raise CodedImportError(message, module=module, requirement="pitloom[x]")
+""",
     # A call of each helper, and a raise with text.
     "callers.py": """\
 from pitloom.helpers import refuse, warn_coded, warn_plain
@@ -177,5 +195,6 @@ def tree_fixture(tmp_path: Path) -> Path:
     (package / "messages").mkdir(parents=True)
     (package / "__init__.py").write_bytes(b"")
     for name, source in MODULES.items():
+        (package / name).parent.mkdir(parents=True, exist_ok=True)
         (package / name).write_bytes(source.encode("utf-8"))
     return tmp_path

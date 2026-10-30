@@ -21,6 +21,7 @@ from pitloom.extract._file_headers import (
     require_magika_available,
     resolve_content_type_override,
 )
+from pitloom.messages import code_of
 
 
 @pytest.fixture(autouse=True)
@@ -262,8 +263,12 @@ def test_require_magika_available_raises_when_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
-    with pytest.raises(RuntimeError, match="content-type-method 'magika'"):
+    with pytest.raises(ImportError) as caught:
         require_magika_available()
+    assert str(caught.value) == (
+        "required library not installed: magika; install pitloom[content-type]"
+    )
+    assert code_of(caught.value) == "library-missing"
 
 
 # ---------------------------------------------------------------------------

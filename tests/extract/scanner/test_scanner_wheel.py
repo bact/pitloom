@@ -27,9 +27,12 @@ from pitloom.assemble import generate_wheel_sbom
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import code_of
 from tests._raw_archive import write_raw_zip
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.warning_helpers import file_values, logged_warnings
@@ -235,8 +238,8 @@ def test_a_model_is_not_copied_when_its_reader_library_is_missing(
     copies: list[Path],
 ) -> None:
     """Not up to the whole budget is copied out of the wheel just to report
-    that the reader's library is not installed. Same stub, same message as the
-    reader's own."""
+    that the reader's library is not installed. Same stub, and the reader's
+    own error names the same extra, both ``library-missing``."""
     path = tmp_path / member
     payload = _confirming(fmt, member)
     path.write_bytes(payload)
@@ -249,10 +252,17 @@ def test_a_model_is_not_copied_when_its_reader_library_is_missing(
     assert model.format_info.model_format == fmt
     assert not model.provenance
     (message,) = logged_warnings(caplog)
+    extra = REQUIREMENTS[fmt].spec
     assert message == (
         f"FORMAT={fmt} FILE=demo/{member}: required library not installed; "
-        f"{excinfo.value}"
+        f"install {extra}"
     )
+    assert str(excinfo.value) == (
+        f"required library not installed: {module}; install {extra}"
+    )
+    assert code_of(excinfo.value) == "library-missing"
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert getattr(record, CODE_ATTR) == "library-missing"
 
 
 @pytest.mark.parametrize("usage", [False, True])

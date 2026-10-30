@@ -3,65 +3,40 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The optional library each model reader needs, and the one message every
-caller gives when it is missing.
+"""The optional library each model reader needs, and the one error every
+caller gives when it is missing (``library-missing``).
 
 A reader raises it when its import fails; the scanner asks first
 (:func:`require_library`), so a wheel scan does not copy a model out of the
 archive just to report that its reader cannot run.
 
-See also: :mod:`pitloom.extract.scanner`.
+See also: :mod:`pitloom.extract.scanner` and
+:mod:`pitloom.core.optional_libraries` (every optional library).
 """
 
 from __future__ import annotations
 
 import importlib.util
-from dataclasses import dataclass
 
 from pitloom.core.ai_metadata import AiModelFormat
-
-
-@dataclass(frozen=True)
-class Requirement:
-    """A reader's library.
-
-    Attributes:
-        module: Top-level module that is imported.
-        message: What an :class:`ImportError` says when it is missing.
-    """
-
-    module: str
-    message: str
-
-
-def _package(module: str, what: str) -> Requirement:
-    return Requirement(
-        module,
-        f"The '{module}' package is required to extract {what} model "
-        f"metadata. Install it with: pip install {module}",
-    )
-
+from pitloom.core.optional_libraries import Requirement, missing
 
 # Formats not listed (CRFsuite, Keras v3, PyTorch, PT2) read through the
 # standard library; PyTorch's fickling is optional and its absence is not an error.
 REQUIREMENTS: dict[AiModelFormat, Requirement] = {
-    AiModelFormat.FASTTEXT: Requirement(
-        "fasttext",
-        "The 'fasttext' module is required to extract fastText model "
-        "metadata. Install it with: pip install fasttext-community",
-    ),
-    AiModelFormat.GGUF: _package("gguf", "GGUF"),
-    AiModelFormat.HDF5: _package("h5py", "HDF5"),
-    AiModelFormat.NUMPY: _package("numpy", "NumPy"),
-    AiModelFormat.ONNX: _package("onnx", "ONNX"),
-    AiModelFormat.SAFETENSORS: _package("safetensors", "Safetensors"),
+    AiModelFormat.FASTTEXT: Requirement("fasttext", "fasttext"),
+    AiModelFormat.GGUF: Requirement("gguf", "gguf"),
+    AiModelFormat.HDF5: Requirement("h5py", "hdf5"),
+    AiModelFormat.NUMPY: Requirement("numpy", "numpy"),
+    AiModelFormat.ONNX: Requirement("onnx", "onnx"),
+    AiModelFormat.SAFETENSORS: Requirement("safetensors", "safetensors"),
 }
 
 
 def missing_library(fmt: AiModelFormat) -> ImportError:
     """The error a reader of *fmt* raises when its library cannot be
-    imported."""
-    return ImportError(REQUIREMENTS[fmt].message)
+    imported (:func:`~pitloom.core.optional_libraries.missing`)."""
+    return missing(REQUIREMENTS[fmt])
 
 
 def require_library(fmt: AiModelFormat) -> None:

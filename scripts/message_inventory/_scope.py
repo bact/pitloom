@@ -20,7 +20,12 @@ is the older list of such texts; a raise moves from it to the class, never
 back.
 
 ``reach`` is a static guess for ``raise`` sites (which of them reach the CLI
-as an ``ERROR:`` line), by exception class and message text.
+as an ``ERROR:`` line), by exception class and message text. A raise in a
+model reader's package (:data:`READER_PACKAGE`, its dispatch module
+:data:`READER_DISPATCH` aside) is detail by where it is: only the dispatch
+calls a reader, and only the scanner calls the dispatch, so its text is the
+detail of the scanner's line (``tests/test_message_ratchet.py`` holds both
+facts).
 
 See also: ``_coded.py`` (coded or not) and ``_baseline.py`` (the counts).
 """
@@ -116,10 +121,19 @@ _VISIBLE = frozenset(
 )
 
 
+#: The model readers' package: what a raise there says is the detail of the
+#: scanner's line.
+READER_PACKAGE = "src/pitloom/extract/ai_model/"
+#: The dispatch to the readers, whose refusals a single-file surface prints.
+READER_DISPATCH = "src/pitloom/extract/ai_model/reader.py"
+
+
 def _raise_reach(rec: dict[str, Any]) -> str:
     exc = rec.get("exc_class") or ""
     text = rec["template"] or ""
-    if exc in DETAIL_EXC:
+    if exc in DETAIL_EXC or (
+        rec["file"].startswith(READER_PACKAGE) and rec["file"] != READER_DISPATCH
+    ):
         return "detail"
     names = {exc.rpartition(".")[2], rec.get("exc_origin") or ""}
     if INTERNAL_PAT.search(text) or names & INTERNAL_EXC:

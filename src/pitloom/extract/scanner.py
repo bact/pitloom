@@ -14,9 +14,11 @@ module imports no producer.
 Invariant: one confirmed model file (its header agrees with a model format)
 gives exactly one entry, whatever its read outcome. A read that fails (a
 parse error, a bound, a missing library, a wheel gate) keeps a format-only
-entry and one ``WARNING:``; it is never dropped, so the entry set does not
-depend on the order of the files, the budget or the installed libraries. A
-file that is not a confirmed model gives no entry
+entry and one catalogued line saying why (``model-unreadable``,
+``library-missing``, ``over-cap``; the wheel gate's ``reader-unsafe`` is one
+``INFO:`` per scan); it is never dropped, so the entry set does not depend
+on the order of the files, the budget or the installed libraries. A file
+that is not a confirmed model gives no entry
 (:class:`~pitloom.extract.ai_model.NotAModel`).
 
 See also: :mod:`pitloom.extract.scanner_project`,
@@ -41,14 +43,17 @@ from pitloom.core.ai_metadata import (
     model_cap,
     model_file_suffixes,
 )
-from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.lfs_pointer import LfsPointer
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
-from pitloom.extract._scanner_messages import detail, scrub
+from pitloom.extract._scanner_messages import (
+    detail,
+    say_not_a_model,
+    say_unread,
+    scrub,
+)
 from pitloom.extract.ai_model import (
-    LFS_POINTER_REASON,
     NotAModel,
     contradicted_format,
     detect_ai_model_format_from_header,
@@ -58,7 +63,6 @@ from pitloom.extract.ai_model import (
     refusal_reason,
 )
 from pitloom.extract.ai_model.limits import (
-    ModelLimitExceeded,
     ModelOverCap,
     ScanBudgetExceeded,
     cap_and_warn,
@@ -66,7 +70,7 @@ from pitloom.extract.ai_model.limits import (
 from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import CODE_ATTR, loggable
 from pitloom.messages import (
-    LFS_POINTER_MALFORMED,
+    READER_UNSAFE,
     RELAY_FRAME,
     Cap,
     emit,
@@ -80,14 +84,6 @@ log = logging.getLogger(__name__)
 # UNREADABLE_FILE_WARNING with the model format first, as every
 # FORMAT=%s FILE=%s scan warning reads.
 _UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
-
-# Said once per scan, listing the gated formats met that were not announced
-# before.
-_GATE_INFO = (
-    "AI models in a wheel in these formats are listed without metadata, "
-    "their reader not being run on a wheel's files: %s. Pass %s for a "
-    "wheel you trust."
-)
 
 # The usage hint. The setting is spelt per producer: a project reads its own
 # config; a wheel reads none implicitly, so its setting needs a named one.
@@ -138,11 +134,11 @@ class ReaderGate:
     met: set[AiModelFormat] = field(default_factory=set)
 
     def report(self) -> None:
-        """Log one line naming the gated formats met (sorted) that *announce*
-        allows; nothing when it allows none."""
+        """Log one ``reader-unsafe`` line naming the gated formats met
+        (sorted) that *announce* allows; nothing when it allows none."""
         named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
         if named:
-            log.info(_GATE_INFO, ", ".join(named), PARAM_TO_FLAG["trust_wheel_model"])
+            emit(log, READER_UNSAFE, logging.INFO, formats=named)
 
 
 @dataclass(frozen=True)
@@ -334,35 +330,10 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
         warn_over_cap(log, model_cap(e.cap, fmt), path_in, _METADATA_NOT_READ)
     except ScanBudgetExceeded:
         log.debug("Scan budget spent; %s kept without metadata", where)
-    except ModelLimitExceeded as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: %s; %s",
-            fmt,
-            where,
-            loggable(e.reason),
-            _METADATA_NOT_READ,
-        )
-    except ImportError as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: required library not installed; %s",
-            fmt,
-            where,
-            detail(e, path, candidate.physical_path),
-        )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: failed to extract metadata; %s",
-            fmt,
-            where,
-            detail(e, path, candidate.physical_path),
-        )
+        say_unread(log, fmt, candidate, e, path)
     return _stub(fmt, candidate)
-
-
-def _is_whole_pointer(candidate: ModelCandidate) -> bool:
-    """Whether the candidate's whole file is a valid Git LFS pointer."""
-    return candidate.pointer is not None and candidate.pointer() is not None
 
 
 def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
@@ -384,32 +355,8 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
         )
     except NotAModel as e:
         if e.reason is not None:
-            _say_not_a_model(e, candidate)
+            say_not_a_model(log, e, candidate)
     return None
-
-
-def _say_not_a_model(refusal: NotAModel, candidate: ModelCandidate) -> None:
-    """The line for a file whose header contradicts its model suffix: a
-    whole, valid Git LFS pointer is said once for the run (the document
-    build), so here only with ``--debug``; an opening whose rest does not
-    parse is a defect (``lfs-pointer-malformed``). A pointer named
-    ``x.bin`` has no format to name."""
-    where, fmt = candidate.physical_path, refusal.model_format
-    pointer = refusal.reason == LFS_POINTER_REASON
-    if pointer and not _is_whole_pointer(candidate):
-        if fmt is None:
-            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, file=where)
-        else:
-            emit(log, LFS_POINTER_MALFORMED, logging.WARNING, format=fmt, file=where)
-        return
-    key = "" if fmt is None else f"FORMAT={fmt} "
-    log.log(
-        logging.DEBUG if pointer else logging.WARNING,
-        "%sFILE=%s: %s; not listed as an AI model",
-        key,
-        loggable(where),
-        refusal.reason,
-    )
 
 
 def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMetadata]:

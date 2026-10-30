@@ -107,8 +107,10 @@ def test_validate_wheel_missing_dependency(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: the 'spdx3-validate' package is required" in captured.err
-    assert 'pip install "pitloom[validate]"' in captured.err
+    assert captured.err == (
+        "ERROR: required library not installed: spdx3_validate; "
+        "install pitloom[validate] [library-missing]\n"
+    )
 
 
 def test_validate_wheel_missing_sbom_errors(
