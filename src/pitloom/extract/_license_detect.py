@@ -224,9 +224,9 @@ def read_license_file(
     (:func:`~pitloom.core.path_confine.open_inside`): its content is no
     part of the project. A file present but not read is warned about, once
     per file and process, named *shown* (default: below *root*, relative to
-    it). A Git LFS pointer is no licence text: ``None``, with a ``DEBUG``
-    line only (one among the project's files is also in the run's one
-    pointer warning)."""
+    it); a file over the cap is named the same way. A Git LFS pointer is no
+    licence text: ``None``, with a ``DEBUG`` line only (one among the
+    project's files is also in the run's one pointer warning)."""
     try:
         with path.open("rb") if root is None else open_inside(path, root) as fh:
             raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
@@ -241,7 +241,13 @@ def read_license_file(
             )
         return None
     if len(raw) > LICENSE_FILE_MAX_BYTES:
-        warn_over_cap(log, LICENSE_FILE_CAP, str(path), once=True)
+        warn_over_cap(
+            log,
+            LICENSE_FILE_CAP,
+            _shown(path, root) if shown is None else shown,
+            once=True,
+            key=str(path),
+        )
         return None
     pointer = parse_lfs_pointer(raw)
     if pointer is not None:

@@ -269,11 +269,11 @@ def test_find_license_copyright(
     failed = [(p, text) for p, text in files if text is None or text == _OVER_CAP]
     messages = [r.getMessage() for r in caplog.records]
     assert len(messages) == len(failed)
-    for message, (path, text) in zip(messages, failed, strict=True):
-        # Unreadable: named by its RECORD entry, no directory of this machine.
-        shown = path if text is None else tmp_path / path
-        assert message.startswith(f"FILE={shown}: ")
-        assert text is not None or str(tmp_path) not in message
+    for message, (path, _) in zip(messages, failed, strict=True):
+        # Unreadable or over the cap: named by its RECORD entry, no
+        # directory of this machine.
+        assert message.startswith(f"FILE={path}: ")
+        assert str(tmp_path) not in message
 
 
 _SECRET = "Copyright (c) 2026 Secret\n"

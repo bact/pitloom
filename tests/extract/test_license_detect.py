@@ -13,6 +13,7 @@ tests/assemble/test_license_edge_cases.py (the detection suite).
 
 from __future__ import annotations
 
+import contextlib
 import itertools
 import logging
 from pathlib import Path
@@ -157,26 +158,61 @@ def test_a_licence_symlink_is_read_only_inside_the_project(
     assert caplog.messages == ([] if inside else [f"FILE=LICENSE: {_OUTSIDE}"])
 
 
-@pytest.mark.parametrize("rooted", [False, True], ids=["no-root", "outside-root"])
-def test_an_unreadable_licence_file_not_below_a_root_is_named_by_its_name(
+@pytest.mark.parametrize(
+    ("fault", "where", "expected"),
+    [
+        ("unreadable", "no-root", "LICENSE"),
+        ("over-cap", "no-root", "LICENSE"),
+        # Outside a root the read itself is refused, so never over the cap.
+        ("unreadable", "outside-root", "LICENSE"),
+        ("unreadable", "shown", "pkg-1.0.dist-info/LICENSE"),
+        ("over-cap", "shown", "pkg-1.0.dist-info/LICENSE"),
+    ],
+)
+def test_a_licence_file_not_below_a_root_is_named_without_its_directory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
-    rooted: bool,
+    fault: str,
+    where: str,
+    expected: str,
 ) -> None:
-    """A file with no project to be relative to (no *root*, or one outside
-    it) is named by its file name, never by the absolute directory of this
-    machine."""
+    """A file unreadable or over the cap with no project to be relative to
+    (no *root*, or one outside it) is named by its file name, or by *shown*:
+    never by the absolute directory of this machine."""
     (tmp_path / "project").mkdir()
     licence = tmp_path / "elsewhere" / "LICENSE"
     licence.parent.mkdir()
-    licence.write_text("MIT\n", encoding="utf-8")
-    root = tmp_path / "project" if rooted else None
-    with caplog.at_level(logging.WARNING), deny(licence, "open", monkeypatch):
-        assert read_license_file(licence, root) is None
+    licence.write_bytes(b"x" * (LICENSE_FILE_MAX_BYTES + 1))
+    root = tmp_path / "project" if where == "outside-root" else None
+    shown = expected if where == "shown" else None
+    refused = fault == "unreadable"
+    if refused:
+        licence.write_text("MIT\n", encoding="utf-8")
+    # Outside a root, the read itself refuses the file.
+    denied = deny(licence, "open", monkeypatch) if refused and root is None else None
+    with caplog.at_level(logging.WARNING), denied or contextlib.nullcontext():
+        assert read_license_file(licence, root, shown=shown) is None
     (message,) = caplog.messages
-    assert message.startswith("FILE=LICENSE: could not read for license files;")
+    assert message.startswith(f"FILE={expected}: ")
     assert str(tmp_path) not in message
+    assert ("larger than" in message) == (fault == "over-cap")
+
+
+def test_two_projects_licence_files_over_the_cap_are_each_warned_about(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The once-per-file memory keys the file, not the name shown: two
+    projects each with a ``LICENSE`` over the cap get a warning each."""
+    for name in ("one", "two"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "LICENSE").write_bytes(b"x" * (LICENSE_FILE_MAX_BYTES + 1))
+    with caplog.at_level(logging.WARNING):
+        for name in ("one", "two"):
+            assert not read_license_members(tmp_path / name)
+    assert caplog.messages == 2 * [
+        "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
+    ]
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
@@ -261,5 +297,6 @@ def test_detection_input_over_cap_is_skipped_with_one_warning(
         assert not warnings
         return
     assert len(warnings) == 1
-    assert f"FILE={tmp_path / name}:" in warnings[0]
+    assert warnings[0].startswith(f"FILE={name}: ")  # below its project
+    assert str(tmp_path) not in warnings[0]
     assert f"larger than the {LICENSE_FILE_MAX_BYTES}-byte" in warnings[0]
