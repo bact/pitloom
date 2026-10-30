@@ -21,6 +21,18 @@ stays ticked, with its PR, until its release ships, then moves to
 [roadmap-completed.md](../implementation/roadmap-completed.md).
 Size: S under half a day, M about a day.
 
+## Planned releases (decided 2026-10-30)
+
+- 0.22.1: the path-in-message fix (#410) and small remaining bug fixes.
+  Also re-run the 0.22.0 release checks that were left to CI (decided
+  2026-10-30): the full manual CLI checks, the CHANGELOG-against-merged-PRs
+  cross-check, the leftover `0.21.2` review, the coverage-snapshot diffs and
+  the `scripts/` lint; fix what they find.
+- 0.23.0: the `licenseid` 0.7.0 adoption, the licence provenance mapping
+  (#384), the remaining catalogue families (1b, 2b, 3 to 18, licence
+  included) and `--report`/SARIF. See
+  [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
 ## P0: in 0.21.0
 
 - [x] **One default SBOM file name on every surface (S-M), built in #334** with
@@ -535,3 +547,78 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   entry when a fragment folds into it for an unrelated field (S).** Needs a
   forged entry, which sanitising now blocks; ruling it out means tracking which
   side of each fold supplied the entry.
+
+## Found 2026-10-30
+
+From the 0.22.0 rounds (#404 to #408). Open; items the rounds already
+recorded above are not repeated (the `loom env` and private-index lookups, a
+direct reference's version and PURL, the silent skip, and the Hugging Face
+key rules).
+
+From #404 (model stub, catalogue 1a):
+
+- [ ] **An import that is found but fails is reported as "not installed"
+  (S).** A reader library that is present but raises on import gets the
+  missing-extra message, which hides the real cause.
+- [ ] **Catalogue 1b is not coded (S).** The 27 "model fields read in part"
+  sites (`model-field-unread`) keep their free text; 0.23.0.
+- [ ] **The `--allow-build` `Build:` warning is uncoded (S).** It needs the
+  frames PR (catalogue 4).
+
+From #407 (registry package key):
+
+- [ ] **The PyPI prefetch resolves versions a second time (S).**
+  `_document_locked_deps` calls `_resolve_version(..., warn=False)` apart from
+  `_dep_groups.group_dependencies`, so the version it fetches can drift from
+  the one the grouped rule states.
+- [ ] **`none` and `n/a` do not count as "no version" (S).** `_NO_VERSION` in
+  `id_registry/_types.py` holds only blank, `unknown` and `noassertion`; a
+  package stating `none` is keyed as a release.
+- [ ] **`assemble/spdx3/document.py` is 516 lines (doc).** Over the soft
+  limit; split it.
+- [ ] **The example registry holds this Linux platform's fastText model hash
+  (S).** On another platform the model gets a new id once, unless the registry
+  is regenerated there.
+- [ ] **The skills and example floors at 0.22.0 do not install until 0.22.0 is
+  on PyPI (doc).**
+- [ ] **The GitHub Action is covered for registry keys only through the CLI
+  (S).** The Action's own step is not tested for them.
+- [ ] **A dynamic-version `project` run and a wheel or hook run give two
+  main-package ids (S-M, decided: kept).** The first states `unknown` and keys
+  the package bare; the second states the real version (D3 in
+  [id-registry-v3.md](../implementation/id-registry-v3.md)).
+
+From #408 (unreadable files, catalogue 2a; 2b and later):
+
+- [ ] **The lone-surrogate message is uncatalogued (S).** It should be
+  `text-malformed`, and the effect it states is weaker than the code's.
+- [ ] **`card-malformed` is not coded (S).** A card that does not parse still
+  has free text.
+- [ ] **`fetch_json` size and nesting raises are not `over-cap` (S).**
+- [ ] **Croissant re-raises a plain `ValueError` and drops the code (S).**
+- [ ] **`find_card_file` drops a card silently when the model directory cannot
+  be listed (S).** A read failure should say `dir-unlistable`.
+- [ ] **The ID registry `PATH` error is uncoded (S).** It waits for registry
+  PRs 5 to 7.
+- [ ] **Wheel-member, listed requirements file and registry-unstorable-name
+  lines use the unreadable family's wording for another cause (S).**
+
+Process and tooling:
+
+- [ ] **Top-level test files share a prefix (doc).** `provenance`, `build` and
+  `network` each have 3 or more; group them in subfolders after 0.22.0, with a
+  lint that fails at 3 or more.
+- [ ] **CI repeats itself (doc).** The push run after a merge repeats a green
+  PR tree, and a markdown-only follow-up commit re-runs the matrix because
+  `paths-ignore` is judged on the whole PR diff.
+- [ ] **Two pylint findings exist on `main` (doc).** E1101 at
+  `logging_config.py:251` and C1803 at
+  `tests/extract/project/test_poetry_extract.py:151`.
+- [ ] **pyright cannot resolve `magika` in the dev venv (doc).**
+
+`licenseid`:
+
+- [ ] **The 0.7.0 adoption waits for the release (S).** PyPI's latest was 0.6.0
+  at 15:14 UTC on 2026-10-30.
+- [ ] **Catalogue 18, the licence families, is later (S), decided
+  2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.

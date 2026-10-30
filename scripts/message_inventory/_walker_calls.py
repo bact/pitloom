@@ -249,7 +249,8 @@ class CallSites:
         scope: tuple[Stack, list[str]],
         name: str,
     ) -> None:
-        """A ``warn_over_cap`` / ``warn_field_cap`` call."""
+        """A ``warn_over_cap`` call, or one of its wrappers
+        (``warn_field_cap``, ``warn_archive_member_over_cap``)."""
         stack, _ = scope
         ci = OVER_CAP_HELPERS[name]
         cap = (
@@ -270,6 +271,9 @@ class CallSites:
                 else ["skipped"]
             )
             outcome = rendered[0] if rendered else "{outcome}"
+            wn = call.args[2] if len(call.args) > 2 else None
+        elif name == "warn_archive_member_over_cap":
+            outcome = "skipped"
             wn = call.args[2] if len(call.args) > 2 else None
         else:
             outcome = "only the first {read} read of {field} / {field} not read"
@@ -298,9 +302,10 @@ class CallSites:
         """The ``helper_def`` of an over-cap call: the catalogue's
         ``warn_over_cap`` writes its line (a catalogue helper's callers
         count, :func:`~._scope.in_scope`) and codes it. A wrapper's call
-        (``warn_field_cap``) is the ``warn_over_cap`` call in its body, which
-        is counted here, at its callers: the wrapper's ``coded`` and
-        ``forwards_code`` are that call's."""
+        (``warn_field_cap``, ``warn_archive_member_over_cap``) is the
+        ``warn_over_cap`` call in its body, which is counted here, at its
+        callers: the wrapper's ``coded`` and ``forwards_code`` are that
+        call's."""
         found = self.idx.lookup(mod, call.func)
         if found is None:
             return {}

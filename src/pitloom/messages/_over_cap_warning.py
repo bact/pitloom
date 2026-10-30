@@ -13,6 +13,7 @@ See also: :mod:`pitloom.messages._over_cap` (the ``over-cap`` entry and
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from pitloom.messages._emit import emit
 from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, OVER_CAP, Cap
@@ -53,6 +54,23 @@ def warn_over_cap(
         once=seen,
         extra={_OVER_CAP_ATTR: (cap, outcome)},
         **values,
+    )
+
+
+def warn_archive_member_over_cap(
+    log: logging.Logger, cap: Cap, archive: str | Path, member: str
+) -> None:
+    """:func:`warn_over_cap` for one *member* of *archive*, ``once``: named
+    ``<archive file name>:<member>``, never the archive's directory (a
+    built or temporary archive sits in one of this machine's), the warning
+    kept once per path and member, so two archives of one name are each
+    said."""
+    warn_over_cap(
+        log,
+        cap,
+        f"{Path(archive).name}:{member}",
+        once=True,
+        key=f"{archive}:{member}",
     )
 
 

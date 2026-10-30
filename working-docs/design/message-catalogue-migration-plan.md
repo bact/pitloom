@@ -25,12 +25,12 @@ In 0.22.0:
 
 1. Catalogue PR 1, model stub.
 2. Catalogue PR 2, unreadable files and directories.
-3. `licenseid` 0.7.0 adoption.
-4. The licence provenance mapping (PR #384, the T14 design).
-5. Catalogue PR 18, licence families (after the adoption).
-6. The serious known bugs (below).
+3. The serious known bugs (below).
 
-Everything else goes to 0.22.x or 0.23.0. The grammar ratchet keeps new
+Moved to 0.23.0 (decided 2026-10-30): the `licenseid` 0.7.0 adoption, the
+licence provenance mapping (PR #384, the T14 design) and catalogue PR 18,
+licence families (after the adoption). The path-in-message fix (#410) is
+0.22.1. Everything else goes to 0.22.x or 0.23.0. The grammar ratchet keeps new
 uncoded messages out meanwhile (`tests/test_message_ratchet.py`).
 
 ## Sizes
@@ -58,7 +58,7 @@ chosen).
 | 13-14 | Git, Hub and build (two PRs) | git-fetch-failed (11), git-decision (12), git-redirect (2), network-refused (4), hub-fetch-failed (5), hf-decision (3), hf-input-invalid (2), hf-unpinned (1), build-subprocess (11), temp-left-behind (2) | later | 53 sites; adds `timeout` and `network-failed`; pairs with evidence PR-C1 |
 | 15-16 | Fragments, merge and wheel (two PRs) | fragment-unusable (14), merge-conflict-kept (12), source-conflict-kept (9), wheel-sbom-check (13), wheel-embed-action (6), archive-member-refused (10) | later | 64 sites |
 | 17 | Misc | author-split (13), escaped-text (13), dataset-field-invalid (13) | later | 39 sites |
-| 18 | Licence | licence (8), licence-file-read (5) | 0.22.0 | 13 sites; after the `licenseid` adoption |
+| 18 | Licence | licence (8), licence-file-read (5) | later (decided 2026-10-30) | 13 sites; after the `licenseid` adoption, 0.23.0 |
 
 Total 60 families, 677 sites, 18 to 22 PRs (the grouped rows split into the
 PR counts shown).
