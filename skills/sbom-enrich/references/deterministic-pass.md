@@ -32,8 +32,9 @@ missing library or a parse failure is no obstacle: `loom enrich` reads the model
 too (native readers included, so a format a wheel scan's gate leaves unread is
 read here) and the README or model card next to it. It writes the fragment and
 exits 0 with the one `WARNING:` the scan gave (its `FILE=` is the path as given,
-not the scan's project-relative one), and the model stays a stub. (A wheel's
-gate, ceiling and budget do not apply to a local file.)
+not the scan's project-relative one), and the model stays a stub. When that
+line ends in `[over-cap]`, `messages.md` says what to tell the user. (A
+wheel's gate, ceiling and budget do not apply to a local file.)
 
 Only `ERROR: enrichment fragment generation failed: ... not an AI model ...`,
 `header is not <fmt>`, `header is a Git LFS pointer, ... [lfs-pointer]` or

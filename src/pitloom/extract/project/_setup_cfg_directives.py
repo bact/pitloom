@@ -24,7 +24,8 @@ from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_detect import decode_text
-from pitloom.logging_config import Cap, loggable, warn_once, warn_over_cap
+from pitloom.logging_config import loggable, warn_once
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

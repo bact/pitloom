@@ -90,9 +90,68 @@ def _whole(value: object) -> int:
     return value
 
 
+def _limit(value: object) -> str:
+    return str(_whole(value))
+
+
+def _str(value: object) -> str:
+    """*value* when it is a ``str``.
+
+    Raises:
+        ValueError: It is not.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"not text: {value!r}")
+    return value
+
+
+def _name(value: object) -> str:
+    """A free text value: as it is when printable, else escaped."""
+    return loggable(_str(value))
+
+
+#: The keys an over-cap line names its input by: a file, a directory, a
+#: metadata field (or table), a dataset, a marker or a requirement.
+CAP_KEYS: Final = frozenset(
+    {"DATASET", "DIR", "FIELD", "FILE", "MARKER", "REQUIREMENT"}
+)
+#: What a cap counts, singular.
+CAP_UNITS: Final = frozenset(
+    {
+        "byte",
+        "character",
+        "dataset",
+        "digit",
+        "element",
+        "entry",
+        "header",
+        "item",
+        "label",
+        "level",
+        "marker",
+        "opcode",
+        "part",
+        "unit",
+    }
+)
+#: One word of a cap's name (``GGUF-header``, ``.npy-header``).
+_CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
+
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
     {
+        "amount": Field(
+            r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes|[1-9][0-9]* (?:KiB|MiB|GiB)",
+            _str,
+            "<amount>",
+            "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
+        ),
+        "command": Field(
+            r"[a-z][a-z-]*",
+            _str,
+            "<command>",
+            "the git command that was stopped or failed (`clone`, `fetch`)",
+        ),
         "count": Field(
             r"(?: \((?:[2-9]|[1-9][0-9]+) files\))?",
             _count,
@@ -111,8 +170,32 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         "format": Field(
             r"[a-z][a-z0-9_]*", str, "<format>", "the model format (`gguf`)"
         ),
+        "key": Field(
+            "|".join(sorted(CAP_KEYS)),
+            _str,
+            "<key>",
+            "the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field "
+            "or table), `DATASET`, `MARKER` or `REQUIREMENT`",
+        ),
+        "limit": Field(r"0|[1-9][0-9]*", _limit, "<limit>", "the cap, in its unit"),
+        "name": Field(
+            r".*",
+            _name,
+            "<name>",
+            "the input as Pitloom names it (a path, a field, a dataset, the start "
+            "of a requirement); in quotes, escaped, when it holds a control "
+            "character",
+            free=True,
+        ),
         "oid": Field(
             r"[0-9a-f]{64}", str, "<oid>", "the SHA-256 the pointer states, in hex"
+        ),
+        "outcome": Field(
+            r".+",
+            _str,
+            "<outcome>",
+            "what Pitloom kept, and what it did not read or record",
+            free=True,
         ),
         "path": Field(
             r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'",
@@ -120,11 +203,24 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "'<path>'",
             "a path in quotes",
         ),
+        "purpose": Field(
+            rf"{_CAP_WORD}(?: {_CAP_WORD}){{0,2}}",
+            _str,
+            "<cap>",
+            "the cap's name; a setting's name when a setting sets it "
+            "(`max-model-extract-bytes`)",
+        ),
         "size": Field(
             r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes",
             _size,
             "<size>",
-            "a size the pointer states (`1 byte`, `N bytes`)",
+            "a size in bytes (`1 byte`, `N bytes`)",
+        ),
+        "unit": Field(
+            "|".join(sorted(CAP_UNITS)),
+            _str,
+            "<unit>",
+            "what the cap counts, singular (`byte`, `entry`, `level`)",
         ),
     }
 )

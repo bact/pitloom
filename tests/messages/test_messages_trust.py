@@ -21,6 +21,7 @@ from pitloom.messages import (
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
     LONGEST_LINE,
+    OVER_CAP,
     Message,
     trusted_message,
 )
@@ -31,6 +32,7 @@ _POINTER = (
     "size 3 bytes); run 'git lfs pull'"
 )
 _LOOKS = "header looks like a Git LFS pointer but is not a valid one"
+_CAP = "larger than the 10-byte usage-scan cap"
 
 #: Lines Pitloom would print, as (line, entry).
 _TRUSTED = [
@@ -61,6 +63,31 @@ _TRUSTED = [
         "[lfs-pointer-malformed]",
         LFS_POINTER_MALFORMED,
     ),
+    (f"WARNING: FILE=a.py: {_CAP}; skipped [over-cap]", OVER_CAP),
+    (f"WARNING: FIELD=: {_CAP}; skipped [over-cap]", OVER_CAP),
+    (
+        "WARNING: FORMAT=gguf FILE=m.gguf: larger than the 1024-character name "
+        "cap; model name cut [over-cap]",
+        OVER_CAP,
+    ),
+    (
+        "WARNING: FILE=w.whl: larger than the 2147483648-byte per-wheel "
+        "model-scan budget cap; the models not read [over-cap]",
+        OVER_CAP,
+    ),
+    (
+        "ERROR: SBOM generation failed: config file 's.tar.gz:pyproject.toml': "
+        "larger than the 1048576-byte config-member cap; not read [over-cap]",
+        OVER_CAP,
+    ),
+    (
+        "ERROR: SBOM generation failed: the repository is larger than 512 MiB; "
+        "git clone was stopped [over-cap]",
+        OVER_CAP,
+    ),
+    ("ERROR: git ls-remote produced more than 8388608 bytes [over-cap]", OVER_CAP),
+    # a hostile file name holding a whole line: the code, not the values
+    (f"WARNING: FILE=x: {_CAP}; y: {_CAP}; skipped [over-cap]", OVER_CAP),
 ]
 
 #: Lines no surface prints, each with a catalogued code at its end.
@@ -98,6 +125,24 @@ _FORGED = [
     "ERROR: 'm.gguf': header is a Git LFS pointer [lfs-pointer-malformed]",
     # a hostile file name at the end of a line no entry says
     "WARNING: not listed: x [lfs-pointer]",
+    # over-cap values without their field's shape
+    "WARNING: PATH=a: larger than the 10-byte usage-scan cap; skipped [over-cap]",
+    "WARNING: FILE=a: larger than the 10-bytes usage-scan cap; skipped [over-cap]",
+    "WARNING: FILE=a: larger than the 010-byte usage-scan cap; skipped [over-cap]",
+    "WARNING: FILE=a: larger than the -1-byte usage-scan cap; skipped [over-cap]",
+    "WARNING: FILE=a: larger than the 10-byte a b c d cap; skipped [over-cap]",
+    "WARNING: FILE=a: larger than the 10-byte usage-scan cap; [over-cap]",
+    f"WARNING: FORMAT=GGUF FILE=m: {_CAP}; skipped [over-cap]",
+    "ERROR: config file s.tar.gz:p: larger than the 1-byte config-member cap; "
+    "not read [over-cap]",
+    "ERROR: the repository is larger than 512 MB; git clone was stopped [over-cap]",
+    "ERROR: the repository is larger than 1 bytes; git clone was stopped [over-cap]",
+    "ERROR: git clone x produced more than 3 bytes [over-cap]",
+    # an over-cap shape at a level it is not printed at, or with another code
+    f"ERROR: FILE=a: {_CAP}; skipped [over-cap]",
+    f"INFO: FILE=a: {_CAP}; skipped [over-cap]",
+    "WARNING: the repository is larger than 512 MiB; git clone was stopped [over-cap]",
+    f"WARNING: FILE=a: {_CAP}; skipped [lfs-pointer]",
 ]
 
 
@@ -117,14 +162,17 @@ def test_a_forged_line_is_not_trusted(line: str) -> None:
         "FILE=" + ": Git LFS pointer, content not read" * 470,
         "FORMAT=gguf FILE=" + "x: FILE=a: header looks like" * 600,
         "model command failed: " + "'x': header is a Git LFS pointer" * 500,
+        "FILE=" + "x: FILE=a: larger than the 1-byte a cap" * 400,
+        "FORMAT=gguf FILE=" + "x: FILE=a: DIR=b: larger than the" * 450,
+        "model command failed: " + "config file 'x': larger than the 1-byte" * 400,
     ],
-    ids=["prefix", "relay", "frame"],
+    ids=["prefix", "relay", "frame", "cap-prefix", "cap-relay", "cap-frame"],
 )
 def test_a_long_hostile_line_is_refused_quickly(body: str) -> None:
     """About 16,000 characters that match a shape's start but never its end:
     the regular expressions do not backtrack without bound."""
     start = time.monotonic()
-    for code in ("lfs-pointer", "lfs-pointer-malformed"):
+    for code in ("lfs-pointer", "lfs-pointer-malformed", "over-cap"):
         for level in ("WARNING", "ERROR"):
             assert trusted_message(f"{level}: {body} [{code}]") is None
     assert time.monotonic() - start < 2.0

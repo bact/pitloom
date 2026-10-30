@@ -54,13 +54,8 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.remote._card_description import card_description
-from pitloom.logging_config import (
-    Cap,
-    field_loss_suffix,
-    loggable,
-    one_line,
-    warn_over_cap,
-)
+from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

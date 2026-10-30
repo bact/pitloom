@@ -30,6 +30,8 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract.project import read_project, sdist_config_source
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import read_sdist
+from pitloom.messages import OVER_CAP, code_of
+from tests._message_drift import raised_as
 from tests.assemble.conftest import _make_sdist
 
 _NAMED = '[project]\nname = "demo"\nversion = "1.0.0"\n'
@@ -320,26 +322,29 @@ def test_oversize_first_member_still_wins_over_a_later_one(
         fmt=fmt,
     )
     match = f"{sdist.name}:pyproject.toml': larger than the 1048576-byte config-member"
-    with pytest.raises(ValueError, match=match + " cap; not read"):
+    with pytest.raises(ValueError, match=match + " cap; not read") as caught:
         read_sdist(sdist)
+    assert raised_as(caught.value, OVER_CAP)
 
 
 @_FMT
 @pytest.mark.parametrize(
-    "text",
+    ("text", "code"),
     [
-        "[metadata]\nname = demo\n#" + "x" * CONFIG_MEMBER_MAX_BYTES,  # oversize
-        "[metadata]\nname = demo\n[tool:pitloom]\nsbom-basename = 100% x\n",
-        "no section header\n",  # not INI
+        ("[metadata]\nname = demo\n#" + "x" * CONFIG_MEMBER_MAX_BYTES, "over-cap"),
+        ("[metadata]\nname = demo\n[tool:pitloom]\nsbom-basename = 100% x\n", None),
+        ("no section header\n", None),  # not INI
     ],
     ids=["oversize", "interpolation", "not-ini"],
 )
 def test_unreadable_setup_cfg_raises_naming_it(
-    tmp_path: Path, fmt: str, text: str
+    tmp_path: Path, fmt: str, text: str, code: str | None
 ) -> None:
+    """Only the over-cap read is catalogued (``code_of``)."""
     sdist = _sdist(tmp_path, {"setup.cfg": text}, fmt)
-    with pytest.raises(ValueError, match=f"{sdist.name}:setup.cfg"):
+    with pytest.raises(ValueError, match=f"{sdist.name}:setup.cfg") as caught:
         read_sdist(sdist)
+    assert code_of(caught.value) == code
 
 
 def test_config_source_names_member_and_table(tmp_path: Path) -> None:

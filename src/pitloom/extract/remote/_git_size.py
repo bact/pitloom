@@ -13,6 +13,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from pitloom.messages import size_text
+
 __all__ = ["SizeCap", "readable_bytes", "tree_bytes"]
 
 
@@ -48,8 +50,9 @@ def tree_bytes(top: str) -> int:
 
 
 def readable_bytes(count: int) -> str:
-    """*count* as a whole number of bytes, KiB, MiB or GiB."""
+    """*count* as a whole number of GiB, MiB or KiB, else of bytes as every
+    message states them (:func:`~pitloom.messages.size_text`)."""
     for unit, size in (("GiB", 1 << 30), ("MiB", 1 << 20), ("KiB", 1 << 10)):
         if count >= size and count % size == 0:
             return f"{count // size} {unit}"
-    return f"{count} bytes"
+    return size_text(count)

@@ -94,12 +94,12 @@ entry `Source: <model file> | Field: ...`; its `name` is the file's stem
   install `pitloom[ai]` and regenerate.
 - `... failed to extract metadata; ...` -- the file has a model's header but
   could not be parsed (truncated or corrupt): check the file.
-- `... max-model-extract-bytes cap; metadata not read` -- the ceiling (512
-  MiB, wheel scans; `--max-model-extract-bytes BYTES` or the config key);
-  `WARNING: ... model-scan budget cap; ...`
-  -- the per-wheel budget (4x the ceiling, one line); any other `...; metadata
-  not read` is a fixed bound. Lists past 1000 entries are cut with one
-  `WARNING:`. Never raise a ceiling on your own.
+- A line ending in `[over-cap]` is over a cap: read `messages.md` for what to
+  tell the user. `... max-model-extract-bytes cap; metadata not read` is the
+  ceiling (512 MiB, wheel scans), `WARNING: ... model-scan budget cap; ...`
+  the per-wheel budget; any other `...; metadata not read` is a fixed bound.
+  Lists past 1000 entries are cut with one `WARNING:`. Never raise a cap
+  yourself.
 - `... header is not <fmt>; not listed as an AI model` -- the file is no model
   and gets no `ai_AIPackage`.
 - A line ending in a `[code]` is catalogued: read `messages.md` for what it
@@ -215,7 +215,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   cap; the hash's provenance says `not_measured | Reason: over-cap` and a
   single-file dataset keeps its size, from `stat()`.
 
-Every cap, its value and message (the single source of truth):
+Every cap and its value (the single source of truth):
 <https://bact.github.io/pitloom/ai-model-scan-limits/#size-and-count-caps>.
 
 ## Unsupported build backend

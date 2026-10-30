@@ -64,8 +64,16 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import CODE_ATTR, Cap, loggable, over_cap_of, warn_over_cap
-from pitloom.messages import LFS_POINTER_MALFORMED, RELAY_FRAME, emit, relay_extra
+from pitloom.logging_config import CODE_ATTR, loggable
+from pitloom.messages import (
+    LFS_POINTER_MALFORMED,
+    RELAY_FRAME,
+    Cap,
+    emit,
+    over_cap_of,
+    relay_extra,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 

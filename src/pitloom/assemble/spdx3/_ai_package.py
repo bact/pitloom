@@ -55,7 +55,8 @@ from pitloom.export.spdx3_json import (
     require_spdx_id,
 )
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
-from pitloom.logging_config import loggable, warn_over_cap
+from pitloom.logging_config import loggable
+from pitloom.messages import warn_over_cap
 
 log = logging.getLogger(__name__)
 

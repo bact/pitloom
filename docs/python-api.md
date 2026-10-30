@@ -94,8 +94,11 @@ on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
-`git.not-found`, `git.output-too-large`, `git.too-large`); *check_url* may raise
-any exception to refuse an address, and it reaches you unchanged. To read the
+`git.not-found`, `git.output-too-large`, `git.too-large`); the two size codes
+also carry the catalogued code `over-cap` as `pitloom_code`
+(`pitloom.messages.code_of(exc)`; see
+[Messages and codes](messages.md#over-cap)). *check_url* may raise any
+exception to refuse an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Its *max_bytes*, and

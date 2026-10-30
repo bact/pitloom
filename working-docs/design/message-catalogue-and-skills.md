@@ -19,7 +19,8 @@ Status: decided 2026-10-29 (the four decisions, then decisions A to L of
 the review of #390, then M proposed, at the end); scope split between 0.22.0 and 0.23.0
 below. The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
-the plumbing, schema and ratchet, is #390 (in review).
+the plumbing, schema and ratchet, is #390 (merged); migration step 2, the
+`over-cap` family, is #396 (decisions in "The `over-cap` family").
 
 ## Core idea
 
@@ -143,8 +144,11 @@ and C):
 
 1. `lfs-pointer`, `lfs-pointer/shipped`, `lfs-pointer-malformed`: the
    plumbing, the schema and the ratchet (#390).
-2. `over-cap` (36 sites, 8 edit points; `warn_over_cap` moves into
-   `pitloom.messages` with it).
+2. `over-cap` (#396): 33 `warn_over_cap` calls in 23 modules (one inside
+   the `warn_field_cap` wrapper, so 33 inventory sites) and 3 raises (an
+   sdist's config file, a Git URL's checkout and `git` output). The helper,
+   `Cap` (46 calls in 27 modules) and `over_cap_of` moved into
+   `pitloom.messages`: 35 modules and 2 tests import them from there.
 3. The model-stub causes in `extract/scanner.py`: `model-unreadable`,
    `library-missing`, `model-gated`, `not-a-model` (condition
    `wrong-format`).
@@ -260,7 +264,8 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   a reader's raise is detail.
 - **K.** `warn_over_cap` moves into `pitloom.messages` with the `over-cap`
   family PR, deferred: moving it alone touches 24 modules (35 calls) and
-  prints nothing new, since the line has no code yet.
+  prints nothing new, since the line has no code yet. Done in #396, measured
+  then: 33 calls in 23 modules; 35 modules and 2 tests imported a moved name.
 - **L. Stability.** A code is stable from the release that first prints it:
   never renamed, reused or removed while its condition can occur; variants
   may appear in any release; a code that can no longer occur is marked
@@ -283,6 +288,47 @@ reference's section of a code a `helpUri`; `Message` is keyword-only, so
 `rule_id` or `tags` can be added. Lumina's SARIF ingest refuses a rule id
 that does not start `BOM-`: Pitloom and `licenseid` diagnostics reach it
 through its Notification path instead.
+
+## The `over-cap` family
+
+Decided 2026-10-29 for #396 (the maintainer took the recommendations):
+
+1. One code, `over-cap`, no variant. The advice differs only between a cap
+   a setting sets and a fixed one, and the line names the setting (its
+   purpose is the setting's name), so one advice states both; a variant per
+   setting would be a stability promise (decision L).
+2. `Cap`, `warn_over_cap` and `over_cap_of` live in `pitloom.messages`:
+   `Cap` renders and checks itself through the catalogue's fields. The
+   logging module imports nothing of the catalogue.
+3. Two warning shapes: the input after its key (`FILE=`, `DIR=`, `FIELD=`,
+   `DATASET=`, `MARKER=`, `REQUIREMENT=`), or a model's `FORMAT=<format>
+   FILE=<file>`, chosen by `Cap.model_format` (set by `model_cap`, which
+   replaced `Cap.after`), not one shape whose key holds `FORMAT=x FILE`.
+4. The outcome after the semicolon stays free text (30 shapes in the suite);
+   a closed outcome table is a wording PR.
+5. Coded now: the sdist's config file over its cap (`CodedValueError`), a Git
+   URL's checkout over `max_clone_bytes` (`git.too-large`) and a `git`
+   call's output over its cap (`git.output-too-large`); `RemoteSourceError`
+   gained `pitloom_code`, its `code` and text unchanged (and became
+   copyable and picklable). Deferred: the three `fetch_json` raises (a URL's
+   response or a file over the size cap, JSON over the nesting cap), since
+   Croissant rewrites their text into its own (steps 4 and 8 rework that
+   prefix for `over-cap`, `file-unreadable` and `network-failed` at once).
+6. The evidence reason `over-cap` stays a literal in `core.evidence`, as
+   `lfs-pointer` does: a reason is SBOM data, a code a stderr token that may
+   gain variants. The drift test holds them equal.
+7. The quote drift test reads a quoted line by its values (a value given has
+   its field's shape; a free value never holds the family's marker), so the
+   30 cap quotes in the docs and skills are checked.
+8. Later PRs: the `max-source-metadata-bytes` truncation lines
+   (`assemble/spdx3/provenance.py`: a user's budget, named by `spdxId`; a
+   wording PR) and the lock-file `over N bytes` text (the detail of `Cannot
+   read`; the lock-file PR).
+
+Not `over-cap`: `git.too-many-redirects` (its advice is to give the final
+URL), the build-timeout and `MAX_ID_NUMBER` ranges (invalid input). The
+`Git source: <reason>` warning that repeats a Git URL's refusal before its
+`ERROR:` stays uncoded: its prefix is no frame yet (step 6).
 
 ## The `AGENTS.md` rule
 

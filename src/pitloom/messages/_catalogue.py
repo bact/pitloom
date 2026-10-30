@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.messages import _lfs_pointer
+from pitloom.messages import _lfs_pointer, _over_cap
 from pitloom.messages._types import Message
 
 
@@ -40,4 +40,4 @@ def _by_code(entries: Iterable[Message]) -> Mapping[str, Message]:
 
 
 #: Every catalogued message, by code.
-MESSAGES: Final = _by_code(_lfs_pointer.ENTRIES)
+MESSAGES: Final = _by_code((*_lfs_pointer.ENTRIES, *_over_cap.ENTRIES))

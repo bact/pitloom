@@ -29,7 +29,8 @@ from pitloom.extract._extract_utils import (
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import Cap, loggable
+from pitloom.logging_config import loggable
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 

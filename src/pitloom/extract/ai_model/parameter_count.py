@@ -21,7 +21,8 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     tensor_element_sum,
 )
-from pitloom.logging_config import loggable, warn_over_cap
+from pitloom.logging_config import loggable
+from pitloom.messages import warn_over_cap
 
 _log = logging.getLogger(__name__)
 

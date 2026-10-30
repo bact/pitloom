@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import PurePosixPath
 from typing import Any, TypedDict
@@ -22,7 +22,7 @@ from typing import Any, TypedDict
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 # Provenance of a name derived from the model's file name
 FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
@@ -150,8 +150,9 @@ MODEL_ENTRIES_CAP = Cap(MAX_MODEL_ENTRIES, "entry", "per-field")
 
 def model_cap(cap: Cap, fmt: str) -> Cap:
     """*cap* naming a model as every model warning does,
-    ``FORMAT=<fmt> FILE=<path>``."""
-    return cap.after(f"FORMAT={fmt}")
+    ``FORMAT=<fmt> FILE=<path>`` (:attr:`~pitloom.messages.Cap.model_format`);
+    *cap* names its file. The same cap again for a model already named."""
+    return replace(cap, model_format=fmt)
 
 
 def value_text(value: Any) -> str:

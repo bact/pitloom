@@ -60,7 +60,8 @@ from pitloom.core.path_probe import (
     stat_if_present,
 )
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
-from pitloom.logging_config import Cap, loggable, one_line, warn_over_cap
+from pitloom.logging_config import loggable, one_line
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 

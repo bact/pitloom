@@ -33,7 +33,8 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import Cap, loggable
+from pitloom.logging_config import loggable
+from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
 

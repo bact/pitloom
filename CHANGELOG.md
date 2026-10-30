@@ -32,9 +32,9 @@ and this project adheres to
   set the size ceilings; `loom id generate -e` honours the project's own ([#381])
 - `loom` records a single-file dataset's byte size; a hash omitted over the cap
   says why ([#387])
-- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones
-  first), also on log records and exceptions as `pitloom_code`; see
-  `docs/messages.md` ([#390])
+- Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, then
+  every cap warning and error, `[over-cap]`), also on log records and
+  exceptions as `pitloom_code`; see `docs/messages.md` ([#390], [#396])
 
 ### Changed
 
@@ -57,6 +57,8 @@ and this project adheres to
   it is not recorded ([#382])
 - A `|` in a file, label, archive or licence name, or a dependency marker, no
   longer adds a segment to its provenance ([#386], [#389])
+- A `RemoteSourceError` can be copied and pickled; it raised `TypeError`
+  ([#396])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -69,6 +71,7 @@ and this project adheres to
 [#389]: https://github.com/bact/pitloom/pull/389
 [#390]: https://github.com/bact/pitloom/pull/390
 [#395]: https://github.com/bact/pitloom/pull/395
+[#396]: https://github.com/bact/pitloom/pull/396
 
 ## [0.21.1] - 2026-10-28
 

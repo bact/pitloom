@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -172,7 +172,7 @@ through the directory's rule (`license_from_project_table()`); a
 - **Size cap** (reader; the directory adapter and the sdist scan): a root
   file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
   than one byte past the cap, with one `WARNING:` naming it
-  (`logging_config.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
+  (`pitloom.messages.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
   the wording the usage scan shares). Once per file and process:
   one run reads a project twice when a lock-file re-read follows the peek.
   Real licence texts are a few KiB to some tens of KiB, and `licenseid` is

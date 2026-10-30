@@ -342,23 +342,27 @@ def test_percent_in_annotation_text_is_escaped(
     assert "::warning::100%2525 x%250Ay\n" in result.output
 
 
+_POINTER = "FILE={}: Git LFS pointer, content not read; run 'git lfs pull'"
+_OVER_CAP = "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
+
+
 @pytest.mark.parametrize(
-    ("file", "code", "eol"),
+    ("text", "code", "eol"),
     [
-        ("m.bin", "lfs-pointer", "\\n"),
-        ("x [lfs-pointer]", "lfs-pointer/shipped", "\\n"),
-        ("100%%25 m", "lfs-pointer", "\\r\\n"),
+        (_POINTER.format("m.bin"), "lfs-pointer", "\\n"),
+        (_POINTER.format("x [lfs-pointer]"), "lfs-pointer/shipped", "\\n"),
+        (_POINTER.format("100%%25 m"), "lfs-pointer", "\\r\\n"),
+        (_OVER_CAP, "over-cap", "\\r\\n"),
     ],
-    ids=["plain", "hostile-name", "percent-crlf"],
+    ids=["plain", "hostile-name", "percent-crlf", "over-cap-crlf"],
 )
 def test_a_catalogued_code_ends_the_annotation_after_the_fence(
-    generate: Callable[..., _Result], file: str, code: str, eol: str
+    generate: Callable[..., _Result], text: str, code: str, eol: str
 ) -> None:
     """``::warning::<text> [code]``: the annotation carries the code as the
     last token, is emitted after the closing ``::<token>::`` fence (the raw
     line, with its ``WARNING:`` prefix, inside it) and the code survives the
     ``%`` escaping and a Windows carriage return."""
-    text = f"FILE={file}: Git LFS pointer, content not read; run 'git lfs pull'"
     result = generate(LOOM_STDERR=f"WARNING: {text} [{code}]{eol}")
     lines = result.output.splitlines()
     stop = next(line for line in lines if line.startswith("::stop-commands::"))

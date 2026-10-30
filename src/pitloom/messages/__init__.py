@@ -23,8 +23,9 @@ the code must be catalogued and the text one of the entry's lines at that
 level, after at most one frame (:data:`FRAMES`), since another program can
 print anything on the same stream.
 
-This package imports only :mod:`pitloom.logging_config` and
-:mod:`pitloom.core.quote_source`, neither of which imports it.
+This package imports only :mod:`pitloom.logging_config`,
+:mod:`pitloom.core.quote_source` and :mod:`pitloom.core.internal_error`,
+none of which imports it.
 """
 
 from __future__ import annotations
@@ -47,6 +48,14 @@ from pitloom.messages._lfs_pointer import (
     LFS_PULL_LINE,
 )
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
+from pitloom.messages._over_cap import (
+    CLONE_LINE,
+    CONFIG_MEMBER_LINE,
+    GIT_OUTPUT_LINE,
+    OVER_CAP,
+    Cap,
+)
+from pitloom.messages._over_cap_warning import over_cap_of, warn_over_cap
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
     ACTORS,
@@ -64,12 +73,15 @@ from pitloom.messages._types import (
 __all__ = [
     "ACTORS",
     "ACTOR_HEADINGS",
+    "CLONE_LINE",
     "CODE_GRAMMAR",
     "CONDITIONS",
+    "CONFIG_MEMBER_LINE",
     "EFFECTS",
     "EFFECT_MEANINGS",
     "FIELDS",
     "FRAMES",
+    "GIT_OUTPUT_LINE",
     "HANDLER_FRAMES",
     "LEVELS",
     "LFS_CLONE_LINE",
@@ -81,8 +93,10 @@ __all__ = [
     "LONGEST_CODE",
     "LONGEST_LINE",
     "MESSAGES",
+    "OVER_CAP",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
+    "Cap",
     "CodedValueError",
     "Field",
     "Frame",
@@ -91,8 +105,10 @@ __all__ = [
     "code_extra_of",
     "code_of",
     "emit",
+    "over_cap_of",
     "relay_extra",
     "says",
     "size_text",
     "trusted_message",
+    "warn_over_cap",
 ]

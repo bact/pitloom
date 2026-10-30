@@ -30,7 +30,7 @@ from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
     license_source_names,
 )
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ _CHUNK_BYTES = 8192
 class ArchiveMembers(NamedTuple):
     """Root members read (by basename), and every file's entry. A root
     member over its cap (see :func:`_read_member`) maps to that
-    :class:`~pitloom.logging_config.Cap`.
+    :class:`~pitloom.messages.Cap`.
     *licence* holds the project's licence sources by basename (see
     :func:`_licence_member_names`); one over the cap is left out."""
 

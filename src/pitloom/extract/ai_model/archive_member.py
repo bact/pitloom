@@ -32,7 +32,7 @@ from pitloom.extract.ai_model.limits import (
     ModelOverCap,
     charge_read,
 )
-from pitloom.logging_config import Cap
+from pitloom.messages import Cap
 
 #: Largest metadata member read whole: 8 MiB. A ``.keras`` ``config.json``,
 #: a ``.pt`` ``data.pkl`` (structure only, the tensors are other members)
