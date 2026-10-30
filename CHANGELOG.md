@@ -80,6 +80,9 @@ and this project adheres to
   ([#405])
 - An unreadable file's warning no longer prints the absolute path the OS error
   names, and a newline in a directory name can no longer forge a line ([#408])
+- An over-cap licence file in a wheel or sdist is named by the archive's file
+  name, and a Git LFS pointer's `--debug` line by its project path, not an
+  absolute path ([#410])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -98,6 +101,7 @@ and this project adheres to
 [#404]: https://github.com/bact/pitloom/pull/404
 [#405]: https://github.com/bact/pitloom/pull/405
 [#408]: https://github.com/bact/pitloom/pull/408
+[#410]: https://github.com/bact/pitloom/pull/410
 
 ## [0.21.2] - 2026-10-30
 

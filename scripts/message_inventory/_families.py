@@ -42,6 +42,7 @@ _HELPER_FAMILIES = {
     "kv_line": "KV (print_kv, log_kv, log_verbose)",
     "warn_over_cap": "over-cap",
     "warn_field_cap": "over-cap",
+    "warn_archive_member_over_cap": "over-cap",
     "warn_once": "warn_once / log_once",
     "log_once": "warn_once / log_once",
 }

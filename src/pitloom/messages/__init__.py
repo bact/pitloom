@@ -90,7 +90,11 @@ from pitloom.messages._over_cap import (
     OVER_CAP,
     Cap,
 )
-from pitloom.messages._over_cap_warning import over_cap_of, warn_over_cap
+from pitloom.messages._over_cap_warning import (
+    over_cap_of,
+    warn_archive_member_over_cap,
+    warn_over_cap,
+)
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
     ACTORS,
@@ -169,6 +173,7 @@ __all__ = [
     "says",
     "size_text",
     "trusted_message",
+    "warn_archive_member_over_cap",
     "warn_dir_unlistable",
     "warn_file_unreadable",
     "warn_over_cap",
