@@ -67,10 +67,10 @@ follow-ups in #395), whose decisions are in
   the hand-made site list had missed (f524e61f).
   Do: guard a grammar with one builder and a lint that knows its keys,
   plus a whole-output key-set comparison that names no call site.
-- **Still open.** A file name that is not valid UTF-8 (`src/demo/\xff.py`)
-  now passes provenance but crashes later, in the graph sort's canonical
-  JSON (`_graph_sort_key`). A plain-text value holding `:` reads as a key
-  (`pkg @ https://x/p.whl` gives the key `pkg @ https`) (known-bugs).
+- **Closed by #402.** A file name that is not valid UTF-8 crashed the graph
+  sort's canonical JSON, and a plain-text value holding `:` read as a key
+  (`pkg @ https://x/p.whl` gave the key `pkg @ https`). See
+  [provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md).
 
 ## 2. Messages as a contract between a tool and its AI skills
 
