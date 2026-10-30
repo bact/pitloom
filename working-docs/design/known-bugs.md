@@ -462,9 +462,11 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   provenance line now starts a line of its own on either side of the join, and
   a `not_measured` entry goes when the merged element gains the value
   (`_fragments_evidence.py`).
-- [ ] **An unreadable project file is logged with the raw exception (S).** The
-  skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
-  `OSError` text can hold an absolute path.
+- [x] **An unreadable project file is logged with the raw exception (S),
+  fixed (#408).** The skip in `core/_models_wheel.py` logged `exc`, and an
+  `OSError` text holds an absolute path. Every unreadable-file and
+  unlistable-directory line now says the system's description only
+  (`file-unreadable`, `dir-unlistable`), and a directory's name is escaped.
 - [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
   and logs DEBUG only, so no `failed` entry is possible there without the 404

@@ -149,8 +149,9 @@ adds no key.
 | `not_measured` | Not read, and nothing declared; always with a `Reason`. |
 
 `Reason` is a short code, never free text: `over-cap`, `timeout`,
-`network-failed`, `lfs-pointer`, `file-unreadable` or `dir-unlistable`.
-Today only `over-cap` is written, for a dataset in `loom` (a file or a
+`network-failed`, `lfs-pointer`, `file-unreadable` or `dir-unlistable`, the
+code of the `WARNING:` that said why. Today `over-cap`, `file-unreadable`
+and `dir-unlistable` are written, for a dataset in `loom` (a file or a
 directory; the [Python API](python-api.md#tracking-decorator)):
 
 - A file over `max-dataset-hash-bytes` has no hash, and its
@@ -163,6 +164,15 @@ directory; the [Python API](python-api.md#tracking-decorator)):
   Pitloom never reads past the cap to tell) and a size above 2^53-1 get no
   size, and `byte_size` reads `Evidence: not_measured | Reason: over-cap`.
 - A Git LFS pointer gets no size (its own is not the content's).
+- A file the system refuses to read has no hash, and its `verified_using`
+  entry reads `... | Evidence: not_measured | Reason: file-unreadable`; its
+  size is from `stat()`, or, under 1,024 bytes, `byte_size` reads the same
+  `not_measured` entry. A path whose `stat()` is refused gets the
+  `verified_using` entry only.
+- A directory holding a file it cannot read, or a subdirectory it cannot
+  list: the `verified_using` entry with `file-unreadable` or
+  `dir-unlistable`, and no size.
+- A file or directory gone while it was read is absent: no entry.
 
 With `detail = "minimal"` (the default), an entry that has an `Evidence`
 segment is kept, even from a source that is otherwise left out.
