@@ -428,7 +428,7 @@ Moved from [known-bugs.md](../design/known-bugs.md).
   [extras-parity.md](extras-parity.md). PyThaiNLP 5.4.0: 79 packages from the
   wheel route, 3 from `loom project .` before the fix.
 
-## Shipped in 0.22.0 (PRs #374-#408)
+## Shipped in 0.22.0 (PRs #374-#410)
 
 Released 2026-10-30. Moved from [roadmap.md](../design/roadmap.md), as they
 stood there. Open items:

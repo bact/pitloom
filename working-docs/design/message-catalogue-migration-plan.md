@@ -27,14 +27,18 @@ This file is the reference for what remains and what ships in which release.
    plain provenance text (#402), a direct-URL dependency looked up on PyPI
    (#405), a package key without a version (#407, ID registry format 4).
 
+4. The path-in-message fix (#410): archives and licence files named by file
+   name, not an absolute path.
+
 Earlier in the release: `lfs-pointer` (#390, #395) and `over-cap` (#396).
 `licenseid` stays at `>=0.6.0,<0.7`. The grammar ratchet keeps new uncoded
 messages out meanwhile (`tests/test_message_ratchet.py`).
 
 ## Moved to 0.22.1 and 0.23.0 (decided 2026-10-30)
 
-0.22.1: the path-site fixes (`fix-path-sites`) and the small remaining bug
-fixes (below).
+The path-in-message fix (#410) landed before the tag and is in 0.22.0.
+0.22.1: the small remaining bug fixes (below) and the release checks left to
+CI for 0.22.0.
 
 0.23.0:
 
@@ -84,7 +88,8 @@ entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
   (#402); a direct-URL dependency was looked up on PyPI by name (#405); a
   package key without a version gave every release one id (#407); an
   unreadable project file was logged with the raw exception (#408).
-- 0.22.1: the Hatchling hook finds no licence database in an isolated build.
+- 0.23.0 (with the `licenseid` adoption): the Hatchling hook finds no licence
+  database in an isolated build.
 - 0.23.0, to re-check after the `licenseid` adoption: a top match that holds
   only part of its licence is concluded; two `SPDX-License-Identifier` tags,
   one stated, conclude only the stated one.

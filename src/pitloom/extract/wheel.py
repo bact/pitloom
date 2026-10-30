@@ -42,7 +42,7 @@ from pitloom.extract._license_detect import (
 )
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-from pitloom.messages import warn_over_cap
+from pitloom.messages import warn_archive_member_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def _license_members(
     :func:`~pitloom.extract._license_detect.pick_license_names` picks among the
     files right in its ``licenses/`` (PEP 639), then right in it (an older
     wheel), a name in ``licenses/`` winning. One over the size cap is warned
-    about, as *wheel*:name, and left out."""
+    about, as *wheel*'s file name:name, and left out."""
     found: dict[str, bytes] = {}
     for folder in (f"{prefix}licenses/", prefix):
         # A nested name ("vendor/LICENSE") is no licence-file name.
@@ -101,8 +101,8 @@ def _license_members(
             with zf.open(here[base]) as fh:
                 raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
             if len(raw) > LICENSE_FILE_MAX_BYTES:
-                warn_over_cap(
-                    log, LICENSE_FILE_CAP, f"{wheel}:{folder}{base}", once=True
+                warn_archive_member_over_cap(
+                    log, LICENSE_FILE_CAP, wheel, f"{folder}{base}"
                 )
                 continue
             found[base] = raw

@@ -30,7 +30,7 @@ from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
     license_source_names,
 )
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_archive_member_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -197,9 +197,9 @@ def _scan(
     :data:`ROOT_MEMBERS` basename, archive order deciding a tie between
     two top-level directories, and the licence sources of
     :func:`_licence_member_names` (one over the cap warned about, as
-    *archive*:name, and left out; a Git LFS pointer left out quietly). A
-    file keeps its own digests, a pointer's too, as the archive holds it,
-    flagged (``lfs_pointer``). Repeats of one name never get here:
+    *archive*'s file name:name, and left out; a Git LFS pointer left out
+    quietly). A file keeps its own digests, a pointer's too, as the archive
+    holds it, flagged (``lfs_pointer``). Repeats of one name never get here:
     :func:`~pitloom.core.archive_member_names.file_members` keeps the
     last, as unpacking leaves it. With *root_only*, open only the root
     members and list no files or licence sources. Files come in archive
@@ -230,7 +230,7 @@ def _scan(
         if wanted and content is not None:
             members.root[basename] = content
         elif isinstance(content, Cap):
-            warn_over_cap(log, content, f"{archive}:{name}", once=True)
+            warn_archive_member_over_cap(log, content, archive, name)
         elif content is not None and digest.lfs_pointer is None:
             members.licence[basename] = content
         if not root_only:

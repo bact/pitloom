@@ -35,7 +35,11 @@ EXPLICIT_MSG: dict[str, tuple[str | None, int]] = {
     "log_once": (None, 3),  # level from argument 1
 }
 #: Over-cap helper name -> index of its ``cap`` argument.
-OVER_CAP_HELPERS = {"warn_over_cap": 1, "warn_field_cap": 2}
+OVER_CAP_HELPERS = {
+    "warn_over_cap": 1,
+    "warn_field_cap": 2,
+    "warn_archive_member_over_cap": 1,
+}
 KV_HELPERS = ("kv_line", "print_kv", "log_kv", "log_verbose")
 EXC_NAME = re.compile(r"(Error|Exception|Exit|Refused|Warning|Interrupt)$")
 #: Calls whose result is not followed when a template is rendered.

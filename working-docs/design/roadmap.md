@@ -85,8 +85,8 @@ non-UTF-8 file name, a `:` in provenance text and direct-URL dependencies. Keeps
 
 ### 0.22.1
 
-- [ ] **Path-site fixes** (`fix-path-sites`) and the small remaining bug fixes
-  (the Hatchling hook in an isolated build among them). See
+- [ ] **Small remaining bug fixes** and the 0.22.0 release checks left to CI.
+  The path-in-message fix (#410) landed before the tag. See
   [known-bugs.md](known-bugs.md).
 
 ### 0.23.0: G7 SBOM for AI field coverage

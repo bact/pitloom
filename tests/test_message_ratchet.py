@@ -40,6 +40,8 @@ CODED_SITES = [
     ("src/pitloom/extract/scanner.py", "emit"),
     ("src/pitloom/extract/scanner.py", "warn_over_cap"),
     ("src/pitloom/extract/authors.py", "warn_field_cap"),
+    ("src/pitloom/extract/wheel.py", "warn_archive_member_over_cap"),
+    ("src/pitloom/extract/project/_sdist_scan.py", "warn_archive_member_over_cap"),
     ("src/pitloom/extract/project/sdist.py", "raise"),
     ("src/pitloom/extract/remote/_git_run.py", "raise"),
     ("src/pitloom/extract/ai_model/reader.py", "raise"),
@@ -81,6 +83,8 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
         "scanner-emit",
         "over-cap",
         "over-cap-wrapper",
+        "over-cap-archive-wheel",
+        "over-cap-archive-scan",
         "over-cap-sdist",
         "over-cap-git",
         "model-refusal",
@@ -111,7 +115,8 @@ def test_every_over_cap_call_is_a_coded_site_in_scope(
     """The catalogue's helper says ``over-cap`` at every call, a wrapper's
     call too: each is a site the ratchet counts, and coded, so no count
     rose when the helper moved into the catalogue."""
-    sites = [r for r in records if r["helper"] in ("warn_over_cap", "warn_field_cap")]
+    helpers = ("warn_over_cap", "warn_field_cap", "warn_archive_member_over_cap")
+    sites = [r for r in records if r["helper"] in helpers]
     assert len(sites) > 30  # the scan finds them
     assert all(r["coded"] and load().in_scope(r) for r in sites)
 

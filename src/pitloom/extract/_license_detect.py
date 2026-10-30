@@ -252,7 +252,7 @@ def read_license_file(
     pointer = parse_lfs_pointer(raw)
     if pointer is not None:
         # Text standing in for a file not pulled: no licence text.
-        log_pointer_not_read(str(path), pointer)
+        log_pointer_not_read(_shown(path, root) if shown is None else shown, pointer)
         return None
     return raw
 
