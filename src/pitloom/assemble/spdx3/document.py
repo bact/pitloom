@@ -24,6 +24,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._dep_groups import project_dependencies
 from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
 from pitloom.assemble.spdx3._document_deployed import build_deployed
@@ -58,7 +59,6 @@ from pitloom.assemble.spdx3.creation_info import (
     to_spdx3_datetime,
 )
 from pitloom.assemble.spdx3.deps import add_dependencies
-from pitloom.assemble.spdx3.deps_installed import _DEFAULT_LOCKED_PROVENANCE
 from pitloom.assemble.spdx3.deps_license import attach_main_package_license
 from pitloom.assemble.spdx3.deps_phantom import add_phantom_dependencies
 from pitloom.assemble.spdx3.provenance import (
@@ -289,6 +289,9 @@ def build(
             metadata, deduplicated_locked=deduplicated_locked
         )
     )
+    # Resolved and grouped once, before the lookups: the packages looked up
+    # are the packages built, and a version conflict warns once.
+    groups = project_dependencies(metadata, transitive_only, locked_versions)
     # One shared session across files, directories, AI models and packages:
     # a registry hit any of them resolves is claimed by whichever comes
     # first below, so two elements never reuse the same stale id -- see
@@ -302,7 +305,9 @@ def build(
         keys=file_hits.keys,
         prefix=file_hits.prefix,
     )
-    package_ids = resolve_project_package_ids(doc, transitive_only, session)
+    package_ids = resolve_project_package_ids(
+        doc, [*groups.direct.groups, *groups.transitive.groups], session
+    )
     reserve_held_ids(
         metadata.name, doc_uuid, session, unlooked=model_dataset_keys(doc.ai_models)
     )
@@ -396,9 +401,6 @@ def build(
     )
 
     # --- Dependencies ---
-    locked_dependencies_provenance = metadata.provenance.get(
-        "locked_dependencies", _DEFAULT_LOCKED_PROVENANCE
-    )
     # One author-split warning for every dependency of the document.
     with dependency_author_splits():
         add_dependencies(
@@ -415,16 +417,17 @@ def build(
             content_type_method=content_type_method,
             release_info_cache=release_info_cache,
             locked_versions=locked_versions,
-            locked_provenance=locked_dependencies_provenance,
+            locked_provenance=groups.locked_provenance,
             locked_hashes=metadata.locked_dependency_hashes,
             resolved_ids=package_ids.dependencies,
             project_name=metadata.name,
+            groups=groups.direct,
         )
 
         if transitive_only:
             add_dependencies(
                 dependencies=transitive_only,
-                dep_provenance=locked_dependencies_provenance,
+                dep_provenance=groups.locked_provenance,
                 main_package_spdx_id=require_spdx_id(main_package),
                 creation_info=spdx_ci,
                 doc_name=metadata.name,
@@ -439,6 +442,7 @@ def build(
                 locked_hashes=metadata.locked_dependency_hashes,
                 resolved_ids=package_ids.dependencies,
                 project_name=metadata.name,
+                groups=groups.transitive,
             )
 
     # --- Files ---

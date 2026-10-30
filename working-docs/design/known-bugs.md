@@ -86,8 +86,21 @@ Size: S under half a day, M about a day.
   by the path-key redesign (PR #305; K9 in
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)): a
   model is keyed by its file's path, two models with one stem have two ids.
-- [ ] **A package key without a version gives every release one id**
-  (Q-D: PEP 503 name plus PEP 440 version). Not built in v3.
+- [x] **A package key without a version gives every release one id**
+  (Q-D: PEP 503 name plus PEP 440 version). Fixed by #407: registry version 4
+  keys a package `name@version` (a range by its resolved version); a version 3
+  file is refused, never migrated.
+- [ ] **A Hugging Face model is named and keyed by the last segment of its repo
+  id (S-M).** `loom model org-a/llama` and `org-b/llama` at one commit get
+  identical spdxIds (no registry needed), and `id import` keys such a model
+  `llama` while `loom.Run` looks it up as `org-a/llama`.
+- [ ] **Remote entries are keyed by bare name, never pinned (M, own PR).** A
+  Hugging Face model or dataset and a URL dataset (`loom.use_model`,
+  `add_*_dataset`) keep one id whatever the revision. Plan: a remote-shaped
+  key (`huggingface.co/<id>@<sha40>`, else the sanitised https URL), entry
+  fields `remote` and `iri`, `revision=` on `loom.use_model` and
+  `add_*_dataset`; an unpinned one keeps the bare key with one `INFO:`, never
+  aliasing a pinned key. Git sources wait for `pkg:git`.
 - [x] **`normcase` does not fold case on macOS**, so a `same_path`
   helper built on it misses case variants. Fixed by registry v3 (PR #305):
   `core/walk_rules.same_path` falls back to `(st_dev, st_ino)`.

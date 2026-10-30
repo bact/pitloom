@@ -18,7 +18,13 @@ from collections.abc import Set as AbstractSet
 from typing import Any, NamedTuple
 
 from pitloom.export.hashes import sha256_of
-from pitloom.id_registry._types import AI_PACKAGE_TYPE, FILE_TYPE, _element_key
+from pitloom.id_registry._types import (
+    AI_PACKAGE_TYPE,
+    FILE_TYPE,
+    PACKAGE_TYPE,
+    _element_key,
+    package_key,
+)
 
 __all__ = [
     "GATED_TYPES",
@@ -109,13 +115,20 @@ def _compact_type_of(obj: Any) -> str:
 
 def _element_key_of(obj: Any) -> tuple[str, str] | None:
     """*obj*'s own key, its type and name, or ``None`` when it has none
-    (unnamed, no id, or no SPDX 3 compact type)."""
+    (unnamed, no id, or no SPDX 3 compact type). A ``software_Package``'s
+    name is its :func:`~pitloom.id_registry._types.package_key`, with the
+    ``software_packageVersion`` it states (a value that is no string states
+    none): the key a run's lookup of it records, so a harvest, ``id import``
+    and a merged fragment write one key for one release."""
     name = getattr(obj, "name", None)
     if not name or not getattr(obj, "spdxId", None):
         return None
     compact_type = _compact_type_of(obj)
     if compact_type == "object":
         return None
+    if compact_type == PACKAGE_TYPE:
+        version = getattr(obj, "software_packageVersion", None)
+        name = package_key(name, version if isinstance(version, str) else None)
     return _element_key(type_name=compact_type, name=name)
 
 
@@ -246,8 +259,8 @@ def _ambiguous_keys(
     it neither counts nor blocks another.
 
     One document holding two elements of one type and one written key --
-    two pinned versions of one dependency, two bundled binaries of one
-    name, two wheel members normalised to one path -- cannot be pinned by
+    two bundled binaries of one name and version, two wheel members
+    normalised to one path -- cannot be pinned by
     the registry: writing either id would make the next run hand it to
     whichever element claims the key first, which is not the one
     harvested. Two elements of one name but distinct recorded keys are

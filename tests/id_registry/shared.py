@@ -30,18 +30,18 @@ REGISTRY_NS = "https://spdx.org/spdxdocs/test-1"
 
 
 def valid_registry_data() -> dict[str, Any]:
-    """A valid version 3 registry file, as JSON data."""
+    """A valid version 4 registry file, as JSON data."""
     return {
         "elements": {
             FILE_TYPE: {
                 "src/a.py": {"sha256": "a" * 64, "spdxId": f"{REGISTRY_NS}#File-1"}
             },
-            PACKAGE_TYPE: {"requests": {"spdxId": f"{REGISTRY_NS}#Package-2"}},
+            PACKAGE_TYPE: {"requests@2.31": {"spdxId": f"{REGISTRY_NS}#Package-2"}},
         },
         "id_counters": {"File": 1, "Package": 2},
         "namespace": REGISTRY_NS,
         "project_root": ".",
-        "version": 3,
+        "version": 4,
     }
 
 

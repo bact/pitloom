@@ -193,7 +193,7 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     first_json = _run()
     _assert_no_duplicate_spdx_ids(first_json)
     reloaded = IdRegistry.load(registry_path)
-    assert ("software_Package", "pyyaml") in reloaded.elements
+    assert ("software_Package", "pyyaml@6") in reloaded.elements
     first_id = json.loads(first_json)["@graph"]
     first_pkg_id = next(
         e["spdxId"]

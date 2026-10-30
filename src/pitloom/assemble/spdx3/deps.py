@@ -19,19 +19,14 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._dep_scope import DependencyScopes
-from pitloom.assemble.spdx3._package_ids import (
-    DEPENDENCY_LABEL,
-    DependencyIdHits,
-    dependency_package_id,
-)
+from pitloom.assemble.spdx3._dep_groups import DependencyGroups, group_dependencies
+from pitloom.assemble.spdx3._package_ids import DependencyIdHits, dependency_package_id
 from pitloom.assemble.spdx3.deps_installed import (
     _DOWNLOAD_LABELS,
     _HOMEPAGE_LABELS,
     _VERSION_OPERATORS,
     _enrich_from_installed,
     _parse_dep_name,
-    _resolve_dependency_with_conflict,
     _resolve_version,
     merge_conflict_candidates,
     package_provenance_source,
@@ -54,7 +49,6 @@ from pitloom.assemble.spdx3.deps_pypi import (
 )
 from pitloom.assemble.spdx3.provenance import (
     INSTALLED_DEPENDENCY_SOURCE,
-    ConflictCandidate,
     ProvenanceEncoder,
     build_conflict_annotation,
     emit_provenance,
@@ -302,9 +296,15 @@ def add_dependencies(
     locked_hashes: dict[str, str] | None = None,
     resolved_ids: DependencyIdHits | None = None,
     project_name: str | None = None,
+    groups: DependencyGroups | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
+
+    *groups*, when given, is *dependencies* already resolved and grouped
+    (:func:`~pitloom.assemble.spdx3._dep_groups.group_dependencies`, with
+    *locked_versions*, *dep_provenance* and *locked_provenance*), the
+    groups *resolved_ids* were looked up for; else they are resolved here.
 
     Each edge's kind comes from
     :class:`~pitloom.assemble.spdx3._dep_scope.DependencyScopes`, which also
@@ -368,54 +368,33 @@ def add_dependencies(
     carry the lock's version verbatim.
 
     *resolved_ids*, when given, holds the registry ids pre-resolved for
-    each PEP 503 name (see
+    each package key (see
     :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
     a package with a hit uses it instead of minting an id. Ids are never
     looked up here: they must be reserved before the first one is minted.
     """
-    scopes = DependencyScopes(
-        dependencies, doc_name if project_name is None else project_name
-    )
-    dependencies = [dep for dep in dependencies if not scopes.is_self_reference(dep)]
-    resolved = [
-        _resolve_dependency_with_conflict(
-            dep, locked_versions, dep_provenance, locked_provenance
+    if groups is None:
+        groups = group_dependencies(
+            dependencies,
+            doc_name if project_name is None else project_name,
+            locked_versions=locked_versions,
+            dep_provenance=dep_provenance,
+            locked_provenance=locked_provenance,
         )
-        for dep in dependencies
-    ]
+    scopes = groups.scopes
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(
-            (dep_name, dep_version)
-            for dep, dep_name, dep_version, _note, _conflict in resolved
-            if not is_direct_reference(dep)
+            (declared.name, declared.version)
+            for declared in groups.resolved
+            if not is_direct_reference(declared.dep)
         )
 
-    grouped: dict[
-        tuple[str, str],
-        list[tuple[str, str, str | None, list[ConflictCandidate] | None]],
-    ] = {}
-    for dep, dep_name, dep_version, version_note, conflict_candidates in resolved:
-        canon_name = canonicalize_name(dep_name)
-        matched_key = next(
-            (
-                (k_name, k_ver)
-                for k_name, k_ver in grouped
-                if k_name == canon_name and is_same_version(k_ver, dep_version)
-            ),
-            None,
-        )
-        canon_key = (
-            matched_key if matched_key is not None else (canon_name, dep_version)
-        )
-        grouped.setdefault(canon_key, []).append(
-            (dep, dep_name, version_note, conflict_candidates)
-        )
-
-    for (group_canon, dep_version), declared in grouped.items():
-        display_dep_name = declared[0][1]
-        declared_constraints = [dep for dep, _raw_name, _note, _conflict in declared]
+    for group in groups.groups:
+        display_dep_name = group.name
+        dep_version = group.version
+        declared_constraints = [declared.dep for declared in group.declared]
         version_note = next(
-            (note for _dep, _raw_name, note, _conflict in declared if note), None
+            (declared.note for declared in group.declared if declared.note), None
         )
         # Merge, not just take the first: >1 raw declared string can collapse
         # into this group (e.g. two extras with different version ranges
@@ -423,7 +402,7 @@ def add_dependencies(
         # independently-conflicting declared value -- see
         # multi-source-conflict.md.
         group_conflict_candidates = merge_conflict_candidates(
-            c for _dep, _raw_name, _note, c in declared
+            declared.conflict for declared in group.declared
         )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
@@ -439,8 +418,7 @@ def add_dependencies(
         dep_package = spdx3.software_Package(
             spdxId=dependency_package_id(
                 resolved_ids,
-                group_canon,
-                f"{DEPENDENCY_LABEL} {display_dep_name} {dep_version}",
+                group,
                 lambda: generate_spdx_id(
                     "Package", doc_name=doc_name, doc_uuid=doc_uuid
                 ),

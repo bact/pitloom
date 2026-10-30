@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -290,5 +290,5 @@ outcomes, and what to do per `missing` rule: `minimum-elements-workflow.md`
 ("Cross-check with the checker"). It is optional and never replaces the
 mandatory `sbom-validate` pass
 (<https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>;
-minimal fallback: `pip install "pitloom[validate]>=0.21.0"` then
+minimal fallback: `pip install "pitloom[validate]>=0.22.0"` then
 `loom fragment validate <file>`).

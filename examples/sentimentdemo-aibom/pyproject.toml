@@ -3,9 +3,9 @@
 
 [build-system]
 # Pitloom is listed as a build requirement so that the Hatchling build
-# back-end can load Pitloom's hatch hook at build time. 0.21.0 is the first
-# release that reads the committed loom-id-registry.json (format version 3).
-requires = ["hatchling>=1.29.0", "pitloom>=0.21.0"]
+# back-end can load Pitloom's hatch hook at build time. 0.22.0 is the first
+# release that reads the committed loom-id-registry.json (format version 4).
+requires = ["hatchling>=1.29.0", "pitloom>=0.22.0"]
 build-backend = "hatchling.build"
 
 [project]

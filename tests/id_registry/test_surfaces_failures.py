@@ -112,24 +112,42 @@ _CLI_OUTPUT_PATH: dict[str, str] = {
     "cli-enrich-project": "out.enrich.spdx3.json",
 }
 
-#: A registry file in the old version 2 format (D10: no migration).
-_V2_FILE = json.dumps(
+#: A registry file in the old version 3 format, its package keyed by name
+#: alone (no migration: refused whole, the file left as it is).
+_V3_FILE = json.dumps(
     {
-        "version": 2,
+        "elements": {
+            "software_Package": {
+                "demo": {"spdxId": "https://spdx.org/spdxdocs/old-1#Package-1"}
+            }
+        },
+        "id_counters": {"Package": 1},
         "namespace": "https://spdx.org/spdxdocs/old-1",
-        "files": {},
-        "entities": {},
+        "project_root": ".",
+        "version": 3,
     }
 )
-_CONTENT_IDS = ["missing", "malformed-json", "v2"]
-_CONTENT_VALUES = [None, "{", _V2_FILE]
+_CONTENT_IDS = ["missing", "malformed-json", "v3"]
+_CONTENT_VALUES = [None, "{", _V3_FILE]
 
 
 def _reason(content: str | None) -> str:
     """The regex every surface's message contains for *content*."""
-    if content == _V2_FILE:
-        return r"ID registry file .*: version 2, expected 3 \(no migration support"
+    if content == _V3_FILE:
+        return (
+            r"ID registry file .*: version 3, expected 4 \(no migration support "
+            r"-- delete it and re-run `loom id generate` or `loom id import`\)"
+        )
     return r"ID registry file "
+
+
+def _assert_untouched(path: Path, content: str | None) -> None:
+    """The declared registry is as written: a refused file is never
+    rewritten, and a missing one is not created."""
+    if content is None:
+        assert not path.exists()
+    else:
+        assert path.read_text(encoding="utf-8") == content
 
 
 # --- CLI surfaces: one ERROR: line, exit 1, no separate output file -----
@@ -164,6 +182,7 @@ def test_cli_declared_bad_registry_every_mode(
     assert len(error_lines) == 1, f"{surface}/{mode}: {captured.err}"
     assert re.search(_reason(content), error_lines[0])
     assert registry_path.name in error_lines[0]
+    _assert_untouched(registry_path, content)
 
     output_name = _CLI_OUTPUT_PATH.get(surface)
     if output_name is not None:
@@ -230,6 +249,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
 
     with pytest.raises(ValueError, match="^" + _reason(content)):
         SURFACES[surface](tmp_path, monkeypatch, declare)
+    _assert_untouched(registry_path, content)
 
 
 @pytest.mark.parametrize("content", _CONTENT_VALUES[1:], ids=_CONTENT_IDS[1:])
@@ -242,9 +262,9 @@ def test_id_command_malformed_declared_registry_is_one_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Unlike a *missing* declared file (created fresh -- not a failure,
-    see the module docstring), a *malformed* or version 2 one still
-    fails: it exists, so ``IdRegistry.load`` is still the code path that
-    runs."""
+    see the module docstring), a *malformed* or version 3 one still
+    fails, and is left as it is: it exists, so ``IdRegistry.load`` is
+    still the code path that runs."""
     registry_path = tmp_path / "bad.json"
     registry_path.write_text(content, encoding="utf-8")
     declare = Declare(flag=registry_path)
@@ -258,6 +278,7 @@ def test_id_command_malformed_declared_registry_is_one_error(
     ]
     assert len(error_lines) == 1, captured.err
     assert re.search(_reason(content), error_lines[0])
+    _assert_untouched(registry_path, content)
 
 
 # --- A relative project directory: the ERROR names an absolute path ----

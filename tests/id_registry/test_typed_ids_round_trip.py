@@ -72,10 +72,11 @@ _ROWS: dict[str, Row] = {
     "file-flat-path": Row("generate", "flat", ((FILE_TYPE, _INIT, _INIT),)),
     "file-distribution-path": Row("import", "src", ((FILE_TYPE, _INIT, _INIT),)),
     "directory": Row("import", "flat", ((FILE_TYPE, "demo", "demo"),)),
+    # The seed SBOM is demo 0.9.0: another release than the rebuilt 1.0.0,
+    # so only the dependency, one release in both, keeps its id
+    # (test_an_imported_release_does_not_pin_another_one).
     "own-and-dependency-package": Row(
-        "import",
-        "flat",
-        ((PACKAGE_TYPE, "demo", "demo"), (PACKAGE_TYPE, "fakedep", "fakedep")),
+        "import", "flat", ((PACKAGE_TYPE, "fakedep", "fakedep@1"),)
     ),
     "ai-model-in-project-generate": Row(
         "generate", "model", ((AI_PACKAGE_TYPE, _MODEL_STEM, _MODEL_KEY),)
@@ -85,11 +86,7 @@ _ROWS: dict[str, Row] = {
         "model-file",
         ((AI_PACKAGE_TYPE, SAFETENSORS_FIXTURE.stem, _FIXTURE_KEY),),
     ),
-    "wheel-import": Row(
-        "import",
-        "wheel",
-        ((FILE_TYPE, _INIT, _INIT), (PACKAGE_TYPE, "demo", "demo")),
-    ),
+    "wheel-import": Row("import", "wheel", ((FILE_TYPE, _INIT, _INIT),)),
     "wheel-model-generate": Row(
         "generate", "wheel", ((AI_PACKAGE_TYPE, _MODEL_STEM, _MODEL_KEY),)
     ),
@@ -192,3 +189,22 @@ def test_seeded_registry_gives_the_rebuilt_sbom_its_ids(
         assert _id(rebuilt, key[0], key[1]) == spdx_id, key
         # Non-vacuous: without the registry the element has another id.
         assert _id(unseeded, key[0], key[1]) != spdx_id, key
+
+
+@pytest.mark.parametrize("name", ["own-and-dependency-package", "wheel-import"])
+def test_an_imported_release_does_not_pin_another_one(
+    name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``id import`` of the demo 0.9.0 SBOM keys its package ``demo@0.9``:
+    the rebuilt 1.0.0 is another release, with an id of its own (Q-D)."""
+    row = _ROWS[name]
+    registry = tmp_path / "b" / "proj" / "ids.json"
+    registry.parent.mkdir(parents=True)
+    _seed(row, tmp_path, monkeypatch, registry)
+    source = (tmp_path / "source.spdx3.json").read_text(encoding="utf-8")
+
+    rebuilt = _build(tmp_path, "b", row, "1.0.0", registry)
+
+    held = IdRegistry.load(registry).get(PACKAGE_TYPE, "demo@0.9.0")
+    assert held is not None and held.spdx_id == _id(source, PACKAGE_TYPE, "demo")
+    assert _id(rebuilt, PACKAGE_TYPE, "demo") != held.spdx_id

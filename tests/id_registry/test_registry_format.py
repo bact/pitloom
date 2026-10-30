@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The registry file, version 3: round trip, determinism, the stored
+"""The registry file, version 4: round trip, determinism, the stored
 project root.
 
 See also: test_registry_format_load.py (every ``load()`` failure),
 test_registry.py (the in-memory API), test_surfaces_failures.py
-(a version 2 file on every surface), test_registry_counters.py (the id
+(a version 2 or 3 file on every surface), test_registry_counters.py (the id
 counters, I8), tests/registry_helpers.py.
 """
 
@@ -49,7 +49,7 @@ def _sample(tmp_path: Path) -> IdRegistry:
             (DATASET_PACKAGE_TYPE, "data/train"): (f"{_NS}#DatasetPackage-5", None),
             (FILE_TYPE, "src/demo"): (f"{_NS}#File-1", None),
             (FILE_TYPE, "src/demo/x.py"): (f"{_NS}#File-2", _SHA),
-            (PACKAGE_TYPE, "Requests"): (f"{_NS}#Package-3", None),
+            (PACKAGE_TYPE, "Requests@2.31.0"): (f"{_NS}#Package-3", None),
         },
         project_root=tmp_path,
     )
@@ -92,7 +92,8 @@ def test_round_trip_and_two_saves_are_byte_identical(
 
 def test_saved_file_shape(tmp_path: Path) -> None:
     """Nested by type, sha256 omitted (never null) when absent, a package
-    name stored canonical, LF only and one trailing newline."""
+    key stored canonical (PEP 503 name, PEP 440 version), LF only and one
+    trailing newline."""
     path = tmp_path / "reg.json"
     _sample(tmp_path).save(path)
     raw = path.read_bytes()
@@ -105,7 +106,7 @@ def test_saved_file_shape(tmp_path: Path) -> None:
         "project_root",
         "version",
     ]
-    assert data["version"] == 3
+    assert data["version"] == 4
     assert data["id_counters"] == {
         "AIPackage": 4,
         "DatasetPackage": 5,
@@ -116,7 +117,7 @@ def test_saved_file_shape(tmp_path: Path) -> None:
         "data/train": {"spdxId": f"{_NS}#DatasetPackage-5"}
     }
     assert data["elements"][AI_PACKAGE_TYPE]["tiny"]["sha256"] == _SHA
-    assert list(data["elements"][PACKAGE_TYPE]) == ["requests"]
+    assert list(data["elements"][PACKAGE_TYPE]) == ["requests@2.31"]
     assert b"null" not in raw
     assert b"\r" not in raw
     assert raw.endswith(b"}\n")
@@ -238,18 +239,30 @@ def test_load_tolerates_a_leading_bom(tmp_path: Path) -> None:
 
     assert registry.namespace == _NS
     assert registry.get(FILE_TYPE, "src/a.py") == RegistryEntry(f"{_NS}#File-1", _SHA)
-    assert registry.get(PACKAGE_TYPE, "Requests") == RegistryEntry(f"{_NS}#Package-2")
+    assert registry.get(PACKAGE_TYPE, "Requests@2.31.0") == RegistryEntry(
+        f"{_NS}#Package-2"
+    )
 
 
-def test_load_canonicalises_a_package_name(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("stored", "hit", "miss"),
+    [("PyYAML", "pyyaml", "pyyaml@6"), ("PyYAML@6.0.0", "pyyaml@6", "pyyaml")],
+    ids=["bare", "versioned"],
+)
+def test_load_canonicalises_a_package_key(
+    tmp_path: Path, stored: str, hit: str, miss: str
+) -> None:
+    """A hand-written key loads as its PEP 503 name and PEP 440 version; a
+    bare key and a versioned one never stand for each other."""
     data = valid_registry_data()
-    data["elements"][PACKAGE_TYPE] = {"PyYAML": {"spdxId": "x#Package-2"}}
+    data["elements"][PACKAGE_TYPE] = {stored: {"spdxId": "x#Package-2"}}
     path = tmp_path / "reg.json"
     path.write_text(json.dumps(data), encoding="utf-8")
 
     registry = IdRegistry.load(path)
 
-    assert registry.lookup(PACKAGE_TYPE, ["pyyaml"]) == "x#Package-2"
+    assert registry.lookup(PACKAGE_TYPE, [hit]) == "x#Package-2"
+    assert registry.lookup(PACKAGE_TYPE, [miss]) is None
 
 
 @pytest.mark.parametrize("namespace", ["urn:x", "https://example.org/a%20b/ns"])

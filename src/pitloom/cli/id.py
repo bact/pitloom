@@ -106,7 +106,8 @@ def _entity_arg(text: str) -> tuple[str, str]:
     NAME. A typo is reported the argparse way (exit 2), never silently made
     part of NAME: a trailing ``:``, a suffix shaped like a compact type, a
     known one in another case or with whitespace around it, a control
-    character (a newline) anywhere, and an empty or blank NAME.
+    character (a newline) anywhere, and an empty or blank NAME, or package
+    name before a ``software_Package``'s ``@VERSION``.
     """
     if any(unicodedata.category(char) == "Cc" for char in text):
         raise argparse.ArgumentTypeError(f"control character in {text!r}")
@@ -123,7 +124,8 @@ def _entity_arg(text: str) -> tuple[str, str]:
         )
     else:
         name, type_name = text, AI_PACKAGE_TYPE
-    if not name.strip():
+    stated = name.partition("@")[0] if type_name == PACKAGE_TYPE else name
+    if not stated.strip():
         raise argparse.ArgumentTypeError(f"no NAME in {text!r}")
     return type_name, name
 
@@ -407,7 +409,8 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "file) is stored by its path, with its content hash: other "
             "content gets a new id. Else it is stored by name; a model "
             "name then holds only for a model with no file (a Hugging Face "
-            "id)."
+            "id). A package is NAME@VERSION (one release); a NAME with no "
+            "@VERSION holds only a package that states no version."
         ),
     )
     gen_parser.add_argument(

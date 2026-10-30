@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -263,9 +263,9 @@ matrix").
 
 ## 3. Registry ids and file keys
 
-See [id-registry-v3.md](../id-registry-v3.md) for the built redesign. Q-C
-(placeholder names) and Q-D (a package version in the key) are decided but
-not built, and stay open in
+See [id-registry-v3.md](../id-registry-v3.md) for the built redesign. Q-D
+(a package version in the key) is built in #407; Q-C (placeholder names) is
+decided but not built, and stays open in
 [known-bugs.md](../../design/known-bugs.md). The build and its lessons:
 [id-registry-v3-lessons.md](id-registry-v3-lessons.md).
 
