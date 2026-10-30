@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,8 @@ computes every key, so the surfaces agree.
 | `software_File` | Its path from the registry's project root. A directory is the exception: it is keyed by its distribution path (`demo`, not `src/demo`), and `id generate` does not index directories |
 | An AI model that has a file | The same path, the key of the model file's own `software_File` |
 | A `loom.Run` dataset package whose path exists below the root when declared | Its path from the root |
-| A package (dependency or the project's own), a Hugging Face or other pathless model, a remote, missing or outside-the-root dataset | Its name (PEP 503 for a package) |
+| A package (dependency or the project's own) | Its name and version: `<PEP 503 name>@<PEP 440 version>` ([Package keys](#package-keys)) |
+| A Hugging Face or other pathless model, a remote, missing or outside-the-root dataset | Its name |
 
 A path key is `/`-separated and relative to the project root the registry
 stores. It is Unicode NFC and is never case-folded. A path you type (a `loom.Run`
@@ -40,6 +41,34 @@ Two models with the same file stem are two models with two keys. A model has
 no key of its own beside its file's: a loom name that differs from the file's
 stem adds none (the merged `ai_AIPackage` takes the loom name and keeps the
 file key's id).
+
+## Package keys
+
+A `software_Package` key is its PEP 503 name, `@` and its canonical PEP 440
+version: `requests` 2.31.0 is `requests@2.31`. Each release of a package is
+its own entry, so it keeps its id, and another release gets its own; going
+back to a release gets that release's id again. Old releases stay in the
+registry.
+
+- The version is the one the SBOM states: a pin (`==`, `===`), else the
+  lock file's, else the installed one, as the package's
+  `software_packageVersion` shows it. A range (`requests>=2`) is keyed by the
+  version it resolves to.
+- Spellings of one release are one key: `1.0`, `1.0.0`, `v1.0` and `01.00`
+  are `1`, `1.0c1` is `1rc1`. An epoch, a pre-, post- or dev-release and a
+  local label (`+cu121`) are part of the release, so `1.0+cu121` and `1.0`
+  are two keys.
+- A version that is not PEP 440 (a `===` text, an overlong number) is kept as
+  given, NFC.
+- A package that states no version (`unknown`, `NOASSERTION`, none) has the
+  bare name as its key. A bare key never stands for a versioned one, nor the
+  reverse: there is no fallback.
+- The first `@` separates the name from the version; an `@` or `%` in a name
+  that is not PEP 508 is written `%40` or `%25` (`%40scope/pkg@1`).
+
+A `project` run of a project whose version is dynamic states `unknown` for
+its own package, so it keys it bare, while a wheel or Hatchling hook run
+states the real version: the two runs give the project's own package two ids.
 
 ## Content gates
 
@@ -170,7 +199,12 @@ the root or cannot be hashed is stored by name with no hash, with `INFO: ID
 registry: dataset <name> pinned without SHA-256: <reason>`; one
 over the hash ceiling (`--max-dataset-hash-bytes`, else the project's
 `max-dataset-hash-bytes`, else 4 GiB) is such a dataset, as in `loom.Run`. A
-`software_Package` and the other types are stored verbatim. A script that runs
+`software_Package` is `NAME@VERSION`, stored as its [package
+key](#package-keys) (`-e Requests@2.31.0:software_Package` is
+`requests@2.31`, with `INFO: ID registry: -e <name> stored as <key>`); a `NAME`
+with no `@VERSION` holds only a package that states no version, with `INFO: ID
+registry: -e <name> stored without a version: holds only a package that states
+none`. The other types are stored verbatim. A script that runs
 from `scripts/` and declares `../data/t.txt` is looked up as `data/t.txt`:
 pin `-e data/t.txt:dataset_DatasetPackage`, the path from the project root.
 The script's own string matters only for a dataset with no path below the root.
@@ -206,7 +240,9 @@ The script's own string matters only for a dataset with no path below the root.
   '<key>' not imported: its id is held under '<held key>'`. This is decided
   before anything is written, so importing the same SBOM again changes
   nothing.
-- A name held by several elements is skipped, as before.
+- A package is keyed by the version it states ([Package
+  keys](#package-keys)); one with none, or `NOASSERTION`, by its bare name.
+- A key held by several elements is skipped, as before.
 
 ## Fallbacks print `INFO:`
 
@@ -226,7 +262,7 @@ stderr lists them:
 | Dataset by name, or ungated | `dataset <key> keyed by its name: <why>`, `dataset <key> looked up ungated: not hashed` |
 | Pin with no hash | `dataset <name> pinned without SHA-256: <why>`, `dataset <key> matched a pin without SHA-256; content not checked` |
 | Pin adopts a digest | `dataset <key> pin now gated by its SHA-256` |
-| `-e` decisions | `-e <name> stored as <key>`, `-e <name> stored by name: <why>` |
+| `-e` decisions | `-e <name> stored as <key>`, `-e <name> stored by name: <why>`, `-e <name> stored without a version: holds only a package that states none` |
 | `id import` decisions | the model and dataset lines above, `<type> '<key>' not imported: its id is held under '<held key>'`, `N file(s) imported under their layout alias: their own key holds other content` |
 | Harvest leaves a gated entry | `content gate kept for <type> '<key>': harvested id <id> not recorded over <held>` (or `element id <id> with an older SHA-256 not recorded over <held>`) |
 | Hashed model not recorded | `model <name> not recorded: no unique file with its SHA-256` |
@@ -259,7 +295,16 @@ import` writes for a `loom model` SBOM).
 
 ## What changed for an existing registry
 
-The file's shape is unchanged (`version: 3`), but these entries stop matching:
+Pitloom 0.22.0 writes version 4, whose package keys hold the version. A
+version 3 file is refused on every command, with one `ERROR: ID registry file
+'<path>': version 3, expected 4 (no migration support -- delete it and re-run
+`loom id generate` or `loom id import`)`, and is left as it is: nothing is
+dropped or rewritten. To keep its ids, delete it and `loom id import` the last
+SBOM a run made with it (every file, model and dataset keeps its id, and each
+package is keyed by the version that SBOM states); `loom id generate` alone
+starts afresh, with new ids.
+
+Earlier, with version 3, these entries stopped matching:
 a model pinned by its stem or own name (`-e STEM:ai_AIPackage`), a dataset
 pinned by a string that differs from the canonical path (`./data/t.txt`),
 a wheel-only lookup of a file a hatch `sources` remap moved by more than one

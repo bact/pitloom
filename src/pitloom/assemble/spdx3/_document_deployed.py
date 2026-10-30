@@ -38,7 +38,12 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.authors import dependency_author_splits
-from pitloom.id_registry import PACKAGE_TYPE, IdRegistry, IdRegistrySession
+from pitloom.id_registry import (
+    PACKAGE_TYPE,
+    IdRegistry,
+    IdRegistrySession,
+    package_key,
+)
 
 
 def _deployed_name(pkg_info: dict[str, Any]) -> str:
@@ -52,13 +57,20 @@ def _deployed_name(pkg_info: dict[str, Any]) -> str:
     return normalize_dependency_specifier(name, quiet=True)
 
 
+def _deployed_version(pkg_info: dict[str, Any]) -> str:
+    """The version a deployed package states and is looked up by: its
+    ``installed_version``, ``unknown`` when absent or not a string."""
+    version = pkg_info.get("installed_version")
+    return version if isinstance(version, str) else "unknown"
+
+
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     """Return the pipdeptree-graph key used to key *package_spdx_ids* /
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
     field, falling back to *dep_name* (:func:`_deployed_name`). Unrelated
-    to the registry lookup key: the registry PEP 503-canonicalizes a
-    package name itself (see :func:`pitloom.id_registry._types._element_key`),
-    the same lookup the project and wheel surfaces use."""
+    to the registry key: a package is looked up by its name and installed
+    version (:func:`~pitloom.id_registry.package_key`), the same lookup the
+    project and wheel surfaces use."""
     return str(pkg_info.get("key", dep_name))
 
 
@@ -85,7 +97,9 @@ def _resolve_deployed_package_hits(
         pkg_info = node.get("package", {})
         dep_name = _deployed_name(pkg_info)
         lookup_key = _deployed_lookup_key(pkg_info, dep_name)
-        claimed_id = resolve_package_id(session, DEPENDENCY_LABEL, dep_name)
+        claimed_id = resolve_package_id(
+            session, DEPENDENCY_LABEL, dep_name, _deployed_version(pkg_info)
+        )
         if claimed_id is not None:
             hits[lookup_key] = claimed_id
     return hits
@@ -114,7 +128,7 @@ def _build_deployed_package(
     instead of deriving its own lookup key from *node* a second time."""
     pkg_info = node.get("package", {})
     dep_name = _deployed_name(pkg_info)
-    dep_version = pkg_info.get("installed_version", "unknown")
+    dep_version = _deployed_version(pkg_info)
 
     spdx_id = resolved_id
     if spdx_id is None:
@@ -290,7 +304,8 @@ def build_deployed(
     _clear_doc_counters(doc_uuid)
     session = IdRegistrySession(registry)
     resolved_hits = _resolve_deployed_package_hits(env_tree, session)
-    main_key = ((PACKAGE_TYPE, metadata.name),)  # minted below with no lookup
+    # Minted below with no lookup: its held id is its own, not reserved.
+    main_key = ((PACKAGE_TYPE, package_key(metadata.name, metadata.version)),)
     reserve_held_ids(metadata.name, doc_uuid, session, unlooked=main_key)
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
@@ -319,7 +334,7 @@ def build_deployed(
         else _prefetch_pypi_release_infos(
             (
                 _deployed_name(node.get("package", {})),
-                node.get("package", {}).get("installed_version", "unknown"),
+                _deployed_version(node.get("package", {})),
             )
             for node in env_tree
         )

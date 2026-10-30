@@ -131,7 +131,7 @@ def test_embed_generator_skips_registry(
 
 def test_real_name_still_uses_registry(tmp_path: Path) -> None:
     reg = tmp_path / "reg.json"
-    make_registry({(PACKAGE_TYPE, "a"): (_PINNED, None)}, path=reg)
+    make_registry({(PACKAGE_TYPE, "a@1.0"): (_PINNED, None)}, path=reg)
     path = tmp_path / "a-1.0-py3-none-any.whl"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("a-1.0.dist-info/METADATA", "Name: a\nVersion: 1.0\n")

@@ -7,7 +7,8 @@
 
 An artifact with a file or directory below the registry's project root is
 keyed by its path from that root (tier 1, :func:`path_key`); anything else
-keeps its name (tier 2). A path key is ``/``-separated, NFC, never
+keeps its name (tier 2), and a ``software_Package`` its name and version
+(:func:`package_key`). A path key is ``/``-separated, NFC, never
 case-folded. A layout alias (:func:`is_layout_alias`) is the same file
 under a ``src/`` or ``lib/`` layout's installed path (:data:`LAYOUT_ROOTS`).
 
@@ -28,6 +29,11 @@ from pitloom.core.file_identity import file_id
 from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.walk_rules import fold_name, shortened_by
+from pitloom.id_registry._types import (
+    package_key,
+    package_version_key,
+    split_package_key,
+)
 
 if TYPE_CHECKING:
     from pitloom.core.project import FilesOrigin, ProjectFile
@@ -46,8 +52,11 @@ __all__ = [
     "is_layout_alias",
     "join_key",
     "on_disk_path",
+    "package_key",
+    "package_version_key",
     "path_key",
     "project_prefix",
+    "split_package_key",
 ]
 
 #: The suffix of a wheel's ``<name>-<version>.data`` directory: its members

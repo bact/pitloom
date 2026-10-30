@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-28
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,8 +57,10 @@ under its path key with its content hash, other names by name, each with an
 `--max-dataset-hash-bytes BYTES` (an integer of at least 1; `0` is a usage
 error) caps the bytes read to hash one dataset, else the project's own
 `max-dataset-hash-bytes`, else 4 GiB.
-`--entity NAME:software_Package` pins a dependency's, or the project's own,
-package id. The string splits on its last colon: the suffix is a `TYPE` only
+`--entity NAME@VERSION:software_Package` pins one release of a dependency, or
+of the project's own package (a `NAME` with no `@VERSION` holds only a package
+that states no version; see [Package keys](id-registry-keys.md#package-keys)).
+The string splits on its last colon: the suffix is a `TYPE` only
 when it is a known registry type (`software_File`, `software_Package`,
 `ai_AIPackage`, `dataset_DatasetPackage`). A suffix shaped like a type name
 (`prefix_ClassName`) or a known type in another case is a usage error (exit
@@ -96,9 +98,10 @@ integer (`3.0`) or that repeats a JSON object key (`duplicate key 'X'`) does
 not load. For a symlinked registry, `project_root` is relative to
 the symlink target's directory.
 `generate` records each AI model file's SHA-256 with its entry, so a
-retrained file (other bytes) gets a new id on every surface. A registry from an earlier release (format version 2) is
-rejected, on every command, with one `ERROR:` and nothing written; delete it
-and re-run `loom id generate` or `loom id import`.
+retrained file (other bytes) gets a new id on every surface. A registry from an
+earlier release (format version 3 or 2) is rejected, on every command, with one
+`ERROR:` and nothing written; delete it and re-run `loom id generate` or `loom
+id import` ([what changed](id-registry-keys.md#what-changed-for-an-existing-registry)).
 
 **Target file.** `-o`/`--id-registry` if given, else the config's
 `id-registry` key (both commands: read from `--project-dir`, default the
@@ -111,8 +114,8 @@ A broken `pyproject.toml`/`setup.cfg` is one `ERROR:` line, never a
 traceback, and takes precedence over that error.
 
 - A missing target is created. An existing target that cannot be loaded (not
-  JSON, wrong version, a version 2 file) is one `ERROR:` and exit 1, never
-  silently replaced.
+  JSON, wrong version, a version 3 or 2 file) is one `ERROR:` and exit 1,
+  never silently replaced.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
@@ -154,7 +157,8 @@ traceback, and takes precedence over that error.
 
 Given the same registry, a file, dependency package, the project's own
 package (`project`, `wheel`, `embed-wheel`, the Hatchling hook) or an AI model
-carries the same id everywhere. `env` reuses a dependency's id only. A file, a
+carries the same id everywhere. A package is keyed by its name and version, so
+each release has its own id. `env` reuses a dependency's id only. A file, a
 model that has a file and a dataset package that exists below the root are
 keyed by their path from the registry's project root, everything else by name;
 a file's or model's entry holds its SHA-256, so changed content gets a new id;
@@ -203,12 +207,17 @@ Exceptions:
   the registry and a `pyproject.toml`, `setup.cfg` or `setup.py`, no higher
   than the project root the registry stores, else below that root. Keep the
   registry outside the package directory (the project root is fine).
-- A package name held by two elements of one document that both read the
-  registry (two versions of a dependency behind different markers) cannot be
-  pinned automatically: runs do not record it, and a pinned id goes to the
-  first of them, with a `WARNING:`. `loom id import` skips every name held by
-  several elements, with one `INFO: ID registry: not imported (name held by
-  several elements): <type> '<name>', ...` line.
+- Two versions of a dependency in one document (behind different markers)
+  are two keys, each pinned and recorded on its own. A key held by two
+  elements of one document that both read the registry (two bundled
+  libraries of one name and version) cannot be pinned automatically: runs do
+  not record it, and a pinned id goes to the first of them, with a
+  `WARNING:`. `loom id import` skips every key held by several elements, with
+  one `INFO: ID registry: not imported (name held by several elements): <type>
+  '<key>', ...` line.
+- A `project` run of a project with a dynamic version states `unknown` and so
+  keys its own package by name alone; a wheel or hook run of it states the
+  version: the two give that package two ids.
 - A self-referencing extra, or a bundled library named like the project or a
   dependency, never reads the registry and silently gets its own id; runs
   still record the name for the project or dependency.
@@ -340,12 +349,12 @@ every build reads the same committed file) or keep the seed step in the
 snippet below (it also creates the file on its first run, so the very first
 workflow run still succeeds).
 
-A committed registry from an earlier Pitloom release (format version 2) is an
-`ERROR:`: regenerate it with `loom id generate` or `loom id import` and
-commit the result. A registry in format version 3, which that command
-writes, can be read only by Pitloom 0.21.0 or later (0.20.2 and earlier read
-version 2 only), so the snippet below pins 0.21.0 for both the CLI and the
-action.
+A committed registry from an earlier Pitloom release (format version 3 or 2)
+is an `ERROR:`: regenerate it with `loom id generate` or `loom id import` and
+commit the result. A registry in format version 4, which that command
+writes, can be read only by Pitloom 0.22.0 or later (0.21.x reads version 3,
+0.20.2 and earlier version 2), so the snippet below pins 0.22.0 for both the
+CLI and the action.
 
 ```yaml
 name: Update Loom ID registry
@@ -375,8 +384,8 @@ jobs:
         with:
           python-version: "3.x"
       # Same release as the action below, which installs its own pinned version.
-      # 0.21.0 is the first release with registry format 3.
-      - run: pip install pitloom==0.21.0
+      # 0.22.0 is the first release with registry format 4.
+      - run: pip install pitloom==0.22.0
 
       # Extras-free: keys each model by its file path, with the file's
       # SHA-256, whether or not "ai" extras are installed. Creates
@@ -386,8 +395,8 @@ jobs:
       - name: Seed/refresh AI model registry entries
         run: loom id generate --id-registry loom-id-registry.json
 
-      # Pin the first release with registry format 3 (v0.20.2 reads version 2).
-      - uses: bact/pitloom@v0.21.0
+      # Pin the first release with registry format 4 (v0.21.x reads version 3).
+      - uses: bact/pitloom@v0.22.0
         with:
           project-path: .
           # Required: nothing auto-discovers a registry -- declare it.

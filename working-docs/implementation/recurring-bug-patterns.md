@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -211,6 +211,16 @@ shape described, not just the module where each was first found.
   buckets. After adding conflict-exclusion logic for one shape of
   duplicate, ask whether the same identity could also reach the output
   through an entirely different, unfiltered code path.
+- **An identity key must carry every field that tells two releases apart**
+  (#407, Q-D). The ID registry keyed `software_Package` by its PEP 503 name
+  alone, so `foo` 1.0 and 2.0, a project's two releases, and a dependency
+  before and after an upgrade all shared one id, silently: the lookup hit, and
+  nothing looked wrong. Two versions in one document showed it only as an
+  "ambiguous name". The key became `name@version`, with one function building
+  it for the lookup and the harvest, and a drift test holding the recorded key
+  equal to the element-derived one. When adding an identity key, list what
+  makes two instances different things (version, revision, platform) and put
+  each in the key, or record why not.
 - **A test fixture/mock that models an external system's shape must be
   updated in lockstep with what the production code under test actually
   inspects.** A duck-typed stand-in (e.g. a fake Hatchling `core.config`)

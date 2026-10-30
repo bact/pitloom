@@ -45,7 +45,7 @@ def _write(path: Path, type_name: str, *names: str) -> None:
         "id_counters": {_ID_SUFFIX[type_name]: len(names)},
         "namespace": _NS,
         "project_root": ".",
-        "version": 3,
+        "version": 4,
     }
     path.write_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 

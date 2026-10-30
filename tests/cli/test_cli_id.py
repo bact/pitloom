@@ -66,7 +66,9 @@ version = "1.0.0"
 
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
-    assert registry.has_name("importable-pkg")
+    # The imported package keyed by the name and version its SBOM states.
+    assert registry.get(PACKAGE_TYPE, "importable-pkg@1.0.0") is not None
+    assert registry.get(PACKAGE_TYPE, "importable-pkg") is None
 
 
 def test_id_generate_registry_load_fails(
@@ -315,10 +317,13 @@ def test_id_generate_entity_spec_splits_at_the_last_known_type(
         " \u00a0:ai_AIPackage",
         "m:software_Snippet ",
         "m: Software_File",
+        "@1.0:software_Package",
+        " @1.0:software_Package",
     ],
     ids=["typo", "case-typo", "unsupported", "no-name", "empty", "colon"]
     + ["no-type", "trailing-colon", "space-type", "type-space", "newline"]
-    + ["control", "blank-name", "unknown-type-space", "case-type-space"],
+    + ["control", "blank-name", "unknown-type-space", "case-type-space"]
+    + ["package-no-name", "package-blank-name"],
 )
 def test_id_generate_entity_spec_rejects_an_unknown_type(
     spec: str, capsys: pytest.CaptureFixture[str]
@@ -335,13 +340,14 @@ def test_id_generate_entity_spec_rejects_an_unknown_type(
 def test_id_generate_entity_flag_hits_env_lookup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`--entity PyYAML:software_Package` registers the entity under its
-    declared (mixed-case) name; a later ``generate_env_sbom()`` lookup,
-    which only has pipdeptree's lowercased ``key`` to query with, must
-    still hit it -- ``IdRegistry``'s own PEP 503 canonicalization
-    (:func:`pitloom.id_registry._types._element_key`) is what makes a raw ``--entity``
-    registration and a real deployed-dependency lookup agree, not
-    anything specific to harvest."""
+    """`--entity PyYAML@6.0:software_Package` registers the package under
+    its declared (mixed-case) name and version; a later
+    ``generate_env_sbom()`` lookup, which only has pipdeptree's lowercased
+    ``key`` and ``installed_version`` to query with, must still hit it --
+    ``IdRegistry``'s own PEP 503 and PEP 440 canonicalization
+    (:func:`pitloom.id_registry._types._element_key`) is what makes a raw
+    ``--entity`` registration and a real deployed-dependency lookup agree,
+    not anything specific to harvest."""
     # pylint: disable=import-outside-toplevel
     import json
     import subprocess
@@ -363,7 +369,7 @@ def test_id_generate_entity_flag_hits_env_lookup(
             "--id-registry",
             str(registry_path),
             "--entity",
-            "PyYAML:software_Package",
+            "PyYAML@6.0:software_Package",
         ]
     )
     assert _run_id_command(args) == 0
@@ -382,7 +388,7 @@ def test_id_generate_entity_flag_hits_env_lookup(
         stdout=json.dumps(tree),
         stderr="",
     )
-    entry = IdRegistry.load(registry_path).get(PACKAGE_TYPE, "pyyaml")
+    entry = IdRegistry.load(registry_path).get(PACKAGE_TYPE, "pyyaml@6")
     assert entry is not None
     registered_id = entry.spdx_id
 

@@ -40,6 +40,10 @@ from tests.assemble.conftest import _make_dummy_wheel
 from tests.cli.shared import SAFETENSORS_FIXTURE
 
 DEPENDENCY = "fakedep"
+#: The registry keys of the demo project's package (``demo`` 1.0.0) and of
+#: its dependency (``fakedep==1.0``): PEP 503 name and PEP 440 version.
+MAIN_KEY = "demo@1"
+DEPENDENCY_KEY = f"{DEPENDENCY}@1"
 
 #: Same bytes ``_make_dummy_wheel`` bakes into its own ``demo/__init__.py``
 #: -- see :mod:`tests.id_registry.surfaces_shared`'s module docstring.
@@ -91,8 +95,8 @@ def seed_registry(tmp_path: Path) -> Path:
     registry.generate([root / "demo"], root)
     for type_name, name in (
         (FILE_TYPE, "demo"),
-        (PACKAGE_TYPE, "demo"),
-        (PACKAGE_TYPE, DEPENDENCY),
+        (PACKAGE_TYPE, MAIN_KEY),
+        (PACKAGE_TYPE, DEPENDENCY_KEY),
         (AI_PACKAGE_TYPE, LOOM_MODEL),
     ):
         registry.register(type_name, name)

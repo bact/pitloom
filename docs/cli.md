@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -247,12 +247,13 @@ directory), the directory the SBOM's file names are relative to; run from above
 the project without it, a later run of the project finds no file ids. `id
 generate` also takes `--namespace IRI`, `-e NAME[:TYPE]` (a file, model
 or dataset that exists below `--project-dir` is stored by its path with its
-content hash, else by name) and `--max-dataset-hash-bytes BYTES` (the most
+content hash, else by name; a package is `NAME@VERSION`, one release) and
+`--max-dataset-hash-bytes BYTES` (the most
 bytes read to hash one dataset; default: the project's own
 `max-dataset-hash-bytes`, else 4 GiB), and both
-commands write only a changed registry. The file is JSON (`version: 3`); a
-version 2 file from an earlier release is an `ERROR:` (exit 1) on every
-command: delete it and re-run. Format, flags and log lines:
+commands write only a changed registry. The file is JSON (`version: 4`); a
+version 3 or 2 file from an earlier release is an `ERROR:` (exit 1) on every
+command, left as it is: delete it and re-run. Format, flags and log lines:
 [Loom ID registry](id-registry.md); keys: [keys and content
 gates](id-registry-keys.md).
 

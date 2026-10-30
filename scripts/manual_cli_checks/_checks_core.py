@@ -410,12 +410,13 @@ def check_content_type_method_fetch(ctx: Context) -> None:
 
 @check(
     "14",
-    "declared registry missing/invalid/v2: one ERROR:, exit 1, no output, each surface",
+    "declared registry missing/invalid/v3: one ERROR:, exit 1, no output, each surface",
 )
 def check_registry_missing_invalid(ctx: Context) -> None:
     """A declared ``--id-registry`` that is missing, unparseable or of an
-    unsupported version is a hard failure on every surface that accepts the
-    flag -- never silent auto-discovery, never a partial SBOM."""
+    unsupported version (a version 3 file, whose package keys have no
+    version) is a hard failure on every surface that accepts the flag --
+    never silent auto-discovery, never a partial SBOM, never a rewrite."""
     project = write_project(ctx.work / "proj")
     wheel = _build_wheel(ctx, project, ctx.work / "dist")
     model = ctx.work / "model.safetensors"
@@ -424,11 +425,20 @@ def check_registry_missing_invalid(ctx: Context) -> None:
     invalid = ctx.work / "invalid.json"
     invalid.write_text("{", encoding="utf-8")
     missing = ctx.work / "missing.json"  # never created
-    v2 = ctx.work / "v2.json"
-    v2.write_text(
-        json.dumps({"elements": {}, "namespace": "https://x.org/n", "version": 2}),
+    v3 = ctx.work / "v3.json"
+    v3.write_text(
+        json.dumps(
+            {
+                "elements": {"software_Package": {"demo": {"spdxId": "x#Package-1"}}},
+                "id_counters": {},
+                "namespace": "https://x.org/n",
+                "project_root": ".",
+                "version": 3,
+            }
+        ),
         encoding="utf-8",
     )
+    v3_bytes = v3.read_bytes()
 
     commands: dict[str, list[str]] = {
         "project": ["project", str(project), "--offline"],
@@ -438,7 +448,7 @@ def check_registry_missing_invalid(ctx: Context) -> None:
         "embed-wheel": ["embed-wheel", "--project-dir", str(project), "--offline"],
     }
     for name, argv in commands.items():
-        for label, registry in (("missing", missing), ("invalid", invalid), ("v2", v2)):
+        for label, registry in (("missing", missing), ("invalid", invalid), ("v3", v3)):
             case_dir = ctx.work / "cases" / f"{name}-{label}"
             case_dir.mkdir(parents=True)
             out = case_dir / "out.json"
@@ -463,12 +473,13 @@ def check_registry_missing_invalid(ctx: Context) -> None:
                 bool(error_lines) and "ID registry file" in error_lines[0],
                 f"{name}/{label}: {error_lines} does not name 'ID registry file'",
             )
-            if label == "v2":
+            if label == "v3":
                 expect(
-                    "version 2, expected 3" in error_lines[0],
-                    f"{name}/v2: {error_lines} does not say 'version 2, expected 3'",
+                    "version 3, expected 4" in error_lines[0],
+                    f"{name}/v3: {error_lines} does not say 'version 3, expected 4'",
                 )
+                expect(v3.read_bytes() == v3_bytes, f"{name}/v3: registry rewritten")
             expect(not out.exists(), f"{name}/{label}: output written despite failure")
     ctx.note(
-        f"{len(commands)} surfaces x missing/invalid/v2 registry: one ERROR:, exit 1"
+        f"{len(commands)} surfaces x missing/invalid/v3 registry: one ERROR:, exit 1"
     )

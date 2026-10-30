@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom ID registry: stable SPDX IDs keyed by ``(compact type, name)``.
+"""Loom ID registry: stable SPDX IDs keyed by ``(compact type, name)``; a
+``software_Package``'s name holds its version (``package_key``).
 
 See also: :mod:`pitloom.id_registry._types` for ``RegistryEntry``, the
 type constants and file traversal, :mod:`pitloom.id_registry._registry`
@@ -57,8 +58,11 @@ from pitloom.id_registry.keys import (
     artifact_key,
     is_layout_alias,
     join_key,
+    package_key,
+    package_version_key,
     path_key,
     project_prefix,
+    split_package_key,
 )
 from pitloom.id_registry.resolve import (
     registry_base_dir,
@@ -87,6 +91,8 @@ __all__ = [
     "info_identity_unknown",
     "is_layout_alias",
     "join_key",
+    "package_key",
+    "package_version_key",
     "path_key",
     "persist_registry",
     "project_prefix",
@@ -97,6 +103,7 @@ __all__ = [
     "resolve_registry",
     "save_registry",
     "sha256_file",
+    "split_package_key",
     "type_id_prefix",
     "warn_claim_collision",
     "warn_no_registry_path",
