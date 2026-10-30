@@ -119,9 +119,9 @@ def package_version_key(version: str | None) -> str | None:
     ``v1.0`` and ``01.00`` are all ``1``), else *version* as given when it
     does not parse (a ``===`` string, an overlong number), NFC; ``None``
     when it states no version (``None``, blank, ``unknown``,
-    ``NOASSERTION``, in any case). Two versions get one part exactly when
-    :func:`pitloom.extract.lock.common.is_same_version` calls them the same
-    release, but for an NFC/NFD pair of one unparsable text."""
+    ``NOASSERTION``, in any case). Two stated versions get one part exactly
+    when :func:`pitloom.extract.lock.common.is_same_version` calls them the
+    same release, but for an NFC/NFD pair of one unparsable text."""
     if version is None or version.strip().casefold() in _NO_VERSION:
         return None
     parsed = parse_version(version)
