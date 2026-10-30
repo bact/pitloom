@@ -73,6 +73,30 @@ the day it was added (2026-10-02 to 2026-10-30).
   catalogue's taxonomy repaired at three entries (causes only, `/` for
   variants); effect and actor; forged codes and the accepted residual; the
   exception carrier; the ratchet; skills as consumers.
+- [name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md):
+  a `name @ URL` dependency given another project's licence, supplier and
+  hash by a lookup on its name; what #405 fixed, left open and keeps silent.
+- [registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md):
+  a package id shared by every release; the `name@version` key (in review,
+  #407), no migration, and the remote-entry findings behind a second PR.
+- [provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md):
+  a non-UTF-8 file name crashing the writer; a `:` in free text read as a
+  provenance key; a closed reader vocabulary (#402).
+- [raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md):
+  an exception's text leaking absolute paths and forging lines; a typed
+  `failure` field; absent is quiet (in review, #408).
+- [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md): why a
+  model has no metadata, as six coded causes; decisions D1 to D12 and what
+  stays open (#404).
+- [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md): what the
+  CI repeats, measured and estimated, with sample sizes; the two-gate rule
+  (#406); a stale premise in the brief.
+- [agent-work-lessons-oct30.md](agent-work-lessons-oct30.md): a stale
+  premise, unpushed work lost, a patch-coverage gap derived before the
+  push, and tests that fake the failing call.
+- [maintainer-decision-log-oct30.md](maintainer-decision-log-oct30.md): a
+  dated table of the decisions of 2026-10-29 and 2026-10-30 (the 0.22.0
+  cut, the registry key, the catalogue families, the policy).
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
