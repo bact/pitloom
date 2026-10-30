@@ -35,7 +35,7 @@ and this project adheres to
 - Catalogued messages end in a stable `[code]` (the Git LFS pointer ones, every
   cap warning and error, why a model was not read), also on log records and
   exceptions as `pitloom_code`; see `docs/message-codes.md` ([#390], [#396],
-  [#403])
+  [#404])
 
 ### Changed
 
@@ -51,9 +51,9 @@ and this project adheres to
   the 0.7 adoption ([#401])
 - A missing extra is named (`install pitloom[gguf]`, not `pip install gguf`); a
   missing `magika` or PyPA `build` raises `ImportError`, not `RuntimeError`
-  ([#403])
+  ([#404])
 - `read_ai_model()` refuses a file no reader reads as `loom model` does: `not an
-  AI model file of a supported format` ([#403])
+  AI model file of a supported format` ([#404])
 
 ### Fixed
 
@@ -87,7 +87,7 @@ and this project adheres to
 [#396]: https://github.com/bact/pitloom/pull/396
 [#401]: https://github.com/bact/pitloom/pull/401
 [#402]: https://github.com/bact/pitloom/pull/402
-[#403]: https://github.com/bact/pitloom/pull/403
+[#404]: https://github.com/bact/pitloom/pull/404
 
 ## [0.21.2] - 2026-10-30
 

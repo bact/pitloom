@@ -21,7 +21,7 @@ below. The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
 the plumbing, schema and ratchet, is #390 (merged); migration step 2, the
 `over-cap` family, is #396 (decisions in "The `over-cap` family"); step 3,
-the model-stub causes, is #403 (PR 1a; decisions in "The model-stub causes").
+the model-stub causes, is #404 (PR 1a; decisions in "The model-stub causes").
 
 ## Core idea
 
@@ -150,7 +150,7 @@ and C):
    sdist's config file, a Git URL's checkout and `git` output). The helper,
    `Cap` (46 calls in 27 modules) and `over_cap_of` moved into
    `pitloom.messages`: 35 modules and 2 tests import them from there.
-3. The model-stub causes (#403, PR 1a): `library-missing`,
+3. The model-stub causes (#404, PR 1a): `library-missing`,
    `reader-unsafe`, `model-unreadable`, `model-wrong-format`,
    `parameter-count-invalid`, `hyperparameter-conflict` (not `model-gated`,
    a response, nor `not-a-model`, merged into `wrong-format`). The model
@@ -335,7 +335,7 @@ URL), the build-timeout and `MAX_ID_NUMBER` ranges (invalid input). The
 
 ## The model-stub causes
 
-Decided 2026-10-30 for #403 (PR 1a of row 1; the maintainer took the
+Decided 2026-10-30 for #404 (PR 1a of row 1; the maintainer took the
 recommendations D1 to D12 of its plan):
 
 1. **Six codes, named by cause (D1, decision B)**: `library-missing`
