@@ -30,9 +30,10 @@ import pytest
 from tests._message_inventory import REPO_ROOT, load
 
 #: Sites already coded: (file, emitter) of the Git LFS pointer families, of
-#: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises) and
-#: of the model-stub causes (the scan's lines, the single-file refusal, the
-#: missing libraries, the parameter count).
+#: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises), of
+#: the model-stub causes (the scan's lines, the single-file refusal, the
+#: missing libraries, the parameter count) and of an unreadable file or an
+#: unlistable directory.
 CODED_SITES = [
     ("src/pitloom/core/lfs_pointer.py", "emit"),
     ("src/pitloom/core/lfs_pointer.py", "raise"),
@@ -49,6 +50,10 @@ CODED_SITES = [
     ("src/pitloom/extract/_file_headers.py", "raise"),
     ("src/pitloom/extract/ai_model/parameter_count.py", "emit"),
     ("src/pitloom/assemble/spdx3/_ai_package.py", "emit"),
+    ("src/pitloom/core/_models_wheel.py", "warn_file_unreadable"),
+    ("src/pitloom/core/_models_wheel_unlistable.py", "warn_dir_unlistable"),
+    ("src/pitloom/core/dataset_hash.py", "warn_dir_unlistable"),
+    ("src/pitloom/extract/lock/_lock_io.py", "warn_file_unreadable"),
 ]
 
 
@@ -86,6 +91,10 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
         "magika-library",
         "parameter-count",
         "hyperparameter",
+        "file-scan",
+        "file-discovery",
+        "dataset-dir",
+        "lock-file",
     ],
 )
 def test_the_tool_sees_the_catalogued_sites_as_coded(
@@ -104,6 +113,19 @@ def test_every_over_cap_call_is_a_coded_site_in_scope(
     rose when the helper moved into the catalogue."""
     sites = [r for r in records if r["helper"] in ("warn_over_cap", "warn_field_cap")]
     assert len(sites) > 30  # the scan finds them
+    assert all(r["coded"] and load().in_scope(r) for r in sites)
+
+
+def test_every_call_of_a_read_failure_helper_is_a_coded_site_in_scope(
+    records: list[dict[str, Any]],
+) -> None:
+    """A catalogue helper that says its message through ``emit`` codes each
+    caller's line: ``warn_file_unreadable`` and ``warn_dir_unlistable``,
+    called from every module that reads a project's, a dataset's or a
+    registry's files, each a site the ratchet counts."""
+    helpers = ("warn_file_unreadable", "warn_dir_unlistable")
+    sites = [r for r in records if r["helper"] in helpers]
+    assert len({r["file"] for r in sites}) > 12  # the scan finds them
     assert all(r["coded"] and load().in_scope(r) for r in sites)
 
 

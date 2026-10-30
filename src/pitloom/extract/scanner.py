@@ -44,11 +44,10 @@ from pitloom.core.ai_metadata import (
     model_file_suffixes,
 )
 from pitloom.core.lfs_pointer import LfsPointer
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract._scanner_messages import (
-    detail,
     say_not_a_model,
     say_unread,
     scrub,
@@ -76,14 +75,11 @@ from pitloom.messages import (
     emit,
     over_cap_of,
     relay_extra,
+    warn_file_unreadable,
     warn_over_cap,
 )
 
 log = logging.getLogger(__name__)
-
-# UNREADABLE_FILE_WARNING with the model format first, as every
-# FORMAT=%s FILE=%s scan warning reads.
-_UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
 
 # The usage hint. The setting is spelt per producer: a project reads its own
 # config; a wheel reads none implicitly, so its setting needs a named one.
@@ -346,13 +342,15 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
     try:
         return read_model_candidate(candidate)
     except OSError as e:
-        log.warning(
-            _UNREADABLE_MODEL_WARNING,
-            detect_ai_model_format_from_name(candidate.distribution_path),
-            loggable(candidate.physical_path),
-            "header",
-            detail(e, candidate.read_path, candidate.physical_path),
-        )
+        if not is_missing_errno(e):  # gone since it was found: absent
+            warn_file_unreadable(
+                log,
+                e,
+                file=candidate.physical_path,
+                model_format=detect_ai_model_format_from_name(
+                    candidate.distribution_path
+                ),
+            )
     except NotAModel as e:
         if e.reason is not None:
             say_not_a_model(log, e, candidate)
@@ -409,12 +407,10 @@ def attach_usage_references(
                     )
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
-            log.warning(
-                UNREADABLE_FILE_WARNING,
-                loggable(source.physical_path),
-                "for usage scanning",
-                detail(e, source.read_path, source.physical_path),
-            )
+            if not (isinstance(e, OSError) and is_missing_errno(e)):
+                warn_file_unreadable(
+                    log, e, file=source.physical_path, use="for usage scanning"
+                )
     for meta in models:
         meta.usage_files = sorted(set(meta.usage_files))
 

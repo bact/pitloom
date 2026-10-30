@@ -29,6 +29,8 @@ from tests._message_drift import quote_matches, relative
 
 #: The text that marks a quote as saying a family's message.
 _MARKERS = {
+    "dir-unlistable": "could not list ",
+    "file-unreadable": "could not read ",
     "hyperparameter-conflict": "replaced by the parameter count",
     "lfs-pointer": "Git LFS pointer",
     "lfs-pointer-malformed": "Git LFS pointer",

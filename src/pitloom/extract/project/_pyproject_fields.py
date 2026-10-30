@@ -20,10 +20,9 @@ from typing import Any
 from pyproject_metadata import StandardMetadata
 
 from pitloom.core.path_confine import OutsideRootError, open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract.authors import collapse_whitespace
-from pitloom.logging_config import loggable, warn_once
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger(__name__)
 
@@ -107,8 +106,9 @@ def drop_outside_file(
     ``project.<key>`` when the file *file* names, ``(name, field)``, is
     outside *project_dir* (``..``, absolute or a symlink out;
     :func:`~pitloom.core.path_confine.open_inside`), which
-    ``pyproject-metadata`` would read, with one ``WARNING:`` per file, field
-    and process unless *quiet*. Any other failure to open it is left for
+    ``pyproject-metadata`` would read, with one
+    ``file-unreadable/outside-project`` ``WARNING:`` per file, field and
+    process unless *quiet*. Any other failure to open it is left for
     ``pyproject-metadata`` to report."""
     name, field = file
     try:
@@ -116,13 +116,12 @@ def drop_outside_file(
             return data
     except OutsideRootError as exc:
         if not quiet:
-            warn_once(
+            warn_file_unreadable(
                 log,
-                f"outside:{field}:{project_dir / name}",
-                UNREADABLE_FILE_WARNING,
-                loggable(name),
-                f"for {field}",
                 exc,
+                file=name,
+                field=field,
+                once=f"outside:{field}:{project_dir / name}",
             )
     except (OSError, ValueError):
         return data

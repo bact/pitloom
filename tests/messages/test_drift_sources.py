@@ -22,6 +22,7 @@ from pitloom.core.evidence import REASON_CODES
 from pitloom.messages import FRAMES, MESSAGES, trusted_message
 from tests._message_drift import (
     SAMPLES,
+    SRC_ROOT,
     families_said_by,
     family_names,
     referenced_names,
@@ -31,13 +32,15 @@ from tests._message_drift import (
 
 #: Evidence reasons with no catalogued message yet. Shrink only: a reason
 #: moves to the catalogue (its code equals the reason), never back.
-PENDING = frozenset({"timeout", "network-failed", "file-unreadable", "dir-unlistable"})
+PENDING = frozenset({"timeout", "network-failed"})
 
 #: Modules that hold a catalogued family's text but say nothing: module path
 #: under ``src/pitloom``, with why. Shrink only.
 _NOT_EMITTERS = {
     # The reason NotAModel carries; emitters interpolate it.
     "extract/ai_model/reader.py",
+    # OutsideRootError's text; the outside-project line states it itself.
+    "core/path_confine.py",
 }
 
 _LOG_METHODS = frozenset({"warning", "info", "error", "critical", "exception", "log"})
@@ -56,11 +59,31 @@ def test_every_family_is_exported_by_name() -> None:
     assert sum(len(n) for n in names.values()) == len(MESSAGES)
 
 
+def _said_by_helpers(called: set[str], names: set[str]) -> set[str]:
+    """The entries of *names* a catalogue module names when one of its
+    public functions is in *called*: a helper that picks the entry itself
+    (``warn_file_unreadable``) says each one its module names."""
+    said: set[str] = set()
+    for path in sorted((SRC_ROOT / "messages").glob("*.py")):
+        tree = ast.parse(path.read_bytes())
+        helpers = {
+            node.name
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+        }
+        if helpers & called:
+            said |= referenced_names(tree) & names
+    return said
+
+
 def test_every_catalogued_message_is_used_outside_the_catalogue() -> None:
+    """Named outside the catalogue, or said by a catalogue helper called
+    there."""
     names = {n for found in family_names().values() for n in found}
-    used: set[str] = set()
+    called: set[str] = set()
     for _, tree in source_modules():
-        used |= referenced_names(tree) & names
+        called |= referenced_names(tree)
+    used = (called & names) | _said_by_helpers(called, names)
     assert used == names, f"unused: {sorted(names - used)}"
 
 

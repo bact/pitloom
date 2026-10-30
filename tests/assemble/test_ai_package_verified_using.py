@@ -41,6 +41,8 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.hashes import sha256_of
 from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import MESSAGES
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.registry_helpers import make_registry
 
@@ -253,9 +255,12 @@ def test_an_unreadable_model_file_is_neither_hashed_nor_gated(
     assert _model_id(sbom) == _PIN  # ungated: the hash-less entry hits
     if route == "model":
         assert _package_sha(sbom) is None
-    unread = "no verifiedUsing, registry lookup not gated"
+    # What follows (no verifiedUsing, the lookup not gated) is the entry's.
+    unread = "could not read for the model hash; Permission denied"
     (warning,) = [r for r in caplog.records if unread in r.getMessage()]
     assert warning.levelno == logging.WARNING
+    assert getattr(warning, CODE_ATTR) == "file-unreadable"
+    assert "verifiedUsing" in MESSAGES["file-unreadable"].did
 
 
 def test_enrich_without_a_registry_hashes_nothing(tmp_path: Path) -> None:

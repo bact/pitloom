@@ -5,8 +5,9 @@
 
 """Tests for the *size* and *omitted* of a
 :class:`~pitloom.core.dataset_hash.DatasetDigest`: a file's measured size,
-the ``stat()`` size when the ceiling forbids the read, never a Git LFS
-pointer's own size, and ``"over-cap"`` only for the ceiling.
+the ``stat()`` size of a file not read, never a Git LFS pointer's own size;
+``"over-cap"`` only for the ceiling, ``"file-unreadable"`` and
+``"dir-unlistable"`` for a file or directory the system refused.
 
 See also: tests/core/test_dataset_hash.py (hashing at large),
 tests/core/test_dataset_hash_lfs.py (Git LFS pointers).
@@ -74,7 +75,14 @@ _ROWS: dict[str, tuple[_Row, tuple[str, bool, int | None, str | None]]] = {
         _Row(_DATA, _STAT, fault="stat-small"),
         ("file", False, _STAT, "over-cap"),
     ),
-    "file-unreadable": (_Row(_DATA, _BIG, fault="deny"), ("file", False, None, None)),
+    "file-unreadable": (
+        _Row(_DATA, _BIG, fault="deny"),
+        ("file", False, len(_DATA), "file-unreadable"),
+    ),
+    "file-unreadable-below-pointer-max": (
+        _Row(_DATA[:_PAST], _BIG, fault="deny"),
+        ("file", False, None, "file-unreadable"),
+    ),
     "dir-hashed": (_Row(_DATA, _BIG, as_dir=True), ("dir", True, None, None)),
     "dir-over-at-stat": (
         _Row(_DATA, len(_DATA) - 1, as_dir=True, fault="no-read"),
@@ -86,7 +94,11 @@ _ROWS: dict[str, tuple[_Row, tuple[str, bool, int | None, str | None]]] = {
     ),
     "dir-unreadable-leaf": (
         _Row(_DATA, _BIG, as_dir=True, fault="deny"),
-        ("dir", False, None, None),
+        ("dir", False, None, "file-unreadable"),
+    ),
+    "dir-unlistable": (
+        _Row(_DATA, _BIG, as_dir=True, fault="unlistable"),
+        ("dir", False, None, "dir-unlistable"),
     ),
 }
 
@@ -105,9 +117,20 @@ def _denied(member: str, **_kwargs: Any) -> Any:
     raise PermissionError(errno.EACCES, "Permission denied", member)
 
 
+def _unlistable(top: str, *_args: Any) -> None:
+    """The walk of a directory that cannot be listed: ``os.walk``'s
+    *onerror*, with the error it gives."""
+    # pylint: disable-next=protected-access
+    dataset_hash._raise_unlistable(
+        PermissionError(errno.EACCES, "Permission denied", top)
+    )
+
+
 def _inject(monkeypatch: pytest.MonkeyPatch, fault: str) -> None:
     if fault == "stat-small":
         monkeypatch.setattr(dataset_hash, "_file_size", lambda _path: _STAT)
+    if fault == "unlistable":
+        monkeypatch.setattr(dataset_hash, "_members", _unlistable)
     readers = {"no-read": _no_read, "grow": _grow_then_read, "deny": _denied}
     if fault in readers:
         monkeypatch.setattr(dataset_hash, "sha256_read", readers[fault])
@@ -122,10 +145,11 @@ def test_size_and_omitted_reason(
     row: _Row,
     expected: tuple[str, bool, int | None, str | None],
 ) -> None:
-    """A hashed file's size is the bytes read, a pointer's none; over the
-    ceiling the ``stat()`` size, none below a pointer's largest size (only
-    the forbidden read could tell); a directory has none yet. Only the
-    ceiling, at ``stat()`` or in a grown read, is ``"over-cap"``."""
+    """A hashed file's size is the bytes read, a pointer's none; a file not
+    read (over the ceiling, or refused) the ``stat()`` size, none below a
+    pointer's largest size (only the read could tell); a directory has none
+    yet. Only the ceiling, at ``stat()`` or in a grown read, is
+    ``"over-cap"``; a refused read or listing is its own reason."""
     top = tmp_path / "d"
     top.mkdir()
     (top / "f.bin").write_bytes(row.data)

@@ -152,9 +152,7 @@ def test_a_licence_symlink_is_read_only_inside_the_project(
         assert read_license_members(project) == members  # warned once
     inside = target != "outside"
     assert list(members) == (["LICENSE"] if inside else [])
-    assert caplog.messages == (
-        [] if inside else [f"FILE={project / 'LICENSE'}: {_OUTSIDE}"]
-    )
+    assert caplog.messages == ([] if inside else [f"FILE=LICENSE: {_OUTSIDE}"])
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")

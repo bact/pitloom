@@ -46,14 +46,14 @@ from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import DigestHasher, sha256_digest
 from pitloom.core.lfs_pointer import parse_lfs_pointer
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, stat_if_present
+from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.project import (
     ProjectFile,
     digest_fields,
     project_relative_or_fallback,
 )
 from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
-from pitloom.logging_config import loggable
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger(__name__)
 
@@ -439,9 +439,10 @@ def _scan_included_files(
     """Hash and scan *included_files*: ``(merkle_root, project_files)``,
     or ``None`` when none of them is a readable regular file.
 
-    A missing or non-regular path is skipped silently, and so is the
-    *registry* file, matched by the same ``stat()``; a file that exists
-    but cannot be read gets one ``WARNING:`` and is skipped alone. See
+    A missing or non-regular path is skipped silently (one gone between
+    its ``stat()`` and its read too), and so is the *registry* file,
+    matched by the same ``stat()``; a file that exists but cannot be read
+    gets one ``file-unreadable`` ``WARNING:`` and is skipped alone. See
     :func:`get_wheel_files` for *need_bytes*/*skip_merkle_root*."""
     project_files: list[ProjectFile] = []
     file_entries: list[tuple[str, bytes]] = []
@@ -462,17 +463,16 @@ def _scan_included_files(
                 scan_config=scan_config,
             )
         except OSError as exc:
-            log.warning(
-                UNREADABLE_FILE_WARNING,
-                loggable(
-                    project_relative_or_fallback(
+            if not is_missing_errno(exc):  # gone since the stat(): absent
+                warn_file_unreadable(
+                    log,
+                    exc,
+                    file=project_relative_or_fallback(
                         _physical_path(source, project_dir, built=included_file.built),
                         included_file.distribution_path,
-                    )
-                ),
-                "for file scanning",
-                exc,
-            )
+                    ),
+                    use="for file scanning",
+                )
             continue
         project_files.append(project_file)
         if digest_bytes is not None:
