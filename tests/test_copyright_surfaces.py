@@ -226,7 +226,10 @@ def test_unreadable_licence_file_is_warned_and_no_assertion(
     assert _main_copyright(sbom) == ("NOASSERTION", None)
     err = capsys.readouterr().err.splitlines()
     [warning] = [line for line in err if "LICENSE" in line]
-    assert warning.startswith(f"WARNING: FILE={licence}: could not read ")
+    # Named in the project, the system's description, the code last.
+    assert warning.startswith("WARNING: FILE=LICENSE: could not read for license")
+    assert warning.endswith(" [file-unreadable]")
+    assert str(tmp_path) not in warning
 
 
 _FIXTURES = Path(__file__).parent / "fixtures"

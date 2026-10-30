@@ -74,12 +74,13 @@ def _read_candidate_text(candidate: Any, dist: Any) -> str | None:
     when it is under a ``.dist-info`` and resolves inside it, whatever its
     ``RECORD`` entry spells (``..``, a symlink out)
     (:func:`~pitloom.extract.copyright_notices.read_license_text`: capped, a
-    present file that is not read warned about); else ``None``."""
+    present file that is not read warned about, by its ``RECORD`` entry);
+    else ``None``."""
     entry = str(candidate)
     if not is_dist_info_path(entry):
         return None
     dist_info = Path(dist.locate_file(entry.split("/", 1)[0]))
-    return read_license_text(Path(candidate.locate()), dist_info)
+    return read_license_text(Path(candidate.locate()), dist_info, shown=entry)
 
 
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:

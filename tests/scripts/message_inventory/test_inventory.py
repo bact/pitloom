@@ -44,6 +44,7 @@ SITES = [
     ("pitloom.caps", 16, True, False),  # warn_over_cap(...)
     ("pitloom.caps", 17, True, False),  # a wrapper of it
     ("pitloom.caps", 19, True, False),  # raise ...(pitloom_code=M.code)
+    ("pitloom.reads", 9, True, False),  # a catalogue helper saying it by emit
     ("pitloom.extract.ai_model.reader", 9, True, False),  # raise CodedImportError
 ]
 IDS = [f"{m.rsplit('.', 1)[-1]}:{n}" for m, n, _, _ in SITES]
@@ -77,6 +78,10 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
     # counted at the wrapper's callers.
     assert all(mi.in_scope(_site(records, "pitloom.caps", n)) for n in (16, 17, 19))
     assert not [r for r in records if r["module"] == "pitloom.caps" and r["line"] == 12]
+    # A catalogue helper that says its message through emit: its call
+    # counts, coded; its own emit() call is the mechanism.
+    assert mi.in_scope(_site(records, "pitloom.reads", 9))
+    assert not mi.in_scope(_site(records, "pitloom.messages._file_warning", 5))
     assert mi.uncoded_counts(records) == {
         "pitloom.callers": 1,
         "pitloom.extract.ai_model.reader": 1,
@@ -86,7 +91,7 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (19, 10)
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (20, 11)
     assert counts["IN_SCOPE_UNCODED"] == 9 == sum(mi.uncoded_counts(records).values())
 
 

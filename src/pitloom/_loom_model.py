@@ -58,11 +58,7 @@ from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.file_hash import FileDigests, file_digests
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.path_probe import (
-    UNREADABLE_FILE_WARNING,
-    is_missing_errno,
-    is_regular_file,
-)
+from pitloom.core.path_probe import is_missing_errno, is_regular_file
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -74,7 +70,8 @@ from pitloom.id_registry import (
     persist_registry,
     warn_no_registry_path,
 )
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger("pitloom.loom")
 
@@ -115,26 +112,20 @@ class _Declaration:
     annotations: list[spdx3.Annotation] = field(default_factory=list)
 
 
-def _warn_unreadable(given: str, exc: Exception) -> None:
-    log.warning(
-        UNREADABLE_FILE_WARNING, loggable(given), "for the model hash", one_line(exc)
-    )
-
-
 def _hash_model_file(name: str, path: str, given: str) -> FileDigests | None:
     """The SHA-256 and SHA-512 of the model file at *path* (one read), or
     ``None`` and one ``WARNING:`` when it is not a regular file at exit
-    (gone included) or cannot be read. Read whole in chunks: no ceiling
-    applies to a model."""
+    (gone included, and a name holding a NUL, which names no file) or cannot
+    be read (``file-unreadable``). Read whole in chunks: no ceiling applies
+    to a model."""
     try:
         if is_regular_file(Path(path)):
             return file_digests(path)
-    except ValueError as exc:  # a NUL: a name, not a path
-        _warn_unreadable(given, exc)
-        return None
+    except ValueError:  # a NUL: a name, not a path
+        pass
     except OSError as exc:
         if not is_missing_errno(exc):
-            _warn_unreadable(given, exc)
+            warn_file_unreadable(log, exc, file=given, use="for the model hash")
             return None
     log.warning(NOT_A_FILE_WARNING, name, loggable(given))
     return None

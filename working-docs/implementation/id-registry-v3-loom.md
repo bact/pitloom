@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,9 +91,11 @@ rewritten file (new digest) is a new element.
   `WARNING:` naming the path and the limit.
 - **Empty directory:** no hash, silently. This is absent data, not an
   error.
-- **Unreadable member or unlistable subdirectory:** the `path_probe`
-  warning (`UNREADABLE_FILE_WARNING` / `UNLISTABLE_DIR_WARNING`) and **no
-  root at all**. A root over part of the directory would be wrong.
+- **Unreadable member or unlistable subdirectory:** the
+  `file-unreadable` / `dir-unlistable` warning (the `path_probe`
+  constants until #408) and **no root at all**, the reason of the same
+  code in the provenance since #408. A root over part of the directory
+  would be wrong; a member gone since the walk is absent: no root, quietly.
 - **Probing:** every loom path check goes through
   `path_probe.is_regular_file` and `os.path.isdir`, never `Path.is_file()`
   (problem 10). A missing path gets no hash and no File; its

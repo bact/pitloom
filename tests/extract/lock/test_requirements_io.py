@@ -18,6 +18,7 @@ import pytest
 from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.extract.lock import requirements
 from pitloom.extract.lock.requirements import extract_pinned_requirements_dependencies
+from pitloom.logging_config import CODE_ATTR
 
 
 def _write_requirements(project_dir: Path, text: str) -> None:
@@ -42,15 +43,18 @@ def test_unreadable_file_returns_none_and_warns(
 ) -> None:
     _write_requirements(tmp_path, "requests==2.31.0\n")
 
-    def _denied(_path: Path) -> bytes:
-        raise PermissionError(13, "Permission denied")
+    def _denied(path: Path) -> bytes:
+        raise PermissionError(13, "Permission denied", str(path))
 
     monkeypatch.setattr(requirements, "read_lock_bytes", _denied)
     with caplog.at_level(logging.WARNING):
         assert extract_pinned_requirements_dependencies(tmp_path) is None
 
-    assert "Failed to parse" in caplog.text
-    assert "Permission denied" in caplog.text
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "FILE=requirements.txt: could not read for dependency pins; Permission denied"
+    )
+    assert getattr(record, CODE_ATTR) == "file-unreadable"
 
 
 def test_requirements_file_over_the_size_cap_is_skipped(

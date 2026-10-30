@@ -137,6 +137,26 @@ def check(path, cap):
     warn_over_cap(_log, model_cap(NAME_CAP, "gguf"), path, "cut")
     raise RemoteSourceError("git.too-large", "too large", pitloom_code=OVER_CAP.code)
 """,
+    # A catalogue helper saying its message through emit (the mechanism),
+    # and its calls: each a coded site in scope.
+    "messages/_file_warning.py": """\
+from pitloom.messages._emit import emit
+
+
+def warn_file_unreadable(log, exc, *, file, use=None):
+    emit(log, UNREAD, 30, file=file, use=use, failure=exc)
+""",
+    "reads.py": """\
+import logging
+
+from pitloom.messages._file_warning import warn_file_unreadable
+
+_log = logging.getLogger(__name__)
+
+
+def read(path, exc):
+    warn_file_unreadable(_log, exc, file=path, use="for file scanning")
+""",
     # A model reader's raise is the detail of the scanner's line, by where
     # it is; its dispatch's own refusal is a message, and a CodedImportError
     # is coded by its class, whatever message it is given.

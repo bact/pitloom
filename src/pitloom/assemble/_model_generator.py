@@ -30,7 +30,7 @@ from pitloom.core.inert_options import (
 )
 from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
@@ -53,7 +53,8 @@ from pitloom.id_registry import (
     registry_file_path,
     resolve_registry,
 )
-from pitloom.logging_config import configure_logging, loggable, one_line
+from pitloom.logging_config import configure_logging, loggable
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger(__name__)
 
@@ -87,15 +88,12 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         raise refusal_error(model_path, e.model_format, str(e)) from e
 
 
-#: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model
-#: file could not be read for, and what follows from it.
-_HASH_UNREAD = "for the model hash (no verifiedUsing, registry lookup not gated)"
-
-
 def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
-    log.warning(
-        UNREADABLE_FILE_WARNING, loggable(str(model_path)), _HASH_UNREAD, one_line(exc)
-    )
+    """The ``file-unreadable`` ``WARNING:`` for the model file *model_path*
+    that *exc* stopped hashing (no ``verifiedUsing``, the registry lookup not
+    gated); none for one gone since it was read: absent."""
+    if not is_missing_errno(exc):
+        warn_file_unreadable(log, exc, file=model_path, use="for the model hash")
 
 
 def _model_file_digests(model_path: Path) -> HexDigests | None:

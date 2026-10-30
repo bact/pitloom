@@ -448,6 +448,5 @@ def test_attr_line_the_parser_cannot_hold_is_skipped(
         found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
     assert found == (None, None)
     assert caplog.messages == [
-        f"FILE=m.py: could not read for t; {error.__name__} parsing the"
-        " __version__ line"
+        f"FILE=m.py: {error.__name__} parsing the __version__ line; skipped for t"
     ]

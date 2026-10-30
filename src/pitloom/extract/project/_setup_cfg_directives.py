@@ -20,12 +20,12 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from pitloom.core.path_confine import open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.extract._license_detect import decode_text
 from pitloom.logging_config import loggable, warn_once
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -80,16 +80,10 @@ def _once_key(path: Path, what: str) -> str:
 
 
 def _warn_unread(path: Path, name: str, what: str, exc: Exception) -> None:
-    """One ``WARNING:`` per *path* and *what*, per process, that the listed
-    file *name* was not read for *what* (*exc*)."""
-    warn_once(
-        log,
-        _once_key(path, what),
-        UNREADABLE_FILE_WARNING,
-        loggable(name),
-        f"for {what}",
-        loggable(str(exc)),
-    )
+    """One ``file-unreadable`` ``WARNING:`` per *path* and *what*, per
+    process, that the listed file *name* was not read for *what* (*exc*:
+    outside the project, not UTF-8, or the file's own failure)."""
+    warn_file_unreadable(log, exc, file=name, field=what, once=_once_key(path, what))
 
 
 def read_listed_file(
@@ -294,14 +288,14 @@ def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | N
     except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
         return None
     except (RecursionError, MemoryError) as exc:
-        reason = f"{type(exc).__name__} parsing the {attr_name} line"
         warn_once(
             log,
             f"attr-line:{name}\x00{what}",
-            UNREADABLE_FILE_WARNING,
+            "FILE=%s: %s parsing the %s line; skipped for %s",
             loggable(name),
-            f"for {what}",
-            reason,
+            type(exc).__name__,
+            loggable(attr_name),
+            what,
         )
         return None
     for node in ast.walk(tree):

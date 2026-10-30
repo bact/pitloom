@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -234,8 +234,8 @@ joined with a newline. Missing is classified by `os.stat()` and
 dangling symlink is missing (setuptools' `os.path.isfile` skips it too) but
 a permission error on a parent directory is not. A file that exists but
 cannot be read (a directory, no permission, not UTF-8) is left out with
-`path_probe.UNREADABLE_FILE_WARNING`
-(`FILE=<name>: could not read for setup.cfg <field>; <error>`), once per
+the `file-unreadable` line (`pitloom.messages.warn_file_unreadable`, since
+PR #408: `FILE=<name>: could not read for setup.cfg <field>; <failure>`), once per
 file and field per process (`warn_once`): one run reads the project twice
 (`resolve_project_with_lockfile`). setuptools itself warns for a missing
 file too; Pitloom keeps that silent and returns the list as a filename hint.

@@ -27,6 +27,7 @@ import pitloom.extract.lock.common as lock_common
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.extract.lock.common import load_lock_json, load_lock_toml
+from pitloom.logging_config import CODE_ATTR
 from tests._bounded import run_bounded
 
 
@@ -198,6 +199,53 @@ def test_a_parser_resource_error_is_a_bad_file(
     assert caplog.messages == [
         f"Failed to parse {quote_source(lock_path)}: {error.__name__}"
     ]
+
+
+@_LOADERS
+def test_a_lock_file_the_system_refuses_is_said_once_without_its_path(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    loader: Callable[[Path], object],
+) -> None:
+    """``file-unreadable``, named by the file's name, with the system's
+    description, never its text (the absolute path); a pin reader and its
+    hash companion read one file: said once, the repeat at ``DEBUG``."""
+
+    def _denied(path: Path) -> bytes:
+        raise PermissionError(13, "Permission denied", str(path))
+
+    monkeypatch.setattr(lock_io, "read_lock_bytes", _denied)
+    lock_path = tmp_path / "uv.lock"
+    lock_path.write_text("{}", encoding="utf-8")
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        assert loader(lock_path) is None
+        assert loader(lock_path) is None
+    said = [r for r in caplog.records if r.name == lock_io.log.name]
+    assert [r.levelno for r in said] == [logging.WARNING, logging.DEBUG]
+    assert said[0].getMessage() == (
+        "FILE=uv.lock: could not read for dependency pins; Permission denied"
+    )
+    assert getattr(said[0], CODE_ATTR) == "file-unreadable"
+
+
+@_LOADERS
+def test_a_lock_file_gone_since_its_stat_is_quiet(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    loader: Callable[[Path], object],
+) -> None:
+    """Absent is quiet whatever errno says so (here a parent that is a
+    file): no ``file-unreadable``."""
+
+    def _gone(path: Path) -> bytes:
+        raise NotADirectoryError(20, "Not a directory", str(path))
+
+    monkeypatch.setattr(lock_io, "read_lock_bytes", _gone)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        assert loader(tmp_path / "uv.lock") is None
+    assert not caplog.records
 
 
 @_LOADERS

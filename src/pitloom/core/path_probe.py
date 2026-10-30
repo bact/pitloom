@@ -13,10 +13,9 @@ presence checks (:mod:`pitloom.assemble.spdx3.fragments`,
 (:mod:`pitloom.core._models_wheel`), so all three classify a ``stat()``
 failure identically.
 
-:data:`UNREADABLE_FILE_WARNING` is the one wording every per-file read
-failure is reported with, so the ``FILE=`` warnings stay grep-able as one
-group; :data:`UNLISTABLE_DIR_WARNING` is its ``DIR=`` counterpart for a
-directory that cannot be listed.
+A present path that cannot be read or listed is reported through the
+catalogue (:func:`pitloom.messages.warn_file_unreadable`,
+:func:`pitloom.messages.warn_dir_unlistable`), which refuses an absent one.
 """
 
 from __future__ import annotations
@@ -29,8 +28,6 @@ from pathlib import Path
 __all__ = [
     "STAT_MISSING_ERRNOS",
     "STAT_MISSING_WINERRORS",
-    "UNLISTABLE_DIR_WARNING",
-    "UNREADABLE_FILE_WARNING",
     "is_missing_errno",
     "is_regular_file",
     "stat_if_present",
@@ -42,15 +39,6 @@ STAT_MISSING_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno
 #: Windows counterparts of the same errno set, per CPython's
 #: pathlib._ignore_error().
 STAT_MISSING_WINERRORS = frozenset({21, 123, 1921})
-
-#: ``log.warning()`` format for a file that exists but cannot be read.
-#: Arguments: the stable ``FILE=`` path, what the read was for (e.g.
-#: ``"for file scanning"``), the exception.
-UNREADABLE_FILE_WARNING = "FILE=%s: could not read %s; %s"
-#: ``log.warning()`` format for a directory that exists but cannot be
-#: listed. Arguments: the stable ``DIR=`` path, what the listing was for,
-#: the exception.
-UNLISTABLE_DIR_WARNING = "DIR=%s: could not list %s; %s"
 
 
 def is_missing_errno(exc: OSError) -> bool:

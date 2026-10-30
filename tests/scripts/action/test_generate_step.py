@@ -344,6 +344,7 @@ def test_percent_in_annotation_text_is_escaped(
 
 _POINTER = "FILE={}: Git LFS pointer, content not read; run 'git lfs pull'"
 _OVER_CAP = "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
+_UNREAD = "FILE=demo/secret.txt: could not read for file scanning; Permission denied"
 _GATE = (
     "AI models in a wheel in these formats are listed without metadata, their "
     "reader not being run on a wheel's files: gguf, onnx. Pass "
@@ -358,9 +359,17 @@ _GATE = (
         ("WARNING", _POINTER.format("x [lfs-pointer]"), "lfs-pointer/shipped", "\\n"),
         ("WARNING", _POINTER.format("100%%25 m"), "lfs-pointer", "\\r\\n"),
         ("WARNING", _OVER_CAP, "over-cap", "\\r\\n"),
+        ("WARNING", _UNREAD, "file-unreadable", "\\n"),
         ("INFO", _GATE, "reader-unsafe", "\\r\\n"),
     ],
-    ids=["plain", "hostile-name", "percent-crlf", "over-cap-crlf", "info-crlf"],
+    ids=[
+        "plain",
+        "hostile-name",
+        "percent-crlf",
+        "over-cap-crlf",
+        "file-unreadable",
+        "info-crlf",
+    ],
 )
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_a_catalogued_code_ends_the_annotation_after_the_fence(

@@ -17,7 +17,10 @@ its ``software_File`` set; an embed keeps it, as the wheel's own file set
 is the truth there and the project scan only adds header data.
 
 A directory discovery cannot list (``chmod 000``) likewise gets one
-``DIR=`` warning on every surface; the names under it are never seen.
+``DIR=`` warning on every surface; the names under it are never seen. Each
+warning carries its code (``file-unreadable``, ``dir-unlistable``) on the
+record and in the printed line, and names no directory of this machine:
+the system's description of the failure, never the exception's text.
 
 See also: tests/core/models_wheel/test_models_wheel_unreadable.py for the
 scan itself, tests/_unreadable.py for the deny modes.
@@ -27,6 +30,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import subprocess  # nosec B404
+import sys
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -36,6 +42,8 @@ import pytest
 
 from pitloom.assemble import generate, generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import DIR_UNLISTABLE, FILE_UNREADABLE, trusted_message
 from tests._unreadable import ALL_MODES, POSIX_NON_ROOT, deny, unlistable
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
@@ -169,12 +177,15 @@ def test_unreadable_file_is_skipped_with_one_warning(
     _assert_readable_scanned(files)
     assert _SECRET not in files
     about_secret = [
-        r.getMessage()
+        r
         for r in caplog.records
         if r.levelno >= logging.WARNING and _SECRET in r.getMessage()
     ]
     assert len(about_secret) == 1
-    assert about_secret[0].startswith(f"FILE={_SECRET}: could not read")
+    message = about_secret[0].getMessage()
+    assert message.startswith(f"FILE={_SECRET}: could not read")
+    assert getattr(about_secret[0], CODE_ATTR) == "file-unreadable"
+    assert str(tmp_path) not in message
 
 
 @pytest.mark.parametrize("mode", ALL_MODES)
@@ -235,6 +246,9 @@ def test_unlistable_dir_is_skipped_with_one_warning(
     assert _SECRET not in files
     (message,) = _dir_warnings(caplog)
     assert message.startswith(f"DIR={_LOCKED_DIR}: could not list")
+    assert str(tmp_path) not in message
+    (record,) = [r for r in caplog.records if r.getMessage() == message]
+    assert getattr(record, CODE_ATTR) == "dir-unlistable"
 
 
 @pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
@@ -254,3 +268,43 @@ def test_enrich_identity_matches_the_sbom_with_an_unlistable_dir(
     # Not vacuous: the unlisted file changes the identity.
     assert namespace != readable
     assert len(_dir_warnings(caplog)) == 1
+
+
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+
+
+def _loom(args: list[str], cwd: Path) -> list[str]:
+    """``loom`` in a child process: its stderr lines, LF or CRLF."""
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [_SRC, env.get("PYTHONPATH")]))
+    done = subprocess.run(  # nosec B603
+        [sys.executable, "-m", "pitloom", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        check=False,
+        timeout=300,
+    )
+    assert done.returncode == 0, done.stderr
+    return [line.removesuffix("\r") for line in done.stderr.decode().split("\n")]
+
+
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
+def test_the_command_line_prints_each_line_with_its_code(tmp_path: Path) -> None:
+    """The real stderr of ``loom project``: each line ends in its code, is
+    trusted as its entry and names no directory of this machine."""
+    project = _project(tmp_path)
+    (project / "demo" / "closed").mkdir()
+    with deny(project / _SECRET, "chmod-file", pytest.MonkeyPatch()):
+        with unlistable(project / "demo" / "closed"):
+            lines = _loom(["project", str(project), "-o", "out.json"], tmp_path)
+    said = {
+        line.rpartition(" [")[2]: line
+        for line in lines
+        if line.endswith(("[file-unreadable]", "[dir-unlistable]"))
+    }
+    assert said["file-unreadable]"].startswith(f"WARNING: FILE={_SECRET}: ")
+    assert said["dir-unlistable]"].startswith("WARNING: DIR=demo/closed: ")
+    assert trusted_message(said["file-unreadable]"]) is FILE_UNREADABLE
+    assert trusted_message(said["dir-unlistable]"]) is DIR_UNLISTABLE
+    assert not [line for line in lines if str(tmp_path) in line]
