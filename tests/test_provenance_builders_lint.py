@@ -67,6 +67,7 @@ _APPROVED = frozenset(
     {
         "provenance_source",
         "provenance_segment",
+        "provenance_note",
         "evidence_segment",
         "field_provenance",
         "member_source",
@@ -80,9 +81,9 @@ _SANITISING = _APPROVED | {"sanitize_provenance_text"}
 
 #: (file relative to src/pitloom, interpolated expression) -> why it is safe.
 _ALLOWED: dict[tuple[str, str], str] = {
-    ("assemble/spdx3/deps_originator.py", "sanitize_provenance_text(repo_url)"): (
-        "a free-text note with no segment key (no builder writes one); the "
-        "URL goes through the sanitiser"
+    ("assemble/spdx3/deps_originator.py", "repo_url"): (
+        "the text of a note: provenance_note() sanitises it and writes it "
+        "after 'Note: ', so the URL's ':' is no key"
     ),
     # The writer of the Evidence segment: both values are checked against
     # its closed vocabulary before they are written.
@@ -265,8 +266,9 @@ def test_the_guard_sees_a_raw_name() -> None:
         "a = 1 + label\n"
         "a = ' | '.join(sorted(constraints))\n"
         "a = ' | '.join(sanitize_provenance_text(c) for c in constraints)\n"
+        "a = ' | '.join(provenance_note(c) for c in constraints)\n"
         "a = f'{base} | Deprecated-License-Id: {ids}'\n"
         "a = ', '.join(names)\n"
     )
     found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
-    assert found == {"1", "4", "6", "7", "9", "11", "12", "14", "17", "19"}
+    assert found == {"1", "4", "6", "7", "9", "11", "12", "14", "17", "20"}

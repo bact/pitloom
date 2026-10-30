@@ -480,11 +480,15 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   library on a directory or an sdist, the hook, a loom dataset). `to_json`
   now escapes every lone surrogate of the graph, with one `WARNING:` naming
   the first element. A model file was already escaped by its reader.
-- [ ] **A plain-text provenance value with a `:` reads as a key (S).**
-  `declared_constraint` holds requirement text, but `emit_provenance` parses
-  every value as `Key: value`: `pkg @ https://x/p.whl` gives the key
-  `pkg @ https`, and a marker holding a `:` gives one too. Such a value should
-  be written as a `note`.
+- [x] **A plain-text provenance value with a `:` read as a key (S), fixed
+  (#402).** `declared_constraint` holds requirement text, but `emit_provenance`
+  parsed every value as `Key: value`: `pkg @ https://x/p.whl` gave the key
+  `pkg @ https`, a marker holding a `:` one too, as did the AUTHORS URL
+  (`fetched from authors at https`) and the version note (`version
+  resolved`). `parse_provenance_value` now reads only its closed key set
+  (the segment keys, `Source`, `Evidence`, `Reason`, the numbered ones);
+  any other segment is a note. `provenance_note` writes requirement text
+  and the AUTHORS sentence after `Note:` when they hold a `:`.
 - [ ] **A base element holding both a value and a `not_measured` entry loses the
   entry when a fragment folds into it for an unrelated field (S).** Needs a
   forged entry, which sanitising now blocks; ruling it out means tracking which

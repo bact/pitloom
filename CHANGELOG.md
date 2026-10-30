@@ -62,6 +62,8 @@ and this project adheres to
 - A project, sdist or dataset file whose POSIX name is not UTF-8 no longer
   stops generation: its name is written as `\udcff`, with one `WARNING:`
   ([#402])
+- Provenance free text holding a `:` (a requirement's URL or marker, the
+  AUTHORS URL, a version note) is read as a note, not as a key ([#402])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375

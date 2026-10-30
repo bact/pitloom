@@ -29,8 +29,8 @@ from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import (
     ProvenanceConfig,
+    provenance_note,
     provenance_segment,
-    sanitize_provenance_text,
 )
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
@@ -320,8 +320,8 @@ def _emit_originator_provenance(
     )
     prov_dict = {"originatedBy": prov_str}
     if dep_package.software_attributionText and repo_url:
-        prov_dict["software_attributionText"] = (
-            f"Fetched from AUTHORS at {sanitize_provenance_text(repo_url)}"
+        prov_dict["software_attributionText"] = provenance_note(
+            f"Fetched from AUTHORS at {repo_url}"
         )
     emit_provenance(
         subject=dep_package,
