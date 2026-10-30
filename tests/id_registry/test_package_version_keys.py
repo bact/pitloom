@@ -396,3 +396,19 @@ def test_an_nfc_and_an_nfd_spelling_of_one_version_share_one_key(
     assert len(found) == 2  # non-vacuous: two packages
     assert [p.spdx_id for p in found].count(pinned) == 1
     assert len(claim_warnings(caplog)) == 1
+
+
+def test_dependency_versions_are_resolved_once_per_document(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The lookups and the packages share one resolution of the dependency
+    strings, made before the lookups: a pin the lock file contradicts, and a
+    locked version outside its range, each warn once."""
+    doc = make_doc(dependencies=["foo==1.0", "bar>=2"], locked=["foo==2.0", "bar==1.0"])
+
+    with caplog.at_level("WARNING"):
+        build_doc(doc, IdRegistry.new("r"))
+
+    said = [m for m in caplog.messages if m.startswith("Locked version")]
+    assert len(said) == 2, said
+    assert {"foo", "bar"} == {m.split("'")[3] for m in said}
