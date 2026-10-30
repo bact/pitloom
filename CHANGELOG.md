@@ -86,6 +86,18 @@ and this project adheres to
 [#402]: https://github.com/bact/pitloom/pull/402
 [#405]: https://github.com/bact/pitloom/pull/405
 
+## [0.21.2] - 2026-10-30
+
+Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
+
+### Fixed
+
+- Requires `licenseid>=0.6.0,<0.7`: licenseid 0.7.0 renames the API Pitloom
+  0.21 imports (`AggregatedLicenseMatcher`, `resolve`, `LicenseMatch`)
+  ([#400])
+
+[#400]: https://github.com/bact/pitloom/pull/400
+
 ## [0.21.1] - 2026-10-28
 
 ### Changed
@@ -742,6 +754,7 @@ and this project adheres to
 
 ---
 
+[0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/bact/pitloom/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/bact/pitloom/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/bact/pitloom/compare/v0.20.1...v0.20.2
