@@ -41,7 +41,8 @@ class Package(NamedTuple):
 
 
 def package_entries(registry_path: Path) -> dict[str, str]:
-    """The registry's ``software_Package`` entries, name -> spdxId."""
+    """The registry's ``software_Package`` entries, key (name and version)
+    -> spdxId."""
     registry = IdRegistry.load(registry_path)
     return {
         name: entry.spdx_id
@@ -84,7 +85,7 @@ def new_registry(
     tmp_path: Path, pins: Sequence[str] = (), project_name: str = "pins"
 ) -> tuple[Path, list[str]]:
     """Save a registry (namespace derived from *project_name*) pinning each
-    of *pins* as a ``software_Package``."""
+    of *pins* (``NAME@VERSION``, or a bare name) as a ``software_Package``."""
     registry = IdRegistry.new(project_name)
     ids = [registry.register(PACKAGE_TYPE, name) for name in pins]
     path = tmp_path / "registry.json"

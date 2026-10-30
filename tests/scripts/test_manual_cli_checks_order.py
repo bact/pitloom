@@ -39,7 +39,7 @@ def _reg(
         "elements": elements,
         "namespace": NS[:-1],
         "project_root": ".",
-        "version": 3,
+        "version": 4,
     }
     return (json.dumps(data, sort_keys=True) + sep).encode()
 

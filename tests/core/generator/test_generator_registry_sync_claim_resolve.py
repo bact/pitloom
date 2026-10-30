@@ -70,9 +70,9 @@ def test_resolve_deployed_hits_default_claimed_dict_collision(
     dependencies whose registry entries hold the identical id must not
     both claim it."""
     registry = IdRegistry.new("deployed-environment")
-    collided_id = registry.register("software_Package", "aaa")
-    registry.elements[("software_Package", "bbb")] = registry.elements[
-        ("software_Package", "aaa")
+    collided_id = registry.register("software_Package", "aaa@1.0")
+    registry.elements[("software_Package", "bbb@1")] = registry.elements[
+        ("software_Package", "aaa@1")
     ]
     env_tree = [
         {"package": {"key": "aaa", "package_name": "aaa", "installed_version": "1.0"}},
@@ -114,7 +114,7 @@ def test_resolve_deployed_hits_shared_claimed_dict() -> None:
     symmetry with the other resolvers and must behave the same way when
     a caller does pass one in."""
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register("software_Package", "aaa")
+    registered_id = registry.register("software_Package", "aaa@1.0")
     env_tree = [
         {"package": {"key": "aaa", "package_name": "aaa", "installed_version": "1.0"}}
     ]

@@ -281,7 +281,7 @@ def test_generate_env_sbom_auto_updates_registry(
         generate_env_sbom(id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
-    assert ("software_Package", "requests") in reloaded.elements
+    assert ("software_Package", "requests@2.31") in reloaded.elements
 
 
 def test_generate_env_sbom_respects_no_update_id_registry(

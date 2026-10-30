@@ -253,7 +253,7 @@ def test_build_deployed_reuses_registry_entity_by_name() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register("software_Package", "requests")
+    registered_id = registry.register("software_Package", "requests@2.31.0")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -282,7 +282,7 @@ def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register("software_Package", "PyYAML")
+    registered_id = registry.register("software_Package", "PyYAML@6.0")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]

@@ -123,7 +123,7 @@ def _observe(
     with patch.object(IdRegistry, "lookup", autospec=True, return_value=None) as spy:
         run(tmp_path, mp)
     return sorted(
-        (call.args[1], call.kwargs["sha256"] is not None, tuple(call.args[2]))
+        (call.args[1], call.kwargs.get("sha256") is not None, tuple(call.args[2]))
         for call in spy.call_args_list
     )
 
@@ -133,7 +133,7 @@ _DIRECTORY = (FILE_TYPE, False, ("demo",))
 _MODEL_FILE = (FILE_TYPE, True, (f"demo/{_MODEL}",))
 _MODEL_PACKAGE = (AI_PACKAGE_TYPE, True, (f"demo/{_MODEL}",))  # its file's key
 _MODEL_BY_PATH = (AI_PACKAGE_TYPE, True, (f"models/{_MODEL}",))
-_PACKAGE = (PACKAGE_TYPE, False, ("demo",))
+_PACKAGE = (PACKAGE_TYPE, False, ("demo@1",))  # its name and version (1.0.0)
 
 #: Design section 7, one row per caller: the (type, gated by sha256, names)
 #: each surface asks ``IdRegistry.lookup`` for.

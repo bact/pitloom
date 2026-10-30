@@ -45,19 +45,21 @@ from tests.id_registry.package_ids_base import (
     root_element_id,
     sbom_packages,
 )
-from tests.id_registry.surfaces_base import DEPENDENCY
+from tests.id_registry.surfaces_base import DEPENDENCY, MAIN_KEY
 
 #: Runs are compared byte for byte.
 pytestmark = pytest.mark.usefixtures("fixed_epoch")
 
 _SELF_EXTRA = f"{MAIN}[x]; extra == 'all'"
 
-#: doc kwargs -> the name one reader and one non-reader share.
-_SHARED_NAME_DOCS: dict[str, tuple[dict[str, Any], str]] = {
-    "phantom-like-project": ({"phantom": [phantom("Demo", "1")]}, MAIN),
+#: doc kwargs -> the name one reader and one non-reader share, and the key
+#: (one release: ``1`` is ``1.0`` and ``1.0.0``) both have.
+_SHARED_NAME_DOCS: dict[str, tuple[dict[str, Any], str, str]] = {
+    "phantom-like-project": ({"phantom": [phantom("Demo", "1")]}, MAIN, MAIN_KEY),
     "phantom-like-dependency": (
         {"dependencies": ["libfoo==1.0"], "phantom": [phantom("libfoo", "1")]},
         "libfoo",
+        "libfoo@1",
     ),
 }
 
@@ -78,7 +80,9 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
 # --- which ids are non-readers -------------------------------------------
 
 
-@pytest.mark.parametrize("pins", [None, [MAIN, "libfoo", "libz"]], ids=["none", "pins"])
+@pytest.mark.parametrize(
+    "pins", [None, [MAIN_KEY, "libfoo@1.0", "libz@1"]], ids=["none", "pins"]
+)
 def test_non_readers_are_exactly_the_packages_that_never_looked_up(
     pins: list[str] | None,
 ) -> None:
@@ -120,34 +124,42 @@ def test_non_pep_508_dependency_named_like_project_is_a_non_reader(
     (other,) = [p.spdx_id for p in packages(exporter) if p.spdx_id != root]
     assert [p.name for p in packages(exporter)] == [MAIN, MAIN]
     assert exporter.registry_non_readers == {other}
-    assert registry.lookup(PACKAGE_TYPE, [MAIN]) == root
+    assert registry.lookup(PACKAGE_TYPE, [MAIN_KEY]) == root
     assert _root_id(build_doc(doc, registry)) == root
 
 
 def test_two_versions_of_one_dependency_both_look_up(tmp_path: Path) -> None:
+    """Two releases are two keys: both look up and run auto-harvest writes
+    each under its own key."""
     doc = make_doc(dependencies=["foo==1.0", "Foo==2.0"])
     registry = IdRegistry.new("r", tmp_path / "registry.json")
 
     exporter = build_doc(doc, registry)
     _harvest(exporter, registry)
 
-    assert [p.name.lower() for p in packages(exporter)].count("foo") == 2
+    ids = {p.version: p.spdx_id for p in packages(exporter) if p.name == "foo"}
+    assert len(ids) == 2
     assert not exporter.registry_non_readers
+    assert registry.lookup(PACKAGE_TYPE, ["foo@1"]) == ids["1.0"]
+    assert registry.lookup(PACKAGE_TYPE, ["foo@2"]) == ids["2.0"]
     assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None
-    assert registry.lookup(PACKAGE_TYPE, [MAIN]) == _root_id(exporter)
+    assert registry.lookup(PACKAGE_TYPE, [MAIN_KEY]) == _root_id(exporter)
 
 
 # --- run auto-harvest writes the owner -----------------------------------
 
 
 @pytest.mark.parametrize(
-    ("doc_kwargs", "name"), _SHARED_NAME_DOCS.values(), ids=list(_SHARED_NAME_DOCS)
+    ("doc_kwargs", "name", "key"),
+    _SHARED_NAME_DOCS.values(),
+    ids=list(_SHARED_NAME_DOCS),
 )
 def test_run_harvest_writes_the_owner_and_never_the_non_reader(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     doc_kwargs: dict[str, Any],
     name: str,
+    key: str,
 ) -> None:
     doc = make_doc(**doc_kwargs)
     registry = IdRegistry.new("r", tmp_path / "registry.json")
@@ -164,7 +176,7 @@ def test_run_harvest_writes_the_owner_and_never_the_non_reader(
     # pylint: disable-next=unbalanced-tuple-unpacking
     (non_reader,) = first.registry_non_readers
     (owner,) = [p.spdx_id for p in holders if p.spdx_id != non_reader]
-    assert registry.lookup(PACKAGE_TYPE, [name]) == owner
+    assert registry.lookup(PACKAGE_TYPE, [key]) == owner
     written = {entry.spdx_id for entry in registry.elements.values()}
     assert non_reader not in written
     assert second.to_json() == first.to_json()
@@ -201,8 +213,8 @@ def test_self_reference_adds_no_package_and_root_is_pinned_on_run_two(
         third = _self_referencing_run(surface, tmp_path, registry_path)
 
     assert [p.name for p in sbom_packages(first)].count(MAIN) == 1  # no self-package
-    assert after_first[MAIN] == root_element_id(first)
-    assert root_element_id(second) == after_first[MAIN]
+    assert after_first[MAIN_KEY] == root_element_id(first)
+    assert root_element_id(second) == after_first[MAIN_KEY]
     assert second == first
     assert third == second
     assert registry_path.read_bytes() == registry_bytes
@@ -220,7 +232,7 @@ def test_hook_pins_the_root_a_project_run_harvested_beside_a_self_reference(
     with (project / "pyproject.toml").open("a", encoding="utf-8") as f:
         f.write(f"\n[tool.pitloom]\nid-registry = {json.dumps(str(registry_path))}\n")
     generate_project_sbom(project, creation_metadata=None)
-    pinned = package_entries(registry_path)[MAIN]
+    pinned = package_entries(registry_path)[MAIN_KEY]
 
     hook = make_hook(str(project), {})
     build_data: dict[str, Any] = {}

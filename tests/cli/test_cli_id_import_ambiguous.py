@@ -23,7 +23,8 @@ import pytest
 
 from pitloom import __main__
 from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
-from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc, phantom
+from tests.id_registry.package_ids_base import build_doc, make_doc, phantom
+from tests.id_registry.surfaces_base import MAIN_KEY
 
 _PREFIX = "INFO: ID registry: not imported (name held by several elements): "
 
@@ -55,22 +56,20 @@ def test_id_import_reports_ambiguous_names_in_one_sorted_info_line(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # Six names: an unsorted set of them is in name order only by 1/720 chance.
+    # Six keys, each held by two phantoms of one name and version (two
+    # versions would be two keys): an unsorted set of them is in key order
+    # only by 1/720 chance.
     names = ["zed", "yak", "xen", "wit", "vim", "foo"]
-    registry_path = _import(
-        monkeypatch,
-        tmp_path,
-        [f"{n}==1.0" for n in names] + [f"{n.title()}==2.0" for n in names] + ["bar"],
-    )
+    registry_path = _import(monkeypatch, tmp_path, ["bar"], phantoms=(*names, *names))
 
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
     assert lines == [
-        _PREFIX + ", ".join(f"{PACKAGE_TYPE} {n!r}" for n in sorted(names))
+        _PREFIX + ", ".join(f"{PACKAGE_TYPE} {n + '@1'!r}" for n in sorted(names))
     ]
     registry = IdRegistry.load(registry_path)
-    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None  # non-vacuous
+    assert registry.lookup(PACKAGE_TYPE, ["foo@1"]) is None  # non-vacuous
     assert registry.lookup(PACKAGE_TYPE, ["bar"]) is not None
 
 
@@ -87,8 +86,8 @@ def test_id_import_still_skips_a_name_a_non_reader_shares(
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
-    assert lines == [f"{_PREFIX}{PACKAGE_TYPE} {MAIN!r}"]
-    assert IdRegistry.load(registry_path).lookup(PACKAGE_TYPE, [MAIN]) is None
+    assert lines == [f"{_PREFIX}{PACKAGE_TYPE} {MAIN_KEY!r}"]
+    assert IdRegistry.load(registry_path).lookup(PACKAGE_TYPE, [MAIN_KEY]) is None
 
 
 def test_id_import_without_ambiguous_names_prints_no_such_line(
@@ -104,11 +103,10 @@ def test_id_import_without_ambiguous_names_prints_no_such_line(
 def test_auto_harvest_logs_each_ambiguous_name_once_at_debug(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Three elements under one name are one skipped key: one DEBUG record,
-    no INFO/WARNING, and no "Import:" wording outside an import."""
-    exporter = build_doc(
-        make_doc(dependencies=["foo==1.0", "Foo==2.0", "FOO==3.0"]), None
-    )
+    """Three elements under one key (three phantoms of one name and
+    version) are one skipped key: one DEBUG record, no INFO/WARNING, and no
+    "Import:" wording outside an import."""
+    exporter = build_doc(make_doc(phantom=[phantom("foo", "1.0")] * 3), None)
     registry = IdRegistry.new("r")
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.id_registry"):
@@ -117,4 +115,4 @@ def test_auto_harvest_logs_each_ambiguous_name_once_at_debug(
     records = [r for r in caplog.records if "several elements" in r.getMessage()]
     assert [r.levelno for r in records] == [logging.DEBUG]
     assert "Import" not in records[0].getMessage()
-    assert f"{PACKAGE_TYPE} 'foo'" in records[0].getMessage()
+    assert f"{PACKAGE_TYPE} 'foo@1'" in records[0].getMessage()

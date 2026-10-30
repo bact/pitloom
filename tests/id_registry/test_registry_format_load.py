@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The registry file, version 3: every ``load()`` failure.
+"""The registry file, version 4: every ``load()`` failure.
 
 See also: test_registry_format.py (round trip and determinism),
 test_registry_counters.py (the id counters, I8).
@@ -69,9 +69,10 @@ def _entry(**changes: object) -> Any:
 _DELETE = object()
 
 _FAILURES: dict[str, tuple[Any, str]] = {
-    "v2": (_v2, "version 2, expected 3"),
-    "version-str": (_set("version", "3"), "version '3', expected 3"),
-    "version-float": (_set("version", 3.0), "version 3.0, expected 3"),
+    "v2": (_v2, "version 2, expected 4"),
+    "v3": (_set("version", 3), "version 3, expected 4"),
+    "version-str": (_set("version", "4"), "version '4', expected 4"),
+    "version-float": (_set("version", 4.0), "version 4.0, expected 4"),
     "no-namespace": (_drop("namespace"), "missing a valid 'namespace'"),
     "empty-namespace": (_set("namespace", ""), "missing a valid 'namespace'"),
     "fragment-namespace": (
@@ -172,21 +173,32 @@ def test_load_rejects(tmp_path: Path, case: str) -> None:
     assert reason in message
 
 
-def test_load_v2_message_is_exact(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "old",
+    [
+        {"version": 2, "namespace": _NS, "files": {}, "entities": {}},
+        {**valid_registry_data(), "version": 3},
+    ],
+    ids=["v2", "v3"],
+)
+def test_load_old_version_message_is_exact_and_file_untouched(
+    tmp_path: Path, old: dict[str, Any]
+) -> None:
+    """A version 2 or 3 file (a v3 package key has no version) is refused
+    whole, never migrated: nothing is dropped or rewritten."""
     path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_text(
-        json.dumps({"version": 2, "namespace": _NS, "files": {}, "entities": {}}),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(old), encoding="utf-8")
+    before = path.read_bytes()
 
     with pytest.raises(ValueError) as excinfo:
         IdRegistry.load(path)
 
     assert str(excinfo.value) == (
-        f"ID registry file {quote_source(path)}: version 2, expected 3 "
-        "(no migration support "
-        "-- delete it and re-run `pitloom id generate` or `pitloom id import`)"
+        f"ID registry file {quote_source(path)}: version {old['version']}, "
+        "expected 4 (no migration support "
+        "-- delete it and re-run `loom id generate` or `loom id import`)"
     )
+    assert path.read_bytes() == before
 
 
 _DUP = "duplicate key "

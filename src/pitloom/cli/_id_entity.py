@@ -21,22 +21,34 @@ from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
     FILE_TYPE,
+    PACKAGE_TYPE,
     IdRegistry,
     artifact_key,
+    package_key,
     sha256_file,
+    split_package_key,
 )
 from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import loggable
 
 log = logging.getLogger("pitloom.id_registry")
 
-__all__ = ["ENTITY_BY_NAME_INFO", "ENTITY_STORED_AS_INFO", "entity_entry"]
+__all__ = [
+    "ENTITY_BY_NAME_INFO",
+    "ENTITY_NO_VERSION_INFO",
+    "ENTITY_STORED_AS_INFO",
+    "entity_entry",
+]
 
 #: ``log.info()`` formats, once per ``-e``: NAME stored under another
-#: spelling of its path (arguments: NAME, the key), or stored by name
-#: although a model or a file is looked up by path (NAME, why).
+#: spelling of its path or package key (arguments: NAME, the key), stored
+#: by name although a model or a file is looked up by path (NAME, why), or
+#: a package stored with no version (NAME).
 ENTITY_STORED_AS_INFO = "ID registry: -e %s stored as %s"
 ENTITY_BY_NAME_INFO = "ID registry: -e %s stored by name: %s"
+ENTITY_NO_VERSION_INFO = (
+    "ID registry: -e %s stored without a version: holds only a package that states none"
+)
 #: Why an ``ai_AIPackage`` name pin is for a pathless model only.
 _MODEL_PIN_REASON = "used only by a model with no file"
 
@@ -78,6 +90,28 @@ def _pin_digest(
     return None, reasons or "nothing to hash"
 
 
+def _info_stored_as(name: str, key: str) -> None:
+    """The one :data:`ENTITY_STORED_AS_INFO` for ``-e`` NAME stored under
+    *key*; nothing when *key* is NAME as typed."""
+    if key != name:
+        log.info(ENTITY_STORED_AS_INFO, loggable(name), loggable(key))
+
+
+def _package_entry(name: str) -> str:
+    """A package's key: :func:`~pitloom.id_registry.package_key` of what NAME
+    states (``NAME@VERSION``, split at its first ``@``). With no version it
+    holds only a package that states none, one
+    :data:`ENTITY_NO_VERSION_INFO`; else, spelt otherwise than NAME, one
+    :data:`ENTITY_STORED_AS_INFO`."""
+    stated, version = split_package_key(name)
+    key = package_key(stated, version)
+    if "@" not in key:  # a name's own "@" is "%40": the "@" is the version's
+        log.info(ENTITY_NO_VERSION_INFO, loggable(name))
+    else:
+        _info_stored_as(name, key)
+    return key
+
+
 def _dataset_entry(
     registry: IdRegistry, path: Path, name: str, max_bytes: int
 ) -> tuple[str, str | None]:
@@ -89,8 +123,7 @@ def _dataset_entry(
     if not key.path:
         log.info(PIN_WITHOUT_HASH_INFO, loggable(name), name_key_reason(path))
         return name, None
-    if key.key != name:
-        log.info(ENTITY_STORED_AS_INFO, loggable(name), loggable(key.key))
+    _info_stored_as(name, key.key)
     digest, reason = _pin_digest(registry, path, max_bytes)
     if digest is None:
         log.info(PIN_WITHOUT_HASH_INFO, loggable(key.key), reason)
@@ -106,8 +139,7 @@ def _file_entry(
     :data:`ENTITY_BY_NAME_INFO`."""
     key = artifact_key(registry, path=path, name=name)
     if key.path and is_regular_file(path):
-        if key.key != name:
-            log.info(ENTITY_STORED_AS_INFO, loggable(name), loggable(key.key))
+        _info_stored_as(name, key.key)
         return key.key, sha256_file(path)
     if type_name == AI_PACKAGE_TYPE:
         reason = _MODEL_PIN_REASON
@@ -127,8 +159,11 @@ def entity_entry(
     """The key and SHA-256 ``-e NAME:TYPE`` is stored under, NAME taken
     from *project_dir*: a dataset by :func:`_dataset_entry` (hashing at most
     *max_dataset_hash_bytes*), a model or a
-    file by :func:`_file_entry` (both content-gated when keyed by path);
-    any other type NAME as given and no hash."""
+    file by :func:`_file_entry` (both content-gated when keyed by path), a
+    package by :func:`_package_entry` (``NAME@VERSION``, no hash); any
+    other type NAME as given and no hash."""
+    if type_name == PACKAGE_TYPE:
+        return _package_entry(name), None
     path = project_dir / name
     if type_name == DATASET_PACKAGE_TYPE:
         return _dataset_entry(registry, path, name, max_dataset_hash_bytes)
