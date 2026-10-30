@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -291,13 +291,13 @@ must both apply it; `-v` on the archive labels it
 with `--config good.toml` succeeds. Automated as check 13; the
 library-level counterpart is `tests/assemble/test_sdist_own_config.py`.
 
-**14. Declared-but-missing/invalid/v2 `--id-registry` is one ERROR, every
+**14. Declared-but-missing/invalid/v3 `--id-registry` is one ERROR, every
 CLI surface**: `--id-registry` pointing at a missing file, at
-one containing `"{"` (invalid JSON), and at a `"version": 2` file, on
+one containing `"{"` (invalid JSON), and at a `"version": 3` file, on
 `project`, `wheel`, `env`, `model` and `embed-wheel` -- each of the 15
 runs must exit 1 with exactly one `ERROR:` line containing
-`ID registry file` (the v2 one also `version 2, expected 3`) and no
-output file written. Automated as check 14
+`ID registry file` (the v3 one also `version 3, expected 4`, its bytes left
+as they were) and no output file written. Automated as check 14
 (`scripts/manual_cli_checks/_checks_core.py::check_registry_missing_invalid`).
 This check is flag-only, on those five CLI surfaces; it does not cover
 a registry declared via the project's own `[tool.pitloom] id-registry`
@@ -472,6 +472,14 @@ Skips without the `safetensors` extra.
 Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_producer_and_count`);
 per-route detail, the ONNX comma list and Hugging Face in
 `tests/test_model_producer_surfaces.py`.
+
+**25. Each release of a dependency gets its own id**: the fixture project with
+a registry from `id generate`, run three times with its dependency pinned
+`packaging==24.0`, `25.0`, then `24.0` again. The two releases get two ids, the
+third run gets the first's, the main package keeps one id and the registry
+holds `packaging@24` and `packaging@25`. Automated as check 25
+(`scripts/manual_cli_checks/_checks_registry_versions.py::check_package_version_ids`);
+per-case detail in `tests/id_registry/test_package_version_keys.py`.
 
 ## Order matrix (`O1`-`O6`)
 

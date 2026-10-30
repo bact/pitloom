@@ -93,6 +93,7 @@ Data and semantics:
 - **A guard before a side-effecting step drops that effect**: do the effect first.
 - **"No digest" is not "not a file"**: an empty directory, an over-ceiling or unreadable file also hash to `None`; a dangling link is a path. Ask existence with `kind`/`lexists`; test two "is it a path" helpers on the cases they can disagree on.
 - **Every route that builds one entity shares its identity rule**: one function, plus a test comparing the routes' counts. A fold that keeps the first says so (`INFO:`) and warns on a dropped keyed fact.
+- **An identity key must carry every field that tells two releases apart** (a package's version), else every release shares one id, silently.
 - **A fix scoped to "explicit input" needs an explicit flag.**
 - **A field added to a dataclass must be set by every constructor call site**, from one shared helper.
 - **An opt-out flag that skips filling an accumulator breaks emptiness/exit checks keyed on it**: re-derive from a still-populated proxy.
