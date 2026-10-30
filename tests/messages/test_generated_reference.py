@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The message reference in ``docs/message-codes.md`` and in each skill's
-``references/messages.md`` is generated from the catalogue by
+``references/messages.md``, and the model table of the enrich skill's
+``model-stub-diagnosis.md``, are generated from the catalogue by
 ``scripts/generate_message_reference.py``: the files hold exactly what the
 script renders (bytes, LF), the script rewrites only its block, and the block
 has a section per code that says every line of it, in Markdown that lints
@@ -21,12 +22,14 @@ import os
 import re
 import subprocess  # nosec B404
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
-from pitloom.messages import FRAMES, MESSAGES
+from pitloom.messages import ACTOR_HEADINGS, FRAMES, MESSAGES
+from pitloom.messages import _model_stub as model_stub
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _ROOT / "scripts" / "generate_message_reference.py"
@@ -42,16 +45,23 @@ def _load() -> ModuleType:
 
 
 gen = _load()
-_TARGETS = [
-    pytest.param(path, id=path.relative_to(_ROOT).parent.as_posix())
-    for path in gen.TARGETS
+_BLOCKS = [
+    *((path, gen.BEGIN, gen.render) for path in gen.TARGETS),
+    *((path, gen.MODEL_BEGIN, gen.render_model_table) for path in gen.MODEL_TARGETS),
 ]
 
 
-@pytest.mark.parametrize("path", _TARGETS)
-def test_a_target_holds_what_the_script_renders(path: Path) -> None:
+@pytest.mark.parametrize(
+    ("path", "begin", "render"),
+    _BLOCKS,
+    ids=[path.relative_to(_ROOT).as_posix() for path, _, _ in _BLOCKS],
+)
+def test_a_target_holds_what_the_script_renders(
+    path: Path, begin: str, render: Callable[[], str]
+) -> None:
     current = path.read_bytes()
-    wanted = gen.replace_block(current.decode("utf-8"), gen.render()).encode("utf-8")
+    text = current.decode("utf-8")
+    wanted = gen.replace_block(text, render(), begin).encode("utf-8")
     assert current == wanted, (
         f"{path.relative_to(_ROOT).as_posix()} is stale: run "
         "'python scripts/generate_message_reference.py' and commit it"
@@ -63,7 +73,7 @@ def test_git_checks_every_target_out_with_lf() -> None:
     """A Windows checkout (``core.autocrlf``) writes CRLF, so the bytes
     differ from the render, unless ``.gitattributes`` pins the file to LF."""
     rules = (_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
-    for path in gen.TARGETS:
+    for path in (*gen.TARGETS, *gen.MODEL_TARGETS):
         assert f"{path.relative_to(_ROOT).as_posix()} text eol=lf" in rules
 
 
@@ -72,6 +82,20 @@ def test_the_docs_catalogue_has_its_own_page() -> None:
     guide = (_ROOT / "docs" / "messages.md").read_text(encoding="utf-8")
     assert gen.BEGIN not in guide and "(message-codes.md)" in guide
     assert _ROOT / "docs" / "message-codes.md" in gen.TARGETS
+
+
+def test_the_model_table_lists_every_cause_that_thins_a_model() -> None:
+    """Each entry of the model-stub module whose effect leaves the model
+    thinner, and the cap and pointer families, in the order of their codes,
+    each linked to its section beside the page."""
+    thinner = {m.code for m in model_stub.ENTRIES if m.effect == "thinner"}
+    wanted = thinner | {"over-cap", "lfs-pointer", "lfs-pointer-malformed"}
+    assert set(gen.MODEL_OUTCOMES) == wanted
+    assert all(MESSAGES[code].effect == "thinner" for code in gen.MODEL_OUTCOMES)
+    rows = [r for r in gen.render_model_table().splitlines() if r.startswith("| [")]
+    assert [r.split("`")[1] for r in rows] == sorted(wanted)
+    for code in wanted:
+        assert f"(messages.md#{gen.slug(code)})" in gen.render_model_table()
 
 
 def _sections() -> dict[str, list[str]]:
@@ -101,7 +125,8 @@ def test_a_section_says_what_its_code_means_and_every_line(code: str) -> None:
     text = "\n".join(_sections()[code])
     for bullet in ("Level", "Means", "SBOM effect", "Pitloom did", "Lines"):
         assert f"- **{bullet}**: " in text or f"- **{bullet}**:\n" in text
-    assert "- **Tell the user**: " in text  # every entry's actor is the user
+    for actor, heading in ACTOR_HEADINGS.items():
+        assert (f"- **{heading}**: " in text) is (message.actor == actor)
     assert (gen.ERROR_RULE.split()[0] in text) is ("ERROR" in message.levels)
     for line in message.lines:
         assert f"  {line.level}: {line.shown} [{code}]" in text.splitlines()
@@ -115,12 +140,15 @@ def test_the_prefixes_are_the_catalogues_frames() -> None:
         assert any(r.startswith(head) and frame.surface in r for r in rows), head
 
 
-def test_the_block_lints_clean() -> None:
+@pytest.mark.parametrize(
+    "render", [gen.render, gen.render_model_table], ids=["reference", "model"]
+)
+def test_the_block_lints_clean(render: Callable[[], str]) -> None:
     """Outside code blocks: no code span with a space at an edge; outside
     tables too, no line over 80 characters and none starting with ``<``
     (an HTML block)."""
     fenced = False
-    for line in gen.render().splitlines():
+    for line in render().splitlines():
         if line.strip().startswith("```"):
             fenced = not fenced
         if fenced:

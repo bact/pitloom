@@ -244,11 +244,14 @@ format-only entry. Both raise `ValueError` for a file that is not a model
 `FileNotFoundError` for an absent one and `OSError` for an unreadable one; see
 [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
-A file that opens like a Git LFS pointer is refused with the `lfs-pointer`
-code (see [Messages and codes](messages.md)): the `ValueError` carries the
-text `loom model` prints and the attribute `pitloom_code`
-(`pitloom.messages.code_of(exc)`). `read_ai_model()` in
-`pitloom.extract.ai_model.reader` raises the same error.
+The refusal of a file that is not a model carries the code
+`model-wrong-format`, and of a file that opens like a Git LFS pointer
+`lfs-pointer` or `lfs-pointer-malformed` (see [Message
+codes](message-codes.md)): the `ValueError` carries the text `loom model`
+prints and the attribute `pitloom_code` (`pitloom.messages.code_of(exc)`).
+`read_ai_model()` in `pitloom.extract.ai_model.reader` raises the same errors.
+A Hugging Face model read without `huggingface_hub` raises an `ImportError`
+coded `library-missing`, naming the extra to install.
 
 ## Tracking decorator
 

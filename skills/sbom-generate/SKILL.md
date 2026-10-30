@@ -292,14 +292,15 @@ but isn't. For the wording and bounds of any case, read
 - **AI model formats** are broad, not universal: say so when one is not
   scanned.
 - **AI model stubs:** an `ai_AIPackage` with no `ai_*` property and no
-  `Source: <model file> | Field: ...` comment was not read. Name the cause
-  from stderr (wheel gate `INFO:`, missing library: install `pitloom[ai]`,
-  corrupt file, size cap or budget, Git LFS pointer: relay Pitloom's advice,
-  never run the fix yourself) and tell the user. Never raise a ceiling or add
-  `--trust-wheel-model` on your own. A failed read leaves a stub with a
-  `WARNING:` (exit 0); a file whose header contradicts its suffix is no model
-  (`WARNING:`, no `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse
-  it (`ERROR:`, exit 1).
+  `Source: <model file> | Field: ...` comment was not read. Its stderr line
+  ends in the cause's code (`[reader-unsafe]`, `[library-missing]`,
+  `[model-unreadable]`, `[over-cap]`); when one does, read
+  `references/messages.md` and relay its advice to the user. Never install an
+  extra, raise a ceiling or add `--trust-wheel-model` on your own. A failed
+  read leaves a stub with a `WARNING:` (exit 0); a file whose header
+  contradicts its suffix is no model (`[model-wrong-format]`, no
+  `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse it (`ERROR:`,
+  exit 1).
 - **Model producer, parameter count** exist for some formats only (absence is
   no failure); **a name ending `...~<hex>`, missing labels or `\u202e` in
   text** are Pitloom's caps and escapes (one `WARNING: FORMAT=<fmt>

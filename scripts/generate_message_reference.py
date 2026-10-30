@@ -8,9 +8,11 @@ The catalogue is the source of truth. This script rewrites only the text
 between ``<!-- BEGIN GENERATED: pitloom.messages -->`` and
 ``<!-- END GENERATED -->`` in each target file: an index of the codes, the
 prefixes a line may start with, the values a line names, then one section per
-code, sorted by code. The output has LF line endings, no dates and no line
-over 80 characters outside a table or a code block, and never starts a line
-with ``<``, so it is byte-for-byte reproducible and lints clean.
+code, sorted by code. In a skill's model-stub page it rewrites the block that
+opens ``<!-- BEGIN GENERATED: pitloom.messages model-stub -->``: what each
+code leaves of a model in the SBOM. The output has LF line endings, no dates
+and no line over 80 characters outside a table or a code block, and never
+starts a line with ``<``, so it is byte-for-byte reproducible and lints clean.
 
     python scripts/generate_message_reference.py            # update (--write)
     python scripts/generate_message_reference.py --check   # exit 1 if stale
@@ -41,15 +43,34 @@ from pitloom.messages import (
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 
-#: The files holding a generated block.
+#: The files holding the generated reference.
 TARGETS: Final = (
     ROOT / "docs" / "message-codes.md",
     ROOT / "skills" / "sbom-enrich" / "references" / "messages.md",
     ROOT / "skills" / "sbom-generate" / "references" / "messages.md",
 )
+#: The files holding the model table, beside a skill's ``messages.md``.
+MODEL_TARGETS: Final = (
+    ROOT / "skills" / "sbom-enrich" / "references" / "model-stub-diagnosis.md",
+)
 
 BEGIN: Final = "<!-- BEGIN GENERATED: pitloom.messages -->"
+#: Where the model table starts.
+MODEL_BEGIN: Final = "<!-- BEGIN GENERATED: pitloom.messages model-stub -->"
 END: Final = "<!-- END GENERATED -->"
+
+#: What each code leaves of a model in the SBOM, for the model table: every
+#: code whose cause leaves a model's SBOM entry thinner than its file.
+MODEL_OUTCOMES: Final = {
+    "library-missing": "a stub",
+    "lfs-pointer": "no `ai_AIPackage`",
+    "lfs-pointer-malformed": "no `ai_AIPackage`",
+    "model-unreadable": "a stub",
+    "model-wrong-format": "no `ai_AIPackage`",
+    "over-cap": "a stub, or read with the cut the line names",
+    "parameter-count-invalid": "read, with no parameter count",
+    "reader-unsafe": "a stub (a wheel's gated formats)",
+}
 WIDTH: Final = 80
 
 _LEVEL_ORDER: Final = ("ERROR", "WARNING", "INFO")
@@ -172,25 +193,40 @@ def render() -> str:
     return "\n\n".join("\n".join(part) for part in parts)
 
 
-def replace_block(text: str, body: str) -> str:
-    """*text* with what lies between the markers replaced by *body*.
+def render_model_table() -> str:
+    """The model table's body: each code of :data:`MODEL_OUTCOMES`, linked to
+    its section of the ``messages.md`` beside it, what it leaves of the model
+    and what it means. LF, ending in a blank line (a table is followed by
+    one)."""
+    rows = [
+        f"| [`{code}`](messages.md#{slug(code)}) | {cell(MODEL_OUTCOMES[code])} | "
+        f"{cell(MESSAGES[code].summary)} |"
+        for code in sorted(MODEL_OUTCOMES)
+    ]
+    head = ["| Code | The model | Means |", "| --- | --- | --- |"]
+    return "\n".join([_NOTE, "", *head, *rows, ""])
+
+
+def replace_block(text: str, body: str, begin: str = BEGIN) -> str:
+    """*text* with what lies between *begin* and :data:`END` replaced by
+    *body*.
 
     Raises:
         ValueError: The markers are missing, repeated or out of order.
     """
-    if text.count(BEGIN) != 1 or text.count(END) != 1:
-        raise ValueError(f"needs exactly one {BEGIN!r} and one {END!r}")
-    head, _, rest = text.partition(BEGIN)
+    if text.count(begin) != 1 or text.count(END) != 1:
+        raise ValueError(f"needs exactly one {begin!r} and one {END!r}")
+    head, _, rest = text.partition(begin)
     _, found, tail = rest.partition(END)
     if not found or END in head:
-        raise ValueError(f"{END!r} comes before {BEGIN!r}")
-    return f"{head}{BEGIN}\n{body}\n{END}{tail}"
+        raise ValueError(f"{END!r} comes before {begin!r}")
+    return f"{head}{begin}\n{body}\n{END}{tail}"
 
 
-def _updated(path: Path, body: str) -> tuple[bytes, bytes]:
+def _updated(path: Path, body: str, begin: str) -> tuple[bytes, bytes]:
     """The bytes of *path* now, and as they should be."""
     current = path.read_bytes()
-    wanted = replace_block(current.decode("utf-8"), body).encode("utf-8")
+    wanted = replace_block(current.decode("utf-8"), body, begin).encode("utf-8")
     return current, wanted
 
 
@@ -207,14 +243,21 @@ def _diff(path: Path, current: bytes, wanted: bytes) -> str:
     )
 
 
-def run(targets: Sequence[Path], *, check: bool) -> int:
-    """Update (or with *check*, only compare) *targets*; the exit status."""
-    body = render()
+def run(
+    targets: Sequence[Path],
+    *,
+    check: bool,
+    begin: str = BEGIN,
+    body: str | None = None,
+) -> int:
+    """Update (or with *check*, only compare) the block opening *begin* in
+    *targets* to *body* (default :func:`render`); the exit status."""
+    body = render() if body is None else body
     status = 0
     for path in targets:
         name = path.relative_to(ROOT).as_posix()
         try:
-            current, wanted = _updated(path, body)
+            current, wanted = _updated(path, body, begin)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             print(f"ERROR: {name}: {exc}", file=sys.stderr)
             return 2
@@ -247,7 +290,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--write", action="store_true", help="update the targets (the default)"
     )
     args = parser.parse_args(argv)
-    return run(TARGETS, check=args.check)
+    status = run(TARGETS, check=args.check)
+    if status == 2:
+        return status
+    model = run(
+        MODEL_TARGETS, check=args.check, begin=MODEL_BEGIN, body=render_model_table()
+    )
+    return max(status, model)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ from typing import Final
 
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
+from pitloom.messages._model_limits import MODEL_LIMIT_REASONS
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,28 @@ def _name(value: object) -> str:
     return loggable(_str(value))
 
 
+def _formats(value: object) -> str:
+    """A list or tuple of format names, comma-separated; an empty one
+    writes nothing, which the field's shape refuses.
+
+    Raises:
+        ValueError: It is neither (a ``str`` included), or holds anything
+            but text.
+    """
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"not a list of formats: {value!r}")
+    return ", ".join(_str(item) for item in value)
+
+
+#: A whole number in a bound-check reason (each ``%d`` of the table).
+_NUMBER: Final = "(?:0|[1-9][0-9]*)"
+#: The bound-check reasons as one pattern, each ``%d`` a whole number.
+_REASONS: Final = "|".join(
+    _NUMBER.join(re.escape(part) for part in text.split("%d"))
+    for text in MODEL_LIMIT_REASONS
+)
+
+
 #: The keys an over-cap line names its input by: a file, a directory, a
 #: metadata field (or table), a dataset, a marker or a requirement.
 CAP_KEYS: Final = frozenset(
@@ -159,6 +182,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the number of files in brackets, `(N files)`, after a space when "
             "there are two or more; else nothing",
         ),
+        "error": Field(
+            r".+",
+            _name,
+            "<error>",
+            "what the reader or the file system reported, on one line; in "
+            "quotes, escaped, when it holds a control character",
+            free=True,
+        ),
         "file": Field(
             r".+",
             _file,
@@ -170,6 +201,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         "format": Field(
             r"[a-z][a-z0-9_]*", str, "<format>", "the model format (`gguf`)"
         ),
+        "formats": Field(
+            r"[a-z][a-z0-9_]*(?:, [a-z][a-z0-9_]*)*",
+            _formats,
+            "<formats>",
+            "model formats, comma-separated (`gguf, onnx`)",
+        ),
         "key": Field(
             "|".join(sorted(CAP_KEYS)),
             _str,
@@ -178,6 +215,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "or table), `DATASET`, `MARKER` or `REQUIREMENT`",
         ),
         "limit": Field(r"0|[1-9][0-9]*", _limit, "<limit>", "the cap, in its unit"),
+        "module": Field(
+            r"[a-z][a-z0-9_]*",
+            _str,
+            "<module>",
+            "the Python module Pitloom imports for the step (`h5py`)",
+        ),
         "name": Field(
             r".*",
             _name,
@@ -210,6 +253,21 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the cap's name; a setting's name when a setting sets it "
             "(`max-model-extract-bytes`)",
         ),
+        "reason": Field(
+            _REASONS,
+            _str,
+            "<reason>",
+            "what the bound check found: a count the file cannot hold, a "
+            "malformed ZIP central directory, or a GGUF version or ZIP archive "
+            "it cannot check",
+        ),
+        "requirement": Field(
+            r"pitloom\[[a-z][a-z0-9_-]*\]",
+            _str,
+            "<requirement>",
+            "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
+            "`pitloom[ai]` installs every model reader",
+        ),
         "size": Field(
             r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes",
             _size,
@@ -222,6 +280,15 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<unit>",
             "what the cap counts, singular (`byte`, `entry`, `level`)",
         ),
+        "value": Field(
+            r".*",
+            _name,
+            "<value>",
+            "the value as the file states it (a tensor dimension: its Python "
+            "repr, cut to 40 characters); in quotes, escaped, when it holds a "
+            "control character",
+            free=True,
+        ),
     }
 )
 
@@ -232,16 +299,21 @@ PLACEHOLDER: Final = re.compile(r"%\(([a-z_]+)\)s")
 def template_names(template: str) -> tuple[str, ...]:
     """The names *template* uses, in order.
 
+    A field of a closed shape may stand twice (``header is not
+    %(format)s`` after ``FORMAT=%(format)s``), printing the one value both
+    times; a free one may not.
+
     Raises:
-        ValueError: A name is not in :data:`FIELDS`, is used twice, or a
-            ``%`` is not part of a name.
+        ValueError: A name is not in :data:`FIELDS`, a free one is used
+            twice, or a ``%`` is not part of a name.
     """
     names = tuple(PLACEHOLDER.findall(template))
     unknown = sorted(set(names) - set(FIELDS))
     if unknown:
         raise ValueError(f"{template!r}: unknown field {unknown[0]!r}")
-    if len(set(names)) != len(names):
-        raise ValueError(f"{template!r}: a field named twice")
+    repeated = sorted({n for n in names if FIELDS[n].free and names.count(n) > 1})
+    if repeated:
+        raise ValueError(f"{template!r}: free field {repeated[0]!r} named twice")
     if "%" in PLACEHOLDER.sub("", template):
         raise ValueError(f"{template!r}: a '%' that names no field")
     return names
@@ -269,9 +341,11 @@ def written(template: str, values: Mapping[str, object]) -> dict[str, str]:
     """
     names = template_names(template)
     if set(values) != set(names):
-        raise ValueError(f"{template!r} takes {sorted(names)}, not {sorted(values)}")
+        raise ValueError(
+            f"{template!r} takes {sorted(set(names))}, not {sorted(values)}"
+        )
     texts: dict[str, str] = {}
-    for name in names:
+    for name in dict.fromkeys(names):
         text = FIELDS[name].write(values[name])
         if re.fullmatch(FIELDS[name].pattern, text) is None:
             raise ValueError(f"{name}={text!r} is not a {name}")

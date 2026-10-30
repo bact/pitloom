@@ -56,7 +56,7 @@ from pitloom.export.spdx3_json import (
 )
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.logging_config import loggable
-from pitloom.messages import warn_over_cap
+from pitloom.messages import HYPERPARAMETER_CONFLICT, emit, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -316,11 +316,8 @@ def _populate_ai_pkg_hyperparameters(
     if count is not None:
         kept = [item for item in items if item[0] != PARAMETER_COUNT_KEY]
         if len(kept) != len(items):
-            log.warning(
-                "FORMAT=%s FILE=%s: hyperparameter %s replaced by the parameter count",
-                *_model_where(ai_model),
-                PARAMETER_COUNT_KEY,
-            )
+            fmt, where = _model_where(ai_model)
+            emit(log, HYPERPARAMETER_CONFLICT, logging.WARNING, format=fmt, file=where)
         items = [*kept, (PARAMETER_COUNT_KEY, str(int(count)))]
     quantization = ai_model.quantization
     entries = [("quantization", quantization)] if quantization else []

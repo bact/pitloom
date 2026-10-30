@@ -168,7 +168,8 @@ to every file, text or binary).
 **Invalid values / fallback behaviour:** `enabled` non-boolean raises
 `ValueError` at config-read time. `method` not one of the three listed
 values raises `ValueError` at config-read time. `method = "magika"`
-with the `magika` package not installed raises `RuntimeError` at
+with the `magika` package not installed raises `ImportError` (coded
+`library-missing`, naming `pitloom[content-type]`) at
 generation time, before any file is scanned -- you asked for `magika`
 specifically, so this fails loudly rather than silently degrading every
 file's `contentType` the way `"auto"` would. `"auto"`/`"extension"`

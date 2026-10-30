@@ -8,4 +8,5 @@ tests/fixtures/conformance/** -text
 tests/fixtures/lfs-pointers/** -text
 docs/message-codes.md text eol=lf
 skills/sbom-enrich/references/messages.md text eol=lf
+skills/sbom-enrich/references/model-stub-diagnosis.md text eol=lf
 skills/sbom-generate/references/messages.md text eol=lf

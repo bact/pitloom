@@ -183,6 +183,11 @@ def test_tensor_elements_rejects_a_bad_dimension(shape: Sequence[Any]) -> None:
         tensor_elements(shape)
     assert not caught.value.over_cap
     assert "non-negative integer" in caught.value.reason
+    # the dimension as shown, which the catalogued line names
+    assert caught.value.value is not None
+    assert caught.value.reason == (
+        f"tensor dimension {caught.value.value} is not a non-negative integer"
+    )
 
 
 # pylint: disable-next=too-few-public-methods
@@ -208,6 +213,7 @@ def test_a_hostile_dimension_cannot_flood_the_reason(dim: object) -> None:
     with pytest.raises(ParameterCountRejected) as caught:
         tensor_elements([dim])
     assert len(caught.value.reason) < 200
+    assert caught.value.value is not None and len(caught.value.value) < 50
 
 
 @pytest.mark.parametrize(
@@ -267,6 +273,7 @@ def test_stated_count_rejects_a_non_count(value: object) -> None:
     with pytest.raises(ParameterCountRejected) as caught:
         stated_parameter_count(value)
     assert not caught.value.over_cap
+    assert caught.value.value is None  # a stated count names no dimension
 
 
 def test_a_stated_count_over_the_cap_is_over_cap() -> None:

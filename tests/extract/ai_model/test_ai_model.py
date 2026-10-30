@@ -23,6 +23,7 @@ from pitloom.extract.ai_model import (
     detect_ai_model_format,
     read_ai_model,
 )
+from pitloom.messages import code_of
 
 
 def _magic(fmt: AiModelFormat) -> bytes:
@@ -305,10 +306,12 @@ def test_extract_metadata_file_not_found() -> None:
 
 
 def test_extract_metadata_unsupported_format(tmp_path: Path) -> None:
+    """No reader reads it: the refusal every single-file surface gives."""
     model_file = tmp_path / "model.xyz"
     model_file.write_bytes(b"unknown format")
-    with pytest.raises(ValueError, match="Unsupported model format"):
+    with pytest.raises(ValueError, match="not an AI model file of a supported") as e:
         read_ai_model(model_file)
+    assert code_of(e.value) == "model-wrong-format"
 
 
 # ---------------------------------------------------------------------------

@@ -129,7 +129,8 @@ def test_rewriting_the_baseline_only_lowers_it(
     refused, even when the total holds (a site moved there is moved in the
     file by hand)."""
     path = tree / "uncoded.txt"
-    path.write_bytes(f"pitloom.internal 1\npitloom.relay 1\n{baseline}".encode())
+    held = "pitloom.extract.ai_model.reader 1\npitloom.internal 1\npitloom.relay 1\n"
+    path.write_bytes(f"{held}{baseline}".encode())
     before = path.read_bytes()
     args = ["--root", str(tree), "--baseline", str(path), "--write-baseline"]
     assert mi_main.main(args) == (0 if written else 1)

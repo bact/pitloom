@@ -184,8 +184,45 @@ def test_a_reader_records_code_is_kept_when_relogged(
         (scanner, logging.WARNING, "lfs-pointer-malformed"),
         (scanner, logging.DEBUG, None),
         (scanner, logging.WARNING, None),
-        (scanner, logging.WARNING, None),
+        (scanner, logging.WARNING, "model-unreadable"),  # the read that failed
     ]
+
+
+@pytest.mark.parametrize(
+    ("member", "magic", "code", "tail"),
+    [
+        ("demo/real.pt", _PT, "model-unreadable", "failed to extract metadata; gone"),
+        (
+            "demo/real.gguf",
+            b"GGUF",
+            "library-missing",
+            "required library not installed; install pitloom[gguf]",
+        ),
+    ],
+    ids=["no-library-needed", "library-needed"],
+)
+def test_an_import_error_is_a_missing_library_only_for_a_format_needing_one(
+    member: str, magic: bytes, code: str, tail: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """PyTorch reads through the standard library: its import error is the
+    reader's own failure; GGUF's names the extra that installs ``gguf``."""
+    candidate = ModelCandidate(
+        distribution_path=member,
+        physical_path=member,
+        sniff=Mock(return_value=magic),
+        materialize=lambda: contextlib.nullcontext(
+            Path(tempfile.gettempdir()) / "0.bin"
+        ),
+    )
+    with (
+        patch(_READ, side_effect=ImportError("gone")),
+        patch("pitloom.extract.scanner.require_library"),
+    ):
+        models = discover_ai_models([candidate])
+    assert len(models) == 1 and not models[0].provenance  # one stub
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert getattr(record, CODE_ATTR) == code
+    assert record.getMessage().endswith(f"FILE={member}: {tail}")
 
 
 def test_a_reader_debug_record_is_relogged_scrubbed_and_unprefixed(

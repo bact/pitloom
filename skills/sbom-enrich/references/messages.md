@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,16 +9,16 @@ SPDX-License-Identifier: CC0-1.0
 # Pitloom's catalogued messages
 
 See also: `../SKILL.md` (which holds the rule: explain and relay, never run
-the fix), `model-stub-diagnosis.md` and `deterministic-pass.md` (the cases
-without a code yet).
+the fix), `model-stub-diagnosis.md` (what each code leaves of a model) and
+`deterministic-pass.md` (the enrich pass on a stub).
 
 A Pitloom stderr line that ends in a `[code]` is catalogued: find the code
 below for what it means, what Pitloom did and what to tell the user. Quote the
 line as printed. You explain the line and relay its advice; you do not run the
-fix yourself (no `git lfs pull`, no rebuild): ask the user first, and with
-nobody to ask, report it only. A line without a code is not catalogued yet;
-read it as text. This page is generated from Pitloom's catalogue, so it says
-what this version prints.
+fix yourself (no `git lfs pull`, no install, no rebuild): ask the user first,
+and with nobody to ask, report it only. A line without a code is not
+catalogued yet; read it as text. This page is generated from Pitloom's
+catalogue, so it says what this version prints.
 
 ## Codes
 
@@ -30,10 +30,16 @@ most one prefix from the table of prefixes.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
+| [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
 | [`lfs-pointer`](#lfs-pointer) | ERROR, WARNING | A file is a Git LFS pointer: a small text file standing in for content the checkout does not have (made or cloned without Git LFS). | 0.22.0 |
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
+| [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
+| [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
+| [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
+| [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
+| [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
 
 A line may start with one prefix before its text:
 
@@ -57,17 +63,40 @@ A line may start with one prefix before its text:
 | `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
+| `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<file>` | a path as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
+| `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<limit>` | the cap, in its unit |
+| `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `'<path>'` | a path in quotes |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
+| `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
+| `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
+| `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
+
+### `hyperparameter-conflict`
+
+- **Level**: WARNING.
+- **Means**: A model states a hyperparameter named parameters, the key the SBOM
+  holds its parameter count under.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Recorded the parameter count (summed from the model's
+  tensors, or stated by the Hugging Face Hub) under the parameters key, in place
+  of the model's own value.
+- **Nothing to do**: the parameters entry is the parameter count, as the
+  package's comment says; the model's own value is still in the model.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: hyperparameter parameters replaced by the parameter count [hyperparameter-conflict]
+  ```
 
 ### `lfs-pointer`
 
@@ -132,6 +161,81 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: Git LFS pointer shipped<count>; the build did not pull LFS content [lfs-pointer/shipped]
   ```
 
+### `library-missing`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A library Pitloom needs for a step is not installed: an optional
+  extra for a model reader, the Hugging Face Hub, SPDX 3 validation,
+  --allow-build or magika content types.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: For a model file, listed the model by its file, format and
+  hashes only (a format-only entry, named after its file), without its metadata.
+  For any other step, did not run it: no SBOM of a Hugging Face model, no
+  validation; --allow-build found the files without a build, as its Build: lines
+  say. Installed nothing.
+- **Tell the user**: which models or which step went without the library and
+  which extra installs it, as the line names it (pitloom[ai] installs every
+  model reader and the Hugging Face Hub client). They install it where Pitloom
+  runs (with uvx or pipx, in the --from or --spec requirement) and run again; a
+  model reader then runs on each such file, so only for files they trust. Do not
+  install anything or run again for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: required library not installed; install <requirement> [library-missing]
+  ERROR: required library not installed: <module>; install <requirement> [library-missing]
+  ```
+
+### `model-unreadable`
+
+- **Level**: WARNING.
+- **Means**: A file whose header is a model format's could not be read: its
+  reader failed (a truncated or corrupt file, a format version the reader does
+  not know), or the file declares more than it can hold.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Listed the model by its file, format and hashes only (a
+  format-only entry, named after its file), without its metadata; the line says
+  what failed.
+- **Tell the user**: the model is listed without its metadata, and what failed,
+  as the line says. They check the file (a partial download or copy is the
+  common cause: fetch or export it again), or update the reader's library or
+  Pitloom for a newer format version, and generate again. Do not change, replace
+  or download the file for them; ask first, and with nobody to ask, report it
+  only.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: failed to extract metadata; <error> [model-unreadable]
+  WARNING: FORMAT=<format> FILE=<file>: <reason>; metadata not read [model-unreadable]
+  ```
+
+### `model-wrong-format`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A file named as an AI model is not one: its header is not the
+  format its suffix names, it is empty, or (a file named on its own) it is no
+  model of a supported format.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: In a scan, listed it as a file with its hashes, not as an AI
+  model. loom model, loom enrich and loom generate refuse a file named on its
+  own.
+- **Tell the user**: the file is not the model its name says: a wrong suffix, a
+  placeholder or a damaged copy. If a model belongs there, they put the real
+  file in its place and generate again; for loom model or loom enrich, they name
+  the model file itself. Do not rename, replace or download the file for them;
+  ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: header is not <format>; not listed as an AI model [model-wrong-format]
+  ERROR: '<path>': header is not <format> [model-wrong-format]
+  ERROR: '<path>': file is empty [model-wrong-format]
+  ERROR: '<path>': not an AI model file of a supported format [model-wrong-format]
+  ```
+
 ### `over-cap`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -159,5 +263,48 @@ A line may start with one prefix before its text:
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
   ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
+  ```
+
+### `parameter-count-invalid`
+
+- **Level**: WARNING.
+- **Means**: A model's parameter count cannot be had: a tensor dimension in the
+  file, or the count its metadata or the Hugging Face Hub states, is not a
+  non-negative integer.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Recorded no parameter count, never a partial one, and read
+  the rest of the model.
+- **Tell the user**: the SBOM has no parameter count for the model, and why, as
+  the line says: a malformed tensor shape, or a malformed count its metadata or
+  the Hub states. The rest of the model is read. Do not edit the file or state a
+  count for them.
+- **Lines**:
+
+  ```text
+  WARNING: tensor dimension <value> is not a non-negative integer; parameter count not recorded [parameter-count-invalid]
+  WARNING: FORMAT=<format> FILE=<file>: stated parameter count is not a non-negative integer; parameter count not recorded [parameter-count-invalid]
+  ```
+
+### `reader-unsafe`
+
+- **Level**: INFO.
+- **Means**: A wheel holds AI models in formats whose reader Pitloom does not
+  run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a
+  hostile file could crash or hang it, or exhaust its memory.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Listed the model by its file, format and hashes only (a
+  format-only entry, named after its file), without its metadata, its reader not
+  run. One line per scan names the formats met that no earlier line of the run
+  named.
+- **Tell the user**: which formats in the wheel were not read, and why. If they
+  trust the wheel, they pass --trust-wheel-model (trust_wheel_model=True in the
+  library; the trust-wheel-model input of the GitHub Action, with embed-wheel
+  and an empty project-path) and generate again; no config file can set it. Do
+  not add the flag or generate again for them; ask first, and with nobody to
+  ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]
   ```
 <!-- END GENERATED -->

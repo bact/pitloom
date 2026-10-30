@@ -31,6 +31,7 @@ from pitloom.extract.ai_model.reader import (
     not_a_model_reason,
     read_ai_model,
     read_ai_model_header,
+    refusal_error,
     refusal_reason,
 )
 
@@ -51,5 +52,6 @@ __all__ = [
     "not_a_model_reason",
     "read_ai_model",
     "read_ai_model_header",
+    "refusal_error",
     "refusal_reason",
 ]

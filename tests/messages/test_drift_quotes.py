@@ -29,9 +29,15 @@ from tests._message_drift import quote_matches, relative
 
 #: The text that marks a quote as saying a family's message.
 _MARKERS = {
+    "hyperparameter-conflict": "replaced by the parameter count",
     "lfs-pointer": "Git LFS pointer",
     "lfs-pointer-malformed": "Git LFS pointer",
+    "library-missing": "required library not installed",
+    "model-unreadable": "failed to extract metadata",
+    "model-wrong-format": "header is not ",
     "over-cap": " cap;",
+    "parameter-count-invalid": "parameter count not recorded",
+    "reader-unsafe": "Pass --trust-wheel-model",
 }
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).
@@ -65,11 +71,12 @@ _QUOTES = _quotes()
 
 
 def test_the_scan_found_quotes() -> None:
+    """The model-stub table in ``model-stub-diagnosis.md`` is generated, so it
+    is exact by construction (tests/messages/test_generated_reference.py)."""
     files = {file for file, _, _ in _QUOTES}
     assert {
         "docs/ai-model-scan-limits.md",
         "skills/sbom-enrich/references/deterministic-pass.md",
-        "skills/sbom-enrich/references/model-stub-diagnosis.md",
         "skills/sbom-generate/references/git-url.md",
         "skills/sbom-generate/references/known-limitations.md",
     } <= files

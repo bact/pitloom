@@ -48,6 +48,7 @@ from pitloom.core.build_signals import (
     TerminationGuard,
     TerminationSignal,
 )
+from pitloom.messages import code_of
 
 _SLEEPER = [sys.executable, "-c", "import time; time.sleep(120)"]
 
@@ -404,7 +405,7 @@ def test_run_build_subprocess_requires_build_package(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(bs, "find_spec", lambda name: None)
-    with pytest.raises(RuntimeError, match=r"pitloom\[build\]"):
+    with pytest.raises(ImportError, match=r"build; install pitloom\[build\]$") as e:
         run_build_subprocess(
             tmp_path,
             tmp_path,
@@ -412,6 +413,7 @@ def test_run_build_subprocess_requires_build_package(
             timeout=60,
             termination=TerminationGuard(),
         )
+    assert code_of(e.value) == "library-missing"
 
 
 def test_build_package_check_ignores_namespace_build_dir(
@@ -423,8 +425,9 @@ def test_build_package_check_ignores_namespace_build_dir(
     (tmp_path / "build" / "lib").mkdir(parents=True)
     monkeypatch.setattr(sys, "path", [str(tmp_path)])
     monkeypatch.delitem(sys.modules, "build", raising=False)
-    with pytest.raises(RuntimeError, match=r"pitloom\[build\]"):
+    with pytest.raises(ImportError, match=r"pitloom\[build\]") as e:
         bs._require_build_package()
+    assert code_of(e.value) == "library-missing"
 
 
 def test_build_package_check_accepts_installed_build() -> None:

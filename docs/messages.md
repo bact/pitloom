@@ -142,6 +142,10 @@ except Exception as exc:
 - A Git URL's checkout over `max_clone_bytes`, or a `git` call's output over
   its cap, raises a `RemoteSourceError` whose `code` is `git.too-large` or
   `git.output-too-large` and whose `pitloom_code` is `over-cap`.
+- A library a step needs that is not installed (a model reader's, the Hugging
+  Face Hub client) raises an `ImportError` whose `pitloom_code` is
+  `library-missing`; a model file that is not one, a `ValueError` whose
+  `pitloom_code` is `model-wrong-format`.
 
 The command line prints the code of the exception it reports at the end of its
 `ERROR:` line.

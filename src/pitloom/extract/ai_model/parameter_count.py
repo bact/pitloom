@@ -21,13 +21,14 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     tensor_element_sum,
 )
-from pitloom.logging_config import loggable
-from pitloom.messages import warn_over_cap
+from pitloom.messages import (
+    PARAMETER_COUNT_INVALID,
+    PARAMETER_COUNT_SKIPPED,
+    emit,
+    warn_over_cap,
+)
 
 _log = logging.getLogger(__name__)
-
-#: What a rejected count leaves out, as a model warning says it.
-PARAMETER_COUNT_SKIPPED = "parameter count not recorded"
 
 
 def warn_parameter_count(
@@ -36,23 +37,23 @@ def warn_parameter_count(
     where: str,
     fmt: str | None = None,
 ) -> None:
-    """The one ``WARNING:`` for a rejected parameter count. With *fmt* it
-    names the model (``FORMAT=<fmt> FILE=<where>``); without, only an
-    over-cap one names *where*, and the scanner adds ``FORMAT=``/``FILE=``
-    when it relays a reader's record (a direct reader call shows none)."""
+    """The one ``WARNING:`` for a rejected parameter count. Over the cap
+    (``over-cap``): with *fmt* it names the model (``FORMAT=<fmt>
+    FILE=<where>``), without it *where* alone. Not a count
+    (``parameter-count-invalid``): a tensor dimension's line is a reader's
+    and names no model, *fmt* or not (the scanner names it when it relays
+    the line); a stated count's names the model, so it needs *fmt*.
+
+    Raises:
+        ValueError: A stated count's rejection without *fmt*.
+    """
     if exc.over_cap:
         cap = model_cap(PARAMETER_COUNT_CAP, fmt) if fmt else PARAMETER_COUNT_CAP
         warn_over_cap(log, cap, where, PARAMETER_COUNT_SKIPPED)
-    elif fmt:
-        log.warning(
-            "FORMAT=%s FILE=%s: %s; %s",
-            fmt,
-            loggable(where),
-            exc.reason,
-            PARAMETER_COUNT_SKIPPED,
-        )
+    elif exc.value is not None:
+        emit(log, PARAMETER_COUNT_INVALID, logging.WARNING, value=exc.value)
     else:
-        log.warning("%s; %s", exc.reason, PARAMETER_COUNT_SKIPPED)
+        emit(log, PARAMETER_COUNT_INVALID, logging.WARNING, format=fmt, file=where)
 
 
 def derived_parameter_count(

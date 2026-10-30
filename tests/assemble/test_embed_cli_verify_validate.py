@@ -403,4 +403,5 @@ def test_cli_embed_wheel_prevalidation_only_refuses_what_it_judged(
     assert __main__.main() == 1
     err = capsys.readouterr().err
     assert "is not valid" not in err
-    assert ("spdx3-validate' package is required" in err) is (case == "no-validator")
+    missing = "install pitloom[validate] [library-missing]"
+    assert (missing in err) is (case == "no-validator")

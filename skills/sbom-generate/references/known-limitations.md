@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-10-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,31 +85,26 @@ suffixes).
 A **stub** is an `ai_AIPackage` with no `ai_*` property and no `comment`
 entry `Source: <model file> | Field: ...`; its `name` is the file's stem
 (`Method: file_name_stem`). A `comment` citing the README (`--enrich`,
-`Method: yaml_frontmatter`) does not make it read. The stderr line says why:
+`Method: yaml_frontmatter`) does not make it read. The stderr line says why
+and ends in its code, which `messages.md` explains (what it means, what
+Pitloom did, what to tell the user):
 
-- `INFO: AI models in a wheel in these formats are listed without metadata
-  ...: onnx. Pass --trust-wheel-model ...` -- the wheel gate (fastText, GGUF,
-  HDF5, ONNX, PyTorch `.pt`/`.pth`); tell the user, never add the flag.
-- `WARNING: FORMAT=<fmt> FILE=<path>: required library not installed; ...` --
-  install `pitloom[ai]` and regenerate.
-- `... failed to extract metadata; ...` -- the file has a model's header but
-  could not be parsed (truncated or corrupt): check the file.
-- A line ending in `[over-cap]` is over a cap: read `messages.md` for what to
-  tell the user. `... max-model-extract-bytes cap; metadata not read` is the
-  ceiling (512 MiB, wheel scans), `WARNING: ... model-scan budget cap; ...`
-  the per-wheel budget; any other `...; metadata not read` is a fixed bound.
-  Lists past 1000 entries are cut with one `WARNING:`. Never raise a cap
-  yourself.
-- `... header is not <fmt>; not listed as an AI model` -- the file is no model
-  and gets no `ai_AIPackage`.
-- A line ending in a `[code]` is catalogued: read `messages.md` for what it
-  means, what Pitloom did and what to tell the user. The Git LFS pointer lines
-  are there (`[lfs-pointer]`, `[lfs-pointer/shipped]`,
+- A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
+  in these formats are listed without metadata ...: onnx. Pass
+  --trust-wheel-model ...` per scan), `[library-missing]`,
+  `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
+  metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
+  model-scan budget cap; ...` the per-wheel budget). Lists past 1000 entries
+  are cut with one `WARNING:` ending in `[over-cap]`.
+- No `ai_AIPackage`, the file is no model: `[model-wrong-format]`, or a Git
+  LFS pointer (`[lfs-pointer]`, `[lfs-pointer/shipped]`,
   `[lfs-pointer-malformed]`). A Git LFS pointer is a small placeholder file
-  that stands in for the real content in a repository: Pitloom lists it by the
-  SHA-256 the placeholder states (no SHA-512, no content type), never reads or
-  downloads the content, and adds no `ai_AIPackage`. You explain and relay the
-  advice; you do not run the fix.
+  that stands in for the real content in a repository: Pitloom lists it by
+  the SHA-256 the placeholder states (no SHA-512, no content type) and never
+  reads or downloads the content.
+
+You explain and relay the advice; you never run the fix, install an extra,
+add `--trust-wheel-model` or raise a cap.
 
 A model whose read fails is a stub, never dropped, with the same `WARNING:`
 from a scan and from `loom model FILE` (exit 0). Beyond that:
@@ -147,13 +142,15 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
   read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
   hostile or malformed shape, or a count over 10^15, gives no count
-  (`... parameter count not recorded`); an ONNX `model_author` is cut at
+  (`... parameter count not recorded`, `[parameter-count-invalid]` or
+  `[over-cap]`); an ONNX `model_author` is cut at
   1000 distinct names (`larger than the 1000-entry per-field cap; the first
   1000 kept in originators`) and read to at most 16016 non-empty parts,
   repeats included (`larger than the 16016-part model-author cap; rest of
   model_author not read`); a model's own
   `parameters` hyperparameter gives way to the count (`hyperparameter
-  parameters replaced by the parameter count`). Detail:
+  parameters replaced by the parameter count`, `[hyperparameter-conflict]`:
+  nothing to do). Detail:
   <https://bact.github.io/pitloom/ai-model-formats/#producer-and-parameter-count>
   and
   <https://bact.github.io/pitloom/ai-model-formats/#what-the-count-counts>.

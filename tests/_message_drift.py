@@ -44,17 +44,23 @@ SAMPLES: dict[str, object] = {
     "amount": "512 MiB",
     "command": "clone",
     "count": 2,
+    "error": "Error while deserializing header: invalid header length",
     "file": "m/a.bin",
     "format": "gguf",
+    "formats": ["gguf", "onnx"],
     "key": "FIELD",
     "limit": 1024,
+    "module": "h5py",
     "name": "a.txt",
     "oid": "0f" * 32,
     "outcome": "skipped",
     "path": "m.gguf",
     "purpose": "per-wheel model-scan budget",
+    "reason": "GGUF header declares 1000000 tensors",
+    "requirement": "pitloom[gguf]",
     "size": 3,
     "unit": "byte",
+    "value": "-1",
 }
 
 

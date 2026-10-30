@@ -37,11 +37,13 @@ from ._baseline import (
 )
 from ._families import emitter_family
 from ._quotes import collect_skill_quotes, match_quotes
-from ._scope import in_scope
+from ._scope import READER_DISPATCH, READER_PACKAGE, in_scope, reach
 from ._walker import walk
 
 __all__ = [
     "BASELINE_PATH",
+    "READER_DISPATCH",
+    "READER_PACKAGE",
     "REGENERATE",
     "collect_skill_quotes",
     "compare",
@@ -50,6 +52,7 @@ __all__ = [
     "inventory",
     "match_quotes",
     "parse_baseline",
+    "reach",
     "rises",
     "summary",
     "uncoded_counts",
