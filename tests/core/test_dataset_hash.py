@@ -28,8 +28,9 @@ from pitloom.core import dataset_hash, walk_rules
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
 from pitloom.core.file_hash import Sha256Read, sha256_read
 from pitloom.core.models import merkle_root
+from pitloom.logging_config import CODE_ATTR
 from tests._symlink import CAN_SYMLINK
-from tests._unreadable import POSIX_NON_ROOT, deny, unlistable
+from tests._unreadable import POSIX_NON_ROOT, deny, unlistable, unlistable_with
 
 _BIG = 1 << 40
 _NEEDS_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="needs symlinks")
@@ -261,12 +262,12 @@ def test_excluded_file_is_resolved_once_not_per_member(
     assert len(calls) <= 2
 
 
-def test_member_removed_after_listing_warns_and_gives_no_root(
+def test_member_removed_after_listing_is_quiet_and_gives_no_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A member gone between the walk and its read: the ``FILE=`` warning
-    and no root (one gone before its ``stat()`` is skipped silently, as a
-    dangling symlink is)."""
+    """A member gone between the walk and its read: no root and no reason,
+    quietly -- absent is no ``file-unreadable`` (one gone before its
+    ``stat()`` is skipped, as a dangling symlink is)."""
     top = _tree(tmp_path / "d", {"a.txt": b"a", "b.txt": b"b"})
     real_listed = dataset_hash._listed  # pylint: disable=protected-access
 
@@ -278,8 +279,8 @@ def test_member_removed_after_listing_warns_and_gives_no_root(
     monkeypatch.setattr(dataset_hash, "_listed", _list_then_remove)
     with caplog.at_level(logging.WARNING):
         assert hash_dataset(top, max_bytes=_BIG) == DatasetDigest("dir")
-    (warning,) = _warnings(caplog)
-    assert warning.startswith(f"FILE={top / 'b.txt'}: could not read for dataset")
+    assert not (top / "b.txt").exists()  # not vacuous: it is gone
+    assert not _warnings(caplog)
 
 
 def test_file_gone_after_it_was_found_is_silent(
@@ -323,7 +324,9 @@ def test_excluded_registry_is_reported_without_a_root(
         found = hash_dataset(
             top, max_bytes=1 if case == "over-cap" else _BIG, exclude=top / "ids.json"
         )
-    omitted = "over-cap" if case == "over-cap" else None
+    omitted = {"over-cap": "over-cap", "only-registry": None}.get(
+        case, "file-unreadable"
+    )
     assert found == DatasetDigest("dir", excluded=True, omitted=omitted)
 
 
@@ -341,17 +344,26 @@ def test_unreadable_file_warns_and_gives_no_hash(
     kind: Literal["file", "dir"],
     mode: str,
 ) -> None:
-    """One unreadable file: the shared ``FILE=`` warning and no hash at
-    all -- a root over the other files would be wrong."""
+    """One unreadable file: the ``file-unreadable`` warning and no hash at
+    all -- a root over the other files would be wrong -- with that reason;
+    its own ``stat()`` size, 1 byte, is below a pointer's, so not kept."""
     member = _tree(tmp_path / "d", {"a.txt": b"a", "sub/x.txt": b"x"}) / "sub" / "x.txt"
     if mode == "open":
         monkeypatch.setattr(dataset_hash, "sha256_read", _denied_read(member))
     with caplog.at_level(logging.WARNING), deny(member, mode, monkeypatch):
         found = hash_dataset(tmp_path / dataset, max_bytes=_BIG)
     stat_failed_on_the_dataset = mode == "stat" and kind == "file"
-    assert found == DatasetDigest(None if stat_failed_on_the_dataset else kind)
-    (warning,) = _warnings(caplog)
-    assert warning.startswith(f"FILE={member}: could not read for dataset hashing;")
+    assert found == DatasetDigest(
+        None if stat_failed_on_the_dataset else kind, omitted="file-unreadable"
+    )
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    # The patched error's own description, never its text (which names the
+    # path again).
+    why = "Permission denied" if mode == "open" else os.strerror(errno.EACCES)
+    assert record.getMessage() == (
+        f"FILE={member}: could not read for dataset hashing; {why}"
+    )
+    assert getattr(record, CODE_ATTR) == "file-unreadable"
 
 
 @_NEEDS_POSIX_PERMISSIONS
@@ -365,12 +377,48 @@ def test_real_unreadable_member_and_unlistable_subdirectory(
         caplog.at_level(logging.WARNING),
         deny(top / "a.txt", "chmod-file", monkeypatch),
     ):
-        assert hash_dataset(top, max_bytes=_BIG) == DatasetDigest("dir")
+        found = hash_dataset(top, max_bytes=_BIG)
+        assert found == DatasetDigest("dir", omitted="file-unreadable")
     with caplog.at_level(logging.WARNING), unlistable(top / "sub"):
-        assert hash_dataset(top, max_bytes=_BIG) == DatasetDigest("dir")
+        found = hash_dataset(top, max_bytes=_BIG)
+        assert found == DatasetDigest("dir", omitted="dir-unlistable")
     first, second = _warnings(caplog)
     assert first.startswith(f"FILE={top / 'a.txt'}: could not read for dataset")
     assert second.startswith(f"DIR={top / 'sub'}: could not list for dataset")
+
+
+@pytest.mark.parametrize(
+    ("code", "omitted", "warned"),
+    [
+        (errno.EACCES, "dir-unlistable", True),
+        (errno.ENOENT, None, False),
+    ],
+    ids=["refused", "gone-since-found"],
+)
+def test_subdirectory_that_cannot_be_listed_is_warned_unless_gone(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    code: int,
+    omitted: str | None,
+    warned: bool,
+) -> None:
+    """A subdirectory whose listing fails (as for ``chmod 000``, on every
+    platform and as root) gives no root, with the ``dir-unlistable`` reason
+    and warning; one gone since the walk found it, no reason and no
+    warning: absent, not unlistable."""
+    top = _tree(tmp_path / "d", {"a.txt": b"a", "sub/x.txt": b"x"})
+    with (
+        caplog.at_level(logging.WARNING),
+        unlistable_with(top / "sub", code, monkeypatch),
+    ):
+        found = hash_dataset(top, max_bytes=_BIG)
+    assert found == DatasetDigest("dir", omitted=omitted)
+    records = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert [getattr(r, CODE_ATTR) for r in records] == (
+        ["dir-unlistable"] if warned else []
+    )
+    assert all(str(tmp_path) not in r.getMessage().partition(": ")[2] for r in records)
 
 
 @pytest.mark.parametrize(

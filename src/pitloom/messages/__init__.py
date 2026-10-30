@@ -25,8 +25,9 @@ level, after at most one frame (:data:`FRAMES`), since another program can
 print anything on the same stream.
 
 This package imports only :mod:`pitloom.logging_config`,
-:mod:`pitloom.core.quote_source` and :mod:`pitloom.core.internal_error`,
-none of which imports it.
+:mod:`pitloom.core.quote_source`, :mod:`pitloom.core.internal_error`,
+:mod:`pitloom.core.path_probe` and :mod:`pitloom.core.path_confine`, none of
+which imports it.
 """
 
 from __future__ import annotations
@@ -40,7 +41,17 @@ from pitloom.messages._emit import (
     emit,
     relay_extra,
 )
-from pitloom.messages._fields import FIELDS, Field, size_text
+from pitloom.messages._fields import FIELDS, READ_USES, Field, size_text
+from pitloom.messages._file_unreadable import (
+    DIR_UNLISTABLE,
+    FILE_UNREADABLE,
+    FILE_UNREADABLE_NOT_UTF8,
+    FILE_UNREADABLE_OUTSIDE,
+)
+from pitloom.messages._file_unreadable_warning import (
+    warn_dir_unlistable,
+    warn_file_unreadable,
+)
 from pitloom.messages._frames import FRAMES, HANDLER_FRAMES, RELAY_FRAME, Frame
 from pitloom.messages._lfs_pointer import (
     LFS_CLONE_LINE,
@@ -102,10 +113,14 @@ __all__ = [
     "CONDITIONS",
     "CONFIG_MEMBER_LINE",
     "DIMENSION_REASON",
+    "DIR_UNLISTABLE",
     "EFFECTS",
     "EFFECT_MEANINGS",
     "EMPTY_LINE",
     "FIELDS",
+    "FILE_UNREADABLE",
+    "FILE_UNREADABLE_NOT_UTF8",
+    "FILE_UNREADABLE_OUTSIDE",
     "FRAMES",
     "GIT_OUTPUT_LINE",
     "HANDLER_FRAMES",
@@ -135,6 +150,7 @@ __all__ = [
     "PARAMETER_COUNT_INVALID",
     "PARAMETER_COUNT_SKIPPED",
     "READER_UNSAFE",
+    "READ_USES",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
     "STATED_COUNT_REASON",
@@ -153,5 +169,7 @@ __all__ = [
     "says",
     "size_text",
     "trusted_message",
+    "warn_dir_unlistable",
+    "warn_file_unreadable",
     "warn_over_cap",
 ]

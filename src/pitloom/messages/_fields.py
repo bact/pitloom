@@ -21,7 +21,7 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, one_line
 from pitloom.messages._model_limits import MODEL_LIMIT_REASONS
 
 
@@ -111,6 +111,22 @@ def _name(value: object) -> str:
     return loggable(_str(value))
 
 
+def _failure(value: object) -> str:
+    """What stopped a read, from the exception *value*, on one line: an
+    :class:`OSError`'s own description (``strerror``, ``Permission
+    denied``), never its text, which quotes the path; any other
+    exception's text, its class name when it has none.
+
+    Raises:
+        ValueError: *value* is not an exception (a text included).
+    """
+    if not isinstance(value, BaseException):
+        raise ValueError(f"not an exception: {value!r}")
+    if isinstance(value, OSError) and value.strerror:
+        return one_line(value.strerror)
+    return one_line(value)
+
+
 def _formats(value: object) -> str:
     """A list or tuple of format names, comma-separated; an empty one
     writes nothing, which the field's shape refuses.
@@ -160,6 +176,22 @@ CAP_UNITS: Final = frozenset(
 #: One word of a cap's name (``GGUF-header``, ``.npy-header``).
 _CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
 
+#: What a file was read for, or a directory listed for, as a
+#: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
+#: read`` or ``could not list``: a closed table. A project setting that lists
+#: the file is named by the ``field`` value instead.
+READ_USES: Final = (
+    "for dataset hashing",
+    "for dependency pins",
+    "for file discovery",
+    "for file scanning",
+    "for ID registry indexing",
+    "for license files",
+    "for the model hash",
+    "for the script hash",
+    "for usage scanning",
+)
+
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
     {
@@ -182,12 +214,39 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the number of files in brackets, `(N files)`, after a space when "
             "there are two or more; else nothing",
         ),
+        "dir": Field(
+            r".+",
+            _file,
+            "<dir>",
+            "a directory as Pitloom names it; in quotes, escaped, when it holds "
+            "a control character",
+            free=True,
+        ),
         "error": Field(
             r".+",
             _name,
             "<error>",
             "what the reader or the file system reported, on one line; in "
             "quotes, escaped, when it holds a control character",
+            free=True,
+        ),
+        "failure": Field(
+            r".+",
+            _failure,
+            "<failure>",
+            "what the operating system reported (`Permission denied`), never "
+            "the path it names, or what the decoder or reader reported; on one "
+            "line, in quotes, escaped, when it holds a control character",
+            free=True,
+        ),
+        "field": Field(
+            r".+",
+            _name,
+            "<field>",
+            "the project setting that lists the file (`project.readme`, "
+            "`tool.setuptools.dynamic.dependencies`, `setup.cfg "
+            "metadata.long_description`); in quotes, escaped, when it holds a "
+            "control character",
             free=True,
         ),
         "file": Field(
@@ -279,6 +338,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             _str,
             "<unit>",
             "what the cap counts, singular (`byte`, `entry`, `level`)",
+        ),
+        "use": Field(
+            "|".join(re.escape(use) for use in READ_USES),
+            _str,
+            "<use>",
+            "what the file was read for, or the directory listed for: "
+            + ", ".join(f"`{use}`" for use in READ_USES),
         ),
         "value": Field(
             r".*",

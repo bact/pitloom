@@ -65,6 +65,7 @@ import _checks_order  # noqa: F401  # pylint: disable=unused-import
 import _checks_order_spelling  # noqa: F401  # pylint: disable=unused-import
 import _checks_registry_versions  # noqa: F401  # pylint: disable=unused-import
 import _checks_setuptools  # noqa: F401  # pylint: disable=unused-import
+import _checks_unreadable  # noqa: F401  # pylint: disable=unused-import
 import _checks_wheel  # noqa: F401  # pylint: disable=unused-import
 import _fixtures
 import _matrix

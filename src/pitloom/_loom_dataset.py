@@ -75,11 +75,7 @@ from pitloom.core.evidence import record_fact, record_stated
 from pitloom.core.file_hash import FileDigests, HexDigests, file_digests
 from pitloom.core.lfs_pointer import LfsPointer, UnreadPointers
 from pitloom.core.models import build_relationship, generate_spdx_id
-from pitloom.core.path_probe import (
-    UNREADABLE_FILE_WARNING,
-    is_missing_errno,
-    is_regular_file,
-)
+from pitloom.core.path_probe import is_missing_errno, is_regular_file
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.id_registry import (
     DATASET_PACKAGE_TYPE,
@@ -91,7 +87,8 @@ from pitloom.id_registry import (
     path_key,
     registry_file_path,
 )
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable
+from pitloom.messages import warn_file_unreadable
 
 log = logging.getLogger("pitloom.loom")
 
@@ -387,12 +384,7 @@ class LoomElements:
                 read = file_digests(path)
         except OSError as exc:
             if not is_missing_errno(exc):
-                log.warning(
-                    UNREADABLE_FILE_WARNING,
-                    loggable(name),
-                    "for the script hash",
-                    one_line(exc),
-                )
+                warn_file_unreadable(log, exc, file=name, use="for the script hash")
         if read is None:
             return self.file(name, path, None, pointer=None)
         if read.lfs_pointer is not None:

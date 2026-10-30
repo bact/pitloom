@@ -15,14 +15,15 @@ import json
 import logging
 import re
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 
 from pitloom.core.lfs_pointer import log_pointer_not_read, parse_lfs_pointer
 from pitloom.core.path_confine import open_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.logging_config import loggable, one_line, warn_once
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -204,31 +205,49 @@ def license_candidates_from_members(
     return candidates
 
 
-def read_license_file(path: Path, root: Path | None = None) -> bytes | None:
+def _shown(path: Path, root: Path | None) -> str:
+    """*path* as a warning names it: below *root* as spelled, relative to
+    it (a project's ``LICENSE``); else as given, unless absolute (a
+    directory of this machine's), then its name."""
+    if root is not None:
+        with suppress(ValueError):
+            return path.relative_to(root).as_posix()
+    return project_relative_or_fallback(str(path), path.name)
+
+
+def read_license_file(
+    path: Path, root: Path | None = None, *, shown: str | None = None
+) -> bytes | None:
     """*path*'s bytes, read no further than one byte past the cap; ``None``
     when it is absent, cannot be read or is over the cap. With *root*, a
     file not inside it (a symlink out) is not read
     (:func:`~pitloom.core.path_confine.open_inside`): its content is no
     part of the project. A file present but not read is warned about, once
-    per file and process. A Git LFS pointer is no licence text: ``None``, with
-    a ``DEBUG`` line only (one among the project's files is also in the
-    run's one pointer warning)."""
+    per file and process, named *shown* (default: below *root*, relative to
+    it); a file over the cap is named the same way. A Git LFS pointer is no
+    licence text: ``None``, with a ``DEBUG`` line only (one among the
+    project's files is also in the run's one pointer warning)."""
     try:
         with path.open("rb") if root is None else open_inside(path, root) as fh:
             raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
     except OSError as exc:
         if not is_missing_errno(exc):
-            warn_once(
+            warn_file_unreadable(
                 log,
-                f"license-unreadable:{path}",
-                UNREADABLE_FILE_WARNING,
-                loggable(str(path)),
-                "for license files",
-                one_line(exc),
+                exc,
+                file=_shown(path, root) if shown is None else shown,
+                use="for license files",
+                once=f"license-unreadable:{path}",
             )
         return None
     if len(raw) > LICENSE_FILE_MAX_BYTES:
-        warn_over_cap(log, LICENSE_FILE_CAP, str(path), once=True)
+        warn_over_cap(
+            log,
+            LICENSE_FILE_CAP,
+            _shown(path, root) if shown is None else shown,
+            once=True,
+            key=str(path),
+        )
         return None
     pointer = parse_lfs_pointer(raw)
     if pointer is not None:

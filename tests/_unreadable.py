@@ -18,7 +18,9 @@ test so both exercise the same failures:
   meaningful when :data:`POSIX_NON_ROOT` (root bypasses them).
 
 :func:`unlistable` is the directory counterpart: ``chmod 000``, so
-discovery never sees the names under it.
+discovery never sees the names under it. :func:`unlistable_with` makes the
+listing of a directory fail with a chosen errno (monkeypatched, every
+platform, root included), e.g. ``ENOENT`` for one gone since it was found.
 
 See also: tests/core/models_wheel/test_models_wheel_unreadable.py,
 tests/core/models_wheel/test_models_wheel_unlistable.py,
@@ -124,3 +126,24 @@ def unlistable(directory: Path) -> Iterator[None]:
         yield
     finally:
         directory.chmod(original)
+
+
+@contextmanager
+def unlistable_with(
+    directory: Path, code: int, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    """Listing *directory* (``os.scandir``, which ``os.walk`` calls) raises
+    ``OSError(code)`` for the block; any other directory lists as usual."""
+    denied_path = os.path.abspath(directory)
+    real_scandir = os.scandir
+
+    def _scandir(path: Any = ".") -> Any:
+        if isinstance(path, (str, os.PathLike)) and (
+            os.path.abspath(path) == denied_path
+        ):
+            raise OSError(code, os.strerror(code), os.fspath(path))
+        return real_scandir(path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "scandir", _scandir)
+        yield

@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The registry's package key holds the version (check ``25``): each
+"""The registry's package key holds the version (check ``26``): each
 release of a dependency gets its own id through the real ``loom`` entry
 point, and going back to a release gets that release's id again.
 
@@ -33,7 +33,7 @@ def _package_ids(sbom: Path) -> dict[str, str]:
     }
 
 
-@check("25", "registry package key: two versions two ids, back to v1 gets v1's id")
+@check("26", "registry package key: two versions two ids, back to v1 gets v1's id")
 def check_package_version_ids(ctx: Context) -> None:
     project = write_project(ctx.work / "proj")
     pyproject = project / "pyproject.toml"

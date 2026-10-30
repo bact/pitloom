@@ -17,12 +17,16 @@ tests/core/test_path_probe.py (the stat() classification).
 
 from __future__ import annotations
 
+import errno
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from pitloom.core import _models_wheel
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectFile
@@ -129,6 +133,30 @@ def test_missing_or_non_regular_path_is_skipped_silently(
 
     assert _paths(files) == ["demo/__init__.py"]
     assert root is not None
+    assert not _warnings(caplog)
+
+
+def test_file_gone_between_its_stat_and_its_read_is_skipped_silently(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A file present at the ``stat()`` that is gone at the read is absent,
+    not ``file-unreadable``: no warning, the other file stays."""
+    project = _project(tmp_path)
+    real_entry = _models_wheel._build_project_file_entry  # pylint: disable=W0212
+
+    def _gone(source: Path, *args: Any, **kwargs: Any) -> Any:
+        if source.name == "secret.txt":
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), source)
+        return real_entry(source, *args, **kwargs)
+
+    monkeypatch.setattr(_models_wheel, "_build_project_file_entry", _gone)
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        _, files, cleanup = get_wheel_files(project)
+    cleanup()
+    assert (project / _SECRET).is_file()  # present: only the read is faked
+    assert _paths(files) == ["demo/__init__.py"]
     assert not _warnings(caplog)
 
 

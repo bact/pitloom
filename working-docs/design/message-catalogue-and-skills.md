@@ -21,7 +21,9 @@ below. The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
 the plumbing, schema and ratchet, is #390 (merged); migration step 2, the
 `over-cap` family, is #396 (decisions in "The `over-cap` family"); step 3,
-the model-stub causes, is #404 (PR 1a; decisions in "The model-stub causes").
+the model-stub causes, is #404 (PR 1a; decisions in "The model-stub causes");
+step 4, unreadable files and directories, is #408 (PR 2a; decisions in "The
+unreadable files and directories").
 
 ## Core idea
 
@@ -156,7 +158,7 @@ and C):
    a response, nor `not-a-model`, merged into `wrong-format`). The model
    fields a reader reads in part follow in PR 1b.
 4. `file-unreadable` and `dir-unlistable`, paired with the evidence reasons of
-   the same names.
+   the same names (#408, PR 2a; the cards and `fetch_json` follow in 2b).
 5. `option-no-effect`: the first entry whose actor is the `caller`.
 6. Frames: the uniform `loom <command>:` prefix of an `ERROR:` (its own PR;
    the `FRAMES` table holds today's strings).
@@ -394,6 +396,53 @@ code, its prefix being no frame (step 6); an import that is found but fails
 is reported as not installed, as before (the readers raise
 `missing_library()` from any `ImportError`); `hyperparameter-conflict` is
 the first entry whose actor and effect are `none`.
+
+## The unreadable files and directories
+
+Decided 2026-10-30 for #408 (PR 2a of row 2; the maintainer took the
+plan's recommendations, PR 2a then 2b):
+
+1. **Two families**: `file-unreadable` (`unreadable`), with the variants
+   `file-unreadable/not-utf8` and `file-unreadable/outside-project`, whose
+   advice differs (decision D), and `dir-unlistable` (`unlistable`). The
+   codes equal the evidence reasons, which PR-D now writes for a `loom`
+   dataset (`_loom_dataset_keys.digest_evidence` reads any reason).
+2. **The exception picks the entry**: `warn_file_unreadable` and
+   `warn_dir_unlistable` (named after `warn_over_cap`; the plan's
+   `say_unread` is taken by the scanner's model-stub helper) take the
+   exception, never a text: `OutsideRootError` is `/outside-project`, a
+   `UnicodeDecodeError` `/not-utf8`. An absent path raises `InternalError`:
+   absent is quiet, so every caller asks `is_missing_errno` first, and a
+   file gone since it was found now says nothing (a dataset member, a
+   registry file, a usage source).
+3. **New fields**: `use` (a closed table, `READ_USES`; a test holds every
+   call's `use=` to it, and each use live), `field` (a project setting),
+   `dir` (written as `file`) and `failure`, which writes an `OSError`'s
+   `strerror` and never its text: the raw-exception bug (an absolute path,
+   `[Errno 13] ... '/home/...'`) is fixed at every site by construction,
+   and `dir`'s escaping ends a newline-forged line.
+4. **Text kept but the detail** ("code first, wording later"): the
+   not-UTF-8 lines of a `setup.cfg` directive and of the usage scan gain
+   the variant's `not UTF-8:` prefix; the model hash's `(no verifiedUsing,
+   registry lookup not gated)` moved to the entry's `did`; a licence file
+   is named relative to its project (a dependency's by its `RECORD` entry).
+5. **Not this family, uncoded**: a listed requirements file not found and
+   a name an ID registry cannot hold (each on a line of its own, allowed
+   by name in `tests/messages/test_file_unreadable.py`), the `setup.cfg`
+   parser's `RecursionError` (reworded), a lock file refused or unparsable,
+   a wheel member, and the ID registry's explicit `PATH` error, whose
+   `ERROR` form waits for the registry PRs (no `ERROR` line is catalogued
+   before a site prints one).
+6. **The ratchet counts a catalogue helper's calls**: a function of
+   `pitloom.messages` that says its message through `emit` codes each
+   caller (the inventory's second round), as `warn_over_cap` does by name.
+   511 to 498 uncoded sites, 160 to 155 modules.
+
+Left for PR 2b: the cards (`card-malformed`, the card read joining
+`file-unreadable`, `find_card_file`'s silent listing), `fetch_json` (its
+local read, and `over-cap` for its caps, with Croissant passing a code
+through) and the lone-surrogate warning (`text-malformed`, effect `weaker`
+by the maintainer's ruling).
 
 ## The `AGENTS.md` rule
 

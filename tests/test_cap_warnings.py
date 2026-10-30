@@ -86,8 +86,9 @@ def test_a_licence_file_over_its_cap_warns_once(
         assert not read_license_members(tmp_path)
         assert not read_license_members(tmp_path)
     assert caplog.messages == [
-        f"FILE={licence}: larger than the 262144-byte license-detection cap; skipped"
+        "FILE=LICENSE: larger than the 262144-byte license-detection cap; skipped"
     ]
+    assert str(tmp_path) not in caplog.text  # named below its project
 
 
 _DISPLAY = "cuts only what a message or an element name shows"

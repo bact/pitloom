@@ -78,7 +78,8 @@ def test_the_command_line_ends_the_warning_in_its_code(tmp_path: Path) -> None:
     done = _loom(["project", str(project), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 0, done.stderr
     (line,) = _said(done.stderr, "license-detection cap")
-    assert line.startswith("WARNING: FILE=")
+    assert line.startswith("WARNING: FILE=LICENSE: ")  # below its project
+    assert str(tmp_path) not in line
     assert line.endswith(f"{_TAIL} [over-cap]")
     assert trusted_message(line) is OVER_CAP
 
@@ -92,6 +93,7 @@ def test_the_library_puts_the_code_on_the_record(
     (record,) = _over_cap_records(caplog)
     assert getattr(record, CODE_ATTR) == "over-cap"
     assert record.getMessage().endswith(_TAIL)
+    assert str(tmp_path) not in record.getMessage()  # below its project
 
 
 def test_the_build_hook_says_it_with_its_code(
@@ -107,6 +109,7 @@ def test_the_build_hook_says_it_with_its_code(
     (record,) = _over_cap_records(caplog)
     assert getattr(record, CODE_ATTR) == "over-cap"
     assert record.getMessage().endswith(_TAIL)
+    assert str(tmp_path) not in record.getMessage()  # below its project
 
 
 @pytest.fixture(name="served")
@@ -124,13 +127,14 @@ def _served(tmp_path: Path) -> Iterator[str]:
 
 
 @pytest.mark.loopback
-def test_a_git_url_run_names_the_checkout_and_keeps_the_code(
+def test_a_git_url_run_names_the_file_by_its_project_path_and_keeps_the_code(
     served: str, tmp_path: Path
 ) -> None:
     done = _loom(["project", served, "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 0, done.stderr
     (line,) = _said(done.stderr, "license-detection cap")
-    assert line.startswith("WARNING: FILE=<checkout>")
+    assert line.startswith("WARNING: FILE=LICENSE: ")
+    assert str(tmp_path) not in line
     assert line.endswith(f"{_TAIL} [over-cap]")
     assert trusted_message(line) is OVER_CAP
 

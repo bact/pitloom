@@ -475,9 +475,23 @@ From an Opus review of the provenance code against `evidence-levels.md`:
   provenance line now starts a line of its own on either side of the join, and
   a `not_measured` entry goes when the merged element gains the value
   (`_fragments_evidence.py`).
-- [ ] **An unreadable project file is logged with the raw exception (S).** The
-  skip in `core/_models_wheel.py` logs `exc`, not `one_line`/`loggable`, and an
-  `OSError` text can hold an absolute path.
+- [x] **An unreadable project file is logged with the raw exception (S),
+  fixed (#408).** The skip in `core/_models_wheel.py` logged `exc`, and an
+  `OSError` text holds an absolute path. Every unreadable-file and
+  unlistable-directory line now says the system's description only
+  (`file-unreadable`, `dir-unlistable`), and a directory's name is escaped.
+- [ ] **`file-unreadable` is not in the generated model table (S), decided
+  2026-10-30: later (0.22.x or 0.23.0).** The model header line drops the
+  model, and the model hash leaves no `verifiedUsing`; add the code to the
+  generated table so both are said.
+- [ ] **A dataset member that disappears mid-walk is silent and leaves no hash
+  (S), decided 2026-10-30: later (0.22.x or 0.23.0).** The current behaviour
+  is kept (absent is quiet, no root); skipping the member and hashing the rest
+  was not chosen.
+- [ ] **Where the `ERROR` template of the unreadable family first lands is
+  open (S), decided 2026-10-30: later (0.22.x or 0.23.0).** Either 2b
+  `fetch_json` (recommended) or the registry PRs 5-7; undecided, 2b unless
+  said otherwise.
 - [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
   and logs DEBUG only, so no `failed` entry is possible there without the 404

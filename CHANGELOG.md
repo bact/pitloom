@@ -57,6 +57,9 @@ and this project adheres to
 - **Breaking:** ID registry format 4 keys a package by name and version; a
   version 3 registry is refused: regenerate it with `loom id generate` or `loom
   id import` ([#407])
+- A file or directory Pitloom cannot read warns with `[file-unreadable]` or
+  `[dir-unlistable]`, the system's error only; a `loom` dataset's provenance
+  says why ([#408])
 
 ### Fixed
 
@@ -81,6 +84,8 @@ and this project adheres to
 - Each release of a package gets its own registry id (`requests@2.31`); `-e
   Requests@2.31.0:software_Package` is no longer stored as `requests@2-31-0`
   ([#407])
+- An unreadable file's warning no longer prints the absolute path the OS error
+  names, and a newline in a directory name can no longer forge a line ([#408])
 
 [#374]: https://github.com/bact/pitloom/pull/374
 [#375]: https://github.com/bact/pitloom/pull/375
@@ -99,6 +104,7 @@ and this project adheres to
 [#404]: https://github.com/bact/pitloom/pull/404
 [#405]: https://github.com/bact/pitloom/pull/405
 [#407]: https://github.com/bact/pitloom/pull/407
+[#408]: https://github.com/bact/pitloom/pull/408
 
 ## [0.21.2] - 2026-10-30
 

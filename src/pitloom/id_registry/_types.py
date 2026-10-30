@@ -26,15 +26,12 @@ from pathlib import Path
 from packaging.utils import canonicalize_name, canonicalize_version
 
 from pitloom.core.file_hash import stated_sha256_hex
-from pitloom.core.path_probe import (
-    UNLISTABLE_DIR_WARNING,
-    UNREADABLE_FILE_WARNING,
-    stat_if_present,
-)
+from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
+from pitloom.messages import warn_dir_unlistable, warn_file_unreadable
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -238,36 +235,39 @@ def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
         return os.fspath(path)
 
 
+#: ``log.warning()`` format for a file whose name a registry cannot hold:
+#: not catalogued yet. Arguments: the file, what the name cannot be.
+_UNSTORABLE_NAME_WARNING = "FILE=%s: could not read for ID registry indexing; %s"
+
+
 def warn_unreadable_file(
     path: Path, project_root: Path, error: OSError | ValueError
 ) -> None:
-    """Log the shared ``FILE=`` warning for *path*, which ``id generate``
-    could not read (or whose name a registry cannot hold) and leaves out
-    of the index."""
-    log.warning(
-        UNREADABLE_FILE_WARNING,
-        loggable(_shown(path, project_root)),
-        _PURPOSE,
-        one_line(error),
-    )
+    """Log the ``FILE=`` warning for *path*, which ``id generate`` could
+    not read (``file-unreadable``), or whose name a registry cannot hold,
+    and leaves out of the index; nothing for one gone since it was listed
+    (absent)."""
+    shown = _shown(path, project_root)
+    if isinstance(error, ValueError):
+        log.warning(_UNSTORABLE_NAME_WARNING, loggable(shown), one_line(error))
+    elif not is_missing_errno(error):
+        warn_file_unreadable(log, error, file=shown, use=_PURPOSE)
 
 
 def _walk_files(root: Path, project_root: Path, strict: bool = True) -> list[Path]:
     """Every file name below the directory *root*, sorted as ``Path``s; a
     directory named in :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES`
     is pruned, a symlink to a directory is not followed, and one that
-    cannot be listed gets the shared ``DIR=`` warning. *root* itself
-    failing to list raises when *strict*, else gets that warning too."""
+    cannot be listed gets the ``dir-unlistable`` warning (one gone since it
+    was found, none). *root* itself failing to list raises when *strict*,
+    else gets that warning too."""
 
     def _warn_unlistable(error: OSError) -> None:
         if strict and error.filename == os.fspath(root):
             raise error
-        log.warning(
-            UNLISTABLE_DIR_WARNING,
-            loggable(_shown(error.filename, project_root)),
-            _PURPOSE,
-            one_line(error),
-        )
+        if not is_missing_errno(error):
+            shown = _shown(error.filename, project_root)
+            warn_dir_unlistable(log, error, directory=shown, use=_PURPOSE)
 
     found: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root, onerror=_warn_unlistable):
