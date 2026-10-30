@@ -58,3 +58,10 @@ never by raising a count.
   `over-cap` code. The 33 `warn_over_cap` call sites (one through
   `warn_field_cap`) come into scope with the helper's move into
   `pitloom.messages`, coded: no count rose.
+- 2026-10-30 (#403): 556 to 516 sites, 172 to 163 modules. 15 sites are
+  coded with the model-stub causes (the scan's lines, `read_ai_model()`'s
+  and the single-file refusals, the missing libraries, the parameter count).
+  25 raises in `src/pitloom/extract/ai_model/` (the 19 reader raises and the
+  6 `missing_library()` raises) are detail by where they are, the dispatch
+  `reader.py` aside: only the scanner calls it, and only it names a reader.
+  No count rose.

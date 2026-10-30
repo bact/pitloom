@@ -88,6 +88,16 @@ def test_the_vocabulary_is_closed_at_23_cause_words() -> None:
     )
 
 
+@pytest.mark.parametrize("code", sorted(MESSAGES), ids=str)
+def test_a_family_is_named_by_its_condition(code: str) -> None:
+    """Decision B: a family is its condition when the cause does not depend
+    on the subject (``over-cap``), else the subject, a hyphen and the
+    condition (``model-unreadable``), never a response or a module."""
+    entry = MESSAGES[code]
+    family, condition = entry.family, entry.condition
+    assert family == condition or family.endswith(f"-{condition}"), code
+
+
 def test_the_lfs_pointer_code_is_the_evidence_reason() -> None:
     """One condition, one code: the warning's code and the provenance's
     ``Reason: lfs-pointer`` stay equal."""
@@ -202,6 +212,9 @@ def test_line_for_refuses_when_it_cannot_tell(
         "pitloom.core.lfs_pointer",
         "pitloom.core.ai_metadata",
         "pitloom.messages._over_cap_warning",
+        "pitloom.messages._model_stub",
+        "pitloom.core.optional_libraries",
+        "pitloom.core.model_parameters",
     ],
 )
 def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:

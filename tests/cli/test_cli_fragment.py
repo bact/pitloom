@@ -20,10 +20,16 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.commands.fragment import _run_fragment_command
 from tests.kv_helpers import info_lines, kv_stdout
+from tests.warning_helpers import error_lines
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 CONFLICTING_FRAGMENT = FIXTURE_DIR / "fragments" / "training-run-fragment.spdx3.json"
+#: What a run without the validator prints: the extra to install, and the code.
+_MISSING_VALIDATOR = (
+    "ERROR: required library not installed: spdx3_validate; "
+    "install pitloom[validate] [library-missing]"
+)
 
 
 @pytest.mark.usefixtures("offline_spdx3_validate")
@@ -147,11 +153,7 @@ def test_fragment_validate_command_missing_dependency(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert (
-        "ERROR: the 'spdx3-validate' package is required for SPDX 3 "
-        "validation" in captured.err
-    )
-    assert 'pip install "pitloom[validate]"' in captured.err
+    assert error_lines(captured.err) == [_MISSING_VALIDATOR]
 
 
 def test_fragment_validate_command_missing_dependency_and_bad_path(
@@ -169,7 +171,7 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: the 'spdx3-validate' package is required" in captured.err
+    assert _MISSING_VALIDATOR in error_lines(captured.err)
     assert f"ERROR: file not found: '{missing_path}'" in captured.err
 
 

@@ -24,6 +24,7 @@ import json
 import struct
 import sys
 from dataclasses import dataclass
+from logging import WARNING
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,8 @@ from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import BUDGET_FACTOR, scan_wheel_for_ai_models
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import code_of
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.extract.ai_model.gguf_builders import gguf_file
 from tests.warning_helpers import error_lines, file_values, logged_warnings
@@ -56,6 +59,8 @@ _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"
 _LOOKS = "header looks like a Git LFS pointer but is not a valid one"
 _LFS_WARNING = f"{_LOOKS}; not listed as an AI model"
 _NOT_A_MODEL = "not an AI model file"  # what a refused file with no reason says
+_WRONG = "model-wrong-format"
+_MALFORMED = "lfs-pointer-malformed"
 _TRUNCATED = struct.pack("<Q", 200) + b'{"a": 1}'  # header cut short
 _CREATED = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
 
@@ -72,6 +77,7 @@ class Kind:
     block: str | None = None  # a library to make unimportable
     refusal: str | None = None  # why ``loom model`` refuses a non-model
     degraded: bool = False  # an entry read in part, not a format-only stub
+    code: str | None = None  # the code of the WARNING, or of the refusal
 
 
 def _hdf5_with_bad_config() -> bytes:
@@ -96,6 +102,7 @@ _KINDS = {
         AiModelFormat.SAFETENSORS,
         "failed to extract metadata",
         needs="safetensors",
+        code="model-unreadable",
     ),
     "bound": Kind(
         "m.gguf",
@@ -103,6 +110,7 @@ _KINDS = {
         AiModelFormat.GGUF,
         "metadata not read",
         needs="gguf",
+        code="model-unreadable",
     ),
     "library": Kind(
         "m.safetensors",
@@ -110,6 +118,7 @@ _KINDS = {
         AiModelFormat.SAFETENSORS,
         "required library not installed",
         block="safetensors",
+        code="library-missing",
     ),
     # what ``np.savez(f)`` with no array writes: a ZIP with no member
     "empty_npz": Kind(
@@ -130,17 +139,20 @@ _KINDS = {
         None,
         "header is not gguf; not listed",
         refusal="header is not gguf",
+        code=_WRONG,
     ),
     # a Git LFS pointer is no model under any candidate suffix: a magic one,
     # one admitting any header, PyTorch's, and one naming no format
     **{
-        f"lfs{suffix}": Kind(f"m{suffix}", _LFS, None, _LFS_WARNING, refusal=_LOOKS)
+        f"lfs{suffix}": Kind(
+            f"m{suffix}", _LFS, None, _LFS_WARNING, refusal=_LOOKS, code=_MALFORMED
+        )
         for suffix in (".gguf", ".onnx", ".pt", ".bin", ".model")
     },
     # ``.model`` is shared (SentencePiece writes a protobuf one): without
     # the CRFsuite signature it is silently not a model; with it, a model
     "sentencepiece_model": Kind(
-        "m.model", b"\n\x0f" + bytes(32), None, None, refusal=_NOT_A_MODEL
+        "m.model", b"\n\x0f" + bytes(32), None, None, refusal=_NOT_A_MODEL, code=_WRONG
     ),
     "crfsuite_model": Kind(
         "m.model", _CRFSUITE_MINIMAL.read_bytes(), AiModelFormat.CRFSUITE, None
@@ -151,12 +163,14 @@ _KINDS = {
         _CRFSUITE_COMPLETE.read_bytes()[:-5],
         AiModelFormat.CRFSUITE,
         "failed to extract metadata",
+        code="model-unreadable",
     ),
     "parse_crfsuite_model": Kind(
         "m.model",
         _CRFSUITE_MINIMAL.read_bytes()[:-5],
         AiModelFormat.CRFSUITE,
         "failed to extract metadata",
+        code="model-unreadable",
     ),
     "text_crfsuite": Kind(
         "m.crfsuite",
@@ -164,9 +178,12 @@ _KINDS = {
         None,
         "header is not crfsuite; not listed",
         refusal="header is not crfsuite",
+        code=_WRONG,
     ),
-    "text_pth": Kind("m.pth", b"import os\n", None, None, refusal=_NOT_A_MODEL),
-    "empty_onnx": Kind("m.onnx", b"", None, None, refusal="file is empty"),
+    "text_pth": Kind(
+        "m.pth", b"import os\n", None, None, refusal=_NOT_A_MODEL, code=_WRONG
+    ),
+    "empty_onnx": Kind("m.onnx", b"", None, None, refusal="file is empty", code=_WRONG),
 }
 _IDS = list(_KINDS)
 
@@ -225,10 +242,16 @@ def _normalised(messages: list[str]) -> list[str]:
     return out
 
 
-def _expect_warning(kind: Kind, messages: list[str]) -> list[str]:
+def _expect_warning(kind: Kind, caplog: pytest.LogCaptureFixture) -> list[str]:
+    """The one WARNING of *kind* (or none), with its code; normalised."""
+    messages = logged_warnings(caplog)
     assert len(messages) == (kind.warning is not None)
     for message in messages:
         assert kind.warning is not None and kind.warning in message
+    codes = [
+        getattr(r, CODE_ATTR, None) for r in caplog.records if r.levelno == WARNING
+    ]
+    assert codes == ([kind.code] if kind.warning is not None else [])
     return _normalised(messages)
 
 
@@ -248,7 +271,7 @@ def test_a_scan_lists_one_entry_for_a_confirmed_model_and_none_otherwise(
     )
     if kind.fmt and kind.warning and not kind.degraded:
         _stub_shape(models[0], kind.fmt)
-    _expect_warning(kind, logged_warnings(caplog))
+    _expect_warning(kind, caplog)
 
 
 @pytest.mark.parametrize("kind", _IDS, indirect=True)
@@ -262,15 +285,16 @@ def test_a_single_file_gets_the_scans_entry_and_the_scans_warning(
     scan_dir = tmp_path / "scan"
     scan_dir.mkdir()
     _scan_project(scan_dir, kind)
-    scan_messages = _expect_warning(kind, logged_warnings(caplog))
+    scan_messages = _expect_warning(kind, caplog)
     caplog.clear()
 
     path = tmp_path / kind.name
     path.write_bytes(kind.data)
     out = tmp_path / "out.json"
     if kind.fmt is None:
-        with pytest.raises(ValueError, match=kind.refusal):
+        with pytest.raises(ValueError, match=kind.refusal) as refused:
             _SINGLE[surface](path, out)
+        assert code_of(refused.value) == kind.code
         assert not out.exists()
         return
     text = _SINGLE[surface](path, out)
@@ -282,7 +306,7 @@ def test_a_single_file_gets_the_scans_entry_and_the_scans_warning(
     if kind.warning and packages and not kind.degraded:
         # A format-only entry, named after its file
         assert packages[0]["name"] == Path(kind.name).stem
-    assert _expect_warning(kind, logged_warnings(caplog)) == scan_messages
+    assert _expect_warning(kind, caplog) == scan_messages
 
 
 @pytest.mark.parametrize("kind", _IDS, indirect=True)
@@ -302,15 +326,18 @@ def test_the_cli_writes_a_stub_for_a_failed_read_and_refuses_a_non_model(
     err = capsys.readouterr().err
     if kind.fmt is None:
         assert code == 1
-        assert len(error_lines(err)) == 1
-        assert kind.refusal is not None and kind.refusal in err
+        (line,) = error_lines(err)
+        assert kind.refusal is not None and kind.refusal in line
+        assert line.endswith(f" [{kind.code}]")
         assert "WARNING:" not in err
         assert not out.exists()
     else:
         assert code == 0
         assert not error_lines(err)
         assert out.is_file()
-        assert err.count("WARNING: ") == (kind.warning is not None)
+        warnings = [ln for ln in err.splitlines() if ln.startswith("WARNING: ")]
+        assert len(warnings) == (kind.warning is not None)
+        assert all(ln.endswith(f" [{kind.code}]") is bool(kind.code) for ln in warnings)
 
 
 def test_a_missing_file_is_still_not_found(tmp_path: Path) -> None:

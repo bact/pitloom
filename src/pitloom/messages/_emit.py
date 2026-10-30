@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Saying a catalogued message: as a log record (:func:`emit`) or as an
-exception (:class:`CodedValueError`). Either way the catalogue writes the
-text from the message's line and the caller's values, and the code travels
-with it: on the record and on an exception of any class, as its
-:data:`~pitloom.logging_config.CODE_ATTR` attribute (:func:`code_of` reads
-it).
+exception (:class:`CodedValueError`, :class:`CodedImportError`). Either way
+the catalogue writes the text from the message's line and the caller's
+values, and the code travels with it: on the record and on an exception of
+any class, as its :data:`~pitloom.logging_config.CODE_ATTR` attribute
+(:func:`code_of` reads it).
 
 See also: :mod:`pitloom.messages` (the catalogue) and
 :mod:`pitloom.logging_config` (which prints the code).
@@ -87,11 +87,12 @@ def code_extra_of(exc: BaseException) -> dict[str, object] | None:
     return None if code is None else {CODE_ATTR: code}
 
 
-class CodedValueError(ValueError):
-    """A :class:`ValueError` that says a catalogued *message*: its text is
-    the message's ``ERROR`` line that names *values* (*line*, when several
-    do), written by the catalogue, and its ``pitloom_code`` reaches the
-    ``ERROR:`` line of every surface that reports it.
+class _CodedError(Exception):
+    """What a coded exception class adds to its built-in base: a text the
+    catalogue writes, the message's ``ERROR`` line that names *values*
+    (*line*, when several do), and its ``pitloom_code``, which reaches the
+    ``ERROR:`` line of every surface that reports it. A copy or a pickle
+    keeps both.
 
     Raises:
         ValueError: (a plain one) No ``ERROR`` line of *message* names
@@ -108,16 +109,36 @@ class CodedValueError(ValueError):
     def __reduce__(
         self,
     ) -> tuple[
-        Callable[[type[CodedValueError], str, str], CodedValueError],
-        tuple[type[CodedValueError], str, str],
+        Callable[[type[_CodedError], str, str], _CodedError],
+        tuple[type[_CodedError], str, str],
     ]:
         return (_restored, (type(self), str(self), self.pitloom_code))
 
 
-def _restored(cls: type[CodedValueError], text: str, code: str) -> CodedValueError:
-    """A copied or unpickled :class:`CodedValueError`: its text as written
-    then, not written again."""
+def _restored(cls: type[_CodedError], text: str, code: str) -> _CodedError:
+    """A copied or unpickled coded error: its text as written then, not
+    written again, through its built-in base."""
     exc = cls.__new__(cls)
-    ValueError.__init__(exc, text)
+    super(_CodedError, exc).__init__(text)
     exc.pitloom_code = code
     return exc
+
+
+class CodedValueError(_CodedError, ValueError):
+    """A :class:`ValueError` that says a catalogued *message*
+    (``CodedValueError(LFS_POINTER, path=..., oid=..., size=...)``).
+
+    Raises:
+        ValueError: (a plain one) No ``ERROR`` line of *message* names
+            *values*, or a value does not have its field's shape.
+    """
+
+
+class CodedImportError(_CodedError, ImportError):
+    """An :class:`ImportError` that says a catalogued *message*: a library
+    Pitloom needs for a step is not installed (``library-missing``).
+
+    Raises:
+        ValueError: (a plain one) No ``ERROR`` line of *message* names
+            *values*, or a value does not have its field's shape.
+    """

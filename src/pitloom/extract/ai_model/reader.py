@@ -26,6 +26,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.lfs_pointer import (
@@ -47,6 +48,12 @@ from pitloom.extract.ai_model.safetensors import (
     SAFETENSORS_FORMAT_MAX_HEADER_BYTES,
     read_safetensors,
 )
+from pitloom.messages import (
+    EMPTY_LINE,
+    MODEL_WRONG_FORMAT,
+    NOT_A_MODEL_LINE,
+    CodedValueError,
+)
 
 __all__ = [
     "AiModelFormat",
@@ -63,6 +70,7 @@ __all__ = [
     "LFS_POINTER_REASON",
     "is_git_lfs_pointer",
     "not_a_model_reason",
+    "refusal_error",
     "refusal_reason",
     "read_ai_model",
     "read_ai_model_header",
@@ -302,6 +310,14 @@ NOT_A_MODEL_MESSAGE = "not an AI model file of a supported format"
 #: The reason :func:`not_a_model_reason` gives for a pointer.
 LFS_POINTER_REASON = "header is a Git LFS pointer"
 
+#: The reason :func:`refusal_reason` gives for an empty file.
+EMPTY_REASON = "file is empty"
+
+
+def _header_is_not(named: AiModelFormat) -> str:
+    """The reason for a header that is not the *named* format's."""
+    return f"header is not {named}"
+
 
 def not_a_model_reason(header: bytes, name: str) -> str | None:
     """Why *header* and the suffix of *name* make the file not a model, when
@@ -310,7 +326,7 @@ def not_a_model_reason(header: bytes, name: str) -> str | None:
     if is_git_lfs_pointer(header):
         return LFS_POINTER_REASON
     named = contradicted_format(header, name)
-    return None if named is None else f"header is not {named}"
+    return None if named is None else _header_is_not(named)
 
 
 def refusal_reason(header: bytes, name: str, *, is_file: bool) -> str | None:
@@ -321,8 +337,27 @@ def refusal_reason(header: bytes, name: str, *, is_file: bool) -> str | None:
     reason = not_a_model_reason(header, name)
     if reason is None and is_file and not header:
         if detect_ai_model_format_from_name(name) != AiModelFormat.UNKNOWN:
-            reason = "file is empty"
+            reason = EMPTY_REASON
     return reason
+
+
+def refusal_error(
+    path: Path, named: AiModelFormat | None, reason: str | None
+) -> ValueError:
+    """The error a surface naming the file at *path* on its own raises when
+    it is not a model, *reason* being :func:`refusal_reason`'s and *named*
+    the format its suffix names (:func:`contradicted_format`): the
+    ``model-wrong-format`` line saying the header is not *named*, the file
+    is empty, or it is no model of a supported format (no reason); else (a
+    Git LFS pointer :func:`~pitloom.core.lfs_pointer.refuse_named_pointer`
+    could not read again) a plain one stating *reason*."""
+    if named is not None and reason == _header_is_not(named):
+        return CodedValueError(MODEL_WRONG_FORMAT, path=path, format=named)
+    if reason == EMPTY_REASON:
+        return CodedValueError(MODEL_WRONG_FORMAT, line=EMPTY_LINE, path=path)
+    if reason in (None, NOT_A_MODEL_MESSAGE):
+        return CodedValueError(MODEL_WRONG_FORMAT, line=NOT_A_MODEL_LINE, path=path)
+    return ValueError(f"{quote_source(path)}: {reason}")
 
 
 class NotAModel(Exception):
@@ -338,14 +373,14 @@ class NotAModel(Exception):
             pointer`` (:func:`not_a_model_reason`),
             which merit a warning; ``None`` for a file that is empty, absent or
             of an unknown format, which does not.
-        message: The text of the exception, which every surface that refuses
-            the file prints (:func:`refusal_reason`,
-            else ``not an AI model file of a supported format``), but for a
-            Git LFS pointer: a surface naming the file refuses that in the
-            catalogue's words
-            (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`), and a
-            scan warns of a malformed one only
-            (:data:`~pitloom.messages.LFS_POINTER_MALFORMED`).
+        message: The text of the exception: :func:`refusal_reason`, else
+            ``not an AI model file of a supported format``. A surface naming
+            the file on its own refuses it with :func:`refusal_error`
+            (``model-wrong-format``), a Git LFS pointer in the catalogue's
+            words (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`); a
+            scan warns of a header that is another format's
+            (:data:`~pitloom.messages.MODEL_WRONG_FORMAT`) and of a malformed
+            pointer (:data:`~pitloom.messages.LFS_POINTER_MALFORMED`).
     """
 
     def __init__(
@@ -392,32 +427,38 @@ def read_ai_model(
 
     Raises:
         FileNotFoundError: If the model file does not exist.
-        ValueError: If the format is unsupported or the file cannot be parsed.
-        ImportError: If the format's optional library is not installed.
+        ValueError: The file cannot be parsed; a
+            :class:`~pitloom.messages.CodedValueError` when it is no model of
+            a supported format (``model-wrong-format``, the words ``loom
+            model`` uses) or opens like a Git LFS pointer (``lfs-pointer``,
+            ``lfs-pointer-malformed``).
+        ImportError: If the format's optional library is not installed
+            (``library-missing``).
         pitloom.extract.ai_model.limits.ModelLimitExceeded: The file is over
             a bound.
     """
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
     if not os.path.isfile(model_path):
-        raise ValueError(f"{quote_source(model_path)}: {NOT_A_MODEL_MESSAGE}")
+        raise refusal_error(model_path, None, None)
 
     if model_format is None:
         model_format = detect_ai_model_format(model_path)
     reader = _READERS.get(model_format)
     if reader is None:
-        raise ValueError(_unsupported_message(model_path))
+        _refuse_unsupported(model_path)
     return reader(model_path)
 
 
-def _unsupported_message(model_path: Path) -> str:
-    """Why *model_path* is not read: :func:`refusal_reason`, else its suffix
-    is not a supported one. A file that opens like a Git LFS pointer is
-    refused here instead, in the words ``loom model`` uses
+def _refuse_unsupported(model_path: Path) -> NoReturn:
+    """Refuse *model_path*, which no reader reads, in the words every surface
+    naming a file on its own uses (:func:`refusal_error`); a file that opens
+    like a Git LFS pointer as ``loom model`` refuses it
     (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
 
     Raises:
-        pitloom.messages.CodedValueError: It opens like a pointer.
+        pitloom.messages.CodedValueError: Always, but when *model_path* opens
+            like a pointer it cannot read again (a plain ValueError).
     """
     try:
         header = read_ai_model_header(model_path)
@@ -426,9 +467,6 @@ def _unsupported_message(model_path: Path) -> str:
     reason = refusal_reason(header, model_path.name, is_file=True)
     if reason == LFS_POINTER_REASON:
         refuse_named_pointer(model_path)
-    if reason is not None:
-        return f"{quote_source(model_path)}: {reason}"
-    return (
-        f"Unsupported model format for file: {quote_source(model_path)}. "
-        f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
+    raise refusal_error(
+        model_path, contradicted_format(header, model_path.name), reason
     )

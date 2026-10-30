@@ -77,9 +77,10 @@ def check_model_outcome_parity(ctx: Context) -> None:
     whose read fails) and Git LFS pointers named ``.gguf``, ``.onnx``, ``.bin``
     and ``.model`` (not models) in one project. ``project`` and ``wheel`` list
     each truncated file (an ``ai_AIPackage`` besides the good model's) and no
-    pointer; each warns once per file, with the same text. ``loom model``
-    writes a truncated file's SBOM with that same warning and exit 0, and
-    refuses a pointer with one ``ERROR:`` and exit 1, nothing written."""
+    pointer; each warns once per file, with the same text, a truncated file
+    ending in ``[model-unreadable]``. ``loom model`` writes a truncated file's
+    SBOM with that same warning and exit 0, and refuses a pointer with one
+    ``ERROR:`` and exit 1, nothing written."""
     project = write_project(ctx.work / "proj")
     models = project / "demo"
     header = b'{"a": 1}'
@@ -117,6 +118,12 @@ def check_model_outcome_parity(ctx: Context) -> None:
             _LOOKS in expected[pointer][0]
             and expected[pointer][0].endswith(" [lfs-pointer-malformed]"),
             f"pointer: {expected[pointer]}",
+        )
+    for truncated_name in (_TRUNCATED, _CRF_TRUNCATED):
+        expect(
+            "failed to extract metadata" in expected[truncated_name][0]
+            and expected[truncated_name][0].endswith(" [model-unreadable]"),
+            f"truncated: {expected[truncated_name]}",
         )
 
     single = ctx.work / "m.json"

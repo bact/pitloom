@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from pitloom.messages import Cap
+from pitloom.messages import DIMENSION_REASON, STATED_COUNT_REASON, Cap
 
 #: The largest count recorded: 16 digits, so ``str()`` is safe on every Python.
 MAX_PARAMETER_COUNT = 10**15
@@ -52,14 +52,20 @@ class ParameterCountRejected(ValueError):
     """A shape or a stated count that yields no parameter count.
 
     Attributes:
-        reason: Why, in words safe to log (no unbounded text).
+        reason: Why, in the catalogue's words (no unbounded text).
         over_cap: Whether the count exceeds :data:`MAX_PARAMETER_COUNT`.
+        value: The rejected tensor dimension as shown (its ``repr``, cut to
+            40 characters); ``None`` for a stated count or a count over
+            the cap.
     """
 
-    def __init__(self, reason: str, *, over_cap: bool) -> None:
+    def __init__(
+        self, reason: str, *, over_cap: bool, value: str | None = None
+    ) -> None:
         super().__init__(reason)
         self.reason = reason
         self.over_cap = over_cap
+        self.value = value
 
 
 def _over_cap() -> ParameterCountRejected:
@@ -91,9 +97,9 @@ def tensor_elements(shape: Sequence[object]) -> int:
     zero = over = False
     for dim in shape:
         if not isinstance(dim, int) or isinstance(dim, bool) or dim < 0:
+            shown = _bounded_repr(dim)
             raise ParameterCountRejected(
-                f"tensor dimension {_bounded_repr(dim)} is not a non-negative integer",
-                over_cap=False,
+                DIMENSION_REASON % {"value": shown}, over_cap=False, value=shown
             )
         if dim == 0:
             zero = True
@@ -135,9 +141,7 @@ def stated_parameter_count(value: object) -> int | None:
     if value is None:
         return None
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ParameterCountRejected(
-            "stated parameter count is not a non-negative integer", over_cap=False
-        )
+        raise ParameterCountRejected(STATED_COUNT_REASON, over_cap=False)
     if value > MAX_PARAMETER_COUNT:
         raise _over_cap()
     return value or None

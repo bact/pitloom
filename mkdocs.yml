@@ -45,6 +45,7 @@ nav:
       - Metadata provenance, authors: metadata-provenance-authors.md
       - Reading values back: metadata-reading-back.md
       - Messages and codes: messages.md
+      - Message codes: message-codes.md
       - Resources: resources.md
 
 theme:

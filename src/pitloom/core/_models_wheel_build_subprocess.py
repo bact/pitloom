@@ -44,6 +44,7 @@ from pitloom.core._models_wheel_build_kill import (
 )
 from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.optional_libraries import BUILD, missing
 
 log = logging.getLogger(__name__)
 
@@ -122,9 +123,10 @@ def run_build_subprocess(
     when *termination* records a signal before the build has finished
     (likewise),
     :class:`BuildSubprocessError` on a non-zero exit or when the output
-    directory holds anything other than exactly one wheel, and
-    :class:`RuntimeError` when PyPA ``build`` or the interpreter path is
-    unavailable.
+    directory holds anything other than exactly one wheel,
+    :class:`~pitloom.messages.CodedImportError` (``library-missing``) when
+    PyPA ``build`` is not installed, and :class:`RuntimeError` when the
+    interpreter path is unavailable.
     """
     _require_build_package()
     if not sys.executable:
@@ -166,16 +168,17 @@ def run_build_subprocess(
 
 
 def _require_build_package() -> None:
-    """Raise :class:`RuntimeError` unless PyPA ``build`` is importable.
+    """Raise the ``library-missing`` error unless PyPA ``build`` is
+    importable.
 
     Checked here: in the child, a missing module is just exit code 1.
     """
-    spec = find_spec("build")
+    spec = find_spec(BUILD.module)
     # A namespace package (no origin) is a bare "build/" directory on
     # sys.path, e.g. setuptools' output dir in the cwd -- not PyPA build,
     # and the child (cwd=work_dir) would not see it anyway.
     if spec is None or spec.origin is None:
-        raise RuntimeError("PyPA 'build' is not installed -- install pitloom[build]")
+        raise missing(BUILD)
 
 
 def _child_env(tmp_dir: Path) -> dict[str, str]:
