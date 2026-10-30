@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.cli._id_entity import entity_entry
 from pitloom.cli.id import _run_id_command
 from pitloom.cli.parser import _build_parser
 from pitloom.core import dataset_hash
@@ -319,3 +320,15 @@ def test_entity_package_key(
     assert entries == [((PACKAGE_TYPE, key), None)]
     said = [m for m in caplog.messages if m.startswith("ID registry: -e ")]
     assert said == ([] if info is None else [f"ID registry: -e {spec} {info}"])
+
+
+def test_entity_entry_keeps_an_unlisted_type_as_given(tmp_path: Path) -> None:
+    """A TYPE the CLI does not accept (it never passes one) is kept as given,
+    hash-less, never read as a path: NAME is a file below the root here."""
+    (tmp_path / "m").write_bytes(b"x\n")
+    registry = IdRegistry(namespace="urn:test", project_root=tmp_path)
+
+    assert entity_entry(registry, tmp_path, "software_Snippet", "m", 1024) == (
+        "m",
+        None,
+    )
