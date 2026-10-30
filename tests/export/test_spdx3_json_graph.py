@@ -5,11 +5,12 @@
 
 """Tests for the post-serialisation graph passes of
 :class:`pitloom.export.spdx3_json.Spdx3JsonExporter`: relationship
-descriptions and CreationInfo deduplication."""
+descriptions, CreationInfo deduplication and the lone-surrogate escape."""
 
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -108,3 +109,42 @@ def test_only_references_are_remapped(orphan_first: bool) -> None:
     assert package["description"] == "_:CreationInfo9"
     assert info.get("comment", "") == ""
     assert package["creationInfo"] == info["@id"] == "_:CreationInfo0"
+
+
+@pytest.mark.parametrize(
+    ("names", "warned"),
+    [(("b\udc80", "a\udcff"), ["FILE='a\\udcff'"]), (("b", "a"), [])],
+    ids=["lone-surrogates", "clean"],
+)
+def test_a_lone_surrogate_is_written_as_text_with_one_warning(
+    names: tuple[str, str], warned: list[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    """Every element's text is escaped before the passes that read it (the
+    relationship description); one warning names the least name changed."""
+    info = _creation_info()
+    agent = spdx3.SoftwareAgent(spdxId=_BASE + "A", name="x", creationInfo=info)
+    info.createdBy = [agent]
+    p1, p2 = (
+        spdx3.software_Package(spdxId=_BASE + f"P{n}", name=name, creationInfo=info)
+        for n, name in enumerate(names, 1)
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(info)
+    for element in (agent, p1, p2):
+        exporter.object_set.add(element)
+    exporter.add_relationship(
+        spdx3.Relationship(
+            spdxId=_BASE + "R",
+            creationInfo=info,
+            from_=p1,
+            to=[p2],
+            relationshipType=spdx3.RelationshipType.dependsOn,
+        )
+    )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        nodes = _graph(exporter, describe_relationship=True)
+    shown = [name.encode("ascii", "backslashreplace").decode() for name in names]
+    assert [n["name"] for n in nodes if n["type"] == "software_Package"] == shown
+    (rel,) = [n for n in nodes if n["type"] == "Relationship"]
+    assert rel["description"] == f"{shown[0]} dependsOn: {shown[1]}"
+    assert [r.getMessage().split(":")[0] for r in caplog.records] == warned

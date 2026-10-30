@@ -32,7 +32,7 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.dataset.values import stated_text, stated_texts, stated_version
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
+from pitloom.logging_config import loggable, warn_lone_surrogates
 
 log = logging.getLogger(__name__)
 
@@ -93,5 +93,5 @@ def read_dataset_card(
     apply_dataset_licence(meta, licence)
     # Only what was read is walked, never the rest of the frontmatter.
     if escape_lone_surrogates_in(meta)[1]:
-        log.warning(LONE_SURROGATES_WARNING, "", loggable(source))
+        warn_lone_surrogates(log, loggable(source))
     return meta

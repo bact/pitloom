@@ -60,7 +60,7 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable, one_line
+from pitloom.logging_config import loggable, one_line, warn_lone_surrogates
 from pitloom.messages import Cap
 
 log = logging.getLogger(__name__)
@@ -342,5 +342,5 @@ def _metadata(
     )
     apply_dataset_licence(meta, licence)
     if escape_lone_surrogates_in(meta)[1]:
-        log.warning(LONE_SURROGATES_WARNING, "", loggable(src_label))
+        warn_lone_surrogates(log, loggable(src_label))
     return meta
