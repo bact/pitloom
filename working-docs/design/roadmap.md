@@ -207,6 +207,10 @@ Highest priority first.
 - [ ] **ML framework and `transformers` use from the code** (#66, #68, #65):
   today `--scan-model-usage` matches model file names only. See
   [ml-framework-from-code.md](ml-framework-from-code.md).
+- [ ] **Model usage scan reads the code, not the text**: replace the
+  file-name substring match with an AST scan; `hasDataFile` edges carry the
+  access (read, write, unknown) in the comment. See
+  [model-usage-ast-scan.md](model-usage-ast-scan.md).
 - [ ] **Split `license-resolution-categories.md`** (37 KB, over the hard limit).
 - Background research: [metadata-sources.md](metadata-sources.md) (how other
   tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),
