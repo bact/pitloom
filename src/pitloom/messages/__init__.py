@@ -108,6 +108,10 @@ from pitloom.messages._types import (
     Line,
     Message,
 )
+from pitloom.messages._usage_unparseable import (
+    USAGE_UNPARSEABLE,
+    USAGE_UNPARSEABLE_MENTION,
+)
 
 __all__ = [
     "ACTORS",
@@ -158,6 +162,8 @@ __all__ = [
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
     "STATED_COUNT_REASON",
+    "USAGE_UNPARSEABLE",
+    "USAGE_UNPARSEABLE_MENTION",
     "Cap",
     "CodedImportError",
     "CodedValueError",

@@ -32,6 +32,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import SNIFF_BYTES, read_ai_model_header
@@ -127,7 +128,7 @@ def test_scan_usage_files_use_distribution_paths(tmp_path: Path, layout: str) ->
     other, _ = _put(tmp_path, layout, "other.py", b"print(1)\n")
     use, _ = _put(tmp_path, layout, "use.py", b'load("model.gguf")\n')
     (meta,) = _scan(tmp_path, model, other, use)
-    assert meta.usage_files == [use.distribution_path]
+    assert meta.usage_files == [ModelUsage(use.distribution_path, UsageAccess.READ)]
 
 
 @_LAYOUT
@@ -137,13 +138,13 @@ def test_scan_unreadable_python_warns_and_later_sources_still_scan(
     model, _ = _put(tmp_path, layout, "model.gguf", _GGUF)
     missing, missing_stable = _put(tmp_path, layout, "a_missing.py", None)
     bad, bad_stable = _put(tmp_path, layout, "b_bad.py", b"\xff\xfe model.gguf")
-    use, _ = _put(tmp_path, layout, "c_use.py", b"model.gguf")
+    use, _ = _put(tmp_path, layout, "c_use.py", b'open("model.gguf")')
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
         (meta,) = _scan(tmp_path, model, missing, bad, use)
     # A source gone since the file scan is absent: quiet, no file-unreadable.
     assert file_values(_warnings(caplog)) == [bad_stable]
     assert missing_stable != bad_stable
-    assert meta.usage_files == [use.distribution_path]
+    assert meta.usage_files == [ModelUsage(use.distribution_path, UsageAccess.READ)]
 
 
 # --- which files are candidates ---------------------------------------------
@@ -339,7 +340,7 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
     )
     assert meta.format_info.file_name == "model.npy"
     assert meta.format_info.physical_path == "assets/weights.dat"
-    assert meta.usage_files == ["pkg/use.py"]
+    assert meta.usage_files == [ModelUsage("pkg/use.py", UsageAccess.READ)]
     sources = [v for v in meta.provenance.values() if v.startswith("Source: ")]
     assert sources  # not vacuous
     assert all(v.startswith("Source: model.npy") for v in sources)
@@ -360,7 +361,10 @@ def test_scan_result_does_not_depend_on_files_order(
             ("y.py", both),
         ]
     )
-    users = [y.distribution_path, z.distribution_path]
+    users = [
+        ModelUsage(y.distribution_path, UsageAccess.UNKNOWN),
+        ModelUsage(z.distribution_path, UsageAccess.UNKNOWN),
+    ]
     expected = [(a.distribution_path, users), (b.distribution_path, users)]
     assert [f.distribution_path for f in (b, a, z, y)] != sorted(
         f.distribution_path for f in (b, a, z, y)

@@ -51,7 +51,10 @@ _WHEEL_HINT_ONE = (
 )
 _MEMBERS = {
     f"demo/{_MODEL}": safetensors_bytes(),
-    "demo/use.py": f'M = "{_MODEL}"\n'.encode(),
+    "demo/use.py": (
+        f'# doc mentioning {_MODEL}\nM = "{_MODEL}"\nopen(M, "rb")\n'.encode()
+    ),
+    "demo/mention.py": f'"""Mention-only {_MODEL}."""\nprint("{_MODEL}")\n'.encode(),
 }
 
 

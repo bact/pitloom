@@ -21,6 +21,7 @@ from typing import Any, TypedDict
 
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
+from pitloom.core.model_usage import ModelUsage
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
 from pitloom.messages import Cap
 
@@ -438,9 +439,10 @@ class AiModelMetadata:
     # Provenance tracking: field name -> source description
     provenance: dict[str, str] = field(default_factory=dict)
 
-    # Distribution paths of Python scripts that use/load this model, sorted
-    # and deduplicated by the scanner
-    usage_files: list[str] = field(default_factory=list)
+    # The Python scripts that use this model, each with what it does with the
+    # file (read, write, both, or unknown), one entry per script, sorted by
+    # distribution path by the scanner
+    usage_files: list[ModelUsage] = field(default_factory=list)
 
     # -- User-defined extension slots ------------------------------------------
     # Use these for metadata that does not map to any standard field above.

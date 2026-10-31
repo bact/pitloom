@@ -57,6 +57,7 @@ CONDITIONS: Final = frozenset(
         "timeout",
         "unknown-key",
         "unlistable",
+        "unparseable",
         "unpinned",
         "unreadable",
         "unsafe",

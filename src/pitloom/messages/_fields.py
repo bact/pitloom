@@ -312,6 +312,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the cap's name; a setting's name when a setting sets it "
             "(`max-model-extract-bytes`)",
         ),
+        "python": Field(
+            r"[0-9]+\.[0-9]+",
+            _str,
+            "<x.y>",
+            "the Python version Pitloom runs on, as `3.10`: the grammar a file "
+            "was read as",
+        ),
         "reason": Field(
             _REASONS,
             _str,

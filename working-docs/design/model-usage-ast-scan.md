@@ -15,7 +15,9 @@ which framework loads a model),
 used below) and, for what exists today,
 `src/pitloom/extract/scanner.py` (`attach_usage_references`).
 
-Status: design, decided 2026-10-31 with the maintainer. Nothing built.
+Status: built 2026-10-31 (`core/model_usage.py`, `extract/_usage_table.py`,
+`extract/_usage_match.py`, `extract/_usage_ast.py`, `extract/_usage_attach.py`,
+`messages/_usage_unparseable.py`).
 
 ## Problem
 

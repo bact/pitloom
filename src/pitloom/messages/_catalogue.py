@@ -14,7 +14,13 @@ from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.messages import _file_unreadable, _lfs_pointer, _model_stub, _over_cap
+from pitloom.messages import (
+    _file_unreadable,
+    _lfs_pointer,
+    _model_stub,
+    _over_cap,
+    _usage_unparseable,
+)
 from pitloom.messages._types import Message
 
 
@@ -46,5 +52,6 @@ MESSAGES: Final = _by_code(
         *_over_cap.ENTRIES,
         *_model_stub.ENTRIES,
         *_file_unreadable.ENTRIES,
+        *_usage_unparseable.ENTRIES,
     )
 )
