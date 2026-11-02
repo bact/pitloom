@@ -31,6 +31,7 @@ from _harness import (
     CheckFailed,
     CheckSkipped,
     Context,
+    Result,
     ai_packages_by_name,
     check,
     child_env,
@@ -408,6 +409,45 @@ def check_content_type_method_fetch(ctx: Context) -> None:
         ctx.note(f"{surface}: auto {auto} blocked attempts, extension {extension}")
 
 
+def _declared_registries(ctx: Context) -> dict[str, Path]:
+    """Check 14's ``--id-registry`` files by label: ``missing`` (never
+    created), ``invalid`` (not JSON) and ``v3`` (a version 3 file)."""
+    invalid = ctx.work / "invalid.json"
+    invalid.write_text("{", encoding="utf-8")
+    v3 = ctx.work / "v3.json"
+    v3.write_text(
+        json.dumps(
+            {
+                "elements": {"software_Package": {"demo": {"spdxId": "x#Package-1"}}},
+                "id_counters": {},
+                "namespace": "https://x.org/n",
+                "project_root": ".",
+                "version": 3,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return {"missing": ctx.work / "missing.json", "invalid": invalid, "v3": v3}
+
+
+def _run_declared_registry(
+    ctx: Context, wheel: Path, name: str, argv: list[str], label: str, registry: Path
+) -> tuple[Result, Path]:
+    """Run subcommand *name* (*argv*) of check 14 with the declared
+    *registry* (*label*) in its own directory; returns the result and the
+    output path. ``embed-wheel`` gets a copy of *wheel*."""
+    case_dir = ctx.work / "cases" / f"{name}-{label}"
+    case_dir.mkdir(parents=True)
+    out = case_dir / "out.json"
+    full_argv = list(argv)
+    if name == "embed-wheel":
+        copy = case_dir / wheel.name
+        shutil.copy2(wheel, copy)
+        full_argv.insert(1, str(copy))
+    full_argv += ["-o", str(out), "--id-registry", str(registry)]
+    return run_loom(*full_argv, bootstrap=NETGUARD), out
+
+
 @check(
     "14",
     "declared registry missing/invalid/v3: one ERROR:, exit 1, no output, each surface",
@@ -422,23 +462,8 @@ def check_registry_missing_invalid(ctx: Context) -> None:
     model = ctx.work / "model.safetensors"
     shutil.copy2(get().get("model"), model)
 
-    invalid = ctx.work / "invalid.json"
-    invalid.write_text("{", encoding="utf-8")
-    missing = ctx.work / "missing.json"  # never created
-    v3 = ctx.work / "v3.json"
-    v3.write_text(
-        json.dumps(
-            {
-                "elements": {"software_Package": {"demo": {"spdxId": "x#Package-1"}}},
-                "id_counters": {},
-                "namespace": "https://x.org/n",
-                "project_root": ".",
-                "version": 3,
-            }
-        ),
-        encoding="utf-8",
-    )
-    v3_bytes = v3.read_bytes()
+    registries = _declared_registries(ctx)
+    v3_bytes = registries["v3"].read_bytes()
 
     commands: dict[str, list[str]] = {
         "project": ["project", str(project), "--offline"],
@@ -448,17 +473,10 @@ def check_registry_missing_invalid(ctx: Context) -> None:
         "embed-wheel": ["embed-wheel", "--project-dir", str(project), "--offline"],
     }
     for name, argv in commands.items():
-        for label, registry in (("missing", missing), ("invalid", invalid), ("v3", v3)):
-            case_dir = ctx.work / "cases" / f"{name}-{label}"
-            case_dir.mkdir(parents=True)
-            out = case_dir / "out.json"
-            full_argv = list(argv)
-            if name == "embed-wheel":
-                copy = case_dir / wheel.name
-                shutil.copy2(wheel, copy)
-                full_argv.insert(1, str(copy))
-            full_argv += ["-o", str(out), "--id-registry", str(registry)]
-            result = run_loom(*full_argv, bootstrap=NETGUARD)
+        for label, registry in registries.items():
+            result, out = _run_declared_registry(
+                ctx, wheel, name, argv, label, registry
+            )
             expect(
                 result.returncode == 1,
                 f"{name}/{label}: exit {result.returncode}, want 1\n"
@@ -478,7 +496,10 @@ def check_registry_missing_invalid(ctx: Context) -> None:
                     "version 3, expected 4" in error_lines[0],
                     f"{name}/v3: {error_lines} does not say 'version 3, expected 4'",
                 )
-                expect(v3.read_bytes() == v3_bytes, f"{name}/v3: registry rewritten")
+                expect(
+                    registry.read_bytes() == v3_bytes,
+                    f"{name}/v3: registry rewritten",
+                )
             expect(not out.exists(), f"{name}/{label}: output written despite failure")
     ctx.note(
         f"{len(commands)} surfaces x missing/invalid/v3 registry: one ERROR:, exit 1"

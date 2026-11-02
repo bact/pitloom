@@ -206,29 +206,17 @@ class Checker:
     ) -> None:
         imported = self._imported(cap)
         said = self._gate_info(cap)
+        before_ids = {e.spdx_id for e in before.values()}
         dropped: set[Key] = set()
         self.stats["A"] += len(before)
         for key, old in before.items():
             new = after.get(key)
             if new is None:
                 self.fail("A/vanished", cap, key, f"held {old.spdx_id}")
-                continue
-            erased = bool(old.sha) and new.sha is None
-            if key in imported and imported[key].spdx_id == new.spdx_id:
-                # Section 2: the harvested id wins. BN: only an import
-                # handing the key another id drops the sha256, and says so.
-                if erased and new.spdx_id != old.spdx_id and key in said:
+            elif key in imported and imported[key].spdx_id == new.spdx_id:
+                if self._import_kept(cap, key, (old, new), key in said):
                     dropped.add(key)
-                elif erased:
-                    self.fail(
-                        "A/sha-erased",
-                        cap,
-                        key,
-                        f"import gave {new.spdx_id} and dropped {_short(old.sha)}"
-                        + ("" if key in said else " without the INFO"),
-                    )
-                continue
-            if erased:
+            elif bool(old.sha) and new.sha is None:
                 # D12, BN: no other step erases a recorded sha256.
                 self.fail(
                     "A/sha-erased",
@@ -236,29 +224,64 @@ class Checker:
                     key,
                     f"{old.spdx_id} -> {new.spdx_id} lost its sha256",
                 )
-                continue
-            if new.spdx_id != old.spdx_id:
-                fresh = new.spdx_id not in {e.spdx_id for e in before.values()}
-                if key[0] in GATED and new.sha != old.sha and fresh:
-                    self._current_sha(cap, key, new)
-                    continue
-                self.fail(
-                    "A/churn",
-                    cap,
-                    key,
-                    f"{old.spdx_id} -> {new.spdx_id} "
-                    f"(sha {_short(old.sha)} -> {_short(new.sha)})",
-                )
-            elif key[0] in GATED and old.sha and new.sha != old.sha:
-                self.fail(
-                    "A/sha-swap",
-                    cap,
-                    key,
-                    f"{new.spdx_id} kept for new bytes "
-                    f"({_short(old.sha)} -> {_short(new.sha)})",
-                )
+            else:
+                self._kept_or_changed(cap, key, (old, new), before_ids)
         for key in sorted(set(said) - dropped):
             self.fail("A/gate-info", cap, key, "content gate dropped, sha256 kept")
+
+    def _import_kept(
+        self, cap: Captured, key: Key, pair: tuple[Entry, Entry], told: bool
+    ) -> bool:
+        """A/sha-erased for a key whose id an import harvested (*pair*: its
+        entry before and after; *told*: the step said ``content gate
+        dropped`` for it). Section 2: the harvested id wins. BN: only an
+        import handing the key another id drops the sha256, and says so.
+        Returns whether the sha256 was dropped and said so."""
+        old, new = pair
+        if not (old.sha and new.sha is None):
+            return False
+        if new.spdx_id != old.spdx_id and told:
+            return True
+        self.fail(
+            "A/sha-erased",
+            cap,
+            key,
+            f"import gave {new.spdx_id} and dropped {_short(old.sha)}"
+            + ("" if told else " without the INFO"),
+        )
+        return False
+
+    def _kept_or_changed(
+        self,
+        cap: Captured,
+        key: Key,
+        pair: tuple[Entry, Entry],
+        before_ids: set[str],
+    ) -> None:
+        """A/churn and A/sha-swap for a key no import re-ided and whose sha256
+        was not erased (*pair*: its entry before and after; *before_ids*: the
+        ids the previous registry held)."""
+        old, new = pair
+        if new.spdx_id != old.spdx_id:
+            fresh = new.spdx_id not in before_ids
+            if key[0] in GATED and new.sha != old.sha and fresh:
+                self._current_sha(cap, key, new)
+                return
+            self.fail(
+                "A/churn",
+                cap,
+                key,
+                f"{old.spdx_id} -> {new.spdx_id} "
+                f"(sha {_short(old.sha)} -> {_short(new.sha)})",
+            )
+        elif key[0] in GATED and old.sha and new.sha != old.sha:
+            self.fail(
+                "A/sha-swap",
+                cap,
+                key,
+                f"{new.spdx_id} kept for new bytes "
+                f"({_short(old.sha)} -> {_short(new.sha)})",
+            )
 
     def _gate_info(self, cap: Captured) -> list[Key]:
         """The keys of this step's ``content gate dropped`` INFO lines, each
