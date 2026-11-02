@@ -129,6 +129,25 @@ file named is `model.ftz<ext>` or unknown; `os.path.join(unknown,
 the project root matches a rooted `/model.ftz`, `~/model.ftz` or
 `C:\model.ftz` but not the checkout's own absolute path.
 
+Limits of the name and call tables, found in review and left as they are:
+
+- **Bindings are counted per file, not per scope.** A name bound once in the
+  whole file is a constant; `path` reused in two functions, or a `for`, `with`
+  or `except` target of the same name elsewhere, makes it none, and the model
+  then gets `unknown access` (the edge is kept, the detail lost). A constant
+  read inside a function defined above it is also unknown (source order, not
+  run order), and a star import can hide that a name is not the file's own.
+  Real scope tracking (`symtable`) is the fix, as its own piece of work.
+- **Import aliases are per file too**: a local `def store` beside
+  `from torch import save as store` reads as `torch.save`.
+- **A callee is known by its last name**, so a mode means what stdio's `open`
+  means: `"a"` is a write for `h5py.File` and `zipfile.ZipFile`, which also
+  read the file; `shelve.open` and `zarr.open` default to read-write; the long
+  `np.memmap` modes are unknown. `f.write(path)` and `json.dump(path, f)` put
+  the path in a data position, so they are unknown, as is `zf.write(path)`
+  (which reads it).
+- **`.PY`** is not scanned: Python's import rules accept only `.py`.
+
 Out of scope for the first version: values imported from another module,
 `**kwargs`, `getattr`, config files, notebooks. The docs keep saying
 "best effort".

@@ -184,14 +184,11 @@ class UsageSource:
         physical_path: Stable path (never a temporary one), printed as
             ``FILE=`` in warnings.
         open: Returns a context manager yielding a binary stream. May raise.
-        read_path: The file ``open`` reads, when it is one; as
-            :attr:`ModelCandidate.read_path`.
     """
 
     distribution_path: str
     physical_path: str
     open: Callable[[], AbstractContextManager[IO[bytes]]]
-    read_path: Path | None = None
 
 
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:

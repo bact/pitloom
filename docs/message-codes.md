@@ -439,7 +439,7 @@ A line may start with one prefix before its text:
   model file: it may use it, but only a parsed file says how.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Recorded no relationship between the file and the model. One
-  line per file and model.
+  line per file and model file name.
 - **Nothing to do**: Nothing to do on its own: the usage-unparseable warning for
   the same file says what stopped the parse.
 - **Lines**:

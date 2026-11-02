@@ -102,7 +102,6 @@ def project_sources(
             distribution_path=pf.distribution_path,
             physical_path=_stable_path(pf),
             open=_opener(path),
-            read_path=path,
         )
 
 

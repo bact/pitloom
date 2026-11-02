@@ -45,6 +45,7 @@ from pitloom.extract._usage_match import (
 from pitloom.extract._usage_table import (
     MODE_CALLS,
     RECEIVER_MODE_POSITION,
+    access_of_argument,
     access_of_mode,
     access_of_name,
     is_mention_call,
@@ -75,6 +76,14 @@ _PATH_FUNCTIONS: Final = frozenset(
 _JOINS: Final = frozenset({"os.path.join", "posixpath.join", "ntpath.join"})
 #: Methods that give the receiver's path back (``Path(...).resolve()``).
 _SAME_PATH_METHODS: Final = frozenset({"resolve", "expanduser", "absolute"})
+
+
+#: The nodes that bind a type parameter (``def f[P]``): Python 3.12 or later.
+_TYPE_PARAMS: Final = tuple(
+    getattr(ast, name)
+    for name in ("TypeVar", "ParamSpec", "TypeVarTuple")
+    if hasattr(ast, name)
+)
 
 
 class _OverCap(Exception):
@@ -135,6 +144,10 @@ def _bind_counts(tree: ast.AST) -> collections.Counter[str]:
         elif isinstance(node, ast.ExceptHandler) and node.name:
             counts[node.name] += 1
         elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            counts[node.name] += 1
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            counts[node.rest] += 1
+        elif isinstance(node, _TYPE_PARAMS):
             counts[node.name] += 1
     return counts
 
@@ -503,7 +516,7 @@ class _Scan:
     ) -> UsageAccess | None:
         """What *parent* does with *argument*, the path it was given."""
         if isinstance(parent, ast.Call) and argument is not parent.func:
-            return self._call_access(parent)
+            return self._call_access(parent, argument)
         if isinstance(parent, ast.Attribute) and argument is parent.value:
             return self._attribute_access(parent)
         if isinstance(parent, (ast.Expr, ast.Raise, ast.Assert)):
@@ -519,8 +532,8 @@ class _Scan:
             return access_of_name(attr.attr)
         return UsageAccess.UNKNOWN
 
-    def _call_access(self, call: ast.Call) -> UsageAccess | None:
-        """What a call does with a path it is given."""
+    def _call_access(self, call: ast.Call, argument: ast.AST) -> UsageAccess | None:
+        """What a call does with the path it is given as *argument*."""
         if isinstance(self._parents.get(call), ast.Raise):
             return None
         _, last = self._callee(call.func)
@@ -531,7 +544,8 @@ class _Scan:
         if last in MODE_CALLS:
             position, default = MODE_CALLS[last]
             return self._mode_access(call, position, default)
-        return access_of_name(last)
+        index = call.args.index(argument) if argument in call.args else None
+        return access_of_argument(last, index)
 
     def _mode_access(self, call: ast.Call, position: int, default: str) -> UsageAccess:
         """The access of an ``open``-like call from its mode argument; its

@@ -16,6 +16,7 @@ call table and the path matcher).
 
 from __future__ import annotations
 
+import sys
 import time
 
 import pytest
@@ -240,3 +241,46 @@ def test_a_dict_key_nothing_can_replace_is_known(operand: str) -> None:
 )
 def test_a_literal_with_a_nul_is_no_path(code: str) -> None:
     assert accesses(code, "model.pkl", _DATA) == set()
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "p = 'data/model.pkl'\nmatch cfg:\n    case {**p}:\n        torch.save(x, p)",
+        pytest.param(
+            "P = 'data/model.pkl'\ndef f[P](x: P):\n    torch.save(x, P)",
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 12), reason="type parameters need 3.12"
+            ),
+        ),
+    ],
+    ids=["match-mapping-rest", "type-parameter"],
+)
+def test_a_name_bound_by_a_pattern_or_type_parameter_is_not_a_constant(
+    code: str,
+) -> None:
+    assert accesses(code, "model.pkl", _DATA) == {_U}
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        ("MODEL = 'model.pkl'\nf.write(MODEL)", {_U}),
+        ("sys.stdout.write('model.pkl')", {_U}),
+        ("Path('manifest.txt').write_text('model.pkl')", {_U}),
+        ("f.writelines('model.pkl')", {_U}),
+        ("Path('manifest.txt').write_bytes('model.pkl')", {_U}),
+        ("json.dump('model.pkl', f)", {_U}),
+        ("zf.write('model.pkl')", {_U}),
+        ("joblib.dump(obj, 'model.pkl')", {_W}),
+        ("joblib.dump(obj, filename='model.pkl')", {_W}),
+        ("Path('model.pkl').write_text('x')", {_W}),
+        ("json.loads('model.pkl')", set()),
+        ("pickle.dumps('model.pkl')", set()),
+    ],
+    ids=str,
+)
+def test_a_path_in_a_data_position_is_not_a_file_access(
+    code: str, expected: set[UsageAccess]
+) -> None:
+    assert accesses(code) == expected

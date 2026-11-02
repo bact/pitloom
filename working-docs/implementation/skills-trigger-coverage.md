@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -236,6 +236,18 @@ drift is silent.
   `references/id-registry.md`, keeping the declared-only rule, the
   ask-or-fall-back-to-none step and the hard rules in `SKILL.md`, which was
   514 lines and is now about 410.
+
+- **Usage-scan trigger (2026-11-02, PR #413).** A drift check found no
+  phrasing for `--scan-model-usage` ("which files use this model") in any
+  description. `sbom-generate` gained "the usage scan (\"which files use this
+  model\")" and went from 1018 to 1015 of 1024 characters (YAML parsed).
+  Room came from dropping "SPDX 3 document" (the same asks name an SBOM) and
+  the bare "embed-wheel" (wheel embedding keeps its natural-language
+  phrasings), and from shortening the hand-off sentence to "Checking:
+  sbom-validate; enriching: sbom-enrich." "keep ids stable" and "loom id
+  generate/import" stay (decision of 2026-10-15). `--no-scan-model-usage` has
+  no phrasing of its own: the body line in `SKILL.md` covers it once the skill
+  is open.
 
 ## Portability across clients (2026-09-29, PR #235)
 

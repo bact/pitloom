@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-30
+# Last-Modified: 2026-11-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -11,17 +11,18 @@ description: >-
   wheel, installed environment, local AI model file (GGUF, ONNX,
   PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite), Hugging
   Face model or Git URL (repo or branch/folder page). Triggers:
-  "generate/create/give me an SBOM/BOM", "SPDX 3 document", "software bill of
-  materials", "dependency inventory", "AIBOM", "document this model's
+  "generate/create/give me an SBOM/BOM", "software bill of materials",
+  "dependency inventory", "AIBOM", "document this model's
   provenance". Also combined asks (then hand off to
   sbom-enrich): "generate SBOM and enrich it", "complete/full SBOM", "SBOM
   meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements". PEP 770 wheel
   embedding ("embed the SBOM in this wheel", "put the SBOM in dist/*.whl",
-  "embed-wheel", "signed wheel / RECORD.jws", "--allow-signed-wheel"),
+  "signed wheel / RECORD.jws", "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
-  taking too long") and stable ids ("pin ids", "keep ids stable", "create or
-  update an ID registry", "loom id generate/import"). Checking an SBOM is
-  sbom-validate; enriching one is sbom-enrich.
+  taking too long"), stable ids ("pin ids", "keep ids stable", "create or
+  update an ID registry", "loom id generate/import") and the usage scan
+  ("which files use this model"). Checking: sbom-validate; enriching:
+  sbom-enrich.
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.22.0 (pip, uvx or pipx).

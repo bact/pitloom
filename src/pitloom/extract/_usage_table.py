@@ -15,7 +15,13 @@ recorded as an unknown access.
 
 The path is not told by its argument position. ``torch.save(obj, path)`` and
 ``np.save(path, arr)`` differ, but the scan looks for a path-shaped value that
-names a model, so the one argument that matches is the path.
+names a model, so the one argument that matches is the path. The exception is
+a position known to hold data: ``f.write(path)`` and ``json.dump(path, f)``
+write the model's name, not the model (:func:`access_of_argument`).
+
+A mode is read as the stdio ``open`` reads it, whatever the callee: ``"a"`` is
+a write although ``h5py.File`` and ``zipfile.ZipFile`` read the file they
+append to, and ``shelve.open`` and ``zarr.open`` default to read-write.
 
 See also: :mod:`pitloom.extract._usage_ast` (the scan that reads it) and
 :mod:`pitloom.core.model_usage` (the accesses).
@@ -30,6 +36,7 @@ from pitloom.core.model_usage import UsageAccess
 
 __all__ = [
     "MODE_CALLS",
+    "access_of_argument",
     "access_of_mode",
     "access_of_name",
     "is_mention_call",
@@ -81,8 +88,17 @@ _MENTION_NAMES: Final = frozenset(
         "log",
         "echo",
         "exit",
+        # Parse or build text in memory: no file is touched.
+        "loads",
+        "dumps",
     }
 )
+#: Methods that write what they are given into the receiver (``f.write(x)``)
+#: or read a file into it (``zipfile.ZipFile.write(path)``): a path passed to
+#: one is data or a file to read, which the name alone cannot tell.
+_DATA_METHODS: Final = frozenset({"write", "writelines", "write_text", "write_bytes"})
+#: ``dump(obj, file)``: the first argument is the data, the file comes second.
+_DATA_FIRST: Final = frozenset({"dump"})
 #: An exception built from the path is the message of the failure, not a use.
 _MENTION_SUFFIXES: Final = ("Error", "Exception", "Warning", "Exit")
 
@@ -112,6 +128,17 @@ def access_of_name(name: str) -> UsageAccess:
     if lowered.startswith(_WRITE_PREFIXES):
         return UsageAccess.WRITE
     return UsageAccess.UNKNOWN
+
+
+def access_of_argument(name: str, index: int | None) -> UsageAccess:
+    """:func:`access_of_name` for a path given as an argument of the call
+    *name*, at positional *index* (``None`` for a keyword, which names its
+    role): unknown where the path is in a data position (``f.write(path)``,
+    ``json.dump(path, f)``)."""
+    lowered = name.lower()
+    if lowered in _DATA_METHODS or (lowered in _DATA_FIRST and index == 0):
+        return UsageAccess.UNKNOWN
+    return access_of_name(name)
 
 
 def is_mention_call(name: str) -> bool:

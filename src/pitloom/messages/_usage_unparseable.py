@@ -66,7 +66,7 @@ USAGE_UNPARSEABLE_MENTION: Final = Message(
     summary="The text of a Python file that could not be parsed names an AI "
     "model file: it may use it, but only a parsed file says how.",
     did="Recorded no relationship between the file and the model. One line "
-    "per file and model.",
+    "per file and model file name.",
     effect="thinner",
     actor="none",
     advice="Nothing to do on its own: the usage-unparseable warning for the "
