@@ -26,6 +26,18 @@ entries stay in the last section for history.
   Action (S-M),** and its over-cap message is outside the shared wording.
   Only the library's Git entry point takes `max_bytes=` (#339).
   *Found 2026-10-29, Git LFS pointer work.*
+- [ ] **`loom project .` drops a `license = {file = ...}` that is a Git LFS
+  pointer with no warning (S).** `read_license_file`
+  (`extract/_license_detect.py`) logs the pointer at DEBUG only and relies on
+  the run's one pointer warning, which never fires because the root `LICENSE`
+  is not in the scanned file set; only the sdist route warns
+  (`[lfs-pointer/shipped]`). The licence is correctly left unstated (#422),
+  but a source that had an opinion and failed to deliver it should be visible.
+  Fix: record a declared licence file that turns out to be a pointer in
+  `UnreadPointers`, or reuse the existing pointer warning. The messages are
+  fenced for #413: it fits 0.22.1 only if it reuses an existing message,
+  else 0.23.0.
+  *Found 2026-11-02, cold review of the merges since 0.22.0 (#422).*
 - [ ] **A loom dataset package over a pointer differs from the main
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.

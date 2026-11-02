@@ -51,9 +51,6 @@ history.
   `<nested over 32 levels>` on `RecursionError`, so the CLI and the
   Hatchling hook (deeper stack) can write different bytes for a 500-950
   deep PT2 `extra/tags`. Decide from an explicit depth count.
-- [ ] **Display escape can merge two JSON keys (S).** Keys `"a<U+202E>"`
-  and `"a\\u202e"` in one `ai_informationAboutApplication` object spell
-  the same after `escape_display_controls_in_json`; one entry is dropped.
 - [ ] **PT2 tags spelt as Python repr (S, cross-format).**
   `pytorch_pt2.py` uses `source_element_text()` (scalars only) for
   non-scalar tags: `a, {'k': [1, True]}, null`. Use canonical JSON, as
@@ -68,10 +65,12 @@ history.
   in the set or on a named exclusion list. (b) U+200B-U+200D are escaped
   in prose, so Thai/Persian/Indic ZWNJ/ZWJ text is mangled and warns;
   escape them only in identity fields. (c) fastText has no label-count
-  cap; share `recordable_labels` with CRFsuite. (d) Lone-surrogate escape
-  runs before the name cut, which may split `\udXXX`. (e) Format-only
-  stub entries skip `settle_read_text` (non-UTF-8 stem would raise
-  `CanonicalizationError`); `physical_path` should stay out of the walk.
+  cap: a trained model records all its labels (1,200 in one), with no cap or
+  `WARNING:`, while CRFsuite stops at 1,000 and the docs describe only
+  CRFsuite's cap; share `recordable_labels` with CRFsuite. (d)
+  Lone-surrogate escape runs before the name cut, which may split `\udXXX`.
+  (e) Format-only stub entries skip `settle_read_text` (non-UTF-8 stem would
+  raise `CanonicalizationError`); `physical_path` should stay out of the walk.
   (f) `_license_classify._replace_surrogates` uses U+FFFD, the shared
   rule `\udXXX`.
 - [ ] **AI model `framework` provenance cites a value the SBOM never
@@ -103,10 +102,12 @@ history.
   text the display escape changed, but ONNX `raw_metadata` holds only
   opsets and `metadata_props`, so an escaped graph or input name has no
   original in the SBOM. Add them, or narrow the claim per format.
-- [ ] **A base model URL is unbounded (S).** Found in #294: the base model
-  name is cut at 1024 characters, but its `externalRef` locator
-  (`https://huggingface.co/<id>`) keeps the whole id read (a 1 MiB id gives
-  a 1 MiB locator). Bound or drop an over-long locator.
+- [ ] **A base model URL is unbounded (S, needs a decision).** Found in
+  #294: the base model name is cut at 1024 characters, but its `externalRef`
+  locator (`https://huggingface.co/<id>`) keeps the whole id read (a 1 MiB id
+  gives a 1 MiB locator, `_ai_package.py`). Decide: drop the `externalRef`
+  when the id is over `MAX_MODEL_NAME_CHARS` (with an over-cap `WARNING:`
+  such as "base model URL dropped"), or cut the locator as the name is cut.
 - [ ] **Over-cap CRFsuite model keeps only its name (S).** A model with more
   than 1,000 labels (or a hostile `num_labels`) gets the stub entry, though
   the header counts are cheap to read. Same stub rule as every format;
@@ -125,10 +126,15 @@ history.
   `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
 - [ ] **PT2 root-level `version` file is read as the model version (S).**
   `_read_pt2_zip` (`pytorch_pt2.py`) takes it as `version`, overridden by
-  `extra/model_version`. Unverified (no `torch` here): a real
-  `torch.export` / `torch.save` zip is believed to hold a serialization
-  format number there, which would be a format version, not a model version.
-  Check against a real archive.
+  `extra/model_version`. Verified 2026-11-02 against the PyTorch source (no
+  `torch` installed here): `torch/export/__init__.py` in v2.5.0 writes the
+  root `version` as `".".join(map(str, SCHEMA_VERSION))` with `SCHEMA_VERSION
+  = (7, 3)`, so it is the export schema version, not a model version. Fix: a
+  root `version` becomes `format_version` (provenance `Field: version`) only
+  when no `archive_version` was read, and no longer sets `version`; a
+  legacy `torch.export.save` file then loses a wrong `software_packageVersion`.
+  `tests/extract/ai_model/test_pytorch_pt2.py` pins `version == "2"` and must
+  flip; `docs/ai-model-formats.md` needs the same one-line change.
 - [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
   Questions, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
@@ -154,8 +160,11 @@ history.
 - [ ] **Safetensors name and framework (S).** `ss_base_model_version` (the
   base model, not this one) is a name candidate; prefer `ss_output_name`.
   Framework is the raw `format` value `pt`, not `pytorch`.
-- [ ] **Keras `layer_count` counts `InputLayer` (S).** `len(layers)` in
-  `hdf5_config.py`; Keras's own summary does not count it.
+- [ ] **Keras `layer_count` counts `InputLayer` (S, needs a decision).**
+  `len(layers)` in `hdf5_config.py`; a Sequential with an `InputLayer` and one
+  `Dense` gives 2. Keras 3 and a Sequential's `model.layers` leave the
+  `InputLayer` out, but a Keras 2 functional model counts it. Pick the rule;
+  `test_hdf5_hostile_attrs.py` pins the current count and must flip.
 - [ ] **Type of model holds a class or training mode (S).** PyTorch
   `OrderedDict` (a state dict) and fastText `supervised`/`cbow`/`skipgram`
   reach `ai_typeOfModel`; neither is a model type. Map or drop.
@@ -189,17 +198,15 @@ history.
   keep a blank or padded value (`"  "`) with its provenance, while PT2,
   GGUF `general.version` and ONNX `model_license` strip it and drop a blank
   one. One shared stated-text helper for every reader.
-- [ ] **fastText labels have no cap (S).** Found in the #294 review: a
-  trained model records all its labels (1,200 in one), with no cap or
-  `WARNING:`, while CRFsuite stops at 1,000; the docs describe only
-  CRFsuite's cap.
 - [ ] **`numpy.timedelta64` makes `canonical_json` raise (S).** Found in
   the #294 review: it is a `numbers.Integral`, so `json_safe` takes it as
   an integer and raises `TypeError`. No reader yields one today.
 - [ ] **`escape_display_controls_in_json` edge cases (S).** Found in the
-  #294 review, no reachable path: two keys can escape to the same text
-  (the later stays, silently), and a decoded `\ud800` next to a control
-  raises `CanonicalizationError`.
+  #294 review: two keys can escape to the same text and the later stays,
+  silently (reachable: keys `"a<U+202E>"` and `"a\\u202e"` in one
+  `ai_informationAboutApplication` object spell the same after the escape,
+  and one entry is dropped); and a decoded `\ud800` next to a control
+  raises `CanonicalizationError` (no reachable path).
 - [ ] **Model metadata spellings differ across readers (S).** Found in the
   #294 review: counts are `num_labels`/`num_features` in CRFsuite and
   fastText but `GGUF.tensor_count`, `layer_count` and
