@@ -8,8 +8,9 @@ SPDX-License-Identifier: CC0-1.0
 
 # Git LFS pointers
 
-See also: [known-bugs.md](../design/known-bugs.md#found-2026-10-29) (open
-follow-ups), [roadmap.md](../design/roadmap.md) (0.22.0),
+See also:
+[known-bugs.md](../design/known-bugs/remote-sources-lfs-and-datasets.md#found-in-review-rounds-not-yet-prioritised)
+(open follow-ups), [roadmap.md](../design/roadmap.md) (0.22.0),
 [sbom-format-gaps.md](../design/sbom-format-gaps.md) (FG-9 to FG-11),
 [ai-model-scan-security-lessons-transparency-and-correctness.md](ai-model-scan-security-lessons-transparency-and-correctness.md)
 (3.10, the model-only first step).

@@ -72,7 +72,7 @@ only caller that applies it to a prefix, and every caller passes a raw name.
 - `loom model` looks its model up by file stem, not name, so an id imported
   from a titled model's SBOM is not reused there. Not caused by the encoding
   (same on the pre-fix code); tracked in
-  [known-bugs.md](../design/known-bugs.md#p0-in-0210).
+  [known-bugs.md](../design/known-bugs/id-registry-and-identity.md#fixed-p0-in-0210).
 - `reserve_spdx_ids()` parses `<prefix>-<n>` out of a stored id, so its
   prefix is the encoded one. `generate_spdx_id()` keys its counter on the
   encoded prefix too, so a reservation and the next mint meet on the same
