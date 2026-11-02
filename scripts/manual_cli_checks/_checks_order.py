@@ -160,12 +160,19 @@ def classify(
     """G: the verdict on one permutation group's final registries, and the
     keys that make it a violation. *gated_off*: the keys an `id import`
     logged ``content gate dropped`` for in any of the sequences."""
-    if not finals or any(f is None for f in finals):
-        return "VIOLATION (no registry)", set()
     tables = [f for f in finals if f is not None]
+    if not finals or len(tables) != len(finals):
+        return "VIOLATION (no registry)", set()
     first = tables[0]
     if all(t == first for t in tables):
         return "order-independent", set()
+    return _structure_verdict(tables) or _sha_verdict(tables, gated_off)
+
+
+def _structure_verdict(tables: list[dict[Key, Entry]]) -> tuple[str, set[Key]] | None:
+    """G: the violation in the keys or the id classes of *tables* (all the
+    group's final registries, not all equal), or ``None`` when they agree."""
+    first = tables[0]
     odd = {k for t in tables for k in set(t) ^ set(first)}
     if odd:
         return "VIOLATION (key sets differ)", odd
@@ -183,6 +190,14 @@ def classify(
     odd = {k for t in tables for k, c in classes(t).items() if c != shape[k]}
     if odd:
         return "VIOLATION (ids not a type-preserving bijection)", odd
+    return None
+
+
+def _sha_verdict(
+    tables: list[dict[Key, Entry]], gated_off: frozenset[Key]
+) -> tuple[str, set[Key]]:
+    """G: the verdict on *tables* that differ only in ids and sha256 values."""
+    first = tables[0]
     odd = {k for t in tables for k, e in t.items() if e.sha != first[k].sha}
     if odd and not odd <= gated_off:
         return "VIOLATION (sha256 values differ)", odd - gated_off

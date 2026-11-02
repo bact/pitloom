@@ -147,8 +147,8 @@ def test_extract_provenance_empty_declared_dependencies() -> None:
     }
     with tempfile.TemporaryDirectory() as d:
         metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.dependencies == []
-    assert metadata.keywords == []
+    assert not metadata.dependencies
+    assert not metadata.keywords
     assert "dependencies" in metadata.provenance
     assert "keywords" in metadata.provenance
     assert "requires_python" in metadata.provenance

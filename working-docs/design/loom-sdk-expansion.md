@@ -217,7 +217,7 @@ not a side effect of the merge order.
 
 - `loom fragment validate A B` fails on two `loom.run` fragments: both name
   their creation info `_:CreationInfo0`
-  ([known-bugs-p3.md](known-bugs-p3.md)).
+  ([known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200)).
 - The model provenance annotation's document name falls back to `"model"`
   (`_loom_model.py`, `declared.name or "model"`); unchecked against the name
   cascade (same file).

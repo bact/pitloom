@@ -278,8 +278,10 @@ under "Open follow-ups by area".
 Shipped #287, #289, #291: setuptools precedence, licence detection on
 Windows. Three planned fixes (a very long lock-file version, Safetensors
 licence keys, a `%` in `setup.cfg`) did not make it; they are in
-[known-bugs.md](../design/known-bugs.md#p2-0210-and-later). The Safetensors
-licence keys were fixed in 0.22.0 (#376).
+[known-bugs.md](../design/known-bugs/extraction-and-fragments.md#fixed-p2-0210-and-later)
+and
+[known-bugs.md](../design/known-bugs/ai-models-readers-and-metadata.md#fixed-p2-0210-and-later).
+The Safetensors licence keys were fixed in 0.22.0 (#376).
 
 ### 0.20.2 (released 2026-10-09, tag v0.20.2)
 
@@ -341,8 +343,9 @@ See [release-checklist.md](release-checklist.md). Released 2026-10-28
   SourceHut slash branches, the process tree killed on Windows.
 - [x] **One default SBOM file name** (#334): one helper for the CLI, the hook
   and `embed-wheel`. It replaces unsafe characters only, not PEP 427's
-  escaping as [known-bugs.md](../design/known-bugs.md#p0-in-0210) decided;
-  whether to change the rule is open.
+  escaping as
+  [known-bugs.md](../design/known-bugs/surfaces-hook-and-wheel.md#fixed-p0-in-0210)
+  decided; whether to change the rule is open.
 
 ### G7, conformance and SHA-512
 
