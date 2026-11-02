@@ -105,6 +105,15 @@ def check_lfs_pointers(ctx: Context) -> None:
     texts."""
     project = ctx.work / "proj"
     pointers = _write_project(project)
+    _project_scan(ctx, project, pointers)
+    _model_refused(ctx, project, pointers)
+    _wheel_hashes(ctx, project, pointers)
+    ctx.note("4 pointers by oid, 1 WARNING; model refused; wheel hashes the text")
+
+
+def _project_scan(ctx: Context, project: Path, pointers: dict[str, bytes]) -> None:
+    """Check 23's ``project`` runs: one WARNING, each pointer's hashes, no
+    ``ai_AIPackage``, two byte-identical runs."""
     out = ctx.work / "a.json"
     result = run_ok(
         "project",
@@ -149,6 +158,10 @@ def check_lfs_pointers(ctx: Context) -> None:
     run_ok("project", *_OPTIONS, "-o", str(again), str(project))
     expect(out.read_bytes() == again.read_bytes(), "project: two runs differ")
 
+
+def _model_refused(ctx: Context, project: Path, pointers: dict[str, bytes]) -> None:
+    """Check 23's ``loom model`` of the ``.bin`` pointer: exit 1, one
+    ``ERROR:`` naming the ``oid``, nothing written."""
     refused = ctx.work / "m.json"
     model = run_loom("model", str(project / _MODEL), "-o", str(refused), *_OPTIONS)
     errors = [ln for ln in model.stderr_lines if ln.startswith("ERROR:")]
@@ -161,6 +174,10 @@ def check_lfs_pointers(ctx: Context) -> None:
     )
     expect(not refused.exists(), "loom model: output written despite refusal")
 
+
+def _wheel_hashes(ctx: Context, project: Path, pointers: dict[str, bytes]) -> None:
+    """Check 23's wheel: one ``shipped`` WARNING and the hashes of the
+    pointer texts."""
     wheel = build_wheel(project, ctx.work / "dist")
     built = ctx.work / "w.json"
     run = run_ok("wheel", str(wheel), "-o", str(built), *_OPTIONS)
@@ -174,4 +191,3 @@ def check_lfs_pointers(ctx: Context) -> None:
             hashes["sha256"]["hashValue"] == digest and "sha512" in hashes,
             f"wheel {rel}: want the hashes of the pointer text, got {hashes}",
         )
-    ctx.note("4 pointers by oid, 1 WARNING; model refused; wheel hashes the text")
