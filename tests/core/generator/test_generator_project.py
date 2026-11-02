@@ -144,9 +144,10 @@ version = "1.0.0"
             generate_project_sbom(tmppath, content_type_method="mimetypes")
 
 
-def test_build_main_package_no_purl_without_real_version() -> None:
-    """No PURL is set when the version is unknown."""
-    project = ProjectMetadata(name="no-version-project")
+@pytest.mark.parametrize("version", [None, "unknown"], ids=["absent", "unknown"])
+def test_build_main_package_no_purl_without_real_version(version: str | None) -> None:
+    """No PURL is set when the version is absent or the placeholder "unknown"."""
+    project = ProjectMetadata(name="no-version-project", version=version)
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
     exporter = build(doc)
