@@ -26,7 +26,6 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._dep_groups import project_dependencies
-from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
 from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3._document_file_hits import resolve_file_hits
@@ -294,19 +293,7 @@ def build(
     )
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
-    release_info_cache = (
-        None
-        if offline
-        else _prefetch_combined_release_info(
-            [
-                dep
-                for dep in metadata.dependencies
-                if not is_self_reference(dep, metadata.name)
-            ],
-            transitive_only,
-            locked_versions=locked_versions,
-        )
-    )
+    release_info_cache = None if offline else _prefetch_combined_release_info(groups)
 
     # --- Dependencies ---
     # One author-split warning for every dependency of the document.

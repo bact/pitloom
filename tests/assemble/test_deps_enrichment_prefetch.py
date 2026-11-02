@@ -31,6 +31,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_originator, deps_pypi
+from pitloom.assemble.spdx3._dep_groups import project_dependencies
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_release_hash,
@@ -39,6 +40,7 @@ from pitloom.assemble.spdx3.deps_pypi import (
 )
 from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import fetch_json
 from tests._network import skip_on_network_error
@@ -407,7 +409,8 @@ def test_prefetch_pypi_release_infos_worker_exception(
 def test_prefetch_combined_release_info_with_transitive_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """_prefetch_combined_release_info resolves and prefetches transitive-only deps."""
+    """_prefetch_combined_release_info fetches the versions the groups resolved,
+    transitive-only dependencies included."""
     calls: list[tuple[str, str]] = []
 
     def _mock_prefetch(pairs: Any) -> dict[Any, Any]:
@@ -418,16 +421,18 @@ def test_prefetch_combined_release_info_with_transitive_only(
         "pitloom.assemble.spdx3._document_locked_deps._prefetch_pypi_release_infos",
         _mock_prefetch,
     )
+    project = ProjectMetadata(name="main", dependencies=["requests>=2.0"])
     _prefetch_combined_release_info(
-        ["requests>=2.0"], ["urllib3==2.0.0"], locked_versions={"requests": "2.31.0"}
+        project_dependencies(project, ["urllib3==2.0.0"], {"requests": "2.31.0"})
     )
     assert ("requests", "2.31.0") in calls
     assert ("urllib3", "2.0.0") in calls
 
-    # Also test locked_versions=None branch
+    # Also test the unlocked branch
     calls.clear()
+    project = ProjectMetadata(name="main", dependencies=["requests==2.31.0"])
     _prefetch_combined_release_info(
-        ["requests==2.31.0"], ["urllib3==2.0.0"], locked_versions=None
+        project_dependencies(project, ["urllib3==2.0.0"], {})
     )
     assert ("requests", "2.31.0") in calls
     assert ("urllib3", "2.0.0") in calls
