@@ -292,7 +292,8 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   sdist: log each effective option on stderr as `INFO: OPTION=<name>
   SOURCE=<source> VALUE=<value>` (an sdist's own `pyproject.toml` source is
   its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/`model`/
-  `enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`: none) and
+  `enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`: standard
+  output; none for `wheel --embed` without `-o`, which writes no copy) and
   the `PROJECT_DIR` of `enrich` and `wheel`. `generate` on any other target and `embed-wheel`
   warn that `-v` has no effect.
 - `--project-dir DIR` -- on `wheel`, and `project`/`generate` with an sdist or
