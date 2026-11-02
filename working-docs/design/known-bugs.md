@@ -42,15 +42,15 @@ lists its open entries first, ranked as described under
 
 | Part | P0 | P1 | P2 | P3 | Found | Leads | Open | Fixed |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
-| [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 43 | - | - | 43 | 2 |
+| [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 41 | - | - | 41 | 2 |
 | [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 4 | 3 | 8 | - | 15 | 7 |
-| [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 8 | - | 11 | 9 |
+| [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 10 |
 | [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 13 | - | 15 | 7 |
-| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 9 | - | 9 | 7 |
-| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 1 | - | 13 | 10 |
+| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 10 | - | 10 | 7 |
+| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 3 | - | 15 | 10 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 8 | 2 | 2 | 12 | 4 |
-| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 4 | - | 6 | 8 |
-| **Total** | **1** | **3** | **7** | **66** | **45** | **2** | **124** | **54** |
+| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 7 | - | 9 | 8 |
+| **Total** | **1** | **3** | **7** | **64** | **53** | **3** | **131** | **55** |
 
 ## Parts
 
