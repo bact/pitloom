@@ -67,8 +67,9 @@ when it is a known registry type (`software_File`, `software_Package`,
 2), not part of `NAME`. Anything else is part of `NAME`, so a URL or a
 Windows drive path works, as in
 `-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`. A trailing
-`:`, a `TYPE` with white space around it, a control character (a newline) or a
-blank `NAME` is a usage error too.
+`:`, a `TYPE` with white space around it, a control character (a newline), a
+blank `NAME` or a package `NAME` that is not a PEP 508 name (`foo==1.0`:
+write `foo@1.0`) is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
 absolute IRI without `#`; default: the project directory's name and a
 random UUID4); an existing registry with another namespace is one `ERROR:`,

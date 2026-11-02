@@ -204,7 +204,9 @@ key](#package-keys) (`-e Requests@2.31.0:software_Package` is
 `requests@2.31`, with `INFO: ID registry: -e <name> stored as <key>`); a `NAME`
 with no `@VERSION` holds only a package that states no version, with `INFO: ID
 registry: -e <name> stored without a version: holds only a package that states
-none`. The other types are stored verbatim. A script that runs
+none`. A package `NAME` that is not a PEP 508 name (`foo==1.0`, `foo 1.0`)
+is a usage error (exit 2); `==` adds a hint to write `NAME@VERSION`. The
+other types are stored verbatim. A script that runs
 from `scripts/` and declares `../data/t.txt` is looked up as `data/t.txt`:
 pin `-e data/t.txt:dataset_DatasetPackage`, the path from the project root.
 The script's own string matters only for a dataset with no path below the root.
