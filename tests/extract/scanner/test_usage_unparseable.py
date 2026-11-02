@@ -23,6 +23,7 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
+import tempfile
 from contextlib import AbstractContextManager
 from unittest.mock import patch
 
@@ -31,6 +32,7 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.extract._usage_ast import parse_python, python_version
+from pitloom.extract._usage_attach import usage_models
 from pitloom.extract.scanner import UsageSource, attach_usage_references
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
@@ -165,7 +167,7 @@ def test_same_named_models_emit_mention_once_and_escape_newlines(
 ) -> None:
     """Two models in different directories sharing a file name emit one
     ``usage-unparseable/mention`` line per file, and a newline in the source
-    path or model name cannot forge a second log line."""
+    path cannot forge a second log line."""
     m1 = AiModelMetadata(
         format_info=AiModelFormatInfo(
             model_format=AiModelFormat.ONNX,
@@ -193,3 +195,29 @@ def test_same_named_models_emit_mention_once_and_escape_newlines(
     for rec in (*warnings, *infos):
         assert "\n" not in rec.getMessage()
         assert record_problem(rec) is None
+
+
+def test_usage_models_keeps_a_temporary_physical_path_out_of_the_paths() -> None:
+    """An ``--allow-build`` file has an absolute temporary ``physical_path``:
+    it must not reach the model's paths, whatever the caller."""
+    temp = tempfile.gettempdir().replace("\\", "/")
+    meta = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            model_format=AiModelFormat.ONNX,
+            file_name="m.onnx",
+            file_path_relative="pkg/m.onnx",
+            physical_path=f"{temp}/build-x/pkg/m.onnx",
+        )
+    )
+    same = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            model_format=AiModelFormat.ONNX,
+            file_name="m.onnx",
+            file_path_relative="pkg/m.onnx",
+            physical_path="pkg/m.onnx",
+        )
+    )
+    assert [m.paths for _, m in usage_models([meta, same])] == [
+        ("pkg/m.onnx",),
+        ("pkg/m.onnx",),
+    ]

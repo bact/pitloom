@@ -109,7 +109,20 @@ Constant resolution, within **one file** only:
 - `Path("a") / "b"`, `os.path.join("a", "b")`, `PurePosixPath(...)`, with
   literal parts;
 - f-strings and `"..." % ...` / `.format()` with constant or partially
-  constant parts (bounded to depth 64 and 4,096 characters).
+  constant parts (bounded to depth 64 and 4,096 characters; an expression
+  over either is not followed at all, so a capped operand never leaves a bare
+  tail that matches). `.format` fields with an attribute, index, conversion
+  other than `!s` or a spec, a bare `%s` only, `%%`/`{{` escapes, `%(name)s`
+  with a dict, and positions after a `*iterable` are handled; `**mapping` and
+  `*iterable` arguments leave their values unknown.
+
+Decided losses (each was `unknown access` before the AST fix round): an
+unknown template or receiver (`tmpl.format("data/model.ftz")`,
+`base % "model.ftz"`) and `"data/model.ftz" + ext` give no edge, since the
+file named is `model.ftz<ext>` or unknown; `os.path.join(unknown,
+"model.ftz")` still matches, as a join keeps its last part whole. A model at
+the project root matches a rooted `/model.ftz`, `~/model.ftz` or
+`C:\model.ftz` but not the checkout's own absolute path.
 
 Out of scope for the first version: values imported from another module,
 `**kwargs`, `getattr`, config files, notebooks. The docs keep saying

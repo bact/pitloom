@@ -204,6 +204,40 @@ def test_mention_only_and_non_path_strings_produce_no_edge(code: str) -> None:
             {UsageAccess.UNKNOWN},
         ),
         ('self.path = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),
+        ('open("{\u00b2}".format(1))\nW = "model.ftz"\n', {UsageAccess.UNKNOWN}),
+        (
+            'M = "data/model.ftz"\ndef f(p=M):\n    return open(p, "wb")\n',
+            {UsageAccess.WRITE},
+        ),
+        (
+            'B = "other"\ndef f(p=B + "/model.ftz"):\n    return open(p)\n',
+            set(),
+        ),
+        ('A = "data/model.ftz"\nB = A\nprint(B)\n', set()),
+        ('A = "data/model.ftz"\nB = A\nopen(B, "wb")\n', {UsageAccess.WRITE}),
+        (
+            'from pathlib import Path\nM = "data/model.ftz"\nP = Path(M)\n'
+            "torch.load(P)\n",
+            {UsageAccess.READ},
+        ),
+        ('open("{!s}/{}".format("model.ftz", "x"))\n', set()),
+        ('open("{:s}/{}".format("data", "model.ftz"))\n', {UsageAccess.READ}),
+        ('open("data/{n!s}".format(n="model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{.x}/{}".format(a, "model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{:{}}/{}".format("a", 4, "model.ftz"))\n', set()),
+        ('open("{}/{}".format(*xs, "model.ftz"))\n', set()),
+        ('open("%s/%s" % (*xs, "model.ftz"))\n', set()),
+        ('open("{{}}/{}".format("model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{".format("model.ftz"))\n', set()),
+        ('open("x%%s/%s" % "model.ftz")\n', {UsageAccess.READ}),
+        ('open("%5s" % "model.ftz")\n', set()),
+        ('open("%*d/%s" % (3, 4, "model.ftz"))\n', set()),
+        ('open("data/%(n)s" % {"n": "model.ftz"})\n', {UsageAccess.READ}),
+        ('open("other/%(n)s" % {"n": "model.ftz"})\n', set()),
+        ('open("data/%(n)s" % ("model.ftz",))\n', set()),
+        ('open("data/%(n)s" % {**d, "m": "model.ftz"})\n', set()),
+        ("open(f\"{'data/model.ftz'!s}\")\n", {UsageAccess.READ}),
+        ("open(f\"{'data/model.ftz'!r}\")\n", {UsageAccess.UNKNOWN}),
         ("def load(*, p):\n    return p\n", set()),
         ("def load(p=1):\n    return p\n", set()),
         ('open(base % "model.ftz")\n', set()),
@@ -285,6 +319,19 @@ def test_deep_and_exponential_constants_stay_bounded() -> None:
 
     deep = " + ".join(['"a"'] * 200)
     assert _accesses(f'x = {deep}\nopen("model.ftz")\n') == {UsageAccess.READ}
+
+
+def test_expression_over_a_cap_is_not_followed() -> None:
+    """Past the depth or length cap an expression gives no edge, not just
+    the tail that is left of it."""
+    nested = "Path(" * 70 + '"other"' + ")" * 70
+    assert _accesses(f'open({nested} / "model.ftz")\n') == set()
+    assert _accesses('open(Path(Path("other")) / "model.ftz")\n') == set()
+    shallow = 'from pathlib import Path\nopen(Path(Path("data")) / "model.ftz")\n'
+    assert _accesses(shallow) == {UsageAccess.READ}
+    long = "x" * 4100
+    assert _accesses(f'open(base + "{long}" + "/model.ftz")\n') == set()
+    assert _accesses('open(base + "data" + "/model.ftz")\n') == {UsageAccess.READ}
 
 
 def test_read_and_write_in_one_file_both_recorded() -> None:

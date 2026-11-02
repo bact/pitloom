@@ -18,6 +18,7 @@ See also: :mod:`pitloom.extract._usage_ast` (which finds the paths).
 from __future__ import annotations
 
 import re
+import string
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final
@@ -41,8 +42,15 @@ _ROOT_START: Final = re.compile(r"^(?:[A-Za-z]:)?[/\\]")
 _START: Final = re.compile(r"^(?:~|[A-Za-z]:)$")
 #: A component with a format placeholder: not known.
 _UNKNOWN: Final = re.compile(r"[%{]")
-_FORMAT_FIELD: Final = re.compile(r"\{([^{}]*)\}")
-_PERCENT_SPEC: Final = re.compile(r"%[a-zA-Z]")
+#: A part of a template that is not known, until the template is cut after it.
+_HOLE: Final = "\x00"
+_FORMATTER: Final = string.Formatter()
+#: The name of a ``str.format`` field ends where its attribute or index starts.
+_FIELD_HEAD: Final = re.compile(r"[.\[]")
+_PERCENT_SPEC: Final = re.compile(
+    r"%(?:\((?P<key>[^)]*)\))?(?P<flags>[#0\- +]*)(?P<width>\d+|\*)?"
+    r"(?:\.(?P<prec>\d+|\*))?[hlL]?(?P<conv>[a-zA-Z%])"
+)
 
 
 @dataclass(frozen=True)
@@ -87,47 +95,85 @@ def join_paths(parts: Sequence[str | None]) -> str | None:
     return joined
 
 
+def _filled(rendered: str) -> str | None:
+    """A rendered template as a path: after the last unknown part
+    (:data:`_HOLE`) only what follows its first separator is known."""
+    if _HOLE in rendered:
+        return after_first_separator(rendered.rsplit(_HOLE, 1)[-1])
+    return rendered or None
+
+
+def _named_arg(
+    head: str, args: Sequence[str | None], kwargs: Mapping[str, str | None]
+) -> str | None:
+    """The argument a ``str.format`` field names: by position (ASCII digits
+    only: ``int("\u00b2")`` raises) or by keyword."""
+    if head.isascii() and head.isdigit():
+        return args[int(head)] if int(head) < len(args) else None
+    return kwargs.get(head)
+
+
 def format_template(
     template: str,
     args: Sequence[str | None],
     kwargs: Mapping[str, str | None],
 ) -> str | None:
-    """``template.format(*args, **kwargs)`` with known arguments filled in."""
+    """``template.format(*args, **kwargs)`` with known arguments filled in.
+    A positional argument past the end of *args* (what follows a ``*args``
+    that is not known) is not known; neither is a field with an attribute,
+    an index, a conversion other than ``!s`` or a format spec."""
+    try:
+        fields = list(_FORMATTER.parse(template))
+    except ValueError:
+        return None
+    out: list[str] = []
+    index = 0
+    for literal, name, spec, conversion in fields:
+        out.append(literal)
+        if name is None:
+            continue
+        head = _FIELD_HEAD.split(name, 1)[0]
+        if head == "":
+            value = args[index] if index < len(args) else None
+            index += 1
+        else:
+            value = _named_arg(head, args, kwargs)
+        if "{" in (spec or ""):
+            index = len(args)
+        plain = head == name and conversion in (None, "s") and spec in (None, "", "s")
+        out.append(value if plain and value is not None else _HOLE)
+    return _filled("".join(out))
+
+
+def percent_template(
+    template: str, values: Sequence[str | None] | Mapping[str, str | None]
+) -> str | None:
+    """``template % values`` with known values filled in: positional ones
+    for a sequence, ``%(name)s`` ones for a mapping. Only a bare ``%s`` takes
+    a value; ``%%`` is a percent sign; a ``*`` width takes an argument and
+    leaves the later ones not known."""
     index = 0
 
     def _replace(match: re.Match[str]) -> str:
         nonlocal index
-        field = match.group(1)
-        if field == "":
-            val = args[index] if index < len(args) else None
+        conv, key = match.group("conv"), match.group("key")
+        if conv == "%":
+            return "%"
+        value: str | None = None
+        if isinstance(values, Mapping):
+            value = values.get(key) if key is not None else None
+        elif key is None:
+            value = values[index] if index < len(values) else None
             index += 1
-        elif field.isdigit():
-            pos = int(field)
-            val = args[pos] if pos < len(args) else None
-        else:
-            val = kwargs.get(field)
-        return val if val is not None else "{}"
+        if "*" in match.group(0):
+            index = len(values)
+            return _HOLE
+        bare = conv == "s" and not any(
+            match.group(group) for group in ("flags", "width", "prec")
+        )
+        return value if bare and value is not None else _HOLE
 
-    rendered = _FORMAT_FIELD.sub(_replace, template)
-    if "{}" in rendered:
-        return after_first_separator(rendered.rsplit("{}", 1)[-1])
-    return rendered or None
-
-
-def percent_template(template: str, values: Sequence[str | None]) -> str | None:
-    """``template % values`` with known positional values filled in."""
-    index = 0
-
-    def _replace(_match: re.Match[str]) -> str:
-        nonlocal index
-        val = values[index] if index < len(values) else None
-        index += 1
-        return val if val is not None else "%s"
-
-    rendered = _PERCENT_SPEC.sub(_replace, template)
-    if "%" in rendered:
-        return after_first_separator(rendered.rsplit("%", 1)[-1])
-    return rendered or None
+    return _filled(_PERCENT_SPEC.sub(_replace, template))
 
 
 def _components(path: str) -> list[str]:

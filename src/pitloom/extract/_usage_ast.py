@@ -57,8 +57,12 @@ __all__ = ["PARSE_ERRORS", "find_usages", "parse_python", "python_version"]
 #: fail only on this Python: syntax it is too old to know.
 PARSE_ERRORS: Final = (SyntaxError, ValueError, MemoryError, RecursionError)
 
+#: Caps on following one path expression. An expression over either is not
+#: followed at all (no edge from it), not read as its tail.
 _MAX_DEPTH: Final = 64
 _MAX_PATH_CHARS: Final = 4096
+#: An f-string conversion that leaves a string as it is: none or ``!s``.
+_PLAIN_CONVERSIONS: Final = (-1, ord("s"))
 #: Calls that build a path from their arguments, by the last name of the
 #: callee (the module is not told apart: ``Path`` is ``pathlib.Path``).
 _PATH_TYPES: Final = frozenset({"Path", "PurePath", "PurePosixPath", "PureWindowsPath"})
@@ -70,6 +74,10 @@ _PATH_FUNCTIONS: Final = frozenset(
 _JOINS: Final = frozenset({"os.path.join", "posixpath.join", "ntpath.join"})
 #: Methods that give the receiver's path back (``Path(...).resolve()``).
 _SAME_PATH_METHODS: Final = frozenset({"resolve", "expanduser", "absolute"})
+
+
+class _OverCap(Exception):
+    """A path expression is deeper or longer than the caps allow."""
 
 
 def python_version() -> str:
@@ -161,10 +169,25 @@ class _Scan:
                 bindings.append((node, bound))
             else:
                 self._take(node)
-        for node, name in bindings:
-            for index in self._hits(node):
+        hit = [(node, name, self._hits(node)) for node, name in bindings]
+        self._propagate_reach(hit)
+        for _, name, indices in hit:
+            for index in indices:
                 if name not in self._reached[index]:
                     self.found[index].add(UsageAccess.UNKNOWN)
+
+    def _propagate_reach(self, hit: list[tuple[ast.AST, str, list[int]]]) -> None:
+        """A constant built from others is a read of them when it is read."""
+        changed = True
+        while changed:
+            changed = False
+            for node, name, indices in hit:
+                loaded = self._loaded_names(node)
+                for index in indices:
+                    reached = self._reached[index]
+                    if name in reached and not loaded <= reached:
+                        reached |= loaded
+                        changed = True
 
     def results(self) -> list[frozenset[UsageAccess]]:
         """The accesses recorded for each model in the order given."""
@@ -176,14 +199,21 @@ class _Scan:
         """Remember each name that is bound to a path once, in source order
         (so ``B = A + "/x"`` finds ``A``), including function defaults."""
         counts = _bind_counts(tree)
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                self._track_defaults(node.args, counts)
-        assigns = sorted(
-            (n for n in ast.walk(tree) if isinstance(n, (ast.Assign, ast.AnnAssign))),
+        binders = sorted(
+            (
+                n
+                for n in ast.walk(tree)
+                if isinstance(
+                    n,
+                    (ast.Assign, ast.AnnAssign, ast.FunctionDef, ast.AsyncFunctionDef),
+                )
+            ),
             key=lambda n: (n.lineno, n.col_offset),
         )
-        for node in assigns:
+        for node in binders:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self._track_defaults(node.args, counts)
+                continue
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             if node.value is None or len(targets) != 1:
                 continue
@@ -210,16 +240,27 @@ class _Scan:
                     self._consts[arg.arg] = value
                     self._defaults[default] = arg.arg
 
-    def _static(self, node: ast.AST, depth: int = 0) -> str | None:
+    def _static(self, node: ast.AST) -> str | None:
         """The path *node* spells, or the end of it when its start is not
-        known; ``None`` when it is no path of this file."""
-        if depth > _MAX_DEPTH:
+        known; ``None`` when it is no path of this file or is over the caps."""
+        try:
+            return self._sub(node, 0)
+        except _OverCap:
             return None
+
+    def _sub(self, node: ast.AST, depth: int) -> str | None:
+        """:meth:`_static` for a part of an expression, *depth* levels in.
+
+        Raises:
+            _OverCap: The expression is too deep or too long to follow.
+        """
+        if depth > _MAX_DEPTH:
+            raise _OverCap
         if node in self._cache:
             return self._cache[node]
         value = self._eval_static(node, depth + 1)
         if value is not None and len(value) > _MAX_PATH_CHARS:
-            value = None
+            raise _OverCap
         self._cache[node] = value
         return value
 
@@ -244,10 +285,10 @@ class _Scan:
             return part.value
         if (
             isinstance(part, ast.FormattedValue)
-            and part.conversion == -1
+            and part.conversion in _PLAIN_CONVERSIONS
             and part.format_spec is None
         ):
-            return self._static(part.value, depth)
+            return self._sub(part.value, depth)
         return None
 
     def _fstring(self, node: ast.JoinedStr, depth: int) -> str | None:
@@ -264,20 +305,40 @@ class _Scan:
             return after_first_separator(text)
         return text or None
 
+    def _values(self, nodes: Sequence[ast.expr], depth: int) -> list[str | None]:
+        """The paths of *nodes*, up to the first ``*iterable`` (what follows
+        it has no known position)."""
+        values: list[str | None] = []
+        for node in nodes:
+            if isinstance(node, ast.Starred):
+                break
+            values.append(self._sub(node, depth))
+        return values
+
+    def _percent(self, node: ast.BinOp, depth: int) -> str | None:
+        """``template % values`` as a path."""
+        template = self._sub(node.left, depth)
+        if template is None:
+            return None
+        operand = node.right
+        if isinstance(operand, ast.Dict):
+            named = {
+                key.value: self._sub(value, depth)
+                for key, value in zip(operand.keys, operand.values, strict=True)
+                if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            }
+            return percent_template(template, named)
+        elts = operand.elts if isinstance(operand, ast.Tuple) else [operand]
+        return percent_template(template, self._values(elts, depth))
+
     def _binop(self, node: ast.BinOp, depth: int) -> str | None:
         """``a + b``, ``a / b`` (``Path``) and ``a % b`` as a path."""
         if isinstance(node.op, ast.Mod):
-            template = self._static(node.left, depth)
-            if template is None:
-                return None
-            elts = (
-                node.right.elts if isinstance(node.right, ast.Tuple) else [node.right]
-            )
-            return percent_template(template, [self._static(e, depth) for e in elts])
-        right = self._static(node.right, depth)
+            return self._percent(node, depth)
+        right = self._sub(node.right, depth)
         if right is None or not isinstance(node.op, (ast.Add, ast.Div)):
             return None
-        left = self._static(node.left, depth)
+        left = self._sub(node.left, depth)
         if isinstance(node.op, ast.Div):
             return join_path(left, right)
         if left is None:
@@ -303,24 +364,24 @@ class _Scan:
     def _call_path(self, call: ast.Call, depth: int) -> str | None:
         """What a call that builds or passes on a path gives, else ``None``."""
         dotted, last = self._callee(call.func)
-        parts = [self._static(arg, depth) for arg in call.args]
+        parts = [self._sub(arg, depth) for arg in call.args]
         if dotted in _JOINS or last in _PATH_TYPES:
             return join_paths(parts) if parts else None
         if last in _PATH_FUNCTIONS and len(parts) == 1:
             return parts[0]
         if isinstance(call.func, ast.Attribute):
-            receiver = self._static(call.func.value, depth)
+            receiver = self._sub(call.func.value, depth)
             if call.func.attr in _SAME_PATH_METHODS:
                 return receiver
             if call.func.attr == "joinpath":
                 return join_paths([receiver, *parts])
             if call.func.attr == "format" and receiver is not None:
                 kwargs = {
-                    kw.arg: self._static(kw.value, depth)
+                    kw.arg: self._sub(kw.value, depth)
                     for kw in call.keywords
                     if kw.arg is not None
                 }
-                return format_template(receiver, parts, kwargs)
+                return format_template(receiver, self._values(call.args, depth), kwargs)
         return None
 
     def _is_path_call(self, call: ast.Call) -> bool:
@@ -339,11 +400,13 @@ class _Scan:
     def _in_parent_path(self, node: ast.AST) -> bool:
         """Whether *node* is an operand of an enclosing path expression."""
         parent = self._parents.get(node)
-        if isinstance(parent, (ast.JoinedStr, ast.FormattedValue)):
+        if isinstance(parent, ast.JoinedStr):
             return True
+        if isinstance(parent, ast.FormattedValue):
+            return parent.conversion in _PLAIN_CONVERSIONS and not parent.format_spec
         if isinstance(parent, ast.BinOp):
             return isinstance(parent.op, (ast.Add, ast.Div, ast.Mod))
-        if isinstance(parent, ast.Tuple):
+        if isinstance(parent, (ast.Tuple, ast.Dict)):
             grand = self._parents.get(parent)
             return isinstance(grand, ast.BinOp) and isinstance(grand.op, ast.Mod)
         if isinstance(parent, ast.keyword):
@@ -392,16 +455,21 @@ class _Scan:
             return []
         return [i for i, model in enumerate(self._models) if matches(text, model)]
 
+    @staticmethod
+    def _loaded_names(node: ast.AST) -> set[str]:
+        """The names *node* reads."""
+        return {
+            sub.id
+            for sub in ast.walk(node)
+            if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load)
+        }
+
     def _take(self, node: ast.AST) -> None:
         """Record *node* if it is a top-level path expression naming a model."""
         hits = self._hits(node)
         if not hits:
             return
-        names = {
-            sub.id
-            for sub in ast.walk(node)
-            if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load)
-        }
+        names = self._loaded_names(node)
         access = self._access(node)
         for index in hits:
             self._reached[index].update(names)
@@ -466,10 +534,8 @@ def find_usages(
     tree: ast.Module, models: Sequence[UsageModel]
 ) -> list[frozenset[UsageAccess]]:
     """For each of *models*, the accesses *tree* makes to it, in the order of
-    *models*; an empty set for a model it does not use.
-
-    Raises:
-        RecursionError: *tree* is nested too deeply to follow a path in it.
+    *models*; an empty set for a model it does not use. A path expression
+    over the depth or length caps is not followed.
     """
     scan = _Scan(tree, models)
     scan.run(tree)
