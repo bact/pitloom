@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import (
+    MAX_MODEL_ENTRIES,
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
@@ -25,13 +26,17 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
 )
 from pitloom.extract.ai_model.formats import Limits
-from pitloom.extract.ai_model.limits import recordable_labels
+from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import field_loss_suffix, loggable
+from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
 _LIMITS = Limits()
+#: Most labels recorded, as CRFsuite's label count: a model with more keeps
+#: its label count (``outputs``) and records no label.
+_LABELS_CAP = Cap(MAX_MODEL_ENTRIES, "label", "label-count")
 
 # Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
 # The Python fasttext package exposes training configuration via the C++
@@ -167,7 +172,9 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     ``supervised``) is mapped to ``type_of_model``.  Labels, ``outputs``
     and the ``text classification`` domain are read for a ``supervised``
     model only: an unsupervised model's ``get_labels()`` is its word
-    vocabulary.
+    vocabulary.  A supervised model with more than ``MAX_MODEL_ENTRIES``
+    labels records none (one ``over-cap`` warning) and keeps its label count
+    in ``outputs``.
 
     Extracted hyperparameters: dim, epoch, wordNgrams, minCount, minn, maxn,
     neg, bucket, ws (window size).  ``lr`` and ``minCountLabel`` are not
@@ -201,7 +208,11 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     domain = ["natural language processing"]
     if supervised:
         domain.insert(0, "text classification")
-    labels = list(recordable_labels(read_labels, _LIMITS, str(model_path)))
+    labels: list[str] = []
+    if len(read_labels) > _LABELS_CAP.limit:
+        warn_over_cap(log, _LABELS_CAP, str(model_path), NO_LABEL)
+    else:
+        labels = list(recordable_labels(read_labels, _LIMITS, str(model_path)))
     properties: dict[str, str] = {}
     collections: dict[str, list[str]] = {}
     outputs: list[dict[str, Any]] = []
