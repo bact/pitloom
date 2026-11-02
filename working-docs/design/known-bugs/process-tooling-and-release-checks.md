@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,6 +30,20 @@ the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
+- [ ] **`test.yml` keeps workflow-level `permissions: read-all` (S).** The
+  `test` job inherits read on every scope; `contents: read` would do.
+  *Found 2026-11-02, cold review of #415 (noticed, not examined further).*
+- [ ] **The duplicate-push skip leaves `main` commits without a Codecov base
+  report (S).** A push run skipped by #415 uploads no coverage for that
+  commit, and the repository has no `codecov.yml`; a later PR may show
+  "missing base report". Not seen yet.
+  *Found 2026-11-02, cold review of #415 (noticed, not examined further).*
+- [ ] **`make_fetch_json` forwards the token on a redirect (S).**
+  `scripts/ci/skip_duplicate_push.py` checks the scheme of the first URL
+  only; `urllib` follows redirects, including https to http, and sends
+  `Authorization` along. Low impact (the token is job-scoped and read-only).
+  A no-redirect opener would close it.
+  *Found 2026-11-02, cold review of #415 (read from the code, not run).*
 - [ ] **The skills and example floors at 0.22.0 do not install until 0.22.0 is
   on PyPI (doc).**
   *Found 2026-10-30, from #407 (registry package key).*

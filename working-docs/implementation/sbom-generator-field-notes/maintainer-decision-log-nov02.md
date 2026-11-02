@@ -89,3 +89,16 @@ and a separate variant for an import that is found but fails.
 - Whether 0.22.1 is complete is not recorded: it is a set of open and merged
   PRs (#414 to #419 merged by 14:38 UTC; the macOS timing fix in progress on a
   branch) and no tag.
+
+## 5. Rulings of 2026-11-02 (later in the day)
+
+Three rulings by the maintainer, recorded after the log above.
+
+| Date | Decision | Why | Recorded in |
+| --- | --- | --- | --- |
+| 2026-11-02 | A registry package key treats only `unknown`, `NOASSERTION` and a blank version as "no version"; `none` and `n/a` do **not** count | No fixture, and no PyPI, lock-file or installed-metadata version, uses either spelling; neither is PEP 440; `foo@n/a` is a valid key and stays stable when normalised again. Add a spelling only when a real source is seen emitting it. `N/A` and `n/a` give two ids | this section |
+| 2026-11-02 | The Hatchling "file discovery failed" warning is coded in catalogue PR 12, not in 0.22.1 | The migration plan gives the Hatchling hook's messages their code in its PR 12 (0.23.0 list); the maintainer ruled that this warning follows it | this section |
+| 2026-11-02 | 0.22.1 was to be cut right after #422 and #423, but now **waits for #413** (the AST model-usage scan); the CHANGELOG, the coverage snapshots and the "Shipped in 0.22.1" entry of `roadmap-completed.md` are done on top of it | Not recorded beyond the ruling | this section |
+
+The ledger entry for the Git LFS pointer licence file (fixed by #422) is ticked
+in [the licences part of the ledger](../../design/known-bugs/licences-and-licenseid.md).
