@@ -62,12 +62,15 @@ def test_read_pytorch_pt2_format(tmp_path: Path) -> None:
     assert meta.format_info.model_format == AiModelFormat.PYTORCH_PT2
 
 
-def test_read_pytorch_pt2_version_file(tmp_path: Path) -> None:
+def test_read_pytorch_pt2_version_file_is_format_version(tmp_path: Path) -> None:
+    # The root ``version`` file is the export schema version, not the model's.
     model_file = tmp_path / "model.pt2"
     model_file.write_bytes(_make_pt2_zip({"version": b"2\n"}))
     meta = read_pytorch_pt2(model_file)
-    assert meta.version == "2"
-    assert "version" in meta.provenance
+    assert meta.version is None
+    assert "version" not in meta.provenance
+    assert meta.format_info.format_version == "2"
+    assert meta.provenance["format_version"].endswith("Field: version file")
 
 
 def test_read_pytorch_pt2_archive_contents_in_properties(tmp_path: Path) -> None:
@@ -479,7 +482,8 @@ def test_read_pt2_meta_entry_empty_dict() -> None:
 
 
 def test_read_pt2_zip_rich_metadata_combination() -> None:
-    """_read_pt2_zip parses root version, archive_version, extra/name, and graph io."""
+    """_read_pt2_zip parses archive_version over the root version, extra/name,
+    and graph io."""
     zip_bytes = _make_pt2_zip(
         {
             "version": b"0.9.0",
@@ -523,8 +527,8 @@ def test_read_pt2_zip_rich_metadata_combination() -> None:
 
     assert name == "overridden_name"
     assert description == "A rich model"
-    assert version == "0.9.0"
-    assert format_version == "2.1.0"
+    assert version is None  # the root ``version`` file is the schema's
+    assert format_version == "2.1.0"  # archive_version wins over it
     assert len(inputs) == 1
     assert inputs[0]["name"] == "tensor_in"
     assert len(outputs) == 1
