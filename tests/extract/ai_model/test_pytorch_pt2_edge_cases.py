@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import io as _io
 import json as _json
+import logging
 import zipfile as _zipfile
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,6 +26,7 @@ from pitloom.extract.ai_model.pytorch_pt2 import (
     _read_pt2_format_version,
     _read_pt2_graph_io,
     _read_pt2_zip,
+    read_pytorch_pt2,
 )
 
 from .test_pytorch_pt2 import _make_pt2_zip
@@ -133,12 +136,119 @@ def test_read_pt2_format_version_whitespace_only_returns_none() -> None:
 
 def test_read_pt2_zip_whitespace_only_version_file_skips_provenance() -> None:
     """A present ``version`` file that strips to empty content leaves
-    ``version`` unset and skips its provenance entry (line 300)."""
+    ``version`` and ``format_version`` unset and skips their provenance."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["version"]
     mock_zf.open.return_value.__enter__.return_value.read.return_value = b"  \n"
 
     res = _read_pt2_zip(mock_zf, "Source: model.pt2")
-    (_, _, version, _, _, _, provenance, _, _, _) = res
+    (_, _, version, _, format_version, _, provenance, _, _, _) = res
     assert version is None
+    assert format_version is None
     assert "version" not in provenance
+    assert "format_version" not in provenance
+
+
+@pytest.mark.parametrize(
+    ("model_json", "what"),
+    [
+        (b"[]", "model.json"),
+        (b'"x"', "model.json"),
+        (b'{"graph_module": []}', "graph_module"),
+        (b'{"graph_module": 3}', "graph_module"),
+        (b'{"graph_module": {"signature": "x"}}', "signature"),
+        (b'{"graph_module": {"signature": [1]}}', "signature"),
+    ],
+    ids=["array", "text", "module-array", "module-int", "sig-text", "sig-array"],
+)
+def test_a_model_json_of_the_wrong_shape_warns_and_gives_nothing(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    model_json: bytes,
+    what: str,
+) -> None:
+    """A part that is present but not an object is a malformed file (one
+    ``WARNING:``, inputs and outputs named), not a crash."""
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(
+        _make_pt2_zip({"rm/extra/name": b"m", "rm/models/model.json": model_json})
+    )
+    with caplog.at_level(logging.WARNING):
+        meta = read_pytorch_pt2(model_file)
+    assert (meta.name, meta.inputs, meta.outputs) == ("m", [], [])
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert f"{what} is not a JSON object" in message
+    assert "inputs, outputs" in message
+
+
+@pytest.mark.parametrize(
+    "model_json",
+    [
+        b"null",
+        b"{}",
+        b'{"graph_module": null}',
+        b'{"graph_module": {"signature": null}}',
+    ],
+    ids=["null", "empty", "no-signature-null", "signature-null"],
+)
+def test_an_absent_model_json_part_is_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, model_json: bytes
+) -> None:
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(_make_pt2_zip({"rm/models/model.json": model_json}))
+    with caplog.at_level(logging.WARNING):
+        meta = read_pytorch_pt2(model_file)
+    assert (meta.inputs, meta.outputs, caplog.records) == ([], [], [])
+
+
+@pytest.mark.parametrize(
+    ("files", "format_version", "provenance_field"),
+    [
+        ({"version": b"7.3\n"}, "7.3", "version file"),
+        ({"version": b"7.3", "archive_version": b"0"}, "0", "archive_version"),
+        ({"version": b" \n", "archive_version": b"0"}, "0", "archive_version"),
+        ({"version": b" \n"}, None, None),
+    ],
+    ids=["schema-only", "archive-wins", "blank-schema", "blank-only"],
+)
+def test_root_version_file_is_the_schema_version_not_the_model_s(
+    tmp_path: Path,
+    files: dict[str, bytes],
+    format_version: str | None,
+    provenance_field: str | None,
+) -> None:
+    """The root ``version`` file is a ``format_version`` fallback, never
+    ``version``; ``archive_version`` is preferred when present."""
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(_make_pt2_zip(files))
+    meta = read_pytorch_pt2(model_file)
+    assert meta.version is None
+    assert "version" not in meta.provenance
+    assert meta.format_info.format_version == format_version
+    if provenance_field is None:
+        assert "format_version" not in meta.provenance
+    else:
+        assert meta.provenance["format_version"].endswith(f"Field: {provenance_field}")
+
+
+def test_extra_model_version_is_the_version_beside_a_root_schema_file(
+    tmp_path: Path,
+) -> None:
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(
+        _make_pt2_zip({"version": b"7.3", "extra/model_version": b"1.2"})
+    )
+    meta = read_pytorch_pt2(model_file)
+    assert (meta.version, meta.format_info.format_version) == ("1.2", "7.3")
+
+
+def test_tags_objects_and_arrays_are_canonical_json(tmp_path: Path) -> None:
+    """A nested tag is written in RFC 8785 form (keys sorted, one number
+    spelling), however the file spells it."""
+    model_file = tmp_path / "model.pt2"
+    tags = b'["a", {"z": 1.0, "b": [true, null, 1e2]}, [2, {"y": 1, "x": 0}]]'
+    model_file.write_bytes(_make_pt2_zip({"mdl/extra/tags": tags}))
+    meta = read_pytorch_pt2(model_file)
+    assert (
+        meta.properties["tags"] == 'a, {"b":[true,null,100],"z":1}, [2,{"x":0,"y":1}]'
+    )

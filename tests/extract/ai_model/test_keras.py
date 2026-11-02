@@ -175,6 +175,76 @@ def test_read_keras_missing_class_name_and_non_dict_config_sections(
     assert "inputs" not in meta.provenance
 
 
+@pytest.mark.parametrize(
+    ("config", "type_of_model", "name", "lost"),
+    [
+        ({"class_name": {"a": 1}, "config": {"name": "m"}}, None, "m", "type_of_model"),
+        ({"class_name": 7, "config": {"name": "m"}}, None, "m", "type_of_model"),
+        (
+            {"class_name": "Sequential", "config": {"name": 5}},
+            "Sequential",
+            None,
+            "name",
+        ),
+        (
+            {"class_name": "Sequential", "config": {"name": ["x"]}},
+            "Sequential",
+            None,
+            "name",
+        ),
+        (
+            {"class_name": [], "config": {"name": {}}},
+            None,
+            None,
+            "type_of_model, name",
+        ),
+    ],
+    ids=["class-object", "class-int", "name-int", "name-array", "both"],
+)
+def test_read_keras_non_string_class_name_or_name_warns_once(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    config: dict[str, Any],
+    type_of_model: str | None,
+    name: str | None,
+    lost: str,
+) -> None:
+    """A class name or model name that is not a string is not recorded: one
+    ``WARNING:`` names what was skipped, the rest of the config is kept."""
+    config["config"]["units"] = 3
+    f = tmp_path / "model.keras"
+    f.write_bytes(_make_keras_zip(config=config))
+    with caplog.at_level(logging.WARNING):
+        meta = read_keras(f)
+    assert (meta.type_of_model, meta.name) == (type_of_model, name)
+    assert meta.hyperparameters == {"units": 3}
+    for field in ("type_of_model", "name"):
+        assert (field in meta.provenance) == (field not in lost)
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert "is not a string" in message
+    assert message.endswith(f"Field(s) affected (skipped): {lost}")
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"class_name": "Sequential", "config": {"name": "m"}},
+        {"config": {}},
+        {"class_name": None, "config": {"name": None}},
+        {"class_name": "", "config": {"name": ""}},
+    ],
+    ids=["strings", "absent", "null", "empty"],
+)
+def test_read_keras_string_absent_null_or_empty_names_are_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, config: dict[str, Any]
+) -> None:
+    f = tmp_path / "model.keras"
+    f.write_bytes(_make_keras_zip(config=config))
+    with caplog.at_level(logging.WARNING):
+        read_keras(f)
+    assert caplog.records == []
+
+
 def test_read_keras_bad_zip_raises_value_error(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(b"not a zip file at all")

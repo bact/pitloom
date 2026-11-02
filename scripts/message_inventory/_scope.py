@@ -45,7 +45,7 @@ DETAIL_EXC = frozenset(
         "LimitExceeded",
         "ModelOverCap",
         "ModelLimitExceeded",
-        "_ConfigShapeError",
+        "ConfigShapeError",
         "MarkerShapeError",
         "_UnsupportedAttribute",
         "ParameterCountRejected",
