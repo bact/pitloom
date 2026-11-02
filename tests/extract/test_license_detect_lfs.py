@@ -78,7 +78,7 @@ def test_a_project_naming_a_pointer_licence_file_is_read_quietly(
 @pytest.mark.parametrize(
     ("kind", "with_file", "with_dir", "expected"),
     [
-        ("pointer", True, True, "LICENSE"),  # the unreadable-file fallback
+        ("pointer", True, True, None),  # the file name is no licence
         ("pointer", True, False, None),
         ("pointer", False, True, None),
         ("text", False, True, "MIT"),

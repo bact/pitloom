@@ -231,19 +231,18 @@ def test_resolve_license_hint_file_object_reads_content() -> None:
         hint, base_prov, fallback = _resolve_license_hint(license_obj, tmp_path)
     assert hint == "MIT License text"
     assert base_prov == "Source: LICENSE.txt"
-    assert fallback == ("LICENSE.txt", None)
+    assert fallback == (None, None)
 
 
 def test_resolve_license_hint_file_object_missing_file() -> None:
     """A License object whose ``.file`` does not exist on disk: the ``OSError``
-    is caught, ``hint`` is ``None``, and the filename is preserved as
-    fallback."""
+    is caught, ``hint`` is ``None``, and the filename is no fallback."""
     license_obj = SimpleNamespace(file="does-not-exist.txt")
     with tempfile.TemporaryDirectory() as d:
         hint, base_prov, fallback = _resolve_license_hint(license_obj, Path(d))
     assert hint is None
     assert base_prov == "Source: pyproject.toml | Field: project.license"
-    assert fallback == ("does-not-exist.txt", None)
+    assert fallback == (None, None)
 
 
 def test_resolve_license_hint_unrecognised_object() -> None:
@@ -274,10 +273,10 @@ def _stated(
 
 def teststated_pyproject_license_hint_none_returns_fallback() -> None:
     """When ``_resolve_license_hint`` cannot produce a hint (missing license
-    file), ``stated_pyproject_license`` returns its fallback tuple."""
+    file), ``stated_pyproject_license`` states no licence, not the name."""
     with tempfile.TemporaryDirectory() as d:
         license_id, prov = _stated(SimpleNamespace(file="missing-license.txt"), Path(d))
-    assert license_id == "missing-license.txt"
+    assert license_id is None
     assert prov is None
 
 
@@ -443,10 +442,10 @@ def test_a_license_file_provenance_is_the_same_in_every_checkout(
 
 @pytest.mark.parametrize(
     ("file", "project_dir", "expected"),
-    [("p/docs/L", "p", ("Terms", "Source: docs/L", ("docs/L", None))),
-     ("{tmp}/p/docs/L", "{tmp}/p", ("Terms", "Source: docs/L", ("docs/L", None))),
+    [("p/docs/L", "p", ("Terms", "Source: docs/L", (None, None))),
+     ("{tmp}/p/docs/L", "{tmp}/p", ("Terms", "Source: docs/L", (None, None))),
      ("{tmp}/elsewhere/L", "{tmp}/p", (None, "Source: pyproject.toml | Field:"
-                                       " project.license", ("L", None)))],
+                                       " project.license", (None, None)))],
     ids=["relative-dir", "absolute-below", "absolute-not-below"],
 )  # fmt: skip
 def test_resolve_license_hint_names_the_file_project_relative(
@@ -454,7 +453,7 @@ def test_resolve_license_hint_names_the_file_project_relative(
     monkeypatch: pytest.MonkeyPatch,
     file: str,
     project_dir: str,
-    expected: tuple[str | None, str, tuple[str, None]],
+    expected: tuple[str | None, str, tuple[None, None]],
 ) -> None:
     """The file ``pyproject-metadata`` joined onto the project directory is
     read there, and named relative to it, else by its name alone."""

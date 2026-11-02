@@ -57,6 +57,7 @@ __all__ = [
     "LfsPointer",
     "PrefixCapture",
     "UnreadPointers",
+    "is_pointer_text",
     "log_pointer_not_read",
     "opens_lfs_pointer",
     "parse_lfs_pointer",
@@ -155,6 +156,13 @@ def parse_lfs_pointer(data: bytes) -> LfsPointer | None:
     if size > _MAX_SIZE:
         return None
     return LfsPointer(match["oid"].decode("ascii"), size)
+
+
+def is_pointer_text(text: str) -> bool:
+    """Whether *text*, a file's content already decoded (a manifest's
+    ``license = {file = ...}`` read by a build backend), is a Git LFS
+    pointer, whole: the file was not pulled and holds no text of its own."""
+    return parse_lfs_pointer(text.encode("utf-8", errors="replace")) is not None
 
 
 def read_lfs_pointer(path: str | os.PathLike[str]) -> LfsPointer | None:

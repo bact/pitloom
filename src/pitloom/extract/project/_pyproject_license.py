@@ -19,7 +19,7 @@ from typing import Any
 
 from pyproject_metadata import License
 
-from pitloom.core.lfs_pointer import parse_lfs_pointer
+from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_source
 from pitloom.extract._core_metadata import license_or_classifier
@@ -55,8 +55,9 @@ def _resolve_license_hint(
 
     *hint* is the text or string to attempt detection on.  *fallback* is the
     ``(license_id, provenance)`` pair to return when detection finds nothing
-    new.  Returns ``hint=None`` when the object format is unrecognised or the
-    referenced file cannot be read (or there is no *project_dir*). A ``text``
+    new: the ``text`` itself, never a file's name. Returns ``hint=None`` when
+    the object format is unrecognised or the referenced file cannot be read
+    (or there is no *project_dir*): the licence is then unstated. A ``text``
     that is a whole Git LFS pointer is the unpulled ``file`` that
     ``pyproject-metadata`` read, so it is treated as that unreadable file.
     """
@@ -64,7 +65,7 @@ def _resolve_license_hint(
     if isinstance(license_obj, str):
         return license_obj, base, (None, None)
     text = getattr(license_obj, "text", None)
-    if text and parse_lfs_pointer(text.encode("utf-8")) is None:
+    if text and not is_pointer_text(text):
         return text, f"{base}.text", (text, None)
     if text and (project_dir is None or getattr(license_obj, "file", None) is None):
         return None, base, (None, None)
@@ -74,8 +75,8 @@ def _resolve_license_hint(
         fname = project_relative_or_fallback(path.as_posix(), path.name)
         raw = read_license_file(project_dir / path, project_dir)
         if raw is None:
-            return None, base, (fname, None)
-        return decode_text(raw, "replace"), provenance_source(fname), (fname, None)
+            return None, base, (None, None)
+        return decode_text(raw, "replace"), provenance_source(fname), (None, None)
     return None, base, (str(license_obj), None)
 
 
@@ -159,7 +160,7 @@ def license_from_project_table(
         if isinstance(file, str):
             content = read_file(file)
             text = None if content is None else decode_text(content, "replace")
-        if isinstance(text, str):
+        if isinstance(text, str) and text:  # an empty file states nothing
             license_obj = License(text, None)
     classifiers = project.get("classifiers")
     names = (
