@@ -32,6 +32,7 @@ from pitloom.extract._extract_utils import (
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
+from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
@@ -63,9 +64,15 @@ _GGUF_HYPERPARAM_SUFFIXES = (
     ".block_count",
     ".attention.head_count",
     ".attention.head_count_kv",
+    ".attention.layer_norm_epsilon",
     ".attention.layer_norm_rms_epsilon",
+    ".expert_count",
+    ".expert_used_count",
     ".rope.freq_base",
     ".rope.dimension_count",
+    ".rope.scaling.type",
+    ".rope.scaling.factor",
+    ".rope.scaling.original_context_length",
 )
 
 # An array is recorded as its length, under its key plus this suffix, in
@@ -191,7 +198,7 @@ def _field_value(gguf_field: Any) -> Any:
     type_name = _type_name(gguf_field.types[0]) if gguf_field.types else ""
     # String fields are stored as raw byte arrays; decode explicitly
     if type_name == "STRING":
-        return last.tobytes().decode("utf-8")
+        return last.tobytes().decode("utf-8", errors="surrogateescape")
     if type_name == "FLOAT32" and len(last) == 1:
         return _float32_double(last[0])
     if hasattr(last, "tolist"):
@@ -237,30 +244,42 @@ def _read_fields(
     return fields, raw_metadata, derived
 
 
+def _first_stated(
+    fields: dict[str, Any],
+    keys: tuple[str, ...],
+    field: str,
+    source: str,
+    provenance: dict[str, str],
+) -> str | None:
+    """The first of *keys* stating text (a blank value reads as absent),
+    with its provenance under *field*."""
+    for key in keys:
+        value = fields.get(key)
+        # A string must state something; any other scalar is its own text,
+        # as in ``properties``.
+        if isinstance(value, str):
+            text = stated_text(value)
+        else:
+            text = None if value is None else value_text(value)
+        if text:
+            provenance[field] = f"{source} | Field: {key}"
+            return text
+    return None
+
+
 def _extract_gguf_core_fields(
     fields: dict[str, Any], source: str, provenance: dict[str, str]
 ) -> tuple[str | None, str | None, str | None, str | None, str | None]:
     """Extract core model identification fields from GGUF fields dictionary."""
-    name: str | None = None
-    for key in _GGUF_NAME_KEYS:
-        if key in fields and fields[key] is not None:
-            name = value_text(fields[key])
-            provenance["name"] = f"{source} | Field: {key}"
-            break
+    name = _first_stated(fields, _GGUF_NAME_KEYS, "name", source, provenance)
+    description = _first_stated(
+        fields, _GGUF_DESCRIPTION_KEYS, "description", source, provenance
+    )
+    architecture = _first_stated(
+        fields, (_GGUF_ARCH_KEY,), "architecture", source, provenance
+    )
 
-    description: str | None = None
-    for key in _GGUF_DESCRIPTION_KEYS:
-        if key in fields and fields[key] is not None:
-            description = value_text(fields[key])
-            provenance["description"] = f"{source} | Field: {key}"
-            break
-
-    architecture: str | None = None
-    if fields.get(_GGUF_ARCH_KEY) is not None:
-        architecture = value_text(fields[_GGUF_ARCH_KEY])
-        provenance["architecture"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
-
-    version = _stated_text(fields.get(_GGUF_VERSION_KEY), scalar=True)
+    version = stated_text(fields.get(_GGUF_VERSION_KEY), scalar=True)
     if version:
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
@@ -273,19 +292,6 @@ def _extract_gguf_core_fields(
     return name, description, architecture, version, quantization
 
 
-def _stated_text(value: Any, *, scalar: bool = False) -> str | None:
-    """*value* stripped, or ``None`` when absent or blank. Only a string
-    counts, unless *scalar*: then a number is its text too (a version may
-    be written as one). A bool never counts."""
-    if isinstance(value, str):
-        text = value.strip()
-    elif scalar and isinstance(value, (int, float)) and not isinstance(value, bool):
-        text = value_text(value)
-    else:
-        return None
-    return text or None
-
-
 def _read_gguf_license(
     fields: dict[str, Any], source: str, provenance: dict[str, str]
 ) -> str | None:
@@ -296,8 +302,8 @@ def _read_gguf_license(
     (``other``, ``custom``, ...), ``general.license.name`` (the licence's name:
     free text, no field warning) stands in; ``general.license.link`` is not
     read."""
-    license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
-    name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
+    license_expr = stated_text(fields.get(_GGUF_LICENSE_KEY))
+    name = stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
     # llama.cpp's converter writes a card's ``license: other`` with its
     # ``license_name`` as ``general.license.name``: a placeholder (``other``,
     # ``NOASSERTION``, ...) gives way to it; ``NONE`` is a statement and stays.
@@ -318,7 +324,7 @@ def _originators(
     """The producer names of ``general.author`` then ``general.organization``,
     each one name (not split); a value that is no string stays in
     ``properties`` only."""
-    used = [k for k in _GGUF_ORIGINATOR_KEYS if _stated_text(fields.get(k))]
+    used = [k for k in _GGUF_ORIGINATOR_KEYS if stated_text(fields.get(k))]
     names = originator_names(*(fields.get(k) for k in used))
     if names:
         provenance[ORIGINATORS_PROVENANCE_KEY] = f"{source} | Field: {', '.join(used)}"
@@ -441,7 +447,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     fields, raw_metadata, derived, shapes = _load_fields(model_path)
     source = provenance_source(model_path.name)
     provenance: dict[str, str] = {}
-    format_version = _stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
+    format_version = stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
     if format_version:
         provenance["format_version"] = f"{source} | Field: {_GGUF_FORMAT_VERSION_KEY}"
 
