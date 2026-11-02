@@ -118,7 +118,7 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
     - if that node is a ``software_Sbom``, follows *its own*
       ``rootElement[0]`` one more hop to the actual subject -- the
       two-hop chain :mod:`pitloom.assemble.spdx3.document` builds
-      (`_build_main_package`, `build()`) for every Pitloom-generated SBOM;
+      (`build_main_package`, `build()`) for every Pitloom-generated SBOM;
     - otherwise treats that first node itself as the subject -- a
       hand-authored/third-party SBOM (the case ``--sbom`` exists for)
       may declare its subject as the document's root element directly,

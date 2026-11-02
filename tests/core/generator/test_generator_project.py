@@ -27,7 +27,8 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
-from pitloom.assemble.spdx3.document import _build_main_package, _magika_version, build
+from pitloom.assemble.spdx3._document_main_package import build_main_package
+from pitloom.assemble.spdx3.document import _magika_version, build
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator
@@ -186,7 +187,7 @@ def test_build_main_package_copyright_text(found: str | None, expected: str) -> 
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
     spdx_ci = MagicMock(spec=spdx3.CreationInfo)
     spdx_ci.created = None
-    pkg = _build_main_package(doc, spdx_ci, [], "00000000-0000-0000-0000-000000000000")
+    pkg = build_main_package(doc, spdx_ci, [], "00000000-0000-0000-0000-000000000000")
     assert pkg.software_copyrightText == expected
 
 
