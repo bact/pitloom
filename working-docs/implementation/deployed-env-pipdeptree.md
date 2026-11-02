@@ -47,7 +47,7 @@ saw it.
   hand-built tree with no name or version.
 - **Open (#236 review).** An unmet requirement (`installed_version: "?"`) loses
   its `dependsOn` edge silently; two installs sharing one pipdeptree `key`
-  collide. See [known-bugs-p3.md](../design/known-bugs-p3.md).
+  collide. See [known-bugs.md](../design/known-bugs/extraction-and-fragments.md#p3-after-0200).
 
 ## Tests
 

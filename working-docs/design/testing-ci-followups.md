@@ -106,8 +106,8 @@ blocked the release. Highest first.
   "Re-run failed jobs" only, within the 3-day artifact retention: "Re-run
   all jobs" rebuilds a wheel with a new `created` time, which PyPI refuses
   and the release assets would no longer match. Setting `SOURCE_DATE_EPOCH`
-  ([known-bugs.md](known-bugs-p3.md)) would make a rebuild
-  identical.
+  ([known-bugs.md](known-bugs/process-tooling-and-release-checks.md#p3-after-0200))
+  would make a rebuild identical.
 - [ ] **`ubuntu-latest` becomes Ubuntu 26 from 2026-10-19 (medium).**
   Every Linux job moves with the label
   ([runner-images#14748](https://github.com/actions/runner-images/issues/14748)).
