@@ -271,9 +271,7 @@ class _Scan:
             if template is None:
                 return None
             elts = (
-                node.right.elts
-                if isinstance(node.right, ast.Tuple)
-                else [node.right]
+                node.right.elts if isinstance(node.right, ast.Tuple) else [node.right]
             )
             return percent_template(template, [self._static(e, depth) for e in elts])
         right = self._static(node.right, depth)

@@ -101,7 +101,7 @@ def _accesses(source: str, model: UsageModel = _MODEL) -> frozenset[UsageAccess]
         ('model.save_model("model.ftz")', {UsageAccess.WRITE}),
         ('tagger.open("model.ftz")', {UsageAccess.READ}),
         ('get_loader().load("model.ftz")', {UsageAccess.READ}),
-        ('f"{load_model(\'model.ftz\')}"', {UsageAccess.READ}),
+        ("f\"{load_model('model.ftz')}\"", {UsageAccess.READ}),
         (
             'from pathlib import Path\nPath("model.ftz").read_text() + "\\n"',
             {UsageAccess.READ},
@@ -186,7 +186,8 @@ def test_mention_only_and_non_path_strings_produce_no_edge(code: str) -> None:
             {UsageAccess.UNKNOWN},
         ),
         (
-            'M = "data/model.ftz"\nmatch x:\n    case str() as M:\n        open(M, "wb")\n',
+            'M = "data/model.ftz"\nmatch x:\n    case str() as M:\n'
+            '        open(M, "wb")\n',
             {UsageAccess.UNKNOWN},
         ),
         ('M: str\nA = B = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),

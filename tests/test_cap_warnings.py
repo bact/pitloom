@@ -128,6 +128,8 @@ _ALLOWED = {
     "extract/_file_headers.py:_HEADER_SCAN_MAX_BYTES": "headers lead a file",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_LINES": "headers lead a file",
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,
+    "extract/_usage_ast.py:_MAX_DEPTH": "a path nested deeper is not read as a path",
+    "extract/_usage_ast.py:_MAX_PATH_CHARS": "a longer path names no model: no edge",
     "extract/_license.py:_MAX_LICENSE_ID_CHARS": _HEURISTIC,
     "extract/_license.py:_MAX_RESOLUTIONS": "a cache size: answers are asked again",
     "cli/commands/utils.py:_MAX_LIST_ENDS": "a search bound: the text stays as is",
