@@ -321,27 +321,29 @@ def test_entity_package_key(
 
 
 @pytest.mark.parametrize(
-    ("name", "said"),
+    ("name", "hint"),
     [
-        ("foo==1.0", "invalid package NAME 'foo==1.0'; write NAME@VERSION"),
-        ("foo>=1@2", "invalid package NAME 'foo>=1'"),
-        ("foo 1.0", "invalid package NAME 'foo 1.0'"),
-        ("%40scope/pkg@1.0", "invalid package NAME '%40scope/pkg'"),
-        ("foo-@1", "invalid package NAME 'foo-'"),
+        ("foo==1.0", "; write NAME@VERSION"),
+        ("foo>=1@2", ""),
+        ("foo 1.0", ""),
+        ("%40scope/pkg@1.0", ""),
+        ("foo-@1", ""),
     ],
     ids=["pip-pin", "specifier", "space", "percent", "trailing-dash"],
 )
 def test_entity_package_name_is_a_pep_508_name(
-    name: str, said: str, capsys: pytest.CaptureFixture[str]
+    name: str, hint: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A package NAME that is no PEP 508 name is a typo no lookup would ever
     read: exit 2, the argparse way, with the ``NAME@VERSION`` spelling when
     ``==`` was typed; a valid one in any spelling is kept."""
+    spec = f"{name}:{PACKAGE_TYPE}"
     with pytest.raises(SystemExit) as exc_info:
-        _build_parser().parse_args(["id", "generate", "-e", f"{name}:{PACKAGE_TYPE}"])
+        _build_parser().parse_args(["id", "generate", "-e", spec])
 
     assert exc_info.value.code == 2
-    assert f"argument -e/--entity: {said}\n" in capsys.readouterr().err
+    expected = f"argument -e/--entity: invalid package NAME in {spec!r}{hint}\n"
+    assert expected in capsys.readouterr().err
     args = _build_parser().parse_args(
         ["id", "generate", "-e", f"Foo_Bar.baz@1.0:{PACKAGE_TYPE}"]
     )

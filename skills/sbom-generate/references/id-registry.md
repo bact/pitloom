@@ -198,7 +198,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   version, split at the first `@` (`-e Requests@2.31.0` is `requests@2.31`). A
   trailing `:`, white space around the `TYPE`, a control character, a blank
   `NAME` or a package `NAME` that is not a PEP 508 name (`invalid package
-  NAME 'foo==1.0'; write NAME@VERSION`) is also a usage error (exit 2).
+  NAME in 'foo==1.0:software_Package'; write NAME@VERSION`) is also a usage
+  error (exit 2).
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=... [file-unreadable]`/`DIR=...
   [dir-unlistable]` (project-relative path) and the run continues (so does a
