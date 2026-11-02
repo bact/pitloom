@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,6 +9,10 @@ SPDX-License-Identifier: CC0-1.0
 # Field notes: what the CI repeats, measured, and the two-gate rule
 
 See also: [README.md](README.md) (index of these notes),
+[ci-duplicate-run-skip-experiment.md](ci-duplicate-run-skip-experiment.md)
+(the first trim candidate as an experiment, #415),
+[wall-clock-bounds-on-shared-runners.md](wall-clock-bounds-on-shared-runners.md)
+(a macOS leg's standing costs),
 [process-lessons.md](process-lessons.md) (review rounds and test tiers
 before this policy), [agent-work-lessons-oct30.md](agent-work-lessons-oct30.md)
 (the same day's lessons on agents),

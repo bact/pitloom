@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-30).
+the day it was added (2026-10-02 to 2026-11-02).
 
 ## Files
 
@@ -77,14 +77,14 @@ the day it was added (2026-10-02 to 2026-10-30).
   a `name @ URL` dependency given another project's licence, supplier and
   hash by a lookup on its name; what #405 fixed, left open and keeps silent.
 - [registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md):
-  a package id shared by every release; the `name@version` key (in review,
-  #407), no migration, and the remote-entry findings behind a second PR.
+  a package id shared by every release; the `name@version` key (#407,
+  merged), no migration, and the remote-entry findings behind a second PR.
 - [provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md):
   a non-UTF-8 file name crashing the writer; a `:` in free text read as a
   provenance key; a closed reader vocabulary (#402).
 - [raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md):
   an exception's text leaking absolute paths and forging lines; a typed
-  `failure` field; absent is quiet (in review, #408).
+  `failure` field; absent is quiet (#408, merged).
 - [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md): why a
   model has no metadata, as six coded causes; decisions D1 to D12 and what
   stays open (#404).
@@ -97,6 +97,32 @@ the day it was added (2026-10-02 to 2026-10-30).
 - [maintainer-decision-log-oct30.md](maintainer-decision-log-oct30.md): a
   dated table of the decisions of 2026-10-29 and 2026-10-30 (the 0.22.0
   cut, the registry key, the catalogue families, the policy).
+- [post-publish-verification-of-a-release.md](post-publish-verification-of-a-release.md):
+  checking 0.22.0 from the files PyPI serves (digests, `RECORD`, the embedded
+  SBOM, smoke tests); a Git LFS pointer named as the licence file; JSON API
+  versus simple index; what such a pass cannot see (#414).
+- [ci-duplicate-run-skip-experiment.md](ci-duplicate-run-skip-experiment.md):
+  skipping the post-merge CI run when the tree equals a green PR head; fail
+  open; the residual holes; 8 of 8 equal trees on one day, 0 of 4 code merges
+  on the next; the markdown-only case left unbuilt (#415, merged; the skip
+  itself not yet observed).
+- [bug-ledger-needs-a-severity-scale.md](bug-ledger-needs-a-severity-scale.md):
+  a 174-entry ledger over the size limit and without a harm scale; showing the
+  split lost nothing; the ranking rule chosen (#417).
+- [refactors-proved-by-output-equality.md](refactors-proved-by-output-equality.md):
+  status-line, SBOM-byte and stderr equality as proof; a prefetch that resolved
+  twice and the drift guard that fixed it; two lint fixes and their cost
+  (#416, #418).
+- [wall-clock-bounds-on-shared-runners.md](wall-clock-bounds-on-shared-runners.md):
+  a 30 s bound that took 60 s on a macOS leg; standing 35 s costs there; three
+  hypotheses, none confirmed; discriminating versus ceiling bounds (fix in
+  progress).
+- [agent-work-lessons-nov02.md](agent-work-lessons-nov02.md): a hand-back
+  delivered again and again, PR numbers written before the PR exists,
+  figures in a brief re-measured, the rate-limit loss again.
+- [maintainer-decision-log-nov02.md](maintainer-decision-log-nov02.md): a
+  dated table of the 0.22.1 round (release order, the 0.22.1 and 0.23.0
+  scopes, the CI experiment, the ledger split).
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,

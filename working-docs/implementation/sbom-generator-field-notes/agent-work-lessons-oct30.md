@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,6 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Field notes: lessons of one day of agent work (2026-10-30)
 
 See also: [README.md](README.md) (index of these notes),
+[agent-work-lessons-nov02.md](agent-work-lessons-nov02.md) (the next round),
 [process-lessons.md](process-lessons.md) (earlier rounds: parallel PRs,
 stash by path, concurrent suites),
 [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md) (the
