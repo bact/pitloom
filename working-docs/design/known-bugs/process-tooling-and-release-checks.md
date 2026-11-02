@@ -30,9 +30,6 @@ the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **`assemble/spdx3/document.py` is 516 lines (doc).** Over the soft
-  limit; split it.
-  *Found 2026-10-30, from #407 (registry package key).*
 - [ ] **The skills and example floors at 0.22.0 do not install until 0.22.0 is
   on PyPI (doc).**
   *Found 2026-10-30, from #407 (registry package key).*
@@ -44,12 +41,22 @@ the last section for history.
   PR tree, and a markdown-only follow-up commit re-runs the matrix because
   `paths-ignore` is judged on the whole PR diff.
   *Found 2026-10-30, process and tooling.*
-- [ ] **Two pylint findings exist on `main` (doc).** E1101 at
-  `logging_config.py:251` and C1803 at
-  `tests/extract/project/test_poetry_extract.py:151`.
-  *Found 2026-10-30, process and tooling.*
 - [ ] **pyright cannot resolve `magika` in the dev venv (doc).**
   *Found 2026-10-30, process and tooling.*
+- [ ] **Bare `flake8` also lints `scripts/` while CI lints `examples src
+  tests` only, and pyright cannot resolve `magika` in the dev venv (doc).**
+  A bare `flake8` run reports findings in `scripts/` that CI never sees, and
+  the dev venv's pyright run fails to resolve `magika`; both blur the line
+  between a local and a CI failure. Pin the local command to CI's paths, or
+  lint `scripts/` in CI. See also the `magika` entry above.
+  *Found 2026-11-02, process and tooling.*
+- [ ] **A wall-clock test fails on a slow macOS runner (S).** In
+  `tests/extract/remote/test_git_hardening.py`, the case `running` of
+  `test_a_call_that_writes_more_than_the_cap_is_stopped` asserts under 30 s
+  and took 60 s (run 41449530712). Several loopback HTTP tests take about 35 s
+  on that leg (suspected macOS proxy or host-name lookup stall). Fix in
+  progress on branch `fix-flaky-macos-timing`.
+  *Found 2026-11-02, macOS CI leg.*
 
 ## Fixed
 
@@ -66,10 +73,20 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **`assemble/spdx3/document.py` is 516 lines (doc).** Fixed by #418. Over
+  the soft limit; split it. It is now 411 lines; the main-package code moved to
+  the new `_document_main_package.py`.
+  *Found 2026-10-30, from #407 (registry package key).*
+- [x] **Two pylint findings exist on `main` (doc).** Fixed by #418. E1101 at
+  `logging_config.py:251` and C1803 at
+  `tests/extract/project/test_poetry_extract.py:151`.
+  *Found 2026-10-30, process and tooling.*
+
 #### Release checks re-run (2026-11-02)
 
-The 0.22.0 checks that were left to CI, run on `main` at `06bb06c6` (Python
-3.10, Linux, 4 CPUs). The leftover `0.21.2` review was not part of this run.
+The 0.22.0 checks that were left to CI (recorded by #416), run on `main` at
+`06bb06c6` (Python 3.10, Linux, 4 CPUs). The leftover `0.21.2` review was not
+part of this run.
 
 - [x] **Full manual CLI checks:** 610 checks, 551 pass, 0 fail, 22 known, 37
   skip. The 22 known are the allow-listed Harvest finding (O2 random walks,
@@ -96,5 +113,6 @@ The 0.22.0 checks that were left to CI, run on `main` at `06bb06c6` (Python
   `bandit`, `shellcheck -x scripts/action/*.sh` and `actionlint` are clean;
   `flake8` and `pylint` had five findings (CCR001 in `_order_invariants.py`,
   R0911 in `_checks_order.py`, R0914 in `_checks_model.py`, `_checks_lfs.py`
-  and `_checks_core.py`), fixed by splitting the functions; the touched
-  checks (14, 17, 23, O*) give the same results and messages before and after.
+  and `_checks_core.py`), fixed by splitting the functions (Fixed by #416);
+  the touched checks (14, 17, 23, O*) give the same results and messages
+  before and after.

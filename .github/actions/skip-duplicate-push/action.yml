@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Skip a push that repeats a passed PR run
+description: >
+  Sets output `skip` to "true" only for a push to main whose merge commit has
+  the same tree as its second parent (the PR head) and that head has a
+  successful pull_request run of the given workflow. Any doubt gives "false".
+  Needs a checkout with fetch-depth 2 and `actions: read`. See
+  scripts/ci/skip_duplicate_push.py.
+
+inputs:
+  workflow-file:
+    description: File name of the workflow, such as test.yml.
+    required: true
+  token:
+    description: Token with actions read access.
+    required: true
+
+outputs:
+  skip:
+    description: '"true" when the push repeats a run that already passed.'
+    value: ${{ steps.check.outputs.skip }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compare with the PR head run
+      id: check
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        WORKFLOW_FILE: ${{ inputs.workflow-file }}
+      run: python3 "$GITHUB_WORKSPACE/scripts/ci/skip_duplicate_push.py" "$WORKFLOW_FILE"
