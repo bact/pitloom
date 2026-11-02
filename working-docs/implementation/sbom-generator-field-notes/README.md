@@ -77,14 +77,14 @@ the day it was added (2026-10-02 to 2026-11-02).
   a `name @ URL` dependency given another project's licence, supplier and
   hash by a lookup on its name; what #405 fixed, left open and keeps silent.
 - [registry-key-must-carry-the-release.md](registry-key-must-carry-the-release.md):
-  a package id shared by every release; the `name@version` key (in review,
-  #407), no migration, and the remote-entry findings behind a second PR.
+  a package id shared by every release; the `name@version` key (#407,
+  merged), no migration, and the remote-entry findings behind a second PR.
 - [provenance-free-text-and-file-name-crashes.md](provenance-free-text-and-file-name-crashes.md):
   a non-UTF-8 file name crashing the writer; a `:` in free text read as a
   provenance key; a closed reader vocabulary (#402).
 - [raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md):
   an exception's text leaking absolute paths and forging lines; a typed
-  `failure` field; absent is quiet (in review, #408).
+  `failure` field; absent is quiet (#408, merged).
 - [model-stub-causes-catalogue.md](model-stub-causes-catalogue.md): why a
   model has no metadata, as six coded causes; decisions D1 to D12 and what
   stays open (#404).
@@ -103,9 +103,9 @@ the day it was added (2026-10-02 to 2026-11-02).
   versus simple index; what such a pass cannot see (#414).
 - [ci-duplicate-run-skip-experiment.md](ci-duplicate-run-skip-experiment.md):
   skipping the post-merge CI run when the tree equals a green PR head; fail
-  open; the residual holes; 8 of 8 equal trees on one day, 0 of 3 on the next;
-  the markdown-only case left unbuilt (in review, #415; outcome not yet
-  observed).
+  open; the residual holes; 8 of 8 equal trees on one day, 0 of 4 code merges
+  on the next; the markdown-only case left unbuilt (#415, merged; the skip
+  itself not yet observed).
 - [bug-ledger-needs-a-severity-scale.md](bug-ledger-needs-a-severity-scale.md):
   a 174-entry ledger over the size limit and without a harm scale; showing the
   split lost nothing; the ranking rule chosen (#417).

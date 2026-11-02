@@ -22,7 +22,7 @@ decisions that shaped the 0.22.1 round, each with the reason and where it is
 recorded, in the form of the 2026-10-30 log. A row dated 2026-10-30 is here
 because the work of 2026-11-02 carried it out or depends on it. "Session
 record" marks a decision the caller reported and the repository does not
-show. PRs not merged at 14:25 UTC on 2026-11-02 are marked.
+show. Status is as of 14:40 UTC on 2026-11-02.
 
 ## 1. Decisions
 
@@ -34,7 +34,7 @@ show. PRs not merged at 14:25 UTC on 2026-11-02 are marked.
 | 2026-10-30 | 0.22.1 is small remaining bug fixes plus a re-run of the 0.22.0 release checks left to CI: the full manual CLI checks, the CHANGELOG-against-merged-PRs cross-check, the coverage-snapshot diffs and the `scripts/` lint | the checks could not all run before the tag | `known-bugs.md`, planned releases; `roadmap.md`, 0.22.1 |
 | 2026-11-02 | The `0.21.2` review is dropped from the 0.22.1 checks | "The review is done for 0.22.0 and no longer needed" (commit message) | `3d9872a6` (#416) |
 | 2026-11-02 | Record the PyPI verification of 0.22.0 as a dated entry, and log what it found as ledger entries for 0.22.1 | a post-publish check is part of the release checklist | #414; `wheel-sbom-verification.md` |
-| 2026-11-02 | The CI duplicate-run skip is an **experiment**, `test.yml` only, fail open; the markdown-only skip is analysed and not built | a measured third of `test.yml` runs repeat a green tree; the markdown case has three unsafe conditions | #415 (**in review**); `testing-and-review-policy.md` on its branch |
+| 2026-11-02 | The CI duplicate-run skip is an **experiment**, `test.yml` only, fail open; the markdown-only skip is analysed and not built | a measured third of `test.yml` runs repeat a green tree; the markdown case has three unsafe conditions | #415 (merged 14:38 UTC); `testing-and-review-policy.md` |
 | 2026-11-02 | Split the bug ledger into an index and eight parts by category; re-rank nothing; build the severity scale from the tags the entries already carry | `known-bugs.md` (41,233 bytes) and its `-p3` file (22,775) were over the size limit | #417; `known-bugs.md` |
 | 2026-11-02 | Split `document.py` (516 lines to 411 plus a 115-line module); fix the prefetch to resolve once; fix the two `pylint` findings on `main` without a suppression | the size limit; one identity rule for what is fetched and what is built | #418; `be65a8e0`, `8223e308`, `a6d57867` |
 | 2026-10-30, confirmed 2026-11-02 | A version 3 ID registry is refused, never migrated (D2) | silent loss of pins; a one-developer alpha needs no migration | `registry-key-must-carry-the-release.md` section 5; the shipped release refused it in the PyPI smoke test |
@@ -87,5 +87,5 @@ and a separate variant for an import that is found but fails.
   records leaves out the exchange that led to each row. Whether rows with a
   recommended option and a taken option should record both is for the authors.
 - Whether 0.22.1 is complete is not recorded: it is a set of open and merged
-  PRs (#414, #416, #417, #418 merged; #415 in review; the macOS timing fix in
-  progress on a branch) and no tag.
+  PRs (#414 to #419 merged by 14:38 UTC; the macOS timing fix in progress on a
+  branch) and no tag.

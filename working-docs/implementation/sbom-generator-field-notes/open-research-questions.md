@@ -369,15 +369,16 @@ next PRs would answer the second. See
 ## Release verification, CI and process (2026-11-02)
 
 *Open:* is the equal-tree skip of a post-merge CI run sound across all merge
-shapes? #415 (in review) skips the `test.yml` push run only for a two-parent
-merge whose tree equals the PR head's and whose head has a green
-`pull_request` run. Known hole: the PR run tested the head merged into `main`
+shapes? #415 (merged 2026-11-02 14:38 UTC) skips the `test.yml` push run only
+for a two-parent merge whose tree equals the PR head's and whose head has a
+green `pull_request` run. Known hole: the PR run tested the head merged into `main`
 as it was then, so a change made and reverted on `main` before the merge is
 invisible to a tree comparison. Not examined: a merge that resolves a
 conflict, a PR whose green run predates a force-push to the same tree, and
 two PRs each green alone and red together (the rule runs the matrix for the
 second, since its merge tree differs). The 8 of 8
-equal trees of 2026-10-30 became 0 of 3 on 2026-11-02, when merges queued; no
+equal trees of 2026-10-30 became 0 of 4 code merges on 2026-11-02, when merges
+queued; the rule's first live run chose "run", as designed; no
 estimate of the eligible share over a month exists. See
 [ci-duplicate-run-skip-experiment.md](ci-duplicate-run-skip-experiment.md).
 

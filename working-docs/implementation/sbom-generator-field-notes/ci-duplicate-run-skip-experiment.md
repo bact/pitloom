@@ -18,13 +18,14 @@ candidates" and its Record), [wall-clock-bounds-on-shared-runners.md](wall-clock
 
 On 2026-10-30 the CI measurement found that the push run after a merge
 repeated a tree a green PR run had already tested (8 of 8 merges checked).
-PR #415 turns that into an experiment on one workflow. At the time of
-writing #415 is **in review**: branch `ci-skip-duplicate-runs`, one feature
-commit (`42ac6372`, 2026-11-02 12:38 UTC) and two merges of `main`, head
-`256a39c7` at 14:21 UTC. Its diff against `main`: 5 files, 623 insertions, 5
-deletions (the script 172 lines, its tests 345, the composite action 34, the
-workflow 28, the policy page 49). **The outcome of the experiment has not
-been observed.**
+PR #415 turns that into an experiment on one workflow. It was in review while
+most of this note was written and **merged at 14:38:21 UTC on 2026-11-02**
+(`70ecf8a1`): branch `ci-skip-duplicate-runs`, one feature commit (`42ac6372`,
+12:38 UTC) and two merges of `main`, head `256a39c7`. Its diff against `main`:
+5 files, 623 insertions, 5 deletions (the script 172 lines, its tests 345, the
+composite action 34, the workflow 28, the policy page 49). **The skip itself
+has not been observed.** One live observation exists, of the other branch (end
+of section 3).
 
 ## 1. The decision rule
 
@@ -87,19 +88,24 @@ a fact from the API rather than an assumption.
 
 The 2026-10-30 figure was 8 of 8 merges with an equal tree. On 2026-11-02 three
 PRs merged within 45 seconds (#416 at 14:19:58, #417 at 14:20:20, #418 at
-14:20:43 UTC). I compared the trees (`git rev-parse <merge>^{tree}` against
-the second parent's), and the PR head run of each in the Actions API:
+14:20:43 UTC), then #419 (14:29) and #415 (14:38). I compared the trees
+(`git rev-parse <merge>^{tree}` against the second parent's), and the PR head
+run of each in the Actions API:
 
 | Merge | Tree equals PR head's tree | PR head `Unit tests` run | Push `Unit tests` run on the merge |
 | --- | --- | --- | --- |
 | #416 `1710298e` | no | success (12:59 UTC) | cancelled by a newer push |
 | #417 `e93078cb` | no | success (14:12 UTC) | none (docs-only merge; `paths-ignore`) |
 | #418 `c45dd72e` | no | success (14:13 UTC) | success |
+| #419 `b875c459` | **yes** | none (docs-only PR; `paths-ignore`) | none (docs-only merge) |
+| #415 `70ecf8a1` | no | success (14:21 UTC) | the matrix ran; see below |
 
-- 0 of 3 would have skipped. The likely reason (*inference*, not examined
-  branch by branch): the three PRs were open together, so each head lacked
-  what the earlier merges added to `main`. The rule would have run the matrix,
-  which is the designed result for "`main` moved", not a failure.
+- 0 of 4 code merges would have skipped. #419 had an equal tree but no green
+  `test.yml` run to rely on (it was docs-only), so the rule would have run the
+  matrix there too. The likely reason for the others (*inference*, not examined
+  branch by branch): the PRs were open together, so each head lacked what the
+  earlier merges added to `main`. Running the matrix is the designed result for
+  "`main` moved", not a failure.
 - 1 of 3 push runs was cancelled by the next push under the existing
   `concurrency` setting (the other workflows of the #416 push were cancelled
   too: Lint, Type checking, Build, Action self-test); 1 was never created
@@ -108,7 +114,13 @@ the second parent's), and the PR head run of each in the Actions API:
 - Reading: the 2.9 runs per merged PR of 2026-10-30 will fall where merges are
   serial (each PR updated from `main` before merging, so the tree is the PR's)
   and will not where they queue. The saving depends on merge habits as much as
-  on the rule. That day gives n = 3 and no estimate of the proportion.
+  on the rule. That day gives n = 5 merges and no estimate of the proportion.
+- **The first live run of the rule** was the push run of #415's own merge
+  (run 41463865094). Its `Decide whether to run` job succeeded and logged
+  `INFO: duplicate-push check: run: merge tree differs from the PR head
+  tree`. #419 had merged nine minutes earlier, after #415's last merge of
+  `main` (14:21), so the tree differed. That is the "`main` moved" branch
+  working as designed; it says nothing yet about the skip branch.
 
 ## 4. The markdown-only follow-up: analysed, not built
 
@@ -141,8 +153,9 @@ merge waits for.
 - Not stated in the page, my addition: three skip observations and one
   deliberate run observation before extending to another workflow (the CI
   measurement report proposed "confirm skipped runs on 3 merges").
-- **Status: not yet observed.** Three merges have happened since the branch
-  was written and none was eligible (section 3).
+- **Status: the skip is not yet observed.** The run branch was seen once (the
+  merge of #415 itself, section 3). Of the five merges of 2026-11-02 none was
+  eligible for a skip.
 
 ## 6. What generalises
 
@@ -153,7 +166,8 @@ merge waits for.
   equivalence for *content*; the PR run's content was the merge ref, so the
   equivalence has a hole the rule cannot close.
 - **A measured proportion belongs to a window.** The 8-of-8 held for serial
-  merges on one day; the same rule saw 0 of 3 on a day of queued merges.
+  merges on one day; the same rule saw 0 of 4 code merges on a day of queued
+  merges.
 
 ## 7. Open
 

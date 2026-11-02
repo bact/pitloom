@@ -80,7 +80,8 @@ and 3.14) and at most 0.8 s on Windows (those columns are not tabulated).
   (session scratch, not in the repository; run 41043964793) saw two such 35.3 s
   `setup` phases on macOS, in this test and in `test_over_cap_surfaces`. The
   `fetch_json` test, new in #415, takes 35.0 s in both macOS runs that contain
-  it and 0.0 to 0.1 s on Linux. Nothing about 35 s on macOS is new.
+  it and 0.0 to 0.1 s on Linux; #415 merged at 14:38 UTC, so the test is now on
+  `main`. Nothing about 35 s on macOS is new.
 - **Two of the four are new in the failed run:** the redirect test (35.5 s, 0.5
   s elsewhere) and the hardening test (60.3 s, 0.1 to 0.2 s elsewhere).
 - **The three standing 35 s tests start a local HTTP server.** `g/manifest`
