@@ -26,6 +26,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
 )
+from pitloom.extract.ai_model._stated_text import first_stated_text
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -49,6 +50,17 @@ SAFETENSORS_FORMAT_MAX_HEADER_BYTES = 100_000_000
 #: two is detected and refused with its size, not called an unsupported
 #: format.
 MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
+
+
+#: The ``__metadata__`` keys of each field, in the order tried:
+#: name, description, version, architecture, quantization.
+_STATED_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("name", ("modelspec.title", "name", "ss_base_model_version")),
+    ("description", ("modelspec.description", "description")),
+    ("version", ("modelspec.version", "version")),
+    ("architecture", ("modelspec.architecture", "architecture")),
+    ("quantization", ("modelspec.precision", "precision")),
+)
 
 
 def _check_header_length(model_path: Path) -> None:
@@ -152,6 +164,22 @@ def _license(
     return value
 
 
+def _stated_field(
+    metadata: dict[str, str],
+    field: str,
+    keys: tuple[str, ...],
+    source: str,
+    provenance: dict[str, str],
+) -> str | None:
+    """The text of the first of *keys* in *metadata* that is not blank, with
+    *field*'s provenance."""
+    found = first_stated_text(metadata, keys)
+    if found is None:
+        return None
+    provenance[field] = f"{source} | Field: __metadata__"
+    return found[1]
+
+
 def read_safetensors(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Safetensors model file.
 
@@ -208,34 +236,12 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     if framework:
         provenance["framework"] = f"{source} | Field: __metadata__"
 
-    # Pull well-known keys from __metadata__
-    name = (
-        metadata.get("modelspec.title")
-        or metadata.get("name")
-        or metadata.get("ss_base_model_version")
+    # Well-known keys of __metadata__; a blank value reads as absent and
+    # gives way to the next key.
+    name, description, version, architecture, quantization = (
+        _stated_field(metadata, field, keys, source, provenance)
+        for field, keys in _STATED_KEYS
     )
-    if name:
-        provenance["name"] = f"{source} | Field: __metadata__"
-
-    description = metadata.get("modelspec.description") or metadata.get("description")
-    if description:
-        provenance["description"] = f"{source} | Field: __metadata__"
-
-    version = metadata.get("modelspec.version") or metadata.get("version")
-    if version:
-        provenance["version"] = f"{source} | Field: __metadata__"
-
-    # modelspec.architecture -> architecture (specific arch name)
-    architecture = metadata.get("modelspec.architecture") or metadata.get(
-        "architecture"
-    )
-    if architecture:
-        provenance["architecture"] = f"{source} | Field: __metadata__"
-
-    # modelspec.precision -> quantization (e.g. "fp16", "bf16", "int8")
-    quantization = metadata.get("modelspec.precision") or metadata.get("precision")
-    if quantization:
-        provenance["quantization"] = f"{source} | Field: __metadata__"
 
     # The well-known keys above came from the whole map; only what is kept
     # below is cut. Exact per-key provenance: each entry is traceable to its
