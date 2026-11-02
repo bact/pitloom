@@ -196,13 +196,14 @@ def test_a_package_one_extra_declares_by_url_gets_no_pypi_fact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, calls: Calls
 ) -> None:
     """``impostor-pkg>=1`` in an extra and the direct reference collapse into
-    one package: it comes from the URL, so PyPI's record is not used."""
+    one package: it comes from the URL, so PyPI is not asked about it and
+    its record is not used."""
     isolate(tmp_path, monkeypatch)
     text = _pyproject([_URL]) + (
         '[project.optional-dependencies]\nx = ["impostor-pkg>=1"]\n'
     )
     sbom = _library({"pyproject.toml": text})(tmp_path)
-    assert ("impostor-pkg", None) in calls  # the registry spelling's prefetch
+    assert not calls  # not even the registry spelling is prefetched
     assert _pypi_facts(sbom, "impostor-pkg") == []
     packages = [
         e for e in json.loads(sbom)["@graph"] if e.get("name") == "impostor-pkg"

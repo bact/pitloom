@@ -62,6 +62,18 @@ def _project() -> ProjectMetadata:
     )
 
 
+def _group_keys(project: ProjectMetadata) -> set[tuple[str, str]]:
+    """The ``(name, version)`` of each package of *project*, from the same
+    inputs :func:`build` derives, resolved apart from it."""
+    locked = {"requests": "2.31.0", "urllib3": "2.0.0", "idna": "3.4"}
+    grouped = project_dependencies(project, ["certifi==2024.1.1"], locked)
+    return {
+        (group.canonical_name, group.version)
+        for groups in (grouped.direct, grouped.transitive)
+        for group in groups.groups
+    }
+
+
 def test_prefetch_fetches_the_grouped_keys_and_the_resolution_runs_once(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -103,17 +115,12 @@ def test_prefetch_fetches_the_grouped_keys_and_the_resolution_runs_once(
         if e.get("type") == "software_Package" and e["name"] != project.name
     }
     prefetched = {(canonicalize_name(name), version) for name, version in fetched}
-    # The same inputs build() derives, resolved apart from it.
-    locked = {"requests": "2.31.0", "urllib3": "2.0.0", "idna": "3.4"}
-    grouped = project_dependencies(project, ["certifi==2024.1.1"], locked)
-    groups = [g for lst in (grouped.direct, grouped.transitive) for g in lst.groups]
     referenced = {canonicalize_name("vendored"), canonicalize_name("private")}
-    keys = {(g.canonical_name, g.version) for g in groups} - {
-        key for key in built if key[0] in referenced
-    }
     assert {name for name, _ in built} >= referenced
     assert all(is_direct_reference(dep) for dep in (_DIRECT, _PRIVATE[1]))
-    assert prefetched == keys
+    assert prefetched == _group_keys(project) - {
+        key for key in built if key[0] in referenced
+    }
     assert prefetched == {key for key in built if key[0] not in referenced}
     assert len(fetched) == len(prefetched)  # once per package
     assert ("foo-bar", "1.0") in prefetched  # the version the package shows
