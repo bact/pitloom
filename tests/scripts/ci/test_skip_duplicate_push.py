@@ -12,12 +12,14 @@ import threading
 import urllib.error
 from collections.abc import Callable
 from email.message import Message
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from tests._loopback_server import LoopbackHTTPServer
 
 REPO = "owner/repo"
 
@@ -331,7 +333,7 @@ def test_fetch_json_sends_the_token_and_parses(
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             """Stay quiet."""
 
-    with HTTPServer(("127.0.0.1", 0), Handler) as server:
+    with LoopbackHTTPServer(("127.0.0.1", 0), Handler) as server:
         thread = threading.Thread(target=server.handle_request)
         thread.start()
         url = f"http://127.0.0.1:{server.server_port}/x?y=1"
