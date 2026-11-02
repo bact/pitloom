@@ -110,11 +110,6 @@ the one list.
   Exceeds the limit (4300 digits)` traceback before the hook runs. Not
   Pitloom's to catch; noted so the difference between the surfaces is known.
   *Found 2026-10-27, combined review of #352 to #357.*
-- [ ] **The PyPI prefetch resolves versions a second time (S).**
-  `_document_locked_deps` calls `_resolve_version(..., warn=False)` apart from
-  `_dep_groups.group_dependencies`, so the version it fetches can drift from
-  the one the grouped rule states.
-  *Found 2026-10-30, from #407 (registry package key).*
 
 ## Fixed
 
@@ -206,3 +201,8 @@ release ships.
   say so (`Merge: conflicting 'ai_hyperparameter' key 'k' on ...: keeping X,
   dropping Y.`); equal and same-JSON values stay quiet.
   *Found 2026-10-27, combined review of #352 to #357.*
+- [x] **The PyPI prefetch resolves versions a second time (S).** Fixed by #418.
+  `_document_locked_deps` calls `_resolve_version(..., warn=False)` apart from
+  `_dep_groups.group_dependencies`, so the version it fetches can drift from
+  the one the grouped rule states.
+  *Found 2026-10-30, from #407 (registry package key).*
