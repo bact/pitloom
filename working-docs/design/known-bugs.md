@@ -24,12 +24,11 @@ Size: S under half a day, M about a day.
 ## Planned releases (decided 2026-10-30)
 
 - 0.22.1: small remaining bug fixes. (The path-in-message fix, #410, landed
-  before the 0.22.0 tag.) Also re-run the 0.22.0 release checks that were left to CI (decided
-  2026-10-30): the full manual CLI checks, the CHANGELOG-against-merged-PRs
-  cross-check, the leftover `0.21.2` review, the coverage-snapshot diffs and
-  the `scripts/` lint; fix what they find.
-  Re-run 2026-11-02 (all but the `0.21.2` review): see "Release checks
-  re-run" under Found 2026-11-02.
+  before the 0.22.0 tag.) Also re-run the 0.22.0 release checks that were left
+  to CI (decided 2026-10-30): the full manual CLI checks, the
+  CHANGELOG-against-merged-PRs cross-check, the coverage-snapshot diffs and the
+  `scripts/` lint; fix what they find. Re-run 2026-11-02: see
+  [Release checks re-run](known-bugs/process-tooling-and-release-checks.md#release-checks-re-run-2026-11-02).
 - 0.23.0: the `licenseid` 0.7.0 adoption, the licence provenance mapping
   (#384), the remaining catalogue families (1b, 2b, 3 to 18, licence
   included) and `--report`/SARIF. See
