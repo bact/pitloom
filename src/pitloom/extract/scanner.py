@@ -399,13 +399,15 @@ def attach_usage_references(
                     source.physical_path,
                 )
                 continue
-            attach_from_source(source, raw.decode("utf-8"), candidates)
+            text = raw.decode("utf-8")
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             if not (isinstance(e, OSError) and is_missing_errno(e)):
                 warn_file_unreadable(
                     log, e, file=source.physical_path, use="for usage scanning"
                 )
+            continue
+        attach_from_source(source, text, candidates)
     for meta in models:
         meta.usage_files = merge_usages(meta.usage_files)
 

@@ -3,12 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for the AST model-usage visitor, call table and path matcher.
+"""Unit tests for the AST model-usage visitor (:mod:`pitloom.extract._usage_ast`).
 
 Pure functions only -- no file I/O.
 
-See also: :mod:`tests.extract.scanner.test_scanner` (scanner integration and
-parse-failure reporting) and :mod:`pitloom.extract._usage_ast`.
+See also: :mod:`tests.extract.scanner.test_usage_match` (call table and path
+matcher tests), :mod:`tests.extract.scanner.test_usage_unparseable`
+(parse-failure reporting) and :mod:`tests.extract.scanner.test_scanner`.
 """
 
 # pylint: disable=missing-function-docstring
@@ -19,19 +20,9 @@ import warnings
 
 import pytest
 
-from pitloom.core.model_usage import (
-    ModelUsage,
-    UsageAccess,
-    combine_access,
-    merge_usages,
-)
+from pitloom.core.model_usage import UsageAccess, combine_access
 from pitloom.extract._usage_ast import find_usages, parse_python, python_version
-from pitloom.extract._usage_match import UsageModel, matches
-from pitloom.extract._usage_table import (
-    access_of_mode,
-    access_of_name,
-    is_mention_call,
-)
+from pitloom.extract._usage_match import UsageModel
 
 _MODEL = UsageModel("model.ftz", ("pkg/data/model.ftz", "src/pkg/data/model.ftz"))
 
@@ -39,182 +30,6 @@ _MODEL = UsageModel("model.ftz", ("pkg/data/model.ftz", "src/pkg/data/model.ftz"
 def _accesses(source: str, model: UsageModel = _MODEL) -> frozenset[UsageAccess]:
     (found,) = find_usages(parse_python(source), [model])
     return found
-
-
-# --- combine_access and merge_usages ----------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("inputs", "expected"),
-    [
-        ([UsageAccess.READ], UsageAccess.READ),
-        ([UsageAccess.WRITE], UsageAccess.WRITE),
-        ([UsageAccess.UNKNOWN], UsageAccess.UNKNOWN),
-        ([UsageAccess.READ_WRITE], UsageAccess.READ_WRITE),
-        ([UsageAccess.READ, UsageAccess.WRITE], UsageAccess.READ_WRITE),
-        ([UsageAccess.WRITE, UsageAccess.READ], UsageAccess.READ_WRITE),
-        ([UsageAccess.READ, UsageAccess.UNKNOWN], UsageAccess.READ),
-        ([UsageAccess.WRITE, UsageAccess.UNKNOWN], UsageAccess.WRITE),
-        (
-            [UsageAccess.READ, UsageAccess.WRITE, UsageAccess.UNKNOWN],
-            UsageAccess.READ_WRITE,
-        ),
-        ([UsageAccess.READ_WRITE, UsageAccess.UNKNOWN], UsageAccess.READ_WRITE),
-    ],
-    ids=[
-        "read",
-        "write",
-        "unknown",
-        "rw",
-        "r+w",
-        "w+r",
-        "r+u",
-        "w+u",
-        "r+w+u",
-        "rw+u",
-    ],
-)
-def test_combine_access(inputs: list[UsageAccess], expected: UsageAccess) -> None:
-    assert combine_access(inputs) == expected
-
-
-def test_combine_access_empty_raises() -> None:
-    with pytest.raises(ValueError, match="no access"):
-        combine_access([])
-
-
-def test_merge_usages_sorts_and_combines_per_path() -> None:
-    usages = [
-        ModelUsage("pkg/b.py", UsageAccess.UNKNOWN),
-        ModelUsage("pkg/a.py", UsageAccess.READ),
-        ModelUsage("pkg/a.py", UsageAccess.WRITE),
-        ModelUsage("pkg/b.py", UsageAccess.WRITE),
-    ]
-    assert merge_usages(usages) == [
-        ModelUsage("pkg/a.py", UsageAccess.READ_WRITE),
-        ModelUsage("pkg/b.py", UsageAccess.WRITE),
-    ]
-
-
-# --- _usage_table -----------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("mode", "expected"),
-    [
-        ("r", UsageAccess.READ),
-        ("rb", UsageAccess.READ),
-        ("rt", UsageAccess.READ),
-        ("w", UsageAccess.WRITE),
-        ("wb", UsageAccess.WRITE),
-        ("wt", UsageAccess.WRITE),
-        ("a", UsageAccess.WRITE),
-        ("ab", UsageAccess.WRITE),
-        ("x", UsageAccess.WRITE),
-        ("xb", UsageAccess.WRITE),
-        ("r+", UsageAccess.READ_WRITE),
-        ("rb+", UsageAccess.READ_WRITE),
-        ("w+", UsageAccess.READ_WRITE),
-        ("a+b", UsageAccess.READ_WRITE),
-        ("", UsageAccess.UNKNOWN),
-        ("b", UsageAccess.UNKNOWN),
-    ],
-)
-def test_access_of_mode(mode: str, expected: UsageAccess) -> None:
-    assert access_of_mode(mode) == expected
-
-
-@pytest.mark.parametrize(
-    ("name", "expected"),
-    [
-        ("load", UsageAccess.READ),
-        ("load_model", UsageAccess.READ),
-        ("load_file", UsageAccess.READ),
-        ("read_bytes", UsageAccess.READ),
-        ("read_text", UsageAccess.READ),
-        ("from_pretrained", UsageAccess.READ),
-        ("restore", UsageAccess.READ),
-        ("InferenceSession", UsageAccess.READ),
-        ("Booster", UsageAccess.READ),
-        ("Interpreter", UsageAccess.READ),
-        ("Llama", UsageAccess.READ),
-        ("save", UsageAccess.WRITE),
-        ("save_model", UsageAccess.WRITE),
-        ("save_file", UsageAccess.WRITE),
-        ("save_pretrained", UsageAccess.WRITE),
-        ("write_bytes", UsageAccess.WRITE),
-        ("write_text", UsageAccess.WRITE),
-        ("dump", UsageAccess.WRITE),
-        ("export", UsageAccess.WRITE),
-        ("to_onnx", UsageAccess.WRITE),
-        ("exists", UsageAccess.UNKNOWN),
-        ("stat", UsageAccess.UNKNOWN),
-    ],
-)
-def test_access_of_name(name: str, expected: UsageAccess) -> None:
-    assert access_of_name(name) == expected
-
-
-@pytest.mark.parametrize(
-    ("name", "mention"),
-    [
-        ("print", True),
-        ("info", True),
-        ("warning", True),
-        ("warn", True),
-        ("error", True),
-        ("debug", True),
-        ("FileNotFoundError", True),
-        ("ValueError", True),
-        ("RuntimeWarning", True),
-        ("SystemExit", True),
-        ("load", False),
-        ("open", False),
-    ],
-)
-def test_is_mention_call(name: str, mention: bool) -> None:
-    assert is_mention_call(name) is mention
-
-
-# --- _usage_match -----------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("literal", "expected"),
-    [
-        ("model.ftz", True),
-        ("./model.ftz", True),
-        ("data/model.ftz", True),
-        ("pkg/data/model.ftz", True),
-        ("src/pkg/data/model.ftz", True),
-        ("data\\model.ftz", True),
-        ("pkg\\data\\model.ftz", True),
-        ("/abs/checkout/pkg/data/model.ftz", True),
-        ("C:\\work\\src\\pkg\\data\\model.ftz", True),
-        ("~/work/pkg/data/model.ftz", True),
-        ("../data/model.ftz", True),
-        ("data/sub/../model.ftz", True),
-        ("%s/model.ftz", True),
-        ("{}/data/model.ftz", True),
-        ("other/model.ftz", False),
-        ("pkg/other/model.ftz", False),
-        ("/abs/other/model.ftz", False),
-        ("{}/other/model.ftz", False),
-        ("my_model.ftz", False),
-        ("model.ftz.bak", False),
-        ("saved model.ftz to disk", False),
-        ("model.ftz/extra", False),
-        ("", False),
-        ("/", False),
-    ],
-)
-def test_matches_path_shapes_and_directory_suffixes(
-    literal: str, expected: bool
-) -> None:
-    assert matches(literal, _MODEL) is expected
-
-
-# --- AST classification -----------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -249,10 +64,25 @@ def test_matches_path_shapes_and_directory_suffixes(
         ('import numpy as np\nnp.memmap("model.ftz", str, "r")', {UsageAccess.READ}),
         ('import fasttext as ft\nft.load_model("model.ftz")', {UsageAccess.READ}),
         ('from joblib import load\nload("model.ftz")', {UsageAccess.READ}),
+        (
+            'from joblib import load as jl_load\njl_load("model.ftz")',
+            {UsageAccess.READ},
+        ),
+        ('from .utils import load_model as lm\nlm("model.ftz")', {UsageAccess.READ}),
         ('from joblib import dump\ndump(obj, "model.ftz")', {UsageAccess.WRITE}),
         ('import torch\ntorch.save(state, "model.ftz")', {UsageAccess.WRITE}),
         ('import torch\ntorch.save(obj=state, f="model.ftz")', {UsageAccess.WRITE}),
         ('import torch\ntorch.load("model.ftz")', {UsageAccess.READ}),
+        (
+            'import torch\ntorch.load("model.ftz" if cond else "other.ftz")',
+            {UsageAccess.READ},
+        ),
+        ('open(custom or "model.ftz", "wb")', {UsageAccess.WRITE}),
+        ('import tarfile\ntarfile.open("model.ftz", "r:xz")', {UsageAccess.READ}),
+        (
+            'from safetensors import safe_open\nsafe_open("model.ftz", "pt")',
+            {UsageAccess.READ},
+        ),
         ('import onnx\nonnx.load("model.ftz")', {UsageAccess.READ}),
         ('import onnx\nonnx.save(m, "model.ftz")', {UsageAccess.WRITE}),
         (
@@ -271,7 +101,18 @@ def test_matches_path_shapes_and_directory_suffixes(
         ('model.save_model("model.ftz")', {UsageAccess.WRITE}),
         ('tagger.open("model.ftz")', {UsageAccess.READ}),
         ('get_loader().load("model.ftz")', {UsageAccess.READ}),
+        ('f"{load_model(\'model.ftz\')}"', {UsageAccess.READ}),
+        (
+            'from pathlib import Path\nPath("model.ftz").read_text() + "\\n"',
+            {UsageAccess.READ},
+        ),
+        ('"{}".format(load_model("model.ftz"))', {UsageAccess.READ}),
+        ('"%s" % load_model("model.ftz")', {UsageAccess.READ}),
         ('callbacks[0]("model.ftz")', {UsageAccess.UNKNOWN}),
+        (
+            'from pathlib import Path\ncallback(Path("model.ftz").read_bytes)',
+            {UsageAccess.UNKNOWN},
+        ),
         ('os.path.exists("model.ftz")', {UsageAccess.UNKNOWN}),
         ('Path("model.ftz").stat()', {UsageAccess.UNKNOWN}),
         ('Path("model.ftz").suffix', {UsageAccess.UNKNOWN}),
@@ -297,8 +138,10 @@ def test_call_and_mode_classification(code: str, expected: set[UsageAccess]) -> 
         'import warnings\nwarnings.warn("model.ftz")\n',
         'raise FileNotFoundError("model.ftz")\n',
         'raise RuntimeError("model.ftz")\n',
+        'raise CustomProblem("model.ftz")\n',
         'raise "model.ftz"\n',
         'assert ok, "model.ftz"\n',
+        'print("model.ftz" if cond else "other")\n',
         'msg = "Failed to load model.ftz from disk"\n',
     ],
     ids=[
@@ -313,8 +156,10 @@ def test_call_and_mode_classification(code: str, expected: set[UsageAccess]) -> 
         "warnings-warn",
         "raise-fnf",
         "raise-rt",
+        "raise-custom",
         "raise-bare",
         "assert-msg",
+        "print-ifexp",
         "sentence",
     ],
 )
@@ -330,10 +175,41 @@ def test_mention_only_and_non_path_strings_produce_no_edge(code: str) -> None:
         ('A = "data"\nB = A + "/model.ftz"\nopen(B)\n', {UsageAccess.READ}),
         ('M = "data/model.ftz"\nprint(M)\n', set()),
         ('M = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),
+        ('M = "data/model.ftz"\nbak = f"{M}.bak"\n', {UsageAccess.UNKNOWN}),
         ('M = "data/model.ftz"\nM = "other"\nopen(M)\n', {UsageAccess.UNKNOWN}),
+        ('M = "data/model.ftz"\ndel M\n', {UsageAccess.UNKNOWN}),
+        ('M = "data/model.ftz"\ndef f(M): open(M, "wb")\n', {UsageAccess.UNKNOWN}),
+        ('M = "data/model.ftz"\nimport os as M\n', {UsageAccess.UNKNOWN}),
+        ('M = "data/model.ftz"\ndef M(): pass\n', {UsageAccess.UNKNOWN}),
+        (
+            'M = "data/model.ftz"\ntry:\n    pass\nexcept Exception as M:\n    pass\n',
+            {UsageAccess.UNKNOWN},
+        ),
+        (
+            'M = "data/model.ftz"\nmatch x:\n    case str() as M:\n        open(M, "wb")\n',
+            {UsageAccess.UNKNOWN},
+        ),
+        ('M: str\nA = B = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),
+        (
+            'def load(p: str = "data/model.ftz"):\n    return open(p, "rb")\n',
+            {UsageAccess.READ},
+        ),
+        (
+            'def load(*, p: str = "data/model.ftz"):\n    print(p)\n',
+            set(),
+        ),
+        (
+            'def load(p: str = "data/model.ftz"):\n    return 1\n',
+            {UsageAccess.UNKNOWN},
+        ),
         ('self.path = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),
         (
             'from pathlib import Path\nopen(Path("pkg") / "data" / "model.ftz")\n',
+            {UsageAccess.READ},
+        ),
+        (
+            "from pathlib import PureWindowsPath\n"
+            'open(PureWindowsPath("pkg\\\\data") / "model.ftz")\n',
             {UsageAccess.READ},
         ),
         (
@@ -349,39 +225,62 @@ def test_mention_only_and_non_path_strings_produce_no_edge(code: str) -> None:
             'import os\nopen(os.path.join(base, "data", "model.ftz"), "wb")\n',
             {UsageAccess.WRITE},
         ),
+        (
+            'from os.path import join\nopen(join(base, "data", "model.ftz"))\n',
+            {UsageAccess.READ},
+        ),
+        (
+            "import os.path as osp\n"
+            'open(osp.join("other", "/abs/pkg/data/model.ftz"))\n',
+            {UsageAccess.READ},
+        ),
+        (
+            'import ntpath\nopen(ntpath.join(base, "data\\\\model.ftz"))\n',
+            {UsageAccess.READ},
+        ),
+        (
+            'from . import join\nopen(join("other", "model.ftz"))\n',
+            {UsageAccess.UNKNOWN},
+        ),
         ('open(f"{base}/data/model.ftz")\n', {UsageAccess.READ}),
         ('D = "data"\nopen(f"{D}/model.ftz", "wb")\n', {UsageAccess.WRITE}),
+        ('EXT = ".ftz"\nopen(f"data/model{EXT}")\n', {UsageAccess.READ}),
+        ('EXT = ".ftz"\nopen(f"data/model{EXT!r}")\n', set()),
+        ('EXT = ".ftz"\nopen(f"data/model{EXT:>8}")\n', set()),
         ('open(f"{base}/other/model.ftz")\n', set()),
+        ('open(f"{base}//other/model.ftz")\n', set()),
+        ('open(f"{prefix}model.ftz")\n', set()),
         ('open("%s/data/model.ftz" % base)\n', {UsageAccess.READ}),
+        ('open("data/%s" % "model.ftz")\n', {UsageAccess.READ}),
+        ('open("%s/%s" % ("data", "model.ftz"))\n', {UsageAccess.READ}),
+        ('open("%s/model.ftz" % "other")\n', set()),
         ('open("{}/data/model.ftz".format(base))\n', {UsageAccess.READ}),
+        ('open("data/{}".format("model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{0}/{1}".format("data", "model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{d}/{f}".format(d="data", f="model.ftz"))\n', {UsageAccess.READ}),
+        ('open("{}/model.ftz".format("other"))\n', set()),
         ('open(prefix + "/data/model.ftz")\n', {UsageAccess.READ}),
         ('open(prefix + "model.ftz")\n', set()),
+        ('open("data/model.ftz" + ext)\n', set()),
+        ('from pathlib import Path\nopen(Path("model.ftz") / sub)\n', set()),
+        ('open(str("data/model.ftz", "utf-8"))\n', {UsageAccess.UNKNOWN}),
         ('open("data\\\\model.ftz")\n', {UsageAccess.READ}),
     ],
-    ids=[
-        "const-assign",
-        "ann-assign",
-        "chained-const",
-        "const-printed",
-        "const-unread",
-        "reassigned",
-        "attr-assign",
-        "path-div",
-        "joinpath",
-        "str-resolve",
-        "os-join",
-        "fstring-unknown-head",
-        "fstring-known",
-        "fstring-wrong-dir",
-        "percent-format",
-        "str-format",
-        "add-with-sep",
-        "add-no-sep",
-        "windows-backslash",
-    ],
+    ids=lambda val: val if isinstance(val, str) and len(val) < 24 else "case",
 )
 def test_intra_file_path_resolution(code: str, expected: set[UsageAccess]) -> None:
     assert _accesses(code) == expected
+
+
+def test_deep_and_exponential_constants_stay_bounded() -> None:
+    chain = ['A0 = "a/model.ftz"']
+    for idx in range(1, 31):
+        chain.append(f'A{idx} = A{idx - 1} + "/" + A{idx - 1}')
+    chain.append("open(A30)")
+    assert _accesses("\n".join(chain)) == set()
+
+    deep = " + ".join(['"a"'] * 200)
+    assert _accesses(f'x = {deep}\nopen("model.ftz")\n') == {UsageAccess.READ}
 
 
 def test_read_and_write_in_one_file_both_recorded() -> None:

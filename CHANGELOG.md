@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-30
+Last-Modified: 2026-10-31
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,13 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.22.0...HEAD>
 
 ## [Unreleased]
+
+### Changed
+
+- `--scan-model-usage` walks Python ASTs: records `read`/`write`/`unknown
+  access` in `comment`, skips mentions, and warns `[usage-unparseable]` ([#413])
+
+[#413]: https://github.com/bact/pitloom/pull/413
 
 ## [0.22.0] - 2026-10-30
 

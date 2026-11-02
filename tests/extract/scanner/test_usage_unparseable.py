@@ -158,3 +158,38 @@ def test_unparseable_file_not_mentioning_any_model_stays_silent(
 
     assert not model.usage_files
     assert not caplog.records
+
+
+def test_same_named_models_emit_mention_once_and_escape_newlines(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Two models in different directories sharing a file name emit one
+    ``usage-unparseable/mention`` line per file, and a newline in the source
+    path or model name cannot forge a second log line."""
+    m1 = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            model_format=AiModelFormat.ONNX,
+            file_name="dup.onnx",
+            file_path_relative="pkg/a/dup.onnx",
+            physical_path="/abs/tmp/pkg/a/dup.onnx",
+        )
+    )
+    m2 = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            model_format=AiModelFormat.ONNX,
+            file_name="dup.onnx",
+            file_path_relative="pkg/b/dup.onnx",
+            physical_path="src/pkg/b/dup.onnx",
+        )
+    )
+    source = _src("pkg/bad\nname.py", "src/pkg/bad\nname.py", b"open('dup.onnx'\n")
+    with caplog.at_level(logging.INFO, logger=_LOGGER_NAME):
+        attach_usage_references([m1, m2], [source])
+
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    infos = [r for r in caplog.records if r.levelno == logging.INFO]
+    assert len(warnings) == 1
+    assert len(infos) == 1
+    for rec in (*warnings, *infos):
+        assert "\n" not in rec.getMessage()
+        assert record_problem(rec) is None

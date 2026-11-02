@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.model_usage import ModelUsage, combine_access
+from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._usage_ast import (
     PARSE_ERRORS,
     find_usages,
@@ -46,7 +47,9 @@ def usage_models(
     for meta in models:
         info = meta.format_info
         if info.file_name:
-            paths = tuple(p for p in (info.file_path_relative, info.physical_path) if p)
+            rel = info.file_path_relative or ""
+            phys = project_relative_or_fallback(info.physical_path or "", rel)
+            paths = tuple(dict.fromkeys(p for p in (rel, phys) if p))
             found.append((meta, UsageModel(info.file_name, paths)))
     return found
 
@@ -56,8 +59,9 @@ def _parse_failure(exc: BaseException) -> ValueError:
     interpreter's message and line for a syntax error, else its own words
     (a nesting error has none, and a syntax error's text names no file)."""
     if isinstance(exc, SyntaxError):
+        msg = exc.msg or type(exc).__name__
         where = f" (line {exc.lineno})" if exc.lineno else ""
-        return ValueError(f"{exc.msg}{where}")
+        return ValueError(f"{msg}{where}")
     if isinstance(exc, (MemoryError, RecursionError)):
         return ValueError("nested too deeply")
     return ValueError(str(exc))
@@ -79,7 +83,7 @@ def attach_from_source(
     if not named:
         return
     try:
-        accesses = find_usages(parse_python(content), [usage for _, usage in named])
+        tree = parse_python(content)
     except PARSE_ERRORS as exc:
         emit(
             log,
@@ -89,15 +93,16 @@ def attach_from_source(
             python=python_version(),
             failure=_parse_failure(exc),
         )
-        for _, usage in named:
+        for name in dict.fromkeys(usage.name for _, usage in named):
             emit(
                 log,
                 USAGE_UNPARSEABLE_MENTION,
                 logging.INFO,
                 file=source.physical_path,
-                name=usage.name,
+                name=name,
             )
         return
+    accesses = find_usages(tree, [usage for _, usage in named])
     for (meta, usage), found in zip(named, accesses, strict=True):
         if found:
             meta.usage_files.append(

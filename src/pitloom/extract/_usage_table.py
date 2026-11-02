@@ -23,6 +23,7 @@ See also: :mod:`pitloom.extract._usage_ast` (the scan that reads it) and
 
 from __future__ import annotations
 
+import re
 from typing import Final
 
 from pitloom.core.model_usage import UsageAccess
@@ -52,7 +53,12 @@ RECEIVER_MODE_POSITION: Final = 0
 
 #: Names that read a model when the path is given to them, though they do not
 #: begin with a reading word.
-_READ_NAMES: Final = frozenset({"booster", "inferencesession", "interpreter", "llama"})
+_READ_NAMES: Final = frozenset(
+    {"booster", "inferencesession", "interpreter", "llama", "safe_open"}
+)
+#: Characters a stdio or archive mode uses before any ``:`` or ``|``
+#: compression suffix (``"rb"``, ``"w+"``, ``"r:xz"``).
+_MODE_HEAD: Final = re.compile(r"^[rwaxbtU+]+$")
 #: A name starting with one of these reads or writes the file it is given
 #: (``load_model``, ``read_text``, ``from_pretrained``; ``save_pretrained``,
 #: ``dump``, ``to_onnx``). Compared in lower case.
@@ -82,13 +88,16 @@ _MENTION_SUFFIXES: Final = ("Error", "Exception", "Warning", "Exit")
 
 
 def access_of_mode(mode: str) -> UsageAccess:
-    """The access a file mode (``"rb"``, ``"w+"``) opens: ``+`` is both, ``w``,
-    ``a`` and ``x`` write, ``r`` reads, anything else is unknown."""
-    if "+" in mode:
+    """The access a file mode (``"rb"``, ``"w+"``, ``"r:xz"``) opens: ``+`` is
+    both, ``w``, ``a`` and ``x`` write, ``r`` reads, anything else is unknown."""
+    head = re.split(r"[:|]", mode, maxsplit=1)[0]
+    if not _MODE_HEAD.match(head):
+        return UsageAccess.UNKNOWN
+    if "+" in head:
         return UsageAccess.READ_WRITE
-    if any(flag in mode for flag in "wax"):
+    if any(flag in head for flag in "wax"):
         return UsageAccess.WRITE
-    if "r" in mode:
+    if "r" in head:
         return UsageAccess.READ
     return UsageAccess.UNKNOWN
 

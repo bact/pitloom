@@ -99,16 +99,17 @@ model's distribution path or physical path (`"data/model.ftz"` matches only a
 model under `.../data/`). A bare file name still matches every model of that
 name (decision 6).
 
-Skip docstrings (the first expression statement of a module, class or
-function) explicitly: they are string constants in the AST. Comments are not in
-the AST and need no skipping.
+Skip bare expression statements (including docstrings, which are `ast.Expr`
+nodes holding a string constant) explicitly. Comments are not in the AST and
+need no skipping.
 
 Constant resolution, within **one file** only:
 
 - a module- or function-level `NAME = "..."` read back as a `Name`;
 - `Path("a") / "b"`, `os.path.join("a", "b")`, `PurePosixPath(...)`, with
   literal parts;
-- f-strings and `"..." % ...` / `.format()` whose parts are all constant.
+- f-strings and `"..." % ...` / `.format()` with constant or partially
+  constant parts (bounded to depth 64 and 4,096 characters).
 
 Out of scope for the first version: values imported from another module,
 `**kwargs`, `getattr`, config files, notebooks. The docs keep saying
@@ -116,10 +117,12 @@ Out of scope for the first version: values imported from another module,
 
 ### Classification
 
-A table of callables, by dotted name after resolving `import x as y` and
-`from x import y`, giving the access and the position (or keyword) of the path
-argument. The path is not always argument 0: `torch.save(obj, path)` and
-`joblib.dump(obj, path)` take it second, `np.save(path, arr)` first.
+A table of callables, matched by the last name of the callee after resolving
+`import x as y` and `from x import y`, giving the access (and for `MODE_CALLS`,
+the position of the `mode` argument). The path is not matched by argument
+position: `torch.save(obj, path)` and `joblib.dump(obj, path)` take it second,
+`np.save(path, arr)` first; the path-shaped argument naming a model is the one
+classified.
 
 | Access | Callables (first version) |
 | :--- | :--- |
@@ -192,23 +195,23 @@ messages go through `loggable()` / the catalogue's fields.
 ## Work breakdown
 
 1. `extract/_usage_table.py`: the callable table and the mode rules.
-2. `extract/_usage_ast.py`: the visitor (constants, alias resolution, mention
-   exclusion, matching, classification); no I/O. Pure function from text and
-   model list to `ModelUsage` entries and a list of mention-only results.
-3. `extract/scanner.py`: `attach_usage_references` calls it; the pre-filter,
-   the failure handling and the two messages stay in the I/O layer. Keep every
-   file under the ~400-500 line soft limit (the scanner is 439 now).
-4. `core/ai_metadata.py`: `ModelUsage`, `UsageAccess`; migrate the field.
+2. `extract/_usage_match.py` and `extract/_usage_ast.py`: path/suffix matching
+   and the AST visitor (constants, alias resolution, mention exclusion,
+   classification); no I/O.
+3. `extract/_usage_attach.py` and `extract/scanner.py`: `attach_usage_references`
+   calls `attach_from_source`; the pre-filter, failure handling and the two
+   messages stay in the I/O/attachment layer.
+4. `core/model_usage.py` and `core/ai_metadata.py`: `ModelUsage`, `UsageAccess`;
+   migrate `usage_files`.
 5. `assemble/spdx3/ai.py`: the `comment` on `hasDataFile`.
 6. Messages: `usage-unparseable` family and its variant; reference regenerated.
 7. Docs: `docs/ai-model-scan-limits.md` (the "Usage edges" paragraph: no longer
-   "file name as text"; the new limits), `docs/cli.md`,
-   `docs/configuration.md`, `docs/python-api.md` where they say "file name";
-   `skills/`: grep `scan-model-usage` and `hasDataFile`.
+   "file name as text"; the new limits), `docs/ai-model-formats.md`,
+   `docs/message-codes.md` and `skills/*/references/messages.md`.
 8. `CHANGELOG.md`: output changes for existing projects (`hasDataFile` edges
-   gain a comment; some edges disappear). Link the PR.
+   gain a comment; some edges disappear). Linked [#413].
 9. Field note: the false-positive reduction, with a before/after count on the
-   sentimentdemo project and one other corpus.
+   sentimentdemo project and mistral-inference.
 
 ## Tests
 
