@@ -5,7 +5,9 @@
 
 """A Git LFS pointer named as the project's licence file is no licence text,
 on every route that reads one: the CLI, the library, the Hatchling hook, an
-sdist and a wheel. The file's name never stands in for it either.
+sdist and a wheel, and the ``License`` header a Hatchling build writes from it
+(a built wheel, an sdist with ``PKG-INFO``, an in-tree ``.dist-info``). The
+file's name never stands in for it either.
 
 A file that is not a whole pointer (empty, a look-alike that only opens like
 one, a malformed one) is read as the file says.
@@ -18,11 +20,14 @@ from __future__ import annotations
 
 import json
 import sys
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
+from hatchling.builders.sdist import SdistBuilder
+from hatchling.builders.wheel import WheelBuilder
 
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
@@ -123,6 +128,38 @@ def _wheel(tmp_path: Path, data: bytes | None, _mp: pytest.MonkeyPatch) -> str:
     return generate_wheel_sbom(path, creation_metadata=CreationMetadata(), offline=True)
 
 
+def _hatchling(tmp_path: Path, data: bytes | None, target: str) -> Path:
+    """The *target* (``wheel`` or ``sdist``) Hatchling builds from the
+    project, which writes the licence file's text into a ``License`` header
+    (the wheel's ``METADATA``, the sdist's ``PKG-INFO``)."""
+    root = _project(tmp_path / "p", data).resolve()
+    builder = (WheelBuilder if target == "wheel" else SdistBuilder)(str(root))
+    out = tmp_path / "dist"
+    return Path(next(builder.build(directory=str(out), versions=["standard"])))
+
+
+def _built_wheel(tmp_path: Path, data: bytes | None, _mp: pytest.MonkeyPatch) -> str:
+    path = _hatchling(tmp_path, data, "wheel")
+    return generate_wheel_sbom(path, creation_metadata=CreationMetadata(), offline=True)
+
+
+def _built_sdist(tmp_path: Path, data: bytes | None, _mp: pytest.MonkeyPatch) -> str:
+    path = _hatchling(tmp_path, data, "sdist")
+    return generate_project_sbom(
+        path, creation_metadata=CreationMetadata(), offline=True
+    )
+
+
+def _in_tree(tmp_path: Path, data: bytes | None, _mp: pytest.MonkeyPatch) -> str:
+    """The project with the ``.dist-info`` of its own Hatchling wheel left
+    in its tree, read as installed metadata."""
+    with zipfile.ZipFile(_hatchling(tmp_path, data, "wheel")) as wheel:
+        wheel.extract("tiny-1.0.dist-info/METADATA", tmp_path / "p")
+    return generate_project_sbom(
+        tmp_path / "p", creation_metadata=CreationMetadata(), offline=True
+    )
+
+
 _Route = Callable[[Path, "bytes | None", pytest.MonkeyPatch], str]
 _ROUTES: dict[str, _Route] = {
     "cli": _cli,
@@ -130,10 +167,14 @@ _ROUTES: dict[str, _Route] = {
     "hook": _hook,
     "sdist": _sdist,
     "wheel": _wheel,
+    "built-wheel": _built_wheel,
+    "built-sdist": _built_sdist,
+    "in-tree": _in_tree,
 }
 #: A directory whose ``pyproject.toml`` names a missing file fails the parse
-#: (``pyproject-metadata``); the hook, an sdist and a wheel state no licence.
-_MISSING_FAILS = ("cli", "library")
+#: (``pyproject-metadata``), and Hatchling builds nothing from it; the hook,
+#: an sdist and a wheel built by hand state no licence.
+_MISSING_FAILS = ("cli", "library", "built-wheel", "built-sdist", "in-tree")
 
 
 def _licence_texts(sbom: str) -> tuple[list[str], list[dict[str, Any]]]:
@@ -150,11 +191,15 @@ def _licence_texts(sbom: str) -> tuple[list[str], list[dict[str, Any]]]:
 @pytest.mark.parametrize("kind", _KINDS)
 @pytest.mark.parametrize("route", _ROUTES)
 def test_a_pointer_licence_file_is_no_licence_text_on_any_route(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str, kind: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    route: str,
+    kind: str,
 ) -> None:
     data = _KINDS[kind]
     if kind == "missing" and route in _MISSING_FAILS:
-        with pytest.raises(ValueError):
+        with pytest.raises((ValueError, OSError)):
             _ROUTES[route](tmp_path, data, monkeypatch)
         return
     texts, relationships = _licence_texts(_ROUTES[route](tmp_path, data, monkeypatch))
@@ -166,8 +211,10 @@ def test_a_pointer_licence_file_is_no_licence_text_on_any_route(
         assert relationships
     else:
         assert texts == [] and relationships == []
-    # Whatever the file held, its name is not a licence text.
+    # Whatever the file held, its name is not a licence text; nor is a
+    # pointer a licence another source disagrees with.
     assert "LICENSE" not in texts
+    assert "git-lfs.github.com" not in caplog.text
 
 
 @pytest.mark.parametrize(

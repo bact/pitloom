@@ -35,10 +35,14 @@ from pitloom.extract._core_metadata import (
 from pitloom.extract.project.installed import _parse_installed_metadata
 from pitloom.extract.project.sdist import _parse_pkg_info, read_sdist
 from pitloom.extract.wheel import _populate_metadata_from_email
+from tests._lfs import lfs_pointer_bytes
 from tests._license_graph import graph_of, license_targets, project_graph
 from tests.assemble.conftest import _make_ci
 
 _BASE = "Metadata-Version: 2.4\nName: pkg\nVersion: 1.0.0\n"
+#: A licence file not pulled from Git LFS, as a build backend writes it into
+#: a header (folded by 8 spaces, as hatchling and setuptools fold).
+_POINTER = "\n        ".join(lfs_pointer_bytes(b"Acme terms\n").decode().splitlines())
 
 #: (extra headers, licence every reader must agree on; ``None`` = absent or
 #: empty), one case per boundary of the rule.
@@ -81,6 +85,10 @@ def _msg(extra: str) -> email.message.Message:
         ("License: a\n       |b\n       |  c\n", "a\nb\n  c"),  # 7 and |
         ("License: a\n\tb\n", "a\nb"),  # RFC 5322
         ("License: a\n          b\n", "a\n  b"),  # inner indent kept
+        # a whole Git LFS pointer is no licence: absent, not blank
+        (f"License: {_POINTER}\n", None),
+        (f"License-Expression: {_POINTER}\n", None),
+        (f"License-Expression: {_POINTER}\nLicense: MIT\n", "MIT"),
     ],
 )
 def test_core_metadata_license_is_tri_state(extra: str, expected: str | None) -> None:
@@ -157,6 +165,16 @@ _CLASSIFIER_CASES = [
         "License: a\n         \n         b\n", ["a\n\n b"], id="nine-space-fold"
     ),
     pytest.param("Classifier: Topic :: Utilities\n", [], id="no-license"),
+    # a Git LFS pointer the build backend read as the licence file's text
+    pytest.param(f"License: {_POINTER}\n", [], id="pointer-alone"),
+    pytest.param(
+        f"License: {_POINTER}\nClassifier: {_MIT}\n", ["MIT"], id="pointer-classifier"
+    ),
+    pytest.param(
+        f"License-Expression: {_POINTER}\nLicense: Apache-2.0\n",
+        ["Apache-2.0"],
+        id="pointer-expression-then-legacy",
+    ),
 ]
 
 
