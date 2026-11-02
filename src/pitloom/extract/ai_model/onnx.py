@@ -31,6 +31,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
 )
+from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable, one_line
@@ -344,9 +345,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         provenance["framework_version"] = f"{source} | Field: producer_version"
 
     name = _resolve_onnx_name(model.graph.name, source, provenance)
-    doc_string = model.doc_string if model.doc_string else None
-
-    description = doc_string
+    description = stated_text(model.doc_string)
     if description:
         provenance["description"] = f"{source} | Field: doc_string"
 

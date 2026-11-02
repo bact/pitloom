@@ -6,8 +6,8 @@
 
 Used by ``.github/actions/skip-duplicate-push``. A merge commit whose tree is
 byte-for-byte the tree of its second parent (the PR head) tests nothing new
-when that head already has a successful ``pull_request`` run of the same
-workflow.
+when the newest ``pull_request`` run of that head, in the same workflow, is
+green and was a run for a PR against ``main``.
 
 Writes ``skip=true`` or ``skip=false`` to ``$GITHUB_OUTPUT`` and always exits
 0. Fail open: any doubt (not a push to ``main``, not a two-parent merge,
@@ -37,7 +37,8 @@ from typing import Any, NamedTuple
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 WORKFLOW_RE = re.compile(r"^[A-Za-z0-9_.-]+\.ya?ml$")
-BRANCH_REF = "refs/heads/main"
+BASE_BRANCH = "main"
+BRANCH_REF = f"refs/heads/{BASE_BRANCH}"
 API_TIMEOUT = 20
 
 RunGit = Callable[[list[str]], str]
@@ -85,20 +86,62 @@ def make_fetch_json(token: str) -> FetchJson:
     return fetch
 
 
-def has_green_run(runs: Any, head_sha: str) -> bool:
-    """Whether the API's run list holds a finished, successful PR run."""
+def _run_key(run: dict[str, Any]) -> tuple[int, str]:
+    """Order key of a run: its number, then its creation time."""
+    number = run.get("run_number")
+    created = run.get("created_at")
+    if isinstance(number, bool) or not isinstance(number, int):
+        raise ValueError("run without a number")
+    return number, created if isinstance(created, str) else ""
+
+
+def _targets_branch(run: dict[str, Any], base: str) -> bool:
+    """Whether the run belongs to pull requests against *base* only.
+
+    A run of a fork pull request lists no pull requests: that is unknown, not
+    a match.
+    """
+    pulls = run.get("pull_requests")
+    if not isinstance(pulls, list) or not pulls:
+        return False
+    return all(
+        isinstance(pull, dict)
+        and isinstance(pull.get("base"), dict)
+        and pull["base"].get("ref") == base
+        for pull in pulls
+    )
+
+
+def has_green_run(runs: Any, head_sha: str, base: str) -> bool:
+    """Whether the newest ``pull_request`` run of *head_sha* is green on *base*.
+
+    An older green run proves nothing when a later one failed, and a green run
+    for another base branch tested another merge target. Every doubt (no run,
+    no run number, a tie with a non-green run, an empty ``pull_requests``
+    list) gives False.
+    """
     if not isinstance(runs, dict):
         return False
     items = runs.get("workflow_runs")
     if not isinstance(items, list):
         return False
-    return any(
-        isinstance(run, dict)
+    mine = [
+        run
+        for run in items
+        if isinstance(run, dict)
         and run.get("head_sha") == head_sha
         and run.get("event") == "pull_request"
-        and run.get("status") == "completed"
+    ]
+    try:
+        newest = max((_run_key(run) for run in mine), default=None)
+        latest = [run for run in mine if _run_key(run) == newest]
+    except ValueError:
+        return False
+    return bool(latest) and all(
+        run.get("status") == "completed"
         and run.get("conclusion") == "success"
-        for run in items
+        and _targets_branch(run, base)
+        for run in latest
     )
 
 
@@ -143,12 +186,12 @@ def _decide(
     if verdict is not None:
         return verdict
     api = env.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
-    query = urllib.parse.urlencode(
-        {"head_sha": head, "status": "success", "event": "pull_request"}
-    )
+    query = urllib.parse.urlencode({"head_sha": head, "event": "pull_request"})
     url = f"{api}/repos/{repo}/actions/workflows/{workflow}/runs?{query}"
-    if not has_green_run(fetch(url), head):
-        return Decision(False, "no successful pull_request run for the PR head")
+    if not has_green_run(fetch(url), head, BASE_BRANCH):
+        return Decision(
+            False, "no green newest pull_request run of the PR head on main"
+        )
     return Decision(True, f"merge tree equals PR head {head[:12]} that passed")
 
 

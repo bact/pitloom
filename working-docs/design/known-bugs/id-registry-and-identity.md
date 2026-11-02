@@ -58,6 +58,18 @@ entries stay in the last section for history.
   the package bare; the second states the real version (D3 in
   [id-registry-v3.md](../../implementation/id-registry-v3.md)).
   *Found 2026-10-30, from #407 (registry package key).*
+- [ ] **Refusing a registry version 3 file discards every file, model and
+  dataset id (S-M, design).** Version 4 (#407) differs from version 3 only in
+  the `software_Package` keys, but the refusal tells the user to delete the
+  file and regenerate, which throws away all the stable non-package ids.
+  `project`, `generate`, `id generate`, `id import`, `id generate -e
+  <x>:software_Package` and `env` all refuse it with `ERROR: ... version 3,
+  expected 4 (no migration support ...)` and leave the file unchanged. This
+  reverses #407's choice that a version 3 file is never migrated. Option:
+  accept version 3, drop its `software_Package` section (a bare version 3 key
+  now means "states no version"), emit one `WARNING:` with the count dropped
+  and save as version 4. Suggested for 0.23.0.
+  *Found 2026-11-02, cold review of the merges since 0.22.0.*
 - [ ] **`id import` of a wheel or sdist SBOM holds the text's digest (S,
   decided: kept).** `id import` records what an SBOM states; the next run
   misses once for each pointer (a new id), then holds.
@@ -76,10 +88,6 @@ entries stay in the last section for history.
   Found while testing the dataset-size fix: the determinism test sits on
   `build_model`, not on `loom.run`.
   *Found 2026-10-29, Git LFS pointer work.*
-- [ ] **`none` and `n/a` do not count as "no version" (S).** `_NO_VERSION` in
-  `id_registry/_types.py` holds only blank, `unknown` and `noassertion`; a
-  package stating `none` is keyed as a release.
-  *Found 2026-10-30, from #407 (registry package key).*
 - [ ] **The example registry holds this Linux platform's fastText model hash
   (S).** On another platform the model gets a new id once, unless the registry
   is regenerated there.
@@ -87,6 +95,40 @@ entries stay in the last section for history.
 - [ ] **The ID registry `PATH` error is uncoded (S).** It waits for registry
   PRs 5 to 7.
   *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [ ] **The registry key and the dependency grouping disagree on a
+  placeholder version's spelling (S).** `package_version_key` treats blank,
+  `unknown` and `NOASSERTION` as "no version", but `is_same_version`
+  compares unparsable text exactly. `group_dependencies(['foo>=1',
+  'foo===UNKNOWN', 'foo===unknown'], 'demo')` gives two `foo` groups
+  (`unknown` and `UNKNOWN`) with one key `foo`: the second package gets the
+  claim `WARNING:`, and harvest treats the key as ambiguous and never writes
+  it. Share one placeholder predicate between the key and the grouping.
+  `none` and `n/a` stay real versions (decided 2026-11-02, under Fixed).
+  Suggested for 0.23.0.
+  *Found 2026-11-02, cold review of the merges since 0.22.0.*
+- [ ] **`package_key` is not idempotent (low).** `package_key('x', '4+K')`
+  (Kelvin sign) returns `x@4+K`; keying that again gives `x@4+k`, because NFC
+  turns the sign into ASCII `K` after the version is parsed (200,000-case
+  fuzz; the only failure). Masked today, as `_element_key` normalises again on
+  every store and lookup, and an end-to-end run with `qux===4+K` was stable
+  under `qux@4+k`; but the `_element_key` docstring claims idempotence.
+  Apply NFC before `parse_version` in `package_version_key`. Suggested for
+  0.23.0.
+  *Found 2026-11-02, cold review of the merges since 0.22.0.*
+
+### Leads to verify
+
+Seen in a review, not reproduced on current `main`:
+
+- A phantom dependency that is another release of a declared dependency never
+  looks up (S-M, from reading the code only). `_resolve_phantom_ids` skips
+  any phantom whose name is in `seen`, which holds the dependency groups'
+  canonical names. Keys now include versions, so phantom `foo 2.0` and
+  dependency `foo 1.0` no longer share a key; yet the phantom mints a fresh
+  id, counts as a non-reader and is left out of harvest, so it never gets a
+  stable id. Fix: skip a phantom only when its claimed `package_key` is
+  already taken, and keep the by-name rule for the project's non-PEP 508
+  fallback only; a characterisation test first. Suggested for 0.23.0.
 
 ## Fixed
 
@@ -164,3 +206,8 @@ release ships.
   rewrote the entry and `id generate` after a wheel run minted. Now the
   registry holds the `oid` on every route and every lookup uses it.
   *Found 2026-10-29, Git LFS pointer work.*
+- [x] **`none` and `n/a` do not count as "no version" (S).** Decided: no
+  change (2026-11-02). `_NO_VERSION` in `id_registry/_types.py` holds only
+  blank, `unknown` and `noassertion`; a package stating `none` or `n/a` is
+  keyed as a release and stays so.
+  *Found 2026-10-30, from #407 (registry package key).*

@@ -65,13 +65,18 @@ the one list.
   it: merged elements get `creationInfo: ""` and a CreationInfo with no
   `@id`, so `loom fragment validate` fails, with or without annotations.
   Related to, but not the same as, the `_:CreationInfo0` entry above.
-- [ ] **Installed-dependency `METADATA` is read unlike a wheel's (S).**
+- [ ] **Installed-dependency `METADATA` is read unlike a wheel's (S-M, needs
+  a decision).**
   `deps_installed.get_pkg_metadata` reads text through `importlib.metadata`
   (newlines translated, strict UTF-8): a CRLF `METADATA` gives a licence
   text without CR where the wheel reader keeps it, and a non-UTF-8 one
-  raises `UnicodeDecodeError` and aborts the run. A dist-info with no
-  metadata file stays silent. Use the wheel's `read_header_block` +
-  `HeaderParser` (#286 review).
+  raises `UnicodeDecodeError` and aborts the run (`ERROR: SBOM generation
+  failed: 'utf-8' codec can't decode ...`, exit 1; reproduced 2026-11-02). A
+  dist-info with no metadata file stays silent. Use the wheel's
+  `read_header_block` + `HeaderParser` (#286 review); that needs the bytes
+  through a public route to the dist-info (not its private `_path`), so it is
+  its own PR. Decide: abort as now, or read with replacement and one
+  `WARNING:`. Suggested for 0.23.0.
 - [ ] **numpy licence text keeps one extra leading space per line (S).**
   meson-python folds `License:` with 9 spaces; `_unfolded` strips 8.
   Whitespace-only lines are blank on every surface since #286; the extra
@@ -110,6 +115,17 @@ the one list.
   Exceeds the limit (4300 digits)` traceback before the hook runs. Not
   Pitloom's to catch; noted so the difference between the surfaces is known.
   *Found 2026-10-27, combined review of #352 to #357.*
+- [ ] **A control character in a dependency version is written as stated
+  (S).** `qux===a\u001bb` passes PEP 508, and the ESC reaches
+  `software_packageVersion` and the registry key unescaped; ids stayed stable
+  across runs. Decide whether a version gets the display escape.
+  *Found 2026-11-02, cold review of the merges since 0.22.0 (noticed, not
+  examined further).*
+- [ ] **`group_dependencies` is quadratic (low).** It scans all groups for
+  each requirement string, O(n^2) on a huge lock file. The code was moved
+  in the recent merges, not written there; watch it.
+  *Found 2026-11-02, cold review of the merges since 0.22.0 (read from the
+  code, not measured).*
 
 ## Fixed
 
