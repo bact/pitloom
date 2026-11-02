@@ -259,8 +259,12 @@ after measurement. From the measurement above, largest first:
   only, runs `.github/actions/skip-duplicate-push` (script
   `scripts/ci/skip_duplicate_push.py`, tests in `tests/scripts/ci/`).
   It sets `skip=true` only when `HEAD` is a two-parent merge, `HEAD^{tree}`
-  equals `HEAD^2^{tree}`, and the REST API lists a completed, successful
-  `pull_request` run of `test.yml` with `head_sha` equal to `HEAD^2`.
+  equals `HEAD^2^{tree}`, and the NEWEST `pull_request` run of `test.yml`
+  with `head_sha` equal to `HEAD^2` (by `run_number`, then `created_at`;
+  any status, so an old green run cannot hide a newer red one) is
+  completed and successful and its `pull_requests[].base.ref` is `main`
+  (a green run for another base, such as `develop`, tested another merge
+  target). A fork PR run lists no `pull_requests`: unknown, so it runs.
   Anything else (tag, `workflow_dispatch`, schedule, release, PR, other
   branch, squash or rebase merge, octopus merge, git or API error)
   runs the matrix: it fails open. The `test` job has `needs: decide` and
@@ -314,3 +318,5 @@ after measurement. From the measurement above, largest first:
 - 2026-10-30: adopted for 0.22.0, with the CI measurement above.
 - 2026-11-02: experiment: skip the post-merge `test.yml` push run when the
   merge tree equals a green PR head's tree.
+- 2026-11-02: the skip now needs the newest run of the head to be green on
+  base `main`, not any green run (PR #429).
