@@ -28,6 +28,9 @@ blocks publishing, or shows as a red run, rather than being skipped. Accepted
 values (case-insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
 ``false``/``no``/``off`` lenient. Any other value is a usage error.
 
+A ``loopback`` test also gets :func:`bypass_proxies` (``tests/conftest.py``),
+so a proxy variable on the machine never sends its server traffic elsewhere.
+
 See also: tests/_network_classify.py (classification),
 tests/test_network_helpers.py (the helpers' own tests).
 """
@@ -72,6 +75,24 @@ def network_strict() -> bool:
         f"{REQUIRE_NETWORK_ENV}={raw!r} is not a boolean; use one of "
         f"{sorted(_STRICT_VALUES)} or {sorted(_LENIENT_VALUES - {''})}"
     )
+
+
+def bypass_proxies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the process reach this machine directly, whatever the proxy state.
+
+    Removes every ``*_proxy`` variable (any case: on Linux ``HTTP_PROXY`` and
+    ``http_proxy`` are two variables) and sets ``no_proxy`` to ``*``.
+    ``urllib`` then asks no proxy for any host; it also never reaches its
+    system proxy lookup (``_scproxy`` on macOS, the registry on Windows), which
+    it consults only when no ``*_proxy`` variable is set. A ``git`` or ``curl``
+    child reads the same variables. Both spellings of ``no_proxy`` are set
+    because ``urllib`` prefers the lower-case one and other tools the upper.
+    """
+    for name in list(os.environ):
+        if name.lower().endswith("_proxy"):
+            monkeypatch.delenv(name)
+    monkeypatch.setenv("no_proxy", "*")
+    monkeypatch.setenv("NO_PROXY", "*")
 
 
 def network_unavailable(cause: str) -> NoReturn:

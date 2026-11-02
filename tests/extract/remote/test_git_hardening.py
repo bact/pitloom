@@ -419,12 +419,16 @@ def test_a_timeout_reading_the_commit_is_not_an_empty_repository() -> None:
     assert excinfo.value.code == "git.timeout"
 
 
+#: Less than the 120 s sleep of the call that must be stopped.
+_NOT_STOPPED_SECONDS = 100
+
+
 @posix_only
 @pytest.mark.parametrize(
     ("body", "stopped"),
     [
-        # Writes past the cap, then would run for a minute.
-        ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"; sleep 60', True),
+        # Writes past the cap, then would run for two minutes.
+        ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"; sleep 120', True),
         # Past the cap before the first look, and gone.
         ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"', True),
         # Under the cap through several looks at the size.
@@ -436,7 +440,11 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str, stopped: bool
 ) -> None:
     """``git.too-large``, quickly and not after the sleep; a call under the
-    cap is untouched."""
+    cap is untouched.
+
+    A call that is not stopped runs for 120 s and fails the bound; the bound
+    is far above the 0.1 s poll, so a slow runner does not.
+    """
     watched = tmp_path / "checkout"
     watched.mkdir()
     monkeypatch.setattr(_git_run, "_SIZE_POLL_SECONDS", 0.1)
@@ -451,7 +459,7 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
             runner.run(["clone"], "clone", echo=False, watch=str(watched))
         assert excinfo.value.code == "git.too-large"
         assert raised_as(excinfo.value, OVER_CAP)
-        assert time.monotonic() - started < 30
+        assert time.monotonic() - started < _NOT_STOPPED_SECONDS
     else:
         assert runner.run(["clone"], "clone", echo=False, watch=str(watched)) == ""
 

@@ -35,6 +35,7 @@ from pitloom.extract.remote._git_redirect import (
     resolve_git_url,
 )
 from pitloom.extract.remote.errors import RemoteSourceError
+from tests._loopback_server import ThreadingLoopbackHTTPServer
 
 pytestmark = pytest.mark.loopback
 
@@ -76,8 +77,7 @@ def _server(routes: Routes, seen: list[str] | None = None) -> Iterator[str]:
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.daemon_threads = True
+    server = ThreadingLoopbackHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -424,7 +424,7 @@ def test_an_http_error_status_is_said_in_an_info(
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), NotFound)
+    server = ThreadingLoopbackHTTPServer(("127.0.0.1", 0), NotFound)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}/g/p"
     try:
