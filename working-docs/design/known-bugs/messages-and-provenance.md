@@ -52,6 +52,21 @@ entries stay in the last section for history.
 - [ ] **An import that is found but fails is reported as "not installed"
   (S).** A reader library that is present but raises on import gets the
   missing-extra message, which hides the real cause.
+  Recommendation: add the variant code `library-missing/import-failed` with
+  the error line `required library failed to import: %(module)s: %(cause)s;
+  reinstall %(requirement)s` and the warning line `FORMAT=.. FILE=..:
+  required library failed to import: %(cause)s`. Add one helper,
+  `optional_libraries.import_failed(requirement, exc)`, that returns
+  `missing()` only when `isinstance(exc, ModuleNotFoundError)` and
+  `exc.name` is `requirement.module` (or a submodule of it), and the failed
+  variant otherwise. Route the 11 or so sites through it (onnx, fasttext,
+  gguf, safetensors, hdf5, numpy, `huggingface.py:192`, `_get_magika`,
+  `spdx3_validate` in `cli/commands/utils.py`, the build subprocess) and
+  `say_unread` in `extract/_scanner_messages.py`. The scanner's
+  `require_library` uses `find_spec` and never imports, so the failure must be
+  caught at read time. Touches `messages/_model_stub.py`, the generated
+  reference, `tests/messages/test_drift_quotes.py`, the skill quotes and the
+  ratchet. Target: 0.23.0.
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
 - [ ] **Catalogue 1b is not coded (S).** The 27 "model fields read in part"
   sites (`model-field-unread`) keep their free text; 0.23.0.
