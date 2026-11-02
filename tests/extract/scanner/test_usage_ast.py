@@ -204,6 +204,9 @@ def test_mention_only_and_non_path_strings_produce_no_edge(code: str) -> None:
             {UsageAccess.UNKNOWN},
         ),
         ('self.path = "data/model.ftz"\n', {UsageAccess.UNKNOWN}),
+        ("def load(*, p):\n    return p\n", set()),
+        ("def load(p=1):\n    return p\n", set()),
+        ('open(base % "model.ftz")\n', set()),
         (
             'from pathlib import Path\nopen(Path("pkg") / "data" / "model.ftz")\n',
             {UsageAccess.READ},
