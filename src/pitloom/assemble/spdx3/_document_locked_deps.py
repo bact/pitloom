@@ -26,10 +26,10 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.assemble.spdx3.deps import _parse_dep_name, _resolve_version
+from pitloom.assemble.spdx3._dep_groups import ProjectDependencies
+from pitloom.assemble.spdx3.deps import _parse_dep_name
 from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
-from pitloom.core.pep508 import is_direct_reference
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock.common import (
     group_by_canonical_name,
@@ -219,32 +219,15 @@ def _extract_locked_version_map(
 
 
 def _prefetch_combined_release_info(
-    dependencies: list[str],
-    transitive_only: list[str],
-    locked_versions: dict[str, str] | None = None,
+    groups: ProjectDependencies,
 ) -> dict[tuple[str, str | None], dict[str, Any] | None]:
     """Prefetch PyPI release info once for every dependency a document will
     emit -- direct and lock-resolved-transitive alike -- so the result can
     be shared across both :func:`add_dependencies` calls in :func:`build`
-    instead of each call paying for its own network round-trip. A direct
-    reference (``name @ URL``) is not fetched."""
-    name_version_pairs = []
-    for dep in dependencies:
-        if is_direct_reference(dep):
-            continue  # not PyPI's: its record of the name may be another project
-        dep_name = _parse_dep_name(dep)
-        locked_ver = (
-            locked_versions.get(canonicalize_name(dep_name))
-            if locked_versions is not None
-            else None
-        )
-        dep_version, _version_note = _resolve_version(
-            dep_name, dep, locked_version=locked_ver, warn=False
-        )
-        name_version_pairs.append((dep_name, dep_version))
-    for dep in transitive_only:
-        dep_name = _parse_dep_name(dep)
-        dep_version, _version_note = _resolve_version(dep_name, dep, warn=False)
-        name_version_pairs.append((dep_name, dep_version))
+    instead of each call paying for its own network round-trip.
 
-    return _prefetch_pypi_release_infos(name_version_pairs)
+    Fetches the versions *groups* resolved
+    (:func:`~pitloom.assemble.spdx3._dep_groups.project_dependencies`), so
+    a version is resolved, and a conflict warned of, once; a direct
+    reference (``name @ URL``) is not fetched."""
+    return _prefetch_pypi_release_infos(groups.release_pairs())

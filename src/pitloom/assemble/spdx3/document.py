@@ -5,15 +5,16 @@
 
 """SPDX 3 document assembly for Python projects.
 
-Public entry point / facade: the project-SBOM assembly (:func:`build`) and
-its two shared helpers (:func:`_build_creation_bundle`,
-:func:`_build_main_package`) live here; file-element assembly, single-model
-assembly, deployed-environment assembly, and locked-dependency handling are
-split into :mod:`pitloom.assemble.spdx3._document_files`,
+Public entry point / facade: the project-SBOM assembly (:func:`build`) lives
+here; the main package and creation objects, file-element assembly,
+single-model assembly, deployed-environment assembly, and locked-dependency
+handling are split into
+:mod:`pitloom.assemble.spdx3._document_main_package`,
+:mod:`pitloom.assemble.spdx3._document_files`,
 :mod:`pitloom.assemble.spdx3._document_model`,
 :mod:`pitloom.assemble.spdx3._document_deployed`, and
-:mod:`pitloom.assemble.spdx3._document_locked_deps` respectively, and
-re-exported below, so each name is importable from this module.
+:mod:`pitloom.assemble.spdx3._document_locked_deps` respectively, and the names
+in ``__all__`` are re-exported below, so each is importable from this module.
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._dep_groups import project_dependencies
-from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
 from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3._document_file_hits import resolve_file_hits
@@ -43,6 +43,10 @@ from pitloom.assemble.spdx3._document_locked_deps import (
     _locked_transitive_only_dependencies,
     _prefetch_combined_release_info,
 )
+from pitloom.assemble.spdx3._document_main_package import (
+    build_creation_bundle,
+    build_main_package,
+)
 from pitloom.assemble.spdx3._document_model import (
     _ai_model_identity,
     build_enrichment_fragment,
@@ -53,11 +57,6 @@ from pitloom.assemble.spdx3._main_authors import add_main_package_originators
 from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
 from pitloom.assemble.spdx3._reserved_ids import model_dataset_keys, reserve_held_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
-from pitloom.assemble.spdx3.creation_info import (
-    build_creation_info,
-    parse_iso_datetime,
-    to_spdx3_datetime,
-)
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import attach_main_package_license
 from pitloom.assemble.spdx3.deps_phantom import add_phantom_dependencies
@@ -69,16 +68,14 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import (
     _clear_doc_counters,
-    build_pypi_purl,
     compute_doc_uuid,
     generate_spdx_id,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.authors import dependency_author_splits
-from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.id_registry import IdRegistry, IdRegistrySession, info_identity_unknown
 
 __all__ = [
@@ -96,96 +93,6 @@ __all__ = [
     "build_enrichment_fragment",
     "build_model",
 ]
-
-
-def _build_creation_bundle(
-    doc: DocumentModel, doc_uuid: str
-) -> tuple[spdx3.CreationInfo, list[spdx3.Agent], list[spdx3.Tool]]:
-    """Create shared SPDX creation objects for the document."""
-    return build_creation_info(doc.creation_metadata, doc.project.name, doc_uuid)
-
-
-def _build_main_package(
-    doc: DocumentModel,
-    spdx_ci: spdx3.CreationInfo,
-    agents: list[spdx3.Agent],
-    doc_uuid: str,
-    merkle_root: str | None = None,
-    resolved_id: str | None = None,
-) -> spdx3.software_Package:
-    """Create the SPDX package representing the Python project.
-
-    *resolved_id* is the pre-resolved registry id (see
-    :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
-    ``None`` mints one.
-    """
-    metadata = doc.project
-    creation_metadata = doc.creation_metadata
-    download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
-    main_package = spdx3.software_Package(
-        spdxId=resolved_id
-        or generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
-        name=metadata.name,
-        creationInfo=spdx_ci,
-    )
-    main_package.software_packageVersion = metadata.version or "unknown"
-    # suppliedBy names who supplied the package, so only assert it for a named
-    # person, organisation or generic agent -- not for a software agent (the
-    # default "Pitloom", or a service that ran Pitloom), which made the SBOM and
-    # did not supply the package.  suppliedBy is single-valued in SPDX 3, so
-    # when several are named, the *first* of those is used.  With no creator
-    # named, *agents* holds only the default "Pitloom" and the zip is empty.
-    supplier = next(
-        (
-            agent
-            for creator, agent in zip(creation_metadata.creators, agents, strict=False)
-            if creator.type != "software-agent"
-        ),
-        None,
-    )
-    if supplier is not None:
-        main_package.suppliedBy = supplier.spdxId
-    if metadata.description:
-        main_package.description = metadata.description
-    if download_location:
-        main_package.software_downloadLocation = download_location
-    if metadata.urls.get("Homepage"):
-        main_package.software_homePage = metadata.urls.get("Homepage")
-    # The notices found in its licence files; none found is no assertion.
-    main_package.software_copyrightText = (
-        metadata.copyright_text or COPYRIGHT_NOASSERTION
-    )
-    main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-    if creation_metadata.build_datetime:
-        # The same parse as CreationInfo.created: "Z" on every Python,
-        # offsets converted to UTC, whole seconds.
-        main_package.builtTime = to_spdx3_datetime(
-            parse_iso_datetime(creation_metadata.build_datetime)
-        )
-
-    # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>), only when a real
-    # version is known.  Mirrors the dependency PURL logic in deps.py.
-    if metadata.version and metadata.version != "unknown":
-        main_package.software_packageUrl = build_pypi_purl(
-            metadata.name, metadata.version
-        )
-
-    # verifiedUsing -- the same Merkle root already folded into doc_uuid
-    # (see compute_doc_uuid), asserted here as the package's own integrity
-    # hash so NTIA/CISA "integrity hash" coverage extends to the main
-    # package itself, not just its individual files.
-    if merkle_root is not None:
-        main_package.verifiedUsing = [
-            sha256_hash(
-                merkle_root,
-                comment=(
-                    "SHA-256 Merkle root over the payload files; "
-                    "not a hash of a single artifact"
-                ),
-            )
-        ]
-
-    return main_package
 
 
 def _canonical(dependencies: list[str]) -> list[str]:
@@ -313,7 +220,7 @@ def build(
     )
 
     # --- Creation info, creator agents, and creation tools ---
-    spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
+    spdx_ci, agents, tools = build_creation_bundle(doc, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
     for agent in agents:
@@ -322,7 +229,7 @@ def build(
         exporter.object_set.add(tool)
 
     # --- Main package ---
-    main_package = _build_main_package(
+    main_package = build_main_package(
         doc, spdx_ci, agents, doc_uuid, merkle_root, package_ids.main
     )
 
@@ -386,19 +293,7 @@ def build(
     )
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
-    release_info_cache = (
-        None
-        if offline
-        else _prefetch_combined_release_info(
-            [
-                dep
-                for dep in metadata.dependencies
-                if not is_self_reference(dep, metadata.name)
-            ],
-            transitive_only,
-            locked_versions=locked_versions,
-        )
-    )
+    release_info_cache = None if offline else _prefetch_combined_release_info(groups)
 
     # --- Dependencies ---
     # One author-split warning for every dependency of the document.

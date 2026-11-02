@@ -24,6 +24,7 @@ from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 import pitloom.assemble.spdx3.deps_installed as deps_installed_mod
+from pitloom.assemble.spdx3._dep_groups import project_dependencies
 from pitloom.assemble.spdx3.deps_installed import (
     _enrich_from_installed,
     _extract_exact_pin,
@@ -31,6 +32,7 @@ from pitloom.assemble.spdx3.deps_installed import (
 )
 from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 from .conftest import _FakeMetadata, _make_ci
@@ -281,24 +283,24 @@ def test_enrich_from_installed_accepts_matching_or_equivalent_version(
     assert dep_package.software_homePage == "https://matching.example.com"
 
 
-def test_prefetch_suppresses_conflict_warnings(
+def test_prefetch_adds_no_conflict_warning(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """During online prefetch, version resolution must not duplicate conflict
-    warnings that the later dependency emission pass will log."""
+    """The online prefetch fetches the groups' versions without resolving
+    again, so it adds nothing to the one conflict warning grouping logged."""
     monkeypatch.setattr(
         "pitloom.assemble.spdx3._document_locked_deps._prefetch_pypi_release_infos",
         lambda pairs: {},
     )
+    project = ProjectMetadata(name="main", dependencies=["requests==1.0"])
 
-    caplog.clear()
     with caplog.at_level(logging.WARNING):
-        _prefetch_combined_release_info(
-            ["requests==1.0"], [], locked_versions={"requests": "2.0.0"}
-        )
+        groups = project_dependencies(project, [], {"requests": "2.0.0"})
+        assert caplog.text.count("conflicts with declared exact pin") == 1
+        _prefetch_combined_release_info(groups)
 
-    assert "conflicts with declared exact pin" not in caplog.text
+    assert caplog.text.count("conflicts with declared exact pin") == 1
 
 
 def test_extract_exact_pin_unparseable_invalid_specifier_returns_none() -> None:
