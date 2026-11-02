@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,6 +28,8 @@ Size: S under half a day, M about a day.
   2026-10-30): the full manual CLI checks, the CHANGELOG-against-merged-PRs
   cross-check, the leftover `0.21.2` review, the coverage-snapshot diffs and
   the `scripts/` lint; fix what they find.
+  Re-run 2026-11-02 (all but the `0.21.2` review): see "Release checks
+  re-run" under Found 2026-11-02.
 - 0.23.0: the `licenseid` 0.7.0 adoption, the licence provenance mapping
   (#384), the remaining catalogue families (1b, 2b, 3 to 18, licence
   included) and `--report`/SARIF. See
@@ -622,3 +624,50 @@ Process and tooling:
   at 15:14 UTC on 2026-10-30.
 - [ ] **Catalogue 18, the licence families, is later (S), decided
   2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.
+
+## Found 2026-11-02
+
+From the PyPI 0.22.0 verification. Both are 0.22.1 candidates.
+
+- [ ] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
+  as the licence text `LICENSE` (S-M).** The root package's declared licence
+  reads `['LICENSE']` (the file name stands as text) and no `[lfs-pointer]`
+  line is printed for that file; only a DEBUG line in
+  `extract/_license_detect.py` says it. A file name must not stand as licence
+  text: the pointer should give no licence and one `WARNING:` (or join the
+  run's one pointer summary).
+- [ ] **The Hatchling `file discovery failed` warning has no `[code]` (S).**
+  Seen when a project name matched no package directory.
+
+### Release checks re-run (2026-11-02)
+
+The 0.22.0 checks that were left to CI, run on `main` at `06bb06c6` (Python
+3.10, Linux, 4 CPUs). The leftover `0.21.2` review was not part of this run.
+
+- [x] **Full manual CLI checks:** 610 checks, 551 pass, 0 fail, 22 known, 37
+  skip. The 22 known are the allow-listed Harvest finding (O2 random walks,
+  `_order_known.py`). Of the 37 skips: 23 need `--network` (4b, 10 and 21
+  matrix cells of `validate-wheel`, `fragment validate` and `embed-wheel
+  --validate`); they are skipped by design unless the flag is given, not for a
+  missing tool or extra, and all 23 pass with `--network`. Check 25 and the 7
+  O4 cells skip as root; run as `nobody` (a copy of the tree and interpreter
+  outside `/root`), 25 passes and the 7 O4 end `KNOWN` as above. The 6 O6
+  cells skip on a case-sensitive file system; they need a case-insensitive
+  one (macOS or Windows CI) and were not run.
+- [x] **CHANGELOG against merged PRs, `v0.21.1..v0.22.0`:** 42 merged; 21
+  have an entry. The other 21 are docs, design and paper notes (#367, #368,
+  #373, #379, #380, #383, #388, #393, #394, #397, #398, #406, #409),
+  Dependabot bumps (#369 to #372), a test-only split (#377), the 0.21.2 and
+  0.22.0 release PRs (#403, #411) and #391. After the tag only the `Model
+  usage scan plan` commit (`06bb06c6`, docs) is on `main`. #391 (the internal
+  `Fact` evidence type) needs no entry: nothing it adds is exported or
+  user-visible.
+- [x] **Coverage snapshots:** the four `0.22.0` snapshots (`g7ai`, `cisa2026`,
+  `fsct3`, `bsi`) equal fresh output of `scripts/g7_coverage_report.py` apart
+  from `header.pitloom` (the sandbox venv's installed metadata says 0.21.1).
+- [x] **`scripts/` lint:** `ruff` (check, format), `mypy`, `pyright`,
+  `bandit`, `shellcheck -x scripts/action/*.sh` and `actionlint` are clean;
+  `flake8` and `pylint` had five findings (CCR001 in `_order_invariants.py`,
+  R0911 in `_checks_order.py`, R0914 in `_checks_model.py`, `_checks_lfs.py`
+  and `_checks_core.py`), fixed by splitting the functions; the touched
+  checks (14, 17, 23, O*) give the same results and messages before and after.
