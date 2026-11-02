@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -254,11 +254,48 @@ after measurement. From the measurement above, largest first:
 - **Skip the push run on `main` when the merged tree is the tree of a
   green PR head** (8 of 8 merges checked): about a third of `test.yml`
   runs and about 53 runner minutes a merge, at no cost to PR latency.
-  It still runs when `main` moved between the PR's last run and the
-  merge.
+  **Implemented as an experiment for `test.yml` only** (PR "Skip
+  duplicate test runs after merge"): a `decide` job, on push to `main`
+  only, runs `.github/actions/skip-duplicate-push` (script
+  `scripts/ci/skip_duplicate_push.py`, tests in `tests/scripts/ci/`).
+  It sets `skip=true` only when `HEAD` is a two-parent merge, `HEAD^{tree}`
+  equals `HEAD^2^{tree}`, and the REST API lists a completed, successful
+  `pull_request` run of `test.yml` with `head_sha` equal to `HEAD^2`.
+  Anything else (tag, `workflow_dispatch`, schedule, release, PR, other
+  branch, squash or rebase merge, octopus merge, git or API error)
+  runs the matrix: it fails open. The `test` job has `needs: decide` and
+  `if: !cancelled() && needs.decide.outputs.skip != 'true'`, so the PR
+  path is unchanged (`decide` is skipped there and adds no latency).
+  A skipped matrix reports "skipped" under its unexpanded name; that
+  only shows on the push run, which no merge waits for, so required PR
+  checks keep matching. `pypi-publish.yml` is untouched.
+  Known residual risk: the PR run tested the PR merge ref (head plus
+  `main` at that time), not the head tree alone; if `main` changed and
+  then reverted that change before the merge, the equal-tree test cannot
+  see it. Squash and rebase merges are not skipped (their commit is not a
+  two-parent merge); `build.yml`, hatch and self-test are not yet covered
+  (same action, one more `decide` job each, if the experiment holds).
+  Observe: after the next merge to `main`, the "Unit tests" push run
+  should show `Decide whether to run` green with `INFO: duplicate-push
+  check: skip: ...` in its log and the four `Test on Python` jobs
+  skipped; after a merge where `main` moved, or a direct push, the
+  matrix must run. Revert by deleting the `decide` job and the `needs`
+  and `if` lines of `test`.
 - **Skip the test and build workflows for a PR commit that changes only
-  Markdown** (a first-step diff against the previous push, behind a
-  gate job so required checks still report): about a fifth of PR runs.
+  Markdown.** Not implemented. `paths-ignore` on `pull_request` is
+  evaluated against the whole PR diff, so a CHANGELOG-only commit
+  re-runs the matrix. The cheapest correct fix is a first job on
+  `synchronize` that lists `git diff --name-only <before> <after>` and
+  skips when every path is under `docs/` or matches `*.md`. It is not
+  simple enough to do safely: (1) the skip must also require that the
+  previous head (`github.event.before`) has a successful run, else a red
+  code commit followed by a docs commit shows green on the new head;
+  (2) `before` is unreachable after a force-push (fail open); (3) a
+  skipped matrix job reports under its unexpanded name, which can leave
+  a required check "Expected" and block the PR, so the jobs would have to
+  run and skip their steps (runner start-up still paid) or a stable gate
+  job would have to become the required check. Decide that with the
+  branch-protection settings in view first.
 - **Run `build.yml` and the Action self-test only when their inputs
   change** (`src/`, `action.yml`, `scripts/action/`, `pyproject.toml`);
   the hit rate is not measured yet. Both validate the same kind of SBOM
@@ -275,3 +312,5 @@ after measurement. From the measurement above, largest first:
 ## Record
 
 - 2026-10-30: adopted for 0.22.0, with the CI measurement above.
+- 2026-11-02: experiment: skip the post-merge `test.yml` push run when the
+  merge tree equals a green PR head's tree.
