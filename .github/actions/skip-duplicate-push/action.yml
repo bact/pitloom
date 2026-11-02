@@ -4,8 +4,9 @@
 name: Skip a push that repeats a passed PR run
 description: >
   Sets output `skip` to "true" only for a push to main whose merge commit has
-  the same tree as its second parent (the PR head) and that head has a
-  successful pull_request run of the given workflow. Any doubt gives "false".
+  the same tree as its second parent (the PR head) and the newest
+  pull_request run of that head in the given workflow is green and was for a
+  PR against main. Any doubt gives "false".
   Needs a checkout with fetch-depth 2 and `actions: read`. See
   scripts/ci/skip_duplicate_push.py.
 

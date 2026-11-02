@@ -97,16 +97,27 @@ def make_env(sha: str, **over: str) -> dict[str, str]:
     return env
 
 
-def green(head: str, **over: Any) -> dict[str, Any]:
-    """An API answer with one successful pull_request run of *head*."""
-    run = {
+def pull_run(head: str, number: Any = 1, base: str | None = "main", **over: Any) -> Any:
+    """A finished, successful pull_request run of *head* for a PR on *base*.
+
+    ``base=None`` gives the empty ``pull_requests`` list of a fork PR.
+    """
+    run: dict[str, Any] = {
         "head_sha": head,
         "event": "pull_request",
         "status": "completed",
         "conclusion": "success",
+        "run_number": number,
+        "created_at": f"2026-01-01T00:00:{int(number or 0):02d}Z",
+        "pull_requests": [] if base is None else [{"base": {"ref": base}}],
     }
     run.update(over)
-    return {"total_count": 1, "workflow_runs": [run]}
+    return run
+
+
+def green(head: str, **over: Any) -> dict[str, Any]:
+    """An API answer with one successful pull_request run of *head*."""
+    return {"total_count": 1, "workflow_runs": [pull_run(head, **over)]}
 
 
 def decide(
@@ -135,6 +146,7 @@ def test_equal_tree_and_green_head_skips(mod: ModuleType, repo: Path) -> None:
     assert len(urls) == 1
     assert f"/repos/{REPO}/actions/workflows/test.yml/runs?" in urls[0]
     assert f"head_sha={head}" in urls[0]
+    assert "status=" not in urls[0]  # an old green run must not hide a newer red one
 
 
 def test_tree_differs_runs_without_asking_the_api(mod: ModuleType, repo: Path) -> None:
@@ -183,7 +195,129 @@ def test_no_usable_green_run_runs(mod: ModuleType, repo: Path, answer: Any) -> N
     skip, reason, urls = decide(mod, repo, make_env(merged), answer)
     assert not skip
     assert urls
-    assert "no successful" in reason
+    assert "no green newest" in reason
+
+
+def spec(**fields: Any) -> dict[str, Any]:
+    """The fields a test run differs in, for ``pull_run``."""
+    return fields
+
+
+def answer_of(*runs: dict[str, Any]) -> dict[str, Any]:
+    """An API answer holding *runs* (newest first, as GitHub lists them)."""
+    return {"total_count": len(runs), "workflow_runs": list(runs)}
+
+
+@pytest.mark.parametrize(
+    ("runs", "skip"),
+    [
+        # An older green run on develop, the newest run (main) red.
+        ([spec(number=1, base="develop"), spec(number=2, conclusion="failure")], False),
+        # Same, but the old green run was also for main.
+        ([spec(number=1), spec(number=2, conclusion="failure")], False),
+        # The newest run is still going.
+        (
+            [spec(number=1), spec(number=2, status="in_progress", conclusion=None)],
+            False,
+        ),
+        # An older red run, the newest green on main.
+        ([spec(number=1, conclusion="failure"), spec(number=2)], True),
+        # Newest green run, but for develop.
+        ([spec(number=1), spec(number=2, base="develop")], False),
+        # A fork PR lists no pull requests.
+        ([spec(number=1, base=None)], False),
+        ([spec(number=1, base="develop"), spec(number=2, base=None)], False),
+        # One run, several PRs, one of them not against main.
+        (
+            [
+                spec(
+                    number=1,
+                    pull_requests=[
+                        {"base": {"ref": "main"}},
+                        {"base": {"ref": "develop"}},
+                    ],
+                )
+            ],
+            False,
+        ),
+        # Number order, not list order, decides.
+        ([spec(number=2), spec(number=1, conclusion="failure")], True),
+        ([spec(number=2, conclusion="failure"), spec(number=1)], False),
+        # Equal numbers: the later creation time wins ...
+        (
+            [
+                spec(number=3, created_at="2026-01-02T00:00:00Z"),
+                spec(number=3, created_at="2026-01-01T00:00:00Z", conclusion="failure"),
+            ],
+            True,
+        ),
+        (
+            [
+                spec(number=3, created_at="2026-01-01T00:00:00Z"),
+                spec(number=3, created_at="2026-01-02T00:00:00Z", conclusion="failure"),
+            ],
+            False,
+        ),
+        # ... and a full tie with a non-green run runs the tests.
+        (
+            [
+                spec(number=3, created_at="z"),
+                spec(number=3, created_at="z", conclusion="failure"),
+            ],
+            False,
+        ),
+        ([spec(number=3, created_at="z"), spec(number=3, created_at="z")], True),
+        # No usable number: unknown order.
+        ([spec(number=1), spec(number="2")], False),
+        ([spec(number=1), spec(number=True)], False),
+        ([spec(number=1), spec(number=None)], False),
+        # pull_requests of the wrong shape.
+        ([spec(number=1, pull_requests=None)], False),
+        ([spec(number=1, pull_requests=["main"])], False),
+        ([spec(number=1, pull_requests=[{"base": "main"}])], False),
+    ],
+    ids=[
+        "old-green-develop-newest-red-main",
+        "old-green-main-newest-red",
+        "newest-in-progress",
+        "old-red-newest-green",
+        "newest-green-develop",
+        "fork-pr-empty-list",
+        "fork-pr-newest",
+        "one-pr-not-main",
+        "number-beats-list-order",
+        "number-beats-list-order-red",
+        "tie-later-created-wins",
+        "tie-later-created-red",
+        "full-tie-with-red",
+        "full-tie-both-green",
+        "number-str",
+        "number-bool",
+        "number-none",
+        "pulls-none",
+        "pulls-str",
+        "base-str",
+    ],
+)
+def test_newest_run_must_be_green_on_main(
+    mod: ModuleType, repo: Path, runs: list[dict[str, Any]], skip: bool
+) -> None:
+    merged, head = merge(repo, "b.txt", None)
+    answer = answer_of(*(pull_run(head, **run) for run in runs))
+    got, _, urls = decide(mod, repo, make_env(merged), answer)
+    assert got is skip
+    assert len(urls) == 1
+
+
+def test_other_head_and_event_runs_do_not_count(mod: ModuleType, repo: Path) -> None:
+    merged, head = merge(repo, "b.txt", None)
+    # A newer red run of another SHA or of a push event is not this head's.
+    answer = answer_of(
+        pull_run("0" * 40, number=9, conclusion="failure"),
+        pull_run(head, number=8, conclusion="failure", event="push"),
+        pull_run(head, number=1),
+    )
+    assert decide(mod, repo, make_env(merged), answer)[0]
 
 
 @pytest.mark.parametrize(

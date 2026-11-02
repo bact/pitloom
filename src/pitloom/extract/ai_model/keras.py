@@ -46,10 +46,32 @@ from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     read_archive_member,
 )
+from pitloom.extract.ai_model.hdf5_config import (
+    ConfigProblem,
+    ConfigShapeError,
+    log_model_config_problem,
+    member_text,
+)
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
+
+
+def _text_member(
+    parent: dict[str, Any], key: str, what: str, problems: list[str]
+) -> tuple[str | None, bool]:
+    """``parent[key]`` as text, and whether it was a value to keep.
+
+    A value that is not a string is not recorded: its reason (as
+    :func:`pitloom.extract.ai_model.hdf5_config.member_text` words it) goes to
+    *problems* and the result is ``(None, False)``.
+    """
+    try:
+        return member_text(parent, key, what), True
+    except ConfigShapeError as exc:
+        problems.append(one_line(exc))
+        return None, False
 
 
 def _parse_model_config(
@@ -81,7 +103,13 @@ def _parse_model_config(
     Returns:
         Tuple of ``(type_of_model, name)``.
     """
-    type_of_model: str | None = config_data.get("class_name") or None
+    problems: list[str] = []
+    lost: list[str] = []
+    type_of_model, ok = _text_member(
+        config_data, "class_name", "config.class_name", problems
+    )
+    if not ok:
+        lost.append("type_of_model")
     name: str | None = None
 
     if type_of_model:
@@ -89,7 +117,9 @@ def _parse_model_config(
 
     config = config_data.get("config", {})
     if isinstance(config, dict):
-        name = config.get("name") or None
+        name, ok = _text_member(config, "name", "config.config.name", problems)
+        if not ok:
+            lost.append("name")
         if name:
             provenance["name"] = f"{source} | Field: config.config.name"
         for key, val in config.items():
@@ -114,6 +144,11 @@ def _parse_model_config(
             inputs.append({"shape": input_shape})
             provenance["inputs"] = f"{source} | Field: config.build_config.input_shape"
 
+    if problems:
+        # One WARNING for the whole config, as the HDF5 reader words it.
+        log_model_config_problem(
+            ConfigProblem("; ".join(problems), tuple(lost)), "", False
+        )
     return type_of_model, name
 
 

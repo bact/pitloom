@@ -67,7 +67,7 @@ class ConfigProblem(NamedTuple):
     lost: tuple[str, ...]
 
 
-class _ConfigShapeError(ValueError):
+class ConfigShapeError(ValueError):
     """A config part that is not what Keras writes."""
 
 
@@ -75,10 +75,10 @@ def _object(value: Any, what: str) -> dict[str, Any]:
     """*value* as a mapping.
 
     Raises:
-        _ConfigShapeError: *value* is not an object (``null`` included).
+        ConfigShapeError: *value* is not an object (``null`` included).
     """
     if not isinstance(value, dict):
-        raise _ConfigShapeError(f"{what} is not an object")
+        raise ConfigShapeError(f"{what} is not an object")
     return value
 
 
@@ -88,17 +88,17 @@ def _member_object(parent: dict[str, Any], key: str, what: str) -> dict[str, Any
     return {} if value is None else _object(value, what)
 
 
-def _member_text(parent: dict[str, Any], key: str, what: str) -> str | None:
+def member_text(parent: dict[str, Any], key: str, what: str) -> str | None:
     """``parent[key]`` as text; ``None`` when absent, ``null`` or empty.
 
     Raises:
-        _ConfigShapeError: The value is something else than a string.
+        ConfigShapeError: The value is something else than a string.
     """
     value = parent.get(key)
     if value is None:
         return None
     if not isinstance(value, str):
-        raise _ConfigShapeError(f"{what} is not a string")
+        raise ConfigShapeError(f"{what} is not a string")
     return value or None
 
 
@@ -106,22 +106,20 @@ def _json_object(raw: str, what: str) -> dict[str, Any]:
     """The JSON object in *raw*; ``{}`` for JSON ``null`` (no data).
 
     Raises:
-        _ConfigShapeError: *raw* is not valid JSON (nesting too deep for the
+        ConfigShapeError: *raw* is not valid JSON (nesting too deep for the
             parser included), or not an object; the message is the reason, as
             it reads after *what*.
     """
     try:
         parsed = json.loads(raw)
     except RecursionError as exc:
-        raise _ConfigShapeError(
-            f"{what} is not valid JSON (nested too deeply)"
-        ) from exc
+        raise ConfigShapeError(f"{what} is not valid JSON (nested too deeply)") from exc
     except ValueError as exc:  # JSONDecodeError, or an over-long integer
-        raise _ConfigShapeError(f"{what} is not valid JSON ({exc})") from exc
+        raise ConfigShapeError(f"{what} is not valid JSON ({exc})") from exc
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
-        raise _ConfigShapeError(f"{what} is not a JSON object")
+        raise ConfigShapeError(f"{what} is not a JSON object")
     return parsed
 
 
@@ -145,7 +143,7 @@ def extract_input_from_layers(
         description string (empty string when nothing was found).
 
     Raises:
-        _ConfigShapeError: A layer, or its ``config`` or ``build_config``,
+        ConfigShapeError: A layer, or its ``config`` or ``build_config``,
             reached before a shape is found is not an object.
     """
     for i, entry in enumerate(layers):
@@ -240,12 +238,12 @@ def _read_layers(config: dict[str, Any], done: _Progress) -> None:
     """The layer count and input shape of ``config.layers``, when present.
 
     Raises:
-        _ConfigShapeError: ``layers``, or a layer reached, is not what Keras
+        ConfigShapeError: ``layers``, or a layer reached, is not what Keras
             writes.
     """
     layers = config.get("layers")
     if layers is not None and not isinstance(layers, list):
-        raise _ConfigShapeError("model_config.config.layers is not a list")
+        raise ConfigShapeError("model_config.config.layers is not a list")
     done.lost.remove("properties.layer_count")
     if layers is not None:
         _extract_layers_info(layers, done)
@@ -255,7 +253,7 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
     """The stages of :func:`parse_model_config`, in the order that keeps the
     most when one raises."""
     source, provenance = done.source, done.provenance
-    done.type_of_model = _member_text(
+    done.type_of_model = member_text(
         model_config, "class_name", "model_config.class_name"
     )
     if done.type_of_model:
@@ -265,7 +263,7 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
     config = _member_object(model_config, "config", "model_config.config")
     for key in ("name", "model_name"):
         name_field = f"model_config.config.{key}"
-        done.name = _member_text(config, key, name_field)
+        done.name = member_text(config, key, name_field)
         if done.name:
             provenance["name"] = provenance_segment(source, "Field", name_field)
             break
@@ -273,10 +271,10 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
 
     # Layers are recorded before the hyperparameters, as SBOM output has always
     # ordered them; a bad layers part must not lose the hyperparameters.
-    layers_error: _ConfigShapeError | None = None
+    layers_error: ConfigShapeError | None = None
     try:
         _read_layers(config, done)
-    except _ConfigShapeError as exc:
+    except ConfigShapeError as exc:
         layers_error = exc
     _extract_config_hyperparameters(config, source, done.hyperparameters, provenance)
     done.lost.remove("hyperparameters")
@@ -324,7 +322,7 @@ def parse_model_config(
     problem: str | None = None
     try:
         _read_model_config(_json_object(raw, "model_config"), done)
-    except _ConfigShapeError as exc:
+    except ConfigShapeError as exc:
         problem = one_line(exc)
     if problem is None:
         return done.type_of_model, done.name, None
@@ -340,7 +338,7 @@ def _read_optimizer(
     """``optimizer_config.class_name`` (or ``optimizer.class_name``).
 
     Raises:
-        _ConfigShapeError: The optimizer is not an object, or its class name
+        ConfigShapeError: The optimizer is not an object, or its class name
             is not a string.
     """
     opt_key = (
@@ -349,7 +347,7 @@ def _read_optimizer(
         else "optimizer"
     )
     optimizer = _member_object(training_config, opt_key, f"training_config.{opt_key}")
-    opt_class = _member_text(
+    opt_class = member_text(
         optimizer, "class_name", f"training_config.{opt_key}.class_name"
     )
     if opt_class:
@@ -368,7 +366,7 @@ def _record_json_value(
     object as its JSON text in *properties* and as read in *natives*.
 
     Raises:
-        _ConfigShapeError: *value* is nested too deeply to serialise (the
+        ConfigShapeError: *value* is nested too deeply to serialise (the
             parser's stack held it, the serialiser's did not).
     """
     if isinstance(value, str):
@@ -377,7 +375,7 @@ def _record_json_value(
         try:
             properties[key] = canonical_json(value)
         except RecursionError as exc:
-            raise _ConfigShapeError(
+            raise ConfigShapeError(
                 f"training_config.{key} is nested too deeply"
             ) from exc
         natives[key] = value
@@ -422,15 +420,15 @@ def parse_training_config(
     lost = list(_TRAINING_CONFIG_FIELDS)
     try:
         training_config = _json_object(raw, "training_config")
-    except _ConfigShapeError as exc:
+    except ConfigShapeError as exc:
         return ConfigProblem(one_line(exc), tuple(lost))
     # Optimizer first, as SBOM output has always ordered the properties; a bad
     # optimizer must not lose the loss and metrics.
-    optimizer_error: _ConfigShapeError | None = None
+    optimizer_error: ConfigShapeError | None = None
     try:
         _read_optimizer(training_config, source, properties, provenance)
         lost.remove("properties.optimizer")
-    except _ConfigShapeError as exc:
+    except ConfigShapeError as exc:
         optimizer_error = exc
 
     sink: dict[str, Any] = {} if natives is None else natives
@@ -441,7 +439,7 @@ def parse_training_config(
         if value is not None and (key == "loss" or value):
             try:
                 _record_json_value(properties, sink, key, value)
-            except _ConfigShapeError as exc:
+            except ConfigShapeError as exc:
                 errors.append(exc)
                 continue
             provenance[f"properties.{key}"] = f"{source} | Field: training_config.{key}"

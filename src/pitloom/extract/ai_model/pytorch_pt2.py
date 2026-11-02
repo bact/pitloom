@@ -25,6 +25,7 @@ from pitloom.core.ai_metadata import (
     source_element_text,
     source_metadata,
 )
+from pitloom.core.canonical_json import canonical_json
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
@@ -225,11 +226,20 @@ def _read_pt2_extra_files(
     return name, description, version, license_expr, tags
 
 
+def _tag_text(tag: object) -> str:
+    """One ``extra/tags`` element as text: an array or an object as its
+    :func:`~pitloom.core.canonical_json.canonical_json` (key order and
+    number spelling fixed), anything else its
+    :func:`~pitloom.core.ai_metadata.source_element_text`."""
+    if isinstance(tag, (list, dict)):
+        return canonical_json(tag)
+    return source_element_text(tag)
+
+
 def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
     """``(property text, list)`` of an ``extra/tags`` file: a JSON array is
-    its elements' :func:`~pitloom.core.ai_metadata.source_element_text`
-    comma-joined, and the list itself; anything else is its raw text and
-    ``None``."""
+    its elements' :func:`_tag_text` comma-joined, and the list itself;
+    anything else is its raw text and ``None``."""
     try:
         tags = json.loads(tags_raw)
     # pylint: disable-next=broad-exception-caught
@@ -237,7 +247,7 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
         _warn_pt2_extra_tags_malformed(exc)
         return tags_raw, None
     if isinstance(tags, list):
-        return ", ".join(source_element_text(t) for t in tags), tags
+        return ", ".join(_tag_text(t) for t in tags), tags
     return tags_raw, None
 
 
@@ -252,6 +262,32 @@ def _spec_tensor_names(specs: object, kind: str) -> list[dict[str, object]]:
         if isinstance(tensor, dict) and tensor.get("name"):
             result.append({"name": tensor["name"]})
     return result
+
+
+def _json_object(value: object, what: str) -> dict[str, object]:
+    """*value* as a mapping; ``{}`` for an absent one (``None``).
+
+    Raises:
+        ValueError: *value* is present but not a JSON object.
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{what} is not a JSON object")
+    return value
+
+
+def _graph_signature(raw: bytes) -> dict[str, object]:
+    """The ``graph_module.signature`` object of a ``model.json`` text; ``{}``
+    when the file has no graph module or no signature.
+
+    Raises:
+        ValueError: The text is not JSON, or the file, its ``graph_module``
+            or its ``signature`` is present but not a JSON object.
+    """
+    graph = _json_object(json.loads(raw), "model.json")
+    module = _json_object(graph.get("graph_module"), "graph_module")
+    return _json_object(module.get("signature"), "signature")
 
 
 def _read_pt2_graph_io(
@@ -289,7 +325,7 @@ def _read_pt2_graph_io(
         return [], []
 
     try:
-        data = json.loads(read_archive_member(zf, model_json_path))
+        signature = _graph_signature(read_archive_member(zf, model_json_path))
     except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
@@ -299,8 +335,6 @@ def _read_pt2_graph_io(
         )
         log.warning(msg, loggable(model_json_path), loggable(str(exc)))
         return [], []
-
-    signature = (data.get("graph_module") or {}).get("signature") or {}
 
     inputs = _spec_tensor_names(signature.get("input_specs"), "user_input")
     outputs = _spec_tensor_names(signature.get("output_specs"), "user_output")
@@ -381,17 +415,23 @@ def _read_pt2_zip(
 
     prefix = _detect_root_prefix(file_list)
 
+    # The root ``version`` file is the export schema version, not the model's:
+    # it is the format version when no ``archive_version`` gives one.
+    schema_version: str | None = None
     if "version" in file_list:
-        version = (
+        schema_version = (
             read_archive_member(zf, "version").decode("utf-8", errors="replace").strip()
             or None
         )
-        if version:
-            provenance["version"] = f"{source} | Field: version file"
 
     format_version, prov_fv = _read_pt2_format_version(zf, prefix, file_list, source)
     if prov_fv:
         provenance["format_version"] = prov_fv
+    elif schema_version:
+        format_version = schema_version
+        provenance["format_version"] = provenance_segment(
+            source, "Field", "version file"
+        )
 
     name, prov_name = _find_pt2_metadata_entry(zf, file_list, source)
     if prov_name:
@@ -440,7 +480,9 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     PT2 Archive is the ExecuTorch on-device deployment format.  It is a ZIP
     archive.  Two layout variants are supported:
 
-    **Simple format** -- a root-level ``version`` file and optionally a
+    **Simple format** -- a root-level ``version`` file (the export schema
+    version: ``format_info.format_version`` when there is no
+    ``archive_version``, never the model's version) and optionally a
     ``METADATA.json`` with ``name`` / ``model_name``.  No pickle inspection
     is performed.
 
