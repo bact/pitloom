@@ -132,8 +132,10 @@ def test_a_proxy_variable_does_not_reach_a_local_server(
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Stay quiet."""
 
-    for bypass in ("no_proxy", "NO_PROXY"):  # undo the autouse fixture
-        monkeypatch.delenv(bypass)
+    # Undo the autouse fixture. On Windows both spellings are one variable, so
+    # the second delete finds it gone.
+    for bypass in ("no_proxy", "NO_PROXY"):
+        monkeypatch.delenv(bypass, raising=False)
     monkeypatch.setenv(name, _BLACK_HOLE)
     # The premise: with the variable set and no bypass, urllib uses the proxy.
     assert _BLACK_HOLE in urllib.request.getproxies().values()
