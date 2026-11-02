@@ -29,6 +29,7 @@ __all__ = [
     "format_template",
     "join_path",
     "join_paths",
+    "literal_text",
     "matches",
     "percent_template",
 ]
@@ -65,6 +66,14 @@ class UsageModel:
 
     name: str
     paths: tuple[str, ...]
+
+
+def literal_text(value: object) -> str | None:
+    """The text of a string literal; ``None`` for any other value, and for a
+    string holding :data:`_HOLE` (a NUL, which no path can hold)."""
+    if isinstance(value, str) and _HOLE not in value:
+        return value
+    return None
 
 
 def after_first_separator(text: str) -> str | None:
@@ -109,7 +118,11 @@ def _named_arg(
     """The argument a ``str.format`` field names: by position (ASCII digits
     only: ``int("\u00b2")`` raises) or by keyword."""
     if head.isascii() and head.isdigit():
-        return args[int(head)] if int(head) < len(args) else None
+        try:
+            position = int(head)
+        except ValueError:  # more digits than ``sys.set_int_max_str_digits`` allows
+            return None
+        return args[position] if position < len(args) else None
     return kwargs.get(head)
 
 

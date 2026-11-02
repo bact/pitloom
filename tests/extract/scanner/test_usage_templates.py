@@ -15,6 +15,8 @@ See also: :mod:`tests.extract.scanner.test_usage_match` (the main cases) and
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -146,3 +148,18 @@ def test_usage_models_keeps_a_relative_physical_path_beside_the_relative_one() -
     assert [m.paths for _, m in usage_models([meta])] == [
         ("pkg/m.onnx", "src/pkg/m.onnx")
     ]
+
+
+@pytest.mark.skipif(
+    not hasattr(sys, "set_int_max_str_digits"), reason="no int digit limit"
+)
+def test_a_field_number_over_the_int_digit_limit_is_not_known() -> None:
+    set_limit = sys.set_int_max_str_digits
+    old = sys.get_int_max_str_digits()
+    set_limit(640)
+    try:
+        assert format_template("{" + "9" * 1000 + "}/model.pkl", ["a"], {}) == (
+            "model.pkl"
+        )
+    finally:
+        set_limit(old)

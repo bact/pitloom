@@ -38,6 +38,7 @@ from pitloom.extract._usage_match import (
     format_template,
     join_path,
     join_paths,
+    literal_text,
     matches,
     percent_template,
 )
@@ -178,16 +179,17 @@ class _Scan:
 
     def _propagate_reach(self, hit: list[tuple[ast.AST, str, list[int]]]) -> None:
         """A constant built from others is a read of them when it is read."""
-        changed = True
-        while changed:
-            changed = False
-            for node, name, indices in hit:
-                loaded = self._loaded_names(node)
-                for index in indices:
-                    reached = self._reached[index]
-                    if name in reached and not loaded <= reached:
-                        reached |= loaded
-                        changed = True
+        built: dict[str, list[tuple[set[str], list[int]]]] = {}
+        for node, name, indices in hit:
+            built.setdefault(name, []).append((self._loaded_names(node), indices))
+        for index, reached in enumerate(self._reached):
+            pending = list(reached)
+            while pending:
+                for loaded, indices in built.get(pending.pop(), ()):
+                    if index in indices:
+                        new = loaded - reached
+                        reached |= new
+                        pending.extend(new)
 
     def results(self) -> list[frozenset[UsageAccess]]:
         """The accesses recorded for each model in the order given."""
@@ -267,7 +269,7 @@ class _Scan:
     def _eval_static(self, node: ast.AST, depth: int) -> str | None:
         """Compute the static path string for *node* at *depth*."""
         if isinstance(node, ast.Constant):
-            return node.value if isinstance(node.value, str) and node.value else None
+            return literal_text(node.value) or None
         if isinstance(node, ast.Name):
             ok = isinstance(node.ctx, ast.Load)
             return self._consts.get(node.id) if ok else None
@@ -281,8 +283,8 @@ class _Scan:
 
     def _fstring_part(self, part: ast.expr, depth: int) -> str | None:
         """The text of one part of an f-string; ``None`` when not known."""
-        if isinstance(part, ast.Constant) and isinstance(part.value, str):
-            return part.value
+        if isinstance(part, ast.Constant):
+            return literal_text(part.value)
         if (
             isinstance(part, ast.FormattedValue)
             and part.conversion in _PLAIN_CONVERSIONS
@@ -322,11 +324,13 @@ class _Scan:
             return None
         operand = node.right
         if isinstance(operand, ast.Dict):
-            named = {
-                key.value: self._sub(value, depth)
-                for key, value in zip(operand.keys, operand.values, strict=True)
-                if isinstance(key, ast.Constant) and isinstance(key.value, str)
-            }
+            named: dict[str, str | None] = {}
+            for key, value in zip(operand.keys, operand.values, strict=True):
+                if not isinstance(key, ast.Constant):
+                    # ``**d`` or a computed key may replace any earlier key.
+                    named.update(dict.fromkeys(named))
+                elif isinstance(key.value, str):
+                    named[key.value] = self._sub(value, depth)
             return percent_template(template, named)
         elts = operand.elts if isinstance(operand, ast.Tuple) else [operand]
         return percent_template(template, self._values(elts, depth))
@@ -478,13 +482,26 @@ class _Scan:
 
     def _access(self, node: ast.AST) -> UsageAccess | None:
         """What the code does with the path *node*; ``None`` when it only
-        mentions it."""
+        mentions it. A path rendered into a string (``f"{path!r}"``) is not the
+        path any more: whatever consumes it, other than a mention, is unknown."""
         parent = self._parents.get(node)
         argument = node
-        while isinstance(parent, (ast.keyword, ast.Starred, ast.BoolOp)) or (
-            isinstance(parent, ast.IfExp) and argument is not parent.test
+        rendered = False
+        while isinstance(
+            parent, (ast.keyword, ast.Starred, ast.BoolOp, ast.JoinedStr)
+        ) or (
+            isinstance(parent, ast.FormattedValue)
+            or (isinstance(parent, ast.IfExp) and argument is not parent.test)
         ):
+            rendered = rendered or isinstance(parent, ast.FormattedValue)
             argument, parent = parent, self._parents.get(parent)
+        access = self._consumer_access(argument, parent)
+        return UsageAccess.UNKNOWN if rendered and access is not None else access
+
+    def _consumer_access(
+        self, argument: ast.AST, parent: ast.AST | None
+    ) -> UsageAccess | None:
+        """What *parent* does with *argument*, the path it was given."""
         if isinstance(parent, ast.Call) and argument is not parent.func:
             return self._call_access(parent)
         if isinstance(parent, ast.Attribute) and argument is parent.value:

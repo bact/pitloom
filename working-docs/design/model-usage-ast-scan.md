@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-31
-Last-Modified: 2026-10-31
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -114,7 +114,12 @@ Constant resolution, within **one file** only:
   tail that matches). `.format` fields with an attribute, index, conversion
   other than `!s` or a spec, a bare `%s` only, `%%`/`{{` escapes, `%(name)s`
   with a dict, and positions after a `*iterable` are handled; `**mapping` and
-  `*iterable` arguments leave their values unknown.
+  `*iterable` arguments leave their values unknown. In a `%` dict, a key
+  before a `**d` or a computed key may be replaced at run time, so its value
+  is unknown too; a string literal holding a NUL is no path (`open` raises).
+- a path rendered into a string (`f"{p!r}"`, `f"{p:>30}"`) is no longer the
+  path: a mention call (`print`, `log.info`, `raise`) gives no edge, any
+  other consumer gives `unknown access`.
 
 Decided losses (each was `unknown access` before the AST fix round): an
 unknown template or receiver (`tmpl.format("data/model.ftz")`,

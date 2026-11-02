@@ -183,3 +183,60 @@ def test_calls_and_modes(code: str, expected: set[UsageAccess]) -> None:
 
 def test_parse_and_find_agree_on_an_empty_file() -> None:
     assert find_usages(parse_python(""), []) == []
+
+
+def test_a_long_alias_chain_is_followed_in_linear_time() -> None:
+    n = 3000
+    lines = ['A0 = "data/model.pkl"']
+    lines += [f"A{i} = A{i - 1}" for i in range(1, n)]
+    lines.append(f"open(A{n - 1})")
+    start = time.monotonic()
+    assert accesses("\n".join(lines) + "\n", "model.pkl", _DATA) == {_R}
+    assert time.monotonic() - start < 2
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "print(f\"loading {'data/model.pkl'!r}\")",
+        "print(f\"{'data/model.pkl':>30}\")",
+        "raise ValueError(f\"missing {Path('data/model.pkl')!r}\")",
+        "p = 'data/model.pkl'\nprint(f'{p!r}')",
+    ],
+    ids=["repr", "spec", "path-repr", "constant-repr"],
+)
+def test_a_path_only_printed_with_a_conversion_or_spec_is_no_use(code: str) -> None:
+    assert accesses(code, "model.pkl", _DATA) == set()
+
+
+@pytest.mark.parametrize(
+    "operand",
+    ["{'a': 'other', **d}", "{'a': 'other', k: 1}"],
+    ids=["unpacking", "computed-key"],
+)
+def test_an_earlier_dict_key_may_be_replaced_by_a_later_unknown_entry(
+    operand: str,
+) -> None:
+    assert accesses(f"open('%(a)s/model.pkl' % {operand})", "model.pkl", _DATA) == {_R}
+
+
+@pytest.mark.parametrize(
+    "operand",
+    ["{**d, 'a': 'other'}", "{1: 'x', 'a': 'other'}"],
+    ids=["unpacking-first", "int-key"],
+)
+def test_a_dict_key_nothing_can_replace_is_known(operand: str) -> None:
+    assert accesses(f"open('%(a)s/model.pkl' % {operand})", "model.pkl", _DATA) == set()
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "open('x\\x00/model.pkl' % ())",
+        "open('\\x00/model.pkl'.format())",
+        "open(f'\\x00/model.pkl'.format())",
+    ],
+    ids=["percent", "format", "fstring-template"],
+)
+def test_a_literal_with_a_nul_is_no_path(code: str) -> None:
+    assert accesses(code, "model.pkl", _DATA) == set()
