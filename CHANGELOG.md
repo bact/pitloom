@@ -22,6 +22,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- A Git LFS pointer named by `license = {file = ...}` no longer becomes licence
+  text (the file name, or the pointer's own text from the Hatchling hook)
+  ([#422])
+
+[#422]: https://github.com/bact/pitloom/pull/422
+
 ## [0.22.0] - 2026-10-30
 
 **Breaking:** an ID registry of format version 3 is refused (regenerate it with

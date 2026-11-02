@@ -27,6 +27,7 @@ from pitloom.core.lfs_pointer import (
     LFS_POINTER_MAX_BYTES,
     LfsPointer,
     PrefixCapture,
+    is_pointer_text,
     opens_lfs_pointer,
     parse_lfs_pointer,
     read_lfs_pointer,
@@ -170,6 +171,16 @@ def test_pointer_grammar(data: bytes, expected: LfsPointer | None) -> None:
         for start in range(0, len(data), size):
             capture.feed(data[start : start + size])
         assert capture.pointer() == expected
+
+
+@pytest.mark.parametrize(("data", "expected"), _MATRIX.values(), ids=_MATRIX)
+def test_pointer_text_agrees_with_the_grammar(
+    data: bytes, expected: LfsPointer | None
+) -> None:
+    """A file's decoded text is a pointer exactly when its bytes are."""
+    assert is_pointer_text(data.decode("utf-8", errors="replace")) is (
+        expected is not None
+    )
 
 
 @pytest.mark.parametrize(
