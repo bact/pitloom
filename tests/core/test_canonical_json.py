@@ -110,7 +110,7 @@ def test_numpy_scalars_are_json_values() -> None:
     keys = {np.bool_(False): 1, np.float32(0.1): 2}
     assert canonical_json(keys) == '{"0.10000000149011612":2,"false":1}'
     # a duration is its str(), never an integer: int() refuses most units
-    durations = [np.timedelta64(5, "s"), np.timedelta64("NaT")]
+    durations = [np.timedelta64(5, "s"), np.timedelta64("NaT", "s")]
     assert canonical_json(durations) == '["5 seconds","NaT"]'
 
 

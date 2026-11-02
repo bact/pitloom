@@ -224,7 +224,9 @@ def test_a_numpy_timedelta_is_no_scalar(unit: str) -> None:
     a unit, which ``int()`` refuses for most units: never an integer here,
     whatever the unit."""
     numpy = pytest.importorskip("numpy")
-    value = numpy.timedelta64("NaT") if unit == "NaT" else numpy.timedelta64(5, unit)
+    # a NaT carries a unit too: the unitless spelling is deprecated in NumPy
+    stated = "s" if unit == "NaT" else unit
+    value = numpy.timedelta64("NaT" if unit == "NaT" else 5, stated)
     assert scalar_type(value) is None
     assert text_type(value) is None
     with pytest.raises(TypeError, match="not a scalar"):
