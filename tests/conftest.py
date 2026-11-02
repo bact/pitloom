@@ -24,6 +24,7 @@ from tests._message_drift import record_problem
 
 # pylint: disable-next=unused-import
 from tests._network import (  # noqa: F401
+    bypass_proxies,
     pytest_configure,
     pytest_make_collect_report,
     pytest_runtest_makereport,
@@ -237,8 +238,9 @@ def _block_network_access(
     runs. Tests that genuinely need a live socket opt out via the
     ``network`` marker. A ``loopback`` test may open sockets, but only to this
     machine (a server the test starts): the in-process ``connect`` and
-    ``connect_ex`` refuse any other address. A DNS lookup, a UDP send and a
-    subprocess are not covered.
+    ``connect_ex`` refuse any other address, and no proxy variable of the
+    machine applies (``tests._network.bypass_proxies``). A DNS lookup, a UDP
+    send and a subprocess are not covered.
     """
     if "network" in request.keywords:
         return
@@ -247,6 +249,7 @@ def _block_network_access(
         lambda name, version: None,
     )
     if "loopback" in request.keywords:
+        bypass_proxies(monkeypatch)
         monkeypatch.setattr(
             socket.socket, "connect", _loopback_only(socket.socket.connect)
         )

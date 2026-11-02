@@ -19,7 +19,7 @@ dependency enrichment.
 from __future__ import annotations
 
 import io
-import time
+import threading
 from email.message import Message
 from importlib.metadata import PackageNotFoundError
 from typing import Any
@@ -64,18 +64,19 @@ def test_prefetch_pypi_release_infos_runs_concurrently(
     dependencies cost roughly one round-trip, not N blocking ones (each up
     to _PYPI_TIMEOUT_SECONDS on failure)."""
 
-    def _slow_fetch(_name: str, _version: str | None) -> None:
-        time.sleep(0.2)
+    # All six fetches must be running at once to pass the barrier: no clock
+    # decides, and a sequential prefetch breaks the barrier after its timeout.
+    barrier = threading.Barrier(6, timeout=10)
+    met: list[int] = []
 
-    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _slow_fetch)
+    def _meeting_fetch(_name: str, _version: str | None) -> None:
+        met.append(barrier.wait())
 
-    start = time.monotonic()
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _meeting_fetch)
+
     _prefetch_pypi_release_infos([(f"pkg{i}", "unknown") for i in range(6)])
-    elapsed = time.monotonic() - start
 
-    # Sequential would be >= 1.2s (6 * 0.2s); concurrent should be close to
-    # the single-fetch latency. Generous bound to absorb CI/scheduler noise.
-    assert elapsed < 0.8
+    assert sorted(met) == list(range(6))
 
 
 def test_prefetch_pypi_release_infos_dedupes_same_name_version(
