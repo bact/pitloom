@@ -91,7 +91,16 @@ def check_model_outcome_parity(ctx: Context) -> None:
     for pointer in _POINTERS:
         (models / pointer).write_bytes(_POINTER)
     wheel = build_wheel(project, ctx.work / "dist")
+    expected = _scan_parity(ctx, project, wheel)
+    _single_model_parity(ctx, models, expected)
+    _pointers_refused(ctx, models)
+    ctx.note("project, wheel and loom model: one entry per confirmed model")
 
+
+def _scan_parity(ctx: Context, project: Path, wheel: Path) -> dict[str, list[str]]:
+    """Check 17's scans: ``project`` and ``wheel`` warn once per file with the
+    same text, list the good model and the truncated ones, not the pointers.
+    Returns the project's warnings by file name."""
     outputs = {"project": ctx.work / "p.json", "wheel": ctx.work / "w.json"}
     warnings = {
         "project": run_ok(
@@ -125,7 +134,14 @@ def check_model_outcome_parity(ctx: Context) -> None:
             and expected[truncated_name][0].endswith(" [model-unreadable]"),
             f"truncated: {expected[truncated_name]}",
         )
+    return expected
 
+
+def _single_model_parity(
+    ctx: Context, models: Path, expected: dict[str, list[str]]
+) -> None:
+    """Check 17's ``loom model`` on each truncated file: the scan's warning,
+    one ``ai_AIPackage``."""
     single = ctx.work / "m.json"
     for truncated_name in (_TRUNCATED, _CRF_TRUNCATED):
         ok = run_ok("model", str(models / truncated_name), "-o", str(single), *_COMMON)
@@ -139,6 +155,10 @@ def check_model_outcome_parity(ctx: Context) -> None:
             f"loom model {truncated_name}: want one ai_AIPackage",
         )
 
+
+def _pointers_refused(ctx: Context, models: Path) -> None:
+    """Check 17's ``loom model`` on each pointer: one ``ERROR:``, exit 1,
+    nothing written."""
     refused = ctx.work / "lfs.json"
     for pointer in _POINTERS:
         result = run_loom("model", str(models / pointer), "-o", str(refused), *_COMMON)
@@ -152,7 +172,6 @@ def check_model_outcome_parity(ctx: Context) -> None:
             f"loom model {pointer}: {errors}",
         )
         expect(not refused.exists(), f"loom model {pointer}: output written")
-    ctx.note("project, wheel and loom model: one entry per confirmed model")
 
 
 def _gguf(*pairs: tuple[str, str]) -> bytes:

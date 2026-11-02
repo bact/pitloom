@@ -19,7 +19,7 @@ dependency enrichment.
 from __future__ import annotations
 
 import io
-import time
+import threading
 from email.message import Message
 from importlib.metadata import PackageNotFoundError
 from typing import Any
@@ -31,6 +31,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_originator, deps_pypi
+from pitloom.assemble.spdx3._dep_groups import project_dependencies
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_release_hash,
@@ -39,6 +40,7 @@ from pitloom.assemble.spdx3.deps_pypi import (
 )
 from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import fetch_json
 from tests._network import skip_on_network_error
@@ -62,18 +64,19 @@ def test_prefetch_pypi_release_infos_runs_concurrently(
     dependencies cost roughly one round-trip, not N blocking ones (each up
     to _PYPI_TIMEOUT_SECONDS on failure)."""
 
-    def _slow_fetch(_name: str, _version: str | None) -> None:
-        time.sleep(0.2)
+    # All six fetches must be running at once to pass the barrier: no clock
+    # decides, and a sequential prefetch breaks the barrier after its timeout.
+    barrier = threading.Barrier(6, timeout=10)
+    met: list[int] = []
 
-    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _slow_fetch)
+    def _meeting_fetch(_name: str, _version: str | None) -> None:
+        met.append(barrier.wait())
 
-    start = time.monotonic()
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _meeting_fetch)
+
     _prefetch_pypi_release_infos([(f"pkg{i}", "unknown") for i in range(6)])
-    elapsed = time.monotonic() - start
 
-    # Sequential would be >= 1.2s (6 * 0.2s); concurrent should be close to
-    # the single-fetch latency. Generous bound to absorb CI/scheduler noise.
-    assert elapsed < 0.8
+    assert sorted(met) == list(range(6))
 
 
 def test_prefetch_pypi_release_infos_dedupes_same_name_version(
@@ -407,7 +410,8 @@ def test_prefetch_pypi_release_infos_worker_exception(
 def test_prefetch_combined_release_info_with_transitive_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """_prefetch_combined_release_info resolves and prefetches transitive-only deps."""
+    """_prefetch_combined_release_info fetches the versions the groups resolved,
+    transitive-only dependencies included."""
     calls: list[tuple[str, str]] = []
 
     def _mock_prefetch(pairs: Any) -> dict[Any, Any]:
@@ -418,16 +422,18 @@ def test_prefetch_combined_release_info_with_transitive_only(
         "pitloom.assemble.spdx3._document_locked_deps._prefetch_pypi_release_infos",
         _mock_prefetch,
     )
+    project = ProjectMetadata(name="main", dependencies=["requests>=2.0"])
     _prefetch_combined_release_info(
-        ["requests>=2.0"], ["urllib3==2.0.0"], locked_versions={"requests": "2.31.0"}
+        project_dependencies(project, ["urllib3==2.0.0"], {"requests": "2.31.0"})
     )
     assert ("requests", "2.31.0") in calls
     assert ("urllib3", "2.0.0") in calls
 
-    # Also test locked_versions=None branch
+    # Also test the unlocked branch
     calls.clear()
+    project = ProjectMetadata(name="main", dependencies=["requests==2.31.0"])
     _prefetch_combined_release_info(
-        ["requests==2.31.0"], ["urllib3==2.0.0"], locked_versions=None
+        project_dependencies(project, ["urllib3==2.0.0"], {})
     )
     assert ("requests", "2.31.0") in calls
     assert ("urllib3", "2.0.0") in calls

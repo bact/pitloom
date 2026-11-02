@@ -11,8 +11,9 @@ root; :func:`serve_git` puts it behind a loopback HTTP server. With
 to ``<project>.git/info/refs`` that GitLab sends, so the tests run the same
 URL walk as against ``gitlab.com`` without the network.
 
-The tests that use it opt out of the socket block (``network`` marker): the
-server is on ``127.0.0.1``.
+The tests that use it carry the ``loopback`` marker: the server is on
+``127.0.0.1``, and it does no reverse lookup of its address
+(``tests/_loopback_server.py``).
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
+
+from tests._loopback_server import ThreadingLoopbackHTTPServer
 
 __all__ = ["backend_available", "git", "make_repo", "serve_git"]
 
@@ -184,8 +187,7 @@ def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.daemon_threads = True
+    server = ThreadingLoopbackHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

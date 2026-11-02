@@ -31,6 +31,7 @@ from pitloom.assemble.spdx3.deps_installed import (
     _resolve_dependency_with_conflict,
 )
 from pitloom.assemble.spdx3.provenance import ConflictCandidate
+from pitloom.core.pep508 import is_direct_reference
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock.common import is_same_version
 from pitloom.id_registry import package_key
@@ -87,6 +88,16 @@ class DependencyGroups:
     resolved: tuple[Declared, ...]
     groups: tuple[DependencyGroup, ...]
 
+    def release_pairs(self) -> list[tuple[str, str]]:
+        """The ``(name, version)`` of each resolved string PyPI may describe:
+        what to prefetch release info for. A direct reference (``name @ URL``)
+        is left out: PyPI's record of the name may be another project."""
+        return [
+            (declared.name, declared.version)
+            for declared in self.resolved
+            if not is_direct_reference(declared.dep)
+        ]
+
 
 def group_dependencies(
     dependencies: Sequence[str],
@@ -138,6 +149,10 @@ class ProjectDependencies(NamedTuple):
     direct: DependencyGroups
     transitive: DependencyGroups
     locked_provenance: str
+
+    def release_pairs(self) -> list[tuple[str, str]]:
+        """:meth:`DependencyGroups.release_pairs` of both lists."""
+        return [*self.direct.release_pairs(), *self.transitive.release_pairs()]
 
 
 def project_dependencies(

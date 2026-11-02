@@ -383,11 +383,7 @@ def add_dependencies(
         )
     scopes = groups.scopes
     if release_info_cache is None and not offline:
-        release_info_cache = _prefetch_pypi_release_infos(
-            (declared.name, declared.version)
-            for declared in groups.resolved
-            if not is_direct_reference(declared.dep)
-        )
+        release_info_cache = _prefetch_pypi_release_infos(groups.release_pairs())
 
     for group in groups.groups:
         display_dep_name = group.name

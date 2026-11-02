@@ -44,7 +44,7 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
 - [ ] **A fragment value beats a value read from the file** (generated case
   built, #349): a **catalogue** or fragment value must win over a value read
   from the model; today the earlier element wins ([#150](https://github.com/bact/pitloom/issues/150)).
-  A losing fragment's `generated` claim: [known-bugs.md](known-bugs.md#p0-in-0210).
+  A losing fragment's `generated` claim: [known-bugs.md](known-bugs/extraction-and-fragments.md#p0-in-0210).
 - [ ] **Canonical output, next steps**: LF in text values (plan first), stable
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),
@@ -56,7 +56,7 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   project states; never guessed from a name). See
   [extra-lifecycle-scope.md](extra-lifecycle-scope.md).
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
-  fastText label cap, cross-format label counts): [known-bugs-p3.md](known-bugs-p3.md).
+  fastText label cap, cross-format label counts): [known-bugs.md](known-bugs/ai-models-readers-and-metadata.md#p3-after-0200).
 - [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
   no alias today; add only on demand. See [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 - [ ] **Git URL ingestion, open follow-ups**: DNS rebinding, imperative
@@ -329,7 +329,8 @@ Each found more than one bug that a per-site fix would only move.
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
   with no `WARNING:`; the GitHub Action drops any boolean input other than
   exactly `true`/`false` (`allow-build: True` skips the build). See
-  [known-bugs-p3.md](known-bugs-p3.md),
+  [known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200),
+  [known-bugs.md](known-bugs/surfaces-hook-and-wheel.md#p3-after-0200),
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 - [ ] **Code health ratchets**: complexity and file-size limits down to the
   AGENTS.md targets. See
@@ -364,7 +365,7 @@ Recorded findings; each is fixable on its own.
 - **Fragments after the merge fixes**: see
   [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
 - **`loom env`**: an unmet requirement loses its `dependsOn` edge; two installs
-  sharing a pipdeptree `key` collide (#236). See [known-bugs-p3.md](known-bugs-p3.md),
+  sharing a pipdeptree `key` collide (#236). See [known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200),
   [deployed-env-pipdeptree.md](../implementation/deployed-env-pipdeptree.md).
 - **GitHub Action hardening**: hash-pinned transitive dependencies, an
   isolated venv option, lint `scripts/` in CI. See

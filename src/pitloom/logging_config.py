@@ -238,6 +238,11 @@ def configure_logging(*, debug: bool | None = None) -> None:
         logger.handlers = [handler]
 
 
+def _stream_behind(proxy: Any) -> TextIO | None:
+    """The ``uncaptured_stderr`` of *proxy*, a stream whose type has one."""
+    return cast("TextIO | None", proxy.uncaptured_stderr)
+
+
 def _uncaptured_stderr() -> TextIO:
     """``sys.stderr``, or the stream behind it while a thread captures it
     (:func:`pitloom.extract.stderr_capture.capture_stderr` swaps in a proxy
@@ -246,12 +251,13 @@ def _uncaptured_stderr() -> TextIO:
     thread to the sink, to be logged again as the captured tool's own text.
     Read by attribute name, not by import: ``pitloom.extract`` imports this
     module."""
-    stream: Any = sys.stderr
+    stream: TextIO = sys.stderr
     while hasattr(type(stream), "uncaptured_stderr"):  # a proxy, maybe of a proxy
-        stream = stream.uncaptured_stderr
-        if stream is None:  # there is no stderr to write to
+        behind = _stream_behind(stream)
+        if behind is None:  # there is no stderr to write to
             return io.StringIO()
-    return cast(TextIO, stream)
+        stream = behind
+    return stream
 
 
 def warn_once(

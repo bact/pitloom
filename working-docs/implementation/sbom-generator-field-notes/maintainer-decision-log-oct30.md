@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,6 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Field notes: maintainer decision log, 2026-10-29 and 2026-10-30
 
 See also: [README.md](README.md) (index of these notes),
+[maintainer-decision-log-nov02.md](maintainer-decision-log-nov02.md) (the
+next table),
 [message-catalogue-decisions.md](message-catalogue-decisions.md) (decisions A
 to M, not repeated here),
 [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md),
@@ -80,3 +82,16 @@ maintainer would have chosen differently without it, is not recorded.
   records; the exchange (what was asked, what else was weighed) is only in
   the session. How much of it should enter the paper notes is for the
   authors to decide.
+
+## 5. Status at 2026-11-02
+
+Added later; the rows above are left as written on 2026-10-30.
+
+- #408 (merge `2f2a0bcc`, 16:00 UTC), #409 (`57df467f`, 16:03) and #407
+  (`df7331d2`, 16:13) merged the same day; #407 is in the `v0.22.0` tag. The
+  rows marked "in review" are therefore merged.
+- The licence-families row marked "not yet in the repository" is closed:
+  `5d249752` (16:26 UTC) moved the adoption and the families to 0.23.0 in the
+  roadmap and the migration plan.
+- `licenseid` 0.7.0 was still absent from PyPI on 2026-11-02 (latest 0.6.0).
+- The next table is [maintainer-decision-log-nov02.md](maintainer-decision-log-nov02.md).

@@ -24,8 +24,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Push to main only. Skips the matrix when the merge commit has the tree of
+  # a PR head that already passed this workflow (see
+  # scripts/ci/skip_duplicate_push.py). Fail open: any doubt runs the tests.
+  # A push run is never a required check for a merge, so the skipped matrix
+  # names (reported unexpanded) cannot block a PR.
+  decide:
+    name: Decide whether to run
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      skip: ${{ steps.dup.outputs.skip }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - id: dup
+        uses: ./.github/actions/skip-duplicate-push
+        with:
+          workflow-file: test.yml
+          token: ${{ github.token }}
+
   test:
     name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }})
+    needs: decide
+    # decide is skipped on PRs and may fail: run unless it said "true".
+    if: ${{ !cancelled() && needs.decide.outputs.skip != 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

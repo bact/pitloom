@@ -312,6 +312,6 @@ Also open:
 
 - setuptools gives an absolute `physical_path` for a project directory named
   in another letter case (macOS, Windows; #257, in
-  [known-bugs-p3.md](known-bugs-p3.md)).
+  [known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200)).
 - scikit-build-core is checked only through `--allow-build`
   ([#61](https://github.com/bact/pitloom/issues/61)).
