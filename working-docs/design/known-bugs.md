@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,14 +43,14 @@ lists its open entries first, ranked as described under
 | Part | P0 | P1 | P2 | P3 | Found | Leads | Open | Fixed |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
 | [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 43 | - | - | 43 | 2 |
-| [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 4 | 3 | 8 | - | 15 | 7 |
+| [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 4 | 3 | 7 | - | 14 | 8 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 8 | - | 11 | 9 |
 | [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 13 | - | 15 | 7 |
 | [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 9 | - | 9 | 7 |
 | [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 1 | - | 13 | 10 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 8 | 2 | 2 | 12 | 4 |
 | [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 4 | - | 6 | 8 |
-| **Total** | **1** | **3** | **7** | **66** | **45** | **2** | **124** | **54** |
+| **Total** | **1** | **3** | **7** | **66** | **44** | **2** | **123** | **55** |
 
 ## Parts
 
