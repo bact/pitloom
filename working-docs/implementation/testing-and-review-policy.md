@@ -319,4 +319,4 @@ after measurement. From the measurement above, largest first:
 - 2026-11-02: experiment: skip the post-merge `test.yml` push run when the
   merge tree equals a green PR head's tree.
 - 2026-11-02: the skip now needs the newest run of the head to be green on
-  base `main`, not any green run (PR #429).
+  base `main`, not any green run (PR #428).
