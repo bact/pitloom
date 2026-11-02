@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,7 +73,7 @@ entries stay in the last section for history.
   `PermissionError` also call `proc.kill()`. Not reproduced since the test was
   changed to a 120 s sleep and a < 100 s bound (#421); watch for a `[running]`
   run near 60 s.
-  *Found 2026-11-03, macOS CI leg.*
+  *Found 2026-11-02, macOS CI leg.*
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.
   *Found 2026-10-29, Git LFS pointer work.*
