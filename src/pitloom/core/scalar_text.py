@@ -41,23 +41,28 @@ MAX_INTEGER_DIGITS = 640
 _INTEGER_TEXT_BOUND = 10**MAX_INTEGER_DIGITS
 
 
+def _is_numpy(value: Any, name: str) -> bool:
+    """Whether *value* is of NumPy's type *name*: one exists only once numpy
+    is imported, and a stand-in module (a test's) may have no such type."""
+    numpy_type = getattr(sys.modules.get("numpy"), name, None)
+    return isinstance(numpy_type, type) and isinstance(value, numpy_type)
+
+
 def _is_bool(value: Any) -> bool:
     """Whether *value* is a ``bool`` or a ``numpy.bool_``."""
-    if isinstance(value, bool):
-        return True
-    # A numpy.bool_ exists only once numpy is imported; a stand-in module
-    # (a test's) may have no such type.
-    bool_type = getattr(sys.modules.get("numpy"), "bool_", None)
-    return isinstance(bool_type, type) and isinstance(value, bool_type)
+    return isinstance(value, bool) or _is_numpy(value, "bool_")
 
 
 def scalar_type(value: Any) -> str | None:
     """:data:`BOOLEAN`, :data:`INTEGER` or :data:`FLOAT` for a boolean, an
     integer or a real number (NumPy's too), else ``None`` (a string, a
-    collection, ``None``). A boolean is tested first: ``bool`` is an
-    ``int``."""
+    collection, ``None``, a ``numpy.timedelta64``: a duration in a unit, which
+    NumPy registers as an integer but ``int()`` may refuse). A boolean is
+    tested first: ``bool`` is an ``int``."""
     if _is_bool(value):
         return BOOLEAN
+    if _is_numpy(value, "timedelta64"):
+        return None
     if isinstance(value, numbers.Integral):
         return INTEGER
     if isinstance(value, numbers.Real):
@@ -116,8 +121,8 @@ def scalar_text(value: Any) -> str:
 
     A ``decimal.Decimal`` is no scalar here (not a :class:`numbers.Real`)
     and raises; :func:`pitloom.core.ai_metadata.value_text` spells it with
-    ``str()``. No reader yields one, nor a ``numpy.timedelta64`` or a
-    ``numpy.longdouble``.
+    ``str()``, as it does a ``numpy.timedelta64`` (no scalar either). No
+    reader yields one, nor a ``numpy.longdouble``.
 
     Raises:
         TypeError: *value* is ``None`` or not a string or a scalar; a

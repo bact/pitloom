@@ -109,6 +109,9 @@ def test_numpy_scalars_are_json_values() -> None:
     assert canonical_json(value) == '[true,7,"9223372036854775808","INF"]'
     keys = {np.bool_(False): 1, np.float32(0.1): 2}
     assert canonical_json(keys) == '{"0.10000000149011612":2,"false":1}'
+    # a duration is its str(), never an integer: int() refuses most units
+    durations = [np.timedelta64(5, "s"), np.timedelta64("NaT")]
+    assert canonical_json(durations) == '["5 seconds","NaT"]'
 
 
 def test_set_order_does_not_depend_on_insertion_order() -> None:
