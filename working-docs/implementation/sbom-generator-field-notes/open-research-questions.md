@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -365,3 +365,51 @@ repeated the tree of a green PR head. Whether skipping it loses a signal
 removed local repetition are not measured; a before and after count over the
 next PRs would answer the second. See
 [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md).
+
+## Release verification, CI and process (2026-11-02)
+
+*Open:* is the equal-tree skip of a post-merge CI run sound across all merge
+shapes? #415 (in review) skips the `test.yml` push run only for a two-parent
+merge whose tree equals the PR head's and whose head has a green
+`pull_request` run. Known hole: the PR run tested the head merged into `main`
+as it was then, so a change made and reverted on `main` before the merge is
+invisible to a tree comparison. Not examined: a merge that resolves a
+conflict, a PR whose green run predates a force-push to the same tree, and
+two PRs each green alone and red together (the rule runs the matrix for the
+second, since its merge tree differs). The 8 of 8
+equal trees of 2026-10-30 became 0 of 3 on 2026-11-02, when merges queued; no
+estimate of the eligible share over a month exists. See
+[ci-duplicate-run-skip-experiment.md](ci-duplicate-run-skip-experiment.md).
+
+*Open:* what would a harm-based severity scale for a bug ledger look like?
+The 174-entry ledger ranks by a release-planning tier and an effort tag, and
+neither says how bad an entry is. Candidate levels from the 0.22.0 "serious"
+definition: a crash; silently wrong data or identity; a leak; then wrong but
+flagged; then cosmetic. Untried: sorting the 48 unprioritised entries under
+it, and whether two reviewers agree on the level of an entry. See
+[bug-ledger-needs-a-severity-scale.md](bug-ledger-needs-a-severity-scale.md).
+
+*Open (status change):* do version-keyed registry ids make a union of SBOM
+graphs across releases sound? The first open item of the section above
+stands. Since then #407 merged (2026-10-30 16:13 UTC) and is in the 0.22.0
+tag, so the keys are shipped and a union of two released SBOMs can now be
+tried with real files; nothing in the repository does so.
+
+*Open:* how can an environment-induced test stall be detected automatically?
+On 2026-11-02 a macOS leg ran a test with a 30 s bound for 60 s while other
+tests on the same leg stalled for 35 s, two of them recurring over the four
+days of runs read.
+Every leg already uploads per-test durations (`pytest-junit-*`). Candidate: a
+per-test duration regression across legs and runs (a test above a multiple of
+its own median, or above its Linux time by a factor), reported as a warning
+and not a failure. Untested: whether eight to twelve runs per leg are enough
+for a stable median, and whether stalls correlate across tests of one run (the
+17.4 s silence of all workers suggests they do). See
+[wall-clock-bounds-on-shared-runners.md](wall-clock-bounds-on-shared-runners.md).
+
+*Open:* how soon after upload can a release be verified from the registry?
+The 0.22.0 pass read digests from PyPI's JSON API; a lag between that and the
+simple index `pip` reads was reported for the round and not measured. A
+verifier that compares both, and a re-run schedule that waits for them to
+agree, are untried. See
+[post-publish-verification-of-a-release.md](post-publish-verification-of-a-release.md).

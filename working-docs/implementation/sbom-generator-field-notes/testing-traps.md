@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -346,3 +346,13 @@ Ways a test passes, fails or floods the log for the wrong reason.
   looked-up name, so a direct-reference dependency that took another
   project's facts shows them in the SBOM at once
   ([name-keyed-lookups-and-direct-references.md](name-keyed-lookups-and-direct-references.md)).
+- **A time bound that tells a fast path from a slow one has little room for
+  noise.** A test whose slow case lasts 60 s cannot take a bound above 60 s,
+  and the room under it is what the runner's stalls can eat: a macOS leg ran
+  the "stopped quickly" test for 60 s against a 30 s bound, while three other
+  tests on that leg took 35 s or more (two of them recurring). A hang
+  ceiling may be generous; a discriminating bound may not.
+  Do: say which kind a bound is, and where possible assert the behaviour the
+  time stands for (the child is gone), not the time
+  ([wall-clock-bounds-on-shared-runners.md](wall-clock-bounds-on-shared-runners.md);
+  cause not confirmed).
