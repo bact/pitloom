@@ -69,14 +69,6 @@ entries come first; fixed entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
-  as the licence text `LICENSE` (S-M).** The root package's declared licence
-  reads `['LICENSE']` (the file name stands as text) and no `[lfs-pointer]`
-  line is printed for that file; only a DEBUG line in
-  `extract/_license_detect.py` says it. A file name must not stand as licence
-  text: the pointer should give no licence and one `WARNING:` (or join the
-  run's one pointer summary).
-  *Found 2026-11-02, PyPI 0.22.0 verification (a 0.22.1 candidate).*
 - [ ] **`licenseid` 0.6.0 gives Pitloom no operands (S).** `resolve()`
   answers for a whole value, so a compound with one respelt part (`Apache2 OR
   MIT`) is `expression` with no expression and stays text; the design asked
@@ -183,3 +175,17 @@ release ships.
   (S).** Decided by #276 ("Declared or concluded" in `license-typing.md`): a
   model file's own metadata is declared, a dependency's installed copy stays
   concluded (`THIRD_PARTY_SOURCES`).
+
+### Fixed, Found in review rounds, not yet prioritised
+
+- [x] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
+  as the licence text `LICENSE` (S-M).** Fixed by #422: the licence is now
+  unstated (a pointer is no licence text, and a file name never stands as
+  one); `is_pointer_text` in `core/lfs_pointer.py` decides it for every route.
+  The root package's declared licence read `['LICENSE']` (the file name stood
+  as text) and no `[lfs-pointer]` line was printed for that file; only a DEBUG
+  line in `extract/_license_detect.py` said it. Two siblings were fixed in the
+  same change: the Hatchling hook recorded the pointer's own text as the
+  licence text, and an empty licence file in an sdist without `PKG-INFO`
+  recorded the string `License(text='', file=None)`.
+  *Found 2026-11-02, PyPI 0.22.0 verification.*
