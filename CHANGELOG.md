@@ -27,7 +27,14 @@ and this project adheres to
 - `--scan-model-usage` walks Python ASTs: records `read`/`write`/`unknown
   access` in `comment`, skips mentions, and warns `[usage-unparseable]` ([#413])
 
+### Fixed
+
+- A Git LFS pointer named by `license = {file = ...}` no longer becomes licence
+  text (the file name, or the pointer's own text from the Hatchling hook)
+  ([#422])
+
 [#413]: https://github.com/bact/pitloom/pull/413
+[#422]: https://github.com/bact/pitloom/pull/422
 
 ## [0.22.0] - 2026-10-30
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,6 +52,16 @@ entries stay in the last section for history.
   and logs DEBUG only, so no `failed` entry is possible there without the 404
   check `huggingface_dataset.py` already has.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
+- [ ] **The git call's kill path may leave a child holding the output pipe
+  (S).** In `test_git_hardening.py`, the `running` case of
+  `test_a_call_that_writes_more_than_the_cap_is_stopped`, an unstopped
+  call ran 60.2 s (the test's own `sleep 60`) once on macOS.
+  Suspected: `_kill` swallows `PermissionError` from `os.killpg`, so `sh` dies
+  while `sleep` keeps the pipe open. Intermittent. Smallest fix: on
+  `PermissionError` also call `proc.kill()`. Not reproduced since the test was
+  changed to a 120 s sleep and a < 100 s bound (#421); watch for a `[running]`
+  run near 60 s.
+  *Found 2026-11-03, macOS CI leg.*
 - [ ] **`--allow-lfs-fetch` (idea).** Fetching LFS content contacts a second
   server the Git URL guard does not cover; reuse the clone cap if built.
   *Found 2026-10-29, Git LFS pointer work.*

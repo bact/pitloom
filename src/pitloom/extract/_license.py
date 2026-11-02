@@ -39,6 +39,7 @@ from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, resolve
 from licenseid.resolvertypes import Resolution
 from licenseid.types import LicenseMatch
 
+from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
@@ -623,10 +624,12 @@ def stated_license(
     """``(id, provenance)`` for the licence a manifest states, *license_hint*:
     an id or an expression stripped; text that ``licenseid`` identifies, the
     id, with *hint_source* and the method in the provenance; other text as
-    written, with no provenance. ``(None, None)`` when blank: the project's
-    own files are not read here (:func:`apply_in_package_license`)."""
+    written, with no provenance. ``(None, None)`` when blank, or when the
+    whole hint is a Git LFS pointer (a licence file not pulled, read by a
+    build backend as its text: no licence text); the project's own files
+    are not read here (:func:`apply_in_package_license`)."""
     hint = (license_hint or "").strip()
-    if not hint:
+    if not hint or is_pointer_text(license_hint or ""):
         return None, None
     if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
         return hint, None

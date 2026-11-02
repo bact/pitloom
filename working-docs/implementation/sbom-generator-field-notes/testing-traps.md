@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -356,3 +356,8 @@ Ways a test passes, fails or floods the log for the wrong reason.
   time stands for (the child is gone), not the time
   ([wall-clock-bounds-on-shared-runners.md](wall-clock-bounds-on-shared-runners.md);
   cause not confirmed).
+- **On Windows `os.environ` is case-insensitive.** `no_proxy` and `NO_PROXY`
+  are one variable, so two `monkeypatch.delenv` calls for both spellings raise
+  `KeyError` on the second unless `raising=False`. #421's Windows leg found it
+  after a dry run missed it.
+  Do: pass `raising=False`; reproduce by emulating a case-insensitive environ.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,22 +41,13 @@ the last section for history.
   PR tree, and a markdown-only follow-up commit re-runs the matrix because
   `paths-ignore` is judged on the whole PR diff.
   *Found 2026-10-30, process and tooling.*
-- [ ] **pyright cannot resolve `magika` in the dev venv (doc).**
-  *Found 2026-10-30, process and tooling.*
 - [ ] **Bare `flake8` also lints `scripts/` while CI lints `examples src
   tests` only, and pyright cannot resolve `magika` in the dev venv (doc).**
   A bare `flake8` run reports findings in `scripts/` that CI never sees, and
   the dev venv's pyright run fails to resolve `magika`; both blur the line
   between a local and a CI failure. Pin the local command to CI's paths, or
-  lint `scripts/` in CI. See also the `magika` entry above.
-  *Found 2026-11-02, process and tooling.*
-- [ ] **A wall-clock test fails on a slow macOS runner (S).** In
-  `tests/extract/remote/test_git_hardening.py`, the case `running` of
-  `test_a_call_that_writes_more_than_the_cap_is_stopped` asserts under 30 s
-  and took 60 s (run 41449530712). Several loopback HTTP tests take about 35 s
-  on that leg (suspected macOS proxy or host-name lookup stall). Fix in
-  progress on branch `fix-flaky-macos-timing`.
-  *Found 2026-11-02, macOS CI leg.*
+  lint `scripts/` in CI.
+  *Found 2026-10-30 (`magika`) and 2026-11-02, process and tooling.*
 
 ## Fixed
 
@@ -73,6 +64,17 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **A wall-clock test fails on a slow macOS runner (S).** In
+  `tests/extract/remote/test_git_hardening.py`, the case `running` of
+  `test_a_call_that_writes_more_than_the_cap_is_stopped` asserts under 30 s
+  and took 60 s (run 41449530712). Several loopback HTTP tests take about 35 s
+  on that leg (suspected macOS proxy or host-name lookup stall). Fixed
+  by #421: test servers no longer reverse-resolve the host name on bind
+  (`HTTPServer.server_bind` calls `socket.getfqdn`; very likely cause,
+  unconfirmed until a macOS run after #421 no longer lists the three ~35 s
+  tests), loopback tests run with no proxy variables, the cap-stop test sleeps
+  120 s with a < 100 s bound, the prefetch concurrency test uses a barrier.
+  *Found 2026-11-02, macOS CI leg.*
 - [x] **`assemble/spdx3/document.py` is 516 lines (doc).** Fixed by #418. Over
   the soft limit; split it. It is now 411 lines; the main-package code moved to
   the new `_document_main_package.py`.
