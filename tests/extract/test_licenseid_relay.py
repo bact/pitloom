@@ -129,12 +129,14 @@ def test_a_lookup_changes_the_filters_once() -> None:
     with warnings.catch_warnings(record=True) as shown:
         warnings.simplefilter("default")
         before = list(warnings.filters)
+        after: list[object] = []
         for _ in range(3):
             with relay.relay_licenseid_warnings():
                 _outdated()
                 warnings.warn("third-party deprecation", UserWarning, stacklevel=1)
-            after = list(warnings.filters)
-        assert after == [relay._FILTER, *before]  # pylint: disable=protected-access
+            after.append(list(warnings.filters))
+        # pylint: disable-next=protected-access
+        assert after == [[relay._FILTER, *before]] * 3
     assert [str(w.message) for w in shown] == ["third-party deprecation"]
 
 
