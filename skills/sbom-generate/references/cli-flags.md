@@ -54,6 +54,17 @@ where they differ, and a flag with no effect on a target logs
   warn that it has no effect. Off by default and **opt-in only**: add it only
   when the request asks which code loads a model. Models are found either
   way; when the setting was never given, one `INFO:` line names this flag.
+  Each edge goes from one `.py` file to one model, scope `runtime`, and its
+  `comment` says what the file's code does with the model's path:
+  `read access` (`open(p)`, `open(p, "rb")`, a `load`-like call),
+  `write access` (`open(p, "w")`, a `save`/`dump`-like call),
+  `read and write access` (both in one file, or a `+` mode) or
+  `unknown access` (the path goes somewhere Pitloom cannot classify: a call
+  it does not know, a container, a value assigned and never read). A known
+  read or write wins over `unknown access` in the same file. A path that is
+  only printed, logged or put in an exception message, and a file name in a
+  comment or docstring, give no edge. A file whose text names the model but
+  does not parse gives no edge and a `[usage-unparseable]` warning.
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
   `RECORD` signature (see "Signed wheels" in `../SKILL.md`). Never add it
   unless the user agrees.
