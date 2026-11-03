@@ -166,3 +166,30 @@ def test_detection_relays_the_warning_of_building_the_detector(
     with caplog.at_level(logging.WARNING, logger=_LOGGER):
         assert detect_license_from_text("Some licence words. " * 10) is None
     assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
+
+
+def test_detection_relays_what_detect_itself_warns(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A warning given while detecting (not while building the detector)
+    is relayed, not raised out of the detection."""
+
+    # pylint: disable-next=too-few-public-methods
+    class _Guessing:
+        def detect(self, text: str) -> list[object]:
+            del text
+            licenseid_warning.warn(
+                "input", "variant not stated", "GPL-2.0", "using GPL-2.0-only"
+            )
+            return [{"expression": "GPL-2.0-only", "score": 1.0}]
+
+    monkeypatch.setattr("pitloom.extract._license.LicenseDetector", _Guessing)
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        found = detect_license_from_text("Some licence words. " * 10)
+    assert found == "GPL-2.0-only"
+    assert _said(caplog) == [
+        (
+            logging.INFO,
+            "licenseid: input: variant not stated: GPL-2.0; using GPL-2.0-only",
+        )
+    ]
