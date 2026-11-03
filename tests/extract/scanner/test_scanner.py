@@ -32,6 +32,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.extract.ai_model import SNIFF_BYTES
 from pitloom.extract.scanner import (
     ModelCandidate,
@@ -298,22 +299,36 @@ def test_discover_failure_does_not_stop_later_candidates() -> None:
 
 
 @pytest.mark.parametrize(
-    ("content", "matches"),
+    ("content", "expected"),
     [
-        (b'load("model.onnx")', True),
-        (b"\xef\xbb\xbfload('model.onnx')\r\n", True),  # BOM, CRLF
-        (b"my_model.onnx", True),  # substring heuristic: no word boundary
-        (b"model.onnx.bak", True),
-        (b"print(1)", False),
-        (b"model_onnx", False),
-        (b"MODEL.ONNX", False),
-        (b"", False),
+        (b'load("model.onnx")', [ModelUsage("pkg/use.py", UsageAccess.READ)]),
+        (
+            b"\xef\xbb\xbfload('model.onnx')\r\n",
+            [ModelUsage("pkg/use.py", UsageAccess.READ)],
+        ),  # BOM, CRLF
+        (b'save("model.onnx")', [ModelUsage("pkg/use.py", UsageAccess.WRITE)]),
+        (
+            b'open("model.onnx", "r+b")',
+            [ModelUsage("pkg/use.py", UsageAccess.READ_WRITE)],
+        ),
+        (b'custom("model.onnx")', [ModelUsage("pkg/use.py", UsageAccess.UNKNOWN)]),
+        (b'load("my_model.onnx")', []),  # path-shaped component, not substring
+        (b'load("model.onnx.bak")', []),
+        (b"# model.onnx\n", []),  # comment
+        (b'"""model.onnx"""\n', []),  # docstring
+        (b'print("model.onnx")\n', []),  # mention-only
+        (b"print(1)", []),
+        (b"model_onnx", []),
+        (b"MODEL.ONNX", []),
+        (b"", []),
     ],
 )
-def test_attach_matches_file_name_as_substring(content: bytes, matches: bool) -> None:
+def test_attach_classifies_path_shaped_ast_references(
+    content: bytes, expected: list[ModelUsage]
+) -> None:
     meta = _meta(name="model.onnx")
     attach_usage_references([meta], [_src("pkg/use.py", data=content)])
-    assert meta.usage_files == (["pkg/use.py"] if matches else [])
+    assert meta.usage_files == expected
 
 
 def test_attach_records_each_source_once_per_model(
@@ -325,13 +340,13 @@ def test_attach_records_each_source_once_per_model(
         attach_usage_references(
             [empty, a, b, no_name],
             [
-                _src("x/one.py", data=b"a.onnx a.onnx"),
-                _src("x/two.py", data=b"big_a.onnx"),
+                _src("x/one.py", data=b'load("a.onnx")\nload("a.onnx")'),
+                _src("x/two.py", data=b'load("big_a.onnx")'),
             ],
         )
     assert not _warnings(caplog)
-    assert a.usage_files == ["x/one.py", "x/two.py"]  # "a.onnx" in "big_a.onnx"
-    assert b.usage_files == ["x/two.py"]
+    assert a.usage_files == [ModelUsage("x/one.py", UsageAccess.READ)]
+    assert b.usage_files == [ModelUsage("x/two.py", UsageAccess.READ)]
     assert empty.usage_files == no_name.usage_files == []
 
 
@@ -341,18 +356,27 @@ def test_attach_records_each_source_once_per_model(
     ids=str,
 )
 def test_attach_usage_files_sorted_and_deduplicated(dists: list[str]) -> None:
-    sources = [_src(d, data=b"w.npy") for d in dists]
+    sources = [_src(d, data=b'load("w.npy")') for d in dists]
     assert dists != sorted(dists)  # not vacuous
     meta = _meta(name="w.npy")
     attach_usage_references([meta], sources)
-    assert meta.usage_files == ["pkg/x.py", "pkg/y.py"]
+    assert meta.usage_files == [
+        ModelUsage("pkg/x.py", UsageAccess.READ),
+        ModelUsage("pkg/y.py", UsageAccess.READ),
+    ]
 
 
 def test_attach_sorts_and_dedupes_preexisting_usage_files() -> None:
     meta = _meta(name="w.npy")
-    meta.usage_files = ["pkg/z.py", "pkg/x.py"]
-    attach_usage_references([meta], [_src("pkg/x.py", data=b"w.npy")])
-    assert meta.usage_files == ["pkg/x.py", "pkg/z.py"]
+    meta.usage_files = [
+        ModelUsage("pkg/z.py", UsageAccess.WRITE),
+        ModelUsage("pkg/x.py", UsageAccess.UNKNOWN),
+    ]
+    attach_usage_references([meta], [_src("pkg/x.py", data=b'load("w.npy")')])
+    assert meta.usage_files == [
+        ModelUsage("pkg/x.py", UsageAccess.READ),
+        ModelUsage("pkg/z.py", UsageAccess.WRITE),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -389,10 +413,12 @@ def test_attach_py_filter_uses_distribution_path(
     dist: str, phys: str, read: bool
 ) -> None:
     meta = _meta(name="model.onnx")
-    opener = Mock(return_value=contextlib.nullcontext(io.BytesIO(b"model.onnx")))
+    opener = Mock(
+        return_value=contextlib.nullcontext(io.BytesIO(b'open("model.onnx")'))
+    )
     attach_usage_references([meta], [UsageSource(dist, phys, opener)])
     assert opener.called == read
-    assert meta.usage_files == ([dist] if read else [])
+    assert meta.usage_files == ([ModelUsage(dist, UsageAccess.READ)] if read else [])
 
 
 @pytest.mark.parametrize(
@@ -410,13 +436,15 @@ def test_attach_read_error_warns_once_and_continues(
             [meta] if models else [],
             [
                 _src("pkg/a.py", "src/pkg/a.py", data=bad),
-                _src("pkg/b.py", "src/pkg/b.py", data=b"model.onnx"),
+                _src("pkg/b.py", "src/pkg/b.py", data=b'open("model.onnx")'),
             ],
         )
     (message,) = _warnings(caplog)
     assert "could not read for usage scanning" in message
     assert file_values([message]) == ["src/pkg/a.py"]
-    assert meta.usage_files == (["pkg/b.py"] if models else [])
+    assert meta.usage_files == (
+        [ModelUsage("pkg/b.py", UsageAccess.READ)] if models else []
+    )
 
 
 # --- scan_ai_models ---------------------------------------------------------
@@ -438,18 +466,22 @@ def test_scan_consumes_generators_once_and_discovers_before_scanning() -> None:
             _candidates(), _sources(), scan_usage=True, usage_hint=lambda: False
         )
     assert calls == ["candidates", "sources"]
-    assert [m.usage_files for m in found] == [["pkg/use.py"]]
+    assert [m.usage_files for m in found] == [
+        [ModelUsage("pkg/use.py", UsageAccess.READ)]
+    ]
 
 
 def test_scan_attaches_usage_to_import_error_stub() -> None:
     with patch(_READ, autospec=True, side_effect=ImportError("x")):
         found = scan_ai_models(
             [_cand("pkg/model.onnx")],
-            [_src("pkg/use.py", data=b"model.onnx")],
+            [_src("pkg/use.py", data=b'open("model.onnx")')],
             scan_usage=True,
             usage_hint=lambda: False,
         )
-    assert [m.usage_files for m in found] == [["pkg/use.py"]]
+    assert [m.usage_files for m in found] == [
+        [ModelUsage("pkg/use.py", UsageAccess.READ)]
+    ]
 
 
 def test_scan_empty_inputs() -> None:

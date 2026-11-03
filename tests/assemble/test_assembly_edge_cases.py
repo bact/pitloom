@@ -50,6 +50,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.dependency_authors import dependency_author_pairs
 
@@ -390,7 +391,7 @@ def test_fragments_and_ai_model_edge_branches() -> None:
     creation_info = _make_ci()
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(file_path_relative="model.onnx"),
-        usage_files=["missing_script.py"],
+        usage_files=[ModelUsage("missing_script.py", UsageAccess.READ)],
     )
     _add_ai_model_file_relationships(
         meta,

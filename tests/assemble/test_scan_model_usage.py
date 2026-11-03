@@ -68,7 +68,14 @@ def _project(tmp: Path, usage: bool | None = None, *, model: bool = True) -> Pat
         (root / "demo" / _MODEL).write_bytes(
             struct.pack("<Q", len(header)) + header + b"\0" * 4
         )
-        (root / "demo" / "use.py").write_text(f'M = "{_MODEL}"\n', encoding="utf-8")
+        (root / "demo" / "use.py").write_text(
+            f'# doc mentioning {_MODEL}\nM = "{_MODEL}"\nopen(M, "rb")\n',
+            encoding="utf-8",
+        )
+        (root / "demo" / "mention.py").write_text(
+            f'"""Mention-only {_MODEL}."""\nprint("{_MODEL}")\n',
+            encoding="utf-8",
+        )
     config = "\n[tool.pitloom]\noffline = true\n"
     if usage is not None:
         config += f"scan-model-usage = {str(usage).lower()}\n"
@@ -80,7 +87,7 @@ def _wheel(tmp: Path, project: Path) -> Path:
     """A wheel of *project*'s model and script (so usage edges have targets)."""
     members = {
         f"demo/{name}": (project / "demo" / name).read_bytes()
-        for name in (_MODEL, "use.py")
+        for name in (_MODEL, "use.py", "mention.py")
     }
     return _make_dummy_wheel(tmp / "dist", "demo", "1.0.0", extra_members=members)
 
@@ -206,12 +213,13 @@ def _usage(sbom: str) -> list[tuple[str, str]]:
     """(script, model file) name pairs of every ``hasDataFile``."""
     graph = _graph(sbom)
     names = {e["spdxId"]: e["name"] for e in graph if e["type"] == "software_File"}
-    return [
-        (names[r["from"]], names[t])
+    rels = [
+        r
         for r in graph
         if r["type"].endswith("Relationship") and r["relationshipType"] == "hasDataFile"
-        for t in r["to"]
     ]
+    assert all(r.get("comment") == "read access" for r in rels)
+    return [(names[r["from"]], names[t]) for r in rels for t in r["to"]]
 
 
 def _hints(caplog: pytest.LogCaptureFixture) -> list[str]:

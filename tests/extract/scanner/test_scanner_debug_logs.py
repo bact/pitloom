@@ -42,7 +42,7 @@ def test_debug_scan_of_hostile_names_forges_no_line(
         tmp_path / "d",
         {
             f"demo/{model}": safetensors_bytes(),
-            f"demo/use{evil}.py": f'M = "{model}"\n'.encode(),
+            f"demo/use{evil}.py": f'M = """{model}"""\n'.encode(),
         },
     )
     run_cli(

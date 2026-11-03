@@ -38,6 +38,15 @@ wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`) both use it.
 - `extract/scanner.py` -- the policy: `ModelCandidate`, `UsageSource`,
   `is_model_candidate_name()`, `discover_ai_models()`,
   `attach_usage_references()`, `scan_ai_models()`. It imports no producer.
+- `extract/_usage_attach.py`, `extract/_usage_ast.py`,
+  `extract/_usage_match.py`, `extract/_usage_table.py` and
+  `core/model_usage.py` -- the AST model-usage pass: pre-filter by model
+  file name, `ast.parse` with `usage-unparseable` /
+  `usage-unparseable/mention` diagnostics, path-shaped literal and
+  intra-file constant matching, and call/mode classification into
+  `UsageAccess` (`read access`, `write access`, `read and write access`,
+  `unknown access`); see
+  [model-usage-ast-scan.md](../design/model-usage-ast-scan.md).
 - `extract/scanner_project.py` -- the project-directory producer:
   `project_candidates()`, `project_sources()`, `scan_project_for_ai_models()`.
 - `extract/scanner_wheel.py` -- the built-wheel producer:
@@ -170,13 +179,15 @@ What the bounds do not cover, by design, until the metadata-only readers
   `resolve_ai_model_entity_hits()` gives a pinned registry id to the first
   claimant. Sorting in `build()`, in assembly or after enrichment misaligns
   them.
-- **`usage_files`:** each ends `sorted(set(...))`, keyed by the exact
-  distribution-path string (the key of `file_spdx_ids`; no
-  normalisation here). A wheel producer must list members with
-  `zip_file_members()`, as `read_wheel` does, or the keys miss; see
+- **`usage_files`:** each ends `merge_usages(...)` (`list[ModelUsage]`),
+  one entry per script with its combined `UsageAccess`, sorted by the exact
+  distribution-path string (the key of `file_spdx_ids`; no normalisation
+  here). A wheel producer must list members with `zip_file_members()`, as
+  `read_wheel` does, or the keys miss; see
   [archive-member-names.md](archive-member-names.md). `sources` are iterated
-  sorted by distribution path, so `could not read for usage scanning`
-  warnings come out in a stable order.
+  sorted by distribution path, so `could not read for usage scanning` and
+  `could not parse as Python <x.y> for usage scanning` warnings come out in
+  a stable order.
 - **No shipped bytes moved:** all three callers already pass files sorted
   by `get_wheel_files`, and no golden fixture holds more than one model.
   The sort protects library callers of `scan_project_for_ai_models()` and

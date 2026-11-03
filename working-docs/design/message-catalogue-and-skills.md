@@ -248,9 +248,9 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   states the ERROR outcome by rule (the command stops for that input and
   writes nothing for it, exit 1); each printed line carries its level. One
   condition per family; a variant never changes it.
-- **F. Causes only** in the condition vocabulary (23 words): `malformed`,
+- **F. Causes only** in the condition vocabulary (24 words): `malformed`,
   `timeout`, `network-failed`, `needs-build`, `not-recordable`, `ambiguous`,
-  `unsafe`, `missing` added; `refused`/`rejected`, `not-this-format`/
+  `unsafe`, `missing`, `unparseable` added; `refused`/`rejected`, `not-this-format`/
   `not-a-model` (now `wrong-format`), `id-collision`/`mismatch` (now
   `conflict`) merged; `decision`, `summary`, `usage`, `wrapper` and `licence`
   moved out (a message kind, an actor, a frame, a domain).

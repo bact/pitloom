@@ -44,6 +44,9 @@ most one prefix from the table of prefixes.
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
+| [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
+| [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
+| [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
 
 A line may start with one prefix before its text:
 
@@ -82,6 +85,7 @@ A line may start with one prefix before its text:
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `'<path>'` | a path in quotes |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
+| `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
@@ -409,5 +413,62 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]
+  ```
+
+### `usage-unparseable`
+
+- **Level**: WARNING.
+- **Means**: A Python file that names an AI model file could not be parsed as
+  Python of the version Pitloom runs on: it has a syntax error, it uses syntax a
+  newer Python added (the line names this Python's version), it holds a null
+  byte, or it nests too deeply to read.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Recorded no usage relationship from it, for any model: the
+  file name in its text is not a use. The model is listed as before, and the
+  usage-unparseable/mention line says which model each such file names.
+- **Tell the user**: which file could not be parsed and why, as the line says.
+  If the file is valid for a newer Python, they run Pitloom on that Python; if
+  it is broken, they fix it, or leave it out of the project; then they generate
+  again. A file that is not meant to be Python (a template, a Python 2 script)
+  needs nothing. Do not edit the file or change the Python for them; ask first,
+  and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: could not parse as Python <x.y> for usage scanning; <failure> [usage-unparseable]
+  ```
+
+### `usage-unparseable/mention`
+
+- **Level**: INFO.
+- **Means**: The text of a Python file that could not be parsed names an AI
+  model file: it may use it, but only a parsed file says how.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Recorded no relationship between the file and the model. One
+  line per file and model file name.
+- **Nothing to do**: Nothing to do on its own: the usage-unparseable warning for
+  the same file says what stopped the parse.
+- **Lines**:
+
+  ```text
+  INFO: FILE=<file> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]
+  ```
+
+### `usage-unusable`
+
+- **Level**: WARNING.
+- **Means**: A file whose extension is .py in other letter case (.PY) was not
+  read for model usage: Python imports only a lower-case .py file.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Did not read it, and recorded no usage relationship from it,
+  for any model. Said once per such file, and only when a model was found.
+- **Tell the user**: which file was not scanned. If it is a Python script that
+  uses a model, they rename it to a lower-case .py extension and generate again;
+  if it is not Python, it needs nothing. Do not rename the file for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: not scanned for usage; only a .py extension is read as Python [usage-unusable]
   ```
 <!-- END GENERATED -->

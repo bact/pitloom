@@ -281,3 +281,25 @@ declined or fixed entry with its outcome.
 - Evidence: `tests/core/test_loom_dataset_size.py`
 - Status: noted
 - Date: 2026-10-29
+
+### FG-14 `hasDataFile` does not distinguish read access from write access
+
+- Format and version: SPDX 3.0.1, Core profile
+- Element or property: `LifecycleScopedRelationship` with `relationshipType`
+  `hasDataFile`
+- Fact to record: whether a Python script discovered by static AST scanning
+  reads an AI model file, writes it, does both, or passes its path to an
+  unknown callable, without claiming build/training vs runtime intention
+  (`generates` and `hasInput` imply a build step, which static `open(p, "w")`
+  cannot know)
+- Pitloom today: `hasDataFile` with `scope: runtime` and the access direction
+  in `comment` (`read access`, `write access`, `read and write access` or
+  `unknown access`)
+- Why imprecise: vocabulary term too coarse; the access direction is only in
+  a free-text `comment`
+- Proposal: an access-mode qualifier on file relationships, or distinct
+  read/write data-file relationship types that do not imply lifecycle stage
+- Evidence: [model-usage-ast-scan.md](model-usage-ast-scan.md),
+  `tests/core/generator/test_generator_model.py`
+- Status: noted
+- Date: 2026-10-31

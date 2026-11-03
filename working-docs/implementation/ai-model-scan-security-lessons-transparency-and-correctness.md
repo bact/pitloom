@@ -173,3 +173,44 @@ See also: [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
   Built as decided, with one change: a checkout pointer takes the `oid` as
   its hash (identity survives a pull), an archive keeps the bytes' hash
   (matches `RECORD`); see [git-lfs-pointers.md](git-lfs-pointers.md).
+
+## 3.11 Static usage scanning: substring vs AST
+
+- **Substring search turns comments, docstrings and partial names into
+  `hasDataFile` claims.** Matching `file_name in content` matched `a.onnx`
+  inside `big_a.onnx`, matched filenames mentioned in module/function
+  docstrings, comments, `print()` and `logging` calls, and matched every
+  same-named `model.bin` across directories even when the literal carried a
+  directory prefix (`"data/model.bin"`).
+- **Keep the substring check as a pre-filter, not a claim.** Only `.py`
+  files whose text contains a discovered model's `file_name` are handed to
+  `ast.parse`. Files that mention no model (including Jinja/cookiecutter
+  `.py` templates, Python 2 scripts or syntax-error test fixtures) are never
+  parsed and stay silent ("absent data is not an error").
+- **`ast.parse` failure modes depend on the running CPython version.**
+  1. Valid newer syntax (`match` before 3.10, `except*` before 3.11,
+     `type X = ...` and PEP 701 f-strings before 3.12) raises `SyntaxError` on
+     an older build interpreter, so the warning names `Python <major.minor>`
+     rather than calling the file broken.
+  2. A NUL byte raises `ValueError` on Python 3.10-3.11 and `SyntaxError` on
+     3.12+.
+  3. Deeply nested expressions (e.g. 200,000 unary `-` operators within the
+     1 MiB cap) raise `MemoryError("Parser stack overflowed")` in the C parser
+     before any AST exists, or `RecursionError` during the walk.
+  4. A Windows path literal (`"data\model.ftz"`) emits `DeprecationWarning` /
+     `SyntaxWarning` during `ast.parse`; under a caller's `-W error` filter
+     that aborts the parse unless wrapped in `warnings.catch_warnings()` with
+     `simplefilter("ignore")`.
+  5. `ast.parse(str)` rejects a leading UTF-8 BOM (`U+FEFF`) with
+     `SyntaxError: invalid non-printable character U+FEFF`, whereas
+     `ast.parse(bytes)` or `text.removeprefix("\ufeff")` accepts it.
+- **On a Real corpus (`sentimentdemo`, `mistral-inference`).** In
+  `sentimentdemo` (1 fastText model `src/sentimentdemo/model.bin`, 8 `.py`
+  files), `predict.py` builds the path via
+  `os.path.join(os.path.dirname(__file__), "model.bin")` and passes it to
+  `fasttext.load_model(model_path)`: intra-file constant resolution +
+  `os.path.join` tail tracking classifies it as `read access`, while
+  `train.py` and `evaluate.py` take `sys.argv` paths at runtime (covered by
+  `loom.run()` fragments, not static scan). In `mistral-inference`
+  (`consolidated.safetensors`, 14 `.py` files), both `mamba.py` and
+  `transformer.py` are classified as `read access`.

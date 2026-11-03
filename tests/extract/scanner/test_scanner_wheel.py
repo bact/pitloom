@@ -25,6 +25,7 @@ import pytest
 
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
@@ -271,7 +272,10 @@ def test_a_python_member_is_opened_only_for_the_usage_pass(
 ) -> None:
     wheel = write_model_wheel(
         tmp_path,
-        {"demo/m.safetensors": safetensors_bytes(), "demo/use.py": b'"m.safetensors"'},
+        {
+            "demo/m.safetensors": safetensors_bytes(),
+            "demo/use.py": b'open("m.safetensors")',
+        },
     )
     opened: list[str] = []
     real_open = zipfile.ZipFile.open
@@ -283,7 +287,9 @@ def test_a_python_member_is_opened_only_for_the_usage_pass(
     monkeypatch.setattr(zipfile.ZipFile, "open", spy)
     (meta,) = _scan_wheel(wheel, usage=usage)
     assert ("demo/use.py" in opened) is usage
-    assert meta.usage_files == (["demo/use.py"] if usage else [])
+    assert meta.usage_files == (
+        [ModelUsage("demo/use.py", UsageAccess.READ)] if usage else []
+    )
 
 
 def _cap_case(tmp_path: Path, producer: str, size: int) -> Any:
@@ -314,7 +320,9 @@ def test_a_python_file_over_1_mib_is_skipped_with_one_warning(
     scanned: bool,
 ) -> None:
     (meta,) = _cap_case(tmp_path, producer, size)
-    assert meta.usage_files == (["demo/use.py"] if scanned else [])
+    assert meta.usage_files == (
+        [ModelUsage("demo/use.py", UsageAccess.UNKNOWN)] if scanned else []
+    )
     messages = logged_warnings(caplog)
     assert len(messages) == (0 if scanned else 1)
     if not scanned:

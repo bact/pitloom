@@ -22,6 +22,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import _add_ai_model_file_relationships, add_ai_models
 from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -42,7 +43,7 @@ def test_add_ai_model_file_relationships_skips_when_build_relationship_none(
     creation_info = _make_ci()
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(file_path_relative="model.onnx"),
-        usage_files=["script.py"],
+        usage_files=[ModelUsage("script.py", UsageAccess.READ)],
     )
     _add_ai_model_file_relationships(
         meta,

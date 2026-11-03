@@ -20,10 +20,13 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from pitloom.assemble.spdx3.document import build, build_deployed
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.model_usage import ModelUsage, UsageAccess
 from pitloom.core.project import FilesOrigin, ProjectFile, ProjectMetadata
 from pitloom.id_registry import IdRegistry
 
@@ -86,11 +89,20 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     assert not ai_pkg_license_rels
 
 
-def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
-    """The ``hasDataFile`` relationship from a usage file (e.g. predict.py,
-    which loads the model at inference time) to the model file must be a
-    ``LifecycleScopedRelationship`` with ``scope: runtime`` -- contrast with
-    ``pitloom.loom``'s ``generates`` edges, which are scoped ``build``."""
+@pytest.mark.parametrize(
+    "access",
+    list(UsageAccess),
+    ids=[access.name.lower() for access in UsageAccess],
+)
+def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime(
+    access: UsageAccess,
+) -> None:
+    """The ``hasDataFile`` relationship from a usage file (e.g. predict.py)
+    to the model file is a ``LifecycleScopedRelationship`` with ``scope:
+    runtime`` whatever the access: opening a file carries no intention, so a
+    write is not scoped ``build`` (contrast with ``pitloom.loom``'s
+    ``generates`` edges, which declare theirs). Its ``comment`` is the
+    access, in a fixed vocabulary."""
     project = ProjectMetadata(
         name="ai-project",
         version="0.1.0",
@@ -114,7 +126,7 @@ def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
             model_format=AiModelFormat.PYTORCH_PT2,
         ),
         name="usage-model",
-        usage_files=["pkg/predict.py"],
+        usage_files=[ModelUsage("pkg/predict.py", access)],
     )
     doc = DocumentModel(
         project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
@@ -132,6 +144,7 @@ def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
     ]
     assert len(has_data_file) == 1
     assert has_data_file[0]["scope"] == "runtime"
+    assert has_data_file[0]["comment"] == access.value
 
     # Plain "Relationship"-typed elements must not include a hasDataFile
     # edge -- it was reclassified, not duplicated.

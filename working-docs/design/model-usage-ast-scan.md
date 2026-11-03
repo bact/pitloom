@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-31
-Last-Modified: 2026-10-31
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,9 @@ which framework loads a model),
 used below) and, for what exists today,
 `src/pitloom/extract/scanner.py` (`attach_usage_references`).
 
-Status: design, decided 2026-10-31 with the maintainer. Nothing built.
+Status: built 2026-10-31 (`core/model_usage.py`, `extract/_usage_table.py`,
+`extract/_usage_match.py`, `extract/_usage_ast.py`, `extract/_usage_attach.py`,
+`messages/_usage_unparseable.py`).
 
 ## Problem
 
@@ -97,16 +99,55 @@ model's distribution path or physical path (`"data/model.ftz"` matches only a
 model under `.../data/`). A bare file name still matches every model of that
 name (decision 6).
 
-Skip docstrings (the first expression statement of a module, class or
-function) explicitly: they are string constants in the AST. Comments are not in
-the AST and need no skipping.
+Skip bare expression statements (including docstrings, which are `ast.Expr`
+nodes holding a string constant) explicitly. Comments are not in the AST and
+need no skipping.
 
 Constant resolution, within **one file** only:
 
 - a module- or function-level `NAME = "..."` read back as a `Name`;
 - `Path("a") / "b"`, `os.path.join("a", "b")`, `PurePosixPath(...)`, with
   literal parts;
-- f-strings and `"..." % ...` / `.format()` whose parts are all constant.
+- f-strings and `"..." % ...` / `.format()` with constant or partially
+  constant parts (bounded to depth 64 and 4,096 characters; an expression
+  over either is not followed at all, so a capped operand never leaves a bare
+  tail that matches). `.format` fields with an attribute, index, conversion
+  other than `!s` or a spec, a bare `%s` only, `%%`/`{{` escapes, `%(name)s`
+  with a dict, and positions after a `*iterable` are handled; `**mapping` and
+  `*iterable` arguments leave their values unknown. In a `%` dict, a key
+  before a `**d` or a computed key may be replaced at run time, so its value
+  is unknown too; a string literal holding a NUL is no path (`open` raises).
+- a path rendered into a string (`f"{p!r}"`, `f"{p:>30}"`) is no longer the
+  path: a mention call (`print`, `log.info`, `raise`) gives no edge, any
+  other consumer gives `unknown access`.
+
+Decided losses (each was `unknown access` before the AST fix round): an
+unknown template or receiver (`tmpl.format("data/model.ftz")`,
+`base % "model.ftz"`) and `"data/model.ftz" + ext` give no edge, since the
+file named is `model.ftz<ext>` or unknown; `os.path.join(unknown,
+"model.ftz")` still matches, as a join keeps its last part whole. A model at
+the project root matches a rooted `/model.ftz`, `~/model.ftz` or
+`C:\model.ftz` but not the checkout's own absolute path.
+
+Limits of the name and call tables, found in review and left as they are:
+
+- **Bindings are counted per file, not per scope.** A name bound once in the
+  whole file is a constant; `path` reused in two functions, or a `for`, `with`
+  or `except` target of the same name elsewhere, makes it none, and the model
+  then gets `unknown access` (the edge is kept, the detail lost). A constant
+  read inside a function defined above it is also unknown (source order, not
+  run order), and a star import can hide that a name is not the file's own.
+  Real scope tracking (`symtable`) is the fix, as its own piece of work.
+- **Import aliases are per file too**: a local `def store` beside
+  `from torch import save as store` reads as `torch.save`.
+- **A callee is known by its last name**, so a mode means what stdio's `open`
+  means: `"a"` is a write for `h5py.File` and `zipfile.ZipFile`, which also
+  read the file; `shelve.open` and `zarr.open` default to read-write; the long
+  `np.memmap` modes are unknown. `f.write(path)` and `json.dump(path, f)` put
+  the path in a data position, so they are unknown, as is `zf.write(path)`
+  (which reads it).
+- **`.PY`** is not scanned: Python's import rules accept only `.py`. With a
+  model found, each such file is warned of once (`[usage-unusable]`).
 
 Out of scope for the first version: values imported from another module,
 `**kwargs`, `getattr`, config files, notebooks. The docs keep saying
@@ -114,10 +155,12 @@ Out of scope for the first version: values imported from another module,
 
 ### Classification
 
-A table of callables, by dotted name after resolving `import x as y` and
-`from x import y`, giving the access and the position (or keyword) of the path
-argument. The path is not always argument 0: `torch.save(obj, path)` and
-`joblib.dump(obj, path)` take it second, `np.save(path, arr)` first.
+A table of callables, matched by the last name of the callee after resolving
+`import x as y` and `from x import y`, giving the access (and for `MODE_CALLS`,
+the position of the `mode` argument). The path is not matched by argument
+position: `torch.save(obj, path)` and `joblib.dump(obj, path)` take it second,
+`np.save(path, arr)` first; the path-shaped argument naming a model is the one
+classified.
 
 | Access | Callables (first version) |
 | :--- | :--- |
@@ -190,23 +233,23 @@ messages go through `loggable()` / the catalogue's fields.
 ## Work breakdown
 
 1. `extract/_usage_table.py`: the callable table and the mode rules.
-2. `extract/_usage_ast.py`: the visitor (constants, alias resolution, mention
-   exclusion, matching, classification); no I/O. Pure function from text and
-   model list to `ModelUsage` entries and a list of mention-only results.
-3. `extract/scanner.py`: `attach_usage_references` calls it; the pre-filter,
-   the failure handling and the two messages stay in the I/O layer. Keep every
-   file under the ~400-500 line soft limit (the scanner is 439 now).
-4. `core/ai_metadata.py`: `ModelUsage`, `UsageAccess`; migrate the field.
+2. `extract/_usage_match.py` and `extract/_usage_ast.py`: path/suffix matching
+   and the AST visitor (constants, alias resolution, mention exclusion,
+   classification); no I/O.
+3. `extract/_usage_attach.py` and `extract/scanner.py`: `attach_usage_references`
+   calls `attach_from_source`; the pre-filter, failure handling and the two
+   messages stay in the I/O/attachment layer.
+4. `core/model_usage.py` and `core/ai_metadata.py`: `ModelUsage`, `UsageAccess`;
+   migrate `usage_files`.
 5. `assemble/spdx3/ai.py`: the `comment` on `hasDataFile`.
 6. Messages: `usage-unparseable` family and its variant; reference regenerated.
 7. Docs: `docs/ai-model-scan-limits.md` (the "Usage edges" paragraph: no longer
-   "file name as text"; the new limits), `docs/cli.md`,
-   `docs/configuration.md`, `docs/python-api.md` where they say "file name";
-   `skills/`: grep `scan-model-usage` and `hasDataFile`.
+   "file name as text"; the new limits), `docs/ai-model-formats.md`,
+   `docs/message-codes.md` and `skills/*/references/messages.md`.
 8. `CHANGELOG.md`: output changes for existing projects (`hasDataFile` edges
-   gain a comment; some edges disappear). Link the PR.
+   gain a comment; some edges disappear). Linked [#413].
 9. Field note: the false-positive reduction, with a before/after count on the
-   sentimentdemo project and one other corpus.
+   sentimentdemo project and mistral-inference.
 
 ## Tests
 

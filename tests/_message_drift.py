@@ -59,6 +59,7 @@ SAMPLES: dict[str, object] = {
     "outcome": "skipped",
     "path": "m.gguf",
     "purpose": "per-wheel model-scan budget",
+    "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
     "requirement": "pitloom[gguf]",
     "size": 3,

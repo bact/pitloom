@@ -340,7 +340,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `format_info.model_format` | every format | the artifact-metadata annotation's `format` |
 | `format_info.format_version`, `framework`, `framework_version` | most formats | not written: cited in the provenance only |
 | `format_info.file_path_relative` | project and wheel scans | `Relationship` `contains` from the `ai_AIPackage` to the model's `software_File` (which has the SHA-256 and SHA-512) |
-| `usage_files` | `--scan-model-usage` | `LifecycleScopedRelationship` `hasDataFile`, scope `runtime`, from each `.py` `software_File` to the model's |
+| `usage_files` | `--scan-model-usage` | `LifecycleScopedRelationship` `hasDataFile`, scope `runtime`, `comment` `read access` / `write access` / `read and write access` / `unknown access`, from each `.py` `software_File` to the model's |
 
 The artifact-metadata annotation is written when
 `preserve-source-metadata` says so: by default (`auto`) only for a model

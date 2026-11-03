@@ -44,6 +44,7 @@ from pitloom.core.ai_metadata import (
     model_file_suffixes,
 )
 from pitloom.core.lfs_pointer import LfsPointer
+from pitloom.core.model_usage import merge_usages
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_source
 from pitloom.extract._reader_log import capture_reader_logs
@@ -52,6 +53,7 @@ from pitloom.extract._scanner_messages import (
     say_unread,
     scrub,
 )
+from pitloom.extract._usage_attach import attach_from_source, usage_models
 from pitloom.extract.ai_model import (
     NotAModel,
     contradicted_format,
@@ -71,6 +73,7 @@ from pitloom.logging_config import CODE_ATTR, loggable
 from pitloom.messages import (
     READER_UNSAFE,
     RELAY_FRAME,
+    USAGE_UNUSABLE,
     Cap,
     emit,
     over_cap_of,
@@ -182,14 +185,11 @@ class UsageSource:
         physical_path: Stable path (never a temporary one), printed as
             ``FILE=`` in warnings.
         open: Returns a context manager yielding a binary stream. May raise.
-        read_path: The file ``open`` reads, when it is one; as
-            :attr:`ModelCandidate.read_path`.
     """
 
     distribution_path: str
     physical_path: str
     open: Callable[[], AbstractContextManager[IO[bytes]]]
-    read_path: Path | None = None
 
 
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:
@@ -375,15 +375,20 @@ def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMeta
 def attach_usage_references(
     models: Sequence[AiModelMetadata], sources: Iterable[UsageSource]
 ) -> None:
-    """Record which ``.py`` sources mention each model's file name.
+    """Record how each ``.py`` source uses each model: read, write, both or
+    unknown, from the script's syntax tree (see :mod:`pitloom.extract._usage_ast`).
 
     Reads every source even when *models* is empty, so unreadable sources
     are still reported; callers skip it altogether when usage scanning is
     off (see :func:`scan_ai_models`). Each model's ``usage_files`` ends
-    sorted and deduplicated by distribution path.
+    with one entry per script, sorted by distribution path. A ``.PY`` source
+    is not read: with a model found it is warned of once.
     """
+    candidates = usage_models(models)
     for source in sorted(sources, key=_PATH_ORDER):
         if not source.distribution_path.endswith(".py"):
+            if models and source.distribution_path.lower().endswith(".py"):
+                emit(log, USAGE_UNUSABLE, logging.WARNING, file=source.physical_path)
             continue
         try:
             with source.open() as fh:
@@ -395,24 +400,17 @@ def attach_usage_references(
                     source.physical_path,
                 )
                 continue
-            content = raw.decode("utf-8")
-            for meta in models:
-                file_name = meta.format_info.file_name
-                if file_name and file_name in content:
-                    meta.usage_files.append(source.distribution_path)
-                    log.debug(
-                        "Found usage of %s inside %s",
-                        loggable(file_name),
-                        loggable(source.distribution_path),
-                    )
+            text = raw.decode("utf-8")
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             if not (isinstance(e, OSError) and is_missing_errno(e)):
                 warn_file_unreadable(
                     log, e, file=source.physical_path, use="for usage scanning"
                 )
+            continue
+        attach_from_source(source, text, candidates)
     for meta in models:
-        meta.usage_files = sorted(set(meta.usage_files))
+        meta.usage_files = merge_usages(meta.usage_files)
 
 
 def scan_ai_models(

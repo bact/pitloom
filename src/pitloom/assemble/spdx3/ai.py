@@ -277,8 +277,8 @@ def _add_ai_model_file_relationships(
     if rel_contains_file:
         exporter.add_relationship(rel_contains_file)
 
-    for usage_path in ai_model.usage_files:
-        usage_file_id = file_spdx_ids.get(usage_path)
+    for usage in ai_model.usage_files:
+        usage_file_id = file_spdx_ids.get(usage.distribution_path)
         if usage_file_id:
             rel_usage = build_relationship(
                 from_id=usage_file_id,
@@ -289,6 +289,7 @@ def _add_ai_model_file_relationships(
                 creation_info=creation_info,
                 rel_class=spdx3.LifecycleScopedRelationship,
                 scope=spdx3.LifecycleScopeType.runtime,
+                comment=usage.access.value,
             )
             if rel_usage:
                 exporter.add_relationship(rel_usage)

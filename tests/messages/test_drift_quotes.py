@@ -40,6 +40,8 @@ _MARKERS = {
     "over-cap": " cap;",
     "parameter-count-invalid": "parameter count not recorded",
     "reader-unsafe": "Pass --trust-wheel-model",
+    "usage-unparseable": "could not parse as Python ",
+    "usage-unusable": "not scanned for usage",
 }
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).

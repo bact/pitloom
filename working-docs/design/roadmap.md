@@ -205,9 +205,9 @@ Highest priority first.
   Provenance Standard, ETSI TR 104 180; research notes from issues #46, #48,
   #53, #55, #129. See [external-references-to-review.md](external-references-to-review.md).
 - [ ] **ML framework and `transformers` use from the code** (#66, #68, #65):
-  today `--scan-model-usage` matches model file names only. See
-  [ml-framework-from-code.md](ml-framework-from-code.md).
-- [ ] **Model usage scan reads the code, not the text**: replace the
+  `--scan-model-usage` walks the AST for discovered local model files only, not
+  remote Hub ids. See [ml-framework-from-code.md](ml-framework-from-code.md).
+- [x] **Model usage scan reads the code, not the text** (#413): replaced the
   file-name substring match with an AST scan; `hasDataFile` edges carry the
   access (read, write, unknown) in the comment. See
   [model-usage-ast-scan.md](model-usage-ast-scan.md).

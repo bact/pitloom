@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -127,6 +127,9 @@ Values are exact; "stub" is the format-only entry described above.
 | Model card | 1 MiB (1048576 bytes) of the `README.md`/`MODEL_CARD.md` next to a model; only its YAML frontmatter is used, and a card is read by its path, a symlink into a Hugging Face cache's `blobs/` too | `--enrich`, `loom enrich` | No | A frontmatter closed within the cap is used as from the whole card, and a card starting with none has none: no log line. One not closed within it is skipped, once per card: `WARNING: FILE=<path>: larger than the 1048576-byte model-card cap; frontmatter not closed within it; skipped \| Field(s) affected (skipped): license, datasets` |
 | Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
 | Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; not UTF-8: <failure> [file-unreadable/not-utf8]` |
+| Usage-scan syntax | Valid Python of the running interpreter's version (only checked when the file's text mentions a model file name) | The same | No | No relationship recorded: `WARNING: FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure> [usage-unparseable]` and `INFO: FILE=<path> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]` |
+| Usage-scan file name | A lower-case `.py` extension (the only one Python imports); `.PY` is not read | The same | No | Not read, said once per file when a model was found: `WARNING: FILE=<path>: not scanned for usage; only a .py extension is read as Python [usage-unusable]` |
+| Usage-scan path expression | Depth 64 and 4096 characters of one path expression (nested calls, concatenations, f-strings, `.format`, `%`, constants built from constants) | `--scan-model-usage`, project and wheel scans | No | The expression is not followed: no relationship from it, no log line (a path that deep or long is no model path) |
 | Artifact-metadata size | Unlimited by default | The verbatim metadata annotation of any model | `max-source-metadata-bytes`, `--max-source-metadata-bytes` | Largest entries dropped first and marked truncated; see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation) |
 
 There is no limit on the number of model files in a project or wheel. In a
@@ -266,11 +269,26 @@ that table:
   shards together (`model.safetensors.index.json` and similar) is not read.
   A Safetensors shard's parameter count is that of its own file; a GGUF file
   that declares `split.count` above 1 has none.
-- Usage edges (`hasDataFile`, from a `.py` file to a model) exist only with
-  `--scan-model-usage`. They come from the model's file name appearing as
-  text in a `.py` file, so a name built at run time, a path from a
-  variable, or a notebook is missed. Both the `.py` file and the model must
-  be in the SBOM's file list.
+- Usage edges (`hasDataFile`, from a `.py` file to a model, with the access
+  in `comment`: `read access`, `write access`, `read and write access` or
+  `unknown access`) exist only with `--scan-model-usage`. They come from an
+  AST walk of `.py` files whose text mentions the model's file name:
+  path-shaped string literals (and single-assignment constants, `Path /`,
+  `os.path.join`, f-strings, `.format()` and `%` within one file) are matched
+  against the model's file name and directory suffix, then classified by the
+  enclosing call or open mode. Comments, docstrings and mention-only calls
+  (`print`, logging, exceptions) produce no edge. A path built dynamically at
+  run time, imported from another module, read from a config file, or inside a
+  notebook is missed. A `.py` file that mentions a model name but cannot be
+  parsed by the running Python gives `WARNING: FILE=<path>: could not parse as
+  Python <x.y> for usage scanning; <failure> [usage-unparseable]`, one
+  `INFO: FILE=<path> MODEL=<name>: model file name found; no usage
+  relationship recorded [usage-unparseable/mention]` per model file name, and
+  no edge.
+  A file named `.PY` in capitals is not read at all: `WARNING: FILE=<path>:
+  not scanned for usage; only a .py extension is read as Python
+  [usage-unusable]`, once per file, when a model was found.
+  Both the `.py` file and the model must be in the SBOM's file list.
 - `env` and sdist targets do not scan for models and warn that
   `--scan-model-usage` has no effect. A model in a wheel is not enriched
   from a README or model card: no README is read from an archive.

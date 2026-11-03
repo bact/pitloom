@@ -129,7 +129,7 @@ def test_the_sniff_and_usage_branches_scrub_the_read_path(
     def _open() -> Any:
         raise denied
 
-    source = UsageSource("demo/use.py", "demo/use.py", _open, read_path=target)
+    source = UsageSource("demo/use.py", "demo/use.py", _open)
     caplog.clear()
     attach_usage_references([], [source])
     (message,) = logged_warnings(caplog)

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-30
+Last-Modified: 2026-10-31
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,12 +22,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- `--scan-model-usage` walks Python ASTs: `comment` is read, write, read and
+  write, or unknown access; mentions skipped; warns
+  `[usage-unparseable]`, `[usage-unusable]` ([#413])
+
 ### Fixed
 
 - A Git LFS pointer named by `license = {file = ...}` no longer becomes licence
   text (the file name, or the pointer's own text from the Hatchling hook)
   ([#422])
 
+[#413]: https://github.com/bact/pitloom/pull/413
 [#422]: https://github.com/bact/pitloom/pull/422
 
 ## [0.22.0] - 2026-10-30
