@@ -223,12 +223,13 @@ def resolve_declared_value(value: str) -> Resolution | None:
     """``licenseid``'s reading of the declared licence *value*
     (:func:`licenseid.resolve` on its packaged SPDX License List), or
     ``None`` when there is no packaged list (a ``licenseid`` installed
-    without it: warned once per process) or the resolver fails; a failure
-    is not cached. Each caller gets its own copy."""
+    without it: its error relayed once per process, as ``licenseid``
+    words it) or the resolver fails; a failure is not cached. Each caller
+    gets its own copy."""
     try:
         return copy.deepcopy(_resolved(value))
     except DatabaseNotReadyError as exc:
-        say(f"{exc}; declared licence values recorded as written")
+        say(str(exc))
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -287,9 +288,7 @@ def _stated_ids(stated: str | None) -> frozenset[str]:
     )
 
 
-def _stated_among(
-    results: Sequence[Detection], stated: frozenset[str]
-) -> str | None:
+def _stated_among(results: Sequence[Detection], stated: frozenset[str]) -> str | None:
     """The best-scoring id of *results* that *stated* names, when it scores
     within :data:`_STATED_TIE_MARGIN` of the top match. Against a top match
     at :data:`_SCORE_CAP` the score no longer tells how close they are, so

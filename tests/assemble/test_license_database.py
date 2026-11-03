@@ -31,9 +31,8 @@ from pitloom.extract._license import detect_license_from_text, resolve_declared_
 
 _MIT_TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 #: A real MIT licence file, detected as ``MIT`` with no licence stated.
-_REAL_MIT = (
-    Path(__file__).parents[1] / "fixtures" / "license-texts" / "RapidFuzz-3.14.5-LICENSE"
-).read_text(encoding="utf-8")
+_TEXTS = Path(__file__).parents[1] / "fixtures" / "license-texts"
+_REAL_MIT = (_TEXTS / "RapidFuzz-3.14.5-LICENSE").read_text(encoding="utf-8")
 
 
 def _declared(value: str) -> str | None:

@@ -314,9 +314,7 @@ def test_no_reading_when_the_resolver_cannot_answer(
     unusable = [
         r
         for r in caplog.records
-        if r.levelno == logging.WARNING
-        and r.getMessage()
-        == f"licenseid: {_NO_LIST}; declared licence values recorded as written"
+        if r.levelno == logging.WARNING and r.getMessage() == f"licenseid: {_NO_LIST}"
     ]
     assert len(unusable) == (1 if isinstance(failure, DatabaseNotReadyError) else 0)
 

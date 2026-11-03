@@ -224,9 +224,7 @@ def test_an_unusable_database_warns_once_and_degrades(
         side_effect=[broken, broken, broken, fixed],
     ) as detector_class:
         with caplog.at_level(logging.WARNING, logger="pitloom.extract._license"):
-            results = [
-                detect_license_from_text("MIT License " * 20) for _ in range(4)
-            ]
+            results = [detect_license_from_text("MIT License " * 20) for _ in range(4)]
 
     assert results == [None, None, None, "MIT"]
     assert detector_class.call_count == 4
