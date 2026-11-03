@@ -115,9 +115,10 @@ def _filled(rendered: str) -> str | None:
 def _named_arg(
     head: str, args: Sequence[str | None], kwargs: Mapping[str, str | None]
 ) -> str | None:
-    """The argument a ``str.format`` field names: by position (ASCII digits
-    only: ``int("\u00b2")`` raises) or by keyword."""
-    if head.isascii() and head.isdigit():
+    """The argument a ``str.format`` field names: by position (decimal
+    digits, as in CPython: ``{\u0663}`` is position 3, ``{\u00b2}`` a keyword)
+    or by keyword."""
+    if head.isdecimal():
         try:
             position = int(head)
         except ValueError:  # more digits than ``sys.set_int_max_str_digits`` allows

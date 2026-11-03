@@ -23,6 +23,7 @@ import pytest
 
 from pitloom.core.model_usage import UsageAccess
 from pitloom.extract._usage_ast import find_usages, parse_python
+from pitloom.extract._usage_match import UsageModel
 
 from ._usage_helpers import accesses
 
@@ -247,14 +248,17 @@ def test_a_literal_with_a_nul_is_no_path(code: str) -> None:
     "code",
     [
         "p = 'data/model.pkl'\nmatch cfg:\n    case {**p}:\n        torch.save(x, p)",
-        pytest.param(
-            "P = 'data/model.pkl'\ndef f[P](x: P):\n    torch.save(x, P)",
-            marks=pytest.mark.skipif(
-                sys.version_info < (3, 12), reason="type parameters need 3.12"
-            ),
+        *(
+            pytest.param(
+                f"def f[{params}](x): pass\nT = 'data/model.pkl'\nopen(T)",
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 12), reason="type parameters need 3.12"
+                ),
+            )
+            for params in ("T", "**T", "*T")
         ),
     ],
-    ids=["match-mapping-rest", "type-parameter"],
+    ids=["match-mapping-rest", "type-var", "param-spec", "type-var-tuple"],
 )
 def test_a_name_bound_by_a_pattern_or_type_parameter_is_not_a_constant(
     code: str,
@@ -275,6 +279,8 @@ def test_a_name_bound_by_a_pattern_or_type_parameter_is_not_a_constant(
         ("joblib.dump(obj, 'model.pkl')", {_W}),
         ("joblib.dump(obj, filename='model.pkl')", {_W}),
         ("Path('model.pkl').write_text('x')", {_W}),
+        ("f.Write('model.pkl')", {_U}),
+        ("json.Dump('model.pkl', f)", {_U}),
         ("json.loads('model.pkl')", set()),
         ("pickle.dumps('model.pkl')", set()),
     ],
@@ -284,3 +290,18 @@ def test_a_path_in_a_data_position_is_not_a_file_access(
     code: str, expected: set[UsageAccess]
 ) -> None:
     assert accesses(code) == expected
+
+
+def test_reach_of_one_model_does_not_leak_to_another() -> None:
+    models = [
+        UsageModel("x.pkl", ("y.pkl/x.pkl",)),
+        UsageModel("y.pkl", ("y.pkl/x.pkl/y.pkl",)),
+    ]
+    source = "R = 'y.pkl'\nP = R + '/x.pkl'\nopen(P + '/y.pkl')\n"
+    assert find_usages(parse_python(source), models) == [{_U}, {_R, _U}]
+
+
+def test_an_f_string_restarts_after_a_nul_piece() -> None:
+    assert accesses("x = 'dir/model.pkl'\nopen(f'\\x00{x}')", "model.pkl", _DATA) == {
+        _R
+    }

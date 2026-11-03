@@ -150,6 +150,14 @@ def test_usage_models_keeps_a_relative_physical_path_beside_the_relative_one() -
     ]
 
 
+def test_a_field_number_is_a_decimal_digit_as_in_cpython() -> None:
+    """``{\u0663}`` is position 3; ``{\u00b2}`` is a keyword, as in ``str.format``."""
+    args = ["a", "b", "c", "d/model.pkl"]
+    kwargs = {"\u00b2": "k/model.pkl"}
+    assert format_template("{\u0663}", args, kwargs) == "d/model.pkl"
+    assert format_template("{\u00b2}", args, kwargs) == "k/model.pkl"
+
+
 @pytest.mark.skipif(
     not hasattr(sys, "set_int_max_str_digits"), reason="no int digit limit"
 )
