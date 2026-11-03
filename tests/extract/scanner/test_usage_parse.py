@@ -15,11 +15,13 @@ failure says).
 
 from __future__ import annotations
 
+import _thread
 import contextlib
 import io
 import logging
 import sys
 import threading
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from unittest.mock import patch
 
@@ -50,10 +52,9 @@ class _Codes(logging.Handler):
         self.codes.append(str(getattr(record, CODE_ATTR, "")))
 
 
-def scan_on_a_small_stack(chain: str) -> tuple[list[str], list[str]]:
-    """In a child: scan a script that reads ``model.onnx`` and holds
-    *chain*, from a thread with a 512 KiB stack; the accesses recorded and
-    the codes of the warnings said."""
+def _scan(chain: str) -> tuple[list[str], list[str]]:
+    """Scan a script that reads ``model.onnx`` and holds *chain*; the
+    accesses recorded and the codes of the warnings said."""
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(
             model_format=AiModelFormat.ONNX,
@@ -70,11 +71,29 @@ def scan_on_a_small_stack(chain: str) -> tuple[list[str], list[str]]:
     source = UsageSource("pkg/deep.py", "src/pkg/deep.py", _open)
     handler = _Codes(logging.WARNING)
     logging.getLogger("pitloom").addHandler(handler)
+    attach_usage_references([meta], [source])
+    return [u.access.value for u in meta.usage_files], handler.codes
+
+
+def scan_on_a_small_stack(chain: str) -> tuple[list[str], list[str]]:
+    """In a child: :func:`_scan` from a thread with a 512 KiB stack."""
+    found: list[tuple[list[str], list[str]]] = []
     threading.stack_size(512 * 1024)
-    worker = threading.Thread(target=attach_usage_references, args=([meta], [source]))
+    worker = threading.Thread(target=lambda: found.append(_scan(chain)))
     worker.start()
     worker.join()
-    return [u.access.value for u in meta.usage_files], handler.codes
+    return found[0]
+
+
+def scan_with_no_parse_thread(chain: str) -> tuple[list[str], list[str]]:
+    """In a child: :func:`_scan` when no parse thread can be started."""
+    with patch.object(
+        _usage_parse,
+        "start_new_thread",
+        autospec=True,
+        side_effect=RuntimeError("can't start new thread"),
+    ):
+        return _scan(chain)
 
 
 @pytest.mark.parametrize(
@@ -171,6 +190,49 @@ def test_a_refused_stack_or_thread_parses_on_the_callers_stack(
     assert sizes == ([0] if refused == "stack-size" else [8 * _MIB, 0])
     assert start.call_count == (refused == "thread")
     assert len(caplog.records) == 1
+
+
+def test_no_parse_thread_never_crashes_on_a_long_chain() -> None:
+    # Python 3.10 would overflow the caller's stack (8 MiB holds about
+    # 130,000 links); later ones raise there. Either way the scan says the
+    # file is unparseable, once, and records nothing.
+    chain = "a" + ".b" * 150_000
+    found = run_bounded_in_child(f"{__name__}:scan_with_no_parse_thread", chain)
+    assert found == ([], [USAGE_UNPARSEABLE.code])
+
+
+@pytest.mark.parametrize("refused", ["wanted", "every"])
+def test_a_text_beyond_the_floor_never_parses_on_the_callers_stack(
+    refused: str,
+) -> None:
+    sizes: list[int] = []
+    starts: list[int] = []
+
+    def recorded_stack_size(*size: int) -> int:
+        sizes.extend(size)
+        return threading.stack_size(*size)
+
+    def start(work: Callable[[], None], args: tuple[()]) -> int:
+        starts.append(threading.stack_size())
+        if refused == "every" or starts[-1] > 8 * _MIB:
+            raise RuntimeError("can't start new thread")
+        return _thread.start_new_thread(work, args)
+
+    with (
+        # What Python 3.10 wants for a text of 1 MiB.
+        patch.object(_usage_parse, "stack_bytes", return_value=129 * _MIB),
+        patch.object(_usage_parse, "stack_size", side_effect=recorded_stack_size),
+        patch.object(_usage_parse, "start_new_thread", side_effect=start),
+    ):
+        if refused == "every":  # not parsed on the caller's stack either
+            with pytest.raises(MemoryError):
+                _usage_parse.parse_python("x = 1\n")
+        else:
+            assert _usage_parse.parse_python("x = 1\n").body
+    # Tried at the floor after the wanted size, each size put back.
+    assert starts == [129 * _MIB, 8 * _MIB]
+    assert [size for size in sizes if size] == starts
+    assert sizes[-1] == 0
 
 
 def test_a_parse_error_on_the_thread_is_raised_in_the_caller() -> None:

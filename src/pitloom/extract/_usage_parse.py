@@ -115,13 +115,17 @@ def parse_python(text: str) -> ast.Module:
     docstring). A leading byte-order mark is dropped. An invalid escape
     (``"data\\model.ftz"``) only warns on the way, whatever the user's
     warning filters say, so the warning is dropped. When the stack or the
-    thread is refused, the parse runs on the caller's own stack.
+    thread is refused, a text that wants more than the floor (Python 3.10)
+    is tried on a thread with the floor's stack and else refused as too
+    deep, since the caller's own stack could overflow; any other text is
+    parsed on the caller's stack.
 
     Raises:
         SyntaxError: Not Python of this interpreter's grammar (or, after
             3.12, a null byte).
         ValueError: A null byte (before Python 3.12).
-        MemoryError: The source nests too deeply for the parser.
+        MemoryError: The source nests too deeply for the parser, or wants a
+            larger stack than any thread could be started with.
         RecursionError: The source nests too deeply for the compiler.
     """
     source = text.removeprefix("\ufeff")
@@ -138,7 +142,16 @@ def parse_python(text: str) -> ast.Module:
         finally:
             done.release()
 
-    if not _start_with_stack(work, stack_bytes(len(source))):
+    size = stack_bytes(len(source))
+    # More than the floor only on Python 3.10, which would crash, not raise,
+    # on a stack too small for the text.
+    beyond_floor = size > _PARSE_STACK_FLOOR
+    started = _start_with_stack(work, size) or (
+        beyond_floor and _start_with_stack(work, _PARSE_STACK_FLOOR)
+    )
+    if not started:
+        if beyond_floor:
+            raise MemoryError
         return _parse(source)
     done.acquire()
     result = outcome.pop()
