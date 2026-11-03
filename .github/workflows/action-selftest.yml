@@ -59,7 +59,7 @@ jobs:
           editable: "true"
 
       - name: Build licenseid database
-        run: licenseid update
+        run: licenseid update --source packaged
         continue-on-error: true
 
       - name: Run Pitloom action against this repository

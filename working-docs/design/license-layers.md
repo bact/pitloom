@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,8 +38,10 @@ Pitloom does today:
   notes (`tag_deprecated_license_ids`); the name-vs-id stop-gap
   `is_listed_name`.
 - `extract/_license.py`: text to id (`detect_license_from_text` over
-  `licenseid`), `canonicalize_license_id`,
-  `_looks_like_spdx_license_expression`.
+  `licenseid`), the declared-value reading (`resolve_declared_value`,
+  `licenseid.resolve` on its packaged list),
+  `_looks_like_spdx_license_expression` (`canonicalize_license_id` was
+  deleted in #437: no caller).
 - `extract/_license_detect.py`: `_looks_like_spdx_license_id` for
   `CITATION.cff`/`codemeta.json` values.
 

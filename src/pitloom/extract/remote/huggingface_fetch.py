@@ -205,7 +205,8 @@ def _detect_license_from_hf_files(
 
     Returns ``(spdx_id, provenance_string)`` when a match is found above the
     default threshold, or ``(None, None)`` otherwise.  Requires the
-    ``licenseid`` package and its database (``licenseid update``).
+    ``licenseid`` package and its database (``licenseid update --source
+    packaged``).
     """
     if revision is None:
         log.warning(

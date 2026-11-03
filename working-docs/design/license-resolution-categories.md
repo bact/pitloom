@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-26
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -295,7 +295,7 @@ fact: FG-6, FG-7.
   (CLI, hook, library, wheel, sdist, GGUF, Hugging Face). The field kind
   becomes an explicit parameter (the stage-flag rule), which
   `warn_unless_expression` already receives. The Hugging Face path no longer
-  calls `canonicalize_license_id`.
+  folds a card value (`canonicalize_license_id`, deleted in #437).
 - **Conflicts.** A resolved `Apache2` agrees with a detected `Apache-2.0`.
 - **Determinism.** The result is a function of the input, the field kind,
   the licenseid version and its data version; record `Tool`,

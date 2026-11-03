@@ -91,35 +91,6 @@ entries come first; fixed entries stay in the last section for history.
   records. Fixed by letting `resolve()` answer for the whole value (Q7); see
   `licenseid`'s expression-resolution design. Found in the #359 review.
   *Found 2026-10-27, combined review of #352 to #357.*
-- [ ] **The resolver's reading depends on the database (S).** A comparison
-  (`values_agree`, the fragment-merge key of `_license_elements`) treats
-  `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and
-  as two without it, so whether a conflict is recorded differs. Provenance of
-  a value Pitloom parses itself does not (#359).
-  *Found 2026-10-27, combined review of #352 to #357.*
-- [ ] **The Hatchling hook finds no licence database in an isolated build
-  environment (S).** Pitloom 0.21.0 reads a declared licence value through
-  `licenseid.resolve()`, which needs a built database. A build in an isolated
-  environment never has one, so every project using the hook sees `WARNING:
-  licenseid database cannot be used: ... -- license text detection and
-  license id reading skipped` and its licence values stay as written
-  (`Apache2` is not read as `Apache-2.0`). A project that declares an SPDX id
-  is not affected. Reported by a reviewer upgrading a project to 0.21.0.
-  Options: (a) `licenseid 0.7.0` makes `resolve()` work with no database from
-  the packaged bundle that the PyPI wheel already ships (design:
-  `licenseid` `working-docs/design/expression-resolution.md`, "No database");
-  (b) until then the hook builds a database from the packaged bundle
-  (`licenseid update --source packaged`, offline) into a location of its own,
-  not the user's cache, or keeps the single warning and says why. Today the
-  same value gives different SBOM bytes with and without a database.
-  Mitigated in 0.21.1 (#364): a missing database is `INFO:` when a licence is
-  declared (the warning stays when none is declared or for a value that needed
-  licenseid's reading). Fixed for good when Pitloom 0.22.0 reads declared
-  values through `licenseid` 0.7.0 (plan: #368).
-  *Found 2026-10-28, 0.21.0 release review.*
-- [ ] **The 0.7.0 adoption waits for the release (S).** PyPI's latest was 0.6.0
-  at 15:14 UTC on 2026-10-30.
-  *Found 2026-10-30, `licenseid`.*
 - [ ] **Catalogue 18, the licence families, is later (S), decided
   2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.
   *Found 2026-10-30, `licenseid`.*
@@ -178,6 +149,38 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **The resolver's reading depends on the database (S).** Fixed by
+  #437: the reading uses the list packaged with `licenseid` 0.7.0, the same
+  with or without a database. A comparison
+  (`values_agree`, the fragment-merge key of `_license_elements`) treats
+  `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and
+  as two without it, so whether a conflict is recorded differs. Provenance of
+  a value Pitloom parses itself does not (#359).
+  *Found 2026-10-27, combined review of #352 to #357.*
+- [x] **The Hatchling hook finds no licence database in an isolated build
+  environment (S).** Pitloom 0.21.0 reads a declared licence value through
+  `licenseid.resolve()`, which needs a built database. A build in an isolated
+  environment never has one, so every project using the hook sees `WARNING:
+  licenseid database cannot be used: ... -- license text detection and
+  license id reading skipped` and its licence values stay as written
+  (`Apache2` is not read as `Apache-2.0`). A project that declares an SPDX id
+  is not affected. Reported by a reviewer upgrading a project to 0.21.0.
+  Options: (a) `licenseid 0.7.0` makes `resolve()` work with no database from
+  the packaged bundle that the PyPI wheel already ships (design:
+  `licenseid` `working-docs/design/expression-resolution.md`, "No database");
+  (b) until then the hook builds a database from the packaged bundle
+  (`licenseid update --source packaged`, offline) into a location of its own,
+  not the user's cache, or keeps the single warning and says why. Today the
+  same value gives different SBOM bytes with and without a database.
+  Mitigated in 0.21.1 (#364): a missing database is `INFO:` when a licence is
+  declared (the warning stays when none is declared or for a value that needed
+  licenseid's reading). Fixed for good when Pitloom 0.22.0 reads declared
+  values through `licenseid` 0.7.0 (plan: #368).
+  Fixed by #437 (option (a), released as `licenseid` 0.7.0).
+  *Found 2026-10-28, 0.21.0 release review.*
+- [x] **The 0.7.0 adoption waits for the release (S).** PyPI's latest was 0.6.0
+  at 15:14 UTC on 2026-10-30. Released 2026-11-03; adopted by #437.
+  *Found 2026-10-30, `licenseid`.*
 - [x] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
   as the licence text `LICENSE` (S-M).** Fixed by #422 (CLI, library and
   hook) and #429 (a wheel, an sdist's `PKG-INFO` and an installed

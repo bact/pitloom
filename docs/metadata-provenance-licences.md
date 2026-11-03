@@ -55,7 +55,7 @@ value) -- so none of these are misreported as a conflict.
   {
     "candidates": [
       {"ref": "...#License-1", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
-      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.6.0", "value": "Apache-2.0"}
+      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.7.0", "value": "Apache-2.0"}
     ],
     "field": "license",
     "kind": "conflict",
@@ -120,8 +120,7 @@ spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 (`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
 is never a guess: a bare `GPL-3.0` stays as written. A value naming several
 licences (`BSD`) or none stays text. So does a value with a character the
-reading would drop (`Apache 2.0?`), one of several lines, and a compound with
-a part only `licenseid` reads (`Apache2 OR MIT`). A reading that changed more
+reading would drop (`Apache 2.0?`) and one of several lines. A reading that changed more
 than the case, white space, brackets or a `+` is said once per value per run,
 and kept in the provenance:
 
@@ -129,11 +128,15 @@ and kept in the provenance:
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
 ```
 
-The reading needs the `licenseid` database (`licenseid update`); without it
-the value stays text, as before, and `licenseid database cannot be used`
-is warned once. When the declared value is already an SPDX expression and
-the database is only missing, Pitloom says `licenseid database not found`
-once at `INFO:` instead: only the `LICENSE`-file check is skipped.
+The reading uses the SPDX License List the `licenseid` wheel ships, not the
+`licenseid` database: the same value gives the same reading with or without
+one. Only licence-text detection needs the database (`licenseid update
+--source packaged`); without it `licenseid database cannot be used` is
+warned once, or, when the project declares a licence and the database is
+only missing, `licenseid database not found` is said once at `INFO:`: only
+the `LICENSE`-file check is skipped. A warning of `licenseid` itself is
+said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
+outdated: current v3; run 'licenseid update'`).
 
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded
@@ -157,7 +160,7 @@ characters. A field that may hold free text (`License`,
 `project.license.text`, `[tool.poetry] license`, a Hugging Face card's
 `license`) gets no such warning. Whether an id is known comes from the SPDX
 License List bundled with Pitloom's expression parser, so a missing database
-turns no id unknown (it only stops `licenseid` reading a respelt one). Hatchling
+turns no id unknown. Hatchling
 refuses an unknown id in `project.license` itself; the hook warns only for
 an id newer than that bundled list.
 

@@ -51,7 +51,7 @@ Extension slots populated:
 
 Requires ``huggingface_hub`` (``pip install pitloom[huggingface_hub]``).
 License detection uses ``licenseid`` (a core dependency) with an up-to-date
-database (``licenseid update``).
+database (``licenseid update --source packaged``).
 
 See also: this module is a thin facade. Fetching raw Hugging Face Hub data
 and resolving the license lives in

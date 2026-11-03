@@ -90,16 +90,9 @@ jobs:
           groups: --group test
           package-spec: ".[ai,content-type]"
 
-      - name: Cache LicenseID database
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-        with:
-          path: ~/.local/share/licenseid
-          key: licenseid-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            licenseid-
-
       - name: Build licenseid database
-        run: licenseid update
+        # Offline, from the SPDX License List the licenseid wheel ships.
+        run: licenseid update --source packaged
 
       - name: Run tests
         # Windows: TMP/TEMP (and so pytest's basetemp and every subprocess's

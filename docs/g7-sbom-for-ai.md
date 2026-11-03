@@ -137,7 +137,8 @@ The three build backends give the same result for the same project.
   an unpulled Git LFS pointer (or an over-cap file under 1,024 bytes), or when
   a library caller sets `DatasetMetadata.byte_size`. A dataset named in a
   local model card gets only its name.
-- **Licence IDs are kept as read** when the `licenseid` database is not built.
+- **Licence text is not matched to an id** when the `licenseid` database is
+  not built (a declared value is read without it).
 - **A setuptools project ships a model only when `package-data` lists it**, and
   the SBOM describes what would ship.
 

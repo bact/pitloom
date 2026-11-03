@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,6 +10,22 @@ SPDX-License-Identifier: CC0-1.0
 
 Status: draft, built on licenseid `main` of 2026-10-28 and its plan. Revise it
 when licenseid 0.7.0 is released (see "What to re-check").
+
+**Stage A is built (#437, 2026-11-03), on the released 0.7.0.** Pitloom
+requires `licenseid>=0.7.0,<0.8`; text detection uses
+`LicenseDetector().detect()` (`Detection["expression"]`); a declared value
+is read by `resolve(value, source="packaged")`, with no database (the
+database gate and the database-stamp cache are gone, an `lru_cache` keeps
+the answers); every call runs inside
+`pitloom.extract._licenseid_relay.relay_licenseid_warnings()`, which says
+each `LicenseIdWarning` once as `WARNING: licenseid: ...` (`INFO:` for
+`variant not stated`); `canonicalize_license_id` is deleted; CI builds the
+database with `licenseid update --source packaged`, uncached. The sweep
+matched the plan's minimal-port prediction: curated 308 strings, 8 lost (the
+refusals), 10 gained, 0 changed; PyPI 462 values, 7 gained (33 projects), 0
+lost; byte-identical with and without a database. Pitloom's own parser,
+`assumed_only` and the rest of the plan are stages B to E. This document
+keeps its pre-release text below.
 
 See also: [license-resolution-categories.md](license-resolution-categories.md),
 [roadmap.md](roadmap.md), licenseid `working-docs/design/resolver-0-7-plan.md`
