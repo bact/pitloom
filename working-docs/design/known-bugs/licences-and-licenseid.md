@@ -94,6 +94,24 @@ entries come first; fixed entries stay in the last section for history.
 - [ ] **Catalogue 18, the licence families, is later (S), decided
   2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.
   *Found 2026-10-30, `licenseid`.*
+- [ ] **A foreign warnings block overlapping a lookup takes its `licenseid`
+  lines (S).** Pitloom's three warning blocks share one lock
+  (`pitloom.core.warning_capture`), and the relay records only its own
+  thread, so nothing is left taken or dropped after both blocks. But a
+  `warnings.catch_warnings(record=True)` of the host or a library, in
+  another thread, entered while a lookup runs, replaces `showwarning` for
+  the process (on Python 3.14 too): what `licenseid` warns meanwhile goes
+  into that block's list and is not said. Tested as the stated limit in
+  `tests/core/test_warning_capture.py`. A fix needs a hook in `licenseid`
+  (a callback for its warnings) rather than `warnings`.
+  *Found 2026-11-03, review of #437.*
+- [ ] **A file-level SPDX tag is read by `resolve()`, not `detect()`
+  (S).** `SPDX-License-Identifier: GPL-2.0` in a file header goes through
+  `classify_license` (`_document_files.py` to `_license_elements.py`), so
+  `resolve()` keeps `GPL-2.0` (`assumed_only`), while `detect()` on the same
+  text reads `GPL-2.0-only`; the package level may differ. Pre-existing;
+  decide which reader a header tag belongs to. *Found 2026-11-03, review of
+  #437.*
 
 ## Fixed
 

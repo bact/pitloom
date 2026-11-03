@@ -19,7 +19,10 @@ database gate and the database-stamp cache are gone, an `lru_cache` keeps
 the answers); every call runs inside
 `pitloom.extract._licenseid_relay.relay_licenseid_warnings()`, which says
 each `LicenseIdWarning` once as `WARNING: licenseid: ...` (`INFO:` for
-`variant not stated`); `canonicalize_license_id` is deleted; CI builds the
+`variant not stated`), recording only the lookup's own thread, under the one
+lock of Pitloom's warning blocks (`pitloom.core.warning_capture`), with a
+filter put first once rather than per call; `canonicalize_license_id` is
+deleted; CI builds the
 database with `licenseid update --source packaged`, uncached. The sweep
 matched the plan's minimal-port prediction: curated 308 strings, 8 lost (the
 refusals), 10 gained, 0 changed; PyPI 462 values, 7 gained (33 projects), 0

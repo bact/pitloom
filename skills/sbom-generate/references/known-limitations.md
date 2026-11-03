@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -298,8 +298,9 @@ run it again without checking first. It may print `WARNING: popularity.csv:
 missing` (no ranking data offline): harmless, not a Pitloom line. A packaged
 copy older than the database is refused (`older than the database`): the
 database is kept and the preflight counts as failed. The database is per user,
-`~/.local/share/licenseid/licenses.db` (a platform directory on Windows), so
-any environment's Pitloom reads it.
+`~/.local/share/licenseid/licenses.db` (on Windows
+`%USERPROFILE%\.local\share\licenseid\licenses.db`), so any environment's
+Pitloom reads it.
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
 skipped` (once per run; the reason ends `run 'licenseid update'` when the file
