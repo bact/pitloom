@@ -44,6 +44,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import fetch_json
 from tests._network import skip_on_network_error
+from tests._network_retry import retry_on_transient_server_error
 
 from .conftest import _make_ci
 
@@ -210,10 +211,17 @@ def test_fetch_pypi_release_info_live_network(
     monkeypatch.setattr(
         "pitloom.assemble.spdx3.deps_pypi.fetch_json", _recording_fetch_json
     )
-    release_info = _fetch_pypi_release_info("packaging", None)
-    if release_info is None and raised:
-        with skip_on_network_error():
+
+    def _fetch_or_raise_cause() -> dict[str, Any] | None:
+        raised.clear()
+        found = _fetch_pypi_release_info("packaging", None)
+        if found is None and raised:
             raise raised[0]
+        return found
+
+    release_info: dict[str, Any] | None = None
+    with skip_on_network_error():
+        release_info = retry_on_transient_server_error(_fetch_or_raise_cause)
     assert release_info is not None
     assert release_info["info"]["name"].lower() == "packaging"
     digest = _extract_release_hash(release_info)
