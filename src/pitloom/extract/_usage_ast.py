@@ -138,6 +138,12 @@ class _Scan:
         self._consts: dict[str, str] = {}
         self._defaults: dict[ast.AST, str] = {}
         self._cache: dict[ast.AST, str | None] = {}
+        # Per node, so a call with many arguments, a long callee or nested
+        # conditionals costs time in its size, not in its size squared.
+        self._callees: dict[ast.AST, tuple[str | None, str | None]] = {}
+        self._arg_indices: dict[ast.Call, dict[ast.AST, int]] = {}
+        self._modes: dict[tuple[ast.Call, int], UsageAccess] = {}
+        self._climbs: dict[ast.AST, tuple[ast.AST, ast.AST | None, bool]] = {}
         self._track_constants(tree)
         self._cache.clear()
         self._reached: list[set[str]] = [set() for _ in models]
@@ -338,6 +344,12 @@ class _Scan:
         """The dotted name a call's callee stands for, with the file's
         imports resolved, and its last name; ``None`` where the callee is not
         a name (``f()()``), the last name still given for ``obj().method``."""
+        if func not in self._callees:
+            self._callees[func] = self._resolve_callee(func)
+        return self._callees[func]
+
+    def _resolve_callee(self, func: ast.AST) -> tuple[str | None, str | None]:
+        """:meth:`_callee`, not remembered."""
         names: list[str] = []
         node = func
         while isinstance(node, ast.Attribute):
@@ -469,19 +481,40 @@ class _Scan:
         """What the code does with the path *node*; ``None`` when it only
         mentions it. A path rendered into a string (``f"{path!r}"``) is not the
         path any more: whatever consumes it, other than a mention, is unknown."""
-        parent = self._parents.get(node)
-        argument = node
-        rendered = False
-        while isinstance(
-            parent, (ast.keyword, ast.Starred, ast.BoolOp, ast.JoinedStr)
-        ) or (
-            isinstance(parent, ast.FormattedValue)
-            or (isinstance(parent, ast.IfExp) and argument is not parent.test)
-        ):
-            rendered = rendered or isinstance(parent, ast.FormattedValue)
-            argument, parent = parent, self._parents.get(parent)
+        argument, parent, rendered = self._climb(node)
         access = self._consumer_access(argument, parent)
         return UsageAccess.UNKNOWN if rendered and access is not None else access
+
+    @staticmethod
+    def _passes_on(argument: ast.AST, parent: ast.AST) -> bool:
+        """Whether *parent* hands the value *argument* on to its own parent."""
+        if isinstance(parent, ast.IfExp):
+            return argument is not parent.test
+        return isinstance(
+            parent,
+            (ast.keyword, ast.Starred, ast.BoolOp, ast.JoinedStr, ast.FormattedValue),
+        )
+
+    def _climb(self, node: ast.AST) -> tuple[ast.AST, ast.AST | None, bool]:
+        """The outermost node that hands *node*'s value on unchanged or
+        rendered, its parent, and whether an f-string rendered it on the way.
+        Each node climbed through remembers its own answer."""
+        trail: list[tuple[ast.AST, bool]] = []
+        argument, parent = node, self._parents.get(node)
+        while (
+            argument not in self._climbs
+            and parent is not None
+            and self._passes_on(argument, parent)
+        ):
+            trail.append((argument, isinstance(parent, ast.FormattedValue)))
+            argument, parent = parent, self._parents.get(parent)
+        top, consumer, rendered = self._climbs.setdefault(
+            argument, (argument, parent, False)
+        )
+        for passed, into_fstring in reversed(trail):
+            rendered = rendered or into_fstring
+            self._climbs[passed] = (top, consumer, rendered)
+        return self._climbs[node]
 
     def _consumer_access(
         self, argument: ast.AST, parent: ast.AST | None
@@ -516,12 +549,20 @@ class _Scan:
         if last in MODE_CALLS:
             position, default = MODE_CALLS[last]
             return self._mode_access(call, position, default)
-        index = call.args.index(argument) if argument in call.args else None
-        return access_of_argument(last, index)
+        if call not in self._arg_indices:
+            self._arg_indices[call] = {arg: i for i, arg in enumerate(call.args)}
+        return access_of_argument(last, self._arg_indices[call].get(argument))
 
     def _mode_access(self, call: ast.Call, position: int, default: str) -> UsageAccess:
         """The access of an ``open``-like call from its mode argument; its
         default mode when left out, unknown when not a string."""
+        key = (call, position)
+        if key not in self._modes:
+            self._modes[key] = self._read_mode(call, position, default)
+        return self._modes[key]
+
+    def _read_mode(self, call: ast.Call, position: int, default: str) -> UsageAccess:
+        """:meth:`_mode_access`, not remembered."""
         mode: ast.AST | None = None
         if len(call.args) > position:
             mode = call.args[position]
