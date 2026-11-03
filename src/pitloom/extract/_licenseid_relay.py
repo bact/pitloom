@@ -36,8 +36,7 @@ them overlaps it. A block of other code that replaces
 ``warnings.showwarning`` in another thread while a lookup runs (an
 overlapping :class:`warnings.catch_warnings` with ``record=True``) takes
 the ``licenseid`` warnings given meanwhile, which are then not said; after
-both, no warning is taken or dropped. Recorded in
-``working-docs/design/known-bugs`` (relay and a foreign warnings block).
+both, no warning is taken or dropped.
 
 See also: :mod:`pitloom.extract._license` (the callers) and
 :mod:`pitloom.core._models_wheel_setuptools_relay` (the same relay for
