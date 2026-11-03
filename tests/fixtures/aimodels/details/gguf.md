@@ -33,7 +33,7 @@ Notable metadata extracted by the GGUF extractor:
 - `type_of_model` = `"bert"` (from `general.architecture`)
 - `hyperparameters`: `block_count=12`, `context_length=512`,
   `embedding_length=384`, `feed_forward_length=1536`,
-  `attention.head_count=12`
+  `attention.head_count=12`, `attention.layer_norm_epsilon=1e-12`
 - `properties["GGUF.tensor_count"]` = `"0"` - distinguishing feature:
   vocabulary-only GGUF files carry no weight tensors
 - `properties["tokenizer.ggml.model"]` = `"bert"`,
@@ -67,7 +67,8 @@ Notable metadata extracted by the GGUF extractor:
 - `type_of_model` = `"phi3"` (from `general.architecture`)
 - `hyperparameters`: `context_length=4096`, `embedding_length=3072`,
   `block_count=32`, `attention.head_count=32`,
-  `rope.dimension_count=96`, `rope.freq_base=10000.0`
+  `rope.dimension_count=96`, `rope.freq_base=10000.0`,
+  `rope.scaling.original_context_length=4096`
 - `properties["GGUF.tensor_count"]` = `"0"` (vocab-only)
 - Array fields as lengths: `properties["tokenizer.ggml.tokens.length"]`,
   `["tokenizer.ggml.scores.length"]` and `["tokenizer.ggml.token_type.length"]`
@@ -101,7 +102,8 @@ Notable metadata extracted by the GGUF extractor:
 - `name` = `None` (no `general.name` in this mmproj file)
 - `type_of_model` = `"clip"` (from `general.architecture`)
 - `hyperparameters`: `embedding_length=128`, `feed_forward_length=512`,
-  `block_count=4`, `attention.head_count=4`
+  `block_count=4`, `attention.head_count=4`,
+  `attention.layer_norm_epsilon=1e-06`
 - `properties["general.type"]` = `"clip-vision"`,
   `properties["clip.projector_type"]` = `"gemma3"`,
   `properties["clip.vision.image_size"]` = `"32"`,

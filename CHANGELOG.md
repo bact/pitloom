@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-31
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,24 +18,58 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.22.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.22.1...HEAD>
 
 ## [Unreleased]
+
+## [0.22.1] - 2026-11-03
+
+### Added
+
+- GGUF hyperparameters `attention.layer_norm_epsilon`, `expert_count`,
+  `expert_used_count` and `rope.scaling.{type,factor,original_context_length}`
+  ([#427])
 
 ### Changed
 
 - `--scan-model-usage` walks Python ASTs: `comment` is read, write, read and
   write, or unknown access; mentions skipped; warns
   `[usage-unparseable]`, `[usage-unusable]` ([#413])
+- `loom id generate -e NAME[@VERSION]:software_Package` exits 2 for a `NAME`
+  that is not a PEP 508 name (`foo==1.0`: write `foo@1.0`) ([#429])
 
 ### Fixed
 
-- A Git LFS pointer named by `license = {file = ...}` no longer becomes licence
-  text (the file name, or the pointer's own text from the Hatchling hook)
-  ([#422])
+- The PyPI prefetch asks once per package for the version the SBOM shows, and
+  never for a private one named by URL ([#418], [#429])
+- A Git LFS pointer no longer becomes licence text, whether named by
+  `license = {file = ...}` (the file name, or the pointer's own text from the
+  Hatchling hook) or held as `License`/`License-Expression` in a wheel, sdist
+  `PKG-INFO` or `.dist-info` ([#422], [#429])
+- Keras reader skips a non-string `class_name` or model name with one warning;
+  PT2 reader warns on a malformed `models/model.json`, reads a root `version`
+  file as `format_version`, not the model version, and writes tags as RFC 8785
+  (a tag holding a lone surrogate is kept); fastText records no labels above
+  1000 (`[over-cap]`) ([#426], [#433])
+- A GGUF string that is not valid UTF-8 no longer fails the read (escaped, with
+  the lone-surrogate warning); a blank GGUF, Safetensors or ONNX name,
+  description, version, architecture, quantization or `doc_string` reads as
+  absent ([#427])
+- `wheel --embed -v` without `-o` no longer logs `OUTPUT_PATH=-`; canonical
+  JSON spells `numpy.timedelta64` as text; display escaping no longer raises on
+  a lone surrogate ([#429])
+- Usage scan: a long expression chain no longer crashes Python 3.10, a call with
+  thousands of arguments no longer takes minutes, and a model path only put in
+  a message gives no edge ([#432])
 
 [#413]: https://github.com/bact/pitloom/pull/413
+[#418]: https://github.com/bact/pitloom/pull/418
 [#422]: https://github.com/bact/pitloom/pull/422
+[#426]: https://github.com/bact/pitloom/pull/426
+[#427]: https://github.com/bact/pitloom/pull/427
+[#429]: https://github.com/bact/pitloom/pull/429
+[#432]: https://github.com/bact/pitloom/pull/432
+[#433]: https://github.com/bact/pitloom/pull/433
 
 ## [0.22.0] - 2026-10-30
 
@@ -805,6 +839,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.22.1]: https://github.com/bact/pitloom/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/bact/pitloom/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2
 [0.21.1]: https://github.com/bact/pitloom/compare/v0.21.0...v0.21.1

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,9 +24,10 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.22.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+shipped up to 0.22.1 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#350 and 0.21.1 #364-#366 on 2026-10-28,
-0.22.0 #374-#408 on 2026-10-30), including their release-plan items.
+0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03), including
+their release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
@@ -56,7 +57,8 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   project states; never guessed from a name). See
   [extra-lifecycle-scope.md](extra-lifecycle-scope.md).
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
-  fastText label cap, cross-format label counts): [known-bugs.md](known-bugs/ai-models-readers-and-metadata.md#p3-after-0200).
+  cross-format label counts; the fastText label cap is built, #426):
+  [known-bugs.md](known-bugs/ai-models-readers-and-metadata.md#p3-after-0200).
 - [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
   no alias today; add only on demand. See [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 - [ ] **Git URL ingestion, open follow-ups**: DNS rebinding, imperative
@@ -85,9 +87,15 @@ non-UTF-8 file name, a `:` in provenance text and direct-URL dependencies. Keeps
 
 ### 0.22.1
 
-- [ ] **Small remaining bug fixes** and the 0.22.0 release checks left to CI.
-  The path-in-message fix (#410) landed before the tag. See
-  [known-bugs.md](known-bugs.md).
+**Released 2026-11-03** (v0.22.1). See [CHANGELOG.md](../../CHANGELOG.md) and
+[release-checklist.md](../implementation/release-checklist.md). Highlights:
+`--scan-model-usage` reads Python ASTs (#413; crash and time limits #432); a
+Git LFS pointer is no longer licence text (#422, #429); fixes for the PT2,
+Keras, fastText, GGUF, Safetensors and ONNX readers (#426, #427, #433);
+`loom id generate -e` refuses a package name that is not a PEP 508 name
+(#429). Keeps `licenseid>=0.6.0,<0.7`.
+Built in 0.22.1 (#413-#433). See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0221-prs-413-433).
 
 ### 0.23.0: G7 SBOM for AI field coverage
 
@@ -127,7 +135,7 @@ Open:
   item below.
 
 Built in 0.22.0 (#374-#408). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-408).
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-410).
 
 ### 1.0
 

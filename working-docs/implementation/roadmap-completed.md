@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -468,3 +468,33 @@ stood there. Open items:
   looked up on PyPI by name.
 - [x] **ID registry format 4** (#407): a package keyed by name and version;
   format 3 is refused.
+
+## Shipped in 0.22.1 (PRs #413-#433)
+
+Released 2026-11-03. Fixes found in the cold reviews of 2026-11-02 and the
+re-run of the 0.22.0 release checks. Open items:
+[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+
+- [x] **`--scan-model-usage` reads ASTs** (#413): `comment` is read, write,
+  read and write, or unknown access; mentions skipped; new codes
+  `usage-unparseable`, `usage-unparseable/mention`, `usage-unusable` (since
+  0.22.1).
+- [x] **Prefetch, document module and lint** (#418): the PyPI prefetch uses
+  the versions the dependency groups resolved (#429: once per package, never
+  for a private one named by URL); `document.py` split under the size limit.
+- [x] **Git LFS pointer as licence text** (#422, #429): `license = {file =
+  ...}`, a wheel, an sdist `PKG-INFO` and an installed `.dist-info`.
+- [x] **Readers** (#426, #427): Keras, PT2 and fastText (label cap), GGUF
+  (non-UTF-8 strings, hyperparameter suffixes), blank GGUF, Safetensors and
+  ONNX text fields (#433: a PT2 tag holding a lone surrogate is kept).
+- [x] **Usage scan limits** (#432): a long expression chain no longer crashes
+  Python 3.10 (the parse runs on a stack sized to the script); calls with many
+  arguments, keywords or nested conditionals take linear time; a constant only
+  put in a message gives no edge.
+- [x] **Small fixes** (#429): `loom id generate -e` refuses a package name that
+  is not a PEP 508 name; `wheel --embed -v` without `-o` logs no
+  `OUTPUT_PATH`; `numpy.timedelta64` in canonical JSON; display escaping of a
+  lone surrogate.
+- [x] **CI and tests** (#415, #416, #421, #428): skip the push run after a
+  merge that repeats a green PR tree; the manual CLI checks split under the
+  complexity ceilings; loopback test servers no longer stall on a macOS runner.

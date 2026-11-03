@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -255,6 +255,7 @@ BOM ontology 0.2.0 ids) on 2026-10-28: regenerating the `g7ai`, `cisa2026`,
 `fsct3` and `bsi` expected tables changed nothing, so the files above keep
 their `82a63b9` header as the record of the 0.21.0 reports. The four `0.22.0`
 files (2026-10-30) are made with the pin `2355afc`: every scenario equals its
-`0.21.0` one, only the header's `checker` and `pitloom` differ. The `pitloom`
-header is the installed version, so make a report with the release's version
-installed.
+`0.21.0` one, only the header's `checker` and `pitloom` differ. The four
+`0.22.1` files (2026-11-03), same pin, equal the `0.22.0` ones except the
+header's `pitloom`. The `pitloom` header is the installed version, so make a
+report with the release's version installed.
