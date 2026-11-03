@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from licenseid import LicenseDetector
+from licenseid import DatabaseNotReadyError, LicenseDetector
 
 from pitloom.extract import _license
 from pitloom.extract._license import detect_license_from_text, resolve_declared_value
@@ -71,6 +71,31 @@ def test_a_missing_database_with_no_stated_licence_warns(
     (level, message) = _lines(caplog)[0]
     assert level == logging.WARNING
     assert "licenseid database cannot be used" in message
+
+
+@pytest.mark.parametrize(
+    ("detail", "level"),
+    [
+        ("licenses.db", logging.INFO),
+        (None, logging.WARNING),
+        ("no home directory", logging.WARNING),
+    ],
+    ids=["path", "no-detail", "no-home"],
+)
+def test_only_a_named_missing_file_is_info(
+    detail: str | None, level: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``not found`` naming a path is a database to build; with no path, or
+    for an account with no home directory (a setup problem), it warns."""
+    error = DatabaseNotReadyError(f"database: not found: {detail}", "not found", detail)
+
+    def refused() -> None:
+        raise error
+
+    with patch.object(_license, "LicenseDetector", refused):
+        with caplog.at_level(logging.INFO, logger=_license.__name__):
+            assert detect_license_from_text(_TEXT, stated="MIT") is None
+    assert [line[0] for line in _lines(caplog)] == [level]
 
 
 @pytest.mark.usefixtures("missing")
