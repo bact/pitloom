@@ -48,8 +48,9 @@ and this project adheres to
   `PKG-INFO` or `.dist-info` ([#422], [#429])
 - Keras reader skips a non-string `class_name` or model name with one warning;
   PT2 reader warns on a malformed `models/model.json`, reads a root `version`
-  file as `format_version`, not the model version, and writes tags as RFC 8785;
-  fastText records no labels above 1000 (`[over-cap]`) ([#426])
+  file as `format_version`, not the model version, and writes tags as RFC 8785
+  (a tag holding a lone surrogate is kept); fastText records no labels above
+  1000 (`[over-cap]`) ([#426], [#433])
 - A GGUF string that is not valid UTF-8 no longer fails the read (escaped, with
   the lone-surrogate warning); a blank GGUF, Safetensors or ONNX name,
   description, version, architecture, quantization or `doc_string` reads as
@@ -57,6 +58,9 @@ and this project adheres to
 - `wheel --embed -v` without `-o` no longer logs `OUTPUT_PATH=-`; canonical
   JSON spells `numpy.timedelta64` as text; display escaping no longer raises on
   a lone surrogate ([#429])
+- Usage scan: a long expression chain no longer crashes Python 3.10, a call with
+  thousands of arguments no longer takes minutes, and a model path only put in
+  a message gives no edge ([#432])
 
 [#413]: https://github.com/bact/pitloom/pull/413
 [#418]: https://github.com/bact/pitloom/pull/418
@@ -64,6 +68,8 @@ and this project adheres to
 [#426]: https://github.com/bact/pitloom/pull/426
 [#427]: https://github.com/bact/pitloom/pull/427
 [#429]: https://github.com/bact/pitloom/pull/429
+[#432]: https://github.com/bact/pitloom/pull/432
+[#433]: https://github.com/bact/pitloom/pull/433
 
 ## [0.22.0] - 2026-10-30
 
