@@ -69,6 +69,8 @@ _PATH_FUNCTIONS: Final = frozenset(
 _JOINS: Final = frozenset({"os.path.join", "posixpath.join", "ntpath.join"})
 #: Methods that give the receiver's path back (``Path(...).resolve()``).
 _SAME_PATH_METHODS: Final = frozenset({"resolve", "expanduser", "absolute"})
+#: The nodes that can be a whole path expression.
+_PATH_NODES: Final = (ast.Constant, ast.Name, ast.JoinedStr, ast.BinOp, ast.Call)
 
 
 #: The nodes that bind a type parameter (``def f[P]``): Python 3.12 or later.
@@ -445,11 +447,7 @@ class _Scan:
 
     def _hits(self, node: ast.AST) -> list[int]:
         """Indices of *self._models* that top-level path *node* matches."""
-        if not isinstance(
-            node, (ast.Constant, ast.Name, ast.JoinedStr, ast.BinOp, ast.Call)
-        ):
-            return []
-        if self._in_parent_path(node):
+        if not isinstance(node, _PATH_NODES) or self._in_parent_path(node):
             return []
         text = self._static(node)
         if text is None:
@@ -469,6 +467,7 @@ class _Scan:
         """Record *node* if it is a top-level path expression naming a model."""
         hits = self._hits(node)
         if not hits:
+            self._take_mention(node)
             return
         names = self._loaded_names(node)
         access = self._access(node)
@@ -476,6 +475,40 @@ class _Scan:
             self._reached[index].update(names)
             if access is not None:
                 self.found[index].add(access)
+
+    def _take_mention(self, node: ast.AST) -> None:
+        """A top-level expression that names no model but is only mentioned
+        (``print(f"loading {P}")``) reads the constants it is built from for
+        no use: they count as reached, as ``print(P)`` does."""
+        if not isinstance(node, _PATH_NODES) or self._in_parent_path(node):
+            return
+        names = self._path_names(node)
+        if not names or self._access(node) is not None:
+            return
+        for reached in self._reached:
+            reached.update(names)
+
+    def _path_names(self, node: ast.AST) -> set[str]:
+        """The constants read by the parts of the path expression *node*:
+        its operands, theirs, and so on (not the arguments of a call in it
+        that is no path call)."""
+        names: set[str] = set()
+        pending = [node]
+        while pending:
+            part = pending.pop()
+            if isinstance(part, ast.Name) and part.id in self._consts:
+                names.add(part.id)
+            pending.extend(
+                child
+                for child in ast.iter_child_nodes(part)
+                if self._in_parent_path(child)
+                # The callee of a path method: its receiver is an operand.
+                or (
+                    isinstance(child, ast.Attribute)
+                    and self._in_parent_path(child.value)
+                )
+            )
+        return names
 
     def _access(self, node: ast.AST) -> UsageAccess | None:
         """What the code does with the path *node*; ``None`` when it only
