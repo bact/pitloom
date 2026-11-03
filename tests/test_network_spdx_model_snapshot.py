@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from tests._network import skip_on_network_error
+from tests._network_retry import retry_on_transient_server_error
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/refresh_spdx_model_snapshot.py"
 
@@ -30,7 +31,9 @@ def test_snapshot_matches_upstream() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     with skip_on_network_error():
-        names = module.drifted(
-            module.DEFAULT_VERSION, module.SNAPSHOT_ROOT, module.fetch_url
+        names = retry_on_transient_server_error(
+            lambda: module.drifted(
+                module.DEFAULT_VERSION, module.SNAPSHOT_ROOT, module.fetch_url
+            )
         )
     assert names == [], "run scripts/refresh_spdx_model_snapshot.py"
