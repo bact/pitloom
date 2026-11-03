@@ -7,13 +7,17 @@
 
 Provides SPDX license ID detection from license text and metadata found in
 project files, and the shared ``licenseid.resolve`` reading of a declared
-value (:func:`resolve_declared_value`).  Text detection and that reading
-(``Apache2`` -> ``Apache-2.0``) require a populated database; other sources
-(``CITATION.cff``, ``codemeta.json``) work without it.
+value (:func:`resolve_declared_value`).  Text detection requires a populated
+database; the reading of a declared value (``Apache2`` -> ``Apache-2.0``)
+uses the SPDX License List packaged with ``licenseid`` and needs none, as
+other sources (``CITATION.cff``, ``codemeta.json``) do not.
 
-Build the database before first use::
+Build the database for text detection before first use::
 
-    licenseid update
+    licenseid update --source packaged
+
+Every ``licenseid`` call runs inside
+:func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
 
 See Also:
     :mod:`pitloom.extract._license_detect` for file candidate scanning,
@@ -27,17 +31,19 @@ from __future__ import annotations
 import copy
 import functools
 import logging
-import os
 import re
-import threading
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, resolve
-from licenseid.resolvertypes import Resolution
-from licenseid.types import LicenseMatch
+from licenseid import (
+    DatabaseNotReadyError,
+    Detection,
+    LicenseDetector,
+    Resolution,
+    resolve,
+)
 
 from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.core.project import ProjectMetadata
@@ -65,6 +71,7 @@ from pitloom.extract._license_detect import (
     find_license_files,
     license_candidates_from_members,
 )
+from pitloom.extract._licenseid_relay import relay_licenseid_warnings, say
 from pitloom.extract.copyright_notices import (
     COPYRIGHT_NOTICE_LINE_RE,
     apply_in_package_copyright,
@@ -91,7 +98,6 @@ __all__ = [
     "ClassifiedLicense",
     "apply_in_package_license",
     "apply_in_package_license_files",
-    "canonicalize_license_id",
     "classify_license",
     "clear_resolution_cache",
     "collect_license_candidates",
@@ -118,12 +124,14 @@ _SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECAS
 
 
 @functools.lru_cache(maxsize=1)
-def _get_matcher() -> AggregatedLicenseMatcher:
-    """Return a process-wide shared matcher instead of one per lookup --
+def _get_detector() -> LicenseDetector:
+    """Return a process-wide shared detector instead of one per lookup --
     each construction opens a sqlite3 connection, wasteful at project scale.
-    A failed construction raises and is not cached: :func:`_matcher` retries
-    it on the next lookup."""
-    return AggregatedLicenseMatcher()
+    A failed construction raises and is not cached: :func:`_detector` retries
+    it on the next lookup. What ``licenseid`` warns while building it (a
+    database built by an older release) is relayed."""
+    with relay_licenseid_warnings():
+        return LicenseDetector()
 
 
 #: The sub-prefix of every message about the database, so the sibling lines
@@ -132,33 +140,33 @@ _DB_PREFIX = "licenseid database"
 
 
 def _database_missing(exc: BaseException) -> bool:
-    """True when *exc* says the database file is absent (``database: not
-    found: ...``), not empty, invalid or unreadable: licenseid carries the
-    condition in its message only. ``no home directory`` is a setup problem
-    (``pass --db``), not a database to build: it stays a warning."""
-    message = str(exc)
-    return message.startswith("database: not found:") and (
-        "no home directory" not in message
+    """True when *exc* says the database file is absent (condition ``not
+    found``, the path as its detail), not empty, invalid or unreadable.
+    ``no home directory`` is a setup problem (``pass --db``), not a database
+    to build: it stays a warning."""
+    return (
+        isinstance(exc, DatabaseNotReadyError)
+        and exc.condition == "not found"
+        and exc.detail is not None
+        and exc.detail != "no home directory"
     )
 
 
 def _missing_database_path(exc: BaseException) -> str:
-    """The path licenseid says it looked for (``database: not found: <path>;
-    run ...``), so a missing database names where Pitloom looked."""
-    message = one_line(exc).removeprefix("database: not found:")
-    return message.split(";")[0].strip()
+    """The path licenseid says it looked for (the detail of its ``not
+    found``), so a missing database names where Pitloom looked."""
+    detail = exc.detail if isinstance(exc, DatabaseNotReadyError) else None
+    return detail or ""
 
 
 def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
     """Warn once per process that the database cannot be used, and drop the
-    cached matcher and resolver answers, so the next lookup builds (and
-    checks) it again.
+    cached detector, so the next lookup builds (and checks) it again.
 
     With *declared* (a licence is stated, so only the licence-file second
     opinion needs the database) a missing database is said once at INFO: the
     stated value is recorded as it is. Any other condition still warns."""
-    _get_matcher.cache_clear()
-    clear_resolution_cache()
+    _get_detector.cache_clear()
     if declared and _database_missing(exc):
         log_once(
             _logger,
@@ -173,86 +181,59 @@ def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
     warn_once(
         _logger,
         "licenseid database",
-        "%s cannot be used: %s -- license text detection and "
-        "license id reading skipped",
+        "%s cannot be used: %s -- license text detection skipped",
         _DB_PREFIX,
         one_line(exc),
     )
 
 
-def _matcher(*, declared: bool = False) -> AggregatedLicenseMatcher | None:
-    """The shared matcher, or None when the database cannot be used
+def _detector(*, declared: bool = False) -> LicenseDetector | None:
+    """The shared detector, or None when the database cannot be used
     (missing, empty, unreadable). Warned once per process (*declared*:
     :func:`_database_unusable`); retried on every lookup, so a database
     built later in a long-lived process is used."""
     try:
-        return _get_matcher()
+        return _get_detector()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _database_unusable(exc, declared=declared)
         return None
 
 
-#: ``licenseid``'s answers by value, so a value asked about by several callers
-#: costs one lookup. Kept for the process (as the shared matcher is) while the
-#: database file is unchanged (:data:`_RESOLUTIONS_STAMP`); dropped when the
-#: database is found unusable and by :func:`clear_resolution_cache`.
-_RESOLUTIONS: dict[str, Resolution] = {}
-_RESOLUTIONS_STAMP: tuple[int, int, int] | None = None
-_RESOLUTIONS_LOCK = threading.Lock()
+#: How many answers of :func:`_resolved` are kept: a value asked about by
+#: several callers costs one lookup.
 _MAX_RESOLUTIONS = 4096
+
+
+@functools.lru_cache(maxsize=_MAX_RESOLUTIONS)
+def _resolved(value: str) -> Resolution:
+    """``licenseid``'s reading of *value* on the SPDX License List packaged
+    with it (``source="packaged"``: the same answer whatever database the
+    user has, and with none). A failure raises and is not cached."""
+    with relay_licenseid_warnings():
+        return resolve(value, source="packaged")
 
 
 def clear_resolution_cache() -> None:
     """Forget the answers of :func:`resolve_declared_value`."""
-    with _RESOLUTIONS_LOCK:
-        _RESOLUTIONS.clear()
-
-
-def _database_stamp(path: Path) -> tuple[int, int, int] | None:
-    """``(mtime, size, inode)`` of the database file at *path*; ``None`` when
-    it is not a file (an in-memory database)."""
-    try:
-        stat = os.stat(path)
-    except OSError:
-        return None
-    return stat.st_mtime_ns, stat.st_size, stat.st_ino
+    _resolved.cache_clear()
 
 
 def resolve_declared_value(value: str) -> Resolution | None:
     """``licenseid``'s reading of the declared licence *value*
-    (:func:`licenseid.resolve`) on the shared database, or ``None`` when the
-    database cannot be used (warned once per process, as :func:`_matcher`
-    does) or the resolver fails; a failure is not cached. The answers are
-    dropped when the database file changes (``licenseid update`` in this
-    process or another), and each caller gets its own copy."""
-    # pylint: disable-next=global-statement
-    global _RESOLUTIONS_STAMP
-    matcher = _matcher()
-    if matcher is None:
-        return None
+    (:func:`licenseid.resolve` on its packaged SPDX License List), or
+    ``None`` when there is no packaged list (a ``licenseid`` installed
+    without it: warned once per process) or the resolver fails; a failure
+    is not cached. Each caller gets its own copy."""
     try:
-        stamp = _database_stamp(matcher.db.db_path)
-        with _RESOLUTIONS_LOCK:
-            if stamp != _RESOLUTIONS_STAMP:
-                _RESOLUTIONS.clear()
-                _RESOLUTIONS_STAMP = stamp
-            cached = _RESOLUTIONS.get(value)
-        if cached is None:
-            cached = resolve(value, matcher.db)
-            with _RESOLUTIONS_LOCK:
-                if stamp == _RESOLUTIONS_STAMP:
-                    if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
-                        _RESOLUTIONS.clear()
-                    _RESOLUTIONS[value] = cached
+        return copy.deepcopy(_resolved(value))
     except DatabaseNotReadyError as exc:
-        _database_unusable(exc)
+        say(f"{exc}; declared licence values recorded as written")
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("Failed to resolve license value %r: %s", value, exc)
         return None
-    return copy.deepcopy(cached)
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:
@@ -307,7 +288,7 @@ def _stated_ids(stated: str | None) -> frozenset[str]:
 
 
 def _stated_among(
-    results: Sequence[LicenseMatch], stated: frozenset[str]
+    results: Sequence[Detection], stated: frozenset[str]
 ) -> str | None:
     """The best-scoring id of *results* that *stated* names, when it scores
     within :data:`_STATED_TIE_MARGIN` of the top match. Against a top match
@@ -324,10 +305,10 @@ def _stated_among(
     for result in ranked:
         if float(result["score"]) < floor:
             return None
-        if str(result["license_id"]).casefold() not in stated:
+        if str(result["expression"]).casefold() not in stated:
             continue
         if top_score < _SCORE_CAP or not _fits_worse(result, ranked[0]):
-            return str(result["license_id"])
+            return str(result["expression"])
     return None
 
 
@@ -343,7 +324,7 @@ def _measured(value: object) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
-def _fit(match: LicenseMatch) -> tuple[float | None, float | None]:
+def _fit(match: Detection) -> tuple[float | None, float | None]:
     """How closely the input matches *match*'s licence: its ``similarity``,
     and the share of the licence the input holds, its ``coverage`` (input
     words over licence words) up to 1, as above 1 the input only has words
@@ -353,7 +334,7 @@ def _fit(match: LicenseMatch) -> tuple[float | None, float | None]:
     return _measured(match.get("similarity")), held
 
 
-def _fits_worse(runner_up: LicenseMatch, top: LicenseMatch) -> bool:
+def _fits_worse(runner_up: Detection, top: Detection) -> bool:
     """Whether *runner_up* fits the input measurably worse than *top*
     (:func:`_fit`): its similarity, or the share of its licence the input
     holds, more than :data:`_STATED_TIE_MARGIN` below *top*'s. A score alone
@@ -366,7 +347,7 @@ def _fits_worse(runner_up: LicenseMatch, top: LicenseMatch) -> bool:
     )
 
 
-def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
+def _decisive(results: Sequence[Detection], threshold: float) -> str | None:
     """The top id of *results* when it meets *threshold* and no other
     licence family scores within :data:`_STATED_TIE_MARGIN` of it (a
     runner-up below *threshold* counts) without fitting the input
@@ -377,39 +358,40 @@ def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
     ranked = sorted(results, key=lambda r: -float(r["score"]))
     if float(ranked[0]["score"]) < threshold:
         return None
-    top = str(ranked[0]["license_id"])
+    top = str(ranked[0]["expression"])
     floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
     for result in ranked[1:]:
         if float(result["score"]) < floor:
             break
-        if _family(str(result["license_id"])) != _family(top) and not _fits_worse(
+        if _family(str(result["expression"])) != _family(top) and not _fits_worse(
             result, ranked[0]
         ):
             return None
     return top
 
 
-def _readings(matcher: AggregatedLicenseMatcher, text: str) -> list[list[LicenseMatch]]:
-    """*matcher*'s ranked matches for *text* as written and, when it has
+def _readings(detector: LicenseDetector, text: str) -> list[list[Detection]]:
+    """*detector*'s ranked matches for *text* as written and, when it has
     copyright notice lines (:data:`COPYRIGHT_NOTICE_LINE_RE`, templates
     too), without them: ``licenseid`` uses a notice to place the licence in
     mixed content, yet misses some licences behind one (PyYAML's two notice
     lines give ``Xnet``, not ``MIT``)."""
-    readings = [matcher.match(text)]
-    without_notice = COPYRIGHT_NOTICE_LINE_RE.sub("", text)
-    if without_notice != text:
-        readings.append(matcher.match(without_notice))
+    with relay_licenseid_warnings():
+        readings = [detector.detect(text)]
+        without_notice = COPYRIGHT_NOTICE_LINE_RE.sub("", text)
+        if without_notice != text:
+            readings.append(detector.detect(without_notice))
     return readings
 
 
-def _top_score(results: Sequence[LicenseMatch]) -> float:
+def _top_score(results: Sequence[Detection]) -> float:
     """The best score in *results*, or -1 for none."""
     return max((float(r["score"]) for r in results), default=-1.0)
 
 
 def _best_readings(
-    readings: Sequence[Sequence[LicenseMatch]],
-) -> list[Sequence[LicenseMatch]]:
+    readings: Sequence[Sequence[Detection]],
+) -> list[Sequence[Detection]]:
     """The readings whose top score is the best: one, or both when their
     top scores are equal (as when both reach the cap). A weaker reading
     decides nothing, nor lets a stated licence win (iniconfig's notice
@@ -420,7 +402,7 @@ def _best_readings(
 
 
 def _best_reading_decides(
-    readings: Sequence[Sequence[LicenseMatch]], threshold: float
+    readings: Sequence[Sequence[Detection]], threshold: float
 ) -> str | None:
     """The answer of the best-scoring reading (:func:`_best_readings`); of
     two tied at the top, the first that decides (:func:`_decisive`), so a
@@ -447,13 +429,13 @@ def detect_license_from_text(
     ``None`` when its top match is a near-tie with another licence family.
     """
     declared = bool(stated and stated.strip())
-    matcher = _matcher(declared=declared)
-    if matcher is None:
+    detector = _detector(declared=declared)
+    if detector is None:
         return None
     try:
         if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
-        readings = _readings(matcher, text)
+        readings = _readings(detector, text)
         wanted = _stated_ids(stated)
         for results in _best_readings(readings):
             above = [r for r in results if r["score"] >= threshold]
@@ -461,7 +443,7 @@ def detect_license_from_text(
             if chosen:
                 return chosen
         return _best_reading_decides(readings, threshold)
-    # The database failed after the matcher was built (deleted, truncated,
+    # The database failed after the detector was built (deleted, truncated,
     # corrupted): licenseid raises this for any failed read.
     except DatabaseNotReadyError as exc:
         _database_unusable(exc, declared=declared)
@@ -470,43 +452,6 @@ def detect_license_from_text(
     except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)
         return None
-
-
-#: Longer than any licence id: not looked up, so a hostile id costs no
-#: database query.
-_MAX_LICENSE_ID_CHARS = 200
-
-
-def canonicalize_license_id(raw: str) -> str:
-    """Return *raw* in the canonical casing of the SPDX License ID it spells.
-
-    Only a case (and surrounding-whitespace) difference is folded.  A match
-    that is a different id (``gpl-3.0`` -> ``GPL-3.0-only``, a successor, an
-    alias) is not applied: a non-lexical decision of the resolver needs its
-    own notice and provenance.  Returns *raw* unchanged when nothing matches
-    or the match is another id; the licence classification that follows
-    normalises it.
-
-    The fold needs the ``licenseid`` database, so no extractor calls it: an
-    extractor records its source's value as stated.
-    """
-    if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
-        return raw
-    matcher = _matcher()
-    if matcher is None:
-        return raw
-    try:
-        results = matcher.match(license_id=raw)
-        found = str(results[0]["license_id"]) if results else None
-        if found and found.casefold() == raw.strip().casefold():
-            return found
-    except DatabaseNotReadyError as exc:
-        _database_unusable(exc)
-    # An input licenseid rejects (not one licence ID) is no failure: debug.
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
-    return raw
 
 
 def _with_tool_tag(provenance: str) -> str:
