@@ -120,9 +120,9 @@ spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 (`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
 is never a guess: a bare `GPL-3.0` stays as written. A value naming several
 licences (`BSD`) or none stays text. So does a value with a character the
-reading would drop (`Apache 2.0?`) and one of several lines. A reading that changed more
-than the case, white space, brackets or a `+` is said once per value per run,
-and kept in the provenance:
+reading would drop (`Apache 2.0?`) and one of several lines. A reading that
+changed more than the case, white space, brackets or a `+` is said once per
+value per run, and kept in the provenance:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
