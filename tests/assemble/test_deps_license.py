@@ -267,12 +267,14 @@ def test_build_license_elements_two_candidates_with_individuals(
 @pytest.mark.parametrize(
     ("declared", "concluded"), [("MIT License", "MIT"), ("MIT", "mit license")]
 )
-def test_a_list_name_and_its_id_are_no_conflict_without_the_database(
+def test_a_list_name_and_its_id_are_no_conflict_without_a_reading(
     declared: str, concluded: str
 ) -> None:
-    """With no ``licenseid`` database the name stays text, and the SPDX List
+    """With no ``licenseid`` reading the name stays text, and the SPDX List
     name of the other value's id still makes them one licence."""
-    with patch("pitloom.extract._license._matcher", return_value=None):
+    with patch(
+        "pitloom.extract._license.resolve", side_effect=RuntimeError("no reading")
+    ):
         (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
     assert rel_declared is not None and rel_concluded is not None
     assert rel_declared.to != rel_concluded.to

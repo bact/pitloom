@@ -304,21 +304,21 @@ def test_end_to_end_the_value_is_text_with_one_warning(
 
 @pytest.mark.parametrize(
     ("value", "warns"),
-    [("MIT", False), ("Acme2", True), ("Apache2", True)],
+    [("MIT", False), ("Acme2", True), ("Apache2", False)],
     ids=["mit", "acme2", "apache2"],
 )
 def test_the_licenseid_database_does_not_decide(
     value: str, warns: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """With no usable licenseid database a known id is still known (the
-    SPDX list ships with ``py-spdx-license``), so no id turns unknown; a
-    respelt one (``Apache2``) is only read with the database, so it warns."""
+    """With no usable licenseid database a known id is still known and a
+    respelt one (``Apache2``) still read: the reading uses the SPDX License
+    List packaged with ``licenseid``. Only a value nothing names warns."""
     root = _project(tmp_path / "p", value)
     (root / "LICENSE").write_text("Some licence text.\n" * 20, encoding="utf-8")
     with (
         caplog.at_level(logging.WARNING, logger="pitloom"),
         patch(
-            "pitloom.extract._license.AggregatedLicenseMatcher",
+            "pitloom.extract._license.LicenseDetector",
             side_effect=DatabaseNotReadyError("missing"),
         ),
     ):

@@ -153,7 +153,7 @@ CASES = [
     ("LGPL-2.1++", "text", "LGPL-2.1++", False),
     ("GPL-2.0-only+", "text", "GPL-2.0-only+", False),
     ("GPL-2.0-or-later+", "text", "GPL-2.0-or-later+", False),
-    ("licenseref-foo", "text", "licenseref-foo", False),
+    ("licenseref-foo", "expression", "LicenseRef-foo", False),
     # an addition needs a licence: a listed id or a well-formed reference
     ("Foo WITH AdditionRef-x", "text", "Foo WITH AdditionRef-x", False),
     ("LicenseRef- WITH AdditionRef-x", "text", "LicenseRef- WITH AdditionRef-x", False),

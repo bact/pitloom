@@ -14,7 +14,7 @@ test_license_detection_corpus.py (real licence files).
 from typing import cast
 
 import pytest
-from licenseid.types import LicenseMatch
+from licenseid import Detection
 
 from pitloom.extract._license import (
     _best_reading_decides,
@@ -48,7 +48,7 @@ from pitloom.extract._license import (
 def test_a_stated_licence_wins_only_a_near_tie(
     scores: list[tuple[str, float]], stated: str | None, expected: str | None
 ) -> None:
-    results = [{"license_id": i, "score": s} for i, s in scores]
+    results = [{"expression": i, "score": s} for i, s in scores]
     found = _stated_among(results, _stated_ids(stated))  # type: ignore[arg-type]
     assert found == expected
 
@@ -68,7 +68,7 @@ def test_a_stated_licence_wins_only_a_near_tie(
 def test_a_near_tie_with_another_licence_family_is_no_detection(
     scores: list[tuple[str, float]], expected: str | None
 ) -> None:
-    results = [{"license_id": i, "score": s} for i, s in scores]
+    results = [{"expression": i, "score": s} for i, s in scores]
     assert _decisive(results, 0.85) == expected  # type: ignore[arg-type]
 
 
@@ -106,12 +106,12 @@ def test_a_runner_up_that_fits_measurably_worse_is_no_tie(
     assert _decisive(_fit_rows(rows), 0.85) == expected
 
 
-def _fit_rows(rows: list[_FitRow]) -> list[LicenseMatch]:
+def _fit_rows(rows: list[_FitRow]) -> list[Detection]:
     """*rows* as ``licenseid`` 0.4 matches (the fields read here only)."""
     return cast(
-        "list[LicenseMatch]",
+        "list[Detection]",
         [
-            {"license_id": i, "score": s, "similarity": sim, "coverage": cov}
+            {"expression": i, "score": s, "similarity": sim, "coverage": cov}
             for i, s, sim, cov in rows
         ],
     )

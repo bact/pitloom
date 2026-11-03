@@ -18,7 +18,7 @@ import importlib
 import tempfile
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -28,7 +28,6 @@ from pitloom.extract import _license_detect
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _with_tool_tag,
-    canonicalize_license_id,
     detect_independent_license,
     tag_license_normalization,
 )
@@ -44,65 +43,6 @@ def test_looks_like_spdx_license_expression_newlines_and_length() -> None:
     """_looks_like_spdx_license_expression rejects newlines and long strings."""
     assert not _looks_like_spdx_license_expression("MIT OR\nApache-2.0")
     assert not _looks_like_spdx_license_expression("MIT OR " + ("Apache-2.0 " * 30))
-
-
-def test_canonicalize_license_id_match_and_exception() -> None:
-    """canonicalize_license_id returns canonical ID or raw on match/exception."""
-    mock_matcher = MagicMock()
-    mock_matcher.match.return_value = [{"license_id": "MIT"}]
-    with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher",
-        return_value=mock_matcher,
-    ):
-        assert canonicalize_license_id("mit") == "MIT"
-
-    # Exception path returns raw. Clear the cache first, or _get_matcher's
-    # lru_cache would still return the block above's mock_matcher.
-    _license_module._get_matcher.cache_clear()
-    mock_err_matcher = MagicMock()
-    mock_err_matcher.match.side_effect = RuntimeError("fail")
-    with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher",
-        return_value=mock_err_matcher,
-    ):
-        assert canonicalize_license_id("custom-raw") == "custom-raw"
-
-
-@pytest.mark.parametrize(
-    ("raw", "matched", "expected"),
-    [
-        ("mit", "MIT", "MIT"),
-        ("  apache-2.0\n", "Apache-2.0", "Apache-2.0"),
-        ("GPL-3.0", "GPL-3.0", "GPL-3.0"),
-        # a different id (deprecated bare id, alias, successor) is not applied
-        ("gpl-3.0", "GPL-3.0-only", "gpl-3.0"),
-        ("lgpl-2.1", "LGPL-2.1-only", "lgpl-2.1"),
-        ("agpl-3.0", "AGPL-3.0-or-later", "agpl-3.0"),
-        ("apache2", "Apache-2.0", "apache2"),
-        ("mit", None, "mit"),
-    ],
-    ids=[
-        "case",
-        "padded",
-        "already-canonical",
-        "gpl-not-only",
-        "lgpl-not-only",
-        "agpl-not-later",
-        "alias",
-        "no-match",
-    ],
-)
-def test_canonicalize_license_id_folds_only_case(
-    raw: str, matched: str | None, expected: str
-) -> None:
-    """The result of the resolver is applied only when it is the same id."""
-    _license_module._get_matcher.cache_clear()
-    matcher = MagicMock()
-    matcher.match.return_value = [{"license_id": matched}] if matched else []
-    with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher", return_value=matcher
-    ):
-        assert canonicalize_license_id(raw) == expected
 
 
 def test_tag_license_normalization_and_tool_tags_without_versions() -> None:

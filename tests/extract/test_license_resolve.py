@@ -6,7 +6,8 @@
 """A declared licence value read through ``licenseid.resolve``: what Pitloom
 accepts (``Apache2`` is ``Apache-2.0``), how it says so (``INFO:`` once, the
 provenance keys) and what it leaves alone (a bare deprecated id, several
-licences, a compound with an unreadable part, no database).
+licences, a compound with an unreadable part). The reading uses the SPDX
+License List packaged with ``licenseid``: no database.
 
 See also: tests/extract/test_license_spdx_only_fields.py (the warning for a
 value nothing reads) and docs/metadata-provenance-licences.md.
@@ -125,11 +126,13 @@ def test_a_plus_after_a_respelling_is_an_expansion_apart_from_it() -> None:
 def test_a_value_pitloom_parses_itself_is_not_credited_to_licenseid(
     raw: str, normalized: str
 ) -> None:
-    """The keys name only what ``licenseid`` read, so a value that needs no
-    database has the same provenance with and without one."""
+    """The keys name only what ``licenseid`` read, so a value Pitloom
+    parses has the same provenance whether ``licenseid`` answers or not."""
     with_db = tag_license_normalization("P", raw, normalized)
     assert "licenseid" not in with_db and "Resolution" not in with_db
-    with patch("pitloom.extract._license._matcher", return_value=None):
+    with patch(
+        "pitloom.extract._license.resolve", side_effect=DatabaseNotReadyError("x")
+    ):
         clear_resolution_cache()
         assert tag_license_normalization("P", raw, normalized) == with_db
 
@@ -194,11 +197,25 @@ def test_a_value_is_said_once_by_its_text_not_by_its_reading(
     assert len(_said(caplog, logging.INFO)) == 2
 
 
-def test_the_answers_are_dropped_when_the_database_is_found_unusable() -> None:
+def test_the_answers_are_kept_when_the_database_is_found_unusable() -> None:
+    """They do not rest on the database: only the detector is dropped."""
     resolve_declared_value("Apache2")
-    assert _license._RESOLUTIONS
     _license._database_unusable(RuntimeError("x"))
-    assert not _license._RESOLUTIONS
+    assert _license._resolved.cache_info().currsize == 1
+
+
+def test_the_reading_is_the_same_with_and_without_a_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The packaged list decides, not the user's database (none here)."""
+    with_db = resolve_declared_value("Apache2")
+    assert with_db is not None and with_db["expression"] == "Apache-2.0"
+    clear_resolution_cache()
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert resolve_declared_value("Apache2") == with_db
+    assert [entry["source"] for entry in with_db["lists"]] == ["packaged"]
 
 
 @pytest.mark.parametrize(
@@ -206,7 +223,6 @@ def test_the_answers_are_dropped_when_the_database_is_found_unusable() -> None:
     [
         "BSD",  # several licences
         "GPL",
-        "Apache2 OR MIT",  # a compound with a part only licenseid reads
         "Acme-Terms",  # none
         "MIT/Apache-2.0",  # not an SPDX operator
         "GPL-2.0-only+",  # malformed
@@ -274,16 +290,20 @@ def test_a_spdx_only_field_says_the_reading_and_does_not_warn(
     assert len(warnings) == 1 and "LICENSE='Acme2'" in warnings[0]
 
 
+_NO_LIST = "spdx-bundle.json.gz: not found: packaged data"
+
+
 @pytest.mark.parametrize(
     "failure",
-    [DatabaseNotReadyError("missing"), RuntimeError("boom")],
-    ids=["no-database", "resolver-error"],
+    [DatabaseNotReadyError(_NO_LIST, "not found"), RuntimeError("boom")],
+    ids=["no-packaged-list", "resolver-error"],
 )
 def test_no_reading_when_the_resolver_cannot_answer(
     failure: Exception, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A missing database or a failing resolver leaves the value as text, as
-    before; a database problem is warned once, a resolver bug is a debug."""
+    """No packaged list (a ``licenseid`` installed without it) or a failing
+    resolver leaves the value as text; the missing list is warned once, a
+    resolver bug is a debug."""
     with (
         caplog.at_level(logging.DEBUG, logger="pitloom"),
         patch("pitloom.extract._license.resolve", side_effect=failure),
@@ -294,7 +314,9 @@ def test_no_reading_when_the_resolver_cannot_answer(
     unusable = [
         r
         for r in caplog.records
-        if r.levelno == logging.WARNING and "database cannot be used" in r.getMessage()
+        if r.levelno == logging.WARNING
+        and r.getMessage()
+        == f"licenseid: {_NO_LIST}; declared licence values recorded as written"
     ]
     assert len(unusable) == (1 if isinstance(failure, DatabaseNotReadyError) else 0)
 
@@ -402,6 +424,7 @@ def test_a_value_is_resolved_once_and_a_failure_is_not_remembered() -> None:
         for _ in range(3):
             classify_license("Apache2", warn=False)
         assert spy.call_count == 1
+        assert spy.call_args.kwargs == {"source": "packaged"}
     with patch(
         "pitloom.extract._license.resolve", side_effect=[RuntimeError("boom"), None]
     ) as flaky:
@@ -410,37 +433,11 @@ def test_a_value_is_resolved_once_and_a_failure_is_not_remembered() -> None:
         assert flaky.call_count == 2
 
 
-def test_the_answers_are_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_license, "_MAX_RESOLUTIONS", 2)
+def test_the_answers_are_bounded() -> None:
     for value in ("Acme1", "Acme2", "Acme3"):
         resolve_declared_value(value)
-    assert list(_license._RESOLUTIONS) == ["Acme3"]
-
-
-def test_the_answers_are_dropped_when_the_database_file_changes() -> None:
-    """``licenseid update`` in a long-lived process: the next answer is asked
-    of the new database, as licence text detection does."""
-    with (
-        patch("pitloom.extract._license.resolve", side_effect=licenseid_resolve) as spy,
-        patch.object(
-            _license, "_database_stamp", side_effect=[(1, 1, 1)] * 2 + [(2, 1, 1)]
-        ),
-    ):
-        for _ in range(3):
-            resolve_declared_value("Apache2")
-    assert spy.call_count == 2
-
-
-def test_an_answer_read_across_a_database_change_is_not_kept() -> None:
-    """Another thread saw a new database while this one was resolving."""
-
-    def resolve_during_change(*args: Any) -> Any:
-        _license._RESOLUTIONS_STAMP = (-1, -1, -1)
-        return licenseid_resolve(*args)
-
-    with patch("pitloom.extract._license.resolve", side_effect=resolve_during_change):
-        assert resolve_declared_value("Apache2") is not None
-    assert not _license._RESOLUTIONS
+    info = _license._resolved.cache_info()
+    assert (info.currsize, info.maxsize) == (3, _license._MAX_RESOLUTIONS)
 
 
 def test_each_caller_gets_its_own_copy_of_an_answer() -> None:
@@ -449,14 +446,6 @@ def test_each_caller_gets_its_own_copy_of_an_answer() -> None:
     first["steps"].clear()
     second = resolve_declared_value("Apache2")
     assert second is not None and second["steps"]
-
-
-def test_the_database_stamp_is_the_files_or_none(tmp_path: Path) -> None:
-    db = tmp_path / "licenses.db"
-    db.write_bytes(b"x")
-    st = db.stat()
-    assert _license._database_stamp(db) == (st.st_mtime_ns, 1, st.st_ino)
-    assert _license._database_stamp(tmp_path / "missing.db") is None
 
 
 def test_no_notes_when_the_resolver_has_no_reading_now() -> None:

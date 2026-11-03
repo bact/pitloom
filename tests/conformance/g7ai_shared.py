@@ -54,10 +54,11 @@ OUTCOMES = ("present", "missing", "not-applicable", "out-of-scope")
 def without_licence_database() -> Iterator[None]:
     """Build as if the ``licenseid`` database were absent.
 
-    CI builds it and a laptop may not; with it, licence IDs are canonicalised
-    and the SBOM text changes. The table describes the database-less state.
+    CI builds it and a laptop may not; with it, licence text is detected and
+    the SBOM text changes. The table describes the database-less state (a
+    declared value is read either way: it needs no database).
     """
-    with patch("pitloom.extract._license._matcher", return_value=None):
+    with patch("pitloom.extract._license._detector", return_value=None):
         yield
 
 
