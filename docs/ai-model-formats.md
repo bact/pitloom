@@ -160,7 +160,8 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     and `extra/tags`. PT2 name, description, version and licence come from
     `extra/` (the name also from `METADATA.json`). A root `version` file is the
     export schema version, never the model version: it is the format version
-    (cited in the provenance only) when there is no `archive_version`.
+    (its provenance names the `version` file) when there is no
+    `archive_version`.
 21. Tensor names from `models/model.json`, no shapes: only the `user_input`
     entries of its `signature.input_specs` and the `user_output` entries of
     `output_specs`. Parameters, buffers and constants are placeholders of the

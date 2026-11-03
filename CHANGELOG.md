@@ -40,6 +40,8 @@ and this project adheres to
 
 ### Fixed
 
+- The PyPI prefetch asks once per package for the version the SBOM shows, and
+  never for a private one named by URL ([#418], [#429])
 - A Git LFS pointer no longer becomes licence text, whether named by
   `license = {file = ...}` (the file name, or the pointer's own text from the
   Hatchling hook) or held as `License`/`License-Expression` in a wheel, sdist
@@ -52,8 +54,6 @@ and this project adheres to
   the lone-surrogate warning); a blank GGUF, Safetensors or ONNX name,
   description, version, architecture, quantization or `doc_string` reads as
   absent ([#427])
-- The PyPI prefetch asks once per package for the version the SBOM shows, and
-  never for a private one named by URL ([#418], [#429])
 - `wheel --embed -v` without `-o` no longer logs `OUTPUT_PATH=-`; canonical
   JSON spells `numpy.timedelta64` as text; display escaping no longer raises on
   a lone surrogate ([#429])
