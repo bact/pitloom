@@ -87,6 +87,14 @@ entries stay in the last section for history.
 - See [target-resolution-and-purl.md](../target-resolution-and-purl.md) for the
   Bitbucket and SourceHut findings of the same day.
   *Found 2026-10-23.*
+- [ ] **A one-line `License: version https://git-lfs.github.com/spec/v1` in a
+  wheel or sdist header is recorded as licence text (S, decision needed).**
+  Only a whole pointer (version line, `oid` and `size`) counts as one
+  (`is_pointer_text`, `_core_metadata.py`); a `License:` header that holds
+  just the `version` line, as an unpulled file cut short might, is kept as
+  the text. Decide whether a lone `version` line of the Git LFS spec also
+  stands for "not pulled".
+  *Found 2026-11-03, review of the 0.22.1 release.*
 
 ## Fixed
 

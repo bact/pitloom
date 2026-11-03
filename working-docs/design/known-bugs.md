@@ -43,15 +43,15 @@ lists its open entries first, ranked as described under
 
 | Part | P0 | P1 | P2 | P3 | Found | Leads | Open | Fixed |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
-| [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 33 | 2 | - | 35 | 10 |
+| [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 33 | 5 | - | 38 | 10 |
 | [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 4 | 3 | 7 | - | 14 | 8 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 11 |
 | [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 13 | - | 15 | 7 |
-| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 11 | - | 11 | 7 |
-| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 3 | - | 15 | 10 |
+| [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 7 |
+| [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 9 | - | 21 | 11 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 7 | 2 | 2 | 11 | 5 |
-| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 7 | - | 9 | 9 |
-| **Total** | **1** | **3** | **7** | **55** | **55** | **3** | **124** | **67** |
+| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 8 | - | 10 | 9 |
+| **Total** | **1** | **3** | **7** | **55** | **66** | **3** | **135** | **68** |
 
 ## Parts
 
@@ -75,7 +75,8 @@ lists its open entries first, ranked as described under
   ceilings and clone cap.
 - [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md):
   Reading project, environment, lock-file and installed-package metadata;
-  dependency versions and direct references; fragments and `loom merge`.
+  dependency versions and direct references; fragments and `loom merge`; the
+  model-usage scan.
 - [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md): The
   surfaces (CLI, GitHub Action, library, Hatchling hook) and wheel handling:
   options, output paths, signals and platform differences.

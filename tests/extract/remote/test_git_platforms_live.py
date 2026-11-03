@@ -5,8 +5,9 @@
 """Real Git hosting platforms: the URL forms a person pastes are fetched.
 
 These reach live servers, so they are marked ``network`` (skipped when the
-network fails, failing under ``PITLOOM_REQUIRE_NETWORK``). A failure here means
-a platform changed how it answers, or a repository moved: the table in
+network fails, failing under ``PITLOOM_REQUIRE_NETWORK``). A host's transient
+5xx answer is retried twice first (``tests/_network_retry.py``). A failure here
+means a platform changed how it answers, or a repository moved: the table in
 ``docs/git-urls.md`` lists what was verified and when.
 
 Only the fetch is run (repository, branch, folder); reading the project is
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -25,6 +27,7 @@ from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote._git_redirect import PROBE_FAILED_INFO
 from pitloom.extract.remote.errors import RemoteSourceError
 from tests._network import network_unavailable, skip_on_network_error
+from tests._network_retry import retry_on_transient_server_error
 
 pytestmark = pytest.mark.network
 
@@ -354,10 +357,12 @@ def test_a_platforms_url_is_fetched(
     followed where the platform sends one."""
     caplog.set_level(logging.INFO, logger="pitloom")
     try:
-        with (
-            skip_on_network_error(),
-            fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,
-        ):
+        with skip_on_network_error(), ExitStack() as stack:
+            # Only entering is retried, after a transient 5xx from the host;
+            # a failed attempt has removed its own temporary directory.
+            checkout = retry_on_transient_server_error(
+                lambda: stack.enter_context(fetch_git_project(url, max_bytes=_LIVE_CAP))
+            )
             assert checkout.ref == ref and checkout.subdir == folder
             assert (Path(checkout.folder) / expected).exists()
             assert len(checkout.commit) in {40, 64}

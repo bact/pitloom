@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,110 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artefact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.22.1 (2026-11-03)
+
+Same method as v0.22.0 below, against
+`https://pypi.org/pypi/pitloom/0.22.1/json` (wheel uploaded 2026-11-03
+12:01:20 UTC, sdist 12:01:22 UTC, neither file yanked). The tag `v0.22.1` is
+lightweight and points at `6b9fbf1f` (the merge of #431). The release gate ran
+twice: its first run failed on an upstream HTTP 500 from Savannah in a
+network-dependent test, and the re-run of the failed jobs passed before the
+upload. This pass adds what the v0.22.0 pass left out, except a workflow run
+of the GitHub Action.
+
+| File | Bytes | SHA-256 |
+| - | -: | - |
+| `pitloom-0.22.1-py3-none-any.whl` | 1,111,681 | `e1008204dec9fc24576af9500fdccbea6273eef5a9a1786622736ae9d2e664fa` |
+| `pitloom-0.22.1.tar.gz` | 10,410,078 | `0a1c8dd3a8cca8ae64cfe1e95fc89de2a531a3d9c4364a03a6db3ce172568602` |
+| `pitloom-0.22.1.spdx3.json` (Release asset) | 1,016,627 | `0fd858380db9265bd275986c1dd109239b0848c9aa94bab5ac1fe09433ef3d06` |
+
+### Method
+
+- Wheel and sdist downloaded from the API's URLs into empty directories;
+  `sha256sum` against the API digests. The three GitHub Release assets (wheel,
+  sdist, standalone SBOM) and their Sigstore bundles downloaded and compared
+  byte for byte with the PyPI files and with the wheel's SBOM member.
+- `RECORD` checked by a small script run with `python -I`, as for v0.22.0.
+  The wheel's files compared with `git archive v0.22.1` (`src/`), and the
+  sdist's file list with `git ls-tree -r v0.22.1`, with a byte comparison of
+  every file in both.
+- Installs of `pitloom==0.22.1` in fresh venvs on Python 3.10.20 and 3.14.6,
+  each followed by `pip check`; `loom --version`, `loom verify-wheel <whl>
+  --sbom-filename pitloom-0.22.1.spdx3.json --fail-on-mismatch`, `loom
+  validate-wheel <whl>`, `spdx3-validate --json` 0.0.7 on the extracted SBOM
+  and `scripts/check_sbom_license.py --license Apache-2.0` on the SBOM and on
+  the wheel.
+- Attestations: `gh attestation verify` on the wheel, the sdist and the
+  standalone SBOM, once more with `--source-ref refs/tags/v0.22.0`;
+  `python -m sigstore verify github` (sigstore 4.5.1) on the same three
+  files with their bundles; the PEP 740 provenance of both PyPI files from
+  PyPI's integrity API.
+- Smoke tests with the installed release on tiny temporary projects:
+  `loom project --scan-model-usage` over a project with a `.safetensors`
+  file and a script that reads it, the same without the option, `loom model`
+  on a GGUF and a Safetensors file, an ID registry of version 3, `loom id
+  generate -e 'foo==1.0:software_Package'`, and the deep-chain case below.
+- The Action: `action.yml` and its install script read at the tag; no
+  workflow was run.
+
+### Findings
+
+- The downloads match the PyPI digests above; `requires_dist` has
+  `licenseid<0.7,>=0.6.0`; `provides_extra` is `ai`, `build`, `content-type`,
+  `fasttext`, `gguf`, `hdf5`, `huggingface-hub`, `numpy`, `onnx`, `pytorch`,
+  `safetensors`, `validate`; `requires_python` `>=3.10`.
+- GitHub Release: the wheel and the sdist are byte-identical to the PyPI
+  files, and the standalone SBOM is identical to the wheel's member.
+- Wheel: 341 members, one SBOM
+  `pitloom-0.22.1.dist-info/sboms/pitloom-0.22.1.spdx3.json`. `RECORD`: 341
+  rows, 0 bad hashes or sizes, none missing, none extra. The 335 payload
+  files equal `src/` of `git archive v0.22.1` byte for byte.
+- sdist: 1,394 members, the tag's 1,847 tracked files minus the 454 that
+  `pyproject.toml` excludes, plus `PKG-INFO`; no byte differences, and
+  `PKG-INFO` equals the wheel's `METADATA`.
+- Embedded SBOM: SPDX 3.0.1, 1,556 graph elements, `Apache-2.0` declared and
+  concluded; 353 `software_File` (the 335 payload files plus 18
+  directories), 0 hash mismatches. `verify-wheel` OK, `validate-wheel`
+  valid, `spdx3-validate` 0.0.7 schema and SHACL pass,
+  `check_sbom_license.py` passes on the SBOM and on the wheel.
+- Installs on 3.10.20 and 3.14.6 succeed and `pip check` is clean; `licenseid`
+  0.6.0 was resolved.
+- `gh attestation verify` passes for the wheel, the sdist and the SBOM (signer
+  workflow `pypi-publish.yml` at `refs/tags/v0.22.1`, source digest
+  `6b9fbf1f`) and fails with `--source-ref refs/tags/v0.22.0`, as it should.
+  `sigstore verify github` passes for the same three files. PyPI's PEP 740
+  provenance names publisher `bact/pitloom`, workflow `pypi-publish.yml`, and
+  one attestation per file whose subject digest is the file's SHA-256.
+- Smoke tests: `loom project --scan-model-usage` exits 0 and records a
+  `hasDataFile` relationship from the script to the model with the comment
+  `read access`; without the option it prints the `INFO:` hint. `loom model`
+  exits 0 on both files and the SBOMs pass `spdx3-validate`. A registry of
+  version 3 is refused (exit 1, no SBOM written, registry unchanged, with
+  and without `--update-id-registry`); `loom id generate -e
+  'foo==1.0:software_Package'` exits 2.
+- The usage scan on a 150,000-link method chain, run on Python 3.10 with
+  `ulimit -s 2048` through both `python -I -m pitloom` and `loom`, exits 0
+  with empty stderr and the other usage relationships intact (the crash
+  #432 fixed).
+
+### Not run or noted
+
+- The sdist holds two dangling symlinks, `CLAUDE.md` and `GEMINI.md`, which
+  point at `AGENTS.md`; the sdist excludes `AGENTS.md`. The same holds for
+  0.22.0. A separate PR, not yet merged, leaves `AGENTS.md`, `CLAUDE.md` and
+  `GEMINI.md` out of both the sdist and the wheel.
+- A flat-layout project (no package directory named for the project) gives
+  setuptools and Hatchling discovery warnings that carry no `[code]`; they
+  are not yet catalogued (catalogue PR 12; see
+  [Messages, catalogue and
+  provenance](../design/known-bugs/messages-and-provenance.md)).
+- The first release-gate run failed on an upstream Savannah HTTP 500; a re-run
+  passed. Recorded in the ledger with a mitigation (see
+  [Process, tooling and release
+  checks](../design/known-bugs/process-tooling-and-release-checks.md)).
+- Merkle root recomputation was not run; the GitHub Action was checked by
+  reading `action.yml` at the tag only.
 
 ## Verification of v0.22.0 (2026-11-02)
 
