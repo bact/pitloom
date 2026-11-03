@@ -46,6 +46,7 @@ most one prefix from the table of prefixes.
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.0 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.0 |
+| [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.0 |
 
 A line may start with one prefix before its text:
 
@@ -451,5 +452,23 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: FILE=<file> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]
+  ```
+
+### `usage-unusable`
+
+- **Level**: WARNING.
+- **Means**: A file whose extension is .py in other letter case (.PY) was not
+  read for model usage: Python imports only a lower-case .py file.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Did not read it, and recorded no usage relationship from it,
+  for any model. Said once per such file, and only when a model was found.
+- **Tell the user**: which file was not scanned. If it is a Python script that
+  uses a model, they rename it to a lower-case .py extension and generate again;
+  if it is not Python, it needs nothing. Do not rename the file for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: not scanned for usage; only a .py extension is read as Python [usage-unusable]
   ```
 <!-- END GENERATED -->

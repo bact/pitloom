@@ -25,7 +25,8 @@ and this project adheres to
 ### Changed
 
 - `--scan-model-usage` walks Python ASTs: `comment` is read, write, read and
-  write, or unknown access; mentions skipped; warns `[usage-unparseable]` ([#413])
+  write, or unknown access; mentions skipped; warns
+  `[usage-unparseable]`, `[usage-unusable]` ([#413])
 
 ### Fixed
 

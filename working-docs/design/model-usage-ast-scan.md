@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-31
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -146,7 +146,8 @@ Limits of the name and call tables, found in review and left as they are:
   `np.memmap` modes are unknown. `f.write(path)` and `json.dump(path, f)` put
   the path in a data position, so they are unknown, as is `zf.write(path)`
   (which reads it).
-- **`.PY`** is not scanned: Python's import rules accept only `.py`.
+- **`.PY`** is not scanned: Python's import rules accept only `.py`. With a
+  model found, each such file is warned of once (`[usage-unusable]`).
 
 Out of scope for the first version: values imported from another module,
 `**kwargs`, `getattr`, config files, notebooks. The docs keep saying

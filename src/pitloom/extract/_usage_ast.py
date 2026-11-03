@@ -29,7 +29,7 @@ import collections
 import sys
 import warnings
 from collections.abc import Sequence
-from typing import Final
+from typing import Any, Final
 
 from pitloom.core.model_usage import UsageAccess
 from pitloom.extract._usage_match import (
@@ -79,7 +79,7 @@ _SAME_PATH_METHODS: Final = frozenset({"resolve", "expanduser", "absolute"})
 
 
 #: The nodes that bind a type parameter (``def f[P]``): Python 3.12 or later.
-_TYPE_PARAMS: Final = tuple(
+_TYPE_PARAMS: Final[tuple[type[Any], ...]] = tuple(
     getattr(ast, name)
     for name in ("TypeVar", "ParamSpec", "TypeVarTuple")
     if hasattr(ast, name)
@@ -148,7 +148,8 @@ def _bind_counts(tree: ast.AST) -> collections.Counter[str]:
         elif isinstance(node, ast.MatchMapping) and node.rest:
             counts[node.rest] += 1
         elif isinstance(node, _TYPE_PARAMS):
-            counts[node.name] += 1
+            param: Any = node
+            counts[param.name] += 1
     return counts
 
 

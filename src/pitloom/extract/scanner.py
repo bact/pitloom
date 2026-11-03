@@ -73,6 +73,7 @@ from pitloom.logging_config import CODE_ATTR, loggable
 from pitloom.messages import (
     READER_UNSAFE,
     RELAY_FRAME,
+    USAGE_UNUSABLE,
     Cap,
     emit,
     over_cap_of,
@@ -380,11 +381,14 @@ def attach_usage_references(
     Reads every source even when *models* is empty, so unreadable sources
     are still reported; callers skip it altogether when usage scanning is
     off (see :func:`scan_ai_models`). Each model's ``usage_files`` ends
-    with one entry per script, sorted by distribution path.
+    with one entry per script, sorted by distribution path. A ``.PY`` source
+    is not read: with a model found it is warned of once.
     """
     candidates = usage_models(models)
     for source in sorted(sources, key=_PATH_ORDER):
         if not source.distribution_path.endswith(".py"):
+            if models and source.distribution_path.lower().endswith(".py"):
+                emit(log, USAGE_UNUSABLE, logging.WARNING, file=source.physical_path)
             continue
         try:
             with source.open() as fh:

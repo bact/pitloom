@@ -112,6 +112,7 @@ from pitloom.messages._usage_unparseable import (
     USAGE_UNPARSEABLE,
     USAGE_UNPARSEABLE_MENTION,
 )
+from pitloom.messages._usage_unusable import USAGE_UNUSABLE
 
 __all__ = [
     "ACTORS",
@@ -164,6 +165,7 @@ __all__ = [
     "STATED_COUNT_REASON",
     "USAGE_UNPARSEABLE",
     "USAGE_UNPARSEABLE_MENTION",
+    "USAGE_UNUSABLE",
     "Cap",
     "CodedImportError",
     "CodedValueError",
