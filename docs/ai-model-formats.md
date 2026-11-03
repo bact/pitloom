@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,10 +110,16 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
    stands in, trimmed. `general.license.link` is not read.
 6. Keys ending `.context_length`, `.embedding_length`,
    `.feed_forward_length`, `.block_count`, `.attention.head_count`,
-   `.attention.head_count_kv`, `.attention.layer_norm_rms_epsilon`,
-   `.rope.freq_base`, `.rope.dimension_count`; plus `quantization`, the name
+   `.attention.head_count_kv`, `.attention.layer_norm_epsilon`,
+   `.attention.layer_norm_rms_epsilon`, `.expert_count`,
+   `.expert_used_count`, `.rope.freq_base`, `.rope.dimension_count`,
+   `.rope.scaling.type`, `.rope.scaling.factor`,
+   `.rope.scaling.original_context_length`; plus `quantization`, the name
    of `general.file_type` when it is an integer other than `GUESSED` (1024,
-   not stated). Every other key is kept.
+   not stated). Every other key is kept. A blank GGUF, Safetensors or ONNX
+   text field (name, description, version, architecture, quantisation,
+   `doc_string`) reads as absent, and where several keys are tried the next
+   stands in.
 7. An array (a tokenizer vocabulary, scores, per-layer values) is recorded
    by length only: `{"length": "N", "type": "<element type>"}` in the
    annotation (`type` left out for an element code the format does not
@@ -152,7 +158,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 20. The archive member list and count; for PT2 also `extra/author` (also
     the producer; see [Producer and parameter count](#producer-and-parameter-count))
     and `extra/tags`. PT2 name, description, version and licence come from
-    `extra/` (or `METADATA.json` and a root `version` file).
+    `extra/` (the name also from `METADATA.json`). A root `version` file is the
+    export schema version, never the model version: it is the format version
+    (cited in the provenance only) when there is no `archive_version`.
 21. Tensor names from `models/model.json`, no shapes: only the `user_input`
     entries of its `signature.input_specs` and the `user_output` entries of
     `output_specs`. Parameters, buffers and constants are placeholders of the
