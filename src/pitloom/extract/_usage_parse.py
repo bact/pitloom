@@ -33,7 +33,8 @@ from _thread import allocate_lock, start_new_thread
 from collections import deque
 from collections.abc import Callable
 from functools import partial
-from threading import Lock, stack_size
+from operator import methodcaller
+from threading import Lock, getprofile, gettrace, stack_size
 from typing import Final
 
 __all__ = ["PARSE_ERRORS", "parse_python", "python_version", "stack_bytes"]
@@ -57,6 +58,7 @@ _PARSE_STACK_CEILING: Final = 255 * _MIB
 _CHECKS_DEPTH: Final = sys.version_info >= (3, 11)
 #: ``threading.stack_size`` is process-wide: one caller sets it at a time.
 _STACK_SIZE_LOCK: Final = Lock()
+_CALL: Final = methodcaller("__call__")
 
 
 def python_version() -> str:
@@ -81,27 +83,40 @@ def stack_bytes(chars: int, *, checks_depth: bool = _CHECKS_DEPTH) -> int:
     return min(max(wanted, _PARSE_STACK_FLOOR), _PARSE_STACK_CEILING)
 
 
+def _in_order(*calls: Callable[[], object]) -> Callable[[], object]:
+    """One call, good once, that makes *calls* in turn from C (``map`` over
+    them): the interpreter switches threads only between bytecodes, so no
+    other Python thread runs between two calls of C functions."""
+    return partial(deque, map(_CALL, calls), 0)
+
+
 def _start_with_stack(work: Callable[[], None], size: int) -> bool:
-    """Run *work* on a new thread with a stack of *size* bytes; ``False``
-    when the size or the thread is refused (it is then not started).
+    """Run *work* on a new thread with a stack of *size* bytes, under the
+    trace and profile hooks of :mod:`threading` (coverage, profilers) as a
+    :class:`threading.Thread` would; ``False`` when the size or the thread
+    is refused (it is then not started).
 
     ``threading.stack_size`` is process-wide, so the size is set, the thread
-    started and the size put back in one C loop (``map`` over ``partial``
-    calls): the interpreter switches threads only between bytecodes, so no
-    other Python thread, the host's included, runs while the size is set.
+    started and the size put back in one :func:`_in_order` call: no other
+    Python thread, the host's included, runs while the size is set.
     ``_thread.start_new_thread`` returns once the thread exists, without
     waiting for it to run as ``threading.Thread.start`` does (that wait lets
     other threads run and start theirs with this size).
     """
+    hooked = _in_order(
+        partial(sys.settrace, gettrace()),
+        partial(sys.setprofile, getprofile()),
+        work,
+    )
     with _STACK_SIZE_LOCK:
         previous = stack_size()
-        steps = (
+        start = _in_order(
             partial(stack_size, size),
-            partial(start_new_thread, work, ()),
+            partial(start_new_thread, hooked, ()),
             partial(stack_size, previous),
         )
         try:
-            deque(map(partial.__call__, steps), maxlen=0)
+            start()
         except (ValueError, RuntimeError) as exc:
             log.debug("Usage scan: no parse thread with a %d-byte stack: %s", size, exc)
             return False

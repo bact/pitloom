@@ -162,6 +162,23 @@ def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
     assert seen == {before}
 
 
+def test_the_parse_thread_runs_under_the_threading_profile_hook() -> None:
+    # As a threading.Thread would: coverage and profilers hook in this way.
+    threads: set[int] = set()
+
+    def hook(*_: object) -> None:
+        threads.add(threading.get_ident())
+
+    previous = threading.getprofile()
+    threading.setprofile(hook)
+    try:
+        _usage_parse.parse_python("x = 1\n")
+    finally:
+        threading.setprofile(previous)
+    assert threads
+    assert threading.get_ident() not in threads
+
+
 @pytest.mark.parametrize("refused", ["stack-size", "thread"])
 def test_a_refused_stack_or_thread_parses_on_the_callers_stack(
     refused: str, caplog: pytest.LogCaptureFixture
