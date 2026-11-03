@@ -115,6 +115,42 @@ def test_the_json_form_decodes_to_the_escaped_strings() -> None:
 
 
 @pytest.mark.parametrize(
+    ("text", "decoded"),
+    [
+        ('{"a": "\\ud800\u202e"}', {"a": "\\ud800\\u202e"}),
+        ('["\\udfff", "\\u001b"]', ["\\udfff", "\\u001b"]),
+        ('{"\\ud800": "\u202e"}', {"\\ud800": "\\u202e"}),
+    ],
+    ids=["beside-a-control", "beside-another-string", "in-a-key"],
+)
+def test_the_json_form_escapes_a_lone_surrogate_it_writes_back(
+    text: str, decoded: object
+) -> None:
+    """A lone surrogate the JSON text escapes (``\\ud800``) is written as
+    text when the text is written back: RFC 8785 cannot encode it."""
+    shown = escape_display_controls_in_json(text)
+    assert json.loads(shown) == decoded
+    shown.encode("utf-8")  # no lone surrogate left
+
+
+@pytest.mark.parametrize(
+    ("text", "kept"),
+    [
+        ('{"a\u202e": 1, "a\\\\u202e": 2}', 2),
+        ('{"a\\\\u202e": 1, "a\u202e": 2}', 2),
+    ],
+    ids=["control-first", "escape-text-first"],
+)
+def test_the_json_form_keeps_the_later_of_two_keys_spelt_alike(
+    text: str, kept: int
+) -> None:
+    """Two keys that escape to the same text are one key, the later one in
+    the text, whichever of them held the control."""
+    assert json.loads(text) != {"a\\u202e": kept}  # two keys before
+    assert json.loads(escape_display_controls_in_json(text)) == {"a\\u202e": kept}
+
+
+@pytest.mark.parametrize(
     ("number", "kept"),
     [
         (1e16, 1e16),  # RFC 8785 writes it 10000000000000000

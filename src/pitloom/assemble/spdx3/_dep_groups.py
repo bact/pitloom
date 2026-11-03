@@ -73,6 +73,13 @@ class DependencyGroup:
         return self.declared[0].name
 
     @property
+    def on_pypi(self) -> bool:
+        """Whether PyPI may describe the package: no string of it is a direct
+        reference (``name @ URL``), whose name PyPI may give another project.
+        The one rule for the prefetch and the lookup."""
+        return not any(is_direct_reference(d.dep) for d in self.declared)
+
+    @property
     def key(self) -> str:
         """The package's registry key (:func:`~pitloom.id_registry.package_key`)."""
         return package_key(self.canonical_name, self.version)
@@ -89,14 +96,10 @@ class DependencyGroups:
     groups: tuple[DependencyGroup, ...]
 
     def release_pairs(self) -> list[tuple[str, str]]:
-        """The ``(name, version)`` of each resolved string PyPI may describe:
-        what to prefetch release info for. A direct reference (``name @ URL``)
-        is left out: PyPI's record of the name may be another project."""
-        return [
-            (declared.name, declared.version)
-            for declared in self.resolved
-            if not is_direct_reference(declared.dep)
-        ]
+        """The ``(name, version)`` of each package PyPI may describe
+        (:attr:`DependencyGroup.on_pypi`), once per package: what to prefetch
+        release info for, the key its lookup reads."""
+        return [(group.name, group.version) for group in self.groups if group.on_pypi]
 
 
 def group_dependencies(

@@ -32,15 +32,27 @@ from pitloom.core.project import ProjectMetadata
 
 _CONFLICT = "conflicts with declared exact pin"
 _DIRECT = "vendored @ https://example.invalid/vendored-1.0.tar.gz"
+#: A private package: a range and a direct reference make one package, which
+#: PyPI is never asked about.
+_PRIVATE = ["private>=1", "private @ https://example.invalid/private-1.0.whl"]
 
 
 def _project() -> ProjectMetadata:
     """A range, an exact pin, a pin the lock contradicts, a direct reference,
-    and a lock-resolved dependency no declared string names."""
+    a package one of whose strings is a direct reference, one release spelt
+    two ways, and a lock-resolved dependency no declared string names."""
     return ProjectMetadata(
         name="main-project",
         version="1.0.0",
-        dependencies=["requests>=2.0", "urllib3==2.0.0", "idna==3.0", _DIRECT],
+        dependencies=[
+            "requests>=2.0",
+            "urllib3==2.0.0",
+            "idna==3.0",
+            _DIRECT,
+            *_PRIVATE,
+            "Foo_Bar==1.0",
+            "foo-bar==1.0.0",
+        ],
         locked_dependencies=[
             "requests==2.31.0",
             "urllib3==2.0.0",
@@ -50,12 +62,24 @@ def _project() -> ProjectMetadata:
     )
 
 
+def _group_keys(project: ProjectMetadata) -> set[tuple[str, str]]:
+    """The ``(name, version)`` of each package of *project*, from the same
+    inputs :func:`build` derives, resolved apart from it."""
+    locked = {"requests": "2.31.0", "urllib3": "2.0.0", "idna": "3.4"}
+    grouped = project_dependencies(project, ["certifi==2024.1.1"], locked)
+    return {
+        (group.canonical_name, group.version)
+        for groups in (grouped.direct, grouped.transitive)
+        for group in groups.groups
+    }
+
+
 def test_prefetch_fetches_the_grouped_keys_and_the_resolution_runs_once(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The (name, version) pairs prefetched equal the packages built, minus the
-    direct reference; each declared string is resolved once and a conflict
-    warns once."""
+    """The (name, version) pairs prefetched equal the packages built, minus
+    those a direct reference names, once per package; each declared string
+    is resolved once and a conflict warns once."""
     fetched: list[tuple[str, str]] = []
 
     def _record(pairs: Any) -> dict[Any, Any]:
@@ -80,8 +104,8 @@ def test_prefetch_fetches_the_grouped_keys_and_the_resolution_runs_once(
         exporter = build(
             DocumentModel(project=project, creation_metadata=CreationMetadata())
         )
-    # Four declared strings and one lock-only string, each resolved once.
-    assert len(resolved) == 5
+    # Eight declared strings and one lock-only string, each resolved once.
+    assert len(resolved) == 9
     assert caplog.text.count(_CONFLICT) == 1
 
     graph = json.loads(exporter.to_json())["@graph"]
@@ -91,18 +115,15 @@ def test_prefetch_fetches_the_grouped_keys_and_the_resolution_runs_once(
         if e.get("type") == "software_Package" and e["name"] != project.name
     }
     prefetched = {(canonicalize_name(name), version) for name, version in fetched}
-    # The same inputs build() derives, resolved apart from it.
-    locked = {"requests": "2.31.0", "urllib3": "2.0.0", "idna": "3.4"}
-    grouped = project_dependencies(project, ["certifi==2024.1.1"], locked)
-    keys = {
-        (group.canonical_name, group.version)
-        for lst in (grouped.direct, grouped.transitive)
-        for group in lst.groups
+    referenced = {canonicalize_name("vendored"), canonicalize_name("private")}
+    assert {name for name, _ in built} >= referenced
+    assert all(is_direct_reference(dep) for dep in (_DIRECT, _PRIVATE[1]))
+    assert prefetched == _group_keys(project) - {
+        key for key in built if key[0] in referenced
     }
-    vendored = canonicalize_name("vendored")
-    assert any(is_direct_reference(dep) for dep in project.dependencies)
-    assert prefetched == {key for key in keys if key[0] != vendored}
-    assert prefetched == {key for key in built if key[0] != vendored}
+    assert prefetched == {key for key in built if key[0] not in referenced}
+    assert len(fetched) == len(prefetched)  # once per package
+    assert ("foo-bar", "1.0") in prefetched  # the version the package shows
     assert ("idna", "3.0") in prefetched  # the declared pin beats the lock
     assert ("requests", "2.31.0") in prefetched  # a range takes the locked version
     assert ("certifi", "2024.1.1") in prefetched  # lock-only

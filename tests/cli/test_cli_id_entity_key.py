@@ -293,11 +293,9 @@ _NO_VERSION = "stored without a version: holds only a package that states none"
         ("foo@2.0.0", "foo@2", "stored as foo@2"),
         ("foo@2", "foo@2", None),
         ("foo@1.0+CU-121", "foo@1+cu.121", "stored as foo@1+cu.121"),
-        ("%40scope/pkg@1.0", "%40scope/pkg@1", "stored as %40scope/pkg@1"),
         ("foo@NOASSERTION", "foo", _NO_VERSION),
     ],
-    ids=["bare", "versioned", "trailing-zeros", "canonical", "local"]
-    + ["at-in-name", "placeholder"],
+    ids=["bare", "versioned", "trailing-zeros", "canonical", "local"] + ["placeholder"],
 )
 def test_entity_package_key(
     tmp_path: Path,
@@ -320,6 +318,36 @@ def test_entity_package_key(
     assert entries == [((PACKAGE_TYPE, key), None)]
     said = [m for m in caplog.messages if m.startswith("ID registry: -e ")]
     assert said == ([] if info is None else [f"ID registry: -e {spec} {info}"])
+
+
+@pytest.mark.parametrize(
+    ("name", "hint"),
+    [
+        ("foo==1.0", "; write NAME@VERSION"),
+        ("foo>=1@2", ""),
+        ("foo 1.0", ""),
+        ("%40scope/pkg@1.0", ""),
+        ("foo-@1", ""),
+    ],
+    ids=["pip-pin", "specifier", "space", "percent", "trailing-dash"],
+)
+def test_entity_package_name_is_a_pep_508_name(
+    name: str, hint: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A package NAME that is no PEP 508 name is a typo no lookup would ever
+    read: exit 2, the argparse way, with the ``NAME@VERSION`` spelling when
+    ``==`` was typed; a valid one in any spelling is kept."""
+    spec = f"{name}:{PACKAGE_TYPE}"
+    with pytest.raises(SystemExit) as exc_info:
+        _build_parser().parse_args(["id", "generate", "-e", spec])
+
+    assert exc_info.value.code == 2
+    expected = f"argument -e/--entity: invalid package NAME in {spec!r}{hint}\n"
+    assert expected in capsys.readouterr().err
+    args = _build_parser().parse_args(
+        ["id", "generate", "-e", f"Foo_Bar.baz@1.0:{PACKAGE_TYPE}"]
+    )
+    assert args.entity == [(PACKAGE_TYPE, "Foo_Bar.baz@1.0")]
 
 
 def test_entity_entry_keeps_an_unlisted_type_as_given(tmp_path: Path) -> None:

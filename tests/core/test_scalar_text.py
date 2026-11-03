@@ -216,6 +216,23 @@ def test_a_numpy_scalar_is_spelt_as_its_python_value(
     assert scalar_type(value) == kind
 
 
+@pytest.mark.parametrize(
+    "unit", ["s", "D", "ns", "NaT"], ids=["seconds", "days", "nanoseconds", "nat"]
+)
+def test_a_numpy_timedelta_is_no_scalar(unit: str) -> None:
+    """NumPy registers ``timedelta64`` as an integer, but it is a duration in
+    a unit, which ``int()`` refuses for most units: never an integer here,
+    whatever the unit."""
+    numpy = pytest.importorskip("numpy")
+    # a NaT carries a unit too: the unitless spelling is deprecated in NumPy
+    stated = "s" if unit == "NaT" else unit
+    value = numpy.timedelta64("NaT" if unit == "NaT" else 5, stated)
+    assert scalar_type(value) is None
+    assert text_type(value) is None
+    with pytest.raises(TypeError, match="not a scalar"):
+        scalar_text(value)
+
+
 def test_a_stand_in_numpy_module_without_bool_is_harmless(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

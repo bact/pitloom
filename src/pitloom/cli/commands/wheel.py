@@ -97,11 +97,11 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     )
 
     if args.verbose:
+        # OUTPUT_PATH only for a copy written: --embed without -o writes none.
         given = options["project_dir"]
         project_dir = {} if given is None else {"PROJECT_DIR": given}
-        log_verbose(
-            WHEEL_FILE=wheel_path, OUTPUT_PATH=output_path or "-", **project_dir
-        )
+        output = {} if output_path is None else {"OUTPUT_PATH": output_path}
+        log_verbose(WHEEL_FILE=wheel_path, **output, **project_dir)
 
     if embed:
         # As embed-wheel: refuse before generating (that may run a build).

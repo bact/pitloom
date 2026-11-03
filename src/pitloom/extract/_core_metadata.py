@@ -19,6 +19,7 @@ from collections.abc import Iterable, Sequence
 from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
 
+from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.extract._license import classify_license, warn_unless_expression
 from pitloom.extract._license_resolve import resolve_value, say_resolved
 from pitloom.extract.authors import (
@@ -129,6 +130,16 @@ def _unfolded(value: str | None) -> str | None:
     if value is None:
         return None
     return _FOLD_RE.sub("\n", value)
+
+
+def _license_header(msg: _MessageLike, name: str) -> str | None:
+    """Licence header *name* of *msg*, unfolded (:func:`_unfolded`), or
+    ``None`` when absent or a whole Git LFS pointer: a licence file not
+    pulled, which a build backend wrote in as its text, states no licence
+    (:func:`pitloom.extract._license.stated_license` reads a pointer hint
+    the same way)."""
+    value = _unfolded(_get_str(msg, name))
+    return None if value is not None and is_pointer_text(value) else value
 
 
 #: The one ``License ::`` classifier that is a category in the trove list,
@@ -259,14 +270,15 @@ def core_metadata_license_with_source(
     text (:attr:`importlib.metadata.Distribution.metadata` has removed the
     fold already); the provenance names the classifier when one was used. When
     none states a licence: ``None`` if neither header is present, ``""`` if
-    one is present but blank (declared "no value", not absent). A
+    one is present but blank (declared "no value", not absent). A header
+    that is a whole Git LFS pointer is absent (:func:`_license_header`). A
     ``License-Expression`` that is no SPDX expression is recorded as text
     with a ``WARNING:`` (:func:`~pitloom.extract._license.warn_unless_expression`);
     a ``License`` text is free text, quiet.
     """
     fields = [
-        _unfolded(_get_str(msg, "License-Expression")),
-        _unfolded(_get_str(msg, "License")),
+        _license_header(msg, "License-Expression"),
+        _license_header(msg, "License"),
     ]
     index, licence = license_cascade(fields, msg.get_all("Classifier") or [])
     if index is None:

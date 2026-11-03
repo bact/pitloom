@@ -168,13 +168,21 @@ def escape_display_controls_in_json(text: str) -> str:
     escaped strings. The text is decoded first, since JCS writes a C0
     control as an escape (``\\u001b``), and written back with RFC 8785 only
     when a string changed; *text* itself otherwise. Text that is not JSON
-    is escaped as display text."""
+    is escaped as display text.
+
+    Written back, a lone surrogate the text escaped (``"\\ud800"``, which
+    no UTF-8 can hold) is :func:`escape_lone_surrogates`'d too. Two keys of
+    one object that escape to the same text (``a`` and U+202E, and the
+    seven characters ``a\\u202e``) are one key: the later one in the text
+    stays, as a JSON parser keeps a repeated key."""
     try:
         data = json.loads(text, parse_int=_json_int)
     except ValueError:
         return escape_display_controls(text)
     shown = _escape_strings(data)
-    return text if shown == data else canonical_json(shown)
+    if shown == data:
+        return text
+    return canonical_json(escape_lone_surrogates_in(shown)[0])
 
 
 def escape_display_controls_in_iri(text: str) -> str:

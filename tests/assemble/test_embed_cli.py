@@ -211,33 +211,28 @@ def test_cli_embed_wheel_pregenerated_sbom(
         )
 
 
+@pytest.mark.parametrize("output", ["file", "-", None], ids=["file", "stdout", "none"])
 def test_cli_wheel_embed_verbose_and_output(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    output: str | None,
 ) -> None:
-    """Test `loom wheel --embed` with --verbose and explicit -o."""
+    """`loom wheel --embed -v` logs ``OUTPUT_PATH`` only for a copy it
+    writes: a file, or ``-`` for standard output; none without ``-o``."""
     wheel_path = _make_dummy_wheel(tmp_path, "verbosepkg", "1.0.0")
     out_file = tmp_path / "standalone.spdx3.json"
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "loom",
-            "wheel",
-            str(wheel_path),
-            "--embed",
-            "-v",
-            "-o",
-            str(out_file),
-        ],
-    )
+    target = str(out_file) if output == "file" else output
+    flags = [] if target is None else ["-o", target]
+    argv = ["loom", "wheel", str(wheel_path), "--embed", "-v", *flags]
+    monkeypatch.setattr(sys, "argv", argv)
     assert __main__.main() == 0
     captured = capsys.readouterr()
-    assert info_kv(captured.err)["OUTPUT_PATH"] == str(out_file)
-    assert sbom_output_path(captured.out) == str(out_file)
-    assert out_file.exists()
+    assert info_kv(captured.err).get("OUTPUT_PATH") == target
+    assert "WHEEL_FILE" in info_kv(captured.err)
+    if output == "file":
+        assert sbom_output_path(captured.out) == str(out_file)
+    assert out_file.exists() is (output == "file")
 
 
 def test_cli_embed_wheel_error_verbose(

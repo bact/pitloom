@@ -15,6 +15,8 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from packaging.utils import InvalidName, canonicalize_name
+
 from pitloom.cli._id_entity import entity_entry
 from pitloom.cli._id_target import (
     _log_config_hint,
@@ -107,7 +109,8 @@ def _entity_arg(text: str) -> tuple[str, str]:
     part of NAME: a trailing ``:``, a suffix shaped like a compact type, a
     known one in another case or with whitespace around it, a control
     character (a newline) anywhere, and an empty or blank NAME, or package
-    name before a ``software_Package``'s ``@VERSION``.
+    name before a ``software_Package``'s ``@VERSION``, or one that is no
+    PEP 508 name (:func:`_name_problem`).
     """
     if any(unicodedata.category(char) == "Cc" for char in text):
         raise argparse.ArgumentTypeError(f"control character in {text!r}")
@@ -124,10 +127,27 @@ def _entity_arg(text: str) -> tuple[str, str]:
         )
     else:
         name, type_name = text, AI_PACKAGE_TYPE
+    problem = _name_problem(type_name, name)
+    if problem is not None:
+        raise argparse.ArgumentTypeError(f"{problem[0]} in {text!r}{problem[1]}")
+    return type_name, name
+
+
+def _name_problem(type_name: str, name: str) -> tuple[str, str] | None:
+    """``(problem, hint)`` for a NAME that is empty or blank, or for a
+    ``software_Package`` NAME (before its ``@VERSION``) that is blank or no
+    PEP 508 name (a specifier, a space: no package a lookup reads has it),
+    with the spelling a version takes when ``==`` was typed; else ``None``."""
     stated = name.partition("@")[0] if type_name == PACKAGE_TYPE else name
     if not stated.strip():
-        raise argparse.ArgumentTypeError(f"no NAME in {text!r}")
-    return type_name, name
+        return "no NAME", ""
+    if type_name != PACKAGE_TYPE:
+        return None
+    try:
+        canonicalize_name(stated, validate=True)
+    except InvalidName:
+        return "invalid package NAME", "; write NAME@VERSION" if "==" in name else ""
+    return None
 
 
 def _default_id_generate_paths(project_dir: Path) -> list[Path]:
