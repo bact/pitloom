@@ -62,6 +62,13 @@ the last section for history.
   between a local and a CI failure. Pin the local command to CI's paths, or
   lint `scripts/` in CI.
   *Found 2026-10-30 (`magika`) and 2026-11-02, process and tooling.*
+- [ ] **The release gate fails on an upstream 5xx (S, process).** The
+  `Network-dependent tests (strict)` job reads real hosts; for the 0.22.1 tag
+  its first run failed on an HTTP 500 from Savannah on 2026-11-03, and the
+  re-run of the failed jobs passed before the upload. Mitigation now: re-run
+  and say so in the release record. Next: a retry in the tests that call such
+  a host, as a separate tests-only PR.
+  *Found 2026-11-03, review of the 0.22.1 release.*
 
 ## Fixed
 

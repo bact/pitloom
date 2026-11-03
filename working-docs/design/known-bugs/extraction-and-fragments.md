@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,8 @@ rules for adding an entry), [roadmap.md](../roadmap.md),
 [canonical-output-followups.md](../canonical-output-followups.md).
 
 Reading project, environment, lock-file and installed-package metadata;
-dependency versions and direct references; fragments and `loom merge`. Entries
+dependency versions and direct references; fragments and `loom merge`; the
+model-usage scan (`extract/scanner.py`). Entries
 are ranked by priority tier, then by size tag; see the severity scale in the
 index. Open entries come first; fixed entries stay in the last section for
 history.
@@ -126,6 +127,47 @@ the one list.
   in the recent merges, not written there; watch it.
   *Found 2026-11-02, cold review of the merges since 0.22.0 (read from the
   code, not measured).*
+- [ ] **`setup.py` and `setup.cfg` parsing probably crash on a deep chain on
+  Python 3.10 (S-M).** #432 fixed the Python 3.10 segfault of `ast.parse` on a
+  very long call or attribute chain for the usage scan, by parsing in a thread
+  with a larger stack. The other `ast.parse` callers have no such guard:
+  `extract/project/setuptools_py.py`,
+  `extract/project/_setup_cfg_directives.py` and
+  `core/_models_wheel_setuptools.py`. Not run on a 3.10 build; the repro is
+  the usage scan's (a chain of about 150,000 links under `ulimit -s 2048`).
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Usage scan: a long method-call chain costs about 37 us a link (S).**
+  About 40 to 48 s a MiB on Python 3.10, inside the caps, so a hostile script
+  is slow, not wrong. A three-line change to the receiver walk near
+  `_call_path` (`extract/_usage_ast.py`) was tested by a reviewer at about 4
+  times faster with identical output on 15,000 fuzz programs, but it turns
+  `_OverCap` into `None` beyond the cap, which changes what the caller reports
+  there. Decide that first.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Usage scan: `raise ValueError(...) from load(P)` gives no edge (S).**
+  `_call_access` (`extract/_usage_ast.py`) treats a call whose parent is a
+  `Raise` as a mention, and the `from` cause has that same parent, so a
+  `load(P)` that does read `P` there is dropped like `raise Error(P)`.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Usage scan: a path used only in a name or an f-string stays `unknown
+  access` (S).** `print(Path(P).name)` and `msg = f"bad {P}"; raise
+  ValueError(msg)` still give `unknown access`, not a `read access` edge nor
+  a mention.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Usage scan: a latin-1 coding cookie skips the file, and
+  `open(b"model.pkl")` is not matched (S).** A `.py` file with `# -*- coding:
+  latin-1 -*-` is skipped as `[file-unreadable/not-utf8]` (the scan reads
+  UTF-8 only), and a bytes path in `open(...)` is not taken as the model's
+  name.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Usage scan: the parse thread's stack on a free-threaded build and on
+  Windows (low, note).** `_start_with_stack` (`extract/_usage_parse.py`) sets
+  the stack size, starts the thread and puts the size back in one run of C
+  calls, so under the GIL no other thread starts one with the scan's size. A
+  free-threaded build (3.13t, 3.14t) has no such guarantee. On Windows the
+  parse thread's stack is committed, up to 128 MiB for a 1 MiB file on Python
+  3.10. Noted, not measured further.
+  *Found 2026-11-03, review of the 0.22.1 release.*
 
 ## Fixed
 
@@ -222,3 +264,9 @@ release ships.
   `_dep_groups.group_dependencies`, so the version it fetches can drift from
   the one the grouped rule states.
   *Found 2026-10-30, from #407 (registry package key).*
+- [x] **A host thread started during the usage scan's thread start may get the
+  8 MiB floor (low, decided: kept).** From Python 3.12 an audit hook (the
+  host's, or the one `core/_models_wheel_unlistable.py` installs for good)
+  runs between the stack-size set and the thread start, and other threads run
+  with it. Documented in `_start_with_stack`; harmless.
+  *Found 2026-11-03, review of the 0.22.1 release.*
