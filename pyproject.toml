@@ -212,6 +212,8 @@ exclude = [
     ".markdownlint.json",
     ".markdownlintignore",
     "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
     "tests/fixtures/spdx-model",
     "tests/fixtures/aimodels/crfsuite/*.crfsuite",
     "tests/fixtures/aimodels/crfsuite/*.model",
@@ -240,7 +242,8 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pitloom"]
-exclude = ["tests/fixtures/"]
+# The agent instruction files stay out of the wheel too, whatever the layout.
+exclude = ["tests/fixtures/", "AGENTS.md", "CLAUDE.md", "GEMINI.md"]
 
 [tool.hatch.version]
 path = "src/pitloom/__about__.py"
