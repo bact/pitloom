@@ -17,7 +17,8 @@ Paths are followed within one file: a name assigned once, ``Path(...) / "x"``,
 another module, a call's result or a configuration file is not seen.
 
 See also: :mod:`pitloom.extract._usage_table` (the calls),
-:mod:`pitloom.extract._usage_match` (what names a model) and
+:mod:`pitloom.extract._usage_match` (what names a model),
+:mod:`pitloom.extract._usage_parse` (the parse) and
 :mod:`pitloom.extract.scanner` (``attach_usage_references``: the file
 reading, the pre-filter and the messages).
 """
@@ -26,8 +27,6 @@ from __future__ import annotations
 
 import ast
 import collections
-import sys
-import warnings
 from collections.abc import Sequence
 from typing import Any, Final
 
@@ -51,13 +50,7 @@ from pitloom.extract._usage_table import (
     is_mention_call,
 )
 
-__all__ = ["PARSE_ERRORS", "find_usages", "parse_python", "python_version"]
-
-#: What parsing a file can raise besides a mistake in it: a null byte
-#: (``ValueError`` before Python 3.12), a tree too deep for the parser
-#: (``MemoryError``) or the compiler (``RecursionError``). A file can also
-#: fail only on this Python: syntax it is too old to know.
-PARSE_ERRORS: Final = (SyntaxError, ValueError, MemoryError, RecursionError)
+__all__ = ["find_usages"]
 
 #: Caps on following one path expression. An expression over either is not
 #: followed at all (no edge from it), not read as its tail.
@@ -88,28 +81,6 @@ _TYPE_PARAMS: Final[tuple[type[Any], ...]] = tuple(
 
 class _OverCap(Exception):
     """A path expression is deeper or longer than the caps allow."""
-
-
-def python_version() -> str:
-    """The running interpreter as ``3.10``: the grammar a file was read as."""
-    return f"{sys.version_info.major}.{sys.version_info.minor}"
-
-
-def parse_python(text: str) -> ast.Module:
-    """*text* as a module tree. A leading byte-order mark is dropped. An
-    invalid escape (``"data\\model.ftz"``) only warns on the way, whatever
-    the user's warning filters say, so the warning is dropped.
-
-    Raises:
-        SyntaxError: Not Python of this interpreter's grammar (or, after
-            3.12, a null byte).
-        ValueError: A null byte (before Python 3.12).
-        MemoryError: The source nests too deeply for the parser.
-        RecursionError: The source nests too deeply for the compiler.
-    """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return ast.parse(text.removeprefix("\ufeff"))
 
 
 def _import_aliases(tree: ast.AST) -> dict[str, str]:

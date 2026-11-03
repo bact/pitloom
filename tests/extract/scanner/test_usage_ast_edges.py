@@ -22,8 +22,9 @@ import time
 import pytest
 
 from pitloom.core.model_usage import UsageAccess
-from pitloom.extract._usage_ast import find_usages, parse_python
+from pitloom.extract._usage_ast import find_usages
 from pitloom.extract._usage_match import UsageModel
+from pitloom.extract._usage_parse import parse_python
 
 from ._usage_helpers import accesses
 

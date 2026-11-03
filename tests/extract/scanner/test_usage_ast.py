@@ -21,8 +21,9 @@ import warnings
 import pytest
 
 from pitloom.core.model_usage import UsageAccess, combine_access
-from pitloom.extract._usage_ast import find_usages, parse_python, python_version
+from pitloom.extract._usage_ast import find_usages
 from pitloom.extract._usage_match import UsageModel
+from pitloom.extract._usage_parse import parse_python, python_version
 
 _MODEL = UsageModel("model.ftz", ("pkg/data/model.ftz", "src/pkg/data/model.ftz"))
 
