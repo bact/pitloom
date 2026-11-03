@@ -23,7 +23,7 @@ Size: S under half a day, M about a day.
 
 ## Planned releases (decided 2026-10-30)
 
-- 0.22.1 (released 2026-11-03, #413-#429): small remaining bug fixes. (The
+- 0.22.1 (released 2026-11-03, #413-#433): small remaining bug fixes. (The
   path-in-message fix, #410, landed before the 0.22.0 tag.) Also re-run the
   0.22.0 release checks that were left to CI (decided 2026-10-30): the full
   manual CLI checks, the CHANGELOG-against-merged-PRs cross-check, the

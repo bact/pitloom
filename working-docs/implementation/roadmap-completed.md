@@ -469,7 +469,7 @@ stood there. Open items:
 - [x] **ID registry format 4** (#407): a package keyed by name and version;
   format 3 is refused.
 
-## Shipped in 0.22.1 (PRs #413-#429)
+## Shipped in 0.22.1 (PRs #413-#433)
 
 Released 2026-11-03. Fixes found in the cold reviews of 2026-11-02 and the
 re-run of the 0.22.0 release checks. Open items:
@@ -486,7 +486,11 @@ re-run of the 0.22.0 release checks. Open items:
   ...}`, a wheel, an sdist `PKG-INFO` and an installed `.dist-info`.
 - [x] **Readers** (#426, #427): Keras, PT2 and fastText (label cap), GGUF
   (non-UTF-8 strings, hyperparameter suffixes), blank GGUF, Safetensors and
-  ONNX text fields.
+  ONNX text fields (#433: a PT2 tag holding a lone surrogate is kept).
+- [x] **Usage scan limits** (#432): a long expression chain no longer crashes
+  Python 3.10 (the parse runs on a stack sized to the script); calls with many
+  arguments, keywords or nested conditionals take linear time; a constant only
+  put in a message gives no edge.
 - [x] **Small fixes** (#429): `loom id generate -e` refuses a package name that
   is not a PEP 508 name; `wheel --embed -v` without `-o` logs no
   `OUTPUT_PATH`; `numpy.timedelta64` in canonical JSON; display escaping of a
