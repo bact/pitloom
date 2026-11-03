@@ -11,10 +11,13 @@ C. Python 3.10 checks no depth there and overflows the stack: the process
 dies with no message, at about 40,000 links on a 2 MiB stack (the main thread
 on Windows) and 130,000 on 8 MiB. Python 3.11 to 3.13 raise
 ``RecursionError`` on a stack of 2 MiB or more, but still crash on a thread
-of 512 KiB. So the parse runs in a thread of its own whose stack grows with
-the text: a link takes two characters or more and about 64 bytes of stack
-(CPython 3.10 on Linux), so :data:`_PARSE_STACK_PER_CHAR` leaves a fourfold
-margin for the 1 MiB the usage scan reads.
+of 512 KiB. So the parse runs in a thread of its own, with a stack of 8 MiB.
+On Python 3.10 that stack grows with the text: a link takes two characters
+or more and about 64 bytes of stack (CPython 3.10 on Linux), so
+:data:`_PARSE_STACK_PER_CHAR` leaves a fourfold margin for the 1 MiB the
+usage scan reads. Later versions keep 8 MiB, the depth they refuse on the
+main thread of Linux (3.14 measures its stack, and would read deeper chains
+on a larger one).
 
 See also: :mod:`pitloom.extract._usage_ast` (the walk of the tree) and
 :mod:`pitloom.extract._usage_attach` (what a parse failure says).
@@ -46,6 +49,8 @@ _MIB: Final = 1024 * 1024
 _PARSE_STACK_PER_CHAR: Final = 128
 _PARSE_STACK_FLOOR: Final = 8 * _MIB
 _PARSE_STACK_CEILING: Final = 255 * _MIB
+#: Whether this Python checks the depth of the tree it builds (3.11 or later).
+_CHECKS_DEPTH: Final = sys.version_info >= (3, 11)
 #: ``threading.stack_size`` is process-wide: one caller sets it at a time.
 _STACK_SIZE_LOCK: Final = Lock()
 
@@ -62,9 +67,12 @@ def _parse(source: str) -> ast.Module:
         return ast.parse(source)
 
 
-def stack_bytes(chars: int) -> int:
+def stack_bytes(chars: int, *, checks_depth: bool = _CHECKS_DEPTH) -> int:
     """The parse thread's stack for a text of *chars* characters, in whole
-    MiB between the floor and the ceiling."""
+    MiB between the floor and the ceiling; the floor on a Python that
+    *checks_depth*."""
+    if checks_depth:
+        return _PARSE_STACK_FLOOR
     wanted = -(-chars * _PARSE_STACK_PER_CHAR // _MIB) * _MIB
     return min(max(wanted, _PARSE_STACK_FLOOR), _PARSE_STACK_CEILING)
 

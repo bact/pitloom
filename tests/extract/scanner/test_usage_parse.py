@@ -94,12 +94,20 @@ def test_a_long_chain_does_not_crash_a_small_stack(chain: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("chars", "expected"),
-    [(0, 8 * _MIB), (_MIB, 128 * _MIB), (_MIB + 1, 129 * _MIB), (4 * _MIB, 255 * _MIB)],
-    ids=["floor", "per-char", "whole-mib", "ceiling"],
+    ("chars", "checks_depth", "expected"),
+    [
+        (0, False, 8 * _MIB),
+        (_MIB, False, 128 * _MIB),
+        (_MIB + 1, False, 129 * _MIB),
+        (4 * _MIB, False, 255 * _MIB),
+        (_MIB, True, 8 * _MIB),
+    ],
+    ids=["floor", "per-char", "whole-mib", "ceiling", "checked-depth"],
 )
-def test_the_parse_stack_grows_with_the_text(chars: int, expected: int) -> None:
-    assert _usage_parse.stack_bytes(chars) == expected
+def test_the_parse_stack_grows_with_the_text_on_python_3_10(
+    chars: int, checks_depth: bool, expected: int
+) -> None:
+    assert _usage_parse.stack_bytes(chars, checks_depth=checks_depth) == expected
 
 
 def test_the_stack_size_is_restored_after_a_parse() -> None:
