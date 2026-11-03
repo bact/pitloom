@@ -127,7 +127,7 @@ Values are exact; "stub" is the format-only entry described above.
 | Model card | 1 MiB (1048576 bytes) of the `README.md`/`MODEL_CARD.md` next to a model; only its YAML frontmatter is used, and a card is read by its path, a symlink into a Hugging Face cache's `blobs/` too | `--enrich`, `loom enrich` | No | A frontmatter closed within the cap is used as from the whole card, and a card starting with none has none: no log line. One not closed within it is skipped, once per card: `WARNING: FILE=<path>: larger than the 1048576-byte model-card cap; frontmatter not closed within it; skipped \| Field(s) affected (skipped): license, datasets` |
 | Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
 | Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; not UTF-8: <failure> [file-unreadable/not-utf8]` |
-| Usage-scan syntax | Valid Python of the running interpreter's version (only checked when the file's text mentions a model file name) | The same | No | No relationship recorded: `WARNING: FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure> [usage-unparseable]` and `INFO: FILE=<path> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]` |
+| Usage-scan syntax | Valid Python of the running interpreter's version (only checked when the file's text mentions a model file name); Python 3.11 or later also refuses an expression chained too deeply (a few thousand `.name`, `()` or `+` in a row on Python 3.11, tens of thousands on 3.14), as `nested too deeply`; so does Python 3.10 for a file of more than 65,536 characters when no thread with a stack of 8 MiB or more can be started for its parse | The same | No | No relationship recorded: `WARNING: FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure> [usage-unparseable]` and `INFO: FILE=<path> MODEL=<name>: model file name found; no usage relationship recorded [usage-unparseable/mention]` |
 | Usage-scan file name | A lower-case `.py` extension (the only one Python imports); `.PY` is not read | The same | No | Not read, said once per file when a model was found: `WARNING: FILE=<path>: not scanned for usage; only a .py extension is read as Python [usage-unusable]` |
 | Usage-scan path expression | Depth 64 and 4096 characters of one path expression (nested calls, concatenations, f-strings, `.format`, `%`, constants built from constants) | `--scan-model-usage`, project and wheel scans | No | The expression is not followed: no relationship from it, no log line (a path that deep or long is no model path) |
 | Artifact-metadata size | Unlimited by default | The verbatim metadata annotation of any model | `max-source-metadata-bytes`, `--max-source-metadata-bytes` | Largest entries dropped first and marked truncated; see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation) |
@@ -277,11 +277,13 @@ that table:
   `os.path.join`, f-strings, `.format()` and `%` within one file) are matched
   against the model's file name and directory suffix, then classified by the
   enclosing call or open mode. Comments, docstrings and mention-only calls
-  (`print`, logging, exceptions) produce no edge. A path built dynamically at
-  run time, imported from another module, read from a config file, or inside a
-  notebook is missed. A `.py` file that mentions a model name but cannot be
-  parsed by the running Python gives `WARNING: FILE=<path>: could not parse as
-  Python <x.y> for usage scanning; <failure> [usage-unparseable]`, one
+  (`print`, logging, exceptions) produce no edge, nor does a constant read
+  only to build their message (`print(f"loading {MODEL}")`). A path built
+  dynamically at run time, imported from another module, read from a config
+  file, or inside a notebook is missed. A `.py` file that mentions a model
+  name but cannot be parsed by the running Python gives `WARNING:
+  FILE=<path>: could not parse as Python <x.y> for usage scanning; <failure>
+  [usage-unparseable]`, one
   `INFO: FILE=<path> MODEL=<name>: model file name found; no usage
   relationship recorded [usage-unparseable/mention]` per model file name, and
   no edge.

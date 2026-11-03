@@ -8,8 +8,9 @@ usage scan that works on a script's text, after the scanner has read it.
 
 See also: :mod:`pitloom.extract.scanner` (``attach_usage_references``: which
 scripts are read, and the caps), :mod:`pitloom.extract._usage_ast` (the tree
-walk) and :mod:`pitloom.messages._usage_unparseable` (the two lines said for a
-script that cannot be parsed).
+walk), :mod:`pitloom.extract._usage_parse` (the parse) and
+:mod:`pitloom.messages._usage_unparseable` (the two lines said for a script
+that cannot be parsed).
 """
 
 from __future__ import annotations
@@ -21,13 +22,9 @@ from typing import TYPE_CHECKING
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.model_usage import ModelUsage, combine_access
 from pitloom.core.project import project_relative_or_fallback
-from pitloom.extract._usage_ast import (
-    PARSE_ERRORS,
-    find_usages,
-    parse_python,
-    python_version,
-)
+from pitloom.extract._usage_ast import find_usages
 from pitloom.extract._usage_match import UsageModel
+from pitloom.extract._usage_parse import PARSE_ERRORS, parse_python, python_version
 from pitloom.logging_config import loggable
 from pitloom.messages import USAGE_UNPARSEABLE, USAGE_UNPARSEABLE_MENTION, emit
 

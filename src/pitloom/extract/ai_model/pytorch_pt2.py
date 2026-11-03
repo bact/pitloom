@@ -11,6 +11,7 @@ References:
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from collections.abc import Callable
@@ -32,6 +33,7 @@ from pitloom.core.model_originators import (
 )
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
+from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     read_archive_member,
@@ -230,10 +232,21 @@ def _tag_text(tag: object) -> str:
     """One ``extra/tags`` element as text: an array or an object as its
     :func:`~pitloom.core.canonical_json.canonical_json` (key order and
     number spelling fixed), anything else its
-    :func:`~pitloom.core.ai_metadata.source_element_text`."""
-    if isinstance(tag, (list, dict)):
+    :func:`~pitloom.core.ai_metadata.source_element_text`.
+
+    RFC 8785 cannot write a lone surrogate (``"\\ud800"``, which
+    ``json.loads`` accepts) in a string or a key, and raises
+    :class:`ValueError`: a collection holding one is written from a copy with
+    each escaped
+    (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates_in`), as a
+    string tag is by :func:`~pitloom.extract.ai_model.limits.cap_and_warn`.
+    *tag* itself stays as read, so that call still says so once."""
+    if not isinstance(tag, (list, dict)):
+        return source_element_text(tag)
+    try:
         return canonical_json(tag)
-    return source_element_text(tag)
+    except ValueError:
+        return canonical_json(escape_lone_surrogates_in(copy.deepcopy(tag))[0])
 
 
 def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
