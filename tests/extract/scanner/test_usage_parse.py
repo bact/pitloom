@@ -21,7 +21,7 @@ import logging
 import sys
 import threading
 from contextlib import AbstractContextManager
-from unittest.mock import create_autospec, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -116,30 +116,60 @@ def test_the_stack_size_is_restored_after_a_parse() -> None:
     assert threading.stack_size() == before
 
 
+def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
+    # A thread the host starts while the size is set would get the parse
+    # thread's stack (up to 255 MiB). A watcher that reads the size whenever
+    # it holds the interpreter, switched to as often as it allows, must only
+    # ever see the size the host set.
+    before = threading.stack_size()
+    seen: set[int] = set()
+    stop = threading.Event()
+
+    def watch() -> None:
+        while not stop.is_set():
+            seen.add(threading.stack_size())
+
+    interval = sys.getswitchinterval()
+    watcher = threading.Thread(target=watch, daemon=True)
+    sys.setswitchinterval(1e-6)
+    try:
+        watcher.start()
+        for _ in range(200):
+            _usage_parse.parse_python("x = 1\n")
+    finally:
+        stop.set()
+        watcher.join()
+        sys.setswitchinterval(interval)
+    assert seen == {before}
+
+
 @pytest.mark.parametrize("refused", ["stack-size", "thread"])
 def test_a_refused_stack_or_thread_parses_on_the_callers_stack(
     refused: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     sizes: list[int] = []
 
-    def fake_stack_size(size: int = 0) -> int:
-        if refused == "stack-size" and size:
+    def fake_stack_size(*size: int) -> int:
+        if refused == "stack-size" and size and size[0]:
             raise ValueError("size not valid")
-        sizes.append(size)
+        sizes.extend(size)
         return 0
 
-    thread = create_autospec(threading.Thread, instance=True)
-    thread.start.side_effect = RuntimeError("can't start new thread")
     with (
         patch.object(_usage_parse, "stack_size", side_effect=fake_stack_size),
-        patch.object(_usage_parse, "Thread", return_value=thread),
+        patch.object(
+            _usage_parse,
+            "start_new_thread",
+            autospec=True,
+            side_effect=RuntimeError("can't start new thread"),
+        ) as start,
         caplog.at_level(logging.DEBUG, logger="pitloom.extract.scanner"),
     ):
         tree = _usage_parse.parse_python('open("model.onnx")\n')
     assert tree.body
-    # A size set is put back; the thread never ran, so it is never joined.
-    assert sizes == ([] if refused == "stack-size" else [8 * _MIB, 0])
-    thread.join.assert_not_called()
+    # The size the host had is put back, whichever step was refused.
+    assert sizes == ([0] if refused == "stack-size" else [8 * _MIB, 0])
+    assert start.call_count == (refused == "thread")
     assert len(caplog.records) == 1
 
 

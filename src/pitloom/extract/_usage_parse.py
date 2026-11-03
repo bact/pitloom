@@ -29,7 +29,11 @@ import ast
 import logging
 import sys
 import warnings
-from threading import Lock, Thread, stack_size
+from _thread import allocate_lock, start_new_thread
+from collections import deque
+from collections.abc import Callable
+from functools import partial
+from threading import Lock, stack_size
 from typing import Final
 
 __all__ = ["PARSE_ERRORS", "parse_python", "python_version", "stack_bytes"]
@@ -77,19 +81,29 @@ def stack_bytes(chars: int, *, checks_depth: bool = _CHECKS_DEPTH) -> int:
     return min(max(wanted, _PARSE_STACK_FLOOR), _PARSE_STACK_CEILING)
 
 
-def _start_with_stack(worker: Thread, size: int) -> bool:
-    """Start *worker* with a stack of *size* bytes; ``False`` when the size
-    or the thread is refused (it is then not started)."""
+def _start_with_stack(work: Callable[[], None], size: int) -> bool:
+    """Run *work* on a new thread with a stack of *size* bytes; ``False``
+    when the size or the thread is refused (it is then not started).
+
+    ``threading.stack_size`` is process-wide, so the size is set, the thread
+    started and the size put back in one C loop (``map`` over ``partial``
+    calls): the interpreter switches threads only between bytecodes, so no
+    other Python thread, the host's included, runs while the size is set.
+    ``_thread.start_new_thread`` returns once the thread exists, without
+    waiting for it to run as ``threading.Thread.start`` does (that wait lets
+    other threads run and start theirs with this size).
+    """
     with _STACK_SIZE_LOCK:
+        previous = stack_size()
+        steps = (
+            partial(stack_size, size),
+            partial(start_new_thread, work, ()),
+            partial(stack_size, previous),
+        )
         try:
-            previous = stack_size(size)
+            deque(map(partial.__call__, steps), maxlen=0)
         except (ValueError, RuntimeError) as exc:
-            log.debug("Usage scan: stack size %d refused: %s", size, exc)
-            return False
-        try:
-            worker.start()
-        except RuntimeError as exc:
-            log.debug("Usage scan: parse thread not started: %s", exc)
+            log.debug("Usage scan: no parse thread with a %d-byte stack: %s", size, exc)
             return False
         finally:
             stack_size(previous)
@@ -112,6 +126,8 @@ def parse_python(text: str) -> ast.Module:
     """
     source = text.removeprefix("\ufeff")
     outcome: list[ast.Module | BaseException] = []
+    done = allocate_lock()
+    done.acquire()
 
     def work() -> None:
         try:
@@ -119,11 +135,12 @@ def parse_python(text: str) -> ast.Module:
         # pylint: disable-next=broad-exception-caught
         except BaseException as exc:  # raised again in the caller's thread
             outcome.append(exc)
+        finally:
+            done.release()
 
-    worker = Thread(target=work, name="pitloom-usage-parse")
-    if not _start_with_stack(worker, stack_bytes(len(source))):
+    if not _start_with_stack(work, stack_bytes(len(source))):
         return _parse(source)
-    worker.join()
+    done.acquire()
     result = outcome.pop()
     if isinstance(result, BaseException):
         raise result
