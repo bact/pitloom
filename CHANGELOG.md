@@ -22,6 +22,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- The sdist no longer holds dangling `CLAUDE.md`/`GEMINI.md` links; the sdist
+  and the wheel contain none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` ([#435])
+
+[#435]: https://github.com/bact/pitloom/pull/435
+
 ## [0.22.1] - 2026-11-03
 
 ### Added
