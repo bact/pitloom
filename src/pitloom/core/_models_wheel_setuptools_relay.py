@@ -35,6 +35,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pitloom.core.quote_source import quote_source
+from pitloom.core.warning_capture import WARNINGS_LOCK, recorded_in_thread
 from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
@@ -83,6 +84,11 @@ def _relayed_stderr(project_dir: Path) -> Iterator[None]:
             relay_stderr_text(project_dir, sink.text(), sink.dropped)
 
 
+def _any_warning(message: Warning | str) -> bool:
+    del message
+    return True
+
+
 @contextmanager
 def relay_setuptools_output(project_dir: Path) -> Iterator[None]:
     """Relay what setuptools says in the block, in this thread, as tagged
@@ -90,21 +96,29 @@ def relay_setuptools_output(project_dir: Path) -> Iterator[None]:
     raises.
 
     The warning filters are changed only inside
-    :func:`warnings.catch_warnings`, restored on exit; that is process-wide
-    state, so a warning another thread raises meanwhile is recorded too --
+    :func:`warnings.catch_warnings`, restored on exit, under
+    :data:`pitloom.core.warning_capture.WARNINGS_LOCK`, so no other block of
+    Pitloom that changes them overlaps this one. They are process-wide
+    state: meanwhile a warning of another thread is given under ``always``
+    too, and goes on to Python, not into this record
+    (:func:`pitloom.core.warning_capture.recorded_in_thread`).
     :func:`pitloom.core._models_wheel_setuptools.discover` runs under the
     discovery lock's exclusive mode, which keeps every other discovery out.
     """
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        try:
-            with _relayed_stderr(project_dir):
+    caught: list[warnings.WarningMessage] = []
+    try:
+        with WARNINGS_LOCK, warnings.catch_warnings():
+            warnings.simplefilter("always")
+            with (
+                recorded_in_thread(_any_warning) as caught,
+                _relayed_stderr(project_dir),
+            ):
                 yield
-        finally:
-            for warning in caught:
-                log.debug(
-                    "%s: setuptools %s: %s",
-                    quote_source(project_dir),
-                    warning.category.__name__,
-                    one_line(warning.message),
-                )
+    finally:
+        for warning in caught:
+            log.debug(
+                "%s: setuptools %s: %s",
+                quote_source(project_dir),
+                warning.category.__name__,
+                one_line(warning.message),
+            )

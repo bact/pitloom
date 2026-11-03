@@ -7,24 +7,29 @@
 (:mod:`pitloom.extract._licenseid_relay`).
 
 See also: tests/test_licence_db_missing_surfaces.py (the relay on the CLI,
-library and hook surfaces).
+library and hook surfaces), tests/core/test_warning_capture.py (the relay
+and Pitloom's other warning blocks in threads).
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 import warnings
 from pathlib import Path
 
 import pytest
-from licenseid import LicenseDetector, get_default_db_path, resolve
+from licenseid import get_default_db_path, resolve
 from licenseid import warning as licenseid_warning
 
+from pitloom.extract import _license
 from pitloom.extract import _licenseid_relay as relay
-from pitloom.extract._license import detect_license_from_text
+from pitloom.extract._license import detect_license_from_text, resolve_declared_value
+from tests._licenseid_warn import as_licenseid, warn_from_pitloom
 
 _LOGGER = relay.__name__
 _OUTDATED = "database: build v2 outdated: current v3; run 'licenseid update'"
+_GUESS = "licenseid: input: variant not stated"
 
 
 def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
@@ -32,8 +37,8 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
 
 
 def _outdated() -> None:
-    """Warn as licenseid does, through its one emitter."""
-    licenseid_warning.warn(
+    """Warn as licenseid does, through its one emitter, for Pitloom."""
+    warn_from_pitloom(
         "database", "build v2 outdated", "current v3", "run 'licenseid update'"
     )
 
@@ -82,7 +87,7 @@ def test_the_level_and_the_escaping(
 ) -> None:
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
         with relay.relay_licenseid_warnings():
-            licenseid_warning.warn(*parts)
+            warn_from_pitloom(*parts)
     assert _said(caplog) == [expected]
 
 
@@ -95,7 +100,7 @@ def test_a_block_that_raises_still_relays(caplog: pytest.LogCaptureFixture) -> N
     assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
 
 
-def test_another_warning_is_given_again_not_swallowed(
+def test_another_warning_goes_on_to_python_when_given(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with warnings.catch_warnings(record=True) as outer:
@@ -103,16 +108,56 @@ def test_another_warning_is_given_again_not_swallowed(
         with caplog.at_level(logging.DEBUG, logger=_LOGGER):
             with relay.relay_licenseid_warnings():
                 warnings.warn("not licenseid's", UserWarning, stacklevel=1)
-    assert [str(w.message) for w in outer] == ["not licenseid's"]
+                given = [str(w.message) for w in outer]
+    assert given == ["not licenseid's"]
     assert [w.filename for w in outer] == [__file__]
     assert not _said(caplog)
 
 
-def test_the_filters_are_restored() -> None:
-    before = list(warnings.filters)
-    with relay.relay_licenseid_warnings():
+def test_a_licenseid_warning_to_other_code_follows_the_host_filters() -> None:
+    """Only a warning of a ``pitloom`` module is the relay's: one this test
+    module is given stays under the suite's ``error`` filter."""
+    with pytest.raises(licenseid_warning.LicenseIdWarning, match="outdated"):
+        with relay.relay_licenseid_warnings():
+            licenseid_warning.warn("database", "build v2 outdated")
+
+
+def test_a_lookup_changes_the_filters_once() -> None:
+    """The relay's filter stays first; a later lookup changes nothing, so a
+    warning shown once per location (``default``) is not shown again per
+    lookup (a change of the filters resets that record)."""
+    with warnings.catch_warnings(record=True) as shown:
+        warnings.simplefilter("default")
+        before = list(warnings.filters)
+        for _ in range(3):
+            with relay.relay_licenseid_warnings():
+                _outdated()
+                warnings.warn("third-party deprecation", UserWarning, stacklevel=1)
+            after = list(warnings.filters)
+        assert after == [relay._FILTER, *before]  # pylint: disable=protected-access
+    assert [str(w.message) for w in shown] == ["third-party deprecation"]
+
+
+def test_a_warning_of_another_thread_is_not_taken(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only this thread's warnings are recorded; another thread's goes on to
+    Python when given, and a ``licenseid`` one of it is not said."""
+
+    def other() -> None:
         _outdated()
-    assert warnings.filters == before
+        warnings.warn("another thread's", UserWarning, stacklevel=1)
+
+    with warnings.catch_warnings(record=True) as shown:
+        warnings.simplefilter("always")
+        with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+            with relay.relay_licenseid_warnings():
+                thread = threading.Thread(target=other)
+                thread.start()
+                thread.join(timeout=30)
+                given = sorted(str(w.message) for w in shown)
+    assert given == ["another thread's", _OUTDATED]
+    assert not _said(caplog)
 
 
 def test_resolving_on_the_packaged_list_warns_nothing(
@@ -136,15 +181,36 @@ def test_a_real_guess_of_the_detector_is_said_at_info(
         pytest.skip("licenseid database not built -- run 'licenseid update'")
     text = "SPDX-License-Identifier: GPL-2.0\n" + "Some licence words. " * 10
     with caplog.at_level(logging.INFO, logger=_LOGGER):
-        with relay.relay_licenseid_warnings():
-            found = LicenseDetector(str(db)).detect(text)
-    assert found and found[0]["expression"] == "GPL-2.0-only"
-    assert _said(caplog) == [
+        found = detect_license_from_text(text)
+    assert found == "GPL-2.0-only"
+    # the database the host has may say more (an older build)
+    assert [line for line in _said(caplog) if line[1].startswith(_GUESS)] == [
         (
             logging.INFO,
             "licenseid: input: variant not stated: GPL-2.0; using GPL-2.0-only",
         )
     ]
+
+
+def test_resolving_relays_what_resolve_warns(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Resolving a declared value is inside the relay too: what
+    ``resolve()`` warns is one tagged line, and the reading is kept."""
+    real = resolve
+
+    def warning_resolve(value: str, source: str) -> object:
+        assert source == "packaged"
+        _outdated()
+        return real(value, source="packaged")
+
+    monkeypatch.setattr(_license, "resolve", as_licenseid(warning_resolve))
+    _license.clear_resolution_cache()
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        found = resolve_declared_value("Apache2")
+    _license.clear_resolution_cache()
+    assert found is not None and found["expression"] == "Apache-2.0"
+    assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
 
 
 def test_detection_relays_the_warning_of_building_the_detector(
@@ -178,7 +244,7 @@ def test_detection_relays_what_detect_itself_warns(
     class _Guessing:
         def detect(self, text: str) -> list[object]:
             del text
-            licenseid_warning.warn(
+            warn_from_pitloom(
                 "input", "variant not stated", "GPL-2.0", "using GPL-2.0-only"
             )
             return [{"expression": "GPL-2.0-only", "score": 1.0}]
