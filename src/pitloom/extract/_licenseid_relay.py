@@ -87,7 +87,7 @@ def relay_licenseid_warnings() -> Iterator[None]:
         try:
             with warnings.catch_warnings(record=True) as recorded:
                 warnings.simplefilter("always", LicenseIdWarning)
-                caught = recorded if recorded is not None else []
+                caught = recorded
                 yield
         finally:
             _relay(caught)

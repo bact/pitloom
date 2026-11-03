@@ -170,8 +170,8 @@ def test_hostile_input_is_never_a_database_failure(
                     None,
                     "MIT",
                 )
-                found = resolve_declared_value(raw)
-                assert found is None or isinstance(found["category"], str)
+                reading = resolve_declared_value(raw)
+                assert reading is None or isinstance(reading["category"], str)
             assert detect_license_from_text(_REAL_MIT) == "MIT"  # still usable
             # padding is no part of the value
             assert _declared(" " * 300 + "mit\n") == "MIT"

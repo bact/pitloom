@@ -153,6 +153,7 @@ def test_detection_relays_the_warning_of_building_the_detector(
     """Detector construction is inside the relay too (a database an older
     licenseid built warns there)."""
 
+    # pylint: disable-next=too-few-public-methods
     class _Outdated:
         def __init__(self) -> None:
             _outdated()

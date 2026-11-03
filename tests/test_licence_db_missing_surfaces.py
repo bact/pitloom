@@ -120,6 +120,7 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
+# pylint: disable-next=too-few-public-methods
 class _OutdatedDetector:
     """A detector on a database an older licenseid built: it warns as
     licenseid 0.7 does, through :mod:`warnings`, and detects nothing."""
