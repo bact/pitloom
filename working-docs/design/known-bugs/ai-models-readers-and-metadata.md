@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,10 +51,6 @@ history.
   `<nested over 32 levels>` on `RecursionError`, so the CLI and the
   Hatchling hook (deeper stack) can write different bytes for a 500-950
   deep PT2 `extra/tags`. Decide from an explicit depth count.
-- [ ] **PT2 tags spelt as Python repr (S, cross-format).**
-  `pytorch_pt2.py` uses `source_element_text()` (scalars only) for
-  non-scalar tags: `a, {'k': [1, True]}, null`. Use canonical JSON, as
-  HDF5 `metrics` and `labels` do.
 - [ ] **Label count recorded differently (S, cross-format).** CRFsuite
   always has `properties.num_labels`; fastText only `outputs[0].shape`,
   and nothing when all labels are dropped. CRFsuite with 0 labels emits
@@ -64,10 +60,9 @@ history.
   not in `DISPLAY_CONTROLS`; add, plus a test that every Bidi_Control is
   in the set or on a named exclusion list. (b) U+200B-U+200D are escaped
   in prose, so Thai/Persian/Indic ZWNJ/ZWJ text is mangled and warns;
-  escape them only in identity fields. (c) fastText has no label-count
-  cap: a trained model records all its labels (1,200 in one), with no cap or
-  `WARNING:`, while CRFsuite stops at 1,000 and the docs describe only
-  CRFsuite's cap; share `recordable_labels` with CRFsuite. (d)
+  escape them only in identity fields. (c) done in #426: fastText
+  caps its labels at 1,000 as CRFsuite does (over the cap it records none,
+  keeps the label count and warns once). (d)
   Lone-surrogate escape runs before the name cut, which may split `\udXXX`.
   (e) Format-only stub entries skip `settle_read_text` (non-UTF-8 stem would
   raise `CanonicalizationError`); `physical_path` should stay out of the walk.
@@ -124,27 +119,10 @@ history.
   reader (`keras.py`) reads `config` and `build_config` only.
 - [ ] **PT2 / ExecuTorch reader never sets `type_of_model` (S).** No
   `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
-- [ ] **PT2 root-level `version` file is read as the model version (S).**
-  `_read_pt2_zip` (`pytorch_pt2.py`) takes it as `version`, overridden by
-  `extra/model_version`. Verified 2026-11-02 against the PyTorch source (no
-  `torch` installed here): `torch/export/__init__.py` in v2.5.0 writes the
-  root `version` as `".".join(map(str, SCHEMA_VERSION))` with `SCHEMA_VERSION
-  = (7, 3)`, so it is the export schema version, not a model version. Fix: a
-  root `version` becomes `format_version` (provenance `Field: version`) only
-  when no `archive_version` was read, and no longer sets `version`; a
-  legacy `torch.export.save` file then loses a wrong `software_packageVersion`.
-  `tests/extract/ai_model/test_pytorch_pt2.py` pins `version == "2"` and must
-  flip; `docs/ai-model-formats.md` needs the same one-line change.
 - [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
   Questions, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
   (C15, C16).
-- [ ] **GGUF hyperparameter suffixes incomplete (S).** Not matched:
-  `.attention.layer_norm_epsilon`, `.expert_count`, `.expert_used_count`,
-  `.rope.scaling.*`; they land in properties.
-- [ ] **One invalid UTF-8 GGUF string fails the whole file (S).**
-  `_field_value` decodes strictly; the `UnicodeDecodeError` (a `ValueError`)
-  becomes "Failed to read GGUF file". Decode with replacement, one `WARNING:`.
 - [ ] **GGUF `general.license` with a zero-width character (S).** A
   question, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#c17-invisible-characters-at-the-edges-of-a-licence-value)
@@ -156,7 +134,7 @@ history.
   `signature.input_specs` marks only `x` as `user_input`. Read user inputs
   only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
   fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`. Malformed
-  `model.json` shapes: see the PT2 entry at the end of this section.
+  `model.json` shapes: see the fixed PT2 entry under Fixed, P3.
 - [ ] **Safetensors name and framework (S).** `ss_base_model_version` (the
   base model, not this one) is a name candidate; prefer `ss_output_name`.
   Framework is the raw `format` value `pt`, not `pytorch`.
@@ -180,33 +158,14 @@ history.
   `.crfsuite` or `.onnx` exits 0 with a `WARNING:`; an empty `.model`
   exits 1 with `ERROR: ... not an AI model file`. The ONNX warning repeats
   itself: `failed to extract metadata; Failed to load ONNX model from <path>`.
-- [ ] **Keras v3 `config.json` values are not type-checked (S).** Found in
-  the #294 review: `extract/ai_model/keras.py:83-98` takes `class_name` and
-  `config.name` as they are, so `"class_name": {"a": 1}` or a non-string
-  name aborts the whole run (`loom project` exits non-zero). Share
-  `hdf5_config.parse_model_config` between Keras v1/v2 and v3: v3 also
-  omits `InputLayer` `batch_shape` inputs, `layer_count` and the
-  `model_name` fallback, and drops `dtype` from hyperparameters, unlike
-  HDF5. Add a drift-guard test over one model in both formats.
-- [ ] **PT2: a malformed `model.json` drops all PT2 metadata (S).** Found
-  in the #294 review: `models/model.json` or `graph_module` as a list raises
-  `AttributeError` in `_read_pt2_graph_io` and loses every PT2 field, not just
-  the bad one (re-checked 2026-10-18). A non-string tensor name is now kept as
-  read.
-- [ ] **Blank text fields are kept by some readers (S).** Found in the #294
-  review: Safetensors and ONNX `doc_string` and GGUF `general.description`
-  keep a blank or padded value (`"  "`) with its provenance, while PT2,
-  GGUF `general.version` and ONNX `model_license` strip it and drop a blank
-  one. One shared stated-text helper for every reader.
-- [ ] **`numpy.timedelta64` makes `canonical_json` raise (S).** Found in
-  the #294 review: it is a `numbers.Integral`, so `json_safe` takes it as
-  an integer and raises `TypeError`. No reader yields one today.
-- [ ] **`escape_display_controls_in_json` edge cases (S).** Found in the
-  #294 review: two keys can escape to the same text and the later stays,
-  silently (reachable: keys `"a<U+202E>"` and `"a\\u202e"` in one
-  `ai_informationAboutApplication` object spell the same after the escape,
-  and one entry is dropped); and a decoded `\ud800` next to a control
-  raises `CanonicalizationError` (no reachable path).
+- [ ] **Keras v3 `config.json` is parsed apart from Keras v1/v2 (S).** Found
+  in the #294 review. A non-string `class_name` or `config.name` is fixed by
+  #426 (the field is skipped with one `WARNING:`). Open: `keras.py` has its
+  own `_parse_model_config`; share `hdf5_config.parse_model_config` between
+  Keras v1/v2 and v3, since v3 also omits `InputLayer` `batch_shape` inputs,
+  `layer_count` and the `model_name` fallback, and drops `dtype` from
+  hyperparameters, unlike HDF5. Add a drift-guard test over one model in both
+  formats.
 - [ ] **Model metadata spellings differ across readers (S).** Found in the
   #294 review: counts are `num_labels`/`num_features` in CRFsuite and
   fastText but `GGUF.tensor_count`, `layer_count` and
@@ -224,6 +183,22 @@ history.
 - [ ] **`_loom_model.py` names the provenance document `declared.name or
   "model"` (low; was `_loom_active_run.py:185`).** Not in this diff; check it
   against the name cascade.
+
+### Found in review rounds, not yet prioritised
+
+- [ ] **Safetensors `framework` treats a blank value as present (S).**
+  `format` and `modelspec.implementation` are chosen with `or`, which skips
+  an empty string but not a white-space-only value (`" "`): that still counts
+  as present, while every other blank text field gives way (#427). Use the
+  shared stated-text helper.
+  *Found 2026-11-03, review of the merges #426 to #429.*
+- [ ] **A lone surrogate is escaped only on the scanner path (S, test-helper
+  trap).** `cap_and_warn` escapes it, so `read_model_candidate` returns safe
+  text; `read_ai_model` called directly returns the raw surrogate, and a
+  failing assertion on it crashes pytest's repr under xdist. Tests go through
+  `read_model_candidate`; decide whether the readers should return escaped
+  text.
+  *Found 2026-11-03, review of the merges #426 to #429.*
 
 ## Fixed
 
@@ -251,3 +226,46 @@ release ships.
   (Original report:) the reader called it a "lightweight inventory";
   `ai_informationAboutApplication` inputs mean model inputs. ONNX initializers
   were fixed in #294.
+- [x] **PT2 tags spelt as Python repr (S, cross-format).** Fixed by #426:
+  `pytorch_pt2.py` writes an array or object tag as canonical JSON, as HDF5
+  `metrics` and `labels` do. (Was: `source_element_text()` (scalars only)
+  gave `a, {'k': [1, True]}, null`.)
+- [x] **PT2 root-level `version` file is read as the model version (S).**
+  Fixed by #426: it is the export schema version (PyTorch v2.5.0
+  `torch/export/__init__.py`, `SCHEMA_VERSION = (7, 3)`), so it becomes
+  `format_version` (provenance `Field: version`) only when no
+  `archive_version` was read, and never sets `version`. (Was: `_read_pt2_zip`
+  took it as `version`, overridden by `extra/model_version`; a legacy
+  `torch.export.save` file got a wrong `software_packageVersion`.)
+- [x] **PT2: a malformed `model.json` drops all PT2 metadata (S).** Fixed by
+  #426: a `model.json`, `graph_module` or `signature` of the wrong shape (a
+  non-object) warns instead of crashing, and the rest of the PT2 fields stay;
+  `inputs`/`outputs` entries were guarded already, and a non-string tensor
+  name is kept as read. (Was: a list raised `AttributeError` in
+  `_read_pt2_graph_io`, re-checked 2026-10-18.)
+- [x] **One invalid UTF-8 GGUF string fails the whole file (S).** Fixed by
+  #427: `_field_value` reads the string with `surrogateescape`, so the
+  lone-surrogate warning applies and the file still reads. (Was: the strict
+  decode's `UnicodeDecodeError` became "Failed to read GGUF file".)
+- [x] **Blank text fields are kept by some readers (S).** Fixed by #427: GGUF,
+  Safetensors and ONNX read an empty or white-space-only name, description,
+  version, architecture, quantization or `doc_string` as absent through one
+  shared helper, and a blank Safetensors key gives way to the next candidate
+  key. (Was: a blank or padded value (`"  "`) kept with its provenance.) The
+  Safetensors `framework` choice is still open above.
+- [x] **GGUF hyperparameter suffixes incomplete (S).** Fixed by #427:
+  `.attention.layer_norm_epsilon`, `.expert_count`, `.expert_used_count` and
+  `.rope.scaling.{type,factor,original_context_length}` are hyperparameters.
+  (Was: they landed in properties.)
+- [x] **`numpy.timedelta64` makes `canonical_json` raise (S).** Fixed by #429:
+  a duration is no scalar, so `canonical_json` and `value_text` write its
+  `str()` (`5 seconds`), as they do a `datetime64`. (Was: it is a
+  `numbers.Integral`, so `json_safe` called `int()` and raised `TypeError`;
+  no reader yielded one.)
+- [x] **`escape_display_controls_in_json` edge cases (S).** Fixed by #429 for
+  the surrogate: a decoded `\ud800` next to a control is escaped as text,
+  where it raised `CanonicalizationError`. Two keys that escape to the same
+  text keep the later one; the docstring says so and a test pins it, by
+  decision, not changed. (Found in the #294 review; reachable with keys
+  `"a<U+202E>"` and `"a\\u202e"` in one `ai_informationAboutApplication`
+  object.)

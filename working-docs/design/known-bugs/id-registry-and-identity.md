@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -211,3 +211,11 @@ release ships.
   blank, `unknown` and `noassertion`; a package stating `none` or `n/a` is
   keyed as a release and stays so.
   *Found 2026-10-30, from #407 (registry package key).*
+- [x] **`loom id generate -e %40scope/pkg@1.0` (an npm-style name) is
+  refused (S), decided/changed in #429.** A `software_Package` NAME that is no
+  PEP 508 name (a specifier, a space, `@scope/pkg`) exits 2 with the usage
+  error `invalid package NAME`, since no lookup reads such a key; a NAME typed
+  with `==` is told to write `NAME@VERSION`. Not a bug: an npm-style package
+  has no PEP 508 name, so it cannot carry a package key until a non-PyPI
+  ecosystem is decided.
+  *Found 2026-11-03, review of the merges #426 to #429.*

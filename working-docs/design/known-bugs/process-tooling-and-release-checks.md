@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,9 +51,9 @@ the last section for history.
   `network` each have 3 or more; group them in subfolders after 0.22.0, with a
   lint that fails at 3 or more.
   *Found 2026-10-30, process and tooling.*
-- [ ] **CI repeats itself (doc).** The push run after a merge repeats a green
-  PR tree, and a markdown-only follow-up commit re-runs the matrix because
-  `paths-ignore` is judged on the whole PR diff.
+- [ ] **A markdown-only follow-up commit re-runs the matrix (doc).**
+  `paths-ignore` is judged on the whole PR diff, not the new commit. The
+  post-merge repeat is fixed (see Fixed).
   *Found 2026-10-30, process and tooling.*
 - [ ] **Bare `flake8` also lints `scripts/` while CI lints `examples src
   tests` only, and pyright cannot resolve `magika` in the dev venv (doc).**
@@ -96,6 +96,13 @@ release ships.
 - [x] **Two pylint findings exist on `main` (doc).** Fixed by #418. E1101 at
   `logging_config.py:251` and C1803 at
   `tests/extract/project/test_poetry_extract.py:151`.
+  *Found 2026-10-30, process and tooling.*
+- [x] **The push run after a merge repeats a green PR tree (doc).** Fixed by
+  #415 and #428: the post-merge `test.yml` run is skipped when the merge
+  commit's tree equals the PR head's and the NEWEST `pull_request` run of that
+  head targeting `main` is green; an older green run, a run for another base
+  branch (`develop`), a fork PR or any ambiguity runs the matrix. (Was: the
+  push run repeated the green PR run.)
   *Found 2026-10-30, process and tooling.*
 
 #### Release checks re-run (2026-11-02)

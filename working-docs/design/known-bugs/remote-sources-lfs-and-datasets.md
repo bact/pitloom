@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,6 +38,13 @@ entries stay in the last section for history.
   fenced for #413: it fits 0.22.1 only if it reuses an existing message,
   else 0.23.0.
   *Found 2026-11-02, cold review of the merges since 0.22.0 (#422).*
+- [ ] **A wheel gives no `[lfs-pointer]` warning for a pointer
+  `dist-info/licenses/LICENSE` (S).** The wheel route lists payload files
+  only, so a licence file shipped as a Git LFS pointer in `dist-info/licenses/`
+  is never seen, while the sdist route warns (`[lfs-pointer/shipped]`). After
+  #429 the licence is left unstated, so the loss is silent. Include
+  `dist-info/licenses/` in the pointer check, or reuse the sdist warning.
+  *Found 2026-11-03, review of the merges #426 to #429.*
 - [ ] **A loom dataset package over a pointer differs from the main
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.
