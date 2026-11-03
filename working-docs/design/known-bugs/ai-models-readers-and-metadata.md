@@ -199,6 +199,30 @@ history.
   `read_model_candidate`; decide whether the readers should return escaped
   text.
   *Found 2026-11-03, review of the merges #426 to #429.*
+- [ ] **A Keras `training_config` with a lone surrogate fails the whole read
+  (S).** A lone surrogate (`"\ud800"`, which `json.loads` accepts) in a nested
+  list, an object, an object key or a top-level list of `training_config`
+  makes RFC 8785 raise `ValueError`; `_record_json_value`
+  (`extract/ai_model/hdf5_config.py`) catches only `RecursionError`, so the
+  read ends as `model-unreadable` and the model's other fields are lost. Same
+  on 0.22.0. Fix as #433 did for PT2 `extra/tags`: on `ValueError`, retry on a
+  copy escaped with `escape_lone_surrogates_in`.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **A PT2 tag nested about 330 levels or more that holds a lone surrogate
+  fails the read (S).** `_tag_text` (`extract/ai_model/pytorch_pt2.py`, new in
+  #433) escapes the surrogate on `copy.deepcopy(tag)` with the recursive
+  `escape_lone_surrogates_in`; past the recursion limit that raises
+  `RecursionError`, which nothing catches, so the model is unreadable.
+  Hostile input only. A loop-based escape (an explicit stack) would fix it and
+  could serve the Keras entry above too.
+  *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **A collection nested over 32 levels that holds a lone surrogate shows
+  as `<nested over 32 levels>` (low).** `_collection_text`
+  (`core/ai_metadata.py`) catches the `ValueError` of RFC 8785 together with
+  `RecursionError`, so the text is the placeholder, not the collection with the
+  surrogate escaped. Display text only; the same fallback as "Deep metadata
+  text depends on call-stack depth" above.
+  *Found 2026-11-03, review of the 0.22.1 release.*
 
 ## Fixed
 
