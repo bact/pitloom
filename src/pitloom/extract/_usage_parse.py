@@ -110,7 +110,7 @@ def parse_python(text: str) -> ast.Module:
         MemoryError: The source nests too deeply for the parser.
         RecursionError: The source nests too deeply for the compiler.
     """
-    source = text.removeprefix("﻿")
+    source = text.removeprefix("\ufeff")
     outcome: list[ast.Module | BaseException] = []
 
     def work() -> None:
