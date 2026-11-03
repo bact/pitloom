@@ -22,8 +22,9 @@ import time
 import pytest
 
 from pitloom.core.model_usage import UsageAccess
-from pitloom.extract._usage_ast import find_usages, parse_python
+from pitloom.extract._usage_ast import find_usages
 from pitloom.extract._usage_match import UsageModel
+from pitloom.extract._usage_parse import parse_python
 
 from ._usage_helpers import accesses
 
@@ -305,3 +306,47 @@ def test_an_f_string_restarts_after_a_nul_piece() -> None:
     assert accesses("x = 'dir/model.pkl'\nopen(f'\\x00{x}')", "model.pkl", _DATA) == {
         _R
     }
+
+
+_M = 'M = "data/model.pkl"\n'
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        (_M + 'print(f"loading {M}")', set()),
+        (_M + 'log.info("loading %s" % M)', set()),
+        (_M + 'log.info("loading %(m)s" % {"m": M})', set()),
+        (_M + 'print("loading " + M)', set()),
+        (_M + 'print("loading {}".format(M))', set()),
+        (_M + 'print(os.path.join(M, "x"))', set()),
+        (_M + 'print(Path(M, "x").resolve())', set()),
+        ('raise ValueError(f"bad {M}")\n' + _M, set()),
+        (_M + 'assert ok, f"missing {M}"', set()),
+        (_M + 'B = M\nprint(f"{B}!")', set()),
+        ('def f(p="data/model.pkl"):\n    print(f"using {p}")', set()),
+        (_M + 'foo(M + ".bak")', {_U}),
+        (_M + 'print(foo(M + ".bak"))', {_U}),
+        (_M + "print(len(M))", {_U}),
+    ],
+    ids=[
+        "f-string",
+        "percent",
+        "percent-dict",
+        "concat",
+        "format",
+        "join",
+        "receiver",
+        "raise",
+        "assert",
+        "alias",
+        "default",
+        "not-a-mention",
+        "call-in-a-mention",
+        "len-in-a-mention",
+    ],
+)
+def test_a_constant_only_mentioned_gives_no_edge(
+    code: str, expected: set[UsageAccess]
+) -> None:
+    assert accesses(code + "\n", "model.pkl", _DATA) == expected

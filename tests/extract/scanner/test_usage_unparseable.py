@@ -31,8 +31,8 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.model_usage import ModelUsage, UsageAccess
-from pitloom.extract._usage_ast import parse_python, python_version
 from pitloom.extract._usage_attach import usage_models
+from pitloom.extract._usage_parse import parse_python, python_version
 from pitloom.extract.scanner import UsageSource, attach_usage_references
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (

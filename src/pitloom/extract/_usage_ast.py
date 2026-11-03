@@ -17,7 +17,8 @@ Paths are followed within one file: a name assigned once, ``Path(...) / "x"``,
 another module, a call's result or a configuration file is not seen.
 
 See also: :mod:`pitloom.extract._usage_table` (the calls),
-:mod:`pitloom.extract._usage_match` (what names a model) and
+:mod:`pitloom.extract._usage_match` (what names a model),
+:mod:`pitloom.extract._usage_parse` (the parse) and
 :mod:`pitloom.extract.scanner` (``attach_usage_references``: the file
 reading, the pre-filter and the messages).
 """
@@ -26,8 +27,6 @@ from __future__ import annotations
 
 import ast
 import collections
-import sys
-import warnings
 from collections.abc import Sequence
 from typing import Any, Final
 
@@ -51,13 +50,7 @@ from pitloom.extract._usage_table import (
     is_mention_call,
 )
 
-__all__ = ["PARSE_ERRORS", "find_usages", "parse_python", "python_version"]
-
-#: What parsing a file can raise besides a mistake in it: a null byte
-#: (``ValueError`` before Python 3.12), a tree too deep for the parser
-#: (``MemoryError``) or the compiler (``RecursionError``). A file can also
-#: fail only on this Python: syntax it is too old to know.
-PARSE_ERRORS: Final = (SyntaxError, ValueError, MemoryError, RecursionError)
+__all__ = ["find_usages"]
 
 #: Caps on following one path expression. An expression over either is not
 #: followed at all (no edge from it), not read as its tail.
@@ -76,6 +69,8 @@ _PATH_FUNCTIONS: Final = frozenset(
 _JOINS: Final = frozenset({"os.path.join", "posixpath.join", "ntpath.join"})
 #: Methods that give the receiver's path back (``Path(...).resolve()``).
 _SAME_PATH_METHODS: Final = frozenset({"resolve", "expanduser", "absolute"})
+#: The nodes that can be a whole path expression.
+_PATH_NODES: Final = (ast.Constant, ast.Name, ast.JoinedStr, ast.BinOp, ast.Call)
 
 
 #: The nodes that bind a type parameter (``def f[P]``): Python 3.12 or later.
@@ -88,28 +83,6 @@ _TYPE_PARAMS: Final[tuple[type[Any], ...]] = tuple(
 
 class _OverCap(Exception):
     """A path expression is deeper or longer than the caps allow."""
-
-
-def python_version() -> str:
-    """The running interpreter as ``3.10``: the grammar a file was read as."""
-    return f"{sys.version_info.major}.{sys.version_info.minor}"
-
-
-def parse_python(text: str) -> ast.Module:
-    """*text* as a module tree. A leading byte-order mark is dropped. An
-    invalid escape (``"data\\model.ftz"``) only warns on the way, whatever
-    the user's warning filters say, so the warning is dropped.
-
-    Raises:
-        SyntaxError: Not Python of this interpreter's grammar (or, after
-            3.12, a null byte).
-        ValueError: A null byte (before Python 3.12).
-        MemoryError: The source nests too deeply for the parser.
-        RecursionError: The source nests too deeply for the compiler.
-    """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return ast.parse(text.removeprefix("\ufeff"))
 
 
 def _import_aliases(tree: ast.AST) -> dict[str, str]:
@@ -167,6 +140,12 @@ class _Scan:
         self._consts: dict[str, str] = {}
         self._defaults: dict[ast.AST, str] = {}
         self._cache: dict[ast.AST, str | None] = {}
+        # Per node, so a call with many arguments, a long callee or nested
+        # conditionals costs time in its size, not in its size squared.
+        self._callees: dict[ast.AST, tuple[str | None, str | None]] = {}
+        self._arg_indices: dict[ast.Call, dict[ast.AST, int]] = {}
+        self._modes: dict[tuple[ast.Call, int], UsageAccess] = {}
+        self._climbs: dict[ast.AST, tuple[ast.AST, ast.AST | None, bool]] = {}
         self._track_constants(tree)
         self._cache.clear()
         self._reached: list[set[str]] = [set() for _ in models]
@@ -367,6 +346,12 @@ class _Scan:
         """The dotted name a call's callee stands for, with the file's
         imports resolved, and its last name; ``None`` where the callee is not
         a name (``f()()``), the last name still given for ``obj().method``."""
+        if func not in self._callees:
+            self._callees[func] = self._resolve_callee(func)
+        return self._callees[func]
+
+    def _resolve_callee(self, func: ast.AST) -> tuple[str | None, str | None]:
+        """:meth:`_callee`, not remembered."""
         names: list[str] = []
         node = func
         while isinstance(node, ast.Attribute):
@@ -462,11 +447,7 @@ class _Scan:
 
     def _hits(self, node: ast.AST) -> list[int]:
         """Indices of *self._models* that top-level path *node* matches."""
-        if not isinstance(
-            node, (ast.Constant, ast.Name, ast.JoinedStr, ast.BinOp, ast.Call)
-        ):
-            return []
-        if self._in_parent_path(node):
+        if not isinstance(node, _PATH_NODES) or self._in_parent_path(node):
             return []
         text = self._static(node)
         if text is None:
@@ -486,6 +467,7 @@ class _Scan:
         """Record *node* if it is a top-level path expression naming a model."""
         hits = self._hits(node)
         if not hits:
+            self._take_mention(node)
             return
         names = self._loaded_names(node)
         access = self._access(node)
@@ -494,23 +476,78 @@ class _Scan:
             if access is not None:
                 self.found[index].add(access)
 
+    def _take_mention(self, node: ast.AST) -> None:
+        """A top-level expression that names no model but is only mentioned
+        (``print(f"loading {P}")``) reads the constants it is built from for
+        no use: they count as reached, as ``print(P)`` does."""
+        if not isinstance(node, _PATH_NODES) or self._in_parent_path(node):
+            return
+        names = self._path_names(node)
+        if not names or self._access(node) is not None:
+            return
+        for reached in self._reached:
+            reached.update(names)
+
+    def _path_names(self, node: ast.AST) -> set[str]:
+        """The constants read by the parts of the path expression *node*:
+        its operands, theirs, and so on (not the arguments of a call in it
+        that is no path call)."""
+        names: set[str] = set()
+        pending = [node]
+        while pending:
+            part = pending.pop()
+            if isinstance(part, ast.Name) and part.id in self._consts:
+                names.add(part.id)
+            pending.extend(
+                child
+                for child in ast.iter_child_nodes(part)
+                if self._in_parent_path(child)
+                # The callee of a path method: its receiver is an operand.
+                or (
+                    isinstance(child, ast.Attribute)
+                    and self._in_parent_path(child.value)
+                )
+            )
+        return names
+
     def _access(self, node: ast.AST) -> UsageAccess | None:
         """What the code does with the path *node*; ``None`` when it only
         mentions it. A path rendered into a string (``f"{path!r}"``) is not the
         path any more: whatever consumes it, other than a mention, is unknown."""
-        parent = self._parents.get(node)
-        argument = node
-        rendered = False
-        while isinstance(
-            parent, (ast.keyword, ast.Starred, ast.BoolOp, ast.JoinedStr)
-        ) or (
-            isinstance(parent, ast.FormattedValue)
-            or (isinstance(parent, ast.IfExp) and argument is not parent.test)
-        ):
-            rendered = rendered or isinstance(parent, ast.FormattedValue)
-            argument, parent = parent, self._parents.get(parent)
+        argument, parent, rendered = self._climb(node)
         access = self._consumer_access(argument, parent)
         return UsageAccess.UNKNOWN if rendered and access is not None else access
+
+    @staticmethod
+    def _passes_on(argument: ast.AST, parent: ast.AST) -> bool:
+        """Whether *parent* hands the value *argument* on to its own parent."""
+        if isinstance(parent, ast.IfExp):
+            return argument is not parent.test
+        return isinstance(
+            parent,
+            (ast.keyword, ast.Starred, ast.BoolOp, ast.JoinedStr, ast.FormattedValue),
+        )
+
+    def _climb(self, node: ast.AST) -> tuple[ast.AST, ast.AST | None, bool]:
+        """The outermost node that hands *node*'s value on unchanged or
+        rendered, its parent, and whether an f-string rendered it on the way.
+        Each node climbed through remembers its own answer."""
+        trail: list[tuple[ast.AST, bool]] = []
+        argument, parent = node, self._parents.get(node)
+        while (
+            argument not in self._climbs
+            and parent is not None
+            and self._passes_on(argument, parent)
+        ):
+            trail.append((argument, isinstance(parent, ast.FormattedValue)))
+            argument, parent = parent, self._parents.get(parent)
+        top, consumer, rendered = self._climbs.setdefault(
+            argument, (argument, parent, False)
+        )
+        for passed, into_fstring in reversed(trail):
+            rendered = rendered or into_fstring
+            self._climbs[passed] = (top, consumer, rendered)
+        return self._climbs[node]
 
     def _consumer_access(
         self, argument: ast.AST, parent: ast.AST | None
@@ -545,12 +582,20 @@ class _Scan:
         if last in MODE_CALLS:
             position, default = MODE_CALLS[last]
             return self._mode_access(call, position, default)
-        index = call.args.index(argument) if argument in call.args else None
-        return access_of_argument(last, index)
+        if call not in self._arg_indices:
+            self._arg_indices[call] = {arg: i for i, arg in enumerate(call.args)}
+        return access_of_argument(last, self._arg_indices[call].get(argument))
 
     def _mode_access(self, call: ast.Call, position: int, default: str) -> UsageAccess:
         """The access of an ``open``-like call from its mode argument; its
         default mode when left out, unknown when not a string."""
+        key = (call, position)
+        if key not in self._modes:
+            self._modes[key] = self._read_mode(call, position, default)
+        return self._modes[key]
+
+    def _read_mode(self, call: ast.Call, position: int, default: str) -> UsageAccess:
+        """:meth:`_mode_access`, not remembered."""
         mode: ast.AST | None = None
         if len(call.args) > position:
             mode = call.args[position]
