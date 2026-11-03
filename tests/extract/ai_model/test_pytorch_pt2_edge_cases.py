@@ -28,6 +28,8 @@ from pitloom.extract.ai_model.pytorch_pt2 import (
     _read_pt2_zip,
     read_pytorch_pt2,
 )
+from pitloom.extract.scanner import read_model_candidate
+from pitloom.extract.scanner_project import local_model_candidate
 
 from .test_pytorch_pt2 import _make_pt2_zip
 
@@ -252,3 +254,50 @@ def test_tags_objects_and_arrays_are_canonical_json(tmp_path: Path) -> None:
     assert (
         meta.properties["tags"] == 'a, {"b":[true,null,100],"z":1}, [2,{"x":0,"y":1}]'
     )
+
+
+@pytest.mark.parametrize(
+    ("tags", "text", "lone"),
+    [
+        (b'["\\ud800"]', "\\ud800", True),
+        (b'[["\\ud800"]]', '["\\\\ud800"]', True),
+        (b'[{"k": "\\ud800"}]', '{"k":"\\\\ud800"}', True),
+        (b'[{"\\udc00": 1}]', '{"\\\\udc00":1}', True),
+        (
+            b'[[[{"b": ["x", "\\udfff"], "a": 1.0}], "c"]]',
+            '[[{"a":1,"b":["x","\\\\udfff"]}],"c"]',
+            True,
+        ),
+        (b'[{"z": 1.0, "b": [true]}]', '{"b":[true],"z":1}', False),
+    ],
+    ids=[
+        "string",
+        "nested-array",
+        "nested-object",
+        "nested-key",
+        "deeper",
+        "no-surrogate-canonical",
+    ],
+)
+def test_tags_lone_surrogate_is_written_as_text_with_one_warning(
+    tags: bytes,
+    text: str,
+    lone: bool,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A lone surrogate in a tag, nested or not, keeps the tags and the rest
+    of the archive; it is written as ``\\udXXX`` and said once, as for any
+    model text. A tag without one stays RFC 8785."""
+    model_file = tmp_path / "model.pt2"
+    buf = _io.BytesIO()
+    with _zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(_zipfile.ZipInfo("mdl/extra/tags", (1980, 1, 1, 0, 0, 0)), tags)
+    model_file.write_bytes(buf.getvalue())
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        meta = read_model_candidate(local_model_candidate(model_file))
+    messages = [r.getMessage() for r in caplog.records]
+    assert not [m for m in messages if "failed to extract" in m]
+    assert meta.properties["tags"] == text
+    assert "archive_contents" in meta.properties
+    assert len([m for m in messages if "lone surrogates" in m]) == int(lone)
