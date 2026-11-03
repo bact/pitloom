@@ -137,9 +137,12 @@ def test_the_stack_size_is_restored_after_a_parse() -> None:
 
 def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
     # A thread the host starts while the size is set would get the parse
-    # thread's stack (up to 255 MiB). A watcher that reads the size whenever
-    # it holds the interpreter, switched to as often as it allows, must only
-    # ever see the size the host set.
+    # thread's stack (up to 255 MiB on Python 3.10). A watcher that reads the
+    # size whenever it holds the interpreter, switched to as often as it
+    # allows, must only ever see the size the host set. From Python 3.12
+    # starting a thread raises an audit event, and a Python audit hook (one
+    # an earlier test made Pitloom install, say) lets the watcher run while
+    # the size is set: it may then see the floor, never more.
     before = threading.stack_size()
     seen: set[int] = set()
     stop = threading.Event()
@@ -159,7 +162,11 @@ def test_no_other_thread_runs_while_the_parse_stack_size_is_set() -> None:
         stop.set()
         watcher.join()
         sys.setswitchinterval(interval)
-    assert seen == {before}
+    allowed = {before}
+    if sys.version_info >= (3, 12):
+        allowed.add(8 * _MIB)
+    assert seen <= allowed
+    assert before in seen
 
 
 def test_the_parse_thread_runs_under_the_threading_profile_hook() -> None:

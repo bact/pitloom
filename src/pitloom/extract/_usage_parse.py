@@ -86,7 +86,8 @@ def stack_bytes(chars: int, *, checks_depth: bool = _CHECKS_DEPTH) -> int:
 def _in_order(*calls: Callable[[], object]) -> Callable[[], object]:
     """One call, good once, that makes *calls* in turn from C (``map`` over
     them): the interpreter switches threads only between bytecodes, so no
-    other Python thread runs between two calls of C functions."""
+    other Python thread runs between two calls of C functions that run no
+    Python code themselves."""
     return partial(deque, map(_CALL, calls), 0)
 
 
@@ -97,11 +98,16 @@ def _start_with_stack(work: Callable[[], None], size: int) -> bool:
     is refused (it is then not started).
 
     ``threading.stack_size`` is process-wide, so the size is set, the thread
-    started and the size put back in one :func:`_in_order` call: no other
-    Python thread, the host's included, runs while the size is set.
+    started and the size put back in one :func:`_in_order` call.
     ``_thread.start_new_thread`` returns once the thread exists, without
     waiting for it to run as ``threading.Thread.start`` does (that wait lets
-    other threads run and start theirs with this size).
+    other threads run and start theirs with this size). On Python 3.10 and
+    3.11 no other Python thread, the host's included, runs while the size is
+    set. From 3.12 ``_thread.start_new_thread`` raises an audit event, so a
+    Python audit hook (the host's, or the one
+    :mod:`pitloom.core._models_wheel_unlistable` installs) runs in between,
+    and other threads with it; they can then see, and start a thread with,
+    only the floor, since every size above it is Python 3.10's.
     """
     hooked = _in_order(
         partial(sys.settrace, gettrace()),
