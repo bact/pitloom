@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 import warnings
 from pathlib import Path
 
@@ -120,6 +121,23 @@ def test_the_block_relays_stderr_records_and_warnings_also_on_error(
         (logging.DEBUG, _PREFIX + f"{len(second) - 20} more characters not kept"),
         (logging.DEBUG, "'proj': setuptools DeprecationWarning: banner line two"),
     ]
+
+
+def test_a_warning_of_another_thread_is_not_relayed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only this thread's warnings are setuptools'; another thread's goes on
+    to Python."""
+    thread = threading.Thread(target=warnings.warn, args=("not setuptools'",))
+    with warnings.catch_warnings(record=True) as shown:
+        with (
+            caplog.at_level(logging.DEBUG, logger=_LOGGER),
+            relay.relay_setuptools_output(Path("proj")),
+        ):
+            thread.start()
+            thread.join(30)
+    assert [str(w.message) for w in shown] == ["not setuptools'"]
+    assert not _relayed(caplog)
 
 
 def test_discover_relays_the_manifest_step(
