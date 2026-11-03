@@ -51,6 +51,7 @@ USAGE_UNPARSEABLE: Final = Message(
     "template, a Python 2 script) needs nothing. Do not edit the file or "
     f"change the Python for them; {_ASK}",
     subject_key="FILE",
+    since="0.22.1",
 )
 
 USAGE_UNPARSEABLE_MENTION: Final = Message(
@@ -72,6 +73,7 @@ USAGE_UNPARSEABLE_MENTION: Final = Message(
     advice="Nothing to do on its own: the usage-unparseable warning for the "
     "same file says what stopped the parse.",
     subject_key="FILE",
+    since="0.22.1",
 )
 
 ENTRIES: Final = (USAGE_UNPARSEABLE, USAGE_UNPARSEABLE_MENTION)

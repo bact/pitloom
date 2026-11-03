@@ -45,6 +45,7 @@ USAGE_UNUSABLE: Final = Message(
     "and generate again; if it is not Python, it needs nothing. Do not "
     f"rename the file for them; {_ASK}",
     subject_key="FILE",
+    since="0.22.1",
 )
 
 ENTRIES: Final = (USAGE_UNUSABLE,)
