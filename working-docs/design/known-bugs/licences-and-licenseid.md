@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -179,7 +179,11 @@ release ships.
 ### Fixed, Found in review rounds, not yet prioritised
 
 - [x] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
-  as the licence text `LICENSE` (S-M).** Fixed by #422: the licence is now
+  as the licence text `LICENSE` (S-M).** Fixed by #422 (CLI, library and
+  hook) and #429 (a wheel, an sdist's `PKG-INFO` and an installed
+  `.dist-info` whose `License` or `License-Expression` header holds a whole
+  pointer: the header is absent, so the cascade goes on to the classifiers).
+  The licence is now
   unstated (a pointer is no licence text, and a file name never stands as
   one); `is_pointer_text` in `core/lfs_pointer.py` decides it for every route.
   The root package's declared licence read `['LICENSE']` (the file name stood

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -361,3 +361,15 @@ Ways a test passes, fails or floods the log for the wrong reason.
   `KeyError` on the second unless `raising=False`. #421's Windows leg found it
   after a dry run missed it.
   Do: pass `raising=False`; reproduce by emulating a case-insensitive environ.
+- **A reader called directly returns what the scanner would have escaped.**
+  `cap_and_warn` (the scanner path) escapes a lone surrogate, so
+  `read_model_candidate` returns safe text; `read_ai_model` returns the raw
+  surrogate, and a failing assertion on it crashes pytest's repr under xdist
+  (#429).
+  Do: go through `read_model_candidate` in tests of what the SBOM shows.
+- **Newer NumPy deprecates a unitless `numpy.timedelta64("NaT")`.** It raises a
+  `DeprecationWarning`, an error under `filterwarnings = error`, while the
+  local NumPy 2.2.6 stays quiet (#429's CI leg found it).
+  Do: give every NaT and every timedelta a unit (`"NaT", "s"`); never add
+  `-W error` on top of the repo's own warning config when running tests
+  locally, since it makes unrelated third-party warnings fatal too.
