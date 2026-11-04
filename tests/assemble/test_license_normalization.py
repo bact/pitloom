@@ -18,14 +18,14 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.extract._license import (
-    _PY_SPDX_LICENSE_VERSION,
-    _looks_like_spdx_license_id,
     detect_independent_license,
     detect_license_for_project,
-    detect_license_from_text,
     tag_deprecated_license_ids,
     tag_license_normalization,
 )
+from pitloom.extract._license_classify import _PY_SPDX_LICENSE_VERSION
+from pitloom.extract._license_detect import _looks_like_spdx_license_id
+from pitloom.extract._license_text_match import detect_license_from_text
 
 # ---------------------------------------------------------------------------
 # Integration tests -- require real licenseid database

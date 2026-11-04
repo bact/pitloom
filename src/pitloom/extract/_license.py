@@ -42,11 +42,8 @@ from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._license_classify import (
-    _PY_SPDX_LICENSE_VERSION,
-    ClassifiedLicense,
     classify_license,
     empty_blank_lines,
-    is_listed_name,
     is_weak_licence,
     same_licence,
     tag_deprecated_license_ids,
@@ -54,13 +51,9 @@ from pitloom.extract._license_classify import (
     warn_unless_expression,
 )
 from pitloom.extract._license_detect import (
-    _LICENSE_STEMS,
-    _LICENSE_SUFFIXES,
-    _SPDX_LICENSE_ID_RE,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     collect_license_candidates,
-    find_license_files,
     license_candidates_from_members,
 )
 from pitloom.extract._license_text_match import detect_license_from_text
@@ -75,31 +68,19 @@ except PackageNotFoundError:
     _LICENSEID_VERSION = None
 
 __all__ = [
-    "_LICENSE_STEMS",
-    "_LICENSE_SUFFIXES",
     "_LICENSEID_VERSION",
-    "_PY_SPDX_LICENSE_VERSION",
-    "_SPDX_LICENSE_ID_RE",
-    "_looks_like_spdx_license_expression",
-    "_looks_like_spdx_license_id",
     "_with_tool_tag",
-    "ClassifiedLicense",
     "apply_in_package_license",
     "apply_in_package_license_files",
     "classify_license",
     "clear_resolution_cache",
-    "collect_license_candidates",
     "detect_independent_license",
     "detect_license_for_project",
-    "detect_license_from_text",
     "empty_blank_lines",
-    "find_license_files",
-    "is_listed_name",
     "is_weak_licence",
-    "license_from_candidates",
-    "same_licence",
     "resolve_declared_value",
     "resolve_license_concluded",
+    "same_licence",
     "stated_license",
     "tag_deprecated_license_ids",
     "tag_license_normalization",

@@ -23,15 +23,15 @@ from licenseid import LicenseDetector
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     apply_in_package_license,
-    collect_license_candidates,
     detect_license_for_project,
-    find_license_files,
 )
 from pitloom.extract._license_detect import (
     _license_from_citation_cff,
     _license_from_codemeta_json,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
+    collect_license_candidates,
+    find_license_files,
 )
 from pitloom.extract._license_text_match import detect_license_from_text
 
