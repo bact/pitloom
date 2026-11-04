@@ -102,8 +102,8 @@ came from:
 | Value | Recorded as |
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
-| A single-line value [`licenseid`](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
-| Anything else (a licence text, `Apache2 OR MIT`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
+| A single-line value [`licenseid`](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`), or several of them joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
+| Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | Absent or blank | nothing: no licence relationship at all |
@@ -122,14 +122,19 @@ or parenthesis and an id as written, so looks like a broken expression
 is `licenseid`'s (`parse failed: Unexpected 'OR'`).
 
 A value that is not an SPDX expression is read by `licenseid` (`resolve`),
-in any field. It is accepted when it names exactly one licence: another
-spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
-(`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
-is never a guess: a bare `GPL-3.0` stays as written. A value naming several
-licences (`BSD`) or none stays text. So does a value with a character the
-reading would drop (`Apache 2.0?`) and one of several lines. A reading that
-changed more than the case, white space, brackets or a `+` is said once per
-value per run, and kept in the provenance:
+in any field. It is accepted when it names exactly one licence, or several
+joined by an operator (`Apache2 OR MIT`): another spelling of an id
+(`Apache2`, `CC BY 4.0`, `GPLv3+`, `licenseref-foo` as `LicenseRef-foo`), the
+licence's List name (`MIT License`), a stated qualifier (`GPL 3.0 or later`,
+`MIT or later` as `MIT+`) or a renamed id. It is never a guess: a bare
+`GPL-3.0` stays as written. A value naming several licences with no operator
+(`BSD`) or none stays text. So does a value with a character the reading
+would drop (`Apache 2.0?`), one of several lines, and one `licenseid` refuses
+because a licence is not all it holds: a stray mark (`-MIT`, `.GPL-3.0-only`,
+`MIT -`, `MIT...`), a list number (`1. MIT`, `iv. MIT`), a comment word
+(`REM MIT`) or a plus after a space (`GPLv3 +`). A reading that changed more
+than the case, white space, brackets or a `+` is said once per value per run,
+and kept in the provenance:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
@@ -143,7 +148,8 @@ warned once, or, when the project declares a licence and the database is
 only missing, `licenseid database not found` is said once at `INFO:`: only
 the `LICENSE`-file check is skipped. A warning of `licenseid` itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
-outdated: current v3; run 'licenseid update'`).
+outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
+stated`, a guess it records on a detection).
 
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded
@@ -178,7 +184,7 @@ These provenance keys record what changed, in the entry's `license` field:
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
 | `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
 | `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |
-| `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`). |
+| `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`, `MIT or later`). |
 | `Tool` | The `licenseid` version that read it. |
 
 These notes are kept at the default `detail = "minimal"`. They land on the
