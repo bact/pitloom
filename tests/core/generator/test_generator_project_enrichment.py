@@ -194,9 +194,8 @@ def test_generate_project_sbom_license_conflict_flags_declared_normalization() -
     """Declared "mit" (valid but non-canonically cased) + a genuinely
     conflicting detected Apache-2.0: the conflict Annotation's declared
     candidate ``source`` is flagged with the raw value classify_license()
-    rewrote it from, plus the py-spdx-license version that did
-    it (_PY_SPDX_LICENSE_VERSION); the case-only-agreement path never
-    reaches the conflict branch."""
+    rewrote it from, plus the licenseid version that did it; the
+    case-only-agreement path never reaches the conflict branch."""
     pyproject_content = """
 [project]
 name = "test-package"
@@ -234,7 +233,7 @@ license = "mit"
         )
         assert declared_candidate["value"] == "MIT"
         assert "Normalized-From: mit" in declared_candidate["source"]
-        assert "Normalizer: py-spdx-license==" in declared_candidate["source"]
+        assert "Tool: licenseid==" in declared_candidate["source"]
 
 
 def test_generate_project_sbom_license_agrees_no_conflict_annotation() -> None:

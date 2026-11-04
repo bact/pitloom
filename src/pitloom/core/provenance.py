@@ -128,7 +128,6 @@ PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
         "File",
         "Method",
         "Normalized-From",
-        "Normalizer",
         "Note",
         "Package",
         "Role",

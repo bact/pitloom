@@ -32,11 +32,11 @@ from collections.abc import Sequence
 from licenseid import DatabaseNotReadyError, Detection, LicenseDetector
 
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._license_classify import with_successor_ids
 from pitloom.extract._license_detect import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
 )
+from pitloom.extract._license_resolve import resolve_value
 from pitloom.extract._licenseid_relay import relay_licenseid_warnings
 from pitloom.extract.copyright_notices import COPYRIGHT_NOTICE_LINE_RE
 from pitloom.logging_config import log_once, one_line, warn_once
@@ -151,17 +151,20 @@ _EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
 
 
 def _stated_ids(stated: str | None) -> frozenset[str]:
-    """The licence ids *stated* names, case-folded, deprecated ``+`` ids as
-    their successors (``MIT OR GPL-2.0+`` names ``MIT`` and
-    ``GPL-2.0-or-later``); none for a licence text or name."""
+    """The licence ids *stated* names, case-folded, as ``licenseid`` reads
+    them (``MIT OR GPL-2.0+`` names ``MIT`` and ``GPL-2.0-or-later``), as
+    written when it reads none; none for a licence text or name."""
     value = (stated or "").strip()
     if not (
         _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(value)
     ):
         return frozenset()
+    resolved = resolve_value(value)
     return frozenset(
         token.casefold()
-        for token in _EXPRESSION_ID_RE.findall(with_successor_ids(value))
+        for token in _EXPRESSION_ID_RE.findall(
+            resolved.expression if resolved else value
+        )
         if token.casefold() not in _EXPRESSION_OPERATORS
     )
 

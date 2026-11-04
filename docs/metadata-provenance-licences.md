@@ -108,11 +108,18 @@ came from:
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | Absent or blank | nothing: no licence relationship at all |
 
-A deprecated id ending `+` becomes its `-or-later` successor (`GPL-2.0+` is
-`GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as written, because
-whether `-only` or `-or-later` was meant is unknown. Text that has an
-operator or parenthesis and a known id, so looks like a broken expression
-(`MIT OR`), is kept as text with one `WARNING:` per value.
+Every expression is read by `licenseid`, the one reader of a declared
+value. A deprecated id ending `+` becomes its `-or-later` successor
+(`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
+written, because whether `-only` or `-or-later` was meant is unknown; so does
+the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `LGPL v3` is `LGPL-3.0`).
+Both note the successors they could mean. A licence's prose name (`BSD
+3-Clause License`) and a classifier's name (`GNU General Public License v3
+(GPLv3)`) read as their id. Licences joined by `;` (`MIT; Apache-2.0`) name
+no operator, so no expression: text, as written. Text that has an operator
+or parenthesis and an id as written, so looks like a broken expression
+(`MIT OR`), is kept as text with one `WARNING:` per value; the reason in it
+is `licenseid`'s (`parse failed: Unexpected 'OR'`).
 
 A value that is not an SPDX expression is read by `licenseid` (`resolve`),
 in any field. It is accepted when it names exactly one licence, or several
@@ -150,7 +157,7 @@ as text, as written, and gets one `WARNING:` per value per run, naming the
 field:
 
 ```text
-WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (Unknown Expression 'Acme-Terms'); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as license text
 ```
 
 | Field | Read from |
@@ -165,17 +172,15 @@ The value shows on one line, control characters escaped, cut after 120
 characters. A field that may hold free text (`License`,
 `project.license.text`, `[tool.poetry] license`, a Hugging Face card's
 `license`) gets no such warning. Whether an id is known comes from the SPDX
-License List bundled with Pitloom's expression parser, so a missing database
-turns no id unknown. Hatchling
-refuses an unknown id in `project.license` itself; the hook warns only for
-an id newer than that bundled list.
+License List packaged with `licenseid`, so a missing database turns no id
+unknown. Hatchling refuses an unknown id in `project.license` itself; the
+hook warns only for an id newer than that packaged list.
 
 These provenance keys record what changed, in the entry's `license` field:
 
 | Key | Meaning |
 | --- | --- |
 | `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
-| `Normalizer` | The `py-spdx-license` version that parsed it; present with `Normalized-From` only when a parse took place (not for `UNKNOWN`/`NONE`). |
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
 | `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
 | `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |

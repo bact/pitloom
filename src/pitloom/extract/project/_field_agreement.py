@@ -47,10 +47,12 @@ def _requires_python_equal(a: str, b: str) -> bool:
 
 def _license_equal(a: str, b: str) -> bool:
     """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
-    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``; the rule the declared
-    vs concluded check uses). ``NOASSERTION``/``UNKNOWN`` is weak: it agrees
-    with anything, a blank value too. A value that states none compares as
-    empty."""
+    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``: ``licenseid`` reads each
+    as its id; a deprecated id's List name is that id too:
+    :func:`pitloom.extract._license_names.same_licence`, the rule the
+    declared vs concluded check uses).
+    ``NOASSERTION``/``UNKNOWN`` is weak: it agrees with anything, a blank
+    value too. A value that states none compares as empty."""
     if is_weak_licence(a) or is_weak_licence(b):
         return True
     first, second = (classify_license(v, warn=False) for v in (a, b))

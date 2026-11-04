@@ -3,13 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :func:`pitloom.extract._license_classify.classify_license` that
-stay when Pitloom hands the expression parsing to ``licenseid``: the early
-exits (no licence, ``NOASSERTION``, ``NONE``), a single id, text, a lone
-surrogate, a name from the List.
+"""Tests for :func:`pitloom.extract._license_classify.classify_license`: the
+early exits (no licence, ``NOASSERTION``, ``NONE``), an expression as
+``licenseid`` reads it, text, a lone surrogate.
 
-See also: tests/extract/test_license_classify_parsing.py (what goes with
-Pitloom's own parsing), tests/extract/license_classify_cases.py (the table).
+See also: tests/extract/test_license_classify_parsing.py (expressions and
+the broken-expression warning), tests/extract/license_classify_cases.py (the
+table).
 """
 
 from __future__ import annotations
@@ -18,17 +18,13 @@ import logging
 
 import pytest
 
-from pitloom.extract._license_classify import (
-    ClassifiedLicense,
-    classify_license,
-    is_listed_name,
-)
-from tests.extract.license_classify_cases import STAYING
+from pitloom.extract._license_classify import ClassifiedLicense, classify_license
+from tests.extract.license_classify_cases import CASES
 
 
 @pytest.mark.parametrize(
     ("raw", "kind", "value", "warns"),
-    [pytest.param(*c, id=repr(c[0])[:40]) for c in STAYING],
+    [pytest.param(*c, id=repr(c[0])[:40]) for c in CASES],
 )
 def test_classify_license(
     raw: str | None,
@@ -47,24 +43,10 @@ def test_classify_license(
     assert len(caplog.records) == int(warns)
 
 
-@pytest.mark.parametrize(
-    ("name", "license_id", "expected"),
-    [
-        ("MIT License", "MIT", True),
-        (" mit license ", "mit", True),  # case and padding are spelling
-        ("MIT", "MIT", False),  # an id is not a name
-        ("Apache Software License", "Apache-2.0", False),  # not the List name
-        ("MIT License", "Foo", False),  # not a listed id
-    ],
-)
-def test_is_listed_name(name: str, license_id: str, expected: bool) -> None:
-    assert is_listed_name(name, license_id) is expected
-
-
 @pytest.mark.parametrize("raw", [")", ")(", "A)", ")A", "))", "((unbalanced"])
 def test_malformed_input_never_raises(raw: str) -> None:
-    """The parser raises ``IndexError`` for some shapes of unbalanced ``)``
-    (found by ``fuzz/fuzz_license_expression.py``); the value is text."""
+    """Unbalanced brackets (found by ``fuzz/fuzz_license_expression.py``,
+    where an earlier parser raised ``IndexError``): the value is text."""
     got = classify_license(raw)
     assert got is not None
     assert got.kind == "text"

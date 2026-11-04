@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,6 +33,14 @@ and this project adheres to
   `1. MIT`, `iv. MIT`, `REM MIT`, `MIT -`, `MIT...`, `GPLv3 +` ([#437])
 - A `licenseid` warning is one `WARNING: licenseid: ...` line (`INFO:` for
   `variant not stated`), not Python's warning output ([#437])
+- Now read as ids: re-spelt deprecated ids as written (`GPLv3` is `GPL-3.0`),
+  prose and classifier names, quoted values, `MIT;` ([#440])
+- Canonical order follows `licenseid` (`Apache-2.0+ OR MIT`, ids before
+  `LicenseRef-`); `StandardML-NJ` becomes `SMLNJ` ([#440])
+- `licenseid` reads every declared value: rewrites cite `Tool: licenseid==V`
+  (`+` also `Expansion-1`), not `Normalizer`; warnings give its reason ([#440])
+- `AGPL-1.0+`, `AGPL-3.0+` and `GFDL-1.1+` to `GFDL-1.3+`, `WITH` forms too,
+  become their `-or-later` ids, as `GPL-2.0+` does ([#440])
 
 ### Fixed
 
@@ -40,9 +48,13 @@ and this project adheres to
   and the wheel contain none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` ([#435])
 - The Hatchling hook reads a respelt declared licence (`Apache2`) in an
   isolated build, which has no licence database ([#437])
+- A value with two `WITH`s (`MIT WITH AdditionRef-x WITH
+  Classpath-exception-2.0`) is kept as text, not read as an expression
+  ([#440])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437
+[#440]: https://github.com/bact/pitloom/pull/440
 
 ## [0.22.1] - 2026-11-03
 

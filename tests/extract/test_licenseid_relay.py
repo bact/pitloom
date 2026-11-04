@@ -22,7 +22,7 @@ import pytest
 from licenseid import get_default_db_path, resolve
 from licenseid import warning as licenseid_warning
 
-from pitloom.extract import _license
+from pitloom.extract import _license, _license_resolve
 from pitloom.extract import _licenseid_relay as relay
 from pitloom.extract._license import resolve_declared_value
 from pitloom.extract._license_text_match import detect_license_from_text
@@ -235,7 +235,7 @@ def test_resolving_relays_what_resolve_warns(
         _outdated()
         return real(value, source="packaged")
 
-    monkeypatch.setattr(_license, "resolve", as_licenseid(warning_resolve))
+    monkeypatch.setattr(_license_resolve, "resolve", as_licenseid(warning_resolve))
     _license.clear_resolution_cache()
     with caplog.at_level(logging.WARNING, logger=_LOGGER):
         found = resolve_declared_value("Apache2")

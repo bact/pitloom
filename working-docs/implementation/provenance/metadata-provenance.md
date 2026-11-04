@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -146,8 +146,9 @@ consistent, machine-parsable pattern
 - Inferred data: `Source: Pitloom generator | Method: inferred_from_authors`
 - Detected licence: `Source: LICENSE | Method: licenseid_detection |
   Tool: licenseid==<version>`
-- Rewritten licence: `... | Normalized-From: <raw> | Normalizer:
-  py-spdx-license==<version>` (also `Deprecated-License-Id`)
+- Rewritten licence: `... | Normalized-From: <raw> | Tool:
+  licenseid==<version>` (also `Method`, `Resolution-1`, `Expansion-1`,
+  `Deprecated-License-Id`; `Normalizer: py-spdx-license==` until #440)
 - Tracking SDK:
   `Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: evaluate)`
 

@@ -16,7 +16,9 @@ See also: :mod:`pitloom.extract._license` and
 
 from __future__ import annotations
 
+import ast
 from importlib.metadata import version
+from pathlib import Path
 
 import pytest
 from licenseid import Detection, LicenseIdWarning, resolve
@@ -73,3 +75,38 @@ def test_a_detection_has_the_keys_pitloom_reads() -> None:
     assert {"expression", "score", "similarity", "coverage"} <= set(
         Detection.__annotations__
     )
+
+
+def test_an_operand_has_the_keys_pitloom_reads() -> None:
+    (operand,) = resolve("GPL-2.0", source="packaged")["operands"]
+    assert (operand["text"], operand["expression"], operand["category"]) == (
+        "GPL-2.0",
+        "GPL-2.0",
+        "assumed_only",
+    )
+    assert operand["candidates"] == ["GPL-2.0-only", "GPL-2.0-or-later"]
+
+
+_SRC = Path(__file__).resolve().parent.parent / "src"
+
+
+def _imported_roots(path: Path) -> set[str]:
+    tree = ast.parse(path.read_bytes(), filename=str(path))
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            roots.add(node.module.split(".")[0])
+    return roots
+
+
+def test_licenseid_is_the_only_reader_of_a_licence_expression() -> None:
+    """No module of Pitloom parses an expression itself: ``py-spdx-license``
+    is ``licenseid``'s dependency, not Pitloom's."""
+    importers = sorted(
+        str(path.relative_to(_SRC))
+        for path in _SRC.rglob("*.py")
+        if "py_spdx_license" in _imported_roots(path)
+    )
+    assert not importers

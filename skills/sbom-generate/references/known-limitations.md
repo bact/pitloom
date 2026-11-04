@@ -340,7 +340,7 @@ kept as `SimpleLicensingText`, not dropped, with one stderr line per value,
 e.g.:
 
 ```text
-WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR'); recorded as license text
+WARNING: LICENSE='MIT OR': not a valid SPDX license expression (parse failed: Unexpected 'OR'); recorded as license text
 ```
 
 Fix the source value to get a `LicenseExpression`.
@@ -354,8 +354,9 @@ licence element's provenance `comment`: `Normalized-From: <value as written>`,
 `Method: licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
 `Expansion-1: plus_to_or_later` for a `+` (`stated_qualifier` for a stated "or
 later": `MIT or later` is `MIT+`), and `Tool: licenseid==<version>`. A change
-of case or `+` alone (`mit`, `GPL-2.0+`) keeps only `Normalized-From`, with no
-`INFO:`. A value `licenseid` refuses stays text, with no `INFO:`: a stray mark
+of case or `+` alone (`mit`, `GPL-2.0+`) has no `Method` or `Resolution-1`
+and no `INFO:` (`Normalized-From` and `Tool`, a `+` also `Expansion-1`). A
+value `licenseid` refuses stays text, with no `INFO:`: a stray mark
 (`-MIT`, `MIT -`, `MIT...`), a list number (`1. MIT`), a comment word
 (`REM MIT`) or a plus after a space (`GPLv3 +`). Report the line; the result
 is the resolver's reading, not the author's words:
@@ -365,6 +366,16 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 INFO: LICENSE='MIT License': read as MIT (listed_name)
 ```
 
+`licenseid` is the only reader of a declared value, so every rewrite names
+it (`Tool: licenseid==<version>`), a change of case too. A deprecated id the
+author re-spelt (`GPLv3`, `LGPL v3`) is read as that id (`GPL-3.0`), never
+as `-only` or `-or-later`; a bare one (`GPL-2.0`) stays as written. Both get
+`Deprecated-License-Id: <id> (<id>-only or <id>-or-later)`. A licence's prose
+name (`BSD 3-Clause License`) and a classifier's name (`GNU General Public
+License v3 (GPLv3)`) are read as their id too. Licences joined by `;`
+(`MIT; Apache-2.0`) name no operator: they stay text, warned only in a field
+that holds an SPDX expression only (`operator not stated: ;`).
+
 A field that holds an SPDX expression only (`project.license` string,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
 GGUF `general.license`) whose value is not one and `licenseid` reads as none
@@ -372,7 +383,7 @@ GGUF `general.license`) whose value is not one and `licenseid` reads as none
 per value naming the field:
 
 ```text
-WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (Unknown Expression 'Acme-Terms'); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as license text
 ```
 
 Report the line and suggest the listed id (`Apache-2.0`); do not rewrite the

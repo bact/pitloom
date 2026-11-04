@@ -7,11 +7,10 @@
 
 Target: ``pitloom.extract._license.classify_license``. By its own
 contract, this function degrades gracefully for any string input -- it
-catches the third-party expression parser's own failures and classifies
-the value as text, so it should never raise. Any exception escaping
-``_run_one`` below is therefore, by definition, a bug: either in
-Pitloom's own classification code or in the ``py-spdx-license`` library
-it wraps.
+catches the resolver's own failures and classifies the value as text, so
+it should never raise. Any exception escaping ``_run_one`` below is
+therefore, by definition, a bug: either in Pitloom's own classification
+code or in the ``licenseid`` resolver it calls.
 
 See ``fuzz/README.md`` for how to run this.
 """

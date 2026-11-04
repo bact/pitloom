@@ -318,7 +318,7 @@ relationship(s):
    copy; two values, main package only: both, with a conflict Annotation
    when they differ, see license-typing.md).
 
-A note about how the value changed (`Normalized-From`, `Normalizer`,
+A note about how the value changed (`Normalized-From`, `Tool`,
 `Deprecated-License-Id`) goes on the new element, or, when the element
 already existed, on this source's relationship; for an individual always
 on the relationship.

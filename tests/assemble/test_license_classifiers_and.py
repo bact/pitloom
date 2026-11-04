@@ -178,7 +178,9 @@ def test_classifier_terms_round_trip(
 
 def test_a_reading_that_is_not_one_id_stays_a_reference() -> None:
     names = ["Apache Software License", "MIT License"]  # classifier order
-    odd = DeclaredResolution("MIT WITH Foo-exception", "listed_name", (), ())
+    odd = DeclaredResolution(
+        "MIT WITH Foo-exception", "listed_name", (), (), True, "licenseid==x", ()
+    )
     with patch("pitloom.extract._core_metadata.resolve_value", return_value=odd):
         got = license_from_classifiers([_MIT, _APACHE])
     assert got == classifier_expression(names)

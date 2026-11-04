@@ -307,7 +307,7 @@ def test_hostile_archive_name_in_licence_and_copyright_sources(hostile: str) -> 
 @pytest.mark.parametrize("hostile", [_PIPE, _SEMI, _LINE_BREAK, _RLO], ids=_ID.get)
 def test_hostile_licence_text_in_normalized_from(hostile: str) -> None:
     base = "Source: pyproject.toml | Field: project.license"
-    benign = tag_license_normalization(base, "mit", "MIT")
+    benign = tag_license_normalization(base, "mit x", "MIT")  # read by none
     note = tag_license_normalization(base, f"mit {hostile}", "MIT")
     assert keys_of([note]) == keys_of([benign])
     assert "normalized-from" in keys_of([note])[0]
@@ -325,11 +325,14 @@ def test_hostile_licence_text_in_resolution_keys(
         category="separator",
         steps=("separator", hostile),
         expansions=(hostile,),
+        decided=True,
+        tool=f"licenseid=={hostile}",
+        deprecated=(),
     )
     monkeypatch.setattr(_license_resolve, "resolve_value", lambda _value: answer)
     notes = resolution_notes(f"Apache2 {hostile}", "Apache-2.0")
     benign_answer = DeclaredResolution(
-        "Apache-2.0", "separator", ("separator",), ("x",)
+        "Apache-2.0", "separator", ("separator",), ("x",), True, "licenseid==x", ()
     )
     monkeypatch.setattr(_license_resolve, "resolve_value", lambda _value: benign_answer)
     benign = resolution_notes("Apache2", "Apache-2.0")

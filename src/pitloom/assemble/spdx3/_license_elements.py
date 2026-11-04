@@ -255,7 +255,7 @@ def get_or_create_license_element(
     provenance = license_provenance
     if classified.kind in INDIVIDUAL_BY_KIND:
         provenance = tag_license_normalization(
-            provenance, license_id, classified.value, normalizer=False
+            provenance, license_id, classified.value, resolver=False
         )
         return LicenseElement(
             INDIVIDUAL_BY_KIND[classified.kind].iri,

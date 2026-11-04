@@ -168,7 +168,9 @@ def build_license_elements(
     conflicts: against a real licence both relationships stay, the real
     licence being the only one with content; ``NONE`` is a statement and
     conflicts with a real licence. A licence's SPDX List name against its id
-    (``MIT License`` and ``MIT``) is the same licence, not a conflict.
+    (``MIT License`` and ``MIT``, a deprecated id's too:
+    :func:`pitloom.extract._license_names.same_licence`) is the same
+    licence, not a conflict.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into

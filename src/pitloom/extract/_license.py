@@ -6,14 +6,14 @@
 """The licence facade of the project readers, using the licenseid library.
 
 Gives a project its licence from the manifest's stated value and from its
-own licence files (:func:`apply_in_package_license_files`), and the shared
-``licenseid.resolve`` reading of a declared value
-(:func:`resolve_declared_value`). Text detection
-(:func:`~pitloom.extract._license_text_match.detect_license_from_text`)
-requires a populated database; the reading of a declared value (``Apache2``
--> ``Apache-2.0``) uses the SPDX License List packaged with ``licenseid``
-and needs none, as other sources (``CITATION.cff``, ``codemeta.json``) do
-not.
+own licence files (:func:`apply_in_package_license_files`), and re-exports
+the shared ``licenseid.resolve`` reading of a declared value
+(:func:`~pitloom.extract._license_resolve.resolve_declared_value`). Text
+detection (:func:`~pitloom.extract._license_text_match.\
+detect_license_from_text`) requires a populated database; the reading of
+a declared value (``Apache2`` -> ``Apache-2.0``) uses the SPDX License List
+packaged with ``licenseid`` and needs none, as other sources
+(``CITATION.cff``, ``codemeta.json``) do not.
 
 Every ``licenseid`` call runs inside
 :func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
@@ -22,21 +22,18 @@ See Also:
     :mod:`pitloom.extract._license_text_match` for licence text detection,
     :mod:`pitloom.extract._license_detect` for file candidate scanning,
     :mod:`pitloom.extract._license_classify` for classifying a value
-    (re-exported here), and :mod:`pitloom.extract._license_resolve` for
-    which ``licenseid`` readings are accepted.
+    (re-exported here), :mod:`pitloom.extract._license_resolve` for
+    the reading of a declared value, and
+    :mod:`pitloom.extract._license_names` for when two values name one
+    licence.
 """
 
 from __future__ import annotations
 
-import copy
-import functools
-import logging
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
-
-from licenseid import DatabaseNotReadyError, Resolution, resolve
 
 from pitloom.core.lfs_pointer import is_pointer_text
 from pitloom.core.project import ProjectMetadata
@@ -45,7 +42,6 @@ from pitloom.extract._license_classify import (
     classify_license,
     empty_blank_lines,
     is_weak_licence,
-    same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
     warn_unless_expression,
@@ -56,11 +52,13 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     license_candidates_from_members,
 )
+from pitloom.extract._license_names import same_licence
+from pitloom.extract._license_resolve import (
+    clear_resolution_cache,
+    resolve_declared_value,
+)
 from pitloom.extract._license_text_match import detect_license_from_text
-from pitloom.extract._licenseid_relay import relay_licenseid_warnings, say
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-
-_logger = logging.getLogger(__name__)
 
 try:
     _LICENSEID_VERSION: str | None = _pkg_version("licenseid")
@@ -86,43 +84,6 @@ __all__ = [
     "tag_license_normalization",
     "warn_unless_expression",
 ]
-
-
-#: How many answers of :func:`_resolved` are kept: a value asked about by
-#: several callers costs one lookup.
-_MAX_RESOLUTIONS = 4096
-
-
-@functools.lru_cache(maxsize=_MAX_RESOLUTIONS)
-def _resolved(value: str) -> Resolution:
-    """``licenseid``'s reading of *value* on the SPDX License List packaged
-    with it (``source="packaged"``: the same answer whatever database the
-    user has, and with none). A failure raises and is not cached."""
-    with relay_licenseid_warnings():
-        return resolve(value, source="packaged")
-
-
-def clear_resolution_cache() -> None:
-    """Forget the answers of :func:`resolve_declared_value`."""
-    _resolved.cache_clear()
-
-
-def resolve_declared_value(value: str) -> Resolution | None:
-    """``licenseid``'s reading of the declared licence *value*
-    (:func:`licenseid.resolve` on its packaged SPDX License List), or
-    ``None`` when there is no packaged list (a ``licenseid`` installed
-    without it: its error relayed once per process, as ``licenseid``
-    words it) or the resolver fails; a failure is not cached. Each caller
-    gets its own copy."""
-    try:
-        return copy.deepcopy(_resolved(value))
-    except DatabaseNotReadyError as exc:
-        say(str(exc))
-        return None
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        _logger.debug("Failed to resolve license value %r: %s", value, exc)
-        return None
 
 
 def _with_tool_tag(provenance: str) -> str:

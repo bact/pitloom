@@ -4,23 +4,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The value table of :func:`pitloom.extract._license_classify.classify_license`
-tests, shared by the tests that stay with it and the ones that go with
-Pitloom's own expression parsing.
-
-A value that has an operator (``AND``, ``OR``, ``WITH``), a ``+``, an
-``AdditionRef-`` or a gap placeholder depends on that parsing: its expected
-answer (order of operands, the gap spellings) is what ``licenseid`` 0.7.0 takes
-over, so the table is regenerated from the adoption sweep when Pitloom adopts it.
-Every other value stays as it is.
+tests: the early exits Pitloom keeps (no licence, ``NOASSERTION``, ``NONE``,
+long and multi-line text) and the mainstream answers of ``licenseid``, which
+reads every expression. Edge answers ``licenseid`` may still move (the order
+of a reference beside an id, quotes, end marks) are not pinned here.
 
 See also: tests/extract/test_license_classify.py,
 tests/extract/test_license_classify_parsing.py,
-tests/extract/test_license_parse_drift_guard.py.
+tests/extract/test_license_readback_guard.py.
 """
 
 from __future__ import annotations
-
-import re
 
 LONG_BODY = "Permission is granted to use, copy and modify this software, and " * 800
 
@@ -72,10 +66,10 @@ CASES = [
     # operator words glued into an id are not operators
     ("LicenseRef-my-or-license", "expression", "LicenseRef-my-or-license", False),
     ("LicenseRef-and-tool", "expression", "LicenseRef-and-tool", False),
-    # grammar gaps: canonical like any expression
+    # valid SPDX with a ``+`` or an ``AdditionRef-``: canonical like any other
     ("Apache-2.0+", "expression", "Apache-2.0+", False),
     ("apache-2.0+", "expression", "Apache-2.0+", False),
-    # grammar-gap terms collapse only when identical
+    # repeated terms collapse only when identical
     ("MIT+ OR MIT+", "expression", "MIT+", False),
     (
         "Apache-2.0+  WITH  AdditionRef-x",
@@ -96,7 +90,7 @@ CASES = [
         "Apache-2.0+ WITH Classpath-exception-2.0",
         False,
     ),
-    # a deprecated id with a listed successor is replaced by it
+    # a deprecated ``+`` id is its listed successor
     ("GPL-2.0+", "expression", "GPL-2.0-or-later", False),
     ("lgpl-2.1+", "expression", "LGPL-2.1-or-later", False),
     ("gpl-2.0+ or mit", "expression", "GPL-2.0-or-later OR MIT", False),
@@ -132,23 +126,11 @@ CASES = [
         "DocumentRef-d:LicenseRef-a WITH AdditionRef-x",
         False,
     ),
-    # a user's own reference spelled like the gap placeholder is kept
-    (
-        "LicenseRef-pitloom-gap-000 OR Apache-2.0+",
-        "expression",
-        "LicenseRef-pitloom-gap-000 OR Apache-2.0+",
-        False,
-    ),
-    (
-        "LicenseRef-pitloom-gap-0001 OR Apache-2.0+ OR MIT+",
-        "expression",
-        "LicenseRef-pitloom-gap-0001 OR Apache-2.0+ OR MIT+",
-        False,
-    ),
     # `+` only follows a listed licence id
     ("LicenseRef-foo+", "text", "LicenseRef-foo+", False),
     ("DocumentRef-x:LicenseRef-y+", "text", "DocumentRef-x:LicenseRef-y+", False),
     ("MIT WITH AdditionRef-x+", "text", "MIT WITH AdditionRef-x+", True),
+    ("GPLv3 +", "text", "GPLv3 +", False),  # a plus after a space: refused
     ("GPL-2.0++", "text", "GPL-2.0++", False),
     ("LGPL-2.1++", "text", "LGPL-2.1++", False),
     ("GPL-2.0-only+", "text", "GPL-2.0-only+", False),
@@ -180,13 +162,21 @@ CASES = [
         "Apache-2.0 WITH AdditionRef-x AND Foo",
         True,
     ),
-    # read by licenseid as one licence (said at INFO, not WARNING)
+    # re-spelt by licenseid (said at INFO, not WARNING)
     ("Apache2", "expression", "Apache-2.0", False),
     ("MIT License", "expression", "MIT", False),
+    ("Apache2 OR MIT", "expression", "Apache-2.0 OR MIT", False),
+    ("GPLv3", "expression", "GPL-3.0", False),  # its -only/-or-later unknown
+    ("BSD 3-Clause License", "expression", "BSD-3-Clause", False),  # prose
+    ("MIT or later", "expression", "MIT+", False),  # a stated "or later"
+    ("StandardML-NJ", "expression", "SMLNJ", False),  # renamed on the List
+    # licences joined by a semicolon name no operator: text, not a guess
+    ("MIT; Apache-2.0", "text", "MIT; Apache-2.0", False),
     # text, silent
     (" Foo ", "text", "Foo", False),
     ("Foo AND Bar", "text", "Foo AND Bar", False),
     ("Classpath-exception-2.0", "text", "Classpath-exception-2.0", False),
+    ("Apache\x1f2.0", "text", "Apache\x1f2.0", False),  # a control character
     ("MIT\nApache-2.0", "text", "MIT\nApache-2.0", False),
     ("MIT OR\nApache-2.0", "text", "MIT OR\nApache-2.0", False),  # never parsed
     (LONG_BODY, "text", LONG_BODY.strip(), False),
@@ -194,25 +184,3 @@ CASES = [
     (padded(200), "expression", "MIT", False),
     (padded(201), "text", padded(201), False),
 ]
-
-
-#: A value that Pitloom's own expression parsing decides (see the module doc).
-_PARSING = re.compile(
-    r"\+|AdditionRef|pitloom-gap|\s(?:AND|OR|WITH)(?:\s|$)", re.IGNORECASE
-)
-#: Multi-line and over-long values are text before any parser is asked.
-_NEVER_PARSED = re.compile(r"[\r\n]")
-
-
-def depends_on_parsing(raw: str | None) -> bool:
-    """Whether the answer for *raw* is Pitloom's own expression parsing."""
-    return (
-        raw is not None
-        and _NEVER_PARSED.search(raw) is None
-        and len(raw) <= 200
-        and _PARSING.search(raw) is not None
-    )
-
-
-STAYING = [case for case in CASES if not depends_on_parsing(case[0])]
-PARSING = [case for case in CASES if depends_on_parsing(case[0])]

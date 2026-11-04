@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-22
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,18 +34,18 @@ Following PR #161's decomposition passes, the ratchet ceilings are:
 
 ## File-size limits status (DRIFTED -- needs a follow-up pass)
 
-Snapshot of 2026-10-22 (`wc -l`). Organic growth keeps crossing the soft limit,
-none of it individually large enough to trip review attention:
+Snapshot of 2026-11-04 (`wc -l`) for `src/`, 2026-10-22 for `tests/`. Organic
+growth keeps crossing the soft limit, none of it individually large enough to
+trip review attention:
 
-- **`src/`** (soft limit 400-500, hard cap 800): 40 files exceed 400 lines and
-  10 exceed 500 (`extract/lock/common.py` and `uv.py` were split into
-  `_lock_io.py`, `_pins.py` and `_uv_graph.py`). Worst: `export/spdx3_json.py`
-  (525), `assemble/spdx3/deps_license.py` (520),
-  `extract/ai_model/pytorch_pt2.py` (515),
-  `extract/remote/huggingface_field.py` and `core/ai_metadata.py` (508 each),
-  `extract/_license.py` (507), `extract/ai_model/hdf5_config.py` (505),
-  `assemble/spdx3/deps.py` (505), `assemble/spdx3/_ai_package.py` (504) and
-  `assemble/spdx3/document.py` (503).
+- **`src/`** (soft limit 400-500, hard cap 800): 50 files exceed 400 lines and
+  11 exceed 500 (`extract/_license.py` is 219 since its split in #438 and
+  #440). Worst: `extract/_usage_ast.py` (619), `extract/ai_model/pytorch_pt2.py`
+  (579), `export/spdx3_json.py` (559), `assemble/spdx3/deps_license.py` (520),
+  `extract/remote/huggingface_field.py` (513), `core/ai_metadata.py` (511),
+  `id_registry/_registry.py` (510), `extract/ai_model/hdf5_config.py` and
+  `assemble/spdx3/provenance.py` (504 each), `assemble/spdx3/_ai_package.py`
+  and `core/_config_parse.py` (502 each).
 - **`tests/`** (excluding the `hf_patches/` mock catalogs): files over 500 lines
   are `assemble/test_deps_enrichment_pypi_fallback.py` (691, the worst, near the
   hard cap), `extract/lock/test_common.py` (579), `cli/test_cli_option_reach.py`
