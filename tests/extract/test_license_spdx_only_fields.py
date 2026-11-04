@@ -79,9 +79,11 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
         ("", None),
         ("   ", None),
         (None, None),
-        ("Acme2", "LICENSE='Acme2': _ (Unknown Expression 'Acme2')"),
-        ("MIT OR Foo", "LICENSE='MIT OR Foo': _ (Unknown Expression 'Foo')"),
-        (" Acme2 ", "LICENSE='Acme2': _ (Unknown Expression 'Acme2')"),
+        ("Acme2", "LICENSE='Acme2': _ (not found: Acme2)"),
+        ("MIT OR Foo", "LICENSE='MIT OR Foo': _ (operand not resolved: Foo)"),
+        (" Acme2 ", "LICENSE='Acme2': _ (not found: Acme2)"),
+        # licences joined by no operator: no SPDX expression, none guessed
+        ("MIT; Apache-2.0", "LICENSE='MIT; Apache-2.0': _ (operator not stated: ;)"),
         ("Apache\nLicense", "LICENSE='Apache License': _ (more than one line)"),
         (_LONG, "_ (longer than 200 characters, not parsed)"),
         ("Acme2\x1b[2J", "LICENSE='Acme2\\x1b[2J': _"),
@@ -296,7 +298,7 @@ def test_end_to_end_the_value_is_text_with_one_warning(
     err = capsys.readouterr().err.splitlines()
     assert [line for line in err if _SAID in line] == [
         "WARNING: FIELD=project.license LICENSE='Acme2': not read as an SPDX"
-        " license expression (Unknown Expression 'Acme2'); recorded as license"
+        " license expression (not found: Acme2); recorded as license"
         " text"
     ]
     assert _texts(json.loads(out.read_text(encoding="utf-8"))) == ["Acme2"]

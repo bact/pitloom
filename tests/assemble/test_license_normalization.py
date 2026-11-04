@@ -12,6 +12,7 @@ utilities with a mocked database.
 """
 
 import tempfile
+from importlib.metadata import version
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,9 +24,10 @@ from pitloom.extract._license import (
     tag_deprecated_license_ids,
     tag_license_normalization,
 )
-from pitloom.extract._license_classify import _PY_SPDX_LICENSE_VERSION
 from pitloom.extract._license_detect import _looks_like_spdx_license_id
 from pitloom.extract._license_text_match import detect_license_from_text
+
+_VERSION = version("licenseid")
 
 # ---------------------------------------------------------------------------
 # Integration tests -- require real licenseid database
@@ -211,14 +213,10 @@ def test_tag_license_normalization_noop_when_unchanged() -> None:
 
 def test_tag_license_normalization_flags_casing_change() -> None:
     """A casing-only rewrite ("mit" -> "MIT") is flagged with the raw value
-    and, when the library is installed, the py-spdx-license version that
-    did the rewrite (_PY_SPDX_LICENSE_VERSION)."""
+    and the licenseid version that did the rewrite, no decision."""
     prov = "Source: pyproject.toml | Field: project.license"
     tagged = tag_license_normalization(prov, "mit", "MIT")
-    assert tagged.startswith(prov)
-    assert "Normalized-From: mit" in tagged
-    if _PY_SPDX_LICENSE_VERSION is not None:
-        assert f"Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}" in tagged
+    assert tagged == f"{prov} | Normalized-From: mit | Tool: licenseid=={_VERSION}"
 
 
 def test_tag_license_normalization_flags_compound_dedup() -> None:

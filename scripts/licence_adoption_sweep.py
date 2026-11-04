@@ -12,9 +12,9 @@ expected one relate. Run it before and after adopting a licenseid release; every
 row listed as moved needs a reason in the adoption plan
 (``working-docs/design/licenseid-0-7-adoption.md``).
 
-Needs a licenseid database: ``HOME=$(mktemp -d) licenseid update --source
-packaged`` builds one offline in a scratch home; run this script with the same
-``HOME``. Usage: ``python scripts/licence_adoption_sweep.py PARITY.tsv``.
+Needs no licenseid database: a declared value is read on the SPDX License
+List packaged with licenseid. Usage:
+``python scripts/licence_adoption_sweep.py PARITY.tsv``.
 """
 
 from __future__ import annotations

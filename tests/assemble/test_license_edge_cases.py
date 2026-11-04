@@ -23,12 +23,10 @@ from unittest.mock import patch
 import pytest
 
 import pitloom.extract._license as _license_module
-import pitloom.extract._license_classify as _classify_module
 from pitloom.extract import _license_detect
 from pitloom.extract._license import (
     _with_tool_tag,
     detect_independent_license,
-    tag_license_normalization,
 )
 from pitloom.extract._license_detect import (
     _license_from_citation_cff,
@@ -45,13 +43,8 @@ def test_looks_like_spdx_license_expression_newlines_and_length() -> None:
     assert not _looks_like_spdx_license_expression("MIT OR " + ("Apache-2.0 " * 30))
 
 
-def test_tag_license_normalization_and_tool_tags_without_versions() -> None:
-    """tag_license_normalization and _with_tool_tag handle None version gracefully."""
-    with patch("pitloom.extract._license_classify._PY_SPDX_LICENSE_VERSION", None):
-        note = tag_license_normalization("Source: test", "mit", "MIT")
-        assert "Normalized-From: mit" in note
-        assert "Normalizer:" not in note
-
+def test_tool_tag_without_a_version() -> None:
+    """_with_tool_tag handles a None version gracefully."""
     with patch("pitloom.extract._license._LICENSEID_VERSION", None):
         res = _with_tool_tag("Source: test")
         assert res == "Source: test"
@@ -99,8 +92,8 @@ def test_collect_license_candidates_file_read_oserror() -> None:
 
 
 def test_module_level_version_lookup_missing_packages() -> None:
-    """_LICENSEID_VERSION/_PY_SPDX_LICENSE_VERSION fall back to None when the
-    underlying distributions are not installed (PackageNotFoundError)."""
+    """_LICENSEID_VERSION falls back to None when the distribution is not
+    installed (PackageNotFoundError)."""
 
     def _raise(_name: str) -> str:
         raise PackageNotFoundError(_name)
@@ -108,13 +101,11 @@ def test_module_level_version_lookup_missing_packages() -> None:
     # Restore each namespace, not reload it again: a reload makes new classes
     # (``ClassifiedLicense``), which do not equal instances other tests'
     # already-imported functions create.
-    saved = [(m, dict(vars(m))) for m in (_classify_module, _license_module)]
+    saved = [(m, dict(vars(m))) for m in (_license_module,)]
     try:
         with patch("importlib.metadata.version", side_effect=_raise):
-            importlib.reload(_classify_module)
             importlib.reload(_license_module)
             assert _license_module._LICENSEID_VERSION is None
-            assert _classify_module._PY_SPDX_LICENSE_VERSION is None
     finally:
         for module, namespace in saved:
             vars(module).update(namespace)

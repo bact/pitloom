@@ -258,7 +258,7 @@ def test_texts_equal_when_stripped_share_the_first_seen_element() -> None:
         ("MIT OR Apache-2.0", "Apache-2.0 OR MIT"),  # operands reordered
         ("MIT OR MIT", "MIT"),  # a repeat collapsed
         ("MIT OR ISC OR MIT", "ISC OR MIT"),
-        ("Apache-2.0+  OR  MIT", "MIT OR Apache-2.0+"),
+        ("Apache-2.0+  OR  MIT", "Apache-2.0+ OR MIT"),
     ],
 )
 def test_a_rewritten_expression_records_what_it_was(raw: str, value: str) -> None:

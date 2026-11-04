@@ -36,6 +36,7 @@ from pitloom.assemble.spdx3.provenance import (
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._license import clear_resolution_cache
 
 from .conftest import _make_ci
 
@@ -267,18 +268,29 @@ def test_build_license_elements_two_candidates_with_individuals(
 @pytest.mark.parametrize(
     ("declared", "concluded"), [("MIT License", "MIT"), ("MIT", "mit license")]
 )
-def test_a_list_name_and_its_id_are_no_conflict_without_a_reading(
+def test_a_list_name_is_its_id_only_through_the_reading(
     declared: str, concluded: str
 ) -> None:
-    """With no ``licenseid`` reading the name stays text, and the SPDX List
-    name of the other value's id still makes them one licence."""
+    """``licenseid`` reads the SPDX List name as its id: one licence, no
+    conflict. With no reading (no packaged list) the name stays text and no
+    second list makes them one: the conflict is recorded."""
+    (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
+    assert rel_declared is not None and rel_concluded is not None
+    assert rel_declared.to == rel_concluded.to
+    assert not _conflicts(exporter)
+    clear_resolution_cache()
     with patch(
-        "pitloom.extract._license.resolve", side_effect=RuntimeError("no reading")
+        "pitloom.extract._license_resolve.resolve",
+        side_effect=RuntimeError("no reading"),
     ):
         (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
     assert rel_declared is not None and rel_concluded is not None
     assert rel_declared.to != rel_concluded.to
-    assert not [
+    assert _conflicts(exporter)
+
+
+def _conflicts(exporter: Spdx3JsonExporter) -> list[object]:
+    return [
         o
         for o in exporter.object_set.objects
         if "conflict" in str(getattr(o, "statement", ""))

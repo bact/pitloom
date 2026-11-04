@@ -126,8 +126,8 @@ def test_an_individual_carries_the_source_on_the_relationship(
     assert bool(fields) is normalised
     assert all("normalized-from" in f for f in fields)
     assert ("Normalized-From" in rel.get("comment", "")) is normalised
-    # No parse took place, so no parser is named.
-    assert "Normalizer" not in rel.get("comment", "")
+    # No reading took place, so no resolver is named.
+    assert "Tool:" not in rel.get("comment", "")
 
 
 def test_an_individual_is_shared_by_every_package_stating_it() -> None:

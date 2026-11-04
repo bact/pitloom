@@ -3,11 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A declared licence value read through ``licenseid.resolve``: what Pitloom
-accepts (``Apache2`` is ``Apache-2.0``), how it says so (``INFO:`` once, the
-provenance keys) and what it leaves alone (a bare deprecated id, several
-licences, a compound with an unreadable part). The reading uses the SPDX
-License List packaged with ``licenseid``: no database.
+"""A declared licence value read through ``licenseid.resolve``, its only
+reader: every answer with an expression is recorded (``Apache2`` is
+``Apache-2.0``, ``GPLv3`` is ``GPL-3.0``), how it is said (``INFO:`` once,
+the provenance keys), and what stays text (several licences, a compound
+with an unreadable part, a character the resolver drops). The reading uses
+the SPDX License List packaged with ``licenseid``: no database.
 
 See also: tests/extract/test_license_spdx_only_fields.py (the warning for a
 value nothing reads) and docs/metadata-provenance-licences.md.
@@ -17,12 +18,10 @@ value nothing reads) and docs/metadata-provenance-licences.md.
 
 from __future__ import annotations
 
-import importlib
 import json
 import logging
 import re
 import sys
-from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -34,11 +33,12 @@ from licenseid import resolve as licenseid_resolve
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.extract import _license, _license_resolve, _license_text_match
+from pitloom.extract import _license_resolve, _license_text_match
 from pitloom.extract._license import (
     classify_license,
     clear_resolution_cache,
     resolve_declared_value,
+    tag_deprecated_license_ids,
     tag_license_normalization,
     warn_unless_expression,
 )
@@ -69,6 +69,10 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         ("Apache\u20112.0", "Apache-2.0", "separator"),  # non-breaking hyphen
         ('BSD 3-Clause "New" or "Revised" License', "BSD-3-Clause", "listed_name"),
         ("Yahoo! Public License v1.0", "YPL-1.0", "listed_name"),
+        ("MIT :", "MIT", "separator"),  # an end mark the resolver drops
+        ("BSD 3-Clause License", "BSD-3-Clause", "prose_form, separator"),
+        ("standardml-nj", "SMLNJ", "id_case, deprecated_equal_successor"),
+        ("Apache2 OR MIT", "Apache-2.0 OR MIT", "separator, version_spelling"),
     ],
     ids=[
         "apache2",
@@ -82,6 +86,10 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         "unicode-hyphen",
         "list-name-quotes",
         "list-name-bang",
+        "end-mark",
+        "prose",
+        "renamed",
+        "compound",
     ],
 )
 def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
@@ -116,55 +124,71 @@ def test_a_plus_after_a_respelling_is_an_expansion_apart_from_it() -> None:
 
 
 @pytest.mark.parametrize(
-    ("raw", "normalized"),
+    ("raw", "normalized", "expansion"),
     [
-        ("GPL-2.0+", "GPL-2.0-or-later"),  # Pitloom's own rewrite of a listed id
-        ("standardml-nj", "StandardML-NJ"),  # the resolver would say SMLNJ
-        ("(GPL-3.0+)", "GPL-3.0-or-later"),
+        ("mit", "MIT", ""),
+        ("MIT AND MIT", "MIT", ""),
+        ("GPL-2.0+", "GPL-2.0-or-later", " | Expansion-1: plus_to_or_later"),
+        ("(GPL-3.0+)", "GPL-3.0-or-later", " | Expansion-1: plus_to_or_later"),
     ],
 )
-def test_a_value_pitloom_parses_itself_is_not_credited_to_licenseid(
-    raw: str, normalized: str
+def test_a_change_of_form_names_licenseid_and_no_decision(
+    raw: str, normalized: str, expansion: str
 ) -> None:
-    """The keys name only what ``licenseid`` read, so a value Pitloom
-    parses has the same provenance whether ``licenseid`` answers or not."""
-    with_db = tag_license_normalization("P", raw, normalized)
-    assert "licenseid" not in with_db and "Resolution" not in with_db
-    with patch(
-        "pitloom.extract._license.resolve", side_effect=DatabaseNotReadyError("x")
-    ):
-        clear_resolution_cache()
-        assert tag_license_normalization("P", raw, normalized) == with_db
+    """``licenseid`` did the rewrite, so ``Tool`` names it; it decided nothing
+    beyond form and ``+``, so there is no ``Method`` or ``Resolution-1``."""
+    tool = f"licenseid=={licenseid_resolve('MIT')['resolver']['version']}"
+    assert tag_license_normalization("P", raw, normalized) == (
+        f"P | Normalized-From: {raw}{expansion} | Tool: {tool}"
+    )
 
 
-def _answer(category: str) -> Any:
+def _answer(category: str, operand: str = "MIT") -> Any:
     """A ``licenseid`` answer of *category*, with one applied step and one
-    that was declined."""
+    that was declined, read from one *operand* of that category."""
     steps = [
         {"kind": "trim", "applied": False},
         {"kind": "id_case", "applied": True},
     ]
-    return {"expression": "MIT", "category": category, "steps": steps, "expansions": []}
+    return {
+        "expression": "MIT",
+        "category": category,
+        "steps": steps,
+        "expansions": [],
+        "operands": [
+            {"text": operand, "expression": "MIT", "category": category,
+             "candidates": []},
+        ],
+        "resolver": {"name": "licenseid", "version": "9.9"},
+    }  # fmt: skip
 
 
 @pytest.mark.parametrize(
-    ("category", "decided"),
+    ("category", "operand", "decided"),
     [
-        ("exact", False),
-        ("lexical", False),
-        ("plus_to_or_later", False),
-        ("separator", True),
-        ("deprecated_equal_successor", True),
+        ("exact", "MIT", False),
+        ("lexical", "MIT", False),
+        ("plus_to_or_later", "MIT", False),
+        ("separator", "MIT", True),
+        ("deprecated_equal_successor", "MIT", True),
+        # a deprecated id kept as written, in any case, is the author's
+        ("assumed_only", "mit", False),
+        ("deprecated_ambiguous", "MIT", False),
+        # re-spelt to reach it, it is the resolver's
+        ("assumed_only", "MITv1", True),
+        ("deprecated_ambiguous", "MIT1", True),
     ],
 )
 def test_only_a_decision_beyond_form_is_said_at_info_and_noted(
-    category: str, decided: bool, caplog: pytest.LogCaptureFixture
+    category: str, operand: str, decided: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Case, spacing and ``+`` are the author's licence: ``DEBUG:`` and no
-    ``Method``/``Resolution-1``; a declined step is not listed."""
+    """Case, spacing, ``+`` and a deprecated id as written are the author's
+    licence: ``DEBUG:`` and no ``Method``/``Resolution-1``; a declined step
+    is not listed; ``Tool`` names the resolver of the answer."""
+    answer = _answer(category, operand)
     with (
         caplog.at_level(logging.DEBUG, logger=_LOGGER),
-        patch("pitloom.extract._license.resolve", return_value=_answer(category)),
+        patch("pitloom.extract._license_resolve.resolve", return_value=answer),
     ):
         resolved = _license_resolve.resolve_value("x")
         assert resolved is not None and resolved.decided is decided
@@ -176,16 +200,17 @@ def test_only_a_decision_beyond_form_is_said_at_info_and_noted(
     assert ("Resolution-1: x -> MIT (id_case)" in note) is decided
     assert ("Method: licenseid_resolution" in note) is decided
     assert "Expansion" not in note
-    assert (note == "") is not decided
+    assert note.endswith(" | Tool: licenseid==9.9")
+    assert (note == " | Tool: licenseid==9.9") is not decided
 
 
-def test_a_reading_with_a_plus_outside_the_grammar_is_kept_as_the_gap_reading() -> None:
-    """The answer is checked again by the strict parse, then the gap reading
-    (``Apache-2.0+`` is valid SPDX the parser does not read)."""
-    answer = _answer("separator") | {"expression": "Apache-2.0+"}
-    with patch("pitloom.extract._license.resolve", return_value=answer):
+def test_the_answer_is_recorded_as_licenseid_gives_it() -> None:
+    """No second parser checks the answer: ``licenseid`` is the only reader."""
+    answer = _answer("separator") | {"expression": "Not-A-Listed-Id"}
+    with patch("pitloom.extract._license_resolve.resolve", return_value=answer):
         got = classify_license("Apache 2.0+", warn=False)
-    assert got is not None and (got.kind, got.value) == ("expression", "Apache-2.0+")
+    assert got is not None
+    assert (got.kind, got.value) == ("expression", "Not-A-Listed-Id")
 
 
 def test_a_value_is_said_once_by_its_text_not_by_its_reading(
@@ -201,7 +226,7 @@ def test_the_answers_are_kept_when_the_database_is_found_unusable() -> None:
     """They do not rest on the database: only the detector is dropped."""
     resolve_declared_value("Apache2")
     _license_text_match._database_unusable(RuntimeError("x"))
-    assert _license._resolved.cache_info().currsize == 1
+    assert _license_resolve._resolved.cache_info().currsize == 1
 
 
 def test_the_reading_is_the_same_with_and_without_a_database(
@@ -238,10 +263,8 @@ def test_the_reading_is_the_same_with_and_without_a_database(
         "GPL-3.0-or-later!",
         "Apache\ufffd2.0",
         "Apache 2.0\udc80",  # a lone surrogate becomes U+FFFD
-        # read by the resolver (``separator``), which drops the character
-        "MIT :",
-        "mit;",
-        'Apache 2.0 "',
+        "MIT ; Apache 2",  # licences joined by no operator
+        "GPLv3 +",  # a plus after a space
     ],
 )
 def test_a_value_naming_no_single_licence_stays_text(raw: str) -> None:
@@ -252,18 +275,51 @@ def test_a_value_naming_no_single_licence_stays_text(raw: str) -> None:
 
 
 @pytest.mark.parametrize("raw", ["GPL-3.0", "GPL-2.0", "LGPL-2.1"])
-def test_a_bare_deprecated_id_is_never_narrowed(raw: str) -> None:
-    got = classify_license(raw)
+def test_a_bare_deprecated_id_is_never_narrowed(
+    raw: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Kept as written, quiet, its two possible successors noted."""
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        got = classify_license(raw)
     assert got is not None
     assert (got.kind, got.value) == ("expression", raw)
+    assert not caplog.records
+    assert tag_deprecated_license_ids("P", raw) == (
+        f"P | Deprecated-License-Id: {raw} ({raw}-only or {raw}-or-later)"
+    )
 
 
-@pytest.mark.parametrize("raw", ["GPLv3", "AGPLv3", "GPL v2", "LGPLv2.1"])
-def test_a_respelt_deprecated_id_is_not_guessed_either(raw: str) -> None:
+@pytest.mark.parametrize(
+    ("raw", "expression"),
+    [("GPLv3", "GPL-3.0"), ("AGPLv3", "AGPL-3.0"), ("GPL v2", "GPL-2.0"),
+     ("LGPLv2.1", "LGPL-2.1")],
+)  # fmt: skip
+def test_a_respelt_deprecated_id_is_read_as_that_id_not_narrowed(
+    raw: str, expression: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """The resolver finds the deprecated id but not its ``-only``/``-or-later``
-    (``assumed_only``): the value stays text."""
-    got = classify_license(raw, warn=False)
-    assert got is not None and got.kind == "text"
+    (``assumed_only``): the id is recorded as the author stated it, the
+    re-spelling said and noted, its successors noted, none chosen."""
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        got = classify_license(raw)
+    assert got is not None and (got.kind, got.value) == ("expression", expression)
+    (info,) = _said(caplog, logging.INFO)
+    assert info.startswith(f"LICENSE={raw!r}: read as {expression} (")
+    note = tag_deprecated_license_ids(
+        tag_license_normalization("P", raw, expression), expression
+    )
+    assert f"Resolution-1: {raw} -> {expression} (" in note
+    assert note.endswith(
+        f" | Deprecated-License-Id: {expression}"
+        f" ({expression}-only or {expression}-or-later)"
+    )
+
+
+def test_a_deprecated_id_with_an_exception_is_noted_without_it() -> None:
+    expression = "GPL-2.0 WITH Classpath-exception-2.0 OR MIT OR GPL-2.0"
+    assert tag_deprecated_license_ids("P", expression) == (
+        "P | Deprecated-License-Id: GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)"
+    )
 
 
 @pytest.mark.parametrize("raw", ["Apache2", "MIT License", "GPLv3+", "CC BY 4.0"])
@@ -310,7 +366,7 @@ def test_no_reading_when_the_resolver_cannot_answer(
     resolver bug is a debug."""
     with (
         caplog.at_level(logging.DEBUG, logger="pitloom"),
-        patch("pitloom.extract._license.resolve", side_effect=failure),
+        patch("pitloom.extract._license_resolve.resolve", side_effect=failure),
     ):
         got = classify_license("Apache2", warn=False)
         classify_license("Apache2", warn=False)
@@ -323,32 +379,27 @@ def test_no_reading_when_the_resolver_cannot_answer(
     assert len(unusable) == (1 if isinstance(failure, DatabaseNotReadyError) else 0)
 
 
-def test_an_answer_the_strict_parse_refuses_is_not_recorded() -> None:
-    """The reading is checked again: an expression Pitloom's parser does not
-    read is no licence."""
-    answer: Any = {
-        "expression": "Not-A-Listed-Id",
-        "category": "separator",
-        "steps": [],
-        "expansions": [],
-    }
-    with patch("pitloom.extract._license.resolve", return_value=answer):
-        got = classify_license("Apache2", warn=False)
-    assert got is not None and (got.kind, got.value) == ("text", "Apache2")
-
-
 @pytest.mark.parametrize(
-    "category", ["assumed_only", "deprecated_ambiguous", "expression"]
-)
-def test_a_category_that_decides_nothing_is_not_accepted(category: str) -> None:
-    answer: Any = {
-        "expression": "MIT",
-        "category": category,
-        "steps": [],
-        "expansions": [],
-    }
-    with patch("pitloom.extract._license.resolve", return_value=answer):
+    "category",
+    ["prose_form", "trove_name", "assumed_only", "deprecated_ambiguous",
+     "stated_qualifier", "version_spelling"],
+)  # fmt: skip
+def test_every_answer_with_an_expression_is_accepted(category: str) -> None:
+    with patch(
+        "pitloom.extract._license_resolve.resolve", return_value=_answer(category)
+    ):
         got = classify_license("Acme2", warn=False)
+    assert got is not None and (got.kind, got.value) == ("expression", "MIT")
+
+
+@pytest.mark.parametrize("category", ["malformed", "unresolved"])
+def test_an_answer_without_an_expression_is_text_with_its_reason(
+    category: str,
+) -> None:
+    answer = _answer(category) | {"expression": None, "reason": "not found: Acme2"}
+    with patch("pitloom.extract._license_resolve.resolve", return_value=answer):
+        got = classify_license("Acme2", warn=False)
+        assert _license_resolve.refusal_reason("Acme2") == "not found: Acme2"
     assert got is not None and (got.kind, got.value) == ("text", "Acme2")
 
 
@@ -395,40 +446,17 @@ def test_end_to_end_a_respelt_licence_is_declared_as_the_id_with_one_info(
     assert any("licenseid_resolution" in s for s in statements)
 
 
-def test_the_tool_key_is_left_out_when_the_licenseid_version_is_unknown(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A re-spelling is still recorded; only ``Tool`` needs the version."""
-    monkeypatch.setattr(_license_resolve, "_LICENSEID_VERSION", None)
-    note = tag_license_normalization("P", "Apache2", "Apache-2.0")
-    assert "Resolution-1: Apache2 -> Apache-2.0" in note
-    assert "Tool:" not in note
-
-
-def test_an_uninstalled_licenseid_distribution_gives_no_version() -> None:
-    """Metadata is missing for a source checkout or a vendored copy: the
-    version is ``None``, not an error at import."""
-    with patch(
-        "importlib.metadata.version", side_effect=PackageNotFoundError("licenseid")
-    ):
-        reloaded = importlib.reload(_license_resolve)
-    try:
-        assert reloaded._LICENSEID_VERSION is None
-    finally:
-        importlib.reload(_license_resolve)
-    assert _license_resolve._LICENSEID_VERSION is not None
-
-
 def test_a_value_is_resolved_once_and_a_failure_is_not_remembered() -> None:
     """Callers share one answer per value; a failed answer is asked again."""
     real = licenseid_resolve
-    with patch("pitloom.extract._license.resolve", side_effect=real) as spy:
+    with patch("pitloom.extract._license_resolve.resolve", side_effect=real) as spy:
         for _ in range(3):
             classify_license("Apache2", warn=False)
         assert spy.call_count == 1
         assert spy.call_args.kwargs == {"source": "packaged"}
     with patch(
-        "pitloom.extract._license.resolve", side_effect=[RuntimeError("boom"), None]
+        "pitloom.extract._license_resolve.resolve",
+        side_effect=[RuntimeError("boom"), None],
     ) as flaky:
         assert resolve_declared_value("Acme2") is None
         assert resolve_declared_value("Acme2") is None  # asked again, not cached
@@ -438,8 +466,8 @@ def test_a_value_is_resolved_once_and_a_failure_is_not_remembered() -> None:
 def test_the_answers_are_bounded() -> None:
     for value in ("Acme1", "Acme2", "Acme3"):
         resolve_declared_value(value)
-    info = _license._resolved.cache_info()
-    assert (info.currsize, info.maxsize) == (3, _license._MAX_RESOLUTIONS)
+    info = _license_resolve._resolved.cache_info()
+    assert (info.currsize, info.maxsize) == (3, _license_resolve._MAX_RESOLUTIONS)
 
 
 def test_each_caller_gets_its_own_copy_of_an_answer() -> None:

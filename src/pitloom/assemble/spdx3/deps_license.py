@@ -31,7 +31,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import classify_license, same_licence
+from pitloom.extract._license import classify_license
 
 
 # Shared document context plus the element; see build_license_elements.
@@ -257,7 +257,7 @@ def build_license_elements(
         declared is not None
         and concluded is not None
         and not (declared.is_noassertion or concluded.is_noassertion)
-        and not same_licence(declared.value, concluded.value)
+        and declared.value != concluded.value
     ):
         candidates: list[ConflictCandidate] = [
             {

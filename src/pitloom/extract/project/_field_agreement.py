@@ -21,7 +21,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.core.pep440 import parse_specifier_set
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
-from pitloom.extract._license import classify_license, is_weak_licence, same_licence
+from pitloom.extract._license import classify_license, is_weak_licence
 from pitloom.extract.lock.common import is_same_version
 
 #: Fields checked for a genuine disagreement between two sources: a real
@@ -47,16 +47,17 @@ def _requires_python_equal(a: str, b: str) -> bool:
 
 def _license_equal(a: str, b: str) -> bool:
     """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
-    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``; the rule the declared
-    vs concluded check uses). ``NOASSERTION``/``UNKNOWN`` is weak: it agrees
-    with anything, a blank value too. A value that states none compares as
+    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``: ``licenseid`` reads each
+    as its id; the rule the declared vs concluded check uses).
+    ``NOASSERTION``/``UNKNOWN`` is weak: it agrees with anything, a blank
+    value too. A value that states none compares as
     empty."""
     if is_weak_licence(a) or is_weak_licence(b):
         return True
     first, second = (classify_license(v, warn=False) for v in (a, b))
     if first is None or second is None:
         return first is None and second is None
-    return same_licence(first.value, second.value)
+    return first.value == second.value
 
 
 _FIELD_COMPARATORS: dict[str, Callable[[str, str], bool]] = {

@@ -130,7 +130,9 @@ _ALLOWED = {
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,
     "extract/_usage_ast.py:_MAX_DEPTH": "over it: the expression gives no edge",
     "extract/_usage_ast.py:_MAX_PATH_CHARS": "over it: the expression gives no edge",
-    "extract/_license.py:_MAX_RESOLUTIONS": "a cache size: answers are asked again",
+    "extract/_license_resolve.py:_MAX_RESOLUTIONS": (
+        "a cache size: answers are asked again"
+    ),
     "cli/commands/utils.py:_MAX_LIST_ENDS": "a search bound: the text stays as is",
     "extract/_license_text_match.py:_SCORE_CAP": _NOT_INPUT,
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,

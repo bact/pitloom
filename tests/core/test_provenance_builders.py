@@ -77,7 +77,7 @@ def test_provenance_source_shapes() -> None:
 # The keys the source writes today, listed rather than read from the set.
 _KEYS = [
     "Deprecated-License-Id", "Field", "File", "Method", "Normalized-From",
-    "Normalizer", "Note", "Package", "Role", "Tool",
+    "Note", "Package", "Role", "Tool",
 ]  # fmt: skip
 
 
