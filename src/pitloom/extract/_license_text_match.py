@@ -16,9 +16,10 @@ use::
 Every ``licenseid`` call runs inside
 :func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
 
-See also: :mod:`pitloom.extract._license` (the callers: candidates, a
-stated licence, a declared value's reading) and
-:mod:`pitloom.extract._license_detect` (the files read).
+See also: :mod:`pitloom.extract._license` (licence files and a stated
+licence) and :mod:`pitloom.extract.remote.huggingface_fetch` (a Hub
+repository's licence files), the callers, and
+:mod:`pitloom.extract._license_detect` (which files are read).
 """
 
 from __future__ import annotations
