@@ -29,9 +29,11 @@ from tests._message_drift import quote_matches, relative
 
 #: The text that marks a quote as saying a family's message.
 _MARKERS = {
+    "card-malformed": "frontmatter is not valid YAML",
     "dir-unlistable": "could not list ",
     "file-unreadable": "could not read ",
     "hyperparameter-conflict": "replaced by the parameter count",
+    "json-malformed": "not valid JSON;",
     "lfs-pointer": "Git LFS pointer",
     "lfs-pointer-malformed": "Git LFS pointer",
     "library-missing": "required library not installed",
@@ -40,6 +42,7 @@ _MARKERS = {
     "over-cap": " cap;",
     "parameter-count-invalid": "parameter count not recorded",
     "reader-unsafe": "Pass --trust-wheel-model",
+    "text-malformed": "lone surrogates written",
     "usage-unparseable": "could not parse as Python ",
     "usage-unusable": "not scanned for usage",
 }

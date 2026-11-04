@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.dataset.croissant import read_croissant
+from pitloom.messages import code_of
 
 _RAI_PII = "rai:personalSensitiveInformation"
 _PII = "has_sensitive_personal_information"
@@ -120,20 +121,29 @@ def test_read_croissant_accepts_each_spelling(
 
 
 @pytest.mark.parametrize(
-    ("body", "reason"),
+    ("body", "reason", "code"),
     [
-        (b'{"name": "ds", "version": ' + b"1" * 5000 + b"}", "is not valid JSON"),
-        (b"[" * 100000, "is larger than the 64-level Croissant-nesting cap"),
+        (
+            b'{"name": "ds", "version": ' + b"1" * 5000 + b"}",
+            "not valid JSON; ",
+            "json-malformed",
+        ),
+        (
+            b"[" * 100000,
+            "larger than the 64-level Croissant-nesting cap; not read",
+            "over-cap",
+        ),
     ],
     ids=["huge-int", "too-deep"],
 )
 def test_read_croissant_unreadable_json_names_the_file(
-    tmp_path: Path, body: bytes, reason: str
+    tmp_path: Path, body: bytes, reason: str, code: str
 ) -> None:
     path = tmp_path / "ds.json"
     path.write_bytes(body)
-    with pytest.raises(ValueError, match=f"^Croissant source .*ds.json.* {reason}"):
+    with pytest.raises(ValueError, match=f"^'.*ds.json': {reason}") as raised:
         read_croissant(path)
+    assert code_of(raised.value) == code
 
 
 def test_read_croissant_a_missing_file_is_named_as_croissant(tmp_path: Path) -> None:

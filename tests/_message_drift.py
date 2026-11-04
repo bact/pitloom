@@ -42,6 +42,7 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
     "amount": "512 MiB",
+    "card": "model card",
     "command": "clone",
     "count": 2,
     "dir": "m/sub",

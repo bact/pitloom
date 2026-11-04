@@ -83,7 +83,7 @@ def test_opens_frontmatter() -> None:
 def test_parse_frontmatter_uses_the_line_rule(
     text: str, expected: dict[str, object] | None
 ) -> None:
-    assert _parse_frontmatter(text) == expected
+    assert _parse_frontmatter(text, shown="README.md") == expected
 
 
 @pytest.mark.parametrize(
@@ -97,7 +97,7 @@ def test_both_readers_take_a_card_that_starts_with_blank_lines_or_a_bom(
     """As the description reader always did (blank lines), and now the
     frontmatter reader too."""
     card = lead + "---\nlicense: mit\n---\n\nBody para.\n"
-    assert _parse_frontmatter(card) == {"license": "mit"}
+    assert _parse_frontmatter(card, shown="README.md") == {"license": "mit"}
     assert card_description(card) == "Body para."
 
 
@@ -115,7 +115,7 @@ def test_a_card_without_frontmatter_has_no_description_or_frontmatter(
 ) -> None:
     """A ``---`` rule in the body is no frontmatter: the first one used to
     open one, so a second rule made "End text." the description."""
-    assert _parse_frontmatter(card) is None
+    assert _parse_frontmatter(card, shown="README.md") is None
     assert card_description(card) is None
 
 

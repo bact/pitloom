@@ -150,11 +150,7 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
     [
         (
             b"---\nlicense: [mit\n---\n",
-            "Failed to parse dataset-card frontmatter",
-        ),
-        (
-            b"---\nlicense: [mit\n---\n",
-            "license, license_name, license_link, version",
+            "/README.md: dataset card frontmatter is not valid YAML; while parsing",
         ),
         (b"---\nversion: true\n---\n", "field version is of type bool, not text"),
         (b"---\nversion: 1.10\n---\n", "version is of type float, not text; quote"),
@@ -170,7 +166,6 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
     ],
     ids=[
         "malformed-yaml",
-        "malformed-yaml-fields",
         "bool-version",
         "float-version",
         "int-version",

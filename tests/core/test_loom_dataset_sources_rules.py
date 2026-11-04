@@ -28,6 +28,7 @@ from pitloom import loom
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING, read_croissant
+from pitloom.messages import code_of
 from tests._spdx3_validate import assert_spdx3_valid
 from tests._symlink import CAN_SYMLINK
 from tests.core._loom_dataset_sources_shared import (
@@ -387,9 +388,10 @@ def test_a_deep_croissant_is_read_or_refused_by_its_cap(
     with pytest.raises(ValueError) as caught:
         run_graph(project / "out.json", body_)
     assert str(caught.value) == (
-        "Croissant source 'c.json' is larger than the "
-        f"{CROISSANT_MAX_NESTING}-level Croissant-nesting cap"
+        f"'c.json': larger than the {CROISSANT_MAX_NESTING}-level "
+        "Croissant-nesting cap; not read"
     )
+    assert code_of(caught.value) == "over-cap"
 
 
 def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:

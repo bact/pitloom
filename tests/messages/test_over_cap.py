@@ -33,6 +33,7 @@ from pitloom.logging_config import CODE_ATTR, configure_logging
 from pitloom.messages import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
+    SOURCE_LINE,
     Cap,
     CodedValueError,
     Line,
@@ -89,6 +90,10 @@ def test_the_reason_has_one_writer() -> None:
     )
     assert str(error) == f"config file 's.tar.gz:setup.cfg': {cap.reason}; not read"
     assert code_of(error) == "over-cap"
+    source = CodedValueError(
+        OVER_CAP, line=SOURCE_LINE, path="c.json", **cap.reason_values()
+    )
+    assert str(source) == f"'c.json': {cap.reason}; not read"
 
 
 @pytest.mark.parametrize(

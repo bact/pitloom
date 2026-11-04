@@ -40,6 +40,7 @@ from pitloom.extract.dataset.croissant_key import (
     VERSION_KEYS,
 )
 from pitloom.extract.remote.huggingface_dataset import _load_dataset_card
+from pitloom.messages import code_of
 
 #: How many inputs each seed makes: small, the whole file runs in seconds.
 _PER_SEED = 25
@@ -184,7 +185,9 @@ def test_a_croissant_file_is_read_or_refused_as_a_value_error(
         try:
             meta = read_croissant(path)
         except ValueError as exc:
-            assert "Croissant" in str(exc) and str(path) in str(exc)
+            # A read of the JSON is coded; a Croissant reading says so.
+            named = code_of(exc) is not None or "Croissant" in str(exc)
+            assert named and str(path) in str(exc)
         else:
             _assert_valid(meta)
 

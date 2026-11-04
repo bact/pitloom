@@ -30,6 +30,7 @@ from pitloom.extract.dataset.croissant import (
     _normalize_sensitivity,
     read_croissant,
 )
+from pitloom.messages import code_of
 
 # Path to the shared fixture directory.
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "croissant"
@@ -327,8 +328,9 @@ def test_read_croissant_nonexistent_file_raises() -> None:
 def test_read_croissant_non_object_json_raises(tmp_path: Path) -> None:
     f = tmp_path / "array.json"
     f.write_text("[1, 2, 3]", encoding="utf-8")
-    with pytest.raises(ValueError, match="expected a JSON object"):
+    with pytest.raises(ValueError, match=": not a JSON object$") as raised:
         read_croissant(f)
+    assert code_of(raised.value) == "json-malformed"
 
 
 # ---------------------------------------------------------------------------
