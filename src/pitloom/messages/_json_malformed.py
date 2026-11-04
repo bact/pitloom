@@ -29,7 +29,8 @@ JSON_MALFORMED: Final = Message(
     summary="A JSON document Pitloom was given to read (a Croissant file) "
     "does not parse, or its top level is not an object.",
     did="Read nothing of it: the call raises ValueError carrying the code, "
-    "and the dataset declaration (loom.Run, read_croissant) fails.",
+    "and the dataset declaration (loom.add_dataset with croissant=, or "
+    "read_croissant) fails.",
     effect="not-written",
     actor="user",
     advice="Tell the user which document is not valid JSON, or not a JSON "

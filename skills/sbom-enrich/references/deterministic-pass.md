@@ -19,7 +19,9 @@ safe. Each `datasets:` entry becomes a `dataset_DatasetPackage` with a
 `trainedOn` relationship. A frontmatter `license` is only logged in the
 fragment's enrichment `Annotation`, with no licence element: a base regenerated
 with `--enrich` states it (or a step 6 fragment does). Read the fragment's
-`@graph` to see what it filled.
+`@graph` to see what it filled. A card whose frontmatter does not parse fills
+nothing: `WARNING: FILE=<path>: model card frontmatter is not valid YAML;
+<failure> [card-malformed]` (`messages.md` says what to tell the user).
 
 Skip it when the base run used `--enrich` (same pass: merging both duplicates
 each dataset and `trainedOn`), and when the target is not a local AI model file

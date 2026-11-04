@@ -39,11 +39,6 @@ entries stay in the last section for history.
   model, and the model hash leaves no `verifiedUsing`; add the code to the
   generated table so both are said.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
-- [ ] **Where the `ERROR` template of the unreadable family first lands is
-  open (S), decided 2026-10-30: later (0.22.x or 0.23.0).** Either 2b
-  `fetch_json` (recommended) or the registry PRs 5-7; undecided, 2b unless
-  said otherwise.
-  *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
 - [ ] **A base element holding both a value and a `not_measured` entry loses the
   entry when a fragment folds into it for an unrelated field (S).** Needs a
   forged entry, which sanitising now blocks; ruling it out means tracking which
@@ -74,19 +69,10 @@ entries stay in the last section for history.
 - [ ] **The `--allow-build` `Build:` warning is uncoded (S).** It needs the
   frames PR (catalogue 4).
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
-- [ ] **The lone-surrogate message is uncatalogued (S).** It should be
-  `text-malformed`, and the effect it states is weaker than the code's.
-  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
-- [ ] **`card-malformed` is not coded (S).** A card that does not parse still
-  has free text.
-  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
-- [ ] **`fetch_json` size and nesting raises are not `over-cap` (S).**
-  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
-- [ ] **Croissant re-raises a plain `ValueError` and drops the code (S).**
-  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
-- [ ] **`find_card_file` drops a card silently when the model directory cannot
-  be listed (S).** A read failure should say `dir-unlistable`.
-  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [ ] **A card frontmatter that is valid YAML but no mapping is silent (S).**
+  `---\n- a\n---` states none of the keys read, so nothing is said; a reader
+  cannot tell it from a card without frontmatter. Kept quiet in 2b (H9).
+  *Found 2026-11-04, catalogue 2b plan.*
 - [ ] **Wheel-member, listed requirements file and registry-unstorable-name
   lines use the unreadable family's wording for another cause (S).**
   *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
@@ -96,7 +82,7 @@ entries stay in the last section for history.
 - [ ] **19 in-scope message sites pass another message through with no code
   (S).** Their text is another message, not a template of their own,
   so no code of the inner message is forwarded or checked: `scanner_wheel.py` 2
-  (1b), `croissant.py` and `path_confine.py` (2b), 11 in the CLI
+  (1b), `croissant.py` and `path_confine.py` (2b, fixed in #444), 11 in the CLI
   (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3,
   `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
   `setuptools_cfg.py` (12), `archive_member_names.py` (16) and
@@ -124,6 +110,28 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **Where the `ERROR` template of the unreadable family first lands was
+  open (S), fixed (#444).** It landed in `fetch_json`: a Croissant document
+  that cannot be read raises `file-unreadable` with the `ERROR` form of the
+  warning's template.
+  *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
+- [x] **The lone-surrogate message was uncatalogued (S), fixed (#444).** It
+  is `text-malformed` (effect `weaker`), said through
+  `pitloom.messages.warn_lone_surrogates`.
+  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [x] **A card that does not parse had free text (S), fixed (#444).** It
+  says `card-malformed`; a card read failure says `file-unreadable`.
+  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [x] **`fetch_json` size and nesting raises were not `over-cap` (S), fixed
+  (#444).** Its JSON parse failures are `json-malformed`.
+  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [x] **Croissant re-raised a plain `ValueError` and dropped the code (S),
+  fixed (#444).** The rewrite is gone; the code passes through.
+  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
+- [x] **`find_card_file` dropped a card silently when the model directory
+  could not be listed (S), fixed (#444).** It says `dir-unlistable`; an
+  absent directory stays quiet.
+  *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
 - [x] **Untagged setuptools lines on stderr (S).** Cloning
   `zzzeek/sqlalchemy` with `loom project <url>` printed
   `warning: no files found matching '*.js' under directory 'doc'` and
