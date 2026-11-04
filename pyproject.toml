@@ -76,7 +76,6 @@ dependencies = [
     # the source build needs meson-python, which it does not declare.
     "pipdeptree>=4.2.3,!=4.2.10",
     "poetry-core>=2.4.1",
-    "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
     "pyyaml>=6.0.3,<7",
     "rfc8785>=0.1.4",
@@ -283,10 +282,6 @@ module = "h5py.*"
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = "magika.*"
-
-[[tool.mypy.overrides]]
-ignore_missing_imports = true
-module = "py_spdx_license.*"
 
 # safetensors safe_open and sys.modules typing changed across library versions.
 # These modules carry type: ignore comments that may be needed on older versions
