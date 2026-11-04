@@ -32,6 +32,9 @@ _OUTSIDE: Final = "outside the project directory"
 FILE_LINE: Final = Line(
     level="WARNING", template="FILE=%(file)s: could not read %(use)s; %(failure)s"
 )
+#: A file read for a purpose of the closed table, where the read raises (a
+#: Croissant document a dataset declaration names).
+FILE_ERROR_LINE: Final = Line(level="ERROR", template=FILE_LINE.template)
 #: A file a project setting lists, read for that setting.
 FIELD_LINE: Final = Line(
     level="WARNING",
@@ -46,7 +49,7 @@ HEADER_LINE: Final = Line(
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",
     condition="unreadable",
-    lines=(FILE_LINE, FIELD_LINE, HEADER_LINE),
+    lines=(FILE_LINE, FIELD_LINE, HEADER_LINE, FILE_ERROR_LINE),
     summary="A file Pitloom found or was named could not be read: the "
     "operating system refused it (no read permission, a directory above it "
     "without search permission, a file another program holds open on "
@@ -61,7 +64,9 @@ FILE_UNREADABLE: Final = Message(
     "the usage scan records no model reference from it; ID registry indexing "
     "leaves it out of the index; no dependency pins are read from a lock "
     "file; a model whose header could not be read is not listed as an AI "
-    "model.",
+    "model; a model or dataset card sets none of the fields it states. As an "
+    "ERROR, the call that named the file raises (a Croissant document: the "
+    "dataset declaration fails).",
     effect="thinner",
     actor="user",
     advice="Tell the user which file could not be read and what the system "
@@ -144,7 +149,7 @@ DIR_UNLISTABLE: Final = Message(
     "build backend that lists before it excludes can name a directory it "
     "would leave out anyway); a dataset directory gets no hash (Evidence: "
     "not_measured | Reason: dir-unlistable); ID registry indexing leaves them "
-    "out of the index.",
+    "out of the index; a model or dataset card in it is not found.",
     effect="thinner",
     actor="user",
     advice="Tell the user which directory could not be listed and what the "

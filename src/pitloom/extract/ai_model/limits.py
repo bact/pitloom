@@ -35,8 +35,7 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.unrecordable import notice_unrecordable
-from pitloom.logging_config import warn_lone_surrogates
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import Cap, warn_lone_surrogates, warn_over_cap
 
 __all__ = [
     "MAX_MODEL_ENTRIES",
@@ -211,7 +210,7 @@ def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:
     id, a name): by :func:`cap_and_warn` for a model file, by
     ``read_huggingface`` for a Hugging Face model."""
     if escape_lone_surrogates_in(meta)[1]:
-        warn_lone_surrogates(log, where, f"FORMAT={fmt} ")
+        warn_lone_surrogates(log, file=where, model_format=fmt)
     warn_name_cut(meta, fmt, where)
     notice_unrecordable(meta, fmt, where)
 

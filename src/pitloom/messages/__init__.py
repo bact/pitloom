@@ -32,6 +32,7 @@ which imports it.
 
 from __future__ import annotations
 
+from pitloom.messages._card_malformed import CARD_MALFORMED
 from pitloom.messages._catalogue import MESSAGES
 from pitloom.messages._emit import (
     CodedImportError,
@@ -41,7 +42,7 @@ from pitloom.messages._emit import (
     emit,
     relay_extra,
 )
-from pitloom.messages._fields import FIELDS, READ_USES, Field, size_text
+from pitloom.messages._fields import CARD_KINDS, FIELDS, READ_USES, Field, size_text
 from pitloom.messages._file_unreadable import (
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
@@ -49,10 +50,16 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE_OUTSIDE,
 )
 from pitloom.messages._file_unreadable_warning import (
+    file_unreadable_error,
     warn_dir_unlistable,
     warn_file_unreadable,
 )
 from pitloom.messages._frames import FRAMES, HANDLER_FRAMES, RELAY_FRAME, Frame
+from pitloom.messages._json_malformed import (
+    JSON_MALFORMED,
+    NOT_JSON_LINE,
+    NOT_OBJECT_LINE,
+)
 from pitloom.messages._lfs_pointer import (
     LFS_CLONE_LINE,
     LFS_POINTER,
@@ -88,6 +95,7 @@ from pitloom.messages._over_cap import (
     CONFIG_MEMBER_LINE,
     GIT_OUTPUT_LINE,
     OVER_CAP,
+    SOURCE_LINE,
     Cap,
 )
 from pitloom.messages._over_cap_warning import (
@@ -95,6 +103,8 @@ from pitloom.messages._over_cap_warning import (
     warn_archive_member_over_cap,
     warn_over_cap,
 )
+from pitloom.messages._text_malformed import TEXT_MALFORMED
+from pitloom.messages._text_malformed_warning import warn_lone_surrogates
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
     ACTORS,
@@ -117,6 +127,8 @@ from pitloom.messages._usage_unusable import USAGE_UNUSABLE
 __all__ = [
     "ACTORS",
     "ACTOR_HEADINGS",
+    "CARD_KINDS",
+    "CARD_MALFORMED",
     "CLONE_LINE",
     "CODE_GRAMMAR",
     "CONDITIONS",
@@ -134,6 +146,7 @@ __all__ = [
     "GIT_OUTPUT_LINE",
     "HANDLER_FRAMES",
     "HYPERPARAMETER_CONFLICT",
+    "JSON_MALFORMED",
     "LEVELS",
     "LFS_CLONE_LINE",
     "LFS_POINTER",
@@ -155,6 +168,8 @@ __all__ = [
     "MODEL_UNREADABLE",
     "MODEL_WRONG_FORMAT",
     "NOT_A_MODEL_LINE",
+    "NOT_JSON_LINE",
+    "NOT_OBJECT_LINE",
     "OVER_CAP",
     "PARAMETER_COUNT_INVALID",
     "PARAMETER_COUNT_SKIPPED",
@@ -162,7 +177,9 @@ __all__ = [
     "READ_USES",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
+    "SOURCE_LINE",
     "STATED_COUNT_REASON",
+    "TEXT_MALFORMED",
     "USAGE_UNPARSEABLE",
     "USAGE_UNPARSEABLE_MENTION",
     "USAGE_UNUSABLE",
@@ -176,6 +193,7 @@ __all__ = [
     "code_extra_of",
     "code_of",
     "emit",
+    "file_unreadable_error",
     "over_cap_of",
     "relay_extra",
     "says",
@@ -184,5 +202,6 @@ __all__ = [
     "warn_archive_member_over_cap",
     "warn_dir_unlistable",
     "warn_file_unreadable",
+    "warn_lone_surrogates",
     "warn_over_cap",
 ]

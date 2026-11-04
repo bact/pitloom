@@ -77,7 +77,6 @@ pitloom.core.file_names 2
 pitloom.core.iri 4
 pitloom.core.model_extract_limit 2
 pitloom.core.no_effect 1
-pitloom.core.path_confine 1
 pitloom.core.project 1
 pitloom.core.provenance 2
 pitloom.core.requirements 3
@@ -86,10 +85,9 @@ pitloom.core.walk_rules 1
 pitloom.core.wheel_dist_info 5
 pitloom.embed 3
 pitloom.enrich 1
-pitloom.enrich.readme 2
 pitloom.extract._author_warnings 5
 pitloom.extract._core_metadata 1
-pitloom.extract._extract_utils 7
+pitloom.extract._extract_utils 1
 pitloom.extract._license_classify 3
 pitloom.extract._license_resolve 1
 pitloom.extract._license_text_match 2
@@ -101,7 +99,7 @@ pitloom.extract.ai_model.pytorch 3
 pitloom.extract.ai_model.pytorch_pt2 5
 pitloom.extract.ai_model.reader 1
 pitloom.extract.ai_model.unrecordable 1
-pitloom.extract.dataset.croissant 4
+pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
 pitloom.extract.lock._common_warnings 7

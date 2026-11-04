@@ -226,13 +226,20 @@ def escape_lone_surrogates_in(value: Any) -> tuple[Any, bool]:
 def escape_lone_surrogates_in_elements(elements: list[dict[str, Any]]) -> list[str]:
     """Each JSON object of *elements* (the decoded ``@graph`` of an SBOM)
     with :func:`escape_lone_surrogates_in` applied, in place. Returns the
-    ``name`` (else the ``spdxId``) of each object that changed, as it was
+    ``name`` (else the ``spdxId``, the ``@id`` of a blank node, the
+    ``type``, else ``element``) of each object that changed, as it was
     before, in the order of *elements*: a project file whose POSIX name is
     not UTF-8 (``b"\\xff.py"`` read as ``"\\udcff.py"``) reaches the output
-    as the text ``\\udcff.py``."""
+    as the text ``\\udcff.py``. A label is never empty."""
     changed: list[str] = []
     for element in elements:
-        label = str(element.get("name") or element.get("spdxId") or "")
+        label = str(
+            element.get("name")
+            or element.get("spdxId")
+            or element.get("@id")
+            or element.get("type")
+            or "element"
+        )
         if escape_lone_surrogates_in(element)[1]:
             changed.append(label)
     return changed

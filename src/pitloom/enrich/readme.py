@@ -41,16 +41,20 @@ from pitloom.core.dataset_names import (
     distinct_dataset_names,
 )
 from pitloom.core.frontmatter import opens_frontmatter, split_frontmatter
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
-from pitloom.logging_config import (
-    field_loss_suffix,
-    loggable,
-    one_line,
+from pitloom.logging_config import field_loss_suffix
+from pitloom.messages import (
+    CARD_MALFORMED,
+    Cap,
+    emit,
+    warn_dir_unlistable,
+    warn_file_unreadable,
     warn_lone_surrogates,
+    warn_over_cap,
 )
-from pitloom.messages import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -75,12 +79,18 @@ class CardKind:
 
     #: Candidate filenames, in priority order, matched case-insensitively.
     stems: tuple[str, ...]
-    #: The card's name in a warning (``"model card"``).
+    #: The card's name in a warning (``"model card"``): one of
+    #: :data:`pitloom.messages.CARD_KINDS`.
     label: str
     #: The read cap, named for this kind.
     cap: Cap
-    #: What a warning says is lost (:func:`field_loss_suffix`).
+    #: What a warning that names no catalogued line says is lost
+    #: (:func:`field_loss_suffix`); a catalogued line's entry says it.
     fields_skipped: str
+    #: What the card is read for, as a ``file-unreadable`` or
+    #: ``dir-unlistable`` line says it: one of
+    #: :data:`pitloom.messages.READ_USES`.
+    use: str
 
 
 #: A model card: ``license`` and ``datasets`` are read.
@@ -89,6 +99,7 @@ MODEL_CARD = CardKind(
     "model card",
     MODEL_CARD_CAP,
     field_loss_suffix("skipped", "license", "datasets"),
+    use="for the model card",
 )
 #: A dataset card (Hugging Face convention: the dataset's ``README.md``),
 #: read by :mod:`pitloom.extract.dataset.card`.
@@ -105,6 +116,7 @@ DATASET_CARD = CardKind(
         "tags",
         "pretty_name",
     ),
+    use="for the dataset card",
 )
 
 
@@ -112,14 +124,19 @@ def find_card_file(directory: Path, kind: CardKind = MODEL_CARD) -> Path | None:
     """The first existing *kind* card file in *directory*, or ``None``.
     Of several files spelling one stem in different case (``README.md``,
     ``readme.md``), the one spelt as the stem, else the first by name: the
-    same on every file system, whatever order it lists them in."""
+    same on every file system, whatever order it lists them in. A
+    directory that cannot be listed has none, with one ``WARNING:``
+    (``dir-unlistable``) naming it as given; an absent one has none,
+    quietly."""
     wanted = {stem.lower() for stem in kind.stems}
     try:
         found = sorted(
             (p for p in directory.iterdir() if p.name.lower() in wanted),
             key=lambda p: p.name,
         )
-    except OSError:
+    except OSError as exc:
+        if not is_missing_errno(exc):
+            warn_dir_unlistable(log, exc, directory=directory, use=kind.use)
         return None
     files = [p for p in found if os.path.isfile(p)]
     for stem in kind.stems:
@@ -142,9 +159,13 @@ def _find_model_card_file(model_dir: Path) -> Path | None:
     return find_card_file(model_dir, MODEL_CARD)
 
 
-def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any] | None:
+def _parse_frontmatter(
+    text: str, kind: CardKind = MODEL_CARD, *, shown: str
+) -> dict[str, Any] | None:
     """Return the leading ``---\\n...\\n---`` YAML block as a dict, or
-    ``None`` when absent, malformed, or not a mapping at the top level."""
+    ``None`` when absent, malformed (one ``WARNING:``, ``card-malformed``,
+    naming the card *shown*), or not a mapping at the top level (quietly:
+    it states none of the keys read)."""
     block = _frontmatter_block(text)
     if block is None:
         return None
@@ -156,28 +177,33 @@ def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any]
     # nesting exhausts the recursion limit.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        label = kind.label.replace(" ", "-")
-        msg = f"Failed to parse {label} frontmatter: %s" + kind.fields_skipped
-        log.warning(msg, one_line(exc))
+        emit(
+            log,
+            CARD_MALFORMED,
+            logging.WARNING,
+            file=shown,
+            card=kind.label,
+            failure=exc,
+        )
         return None
     return data if isinstance(data, dict) else None
 
 
-def _read_card(card_path: Path, kind: CardKind, name: str | None) -> str | None:
+def _read_card(card_path: Path, kind: CardKind, shown: str) -> str | None:
     """*card_path*'s text, its first :data:`MODEL_CARD_MAX_BYTES` (one byte
     past them read, never the rest), a UTF-8 BOM dropped; ``None``, with a
-    ``WARNING:``, when it cannot be read or is over the cap with a
-    frontmatter not closed within it. A frontmatter closed within the cap is
-    the one the whole card holds, and a card not starting with one holds
-    none, so neither warns."""
-    shown = str(card_path) if name is None else name
+    ``WARNING:`` naming it *shown*, when it cannot be read
+    (``file-unreadable``: what the system reported, never the path it
+    names) or is over the cap with a frontmatter not closed within it. A
+    frontmatter closed within the cap is the one the whole card holds, and a
+    card not starting with one holds none, so neither warns. A card that
+    vanished since it was found is absent: quiet."""
     try:
         with card_path.open("rb") as fh:
             raw = fh.read(MODEL_CARD_MAX_BYTES + 1)
     except OSError as exc:
-        msg = f"Failed to read {kind.label} %s: %s" + kind.fields_skipped
-        reason = exc if name is None else exc.strerror or type(exc).__name__
-        log.warning(msg, loggable(shown), one_line(reason))
+        if not is_missing_errno(exc):
+            warn_file_unreadable(log, exc, file=shown, use=kind.use)
         return None
     text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8-sig", errors="replace")
     over = len(raw) > MODEL_CARD_MAX_BYTES
@@ -196,9 +222,12 @@ def read_card(
     :func:`read_card_frontmatter` gives it; ``None`` when the card cannot
     be read (one ``WARNING:``). A warning names the card by *name* when
     given (a downloaded card's local path is no name for it), else by
-    *card_path*, and then gives the failure without a path in it."""
-    text = _read_card(card_path, kind, name)
-    return None if text is None else (text, _parse_frontmatter(text, kind))
+    *card_path*; it gives the failure without a path in it."""
+    shown = str(card_path) if name is None else name
+    text = _read_card(card_path, kind, shown)
+    if text is None:
+        return None
+    return text, _parse_frontmatter(text, kind, shown=shown)
 
 
 def read_card_frontmatter(
@@ -247,7 +276,7 @@ class ReadmeEnricher:
         }
         read, lone = escape_lone_surrogates_in(read)
         if lone:
-            warn_lone_surrogates(log, loggable(str(card_path)))
+            warn_lone_surrogates(log, file=card_path)
         license_value, datasets_value = read["license"], read["datasets"]
 
         source = provenance_segment(

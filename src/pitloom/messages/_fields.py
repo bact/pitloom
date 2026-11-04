@@ -187,10 +187,18 @@ READ_USES: Final = (
     "for file scanning",
     "for ID registry indexing",
     "for license files",
+    "for the Croissant document",
+    "for the dataset card",
+    "for the Hugging Face dataset card",
+    "for the model card",
     "for the model hash",
     "for the script hash",
     "for usage scanning",
 )
+
+#: The kinds of card whose YAML frontmatter Pitloom reads, as a
+#: ``card-malformed`` line names one: a closed table.
+CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -200,6 +208,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             _str,
             "<amount>",
             "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
+        ),
+        "card": Field(
+            "|".join(re.escape(kind) for kind in CARD_KINDS),
+            _str,
+            "<card>",
+            "the kind of card: " + ", ".join(f"`{kind}`" for kind in CARD_KINDS),
         ),
         "command": Field(
             r"[a-z][a-z-]*",

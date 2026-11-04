@@ -35,6 +35,15 @@ class NotRegularFileError(OSError):
         super().__init__("not a regular file")
 
 
+class SymlinkLoopError(OSError):
+    """The path to read resolves through a loop of symbolic links: what
+    :data:`errno.ELOOP` reports, without the path (which a message names on
+    its own)."""
+
+    def __init__(self) -> None:
+        super().__init__(errno.ELOOP, os.strerror(errno.ELOOP))
+
+
 class OutsideRootError(OSError):
     """The file to read is outside the directory it must be in, or is not
     the file its path resolved to when it was checked."""
@@ -98,7 +107,8 @@ def open_inside(written: Path, root: Path) -> BinaryIO:
     Raises:
         NotRegularFileError: *written* is not a regular file.
         OutsideRootError: it is outside *root*, or not the file opened.
-        OSError: it cannot be opened, or resolved (a symlink loop).
+        OSError: it cannot be opened, or resolved (a symlink loop:
+            :class:`SymlinkLoopError`).
         ValueError: its path holds a NUL.
     """
     if not stat.S_ISREG(os.stat(written).st_mode):
@@ -120,7 +130,7 @@ def _check_opened(handle: BinaryIO, written: Path, root: Path) -> None:
         resolved = written.resolve()
         inside = is_inside(resolved, root.resolve())
     except RuntimeError as exc:  # a symlink loop, on 3.10-3.12
-        raise OSError(errno.ELOOP, str(exc)) from exc
+        raise SymlinkLoopError from exc
     if not inside or (opened.st_ino and not _opened_at(resolved, opened)):
         raise OutsideRootError
 
