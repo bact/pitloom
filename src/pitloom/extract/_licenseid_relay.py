@@ -38,7 +38,8 @@ overlapping :class:`warnings.catch_warnings` with ``record=True``) takes
 the ``licenseid`` warnings given meanwhile, which are then not said; after
 both, no warning is taken or dropped.
 
-See also: :mod:`pitloom.extract._license` (the callers) and
+See also: :mod:`pitloom.extract._license` and
+:mod:`pitloom.extract._license_text_match` (the callers) and
 :mod:`pitloom.core._models_wheel_setuptools_relay` (the same relay for
 setuptools).
 """
