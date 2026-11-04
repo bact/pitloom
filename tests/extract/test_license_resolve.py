@@ -73,6 +73,8 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         ("BSD 3-Clause License", "BSD-3-Clause", "prose_form, separator"),
         ("standardml-nj", "SMLNJ", "id_case, deprecated_equal_successor"),
         ("Apache2 OR MIT", "Apache-2.0 OR MIT", "separator, version_spelling"),
+        # a deprecated id kept as written beside a re-spelt one: decided
+        ("Apache2 OR GPL-2.0", "Apache-2.0 OR GPL-2.0", "separator, version_spelling"),
     ],
     ids=[
         "apache2",
@@ -90,6 +92,7 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         "prose",
         "renamed",
         "compound",
+        "compound-deprecated",
     ],
 )
 def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
