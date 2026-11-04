@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from licenseid import resolve as licenseid_resolve
 
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
@@ -25,6 +26,7 @@ from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.extract import _license_resolve
 from pitloom.extract.remote.huggingface import read_huggingface
 from tests._license_graph import (
     graph_of,
@@ -114,10 +116,15 @@ def test_a_built_document_with_individuals_merges_as_a_fragment(
     ],
 )
 def test_an_individual_carries_the_source_on_the_relationship(
-    raw: str, normalised: bool
+    raw: str, normalised: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An individual cannot hold provenance, so the relationship does: the
-    source, and what it literally said when that was not the SPDX spelling."""
+    source, and what it literally said when that was not the SPDX spelling.
+    The resolver is never asked, even one that would read the word."""
+    reads_anything = licenseid_resolve("MIT", source="packaged")
+    monkeypatch.setattr(
+        _license_resolve, "resolve", lambda _value, **_kw: reads_anything
+    )
     graph = two_packages([raw])
     (rel,) = [e for e in graph if e["type"] == "Relationship"]
     fields = provenance_fields(graph, rel["spdxId"])

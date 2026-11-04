@@ -144,10 +144,11 @@ def _ambiguous(operands: Sequence[Operand]) -> tuple[str, ...]:
     ``ID (FIRST or SECOND)``, an addition left out."""
     found: dict[str, None] = {}
     for operand in operands:
-        if operand["expression"] is None or not operand["candidates"]:
+        if not operand["candidates"]:
             continue
         candidates = " or ".join(_without_addition(c) for c in operand["candidates"])
-        found[f"{_without_addition(operand['expression'])} ({candidates})"] = None
+        licence = _without_addition(operand["expression"] or "")
+        found[f"{licence} ({candidates})"] = None
     return tuple(found)
 
 

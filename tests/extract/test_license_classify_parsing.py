@@ -26,6 +26,19 @@ from pitloom.extract import _license_resolve
 from pitloom.extract._license_classify import classify_license
 
 
+def test_an_expression_as_written_is_not_said(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only a value ``licenseid`` re-spells is said, ``DEBUG:`` included."""
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._license_resolve"):
+        classify_license("MIT")
+        classify_license("GPL-2.0")
+        classify_license("mit")
+    assert [r.getMessage() for r in caplog.records] == [
+        "LICENSE='mit': read as MIT (id_case)"
+    ]
+
+
 def test_warning_is_one_line_once_per_value_and_escapes_controls(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

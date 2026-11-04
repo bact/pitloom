@@ -85,6 +85,7 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
         # licences joined by no operator: no SPDX expression, none guessed
         ("MIT; Apache-2.0", "LICENSE='MIT; Apache-2.0': _ (operator not stated: ;)"),
         ("Apache\nLicense", "LICENSE='Apache License': _ (more than one line)"),
+        ("MIT OR\rFoo", "LICENSE='MIT OR Foo': _ (more than one line)"),
         (_LONG, "_ (longer than 200 characters, not parsed)"),
         ("Acme2\x1b[2J", "LICENSE='Acme2\\x1b[2J': _"),
     ],
