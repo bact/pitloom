@@ -238,6 +238,10 @@ def test_the_reading_is_the_same_with_and_without_a_database(
         "GPL-3.0-or-later!",
         "Apache\ufffd2.0",
         "Apache 2.0\udc80",  # a lone surrogate becomes U+FFFD
+        # read by the resolver (``separator``), which drops the character
+        "MIT :",
+        "mit;",
+        'Apache 2.0 "',
     ],
 )
 def test_a_value_naming_no_single_licence_stays_text(raw: str) -> None:

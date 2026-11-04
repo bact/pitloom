@@ -101,6 +101,34 @@ def test_a_block_that_raises_still_relays(caplog: pytest.LogCaptureFixture) -> N
     assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
 
 
+@pytest.mark.parametrize(
+    "first",
+    [UserWarning("not licenseid's"), "a text warning"],
+    ids=["other-category", "text"],
+)
+def test_the_relay_says_only_the_licenseid_warnings_handed_to_it(
+    first: Warning | str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Any other warning in the list is skipped, not said or read as one of
+    ``licenseid``'s: the block records only ``licenseid``'s, so this is the
+    relay's own guard."""
+    caught = [
+        warnings.WarningMessage(first, UserWarning, __file__, 1),
+        warnings.WarningMessage(
+            licenseid_warning.LicenseIdWarning("database", "build v2 outdated"),
+            licenseid_warning.LicenseIdWarning,
+            __file__,
+            2,
+        ),
+    ]
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        # pylint: disable-next=protected-access
+        relay._relay(caught)
+    assert _said(caplog) == [
+        (logging.WARNING, "licenseid: database: build v2 outdated")
+    ]
+
+
 def test_another_warning_goes_on_to_python_when_given(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
