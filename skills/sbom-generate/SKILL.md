@@ -78,9 +78,10 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 - **Prepare the licence database before the first `loom` run** of a session
   that reads licences (project, wheel, sdist, model, Git URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
-  "licenseid>=0.6.0,<0.7" licenseid update --source packaged`; one command
+  "licenseid>=0.7.0,<0.8" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do not
-  generate first and fix after: without the database licences stay as written.
+  generate first and fix after: without the database no `LICENSE` text is
+  matched to an id (a declared value such as `Apache2` is read without it).
   If it fails, say so once, generate anyway and report the resulting
   `WARNING:`/`INFO:` line; never run a network `licenseid update` or
   regenerate unasked (ask; non-interactive: report only). If the preflight

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -244,8 +244,10 @@ against vectorised licence texts with a default threshold of 0.85.
 
 **Declared values: `resolve()`** (`licenseid` 0.6.0 or later). After the
 strict parse and the `+`/`AdditionRef-` gap reading fail, `_classify()` asks
-`licenseid.resolve()` (`_license_resolve.py`, the database through
-`_license.resolve_declared_value()`) about a single-line value in any field.
+`licenseid.resolve()` (`_license_resolve.py`, through
+`_license.resolve_declared_value()`, on the SPDX License List packaged with
+`licenseid`: `source="packaged"`, 0.7.0 or later, so no database is needed)
+about a single-line value in any field.
 An answer with an expression and one of the categories `exact`, `lexical`,
 `listed_name`, `deprecated_equal_successor`, `plus_to_or_later`,
 `stated_qualifier`, `separator`, `version_spelling` is checked again by the

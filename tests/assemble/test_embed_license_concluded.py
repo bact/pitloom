@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from licenseid import DatabaseNotReadyError
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.config import PitloomConfig
@@ -150,8 +151,12 @@ def test_embed_explicit_config_still_concludes_license(tmp_path: Path) -> None:
 
 
 def _database_error(message: str) -> Callable[[], object]:
+    """A detector build that fails as licenseid's does: *message* worded
+    ``database: CONDITION: DETAIL[; ACTION]``, its parts as attributes."""
+    _, condition, rest = message.split(": ", 2)
+
     def build() -> object:
-        raise RuntimeError(message)
+        raise DatabaseNotReadyError(message, condition, rest.split(";")[0])
 
     return build
 
@@ -179,7 +184,7 @@ def test_embed_unusable_license_db_is_said_once(
     """A licenseid database that cannot be used is said once, though the
     project is read more than once (INFO when only missing and a licence is
     declared, else WARNING), and the concluded licence is then absent."""
-    monkeypatch.setattr(_license, "AggregatedLicenseMatcher", _database_error(message))
+    monkeypatch.setattr(_license, "LicenseDetector", _database_error(message))
     project = _project(tmp_path / "proj", None, license_text="Apache License\n" * 20)
     wheel = _make_dummy_wheel(tmp_path / "dist", _NAME, license_expression="Apache-2.0")
 

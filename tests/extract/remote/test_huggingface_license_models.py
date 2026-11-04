@@ -118,22 +118,22 @@ def test_blip_vqa_bsd_license_normalized() -> None:
     ids=["gpl", "lgpl", "agpl", "case", "space"],
 )
 def test_card_licence_is_recorded_as_stated(card: str, expected: str) -> None:
-    """The card value is kept (stripped) and the licenseid matcher is not
+    """The card value is kept (stripped) and the licenseid detector is not
     asked, so the result cannot depend on whether its database is present."""
-    matcher = MagicMock(spec=["match"])
-    with patch("pitloom.extract._license._matcher", return_value=matcher):
+    detector = MagicMock(spec=["detect"])
+    with patch("pitloom.extract._license._detector", return_value=detector):
         value, _ = _resolve_license({"card_data": {"license": card}}, "o/m", {})
     assert value == expected
-    matcher.match.assert_not_called()
+    detector.detect.assert_not_called()
 
 
 @pytest.mark.parametrize("matched", ["GPL-3.0-only", None], ids=["db", "no-db"])
 def test_a_card_gpl_3_is_the_deprecated_id_in_the_sbom(matched: str | None) -> None:
     """From card to document: ``gpl-3.0`` becomes the deprecated ``GPL-3.0``
     (never ``GPL-3.0-only``), with or without a licenseid answer."""
-    matcher = MagicMock(spec=["match"])
-    matcher.match.return_value = [{"license_id": matched}] if matched else []
-    with patch("pitloom.extract._license._matcher", return_value=matcher):
+    detector = MagicMock(spec=["detect"])
+    detector.detect.return_value = [{"expression": matched}] if matched else []
+    with patch("pitloom.extract._license._detector", return_value=detector):
         value, _ = _resolve_license({"card_data": {"license": "gpl-3.0"}}, "o/m", {})
     sbom = build_model(AiModelMetadata(name="m", license=value), CREATED).to_json()
     graph = json.loads(sbom)["@graph"]

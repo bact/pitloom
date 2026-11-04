@@ -6,7 +6,7 @@
 check: said once at ``INFO:``. Any other case still warns.
 
 See also: :mod:`tests.assemble.test_license_database` (a database that
-fails after the matcher is built).
+fails after the detector is built).
 """
 
 from __future__ import annotations
@@ -18,14 +18,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from licenseid import AggregatedLicenseMatcher
+from licenseid import DatabaseNotReadyError, LicenseDetector
 
 from pitloom.extract import _license
-from pitloom.extract._license import (
-    canonicalize_license_id,
-    detect_license_from_text,
-    resolve_declared_value,
-)
+from pitloom.extract._license import detect_license_from_text, resolve_declared_value
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 _INFO = "licenseid database not found: "
@@ -37,10 +33,8 @@ def _lines(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
 
 @pytest.fixture(name="missing")
 def _missing(tmp_path: Path) -> Iterator[None]:
-    real = functools.partial(
-        AggregatedLicenseMatcher, db_path=str(tmp_path / "none.db")
-    )
-    with patch.object(_license, "AggregatedLicenseMatcher", real):
+    real = functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db"))
+    with patch.object(_license, "LicenseDetector", real):
         yield
 
 
@@ -79,18 +73,45 @@ def test_a_missing_database_with_no_stated_licence_warns(
     assert "licenseid database cannot be used" in message
 
 
+@pytest.mark.parametrize(
+    ("detail", "level"),
+    [
+        ("licenses.db", logging.INFO),
+        (None, logging.WARNING),
+        ("no home directory", logging.WARNING),
+    ],
+    ids=["path", "no-detail", "no-home"],
+)
+def test_only_a_named_missing_file_is_info(
+    detail: str | None, level: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``not found`` naming a path is a database to build; with no path, or
+    for an account with no home directory (a setup problem), it warns."""
+    error = DatabaseNotReadyError(f"database: not found: {detail}", "not found", detail)
+
+    def refused() -> None:
+        raise error
+
+    with patch.object(_license, "LicenseDetector", refused):
+        with caplog.at_level(logging.INFO, logger=_license.__name__):
+            assert detect_license_from_text(_TEXT, stated="MIT") is None
+    assert [line[0] for line in _lines(caplog)] == [level]
+
+
 @pytest.mark.usefixtures("missing")
-def test_a_declared_value_needing_the_reading_still_warns(
+def test_a_declared_value_is_read_with_no_database(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    with caplog.at_level(logging.INFO, logger=_license.__name__):
+    """The reading of a declared value uses the packaged SPDX License List:
+    a missing database costs it nothing and says nothing more."""
+    with caplog.at_level(logging.INFO, logger="pitloom"):
         assert detect_license_from_text(_TEXT, stated="Apache2") is None
-        assert resolve_declared_value("Apache2") is None
-        assert canonicalize_license_id("mit") == "mit"
+        found = resolve_declared_value("Apache2")
+        assert found is not None and found["expression"] == "Apache-2.0"
 
     levels = [level for level, _ in _lines(caplog)]
-    assert levels == [logging.INFO, logging.WARNING]
-    assert "cannot be used" in _lines(caplog)[1][1]
+    assert levels == [logging.INFO]
+    assert not any("cannot be used" in line for _, line in _lines(caplog))
 
 
 def test_an_unusable_database_with_a_stated_licence_still_warns(
@@ -98,8 +119,8 @@ def test_an_unusable_database_with_a_stated_licence_still_warns(
 ) -> None:
     broken = tmp_path / "broken.db"
     broken.write_bytes(b"")
-    real = functools.partial(AggregatedLicenseMatcher, db_path=str(broken))
-    with patch.object(_license, "AggregatedLicenseMatcher", real):
+    real = functools.partial(LicenseDetector, db_path=str(broken))
+    with patch.object(_license, "LicenseDetector", real):
         with caplog.at_level(logging.INFO, logger=_license.__name__):
             assert detect_license_from_text(_TEXT, stated="MIT") is None
 
@@ -117,8 +138,8 @@ def test_the_info_and_warning_lines_share_one_grammar(
     broken.write_bytes(b"")
     with caplog.at_level(logging.INFO, logger=_license.__name__):
         for path in (tmp_path / "none.db", broken):
-            real = functools.partial(AggregatedLicenseMatcher, db_path=str(path))
-            with patch.object(_license, "AggregatedLicenseMatcher", real):
+            real = functools.partial(LicenseDetector, db_path=str(path))
+            with patch.object(_license, "LicenseDetector", real):
                 detect_license_from_text(_TEXT, stated="MIT")
 
     levels_and_lines = _lines(caplog)

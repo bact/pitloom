@@ -37,6 +37,8 @@ from operator import methodcaller
 from threading import Lock, getprofile, gettrace, stack_size
 from typing import Final
 
+from pitloom.core.warning_capture import WARNINGS_LOCK
+
 __all__ = ["PARSE_ERRORS", "parse_python", "python_version", "stack_bytes"]
 
 log = logging.getLogger("pitloom.extract.scanner")
@@ -67,8 +69,10 @@ def python_version() -> str:
 
 
 def _parse(source: str) -> ast.Module:
-    """*source* as a module tree, its warnings dropped."""
-    with warnings.catch_warnings():
+    """*source* as a module tree, its warnings dropped. The filters are
+    process-wide: :data:`pitloom.core.warning_capture.WARNINGS_LOCK` keeps
+    Pitloom's other blocks that change them out meanwhile."""
+    with WARNINGS_LOCK, warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return ast.parse(source)
 

@@ -18,14 +18,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from licenseid import AggregatedLicenseMatcher
+from licenseid import LicenseDetector
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     apply_in_package_license,
-    canonicalize_license_id,
     collect_license_candidates,
     detect_license_for_project,
     detect_license_from_text,
@@ -206,34 +205,29 @@ def test_collect_candidates_empty_dir() -> None:
 
 
 # ---------------------------------------------------------------------------
-# canonicalize_license_id
+# a detector that cannot be built
 # ---------------------------------------------------------------------------
 
 
 def test_an_unusable_database_warns_once_and_degrades(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A matcher that cannot be built (a missing, corrupt or unreadable
+    """A detector that cannot be built (a missing, corrupt or unreadable
     database) is one WARNING naming the cause, not a silent debug line;
-    every lookup then degrades: the raw id, no detected licence. The build
-    is retried, so a database fixed later in the process is used."""
+    every lookup then degrades: no detected licence. The build is retried,
+    so a database fixed later in the process is used."""
     fixed = MagicMock()
-    fixed.match.return_value = [{"license_id": "MIT"}]
+    fixed.detect.return_value = [{"expression": "MIT", "score": 1.0}]
     broken = RuntimeError("database: unreadable:\nx.db")
     with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher",
+        "pitloom.extract._license.LicenseDetector",
         side_effect=[broken, broken, broken, fixed],
-    ) as matcher_class:
+    ) as detector_class:
         with caplog.at_level(logging.WARNING, logger="pitloom.extract._license"):
-            results = [
-                canonicalize_license_id("mit"),
-                detect_license_from_text("MIT License " * 20),
-                canonicalize_license_id("apache-2.0"),
-                canonicalize_license_id("mit"),
-            ]
+            results = [detect_license_from_text("MIT License " * 20) for _ in range(4)]
 
-    assert results == ["mit", None, "apache-2.0", "MIT"]
-    assert matcher_class.call_count == 4
+    assert results == [None, None, None, "MIT"]
+    assert detector_class.call_count == 4
     (message,) = [r.getMessage() for r in caplog.records]
     assert "licenseid database cannot be used" in message
     assert "database: unreadable: x.db" in message
@@ -249,8 +243,8 @@ def test_detect_license_from_text_db_not_populated(
 ) -> None:
     """Returns None gracefully when the licenseid database is missing."""
     with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher",
-        functools.partial(AggregatedLicenseMatcher, db_path=str(tmp_path / "x.db")),
+        "pitloom.extract._license.LicenseDetector",
+        functools.partial(LicenseDetector, db_path=str(tmp_path / "x.db")),
     ):
         result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
         assert result is None
@@ -392,14 +386,14 @@ _NOTICE = "Copyright (c) 2020 Acme\n"
 
 
 # pylint: disable-next=too-few-public-methods
-class _FakeMatcher:
+class _FakeDetector:
     """Scores the text as written and without its notice differently."""
 
     def __init__(self, raw: list[tuple[str, float]], bare: list[tuple[str, float]]):
         self._by_text = {_NOTICE + _BODY: raw, "\n" + _BODY: bare, _BODY: raw}
 
-    def match(self, text: str = "") -> list[dict[str, object]]:
-        return [{"license_id": i, "score": s} for i, s in self._by_text[text]]
+    def detect(self, text: str = "") -> list[dict[str, object]]:
+        return [{"expression": i, "score": s} for i, s in self._by_text[text]]
 
 
 @pytest.mark.parametrize(
@@ -421,7 +415,7 @@ def test_a_copyright_notice_is_read_both_ways(
     expected: str | None,
 ) -> None:
     with patch(
-        "pitloom.extract._license._get_matcher", return_value=_FakeMatcher(raw, bare)
+        "pitloom.extract._license._get_detector", return_value=_FakeDetector(raw, bare)
     ):
         assert detect_license_from_text(text) == expected
 
@@ -439,8 +433,8 @@ def test_a_stated_licence_is_looked_for_in_the_best_reading(
 ) -> None:
     """Only the stronger reading (the one without the notice here) can make
     a stated licence win; with equal top scores, either can."""
-    fake = _FakeMatcher([("Pixar", 0.996), ("Apache-2.0", 0.992)], bare)
-    with patch("pitloom.extract._license._get_matcher", return_value=fake):
+    fake = _FakeDetector([("Pixar", 0.996), ("Apache-2.0", 0.992)], bare)
+    with patch("pitloom.extract._license._get_detector", return_value=fake):
         assert detect_license_from_text(_NOTICE + _BODY, stated="Apache-2.0") == (
             expected
         )

@@ -28,7 +28,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from typing import Any
 
-from licenseid.resolvertypes import Resolution, Step
+from licenseid import Resolution, Step
 
 from pitloom.core.provenance import provenance_segment
 from pitloom.logging_config import excerpt, log_once, loggable

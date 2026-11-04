@@ -94,13 +94,18 @@ uv sync --group dev
 
 ### 2. Testing
 
-Build the `licenseid` licence database once (many licence tests fail
-without it), then run the test suite with `pytest`:
+Build the `licenseid` licence database once (the licence-text detection
+tests skip or fail without it; a declared licence value is read without
+it), then run the test suite with `pytest`:
 
 ```bash
-licenseid update
+licenseid update --source packaged
 pytest
 ```
+
+The build is offline, from the SPDX License List the `licenseid` wheel
+ships. Rebuild it after upgrading `licenseid`: a database an older release
+built gives `WARNING: licenseid: database: build ... outdated`.
 
 The conformance tests (`tests/conformance/`) need the `conformance` group,
 which the `test` and `dev` groups include.

@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A ``licenseid`` database that fails after the matcher is built: one
-``WARNING:``, lookups degrade, the next lookup builds the matcher again.
+"""A ``licenseid`` database that fails after the detector is built: one
+``WARNING:``, text detection degrades, the next lookup builds the detector
+again; a declared value is read all the while (it needs no database).
 
 See also: :mod:`tests.assemble.test_license_detection` (a database that
 cannot be used from the start).
@@ -23,12 +24,21 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, InvalidInputError
+from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDetector
 
 from pitloom.extract import _license
-from pitloom.extract._license import canonicalize_license_id, detect_license_from_text
+from pitloom.extract._license import detect_license_from_text, resolve_declared_value
 
 _MIT_TEXT = "Permission is hereby granted, free of charge, to any person " * 5
+#: A real MIT licence file, detected as ``MIT`` with no licence stated.
+_TEXTS = Path(__file__).parents[1] / "fixtures" / "license-texts"
+_REAL_MIT = (_TEXTS / "RapidFuzz-3.14.5-LICENSE").read_text(encoding="utf-8")
+
+
+def _declared(value: str) -> str | None:
+    """The expression ``licenseid`` reads in the declared *value*."""
+    found = resolve_declared_value(value)
+    return None if found is None else found["expression"]
 
 
 def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
@@ -47,19 +57,18 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
 def test_a_database_failure_in_a_lookup_warns_once_and_rebuilds(
     error: Exception, warned: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    broken = MagicMock(spec=AggregatedLicenseMatcher)
-    broken.match.side_effect = error
-    with patch.object(
-        _license, "AggregatedLicenseMatcher", return_value=broken
-    ) as built:
+    broken = MagicMock(spec=LicenseDetector)
+    broken.detect.side_effect = error
+    with patch.object(_license, "LicenseDetector", return_value=broken) as built:
         with caplog.at_level(logging.WARNING, logger=_license.__name__):
             results = [
-                canonicalize_license_id("mit"),
                 detect_license_from_text(_MIT_TEXT),
-                canonicalize_license_id("apache-2.0"),
+                _declared("mit"),
+                detect_license_from_text(_MIT_TEXT),
+                detect_license_from_text(_MIT_TEXT, stated="MIT"),
             ]
 
-    assert results == ["mit", None, "apache-2.0"]
+    assert results == [None, "MIT", None, None]
     assert built.call_count == (3 if warned else 1)
     messages = _warnings(caplog)
     assert len(messages) == (1 if warned else 0)
@@ -81,39 +90,32 @@ def _damage(db: Path, how: str) -> None:
             conn.commit()
 
 
-@pytest.mark.parametrize(
-    ("damage", "id_after"),
-    [
-        ("delete", "mit"),
-        ("truncate", "mit"),
-        ("zero-header", "mit"),
-        ("drop-table", "MIT"),
-    ],
-)
+@pytest.mark.parametrize("damage", ["delete", "truncate", "zero-header", "drop-table"])
 def test_a_real_database_broken_mid_run_warns_and_recovers(
     damage: str,
-    id_after: str,
     licenseid_db_path: Path,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``licenseid`` checks its database when the matcher is built; a file
+    """``licenseid`` checks its database when the detector is built; a file
     damaged afterwards fails the lookup with ``DatabaseNotReadyError``: one
-    ``WARNING:``, no licence detected, and once the file is restored the
-    next lookup works again (the cached matcher was dropped)."""
+    ``WARNING:``, no licence detected, a declared value still read, and once
+    the file is restored the next lookup works again (the cached detector
+    was dropped)."""
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
-    real = functools.partial(AggregatedLicenseMatcher, db_path=str(db))
-    with patch.object(_license, "AggregatedLicenseMatcher", real):
-        assert canonicalize_license_id("mit") == "MIT"  # the matcher is built
+    real = functools.partial(LicenseDetector, db_path=str(db))
+    with patch.object(_license, "LicenseDetector", real):
+        assert detect_license_from_text(_REAL_MIT) == "MIT"  # the detector is built
         _damage(db, damage)
         with caplog.at_level(logging.WARNING, logger=_license.__name__):
-            assert canonicalize_license_id("mit") == id_after
+            assert detect_license_from_text(_REAL_MIT) is None
             assert detect_license_from_text(_MIT_TEXT) is None
+            assert _declared("apache2") == "Apache-2.0"
         # a lookup never creates the database file (licenseid >= 0.4.2)
         assert db.exists() is (damage != "delete")
         shutil.copyfile(licenseid_db_path, db)
-        assert canonicalize_license_id("mit") == "MIT"
+        assert detect_license_from_text(_REAL_MIT) == "MIT"
 
     (message,) = _warnings(caplog)
     assert "licenseid database cannot be used" in message
@@ -147,25 +149,32 @@ def test_hostile_input_is_never_a_database_failure(
     licenseid_db_path: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """No input makes Pitloom report the database unusable or rebuild the
-    matcher, and no lookup raises."""
+    detector, and no lookup raises: a hostile text through detection, a
+    hostile id through detection (as a text stating it) and through the
+    declared-value reading."""
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
-    built: list[AggregatedLicenseMatcher] = []
+    built: list[LicenseDetector] = []
 
-    def build() -> AggregatedLicenseMatcher:
-        built.append(AggregatedLicenseMatcher(db_path=str(db)))
+    def build() -> LicenseDetector:
+        built.append(LicenseDetector(db_path=str(db)))
         return built[-1]
 
-    with patch.object(_license, "AggregatedLicenseMatcher", build):
-        with caplog.at_level(logging.WARNING, logger=_license.__name__):
+    with patch.object(_license, "LicenseDetector", build):
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
             for text in _HOSTILE_TEXTS:
                 found = detect_license_from_text(text, stated="MIT")
                 assert found is None or isinstance(found, str)
             for raw in _HOSTILE_IDS:
-                assert isinstance(canonicalize_license_id(raw), str)
-            assert canonicalize_license_id("mit") == "MIT"  # still usable
-            # padding does not count towards the length limit
-            assert canonicalize_license_id(" " * 300 + "mit\n") == "MIT"
+                assert detect_license_from_text(f"License: {raw}\n{_MIT_TEXT}") in (
+                    None,
+                    "MIT",
+                )
+                reading = resolve_declared_value(raw)
+                assert reading is None or isinstance(reading["category"], str)
+            assert detect_license_from_text(_REAL_MIT) == "MIT"  # still usable
+            # padding is no part of the value
+            assert _declared(" " * 300 + "mit\n") == "MIT"
 
     assert not _warnings(caplog)
     assert len(built) == 1
@@ -191,9 +200,9 @@ def test_a_huge_licence_id_in_a_text_is_no_database_failure(
 ) -> None:
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
-    real = functools.partial(AggregatedLicenseMatcher, db_path=str(db))
-    with patch.object(_license, "AggregatedLicenseMatcher", real):
+    real = functools.partial(LicenseDetector, db_path=str(db))
+    with patch.object(_license, "LicenseDetector", real):
         with caplog.at_level(logging.WARNING, logger=_license.__name__):
             detect_license_from_text(text)
-            assert canonicalize_license_id("mit") == "MIT"  # still usable
+            assert detect_license_from_text(_REAL_MIT) == "MIT"  # still usable
     assert not _warnings(caplog)

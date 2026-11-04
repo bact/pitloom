@@ -106,7 +106,8 @@ free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
 
 **The 0.23.0 list (decided 2026-10-30):** the adoption of `licenseid` 0.7.0
-(`match` becomes `detect`, `resolve` becomes `match`; see
+(`match()` becomes `detect()`, `resolve()` keeps its name; stage A, the
+pin, port and warning relay, is #437; see
 [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)), the licence provenance
 mapping ([#384](https://github.com/bact/pitloom/pull/384)), the remaining
 catalogue families (1b, 2b and 3 to 18, the licence families included; see

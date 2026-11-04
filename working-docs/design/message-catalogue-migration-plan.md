@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,8 +42,8 @@ CI for 0.22.0.
 
 0.23.0:
 
-1. `licenseid` 0.7.0 adoption (`match` becomes `detect`, `resolve` becomes
-   `match`).
+1. `licenseid` 0.7.0 adoption (`match()` becomes `detect()`; `resolve()`
+   keeps its name). Stage A (pin, port, warning relay) is #437.
 2. The licence provenance mapping (PR #384, the T14 design).
 3. The remaining catalogue PRs: 1b, 2b and 3 to 18, PR 18 (licence families)
    included, after the adoption.

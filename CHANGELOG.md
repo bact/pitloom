@@ -22,12 +22,27 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Requires `licenseid>=0.7.0,<0.8`; a declared licence value is read from its
+  packaged SPDX License List, with no licence database ([#437])
+- Read as ids now: `MIT License (MIT)`-style names, trove paths, compounds
+  (`Apache2 OR MIT`), `licenseref-foo` (`LicenseRef-foo`), `MIT or later`
+  (`MIT+`) ([#437])
+- Kept as text now, as `licenseid` refuses them: `-MIT`, `.GPL-3.0-only`,
+  `1. MIT`, `iv. MIT`, `REM MIT`, `MIT -`, `MIT...`, `GPLv3 +` ([#437])
+- A `licenseid` warning is one `WARNING: licenseid: ...` line (`INFO:` for
+  `variant not stated`), not Python's warning output ([#437])
+
 ### Fixed
 
 - The sdist no longer holds dangling `CLAUDE.md`/`GEMINI.md` links; the sdist
   and the wheel contain none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` ([#435])
+- The Hatchling hook reads a respelt declared licence (`Apache2`) in an
+  isolated build, which has no licence database ([#437])
 
 [#435]: https://github.com/bact/pitloom/pull/435
+[#437]: https://github.com/bact/pitloom/pull/437
 
 ## [0.22.1] - 2026-11-03
 
