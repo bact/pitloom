@@ -318,7 +318,7 @@ def test_the_licenseid_database_does_not_decide(
     with (
         caplog.at_level(logging.WARNING, logger="pitloom"),
         patch(
-            "pitloom.extract._license.LicenseDetector",
+            "pitloom.extract._license_text_match.LicenseDetector",
             side_effect=DatabaseNotReadyError("missing"),
         ),
     ):

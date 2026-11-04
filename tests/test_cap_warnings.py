@@ -132,7 +132,7 @@ _ALLOWED = {
     "extract/_usage_ast.py:_MAX_PATH_CHARS": "over it: the expression gives no edge",
     "extract/_license.py:_MAX_RESOLUTIONS": "a cache size: answers are asked again",
     "cli/commands/utils.py:_MAX_LIST_ENDS": "a search bound: the text stays as is",
-    "extract/_license.py:_SCORE_CAP": _NOT_INPUT,
+    "extract/_license_text_match.py:_SCORE_CAP": _NOT_INPUT,
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,
     "extract/ai_model/safetensors.py:SAFETENSORS_FORMAT_MAX_HEADER_BYTES": _HEURISTIC,
     "extract/remote/_git_folder.py:_HINT_LIMIT": _DISPLAY,

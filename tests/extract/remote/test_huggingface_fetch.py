@@ -270,7 +270,7 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
     ):
         with patch("huggingface_hub.hf_hub_download", return_value=str(license_file)):
             with patch(
-                "pitloom.extract._license.detect_license_from_text",
+                "pitloom.extract._license_text_match.detect_license_from_text",
                 return_value="MIT",
             ):
                 with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
@@ -301,7 +301,7 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
     ):
         with patch("huggingface_hub.hf_hub_download", return_value=str(license_file)):
             with patch(
-                "pitloom.extract._license.detect_license_from_text",
+                "pitloom.extract._license_text_match.detect_license_from_text",
                 return_value=None,
             ):
                 detected_id, provenance = _detect_license_from_hf_files("org/model")

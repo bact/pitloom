@@ -22,18 +22,18 @@ from licenseid import LicenseDetector
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
-    _looks_like_spdx_license_expression,
-    _looks_like_spdx_license_id,
     apply_in_package_license,
-    collect_license_candidates,
     detect_license_for_project,
-    detect_license_from_text,
-    find_license_files,
 )
 from pitloom.extract._license_detect import (
     _license_from_citation_cff,
     _license_from_codemeta_json,
+    _looks_like_spdx_license_expression,
+    _looks_like_spdx_license_id,
+    collect_license_candidates,
+    find_license_files,
 )
+from pitloom.extract._license_text_match import detect_license_from_text
 
 # ---------------------------------------------------------------------------
 # _looks_like_spdx_license_id
@@ -220,10 +220,12 @@ def test_an_unusable_database_warns_once_and_degrades(
     fixed.detect.return_value = [{"expression": "MIT", "score": 1.0}]
     broken = RuntimeError("database: unreadable:\nx.db")
     with patch(
-        "pitloom.extract._license.LicenseDetector",
+        "pitloom.extract._license_text_match.LicenseDetector",
         side_effect=[broken, broken, broken, fixed],
     ) as detector_class:
-        with caplog.at_level(logging.WARNING, logger="pitloom.extract._license"):
+        with caplog.at_level(
+            logging.WARNING, logger="pitloom.extract._license_text_match"
+        ):
             results = [detect_license_from_text("MIT License " * 20) for _ in range(4)]
 
     assert results == [None, None, None, "MIT"]
@@ -243,7 +245,7 @@ def test_detect_license_from_text_db_not_populated(
 ) -> None:
     """Returns None gracefully when the licenseid database is missing."""
     with patch(
-        "pitloom.extract._license.LicenseDetector",
+        "pitloom.extract._license_text_match.LicenseDetector",
         functools.partial(LicenseDetector, db_path=str(tmp_path / "x.db")),
     ):
         result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
@@ -415,7 +417,8 @@ def test_a_copyright_notice_is_read_both_ways(
     expected: str | None,
 ) -> None:
     with patch(
-        "pitloom.extract._license._get_detector", return_value=_FakeDetector(raw, bare)
+        "pitloom.extract._license_text_match._get_detector",
+        return_value=_FakeDetector(raw, bare),
     ):
         assert detect_license_from_text(text) == expected
 
@@ -434,7 +437,7 @@ def test_a_stated_licence_is_looked_for_in_the_best_reading(
     """Only the stronger reading (the one without the notice here) can make
     a stated licence win; with equal top scores, either can."""
     fake = _FakeDetector([("Pixar", 0.996), ("Apache-2.0", 0.992)], bare)
-    with patch("pitloom.extract._license._get_detector", return_value=fake):
+    with patch("pitloom.extract._license_text_match._get_detector", return_value=fake):
         assert detect_license_from_text(_NOTICE + _BODY, stated="Apache-2.0") == (
             expected
         )

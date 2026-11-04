@@ -5,8 +5,8 @@
 
 """File and metadata scanning for project-level license files and metadata.
 
-See also: :mod:`pitloom.extract._license` for text matching, canonicalization,
-and the public facade.
+See also: :mod:`pitloom.extract._license` for the public facade and
+:mod:`pitloom.extract._license_text_match` for text matching.
 """
 
 from __future__ import annotations
@@ -58,6 +58,18 @@ def _looks_like_spdx_license_id(value: str) -> bool:
         and len(stripped) < 100
         and _SPDX_LICENSE_ID_RE.match(stripped)
     )
+
+
+# Detects compound SPDX expressions: "MIT OR Apache-2.0", "GPL-2.0 WITH ..."
+_SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECASE)
+
+
+def _looks_like_spdx_license_expression(value: str) -> bool:
+    """Return True when *value* looks like a compound SPDX License Expression."""
+    stripped = value.strip()
+    if "\n" in stripped or len(stripped) > 200:
+        return False
+    return bool(_SPDX_LICENSE_EXPR_KEYWORDS_RE.search(stripped))
 
 
 def pick_license_names(names: Iterable[str]) -> list[str]:

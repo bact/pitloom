@@ -26,8 +26,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from licenseid import DatabaseNotReadyError, InvalidInputError, LicenseDetector
 
-from pitloom.extract import _license
-from pitloom.extract._license import detect_license_from_text, resolve_declared_value
+from pitloom.extract import _license_text_match
+from pitloom.extract._license import resolve_declared_value
+from pitloom.extract._license_text_match import detect_license_from_text
 
 _MIT_TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 #: A real MIT licence file, detected as ``MIT`` with no licence stated.
@@ -59,8 +60,10 @@ def test_a_database_failure_in_a_lookup_warns_once_and_rebuilds(
 ) -> None:
     broken = MagicMock(spec=LicenseDetector)
     broken.detect.side_effect = error
-    with patch.object(_license, "LicenseDetector", return_value=broken) as built:
-        with caplog.at_level(logging.WARNING, logger=_license.__name__):
+    with patch.object(
+        _license_text_match, "LicenseDetector", return_value=broken
+    ) as built:
+        with caplog.at_level(logging.WARNING, logger=_license_text_match.__name__):
             results = [
                 detect_license_from_text(_MIT_TEXT),
                 _declared("mit"),
@@ -105,10 +108,10 @@ def test_a_real_database_broken_mid_run_warns_and_recovers(
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
     real = functools.partial(LicenseDetector, db_path=str(db))
-    with patch.object(_license, "LicenseDetector", real):
+    with patch.object(_license_text_match, "LicenseDetector", real):
         assert detect_license_from_text(_REAL_MIT) == "MIT"  # the detector is built
         _damage(db, damage)
-        with caplog.at_level(logging.WARNING, logger=_license.__name__):
+        with caplog.at_level(logging.WARNING, logger=_license_text_match.__name__):
             assert detect_license_from_text(_REAL_MIT) is None
             assert detect_license_from_text(_MIT_TEXT) is None
             assert _declared("apache2") == "Apache-2.0"
@@ -160,7 +163,7 @@ def test_hostile_input_is_never_a_database_failure(
         built.append(LicenseDetector(db_path=str(db)))
         return built[-1]
 
-    with patch.object(_license, "LicenseDetector", build):
+    with patch.object(_license_text_match, "LicenseDetector", build):
         with caplog.at_level(logging.WARNING, logger="pitloom"):
             for text in _HOSTILE_TEXTS:
                 found = detect_license_from_text(text, stated="MIT")
@@ -201,8 +204,8 @@ def test_a_huge_licence_id_in_a_text_is_no_database_failure(
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
     real = functools.partial(LicenseDetector, db_path=str(db))
-    with patch.object(_license, "LicenseDetector", real):
-        with caplog.at_level(logging.WARNING, logger=_license.__name__):
+    with patch.object(_license_text_match, "LicenseDetector", real):
+        with caplog.at_level(logging.WARNING, logger=_license_text_match.__name__):
             detect_license_from_text(text)
             assert detect_license_from_text(_REAL_MIT) == "MIT"  # still usable
     assert not _warnings(caplog)

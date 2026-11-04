@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pitloom.extract import _license
-from pitloom.extract._license import detect_license_from_text
+from pitloom.extract import _license_text_match
+from pitloom.extract._license_text_match import detect_license_from_text
 
 #: The shortest text detection reads (``_MIN_LICENSE_TEXT_LENGTH``).
 _MINIMUM = 100
@@ -39,5 +39,5 @@ def test_a_text_below_the_minimum_length_is_not_detected(
     length: int, expected: str | None
 ) -> None:
     text = "  " + "x" * length + "\n\n"  # white space around it is not counted
-    with patch.object(_license, "LicenseDetector", _Detector):
+    with patch.object(_license_text_match, "LicenseDetector", _Detector):
         assert detect_license_from_text(text) == expected

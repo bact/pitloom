@@ -24,7 +24,7 @@ from licenseid import LicenseDetector, LicenseIdWarning
 
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
-from pitloom.extract import _license
+from pitloom.extract import _license_text_match
 from pitloom.logging_config import configure_logging
 from tests.extract.conftest import make_hook
 
@@ -66,7 +66,7 @@ def test_a_declared_licence_and_no_database_is_info_on_every_surface(
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
     monkeypatch.setattr(sys, "argv", sys.argv)
     monkeypatch.setattr(
-        _license,
+        _license_text_match,
         "LicenseDetector",
         functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db")),
     )
@@ -105,7 +105,7 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
     _write_project(project, '{ text = "Apache2" }')
     monkeypatch.setattr(sys, "argv", sys.argv)
     monkeypatch.setattr(
-        _license,
+        _license_text_match,
         "LicenseDetector",
         functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db")),
     )
@@ -150,11 +150,11 @@ def test_a_licenseid_warning_is_one_tagged_line_on_every_surface(
     project = tmp_path / "proj"
     _write_project(project, '"Apache-2.0"')
     monkeypatch.setattr(sys, "argv", sys.argv)
-    monkeypatch.setattr(_license, "LicenseDetector", _OutdatedDetector)
+    monkeypatch.setattr(_license_text_match, "LicenseDetector", _OutdatedDetector)
 
     configure_logging()
     surface(project)
-    _license.detect_license_from_text("Apache License\n" * 20)
+    _license_text_match.detect_license_from_text("Apache License\n" * 20)
 
     err = capsys.readouterr().err.splitlines()
     assert [line for line in err if "licenseid" in line and "outdated" in line] == [

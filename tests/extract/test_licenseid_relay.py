@@ -24,7 +24,8 @@ from licenseid import warning as licenseid_warning
 
 from pitloom.extract import _license
 from pitloom.extract import _licenseid_relay as relay
-from pitloom.extract._license import detect_license_from_text, resolve_declared_value
+from pitloom.extract._license import resolve_declared_value
+from pitloom.extract._license_text_match import detect_license_from_text
 from tests._licenseid_warn import as_licenseid, warn_from_pitloom
 
 _LOGGER = relay.__name__
@@ -98,6 +99,34 @@ def test_a_block_that_raises_still_relays(caplog: pytest.LogCaptureFixture) -> N
                 _outdated()
                 raise RuntimeError("boom")
     assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
+
+
+@pytest.mark.parametrize(
+    "first",
+    [UserWarning("not licenseid's"), "a text warning"],
+    ids=["other-category", "text"],
+)
+def test_the_relay_says_only_the_licenseid_warnings_handed_to_it(
+    first: Warning | str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Any other warning in the list is skipped, not said or read as one of
+    ``licenseid``'s: the block records only ``licenseid``'s, so this is the
+    relay's own guard."""
+    caught = [
+        warnings.WarningMessage(first, UserWarning, __file__, 1),
+        warnings.WarningMessage(
+            licenseid_warning.LicenseIdWarning("database", "build v2 outdated"),
+            licenseid_warning.LicenseIdWarning,
+            __file__,
+            2,
+        ),
+    ]
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        # pylint: disable-next=protected-access
+        relay._relay(caught)
+    assert _said(caplog) == [
+        (logging.WARNING, "licenseid: database: build v2 outdated")
+    ]
 
 
 def test_another_warning_goes_on_to_python_when_given(
@@ -230,7 +259,9 @@ def test_detection_relays_the_warning_of_building_the_detector(
             del text
             return []
 
-    monkeypatch.setattr("pitloom.extract._license.LicenseDetector", _Outdated)
+    monkeypatch.setattr(
+        "pitloom.extract._license_text_match.LicenseDetector", _Outdated
+    )
     with caplog.at_level(logging.WARNING, logger=_LOGGER):
         assert detect_license_from_text("Some licence words. " * 10) is None
     assert _said(caplog) == [(logging.WARNING, f"licenseid: {_OUTDATED}")]
@@ -251,7 +282,9 @@ def test_detection_relays_what_detect_itself_warns(
             )
             return [{"expression": "GPL-2.0-only", "score": 1.0}]
 
-    monkeypatch.setattr("pitloom.extract._license.LicenseDetector", _Guessing)
+    monkeypatch.setattr(
+        "pitloom.extract._license_text_match.LicenseDetector", _Guessing
+    )
     with caplog.at_level(logging.INFO, logger=_LOGGER):
         found = detect_license_from_text("Some licence words. " * 10)
     assert found == "GPL-2.0-only"

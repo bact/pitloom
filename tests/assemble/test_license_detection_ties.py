@@ -16,7 +16,7 @@ from typing import cast
 import pytest
 from licenseid import Detection
 
-from pitloom.extract._license import (
+from pitloom.extract._license_text_match import (
     _best_reading_decides,
     _decisive,
     _stated_among,
