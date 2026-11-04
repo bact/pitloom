@@ -47,7 +47,7 @@ def test_a_deprecated_id_is_its_list_name_in_any_case_and_order(
 
 
 @pytest.mark.parametrize(
-    ("first", "second"),
+    ("one", "other"),
     [
         ("GNU Free Documentation License v1.3", "GFDL-1.2"),  # another version
         ("GNU Free Documentation License v1.3", "GFDL-1.3-only"),  # not narrowed
@@ -57,9 +57,9 @@ def test_a_deprecated_id_is_its_list_name_in_any_case_and_order(
     ],
     ids=["version", "narrowed", "successor", "two-names", "other"],
 )
-def test_a_name_of_another_licence_is_not_the_same(first: str, second: str) -> None:
-    assert not same_licence(first, second)
-    assert not same_licence(second, first)
+def test_a_name_of_another_licence_is_not_the_same(one: str, other: str) -> None:
+    assert not same_licence(one, other)
+    assert not same_licence(other, one)
 
 
 def test_the_table_is_every_listed_name_licenseid_does_not_read() -> None:

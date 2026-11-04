@@ -355,8 +355,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
   ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text));
   `licenseid.resolve` reads a List name as its id, except 14 deprecated
   ids' names, which `same_licence()` (`extract/_license_names.py`, a
-  stop-gap table) treats as equal to their id. KB: "A model licence that is a name or
-  URL becomes licence text".
+  stop-gap table) treats as equal to their id. KB: "A model licence that
+  is a name or URL becomes licence text".
 - **Recommendation:** upstream first; Pitloom keeps an adapter.
 - **Owner:** licence layers. Was license-rules question 11.
 
