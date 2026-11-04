@@ -112,6 +112,37 @@ entries come first; fixed entries stay in the last section for history.
   text reads `GPL-2.0-only`; the package level may differ. Pre-existing;
   decide which reader a header tag belongs to. *Found 2026-11-03, review of
   #437.*
+- [ ] **`licenseid` reads no id in 14 deprecated ids' List names, and gives
+  no List name for an id (S, upstream).** `resolve()` answers `not found` for
+  `GNU Free Documentation License v1.3` (`GFDL-1.3`), `GNU Affero General
+  Public License v3.0` (`AGPL-3.0`), `wxWindows Library License` and 11 more
+  (every deprecated id the List renamed); its public API has no name lookup
+  (`LicenseDatabase` is an opaque handle, and a database-backed answer would
+  differ with and without one). #440 keeps the 14 names in
+  `extract/_license_names.py` (`same_licence`, used by `values_agree` and the
+  declared vs concluded check), held to the packaged List by
+  `tests/extract/test_license_names.py`. Delete the table once `licenseid`
+  answers. Suggested issue text: "`resolve()` reads a List name as its id
+  (`MIT License` is `MIT`) but not the name of a deprecated id
+  (`GNU Free Documentation License v1.3` is `not found`): read it as the
+  deprecated id, category `assumed_only` with its candidates, as `GFDL-1.3`
+  is; or expose the packaged List's names (`id -> name`) publicly."
+  *Found 2026-11-04, review of #440.*
+- [ ] **`licenseid`'s `trust: none` is not recorded (S, accepted).** An
+  `assumed_only` answer (`GPL-3.0` kept, `-only` or `-or-later` unknown) has
+  `trust: none`; the SBOM says it only through the `Deprecated-License-Id`
+  note. Acceptable until the licence provenance mapping (#384) has a key
+  for it. *Found 2026-11-04, review of #440.*
+- [ ] **`_ambiguous` can write a note with no licence (S, no trigger).**
+  An operand with `candidates` but no `expression` would give
+  `Deprecated-License-Id:  (A or B)`; `licenseid` 0.7.0 gives candidates only
+  with an expression (the review found no trigger). Skip such an operand
+  if a release changes that. *Found 2026-11-04, review of #440.*
+- [ ] **A lone CR inside a declared value makes it text (S, decide).**
+  `MIT\rOR ISC` is more than one line (`str.splitlines`), so the multi-line
+  rule keeps it as text, as for `\n`; `main` read it as an expression.
+  Consistent, but a value from a CR-only file would lose its reading.
+  *Found 2026-11-04, review of #440.*
 
 ## Fixed
 
