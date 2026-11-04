@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,7 +132,7 @@ release ships.
   the Hugging Face route records the card value as stated, so the deprecated
   bare id stays the id written (`GPL-3.0` after classification, never
   `GPL-3.0-only`) with or without the database. `canonicalize_license_id`
-  (case fold only) has no caller in `src/`. A non-lexical
+  (case fold only) was deleted in #437: it had no caller. A non-lexical
   resolver decision (alias, successor) waits for `INFO:` plus provenance, see
   [license-resolution-categories.md](../license-resolution-categories.md).
 - [x] **The main package never reads `License ::` classifiers (S).** Fixed

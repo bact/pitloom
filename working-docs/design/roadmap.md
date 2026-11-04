@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,6 +115,11 @@ catalogue families (1b, 2b and 3 to 18, the licence families included; see
 [message-catalogue-and-skills.md](message-catalogue-and-skills.md)), `--report`
 and SARIF. Evidence-level work continues where it pairs with a catalogue
 family (over-cap, unreadable file, Hub failure).
+
+**`licenseid` 0.7.0 adoption, status:** stage A is built (#437: pin, port to
+`resolve(source="packaged")` and `LicenseDetector`, warning relay, CI database
+build). Stage B (split `_license.py`), stage C (declared-value reading by
+`licenseid` alone) and stage D (docs and skills) follow.
 
 **Process (decided 2026-10-30):** two test gates per PR and a pre-release
 review before each release tag. See

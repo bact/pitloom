@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,8 +31,8 @@ This file is the reference for what remains and what ships in which release.
    name, not an absolute path.
 
 Earlier in the release: `lfs-pointer` (#390, #395) and `over-cap` (#396).
-`licenseid` stays at `>=0.6.0,<0.7`. The grammar ratchet keeps new uncoded
-messages out meanwhile (`tests/test_message_ratchet.py`).
+In 0.22.x `licenseid` stays at `>=0.6.0,<0.7`. The grammar ratchet keeps new
+uncoded messages out meanwhile (`tests/test_message_ratchet.py`).
 
 ## Moved to 0.22.1 and 0.23.0 (decided 2026-10-30)
 
@@ -89,7 +89,7 @@ entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
   package key without a version gave every release one id (#407); an
   unreadable project file was logged with the raw exception (#408).
 - 0.23.0 (with the `licenseid` adoption): the Hatchling hook finds no licence
-  database in an isolated build.
+  database in an isolated build. Fixed in #437: a declared value needs none.
 - 0.23.0, to re-check after the `licenseid` adoption: a top match that holds
   only part of its licence is concluded; two `SPDX-License-Identifier` tags,
   one stated, conclude only the stated one.

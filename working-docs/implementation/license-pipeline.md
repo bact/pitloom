@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -228,10 +228,10 @@ relationships.
 Text-based licence detection (`detect_license_from_text()` in
 `_license.py`) uses the `licenseid` package, which is a mandatory
 pitloom dependency. The database must be built before detection is
-possible:
+possible (offline, from the SPDX License List the `licenseid` wheel ships):
 
 ```shell
-licenseid update
+licenseid update --source packaged
 ```
 
 When the database has not been built, `detect_license_from_text()`
@@ -239,10 +239,10 @@ logs a warning and returns `None`; other licence sources (card YAML,
 `CITATION.cff`, `codemeta.json`) are unaffected.
 
 The database is stored at
-`~/.local/share/licenseid/licenses.db`. Detection uses cosine similarity
-against vectorised licence texts with a default threshold of 0.85.
+`~/.local/share/licenseid/licenses.db`. Pitloom accepts the top detection
+when its score meets a threshold of 0.85 (`detect_license_from_text()`).
 
-**Declared values: `resolve()`** (`licenseid` 0.6.0 or later). After the
+**Declared values: `resolve()`** (`licenseid` 0.7.0 or later). After the
 strict parse and the `+`/`AdditionRef-` gap reading fail, `_classify()` asks
 `licenseid.resolve()` (`_license_resolve.py`, through
 `_license.resolve_declared_value()`, on the SPDX License List packaged with
@@ -251,16 +251,19 @@ about a single-line value in any field.
 An answer with an expression and one of the categories `exact`, `lexical`,
 `listed_name`, `deprecated_equal_successor`, `plus_to_or_later`,
 `stated_qualifier`, `separator`, `version_spelling` is checked again by the
-strict parse and recorded as an expression. A bare deprecated id
-(`assumed_only`), a split one (`deprecated_ambiguous`), several licences,
-none and a compound stay as they were. A reading that decided something
+strict parse and recorded as an expression, a compound whose operands are all
+read (`Apache2 OR MIT`) included. A bare deprecated id (`assumed_only`), a
+split one (`deprecated_ambiguous`), several licences and none stay as they
+were. A reading that decided something
 (not case, spacing or `+`) is one `INFO:` per value; provenance adds
 `Method: licenseid_resolution`, `Resolution-1`, `Expansion-1` and `Tool`
 beside `Normalized-From`. A value with a character the reading would drop
 (`Apache 2.0?`, U+FFFD) is not read (`_license_resolve._FOLDABLE`). Answers are
-cached per value while the database file is unchanged. Without the database
-nothing is read and the value stays text (warned once), so, as for text
-detection, the output depends on the database being present.
+cached per value for the process (`clear_resolution_cache()` empties the
+cache). The answer does not depend on the database: with none, or one built
+by another release, a value gives the same reading. Only when the
+`licenseid` install has no packaged list does nothing get read: the value
+stays text and its error is relayed once per process.
 
 ## Stage 2: format-neutral model
 

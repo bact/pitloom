@@ -1,12 +1,12 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Adopting licenseid 0.7.0 (Pitloom 0.22.0)
+# Adopting licenseid 0.7.0 (Pitloom 0.23.0)
 
 Status: draft, built on licenseid `main` of 2026-10-28 and its plan. Revise it
 when licenseid 0.7.0 is released (see "What to re-check").
@@ -29,6 +29,10 @@ refusals), 10 gained, 0 changed; PyPI 462 values, 7 gained (33 projects), 0
 lost; byte-identical with and without a database. Pitloom's own parser,
 `assumed_only` and the rest of the plan are stages B to E. This document
 keeps its pre-release text below.
+
+The rule for the two calls: `resolve()` reads a declared value (package
+metadata) and returns the canonical expression; `detect()` reads licence
+text.
 
 See also: [license-resolution-categories.md](license-resolution-categories.md),
 [roadmap.md](roadmap.md), licenseid `working-docs/design/resolver-0-7-plan.md`
@@ -96,7 +100,7 @@ names, no id, or deferred assumed readings).
 test group for a drift guard: every expression Pitloom accepts must parse with
 the library. Its mypy override stays for the tests.
 
-## 4. Behaviour changes to announce in 0.22.0
+## 4. Behaviour changes to announce in 0.23.0
 
 `StandardML-NJ` becomes `SMLNJ`; compounds with a respelt operand resolve, in
 licenseid's canonical order; prose and trove names become ids (18 of 139 corpus
