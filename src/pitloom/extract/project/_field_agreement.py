@@ -50,8 +50,7 @@ def _license_equal(a: str, b: str) -> bool:
     ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``: ``licenseid`` reads each
     as its id; the rule the declared vs concluded check uses).
     ``NOASSERTION``/``UNKNOWN`` is weak: it agrees with anything, a blank
-    value too. A value that states none compares as
-    empty."""
+    value too. A value that states none compares as empty."""
     if is_weak_licence(a) or is_weak_licence(b):
         return True
     first, second = (classify_license(v, warn=False) for v in (a, b))

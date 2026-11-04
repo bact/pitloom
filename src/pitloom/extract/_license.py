@@ -9,12 +9,11 @@ Gives a project its licence from the manifest's stated value and from its
 own licence files (:func:`apply_in_package_license_files`), and re-exports
 the shared ``licenseid.resolve`` reading of a declared value
 (:func:`~pitloom.extract._license_resolve.resolve_declared_value`). Text
-detection
-(:func:`~pitloom.extract._license_text_match.detect_license_from_text`)
-requires a populated database; the reading of a declared value (``Apache2``
--> ``Apache-2.0``) uses the SPDX License List packaged with ``licenseid``
-and needs none, as other sources (``CITATION.cff``, ``codemeta.json``) do
-not.
+detection (:func:`~pitloom.extract._license_text_match.\
+detect_license_from_text`) requires a populated database; the reading of
+a declared value (``Apache2`` -> ``Apache-2.0``) uses the SPDX License List
+packaged with ``licenseid`` and needs none, as other sources
+(``CITATION.cff``, ``codemeta.json``) do not.
 
 Every ``licenseid`` call runs inside
 :func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
@@ -29,7 +28,6 @@ See Also:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -58,8 +56,6 @@ from pitloom.extract._license_resolve import (
 )
 from pitloom.extract._license_text_match import detect_license_from_text
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-
-_logger = logging.getLogger(__name__)
 
 try:
     _LICENSEID_VERSION: str | None = _pkg_version("licenseid")
