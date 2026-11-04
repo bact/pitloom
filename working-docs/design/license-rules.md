@@ -204,7 +204,8 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense` (the caller named the
 slot).
 
-Text to id (`detect_license_from_text`, `extract/_license_text_match.py`, #286), on
+Text to id (`detect_license_from_text`, `extract/_license_text_match.py`,
+#286), on
 top of `licenseid` (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX

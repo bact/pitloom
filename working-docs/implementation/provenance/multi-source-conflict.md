@@ -58,7 +58,8 @@ before both the comparison and the license-element lookup/creation. A
 value that does not parse is text, compared as written less its leading
 blank space and final line breaks. Two values are the same licence when
 their classified values are equal (`licenseid` reads a classifier's `MIT
-License` as `MIT`; `is_listed_name` did until #440). A `NoAssertionLicense` candidate never conflicts; `NONE`
+License` as `MIT`; `is_listed_name` did until #440). A
+`NoAssertionLicense` candidate never conflicts; `NONE`
 against a real licence does (detail:
 [license-typing.md](../license-typing.md#two-candidate-mode-and-conflicts)).
 Full agreement emits no Annotation — both native relationships

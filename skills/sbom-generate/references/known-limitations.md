@@ -354,8 +354,9 @@ licence element's provenance `comment`: `Normalized-From: <value as written>`,
 `Method: licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
 `Expansion-1: plus_to_or_later` for a `+` (`stated_qualifier` for a stated "or
 later": `MIT or later` is `MIT+`), and `Tool: licenseid==<version>`. A change
-of case or `+` alone (`mit`, `GPL-2.0+`) keeps only `Normalized-From`, with no
-`INFO:`. A value `licenseid` refuses stays text, with no `INFO:`: a stray mark
+of case or `+` alone (`mit`, `GPL-2.0+`) has no `Method` or `Resolution-1`
+and no `INFO:` (`Normalized-From` and `Tool`, a `+` also `Expansion-1`). A
+value `licenseid` refuses stays text, with no `INFO:`: a stray mark
 (`-MIT`, `MIT -`, `MIT...`), a list number (`1. MIT`), a comment word
 (`REM MIT`) or a plus after a space (`GPLv3 +`). Report the line; the result
 is the resolver's reading, not the author's words:
