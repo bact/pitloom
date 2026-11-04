@@ -24,20 +24,6 @@ entries come first; fixed entries stay in the last section for history.
 
 ### P2: 0.21.0 and later
 
-- [ ] **A top match that holds only part of its licence is concluded
-  (S-M, needs a rule).** Found in the #287 review: a BSD-1-Clause file
-  whose notice line ends "All rights reserved." concludes `BSD-2-Clause`
-  (0.927, coverage 0.825): `_COPYRIGHT_NOTICE_RE` drops the whole line,
-  phrase included, and `_fits_worse` checks runner-ups only. Decide a
-  coverage floor for the top match and whether notice stripping keeps a
-  trailing "All rights reserved" (`license-rules.md` §4).
-- [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
-  by #276 (needs a newer `licenseid`; "Known deviation" in
-  `license-typing.md`).
-  `License :: OSI Approved :: MIT License` (PyPI, and installed metadata
-  after #276) yields the text "MIT License". Map trove classifiers to
-  SPDX ids (licenseid or a small table), keeping the raw value in
-  provenance.
 - [ ] **Two `SPDX-License-Identifier` tags, one stated, conclude only the
   stated one (S).** Found in the #287 review, same on `main`: a file
   tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and
@@ -84,12 +70,6 @@ entries come first; fixed entries stay in the last section for history.
   the second source's annotation is not written. First-wins is old; the
   resolver merges more values, so it shows more often. Found in the #359
   review.
-  *Found 2026-10-27, combined review of #352 to #357.*
-- [ ] **Two spellings of one deprecated id give two expressions (S).**
-  `StandardML NJ` is read as `SMLNJ` (`licenseid` renames), while the listed
-  `StandardML-NJ` parses locally and stays as written, so one licence has two
-  records. Fixed by letting `resolve()` answer for the whole value (Q7); see
-  `licenseid`'s expression-resolution design. Found in the #359 review.
   *Found 2026-10-27, combined review of #352 to #357.*
 - [ ] **Catalogue 18, the licence families, is later (S), decided
   2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.
@@ -152,6 +132,25 @@ release ships.
 
 ### Fixed, P2: 0.21.0 and later
 
+- [x] **A top match that holds only part of its licence is concluded
+  (S-M, needs a rule).** Found in the #287 review: a BSD-1-Clause file
+  whose notice line ends "All rights reserved." concludes `BSD-2-Clause`
+  (0.927, coverage 0.825): `_COPYRIGHT_NOTICE_RE` drops the whole line,
+  phrase included, and `_fits_worse` checks runner-ups only. Decide a
+  coverage floor for the top match and whether notice stripping keeps a
+  trailing "All rights reserved" (`license-rules.md` §4).
+  Fixed by #437: `licenseid` 0.7.0 detects the filled BSD-1-Clause text
+  (`BSD-1-Clause`, score 1.0; 0.22.1 concluded `BSD-2-Clause`). No coverage
+  floor is built.
+- [x] **A licence classifier becomes text, not an SPDX id (S).** Deferred
+  by #276 (needs a newer `licenseid`; "Known deviation" in
+  `license-typing.md`).
+  `License :: OSI Approved :: MIT License` (PyPI, and installed metadata
+  after #276) yields the text "MIT License". Map trove classifiers to
+  SPDX ids (licenseid or a small table), keeping the raw value in
+  provenance.
+  Fixed by #437: the classifier path and the name are read with no
+  database (`License :: OSI Approved :: MIT License` is `MIT`).
 - [x] **An unknown id in an SPDX-only field is not reported (S-M).** Fixed
   in #357: the value stays text, plus one
   `WARNING:` per value naming the field (`warn_unless_expression`, called by
@@ -198,6 +197,13 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **Two spellings of one deprecated id give two expressions (S).**
+  `StandardML NJ` is read as `SMLNJ` (`licenseid` renames), while the listed
+  `StandardML-NJ` parses locally and stays as written, so one licence has two
+  records. Fixed by letting `resolve()` answer for the whole value (Q7); see
+  `licenseid`'s expression-resolution design. Found in the #359 review.
+  Fixed by #440: both spellings are `SMLNJ`.
+  *Found 2026-10-27, combined review of #352 to #357.*
 - [x] **The resolver's reading depends on the database (S).** Fixed by
   #437: the reading uses the list packaged with `licenseid` 0.7.0, the same
   with or without a database. A comparison
