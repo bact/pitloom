@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,6 +45,10 @@ Pitloom does today:
 - `extract/_license_detect.py`: `_looks_like_spdx_license_id` for
   `CITATION.cff`/`codemeta.json` values.
 
+The rule between the two `licenseid` calls: `resolve()` reads a declared
+value (package metadata) and returns the canonical expression; `detect()`
+reads licence text. Only `detect()` needs the database.
+
 `py-spdx-license` 0.0.1 offers a strict parser, an AST and
 `get_license`/`get_exception` over the bundled SPDX List. It lacks a
 canonical form, rejects `+`, `AdditionRef-` and `NOT`, raises `TypeError`
@@ -87,8 +91,10 @@ Deferred until upstream (no Pitloom feature meanwhile):
 
 - `LicenseRef-a WITH DocumentRef-d:AdditionRef-x` as an expression (today
   text, silent).
-- Classifier or licence name to SPDX id (today `SimpleLicensingText`; several
-  classifiers are an AND of `LicenseRef-pitloom-classifier-` terms, layer 3).
+- Classifier or licence name to SPDX id: `resolve()` reads a name that names
+  one licence (`MIT License`); a family name (`BSD License`, `Apache Software
+  License`) stays `SimpleLicensingText`, and several such classifiers are an
+  AND of `LicenseRef-pitloom-classifier-` terms (layer 3).
 - An unknown-id `WARNING:` in a field that must hold an SPDX expression.
 - Names differing only in case give two `LicenseRef-` terms (SPDX matches
   them case-insensitively): needs classifier-to-id knowledge (licenseid).

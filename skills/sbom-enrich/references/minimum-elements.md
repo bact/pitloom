@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -119,7 +119,7 @@ checked with `loom model`/`loom project` and `sbomcheck -c fsct3` on
 | COMP-004 | Unique Identifier | `software_packageUrl`, `software_contentIdentifier` or a packageUrl/cpe/swid/swhid/gitoid `externalIdentifier` | fills (a PURL on every package with a known version or a hashed model file; a dataset needs an http(s) download URL) | yes |
 | COMP-005 | Cryptographic Hash | `verifiedUsing` | see CISA's hash row | no |
 | COMP-006 | Relationship (per component, with completeness) | -- | Pitloom writes no `completeness` | no |
-| COMP-007 | License | `hasConcludedLicense` only (not `NoAssertionLicense`) | a dependency's licence from PyPI or its installed copy; the main package's only when it states a licence and the `licenseid` database (`licenseid update`) detects one in its licence files -- the stated licence itself is `hasDeclaredLicense`, which does not count, and with no stated licence the detection becomes the declared one; not the licence a model's or dataset's own source states, which is declared (models and datasets were `missing` in every test run): the user can conclude one by fragment | yes |
+| COMP-007 | License | `hasConcludedLicense` only (not `NoAssertionLicense`) | a dependency's licence from PyPI or its installed copy; the main package's only when it states a licence and the `licenseid` database (`licenseid update --source packaged`) detects one in its licence files -- the stated licence itself is `hasDeclaredLicense`, which does not count, and with no stated licence the detection becomes the declared one; not the licence a model's or dataset's own source states, which is declared (models and datasets were `missing` in every test run): the user can conclude one by fragment | yes |
 | COMP-008 | Copyright Notice | `software_copyrightText` (`NOASSERTION` counts as missing) | the main package when its licence files carry copyright lines (else `NOASSERTION`); a dependency when its installed copy's licence files do; a model or dataset none | yes |
 
 ## CISA 2026 (current baseline; 10 metadata + 7 component fields + 6 practices)

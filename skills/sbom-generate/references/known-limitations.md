@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -346,15 +346,19 @@ WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR')
 Fix the source value to get a `LicenseExpression`.
 
 A single-line value `licenseid` (`resolve`) reads as one licence (`Apache2`,
-`MIT License`, `GPLv2+`, a `License ::` classifier's name) is recorded as that
-id (`Apache-2.0`, `MIT`, `GPL-2.0-or-later`), with one `INFO:` line per value
-(no `FIELD=` for a classifier) and the reading in the licence element's
-provenance `comment`: `Normalized-From: <value as written>`, `Method:
-licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
-`Expansion-1: plus_to_or_later` for a `+` or a stated "or later", and `Tool:
-licenseid==<version>`. A change of case or `+` alone (`mit`, `GPL-2.0+`)
-keeps only `Normalized-From`, with no `INFO:`. Report the line; the result is
-the resolver's reading, not the author's words:
+`MIT License`, `GPLv2+`, a `License ::` classifier's name), or as several
+joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`), is recorded as that id
+(`Apache-2.0`, `MIT`, `GPL-2.0-or-later`, `Apache-2.0 OR MIT`), with one
+`INFO:` line per value (no `FIELD=` for a classifier) and the reading in the
+licence element's provenance `comment`: `Normalized-From: <value as written>`,
+`Method: licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
+`Expansion-1: plus_to_or_later` for a `+` (`stated_qualifier` for a stated "or
+later": `MIT or later` is `MIT+`), and `Tool: licenseid==<version>`. A change
+of case or `+` alone (`mit`, `GPL-2.0+`) keeps only `Normalized-From`, with no
+`INFO:`. A value `licenseid` refuses stays text, with no `INFO:`: a stray mark
+(`-MIT`, `MIT -`, `MIT...`), a list number (`1. MIT`), a comment word
+(`REM MIT`) or a plus after a space (`GPLv3 +`). Report the line; the result
+is the resolver's reading, not the author's words:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
@@ -364,7 +368,7 @@ INFO: LICENSE='MIT License': read as MIT (listed_name)
 A field that holds an SPDX expression only (`project.license` string,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
 GGUF `general.license`) whose value is not one and `licenseid` reads as none
-(`Acme-Terms`, `MIT OR Foo`, `Apache2 OR MIT`) is kept as text, with one line
+(`Acme-Terms`, `MIT OR Foo`, `BSD`) is kept as text, with one line
 per value naming the field:
 
 ```text
