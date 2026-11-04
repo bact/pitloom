@@ -27,6 +27,7 @@ from __future__ import annotations
 import copy
 import functools
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -111,15 +112,31 @@ def _kinds(steps: Sequence[Step]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(s["kind"] for s in steps if s["applied"]))
 
 
+#: A ``+`` right after an id (never after a space): what ``plus_to_or_later``
+#: writes as ``-or-later``.
+_PLUS_AFTER_ID = re.compile(r"(?<=[^\s+])\+(?=[\s)]|$)")
+
+
+def _as_form(operand: Operand) -> str:
+    """The text of *operand* with its form undone: case folded, runs of white
+    space collapsed, and a ``+`` the resolver wrote as ``-or-later`` spelt
+    so; what is left differs from the expression only where it was re-spelt."""
+    text = " ".join(operand["text"].split())
+    if "plus_to_or_later" in _kinds(operand["expansions"]):
+        text = _PLUS_AFTER_ID.sub("-or-later", text)
+    return text.casefold()
+
+
 def _operand_decided(operand: Operand) -> bool:
     """Whether *operand* was read beyond its form: a category past
     :data:`_FORM_ONLY`, or a deprecated id kept as written but re-spelt to
-    reach it (``GPLv3`` to ``GPL-3.0``; not ``gpl-3.0``)."""
+    reach it (``GPLv3`` to ``GPL-3.0``; not ``gpl-3.0``, ``GPL-2.0+`` or
+    a doubled space)."""
     category = operand["category"]
     if category in _FORM_ONLY:
         return False
     if category in _KEPT_AS_WRITTEN:
-        return operand["text"].casefold() != (operand["expression"] or "").casefold()
+        return _as_form(operand) != (operand["expression"] or "").casefold()
     return True
 
 

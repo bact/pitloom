@@ -45,6 +45,9 @@ from pitloom.extract._license import (
 from tests._license_graph import license_elements
 
 _LOGGER = "pitloom.extract._license_resolve"
+_CLASSPATH = "GPL-2.0 WITH Classpath-exception-2.0"
+_NOKIA = "GPL-2.0-or-later WITH Nokia-Qt-exception-1.1"
+_PLUS = " | Expansion-1: plus_to_or_later"
 
 
 def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
@@ -133,16 +136,52 @@ def test_a_plus_after_a_respelling_is_an_expansion_apart_from_it() -> None:
         ("MIT AND MIT", "MIT", ""),
         ("GPL-2.0+", "GPL-2.0-or-later", " | Expansion-1: plus_to_or_later"),
         ("(GPL-3.0+)", "GPL-3.0-or-later", " | Expansion-1: plus_to_or_later"),
+        # a deprecated id kept as written, its spacing or "+" changed
+        ("GPL-2.0 WITH  Classpath-exception-2.0", _CLASSPATH, ""),
+        ("gpl-2.0 with  classpath-exception-2.0", _CLASSPATH, ""),
+        ("GPL-2.0+ WITH Nokia-Qt-exception-1.1", _NOKIA, _PLUS),
+        ("GPL-2.0+ WITH  Nokia-Qt-exception-1.1", _NOKIA, _PLUS),
     ],
-)
+    ids=["case", "dup", "plus", "plus-parens", "with-ws", "with-case", "with-plus",
+         "with-plus-ws"],
+)  # fmt: skip
 def test_a_change_of_form_names_licenseid_and_no_decision(
-    raw: str, normalized: str, expansion: str
+    raw: str, normalized: str, expansion: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """``licenseid`` did the rewrite, so ``Tool`` names it; it decided nothing
-    beyond form and ``+``, so there is no ``Method`` or ``Resolution-1``."""
+    beyond form and ``+``, so there is no ``Method`` or ``Resolution-1``, and
+    nothing is said above ``DEBUG:``."""
     tool = f"licenseid=={licenseid_resolve('MIT')['resolver']['version']}"
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        got = classify_license(raw)
+    assert got is not None and got.value == normalized
+    assert not _said(caplog, logging.INFO)
     assert tag_license_normalization("P", raw, normalized) == (
         f"P | Normalized-From: {raw}{expansion} | Tool: {tool}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expression"),
+    [
+        ("GPLv2+ WITH Nokia-Qt-exception-1.1", _NOKIA),
+        ("GPL-2+ WITH Nokia-Qt-exception-1.1", _NOKIA),
+        ("GPLv2 WITH  Classpath-exception-2.0", _CLASSPATH),
+        ("GPLv3  OR MIT", "GPL-3.0 OR MIT"),
+    ],
+    ids=["respelt-plus", "short-version-plus", "respelt-ws", "respelt-or"],
+)
+def test_a_respelling_beside_a_change_of_form_is_still_a_decision(
+    raw: str, expression: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Undoing spacing and ``+`` leaves the re-spelling: said and noted."""
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        got = classify_license(raw)
+    assert got is not None and got.value == expression
+    (info,) = _said(caplog, logging.INFO)  # the excerpt collapses spacing
+    assert f": read as {expression} (" in info
+    assert f"Resolution-1: {raw} -> {expression} (" in tag_license_normalization(
+        "P", raw, expression
     )
 
 
@@ -160,7 +199,7 @@ def _answer(category: str, operand: str = "MIT") -> Any:
         "expansions": [],
         "operands": [
             {"text": operand, "expression": "MIT", "category": category,
-             "candidates": []},
+             "expansions": [], "candidates": []},
         ],
         "resolver": {"name": "licenseid", "version": "9.9"},
     }  # fmt: skip
