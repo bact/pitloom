@@ -22,8 +22,10 @@ See Also:
     :mod:`pitloom.extract._license_text_match` for licence text detection,
     :mod:`pitloom.extract._license_detect` for file candidate scanning,
     :mod:`pitloom.extract._license_classify` for classifying a value
-    (re-exported here), and :mod:`pitloom.extract._license_resolve` for
-    the reading of a declared value.
+    (re-exported here), :mod:`pitloom.extract._license_resolve` for
+    the reading of a declared value, and
+    :mod:`pitloom.extract._license_names` for when two values name one
+    licence.
 """
 
 from __future__ import annotations
@@ -50,6 +52,7 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     license_candidates_from_members,
 )
+from pitloom.extract._license_names import same_licence
 from pitloom.extract._license_resolve import (
     clear_resolution_cache,
     resolve_declared_value,
@@ -75,6 +78,7 @@ __all__ = [
     "is_weak_licence",
     "resolve_declared_value",
     "resolve_license_concluded",
+    "same_licence",
     "stated_license",
     "tag_deprecated_license_ids",
     "tag_license_normalization",

@@ -31,7 +31,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import classify_license
+from pitloom.extract._license import classify_license, same_licence
 
 
 # Shared document context plus the element; see build_license_elements.
@@ -168,7 +168,9 @@ def build_license_elements(
     conflicts: against a real licence both relationships stay, the real
     licence being the only one with content; ``NONE`` is a statement and
     conflicts with a real licence. A licence's SPDX List name against its id
-    (``MIT License`` and ``MIT``) is the same licence, not a conflict.
+    (``MIT License`` and ``MIT``, a deprecated id's too:
+    :func:`pitloom.extract._license_names.same_licence`) is the same
+    licence, not a conflict.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into
@@ -257,7 +259,7 @@ def build_license_elements(
         declared is not None
         and concluded is not None
         and not (declared.is_noassertion or concluded.is_noassertion)
-        and declared.value != concluded.value
+        and not same_licence(declared.value, concluded.value)
     ):
         candidates: list[ConflictCandidate] = [
             {

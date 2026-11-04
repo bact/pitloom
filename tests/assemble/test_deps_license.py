@@ -37,6 +37,7 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import clear_resolution_cache
+from pitloom.extract._license_names import UNREAD_LISTED_NAMES
 
 from .conftest import _make_ci
 
@@ -286,6 +287,25 @@ def test_a_list_name_is_its_id_only_through_the_reading(
         (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
     assert rel_declared is not None and rel_concluded is not None
     assert rel_declared.to != rel_concluded.to
+    assert _conflicts(exporter)
+
+
+@pytest.mark.parametrize(
+    ("name", "license_id"),
+    sorted(UNREAD_LISTED_NAMES.items()),
+    ids=[license_id for _, license_id in sorted(UNREAD_LISTED_NAMES.items())],
+)
+def test_a_deprecated_id_and_its_list_name_are_no_conflict(
+    name: str, license_id: str
+) -> None:
+    """The name stays text (``licenseid`` reads no id in it) yet names the
+    declared id: two elements, no conflict."""
+    for declared, concluded in ((name, license_id), (license_id, name)):
+        (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
+        assert rel_declared is not None and rel_concluded is not None
+        assert rel_declared.to != rel_concluded.to
+        assert not _conflicts(exporter)
+    _, exporter = _two_candidates(name, "MIT")
     assert _conflicts(exporter)
 
 

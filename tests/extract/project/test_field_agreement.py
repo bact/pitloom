@@ -14,6 +14,7 @@ from __future__ import annotations
 import pytest
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
+from pitloom.extract._license_names import UNREAD_LISTED_NAMES
 from pitloom.extract.project._field_agreement import add_conflict, values_agree
 
 
@@ -38,6 +39,18 @@ from pitloom.extract.project._field_agreement import add_conflict, values_agree
 )
 def test_values_agree(field: str, a: str | None, b: str | None, agree: bool) -> None:
     assert values_agree(field, a, b) is agree
+
+
+@pytest.mark.parametrize(
+    ("name", "license_id"),
+    sorted(UNREAD_LISTED_NAMES.items()),
+    ids=[license_id for _, license_id in sorted(UNREAD_LISTED_NAMES.items())],
+)
+def test_a_deprecated_id_agrees_with_its_list_name(name: str, license_id: str) -> None:
+    """``licenseid`` reads no id in the name: the List still makes them one."""
+    assert values_agree("license_name", name, license_id)
+    assert values_agree("license_name", license_id.lower(), name.upper())
+    assert not values_agree("license_name", name, "MIT")
 
 
 def _candidate(value: str, source: str) -> ConflictCandidate:

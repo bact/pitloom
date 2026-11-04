@@ -34,7 +34,9 @@ Pitloom does today:
   (`tag_license_normalization`, `tag_deprecated_license_ids`). Pitloom's
   own parser over `py-spdx-license` (strict parse, canonical string, the
   `+`/`AdditionRef-` grammar-gap fallback, deprecated `X+` successors,
-  `is_listed_name`) was deleted in #440.
+  `is_listed_name`) was deleted in #440; `extract/_license_names.py`
+  keeps the 14 deprecated List names `licenseid.resolve` does not read
+  (`same_licence`), held to its packaged List by a drift-guard test.
 - `extract/_license_resolve.py`: the declared-value reading
   (`resolve_declared_value`, `licenseid.resolve` on its packaged list), the
   only reader of an expression since #440: every answer with an expression
