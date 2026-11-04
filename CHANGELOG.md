@@ -39,6 +39,8 @@ and this project adheres to
   `LicenseRef-`); `StandardML-NJ` becomes `SMLNJ` ([#440])
 - `licenseid` reads every declared value: rewrites cite `Tool: licenseid==V`
   (`+` also `Expansion-1`), not `Normalizer`; warnings give its reason ([#440])
+- `AGPL-1.0+`, `AGPL-3.0+` and `GFDL-1.1+` to `GFDL-1.3+`, `WITH` forms too,
+  become their `-or-later` ids, as `GPL-2.0+` does ([#440])
 
 ### Fixed
 
@@ -46,6 +48,9 @@ and this project adheres to
   and the wheel contain none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` ([#435])
 - The Hatchling hook reads a respelt declared licence (`Apache2`) in an
   isolated build, which has no licence database ([#437])
+- A value with two `WITH`s (`MIT WITH AdditionRef-x WITH
+  Classpath-exception-2.0`) is kept as text, not read as an expression
+  ([#440])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437
