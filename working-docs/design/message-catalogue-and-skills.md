@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,8 +16,12 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 that showed the gap).
 
 Status: decided 2026-10-29 (the four decisions, then decisions A to L of
-the review of #390, then M proposed, at the end); scope split between 0.22.0 and 0.23.0
-below. The inventory (step 1) is done; its results and the printed form it
+the review of #390, then M proposed, at the end); scope split between 0.22.0
+and 0.23.0 below. Re-cut 2026-11-04 (maintainer ruling): 0.23.0 holds PRs 1b,
+1c and 2b only; the frames, PRs 3 to 18, the licence provenance mapping and
+`--report`/SARIF are 0.24.0 (counts and order:
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)).
+The inventory (step 1) is done; its results and the printed form it
 settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
 the plumbing, schema and ratchet, is #390 (merged); migration step 2, the
 `over-cap` family, is #396 (decisions in "The `over-cap` family"); step 3,
@@ -187,7 +191,8 @@ message language and pattern.
   (`resolve()` replaces Pitloom's own classifier and its messages), so fix
   those families after it lands, not before.
 
-**0.23.0**: `--report FILE` (JSON Lines, SARIF-compatible field names), the
+**0.24.0** (moved from 0.23.0 by the ruling of 2026-11-04):
+`--report FILE` (JSON Lines, SARIF-compatible field names), the
 SARIF 2.1.0 export, and the licence resolver's result nested in a record
 (`licenseid`'s `Resolution` as it is, not re-modelled). Deferred so that the
 nested shape is real, not guessed.
@@ -202,7 +207,7 @@ nested shape is real, not guessed.
 | 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test), then the #390 review's schema (decisions A to L): **in review (#390)** | Opus design, Sonnet | 0.22.0 |
 | 3b | Remaining families in the migration order above, grammar ratchet, generated skills reference | Opus design, Sonnet | 0.22.0 |
 | 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
-| 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.23.0 |
+| 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.24.0 |
 
 Steps 1 and 2 are independent. Compatibility is not a constraint (alpha).
 
@@ -372,14 +377,14 @@ recommendations D1 to D12 of its plan):
    dispatch names a reader (both tested): 25 sites. With 15 sites coded, the
    ratchet fell from 556 to 516 (172 to 163 modules).
 7. **Row 1 is split (D10)**: PR 1a is this one (the 18 covered sites and the
-   detail rule); PR 1b, also 0.22.0, takes the 27 sites of model fields read
-   in part (`model-field-unreadable`, `model-field-conflict`,
-   `model-field-invalid`, `field-not-recordable`; fickling's own stderr
-   stays a relay). Six sites move: `git.not-found` and the interpreter to
-   PRs 13 and 14, poetry-core's "API not found" (installed, its API moved:
-   `unusable`) to PR 12, and the model command's URL, the project's Hub
-   model and the usage hint (actor `caller`) to PR 3. The migration plan's
-   row 1 follows once it is merged.
+   detail rule); PR 1b, in 0.23.0, takes the model fields read in
+   part (27 sites when decided, 19 at 54f79c57: `model-field-unreadable`,
+   `model-field-conflict`, `model-field-invalid`, `field-not-recordable`;
+   fickling's own stderr stays a relay). Six sites move: `git.not-found` and
+   the interpreter to PRs 13 and 14, poetry-core's "API not found"
+   (installed, its API moved: `unusable`) to PR 12, and the model command's
+   URL, the project's Hub model and the usage hint (actor `caller`) to PR 3.
+   The migration plan's table follows this split.
 8. **The generated catalogue has its own page (D11)**:
    `docs/message-codes.md`; `docs/messages.md` keeps the grammar, the
    guarantees and the trust rule. The generator writes it, both skills'
