@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+from typing import Any
 
 import pytest
 from licenseid import resolve as licenseid_resolve
@@ -52,11 +53,12 @@ def test_long_or_multi_line_text_is_not_read(
     """A 48 KB body or a multi-line value is text without the resolver ever
     being asked."""
     asked: list[str] = []
-    monkeypatch.setattr(
-        _license_resolve,
-        "resolve",
-        lambda value, **kw: asked.append(value) or licenseid_resolve(value, **kw),
-    )
+
+    def spy(value: str, **kwargs: Any) -> Any:
+        asked.append(value)
+        return licenseid_resolve(value, **kwargs)
+
+    monkeypatch.setattr(_license_resolve, "resolve", spy)
     got = classify_license(body)
     assert not asked
     assert got is not None
