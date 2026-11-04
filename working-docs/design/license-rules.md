@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -204,7 +204,7 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense` (the caller named the
 slot).
 
-Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
+Text to id (`detect_license_from_text`, `extract/_license_text_match.py`, #286), on
 top of `licenseid` (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
@@ -294,18 +294,17 @@ Today's model is two candidates at most, for the main package only.
   first-seen text less leading blank lines/spaces/tabs and final line
   breaks (`_without_blank_ends`). Inner text, CRLF included, is kept and
   compared as written.
-- **Name vs id**: `same_licence(a, b)` is equality, or one is the SPDX
-  List name of the other's listed id, any case (`is_listed_name`, a
-  stop-gap until `licenseid` maps names). Not applied to an AND of
-  classifier terms.
+- **Name vs id**: equality of the classified values; `licenseid` reads an
+  SPDX List name as its id (`MIT License` is `MIT`), so the name-vs-id
+  stop-gap (`same_licence`, `is_listed_name`) went in #440.
 - **Kind**: an expression and a text of the same string are two
   elements (`(kind, value)` key).
 
 ## 7. Provenance per value
 
 Keys: `Source`, `Field`, `File`, `Package`, `Method`, `Tool`,
-`Normalized-From`, `Normalizer` (only when a parse took place),
-`Deprecated-License-Id`.
+`Normalized-From`, `Deprecated-License-Id` (`Tool: licenseid==<v>` names
+the reader, replacing `Normalizer` in #440).
 
 - On the element when this source created it; on the source's own
   relationship when the element already existed and the value carries a

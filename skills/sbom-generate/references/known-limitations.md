@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -340,7 +340,7 @@ kept as `SimpleLicensingText`, not dropped, with one stderr line per value,
 e.g.:
 
 ```text
-WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR'); recorded as license text
+WARNING: LICENSE='MIT OR': not a valid SPDX license expression (parse failed: Unexpected 'OR'); recorded as license text
 ```
 
 Fix the source value to get a `LicenseExpression`.
@@ -361,6 +361,16 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 INFO: LICENSE='MIT License': read as MIT (listed_name)
 ```
 
+`licenseid` is the only reader of a declared value, so every rewrite names
+it (`Tool: licenseid==<version>`), a change of case too. A deprecated id the
+author re-spelt (`GPLv3`, `LGPL v3`) is read as that id (`GPL-3.0`), never
+as `-only` or `-or-later`; a bare one (`GPL-2.0`) stays as written. Both get
+`Deprecated-License-Id: <id> (<id>-only or <id>-or-later)`. A licence's prose
+name (`BSD 3-Clause License`) and a classifier's name (`GNU General Public
+License v3 (GPLv3)`) are read as their id too. Licences joined by `;`
+(`MIT; Apache-2.0`) name no operator: they stay text, warned only in a field
+that holds an SPDX expression only (`operator not stated: ;`).
+
 A field that holds an SPDX expression only (`project.license` string,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
 GGUF `general.license`) whose value is not one and `licenseid` reads as none
@@ -368,7 +378,7 @@ GGUF `general.license`) whose value is not one and `licenseid` reads as none
 per value naming the field:
 
 ```text
-WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (Unknown Expression 'Acme-Terms'); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as license text
 ```
 
 Report the line and suggest the listed id (`Apache-2.0`); do not rewrite the

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -315,7 +315,7 @@ relationship(s):
    copy; two values, main package only: both, with a conflict Annotation
    when they differ, see license-typing.md).
 
-A note about how the value changed (`Normalized-From`, `Normalizer`,
+A note about how the value changed (`Normalized-From`, `Tool`,
 `Deprecated-License-Id`) goes on the new element, or, when the element
 already existed, on this source's relationship; for an individual always
 on the relationship.

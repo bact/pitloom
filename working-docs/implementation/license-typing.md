@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,12 +29,13 @@ Pitloom owns the SBOM shape (element classes, individuals, declared vs
 concluded relationships, dedup, profiles, merge) and the licence source
 (the Core Metadata/`pyproject.toml`/`setup.cfg`/`setup.py` cascade, field
 names, folding, whose statement). What a licence string means is frozen
-behind `classify_license(raw) -> ClassifiedLicense` and is to move to
-`py-spdx-license` (grammar, canonical form, deprecated ids) and `licenseid`
-(text, name or classifier to id); no new content features meanwhile.
-`is_listed_name` is the minimal stop-gap for the false name-vs-id conflict
-below. Deferred: `WITH DocumentRef-d:AdditionRef-x`, name/classifier to
-id, an unknown-id warning. Detail: [license-layers.md](../design/license-layers.md).
+behind `classify_license(raw) -> ClassifiedLicense`, and since #440
+`licenseid.resolve(value, source="packaged")` is its only reader (grammar,
+canonical form, deprecated ids, names and classifiers to ids); Pitloom no
+longer parses an expression itself and no longer depends on
+`py-spdx-license` (`licenseid` does). Deferred: `WITH
+DocumentRef-d:AdditionRef-x`, a family classifier name (`BSD License`) to
+an id. Detail: [license-layers.md](../design/license-layers.md).
 
 ## One classifier, one builder
 
@@ -50,36 +51,18 @@ Hugging Face), per-file `SPDX-License-Identifier` -- reaches it through
 | :--- | :--- | :--- |
 | `noassertion` | `NOASSERTION` or `UNKNOWN`, any case | none; individual `NoAssertionLicense` |
 | `none` | `NONE`, any case | none; individual `NoneLicense` |
-| `expression` | strict `py-spdx-license` parse succeeds, every id listed | `simplelicensing_LicenseExpression`, canonical form |
-| `expression` (grammar gap) | valid SPDX the parser cannot read: `Apache-2.0+`, `WITH AdditionRef-x` (also after `LicenseRef-`/`DocumentRef-`); canonicalised like any expression (see below) | `LicenseExpression` |
-| `text` | everything else; newline or over 200 characters is text without parsing; kept as written (stripped only to classify) | `simplelicensing_SimpleLicensingText` |
+| `expression` | `licenseid` reads an expression in it (any category with one: `exact` to `assumed_only`), `Apache-2.0+` and `WITH AdditionRef-x` included | `simplelicensing_LicenseExpression`, `licenseid`'s canonical form |
+| `text` | everything else (`malformed`, `unresolved`: `licenseid`'s `reason` is the warning's); newline or over 200 characters is text without parsing; kept as written (stripped only to classify) | `simplelicensing_SimpleLicensingText` |
 
 Details that were decided, not obvious:
 
-- **Canonical form.** Listed id case, operators upper-case, terms sorted
-  (`mit and apache-2.0` is `Apache-2.0 AND MIT`). The raw value is kept in
-  provenance, never lost.
-- **Operand order and repeats.** Operands are reordered
-  (`MIT OR Apache-2.0` becomes `Apache-2.0 OR MIT`) and repeats collapse
-  (`MIT OR MIT` becomes `MIT`); both record `Normalized-From`. Canonical order
-  holds for flat lists of one operator. A nested mixed AND/OR tree can have
-  more than one equivalent spelling: the library's absorption step is not
-  confluent, so two such spellings may stay two elements.
-- **Library workaround.** `py-spdx-license` 0.0.1 `Node.sort()` raises
-  `TypeError` on a flat chain with a repeated term (`MIT OR ISC OR MIT`).
-  The chain is deduplicated by identical terms and sorted again; any other
-  shape that cannot be sorted keeps the parser's own spelling. Never text,
-  never a `WARNING:`.
-- **Grammar gap.** Each `X+`/`WITH AdditionRef-` term is checked (a listed
-  id with no `+` after `-only`/`-or-later`, or a `LicenseRef-`/`DocumentRef-`
-  the parser accepts, with no `+` at all; a listed exception otherwise),
-  stands in as a placeholder while the rest is parsed, sorted and
-  deduplicated, then is put back: so spacing, order and identical repeats are
-  canonical as for any expression. `MIT+` and `MIT` are different terms and
-  are not merged. The placeholder prefix is lengthened until the input does
-  not contain it, and is restored by a bounded match: a user's own
-  `LicenseRef-pitloom-gap-000` was once dropped or merged into a neighbour by
-  a plain substring replace.
+- **Canonical form.** `licenseid`'s: listed id case, operators upper-case,
+  terms sorted, repeats collapsed (`mit and apache-2.0` is `Apache-2.0 AND
+  MIT`; ids before references, `Apache-2.0+ OR MIT`). The raw value is kept
+  in provenance, never lost. Until #440 Pitloom's own parser over
+  `py-spdx-license` gave the form, with a sort workaround and a placeholder
+  fallback for the `+`/`AdditionRef-` grammar gap; both were deleted with
+  it (operand orders that changed are in the CHANGELOG).
 - **Text as written, less leading blank space and final line breaks.**
   Leading blank lines, spaces and tabs, and every final `\n`, `\r\n` or `\r`, are
   serialisation: a file or a TOML string keeps them, a wheel's `METADATA`
@@ -100,16 +83,17 @@ Details that were decided, not obvious:
 - **Lone surrogates.** A value not UTF-8 encodable would fail serialisation
   (`CanonicalizationError`); each lone surrogate becomes U+FFFD with one
   `WARNING:` per value.
-- **Deprecated `X+` ids.** A deprecated id ending `+` becomes `X-or-later`,
-  found in the SPDX List bundled with `py-spdx-license`, not a hard-coded
-  table. `+` is replaced only when no second `+` follows, and `+` after
-  `-only`/`-or-later` is invalid, so `GPL-2.0++` and `GPL-2.0-only+` are text.
-  A bare deprecated `GPL-2.0` stays as written (the holder's intent, `-only`
-  or `-or-later`, is unknown) with a `Deprecated-License-Id` note.
-- **Warning rule.** Text with an operator or parenthesis and a known id
-  looks like a broken expression: text plus one `WARNING:` per value per
-  process (`warn_once`; any-case operators). The parser's message quotes the
-  input, so it is escaped. A pure comparison passes `warn=False`
+- **Deprecated ids.** A deprecated id ending `+` becomes `X-or-later`
+  (`licenseid`'s `plus_to_or_later`). A bare deprecated `GPL-2.0` stays as
+  written (the holder's intent, `-only` or `-or-later`, is unknown), and so
+  does the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `assumed_only`),
+  with a `Deprecated-License-Id` note naming `licenseid`'s candidates.
+- **Warning rule.** Text with an operator or parenthesis and an id as
+  written (`licenseid` reads the word as one id, not a re-spelling:
+  `is_licence_id`) looks like a broken expression: text plus one `WARNING:`
+  per value per process (`warn_once`; any-case operators). The reason is
+  `licenseid`'s, through `loggable()`. Licences joined by `;` name no
+  operator: text, warned only in an SPDX-only field. A pure comparison passes `warn=False`
   (installed-metadata reconcile), because comparing is not recording.
 - **Unknown id alone** (`Acme-Terms`) is text: silent in a free-text field, one
   `WARNING:` in a field that holds an SPDX expression only (next section). A
@@ -143,11 +127,11 @@ license expression (<reason>); recorded as license text`.
   line naming the field. A value read by more than one reader of a run (a
   directory and its installed metadata) is said once.
 - **"not read as", not "not valid".** A value over 200 characters is not
-  parsed, and an id newer than the list bundled with `py-spdx-license` is
-  valid SPDX the parser does not know; the reason in brackets says which.
-- **The licenseid database does not decide.** Known ids come from
-  `py-spdx-license`'s bundled list, so a missing database makes no id
-  unknown and adds no line.
+  read, and an id newer than the List packaged with `licenseid` is valid
+  SPDX it does not know; the reason in brackets says which.
+- **The licenseid database does not decide.** Known ids come from the List
+  packaged with `licenseid`, so a missing database makes no id unknown and
+  adds no line.
 - **Quiet fields.** Core Metadata `License`, `project.license.text`/`file`,
   `[tool.poetry] license` (Poetry accepts any text), a Hugging Face card's
   `license` (its own id list), ONNX/PyTorch metadata. `setup.py`/`setup.cfg`
@@ -346,13 +330,12 @@ detected one (`license_concluded`). Both go through the same classification, so
 spelling differences (`mit` vs `MIT`, `GPL-2.0+` vs `GPL-2.0-or-later`, `MIT AND
 MIT` vs `MIT`) are one element and no conflict. Both relationships are always
 built, each for its own role. A G2 `conflict` Annotation is added when the
-values differ, except that a licence name equal to the SPDX List name of the
-other's listed id (a classifier's `MIT License` against a detected `MIT`;
-`is_listed_name`, case-insensitive) is the same licence, and a
+values differ (a classifier's `MIT License` is read as `MIT`, so it agrees
+with a detected `MIT`; `is_listed_name` went in #440), and a
 `NoAssertionLicense` candidate never conflicts (it only says "unknown"; the real
 licence is the only one with content). `NONE` against a real licence is a
-conflict. One rule, `same_licence` (`extract/_license_classify.py`), decides
-"same licence" here and when a static manifest is reconciled with installed
+conflict. One rule, equality of the classified values, decides "same
+licence" here and when a static manifest is reconciled with installed
 metadata (`_installed_reconcile.py`), where a weak static value also gives way:
 a real installed licence replaces it, with its provenance. A weak value
 against a declared-but-blank one on the other side agrees (no conflict,
@@ -398,9 +381,10 @@ before, merging a document that used a named individual raised
 
 ## Provenance
 
-`Normalized-From` (raw value when recording changed it), `Normalizer`
-(`py-spdx-license==x`, only when a parse took place -- not for
-`UNKNOWN`/`NONE`) and `Deprecated-License-Id` are high-signal, so kept at
+`Normalized-From` (raw value when recording changed it), `Tool`
+(`licenseid==x`, the reader, only when a reading took place -- not for
+`UNKNOWN`/`NONE`; `Normalizer: py-spdx-license==x` until #440) and
+`Deprecated-License-Id` are high-signal, so kept at
 `detail = "minimal"`. On the element when this source created it; on the
 source's own relationship when the element already existed (per-source note
 on a shared element) and always for an individual.

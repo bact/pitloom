@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,8 +46,9 @@ URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 ```
 
 Only emitted when candidates actually disagree after normalization
-(`_license.py` `classify_license`, built on the
-[`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
+(`_license.py` `classify_license`, read by `licenseid.resolve` since #440;
+built on the [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license)
+parser before —
 a plain `.strip()` comparison alone would false-positive not just on
 casing differences (declared `"mit"` vs. detected `"MIT"`) but on
 equivalent-yet-differently-spelled compound expressions too (`"MIT AND
@@ -56,9 +57,8 @@ both candidate values are parsed, deduplicated, and canonically reordered
 before both the comparison and the license-element lookup/creation. A
 value that does not parse is text, compared as written less its leading
 blank space and final line breaks. Two values are the same licence when
-equal, or when one is the SPDX List name of the other's listed id
-(`is_listed_name`, any case: a classifier's `MIT License` against a
-detected `MIT`). A `NoAssertionLicense` candidate never conflicts; `NONE`
+their classified values are equal (`licenseid` reads a classifier's `MIT
+License` as `MIT`; `is_listed_name` did until #440). A `NoAssertionLicense` candidate never conflicts; `NONE`
 against a real licence does (detail:
 [license-typing.md](../license-typing.md#two-candidate-mode-and-conflicts)).
 Full agreement emits no Annotation — both native relationships

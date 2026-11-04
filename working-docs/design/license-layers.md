@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,20 +28,21 @@ What a licence string means, independent of where it was read.
 Pitloom does today:
 
 - `extract/_license_classify.py`: `classify_license(raw) ->
-  ClassifiedLicense` (the adapter seam); strict parse and canonical string
-  (`_strict_parse`, `_canonical_string`: listed id case, upper-case
-  operators, sorted terms); the sort `TypeError` workaround on a flat chain
-  with a repeated term; deprecated `X+` to `X-or-later` (`_successor_id`,
-  `_replace_deprecated`); the grammar-gap fallback for `+` and
-  `WITH AdditionRef-` (`_gap_term`, `_gap_expression`); "looks like an
-  expression" (`_looks_like_expression`, one `WARNING:`); deprecated-id
-  notes (`tag_deprecated_license_ids`); the name-vs-id stop-gap
-  `is_listed_name`.
-- `extract/_license.py`: text to id (`detect_license_from_text` over
-  `licenseid`), the declared-value reading (`resolve_declared_value`,
-  `licenseid.resolve` on its packaged list),
-  `_looks_like_spdx_license_expression` (`canonicalize_license_id` was
-  deleted in #437: no caller).
+  ClassifiedLicense` (the adapter seam): the named individuals, long and
+  multi-line text left unread, "looks like an expression"
+  (`_looks_like_expression`, one `WARNING:`), the notes
+  (`tag_license_normalization`, `tag_deprecated_license_ids`). Pitloom's
+  own parser over `py-spdx-license` (strict parse, canonical string, the
+  `+`/`AdditionRef-` grammar-gap fallback, deprecated `X+` successors,
+  `is_listed_name`) was deleted in #440.
+- `extract/_license_resolve.py`: the declared-value reading
+  (`resolve_declared_value`, `licenseid.resolve` on its packaged list), the
+  only reader of an expression since #440: every answer with an expression
+  is recorded; the `INFO:` line and the `Method`, `Resolution-1`,
+  `Expansion-1`, `Tool` and `Deprecated-License-Id` notes come from it.
+- `extract/_license_text_match.py`: text to id (`detect_license_from_text`
+  over `licenseid`, #438); `extract/_license.py` is the facade
+  (`canonicalize_license_id` was deleted in #437: no caller).
 - `extract/_license_detect.py`: `_looks_like_spdx_license_id` for
   `CITATION.cff`/`codemeta.json` values.
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,9 +56,9 @@ file-size guidance -- moved verbatim, no content changed.
 Recorded, not built. Context:
 [license-typing.md](../implementation/license-typing.md).
 
-- [ ] **Move licence content (`classify_license`) to py-spdx-license /
-  licenseid; Pitloom keeps an adapter.** See
-  [license-layers.md](license-layers.md).
+- [x] **Move licence content (`classify_license`) to licenseid; Pitloom
+  keeps an adapter.** Done in #440: `licenseid.resolve` is the only reader.
+  See [license-layers.md](license-layers.md).
 - [ ] **No G2 second opinion for a wheel.** Its SBOM records the
   archive's declared licence only (predates #276). An sdist now runs the
   directory's detection; a wheel needs `License-File:` selection to pick

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -381,8 +381,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Question:** one canonical spelling for every expression, including
   nested mixed AND/OR and grammar gaps, and whose canonicaliser?
 - **Why it matters:** two equivalent nested spellings can stay two
-  elements; the form also depends on the `py-spdx-license` version
-  (recorded as `Normalizer:`).
+  elements; the form also depends on the `licenseid` version (recorded as
+  `Tool:`; `licenseid` is the only reader since #440).
 - **Options:** state the limit (today); a Pitloom normal form (sorted,
   absorbed DNF); `licenseid` `normalize_identifier()` behind the adapter (a
   content decision not taken in #276); upstream fixes.
@@ -443,7 +443,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Evidence:** the SPDX License List
   ([licenses.json](https://spdx.org/licenses/licenses.json)) gives each id
   a `reference` (`https://spdx.org/licenses/<id>.html`, one id) and
-  `seeAlso` URLs; the bundled `py-spdx-license` data has both, so no
+  `seeAlso` URLs; the List packaged with `licenseid` has both, so no
   network and a result fixed by the list version. On it (729 licences,
   2026-10-07): 891 `seeAlso` URLs after folding scheme, `www.` and a
   trailing `/`; 43 map to several ids, all same-text families (GPL-2.0
@@ -493,9 +493,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
   no input change: `licenseid` 0.4 capped scores to 1, so MIT tied
   `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins floors only;
   Python version effects on scores are not measured.
-- **Options:** state determinism per (Pitloom, `licenseid`,
-  `py-spdx-license`) versions, as provenance records (`Tool:
-  licenseid==<v>`, `Normalizer: py-spdx-license==<v>`); run the corpus
+- **Options:** state determinism per (Pitloom, `licenseid`) versions, as
+  provenance records (`Tool: licenseid==<v>`); run the corpus
   (`tests/fixtures/license-texts/`) on the floor and latest versions in CI;
   an upper pin (against the floor-only practice).
 - **Current behaviour:** same corpus results on 0.3.7 and 0.4
