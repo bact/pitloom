@@ -20,8 +20,9 @@ from unittest.mock import patch
 import pytest
 from licenseid import DatabaseNotReadyError, LicenseDetector
 
-from pitloom.extract import _license
-from pitloom.extract._license import detect_license_from_text, resolve_declared_value
+from pitloom.extract import _license_text_match
+from pitloom.extract._license import resolve_declared_value
+from pitloom.extract._license_text_match import detect_license_from_text
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 _INFO = "licenseid database not found: "
@@ -34,7 +35,7 @@ def _lines(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
 @pytest.fixture(name="missing")
 def _missing(tmp_path: Path) -> Iterator[None]:
     real = functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db"))
-    with patch.object(_license, "LicenseDetector", real):
+    with patch.object(_license_text_match, "LicenseDetector", real):
         yield
 
 
@@ -43,7 +44,7 @@ def _missing(tmp_path: Path) -> Iterator[None]:
 def test_a_missing_database_with_a_stated_licence_is_info_once(
     stated: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.INFO, logger=_license.__name__):
+    with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
         first = detect_license_from_text(_TEXT, stated=stated)
         second = detect_license_from_text(_TEXT, stated=stated)
 
@@ -65,7 +66,7 @@ def test_a_missing_database_with_a_stated_licence_is_info_once(
 def test_a_missing_database_with_no_stated_licence_warns(
     stated: str | None, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.INFO, logger=_license.__name__):
+    with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
         assert detect_license_from_text(_TEXT, stated=stated) is None
 
     (level, message) = _lines(caplog)[0]
@@ -92,8 +93,8 @@ def test_only_a_named_missing_file_is_info(
     def refused() -> None:
         raise error
 
-    with patch.object(_license, "LicenseDetector", refused):
-        with caplog.at_level(logging.INFO, logger=_license.__name__):
+    with patch.object(_license_text_match, "LicenseDetector", refused):
+        with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
             assert detect_license_from_text(_TEXT, stated="MIT") is None
     assert [line[0] for line in _lines(caplog)] == [level]
 
@@ -120,8 +121,8 @@ def test_an_unusable_database_with_a_stated_licence_still_warns(
     broken = tmp_path / "broken.db"
     broken.write_bytes(b"")
     real = functools.partial(LicenseDetector, db_path=str(broken))
-    with patch.object(_license, "LicenseDetector", real):
-        with caplog.at_level(logging.INFO, logger=_license.__name__):
+    with patch.object(_license_text_match, "LicenseDetector", real):
+        with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
             assert detect_license_from_text(_TEXT, stated="MIT") is None
 
     (level, message) = _lines(caplog)[0]
@@ -136,10 +137,10 @@ def test_the_info_and_warning_lines_share_one_grammar(
     `` -- `` before the consequence."""
     broken = tmp_path / "broken.db"
     broken.write_bytes(b"")
-    with caplog.at_level(logging.INFO, logger=_license.__name__):
+    with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
         for path in (tmp_path / "none.db", broken):
             real = functools.partial(LicenseDetector, db_path=str(path))
-            with patch.object(_license, "LicenseDetector", real):
+            with patch.object(_license_text_match, "LicenseDetector", real):
                 detect_license_from_text(_TEXT, stated="MIT")
 
     levels_and_lines = _lines(caplog)

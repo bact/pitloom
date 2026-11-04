@@ -26,7 +26,6 @@ import pitloom.extract._license as _license_module
 import pitloom.extract._license_classify as _classify_module
 from pitloom.extract import _license_detect
 from pitloom.extract._license import (
-    _looks_like_spdx_license_expression,
     _with_tool_tag,
     detect_independent_license,
     tag_license_normalization,
@@ -34,6 +33,7 @@ from pitloom.extract._license import (
 from pitloom.extract._license_detect import (
     _license_from_citation_cff,
     _license_from_codemeta_json,
+    _looks_like_spdx_license_expression,
     collect_license_candidates,
     find_license_files,
 )

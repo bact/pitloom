@@ -58,7 +58,7 @@ def without_licence_database() -> Iterator[None]:
     the SBOM text changes. The table describes the database-less state (a
     declared value is read either way: it needs no database).
     """
-    with patch("pitloom.extract._license._detector", return_value=None):
+    with patch("pitloom.extract._license_text_match._detector", return_value=None):
         yield
 
 

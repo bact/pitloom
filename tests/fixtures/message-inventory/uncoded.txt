@@ -90,9 +90,9 @@ pitloom.enrich.readme 2
 pitloom.extract._author_warnings 5
 pitloom.extract._core_metadata 1
 pitloom.extract._extract_utils 7
-pitloom.extract._license 2
 pitloom.extract._license_classify 3
 pitloom.extract._license_resolve 1
+pitloom.extract._license_text_match 2
 pitloom.extract.ai_model.fasttext 2
 pitloom.extract.ai_model.gguf 1
 pitloom.extract.ai_model.hdf5_config 5

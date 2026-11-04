@@ -56,7 +56,7 @@ log = logging.getLogger(__name__)
 
 #: Candidate model-card filenames, in priority order. Matched
 #: case-insensitively against what's actually on disk, same convention as
-#: ``_license.py``'s ``_LICENSE_STEMS``.
+#: ``_license_detect.py``'s ``_LICENSE_STEMS``.
 _MODEL_CARD_STEMS = ("README.md", "MODEL_CARD.md")
 
 #: The most bytes of a model card read. Only its leading YAML frontmatter

@@ -201,7 +201,8 @@ def _detect_license_from_hf_files(
     """Try to detect an SPDX license ID from license files in a HF repository.
 
     Downloads each candidate file in priority order and runs
-    :func:`~pitloom.extract._license.detect_license_from_text` on the content.
+    :func:`~pitloom.extract._license_text_match.detect_license_from_text`
+    on the content.
 
     Returns ``(spdx_id, provenance_string)`` when a match is found above the
     default threshold, or ``(None, None)`` otherwise.  Requires the
@@ -218,7 +219,7 @@ def _detect_license_from_hf_files(
 
     from pathlib import Path as _Path
 
-    from pitloom.extract._license import detect_license_from_text
+    from pitloom.extract._license_text_match import detect_license_from_text
 
     for filename in _list_license_files_in_repo(model_id):
         try:

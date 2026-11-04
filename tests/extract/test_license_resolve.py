@@ -34,7 +34,7 @@ from licenseid import resolve as licenseid_resolve
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.extract import _license, _license_resolve
+from pitloom.extract import _license, _license_resolve, _license_text_match
 from pitloom.extract._license import (
     classify_license,
     clear_resolution_cache,
@@ -200,7 +200,7 @@ def test_a_value_is_said_once_by_its_text_not_by_its_reading(
 def test_the_answers_are_kept_when_the_database_is_found_unusable() -> None:
     """They do not rest on the database: only the detector is dropped."""
     resolve_declared_value("Apache2")
-    _license._database_unusable(RuntimeError("x"))
+    _license_text_match._database_unusable(RuntimeError("x"))
     assert _license._resolved.cache_info().currsize == 1
 
 

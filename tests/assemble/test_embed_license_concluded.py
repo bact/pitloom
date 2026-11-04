@@ -22,7 +22,7 @@ from licenseid import DatabaseNotReadyError
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.embed import embed_wheel_sbom
-from pitloom.extract import _license
+from pitloom.extract import _license_text_match
 
 from .conftest import _make_dummy_wheel
 
@@ -184,7 +184,9 @@ def test_embed_unusable_license_db_is_said_once(
     """A licenseid database that cannot be used is said once, though the
     project is read more than once (INFO when only missing and a licence is
     declared, else WARNING), and the concluded licence is then absent."""
-    monkeypatch.setattr(_license, "LicenseDetector", _database_error(message))
+    monkeypatch.setattr(
+        _license_text_match, "LicenseDetector", _database_error(message)
+    )
     project = _project(tmp_path / "proj", None, license_text="Apache License\n" * 20)
     wheel = _make_dummy_wheel(tmp_path / "dist", _NAME, license_expression="Apache-2.0")
 

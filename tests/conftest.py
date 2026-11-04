@@ -17,7 +17,8 @@ from typing import Any
 
 import pytest
 
-from pitloom.extract._license import _get_detector, clear_resolution_cache
+from pitloom.extract._license import clear_resolution_cache
+from pitloom.extract._license_text_match import _get_detector
 from pitloom.logging_config import _WARNED_ONCE
 from tests._environ import environ_restored
 from tests._message_drift import record_problem

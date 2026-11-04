@@ -21,7 +21,7 @@ import pytest
 
 from pitloom._embed_overlay import add_concluded_license
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract._license import _family, detect_license_from_text
+from pitloom.extract._license_text_match import _family, detect_license_from_text
 from pitloom.extract.project.sdist import read_sdist
 from tests.fixtures.real_world import REAL_WORLD_ROOT, load_expected
 
