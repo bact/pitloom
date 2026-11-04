@@ -32,8 +32,8 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
-Order (2026-10-30): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 1.0.
-No date for 1.0 until 0.23.0 lands.
+Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
+1.0. No date for 1.0 until 0.24.0 lands.
 
 ### 0.21.0
 
@@ -105,21 +105,22 @@ in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
 
-**The 0.23.0 list (decided 2026-10-30):** the adoption of `licenseid` 0.7.0
-(`match()` becomes `detect()`, `resolve()` keeps its name; stage A, the
-pin, port and warning relay, is #437; see
-[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)), the licence provenance
-mapping ([#384](https://github.com/bact/pitloom/pull/384)), the remaining
-catalogue families (1b, 2b and 3 to 18, the licence families included; see
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md) and
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md)), `--report`
-and SARIF. Evidence-level work continues where it pairs with a catalogue
-family (over-cap, unreadable file, Hub failure).
-
-**`licenseid` 0.7.0 adoption, status:** stage A is built (#437: pin, port to
-`resolve(source="packaged")` and `LicenseDetector`, warning relay, CI database
-build). Stage B (split `_license.py`), stage C (declared-value reading by
-`licenseid` alone) and stage D (docs and skills) follow.
+**The 0.23.0 cut (maintainer ruling 2026-11-04, replacing the list of
+2026-10-30):** 0.23.0 is cut early. Built: the `licenseid` 0.7.0 adoption
+(`match()` becomes `detect()`, `resolve()` keeps its name; stage A, the pin,
+port and warning relay, #437; stage B, the `_license.py` split, #438; stage D,
+docs and skills, #439; stage C, declared values read by `licenseid` alone, #440;
+see [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). Shipping in 0.23.0:
+the adoption's final gate (stage E), the catalogue plan refresh, catalogue PR 2b
+(cards, `fetch_json`, lone surrogate) and PRs 1b and 1c (model fields read in
+part, `library-missing/import-failed`); the ratchet falls from 498 to 463. Moved
+to 0.24.0: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18 and
+the licence provenance mapping
+([#384](https://github.com/bact/pitloom/pull/384), T14), `--report` and SARIF.
+See [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+and [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
+Evidence-level work continues where it pairs with a catalogue family (over-cap,
+unreadable file, Hub failure).
 
 **Process (decided 2026-10-30):** two test gates per PR and a pre-release
 review before each release tag. See
@@ -142,6 +143,25 @@ Open:
 
 Built in 0.22.0 (#374-#408). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-410).
+
+### 0.24.0: message catalogue and licence provenance
+
+Moved from 0.23.0 by the ruling of 2026-11-04. Each item is its own PR; the
+order and counts are in
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
+- [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
+  `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
+- [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
+  last): caller actor and input errors, the ID registry (with the remote
+  registry entries first), lock files, config, project metadata, Git, Hub and
+  build, fragments and wheels, miscellany, licence.
+- [ ] **Licence provenance mapping**
+  ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
+  revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
+  main into the branch, then implement (design on #384).
+- [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
+  codes. See [sarif-output.md](sarif-output.md).
 
 ### 1.0
 
@@ -257,7 +277,8 @@ unless the linked doc says so.
   (decided 2026-10-29): design done (#379); skill size cap built (#385);
   catalogue in code, schema and ratchet; the `lfs-pointer`, `over-cap`,
   model-stub and unreadable-file families built (#390, #396, #404, #408;
-  0.22.0); the other families and `--report` in 0.23.0. See
+  0.22.0); PRs 1b, 1c and 2b in 0.23.0; the other families and `--report`
+  in 0.24.0. See
   [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under
