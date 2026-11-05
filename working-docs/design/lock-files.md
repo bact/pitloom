@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,7 @@ implemented formats and current cascade; the remaining formats below
 continue to describe future work.
 
 **Illustrative code only, not a drop-in design.** The Pydantic models and
-hand-rolled `SPDXRef-*`/raw-dict SPDX 3 serializer below are a sketch,
+hand-rolled `SPDXRef-*`/raw-dict SPDX 3 serialiser below are a sketch,
 not shaped to this codebase: Pitloom uses stdlib dataclasses
 (`ProjectMetadata`/`ProjectFile`, not Pydantic), `spdx_python_model.bindings`
 plus `generate_spdx_id()`'s UUID5-namespaced scheme (not hand-built
@@ -50,8 +50,8 @@ pure-Python packages mix with hardware-specific Conda binaries.
 Building an effective SBOM generator requires targeting modern,
 high-performance tools like `uv` and `pixi` while establishing the PEP 751
 (`pylock.toml`) standard as a universal baseline.
-The blueprint below outlines a prioritized extraction roadmap, an internal
-normalization schema, and serializers for CycloneDX 1.7 and SPDX 3.0.
+The blueprint below outlines a prioritised extraction roadmap, an internal
+normalisation schema, and serialisers for CycloneDX 1.7 and SPDX 3.0.
 The provided code is illustrative—implementers should adapt and adjust these
 foundational models to fit their specific system requirements.
 
@@ -66,13 +66,13 @@ simply by asking users to run `[tool] export --format pylock`.
 | --- | --- | --- |
 | **1: The Universal Core** | `pylock.toml` (PEP 751) | **Done (2026-09-02)** -- see the "See also" note above. The official Python interoperability standard. Universal fallback. |
 | | `pyproject.toml` | Standard project metadata (PEP 621) to define the root SBOM component. |
-| | `uv.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
-| | `requirements.txt` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
+| | `uv.lock` | **Done (2026-09-04)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
+| | `requirements.txt` | **Done (2026-09-05)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
 | **2: AI/ML Native Binary** | `pixi.lock` | Essential for AI: natively resolves both Python packages and system-level C/C++ CUDA/Conda binaries. |
 | | `conda-lock.yml` | Maps Conda data science packages alongside PyPI wheels. |
 | **3: Corporate Standards** | `poetry.lock` | **Done (2026-08-31)** -- see the "See also" note above. Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
-| **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
-| | `Pipfile.lock` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Largely legacy tooling. |
+| **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
+| | `Pipfile.lock` | **Done (2026-09-05)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). Largely legacy tooling. |
 
 ---
 
@@ -130,12 +130,12 @@ class NormalizedLockData(BaseModel):
 
 ---
 
-## 3. Serialization Engines
+## 3. Serialisation Engines
 
-These serializers take your `NormalizedLockData` model and project it into
+These serialisers take your `NormalizedLockData` model and project it into
 the two dominant SBOM standards.
 
-### CycloneDX 1.7 JSON Serializer
+### CycloneDX 1.7 JSON Serialiser
 
 CycloneDX uses a flat array of components and a dedicated dependency
 relationship graph. It is the preferred format for strict security and
@@ -214,9 +214,9 @@ class CycloneDX17Serializer:
         }
 ```
 
-### SPDX 3.0 JSON-LD Serializer
+### SPDX 3.0 JSON-LD Serialiser
 
-SPDX 3.0 utilizes a JSON-LD data structure (the `@graph` list).
+SPDX 3.0 utilises a JSON-LD data structure (the `@graph` list).
 Everything—the document, the packages, and the relationships—is a flat element
 in the graph connected via unique `spdxId` fields.
 

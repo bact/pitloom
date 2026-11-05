@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,8 +24,9 @@ keeping an entry with `Evidence:`, and the merge drop of a superseded
 sizes under a cap for a single-file dataset (#387); and step 2's value type
 (`Fact`, `count_fact`, `record_fact`, `record_stated` in `core/evidence.py`;
 the loom dataset digest's hash and size moved onto it, output unchanged; a
-source's statement no longer replaces loom's own entry, Risk 7). Everything
-else below is unbuilt.
+source's statement no longer replaces loom's own entry, Risk 7); and the
+`file-unreadable` and `dir-unlistable` reasons (#408, PR-D). Everything else
+below is unbuilt.
 
 ## Principle
 
@@ -238,9 +239,8 @@ escaped.
 
 ## The `AGENTS.md` rule
 
-The rule below goes into `AGENTS.md` ("Design principles") with the first
-implementing PR (sizes under a cap), not before: it binds every agent session,
-and no code follows it yet.
+The rule below went into `AGENTS.md` ("Design principles") with the first
+implementing PR (sizes under a cap, #387); it binds every agent session.
 
 ```text
 - **Caps bound reading, never reporting; every fact has an evidence level.**
@@ -268,4 +268,4 @@ Decided 2026-10-29 unless marked. Each took the recommended answer.
 7. **Merge:** generalise the drop helpers so a `not_measured` entry goes when
    the merged element gains the property; fix the comment-merge problem first
    (built, #386).
-8. **Release placement of steps 0 and 1:** 0.22.0. Step 0 is done. [proposed]
+8. **Release placement of steps 0 and 1:** 0.22.0 (both done: #382, #387).

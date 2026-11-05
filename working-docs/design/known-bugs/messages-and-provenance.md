@@ -35,9 +35,9 @@ entries stay in the last section for history.
 ### Found in review rounds, not yet prioritised
 
 - [ ] **`file-unreadable` is not in the generated model table (S), decided
-  2026-10-30: later (0.22.x or 0.23.0).** The model header line drops the
-  model, and the model hash leaves no `verifiedUsing`; add the code to the
-  generated table so both are said.
+  2026-10-30: later (not done in 0.22.x or 0.23.0).** The model header line
+  drops the model, and the model hash leaves no `verifiedUsing`; add the code
+  to the generated table so both are said.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
 - [ ] **A base element holding both a value and a `not_measured` entry loses the
   entry when a fragment folds into it for an unrelated field (S).** Needs a

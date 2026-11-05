@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,8 @@ history.
   `format_version` and `properties.*` get provenance in the package comment
   and fields annotation, but nothing in `assemble/` emits those fields, and
   a shipped model skips the artifact-metadata annotation under
-  `preserve-source-metadata=auto`, so the values (e.g. CRFsuite labels
+  `preserve-source-metadata=auto` (the default today; `never` is planned,
+  decided 2026-11-05), so the values (e.g. CRFsuite labels
   beyond the 20 in the description) appear nowhere. Either emit them or
   drop their provenance. Repro: `loom project` (or `loom wheel`, auto mode)
   on pythainlp gives 8 `ai_AIPackage` and 0 artifact-metadata annotations,
@@ -273,7 +274,7 @@ release ships.
   decode's `UnicodeDecodeError` became "Failed to read GGUF file".)
 - [x] **Blank text fields are kept by some readers (S).** Fixed by #427: GGUF,
   Safetensors and ONNX read an empty or white-space-only name, description,
-  version, architecture, quantization or `doc_string` as absent through one
+  version, architecture, quantisation or `doc_string` as absent through one
   shared helper, and a blank Safetensors key gives way to the next candidate
   key. (Was: a blank or padded value (`"  "`) kept with its provenance.) The
   Safetensors `framework` choice is still open above.

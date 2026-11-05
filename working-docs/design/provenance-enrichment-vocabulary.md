@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 **Status:** draft, parked for later review.
 This file exists so a human or an AI agent can pick the work
 back up later without re-deriving the research.
+**Decided 2026-11-05:** provenance annotations are off by default and a flag
+turns them on (planned for 0.24.0; see the "Provenance and source-metadata
+flags" item in [roadmap.md](roadmap.md)). Today they are on by default.
 
 See [working-docs/implementation/provenance/](../implementation/provenance/)
 for the shipped provenance mechanism this vocabulary describes
@@ -114,7 +117,7 @@ it). §1/§2 below and the drafted page content are updated to match.
    data; track validation steps and results. Neither is built.
 7. ~~**Unbounded artifact-metadata-blob size**~~ -- **Resolved
    (2026-08-26):** `[tool.pitloom.provenance] max-source-metadata-bytes`
-   (default `0`, unbounded) caps the serialized `Annotation.statement`
+   (default `0`, unbounded) caps the serialised `Annotation.statement`
    byte length via dictionary-level, greedy-heaviest-key-first
    truncation, marked with `truncated`/`truncatedKeys`/
    `truncatedKeyCount`/`maxMetadataBytes` in the statement envelope when
@@ -163,13 +166,13 @@ values `derived_from_format`, `generated_from_labels`, `flit_dynamic_metadata`,
 | `method` value | Meaning | Emission site(s) |
 | --- | --- | --- |
 | `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/project/pyproject.py:342`, `:363` |
-| `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- how it was read; own `LICENSE` stays declared unless the manifest states one | `src/pitloom/extract/remote/huggingface_fetch.py:255`, `:319`; `src/pitloom/extract/_license.py:112`, `:215` (`detect_license_from_text` itself is in `extract/_license_text_match.py`); `src/pitloom/assemble/spdx3/deps_license.py:491` (default for a library `license_concluded`) |
+| `licenseid_detection` | Licence matched against a known SPDX id via the `licenseid` library -- how it was read; own `LICENSE` stays declared unless the manifest states one | `src/pitloom/extract/remote/huggingface_fetch.py:255`, `:319`; `src/pitloom/extract/_license.py:112`, `:215` (`detect_license_from_text` itself is in `extract/_license_text_match.py`); `src/pitloom/assemble/spdx3/deps_license.py:491` (default for a library `license_concluded`) |
 | `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/project/setuptools_cfg.py:285`, `setuptools_py.py:214`; `src/pitloom/extract/project/poetry.py:169`; `src/pitloom/extract/project/hatchling.py:143`; `src/pitloom/extract/project/pyproject.py:202` |
 | `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_originator.py:347` |
 | `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/project/pyproject_dynamic.py` |
 | `attr_directive` | `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`) | `src/pitloom/extract/project/pyproject_dynamic.py` |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` SDK via stack inspection | `src/pitloom/_loom_active_run.py:62`, `:67`, `:73` |
-| `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment | `src/pitloom/extract/env.py:42-43` |
+| `synthetic environment root` | The element is Pitloom's own synthesised placeholder root package for an installed environment | `src/pitloom/extract/env.py:42-43` |
 | `extension_guess` | File content-type resolved by filename-extension fallback (no `magika` / no confident result) | `src/pitloom/assemble/spdx3/_document_files.py:138` |
 | `magika_content_detection` | File content-type resolved by the `magika` content-detection library; includes a `Tool: magika==<ver>` segment | `src/pitloom/assemble/spdx3/_document_files.py:135` |
 | `yaml_frontmatter` | Value read from a local README/model-card's YAML frontmatter block (the `enrich/readme.py` enricher) | `src/pitloom/enrich/readme.py:100` |
@@ -224,7 +227,7 @@ entirely -- still true, that file is untouched by the 2026-08-13 fix
 Unrelated to this vocabulary: `tests/assemble/test_spdx3_dataset_relationships.py`
 (originally `tests/test_spdx3_dataset.py`, since moved and split --
 see `cli-test-coverage-roadmap.md`; line number not re-verified) uses
-`role="someNewRole"` to test the fallback-to-`other` behavior in
+`role="someNewRole"` to test the fallback-to-`other` behaviour in
 `_role_to_rel` -- a **different**, dataset-relationship role vocabulary
 (see §4), easy to confuse by name only.
 
@@ -242,7 +245,7 @@ string (convention: `working-docs/implementation/provenance/annotation-mechanism
 | --- | --- | --- | --- |
 | `"fields"` -- `https://pitloom.dev/provenance/fields/1` | `build_provenance_annotation()` via `PitloomV1Encoder.encode()` | Per-field `{source, method, ...}` map (the default provenance Annotation) | `provenance.py:155-168`, `215-251` |
 | `"unification"` -- `https://pitloom.dev/provenance/unification/1` | `build_unification_annotation()` | Why fragment elements were unified (A1: SHA-256 content-equality merge) | `provenance.py:41`, `321-356` |
-| `"conflict"` -- `https://pitloom.dev/provenance/conflict/1` | `build_conflict_annotation()` | Multi-source field-value disagreement (G2), e.g. declared vs. detected license | `provenance.py:47`, `403-440` |
+| `"conflict"` -- `https://pitloom.dev/provenance/conflict/1` | `build_conflict_annotation()` | Multi-source field-value disagreement (G2), e.g. declared vs. detected licence | `provenance.py:47`, `403-440` |
 | `"enrichment"` -- `https://pitloom.dev/provenance/enrichment/1` | `build_enrichment_annotation()` | What an enrichment run changed (E1 override lineage / E2 inferred-vs-not marker); reuses the §2 role vocabulary (also `working-docs/implementation/provenance/role-vocabulary.md`) in each `changes[].role` | `provenance.py:51`, `461-491` |
 | `"artifact-metadata"` -- `https://pitloom.dev/provenance/artifact-metadata/2` | `build_source_metadata_annotation()` | Verbatim preserved original AI-model metadata (P1), config-gated by `preserve-source-metadata` | `provenance.py:44`, `494-531` |
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-20
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,7 +26,7 @@ different data from each. Two levels:
 
 ## What the vocabularies say (read 2026-10-20)
 
-- **Croissant 1.1** (`docs/croissant-spec-1.1.md`, section "Splits"): a split
+- **Croissant 1.1** (the specification, section "Splits"): a split
   is a `RecordSet` with `dataType: cr:Split` (a `name` and a `url` field, one
   record per split); other record sets refer to it through an ordinary field
   with `references`, so the tool can fetch only the files one split needs. The

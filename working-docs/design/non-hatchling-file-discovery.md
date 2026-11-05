@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Non-Hatchling file discovery (feature parity)
 
-See also: [roadmap.md](roadmap.md) (Near-term -- "Non-Hatchling file
-discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
+See also: [roadmap.md](roadmap.md) (Open follow-ups by area:
+"File discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
 (the mechanism and why this stays a static-config read for every backend,
 never a build), [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
 (real-world validation method and results so far),
@@ -26,7 +26,7 @@ one discovery module per static/declarative backend (`_models_wheel_hatchling.py
 `_models_wheel_setuptools.py`, `_models_wheel_poetry.py`,
 `_models_wheel_pdm.py`, `_models_wheel_flit.py`); any backend with no
 dedicated module (`uv_build`, or a Track B backend, or any future/
-unrecognized backend) resolves via the generic build-and-read mechanism
+unrecognised backend) resolves via the generic build-and-read mechanism
 (`_models_wheel_build_and_read.py`, see below) when `--allow-build` is
 passed, and otherwise falls back to the Hatchling heuristic with a
 logged warning, same as before. The bug below (originally reported for
@@ -37,7 +37,7 @@ Confirmed by direct testing before the fix:
 
 - For a non-Hatchling project whose layout happens to match
   Hatchling's own auto-detection conventions (a single top-level
-  package, or `src/<name>`, named after the normalized project name),
+  package, or `src/<name>`, named after the normalised project name),
   it works by coincidence.
 - For a setuptools project using
   `[tool.setuptools.packages.find] where=` (or `MANIFEST.in`,
@@ -64,7 +64,7 @@ Confirmed by direct testing before the fix:
   only `--content-type`/`--extract-file-header` enrichment silently
   fails to attach per mismatched file, degrading gracefully rather
   than corrupting the SBOM.
-- Project-level metadata (name, version, dependencies, license,
+- Project-level metadata (name, version, dependencies, licence,
   authors) is unaffected -- `read_project()` resolves it independently
   of `get_wheel_files()` via Pitloom's own setuptools/Poetry
   extractors.
@@ -174,7 +174,7 @@ never metadata.
   much closer in kind to why `ai` was split out. This is already
   implicit in the build-and-read trade-off noted above (item #4); this
   decision makes explicit that the mechanism's dependencies, not just
-  its runtime behavior, should be opt-in.
+  its runtime behaviour, should be opt-in.
   **Implemented (2026-09-15):** `pitloom[build]` (`build>=1.2.2`) is the
   new optional extra backing the mechanism (`pyproject_hooks` comes in
   transitively via `build`; `virtualenv` was deliberately not added --
@@ -240,13 +240,13 @@ one line. Four remain:
   chain `_load_pitloom_tool_section()` and every `extract/project/*.py`
   metadata producer (`poetry.py`, `pdm.py`, `setuptools_cfg.py`,
   `pyproject.py`, `pyproject_dynamic.py`) already does independently --
-  the "pattern hand-copied across 3+ call sites drifts" class CLAUDE.md
+  the "pattern hand-copied across 3+ call sites drifts" class AGENTS.md
   calls out by name. A shared `get_tool_table(data, *keys)`-style helper
   would touch several stable, already-tested producer modules.
 - **`scripts/compare_allow_build.py` duplicates sdist extraction already
   in `tests/fixtures/real_world.py`** -- `_extract_archive()`
   reimplements `extract_sdist()`'s tar/zip-open, `filter="data"`,
-  single-top-level-dir logic, generalized to accept any archive path.
+  single-top-level-dir logic, generalised to accept any archive path.
   Dev-only script, not shipped code, no user-facing risk -- low priority.
 - **`--allow-build`-sourced files never match a `loom id
   generate`-pinned registry entry** -- `IdRegistry.generate()` (`id_registry/_registry.py`)
@@ -274,7 +274,7 @@ one line. Four remain:
   `enrich._resolve_model_search_dir`, consolidating what had been three
   independent inline implementations of the same "prefer a
   project-relative stand-in over an absolute physical_path" check -- see
-  CLAUDE.md's "Recurring bug patterns" section). This closes the
+  AGENTS.md's "Recurring bug patterns" section). This closes the
   guaranteed-never-match case for AI models but does **not** fully solve
   the general problem above: `file_path_relative` still won't match an
   entry `loom id generate` pinned under the *original*

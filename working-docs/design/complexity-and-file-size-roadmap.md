@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Complexity and file-size roadmap
 
-See also: [cli-test-coverage-roadmap.md](../implementation/cli-test-coverage-roadmap.md) for
-the sibling test-suite health effort this doc's structure follows.
+See also: [cli-test-coverage-roadmap.md](../implementation/cli-test-coverage-roadmap.md)
+for the sibling test-suite health effort this doc's structure follows.
 
 **Status:**
 - McCabe complexity ratchet: `max-complexity = 14` (`pyproject.toml` ruff
@@ -41,10 +41,10 @@ trip review attention:
 - **`src/`** (soft limit 400-500, hard cap 800): 50 files exceed 400 lines and
   10 exceed 500 (`extract/_license.py` is 219 since its split in #438 and
   #440). Worst: `extract/_usage_ast.py` (619), `extract/ai_model/pytorch_pt2.py`
-  (583), `export/spdx3_json.py` (559), `assemble/spdx3/deps_license.py` (520),
+  (589), `export/spdx3_json.py` (559), `assemble/spdx3/deps_license.py` (522),
   `extract/remote/huggingface_field.py` (513), `core/ai_metadata.py` (511),
-  `id_registry/_registry.py` (510), `assemble/spdx3/provenance.py` (504), `assemble/spdx3/_ai_package.py`
-  and `core/_config_parse.py` (502 each).
+  `id_registry/_registry.py` (510), `assemble/spdx3/provenance.py` (504),
+  `assemble/spdx3/_ai_package.py` and `core/_config_parse.py` (502 each).
 - **`tests/`** (excluding the `hf_patches/` mock catalogs): files over 500 lines
   are `assemble/test_deps_enrichment_pypi_fallback.py` (691, the worst, near the
   hard cap), `extract/lock/test_common.py` (579), `cli/test_cli_option_reach.py`
@@ -53,10 +53,10 @@ trip review attention:
   `extract/ai_model/test_pytorch_pt2.py` (531). The `hf_patches/` catalogs run
   to 583 lines.
 - **Docs** (same limits, ~30KB): over 500 lines are
-  `working-docs/design/mlflow-extractor.md` (597),
-  `working-docs/implementation/manual-cli-checks.md` (532) and
-  `working-docs/design/canonical-output-followups.md` (529), and `action.yml`
-  (604); `CHANGELOG.md` (551) is exempt by nature. The generated message
+  `working-docs/design/mlflow-extractor.md` (602),
+  `working-docs/implementation/manual-cli-checks.md` (587) and
+  `working-docs/design/canonical-output-followups.md` (535), and `action.yml`
+  (621); `CHANGELOG.md` (551) is exempt by nature. The generated message
   reference (`docs/message-codes.md` and its two skill copies, about 650 lines
   and 40 KB each) is over the soft line limit and the ~30 KB hard limit.
   Splitting it (per family or per actor, a generator change) is a

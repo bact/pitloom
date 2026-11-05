@@ -15,9 +15,10 @@ See also: [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
 
 Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 `licenseid` 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
-`over-cap` (#396), the model-stub causes (#404, PR 1a) and unreadable files and
-directories (#408, PR 2a).
-This file is the reference for what remains and what ships in which release.
+`over-cap` (#396), the model-stub causes (#404, PR 1a), unreadable files and
+directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
+and 1c (#446). Left: PR 4 onward and T14, all 0.24.0. This file is the
+reference for what remains and what ships in which release.
 
 ## Shipped in 0.22.0 (2026-10-30)
 
@@ -62,8 +63,8 @@ PR's plan.
 
 ## Remaining catalogue PRs, in order
 
-Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh (this PR),
-then 2b, then 1b and 1c, then **the 0.23.0 cut**, then 4 (frames), 3, 5 to 7
+Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh, 2b, 1b
+and 1c, **the 0.23.0 cut** (these four done), then 4 (frames), 3, 5 to 7
 (with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
 adoption is done), and T14 (#384). Precondition of the next catalogue PR: split the
@@ -200,5 +201,5 @@ entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
 Evidence work only where it pairs with a family (PR-D shipped with catalogue
 PR 2a). The rest of the evidence plan (model over the cap, `Evidence:
 declared` on pointers, Hub failures, directory sizes) and the roadmap items
-under "0.23.0" (`loom` SDK dataset provenance, `pkg:git` identifiers,
-support-tier gaps, `contentIdentifier`) are 0.23.0 or later.
+that 0.23.0 left open (`loom` SDK dataset provenance, `pkg:git` identifiers,
+support-tier gaps, `contentIdentifier`) are unscheduled.

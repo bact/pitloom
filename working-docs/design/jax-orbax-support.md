@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-10
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,7 +110,7 @@ API:
   `<step>/metrics/metrics` (JSON), readable via
   `CheckpointManager(dir, options=...).metrics(step)`.
 - `"performance_metrics"` is **not** model performance (accuracy/loss/etc).
-  It deserializes to Orbax's own `SaveStepStatistics` dataclass -- timing of
+  It deserialises to Orbax's own `SaveStepStatistics` dataclass -- timing of
   the checkpoint *save I/O operation itself* (wait times, blocking
   duration). Not useful for G7's model-performance elements; do not map it
   there.
@@ -174,12 +174,12 @@ checkpoint at all) is a different, prior failure mode --
 `detect_ai_model_format()` simply doesn't return `AiModelFormat.JAX` for
 it, same as any other format's magic-byte miss.
 
-No new SPDX3 `ExternalRef`/`ExternalIdentifier` vocabulary term is needed
+No new SPDX 3 `ExternalRef`/`ExternalIdentifier` vocabulary term is needed
 (resolved in conversation, not yet written up elsewhere): the codebase's
 existing `other` + explanatory `comment` convention
 (`src/pitloom/assemble/spdx3/_ai_package.py`'s DOI/arXiv handling) already
 covers "no vocab term fits", and `format_version`/`framework`/
-`framework_version` are pre-existing unmapped-to-SPDX3 gaps tracked in
+`framework_version` are pre-existing unmapped-to-SPDX 3 gaps tracked in
 `working-docs/design/sbom-enrichment.md`, not something JAX-specific.
 
 ## Fixture plan
@@ -208,28 +208,28 @@ committed test fixture, per the project's existing preference for small
 synthetic fixtures over vendored real ones outside the Hub-sourced
 ONNX/Safetensors/GGUF fixtures that already have a stable pinned source).
 
-**License verification** (checked against the GitHub API and raw repo
+**Licence verification** (checked against the GitHub API and raw repo
 content, not taken at face value): `google/flax` -- Apache-2.0;
 `octo-models/octo` -- MIT; `Physical-Intelligence/openpi` -- Apache-2.0;
 `texttron/tevatron` -- Apache-2.0; `RoboTwin-Platform/RoboTwin` -- MIT;
 `google/orbax` (docs/notebooks only, not a fixture source) -- Apache-2.0.
 **`vwxyzjn/cleanrl` is not simply MIT** despite the common claim -- GitHub's
-own license detector flags it `NOASSERTION`/"Other", and its `LICENSE` file
+own licence detector flags it `NOASSERTION`/"Other", and its `LICENSE` file
 confirms why: MIT is the default, but specific files carry their own
 Apache-2.0 or BSD-style exceptions for adapted code (e.g. the Procgen
 scripts under Apache-2.0). The JAX/Flax PPO/DQN scripts' own per-file
-license wasn't confirmed from the LICENSE file's exception list alone --
+licence wasn't confirmed from the LICENSE file's exception list alone --
 would need that specific script's own header checked before ever treating
 it as clean MIT. A concrete illustration of why vendoring a real repo's
-output costs more than a repo-level license badge suggests, and another
+output costs more than a repo-level licence badge suggests, and another
 data point favoring the synthetic-generation plan above over vendoring any
 of these.
 
-**Code license vs. artefact license -- these are two separate questions,
+**Code licence vs. artefact licence -- these are two separate questions,
 not one.** A trained checkpoint is a distinct artefact from the training
-script that produced it; a permissive code license (Apache-2.0/MIT) on the
+script that produced it; a permissive code licence (Apache-2.0/MIT) on the
 script does not automatically extend to, or clear, the weights file. A
-project that publishes weights separately (e.g. on Hugging Face) licenses
+project that publishes weights separately (e.g. on Hugging Face) licences
 them on their own terms, which need independent checking, same as the code
 was checked above. A project that doesn't publish weights at all (true of
 every repo in this list except Octo) has no artefact to vendor in the first
@@ -270,7 +270,7 @@ by suffix alone, since `.msgpack` is a general data format.
 Not platform-blocked -- answerable on any machine with careful test code:
 
 1. `item_metadata(step)`'s `WARNING:absl` about `CheckpointHandlerRegistry`
-   -- confirm cosmetic, not a real behavior change needed.
+   -- confirm cosmetic, not a real behaviour change needed.
 2. Multi-item checkpoints (e.g. separate `params`/`opt_state` items saved
    under one step) -- confirm the extractor sums parameter counts across
    all items' trees, not just a hardcoded `"default"` item name.

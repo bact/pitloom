@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ rest.
 ## One predicate, several spellings
 
 - `cli/commands/generate.py` still uses `target_path.is_file()` in its
-  settle chain, where the rest of this PR moved to `os.path.isfile` for
+  settle chain, where the rest of PR #226 moved to `os.path.isfile` for
   the never-raises reason.
 - `embed_wheel.py`'s cwd probe tests `os.path.isfile()` on the project
   config names while `read_project()` tests `Path.exists()` on the same

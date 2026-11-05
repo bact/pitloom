@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,9 +34,8 @@ entries stay in the last section for history.
   (`[lfs-pointer/shipped]`). The licence is correctly left unstated (#422),
   but a source that had an opinion and failed to deliver it should be visible.
   Fix: record a declared licence file that turns out to be a pointer in
-  `UnreadPointers`, or reuse the existing pointer warning. The messages are
-  fenced for #413: it fits 0.22.1 only if it reuses an existing message,
-  else 0.23.0.
+  `UnreadPointers`, or reuse the existing pointer warning. Not fixed in 0.22.1
+  or 0.23.0 (the messages were fenced for #413).
   *Found 2026-11-02, cold review of the merges since 0.22.0 (#422).*
 - [ ] **A wheel gives no `[lfs-pointer]` warning for a pointer
   `dist-info/licenses/LICENSE` (S).** The wheel route lists payload files
@@ -62,9 +61,9 @@ entries stay in the last section for history.
   `loom project`; file ids are shared (the registry holds the `oid`).
   *Found 2026-10-29, Git LFS pointer work.*
 - [ ] **A dataset member that disappears mid-walk is silent and leaves no hash
-  (S), decided 2026-10-30: later (0.22.x or 0.23.0).** The current behaviour
-  is kept (absent is quiet, no root); skipping the member and hashing the rest
-  was not chosen.
+  (S), decided 2026-10-30: later (not done in 0.22.x or 0.23.0).** The
+  current behaviour is kept (absent is quiet, no root); skipping the member
+  and hashing the rest was not chosen.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
 - [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request
@@ -124,7 +123,7 @@ release ships.
   hashes a dataset); `0` stays an error.
   *Found 2026-10-29, Git LFS pointer work.*
 - [x] **A Git URL's messages name the random temporary checkout (S).**
-  Fixed in the next release: `core.url_masking.mask_checkout`, called by
+  Fixed in 0.22.0 (#375): `core.url_masking.mask_checkout`, called by
   `escape_controls` (so by `quote_source`, the stderr formatter and
   `print_error`), writes it `<checkout>` in every message; a path below it
   keeps its tail (`<checkout>/setup.cfg`). Only a directory of `tempfile`'s

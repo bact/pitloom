@@ -1,12 +1,16 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-07-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # MLflow run extractor
+
+See also: [roadmap.md](roadmap.md),
+[extractor-integrations.md](sbom-fragments/extractor-integrations.md).
+Status: design; nothing is built.
 
 ## Overview
 
@@ -130,7 +134,7 @@ elements attached to the `ai_AIPackage` via an `annotates` relationship:
 
 ## Class and module design
 
-### File: `src/pitloom/extractors/mlflow.py`
+### File: `src/pitloom/extract/mlflow.py`
 
 ```python
 from __future__ import annotations
@@ -561,10 +565,11 @@ at build time.
 
 ```text
 src/pitloom/
-└── extractors/
+└── extract/
     └── mlflow.py           <- MlflowExtractor, extract_from_mlflow_run
 tests/
-└── test_mlflow_extractor.py
+└── extract/
+    └── test_mlflow.py
 ```
 
 ### Changes to existing files

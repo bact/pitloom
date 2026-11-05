@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,7 +34,7 @@ old row.
 | [#65] Test with Qwen | Open (or close as part of #66) | Hub Qwen3 models tested (`test_huggingface_text_generation_pretrained.py`, `test_huggingface_license_models.py`); `loom project https://github.com/QwenLM/Qwen3` (and `QwenLM/Qwen`) finds no Python project, so the rest is code inference | Backlog: ML framework and `transformers` use |
 | [#66] `transformers` | Open | Hub configs read (#71); a `from_pretrained()` use in code is not read (`--scan-model-usage` matches file names, `extract/scanner.py`) | Backlog: ML framework and `transformers` use |
 | [#68] ML framework detection | Open | Not built; only a Hub card's `library_name` is read | Backlog: ML framework and `transformers` use |
-| [#77] G7 SBOM for AI | Open | Fields (#306, #309), checker-based G7 tests (#309), the `sbom-enrich` gap analysis are built; generation does not report missing elements | 0.22.0 headline; Backlog: SARIF output |
+| [#77] G7 SBOM for AI | Open | Fields (#306, #309), checker-based G7 tests (#309), the `sbom-enrich` gap analysis are built; generation does not report missing elements | 1.0 headline; Backlog: SARIF output |
 | [#79] model-provenance-kit | Research | Already named in [scitt-integration.md](scitt-integration.md) | Long-term: SCITT |
 | [#81] CSVW round trip | Open, needs decision | Not built | To design: CSVW round trip |
 | [#97] Provenance as `Annotation` | Closable | #102 (0.13.0); `format` `annotation`/`comment`/`both`, default `both`; a probe with `detail = "full"` gave an `Annotation` with schema `https://pitloom.dev/provenance/fields/1` beside the comment | - |
@@ -43,7 +43,7 @@ old row.
 | [#122] Owners per surface | Not planned | A process decision, no code | - |
 | [#129] OpenRouter | Research | - | [External work](external-references-to-review.md#openrouter-model-metadata) |
 | [#147] SPDX 3.0 and 3.1 | Open | `specVersion` fixed at `3.0.1` (`assemble/spdx3/creation_info.py`) | To design: SPDX 3.1 output |
-| [#150] Merge policy | Open | Documented in `docs/fragments.md` (the earlier element is kept, the project's own first); fragment over generated values is PR #349 (open); not configurable | 0.21.0: Fragment value beats an extracted one; To design: Fragments |
+| [#150] Merge policy | Open | Documented in `docs/fragments.md` (the earlier element is kept, the project's own first); fragment over generated values is built (#349); over a catalogue value, open; not configurable | 0.21.0: Fragment value beats an extracted one; To design: Fragments |
 | [#154] Provenance vocabularies | Open | Parked draft | To design: Provenance vocabulary |
 | [#170] Known organisations | Open | Not built: a project author is a `Person` unless its source types it; a warning, no guess | To design: Author strings |
 | [#186] Sigstore model signing | Open | Not built; Sigstore signs only Pitloom's own release files (#180) | Long-term: PEP 740 |

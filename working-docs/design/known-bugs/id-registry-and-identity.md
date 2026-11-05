@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,7 +68,7 @@ entries stay in the last section for history.
   reverses #407's choice that a version 3 file is never migrated. Option:
   accept version 3, drop its `software_Package` section (a bare version 3 key
   now means "states no version"), emit one `WARNING:` with the count dropped
-  and save as version 4. Suggested for 0.23.0.
+  and save as version 4. Suggested for 0.23.0; not done in it.
   *Found 2026-11-02, cold review of the merges since 0.22.0.*
 - [ ] **`id import` of a wheel or sdist SBOM holds the text's digest (S,
   decided: kept).** `id import` records what an SBOM states; the next run
@@ -104,7 +104,7 @@ entries stay in the last section for history.
   claim `WARNING:`, and harvest treats the key as ambiguous and never writes
   it. Share one placeholder predicate between the key and the grouping.
   `none` and `n/a` stay real versions (decided 2026-11-02, under Fixed).
-  Suggested for 0.23.0.
+  Suggested for 0.23.0; not done in it.
   *Found 2026-11-02, cold review of the merges since 0.22.0.*
 - [ ] **`package_key` is not idempotent (low).** `package_key('x', '4+K')`
   (Kelvin sign) returns `x@4+K`; keying that again gives `x@4+k`, because NFC
@@ -113,7 +113,7 @@ entries stay in the last section for history.
   every store and lookup, and an end-to-end run with `qux===4+K` was stable
   under `qux@4+k`; but the `_element_key` docstring claims idempotence.
   Apply NFC before `parse_version` in `package_version_key`. Suggested for
-  0.23.0.
+  0.23.0; not done in it.
   *Found 2026-11-02, cold review of the merges since 0.22.0.*
 
 ### Leads to verify
@@ -128,7 +128,8 @@ Seen in a review, not reproduced on current `main`:
   id, counts as a non-reader and is left out of harvest, so it never gets a
   stable id. Fix: skip a phantom only when its claimed `package_key` is
   already taken, and keep the by-name rule for the project's non-PEP 508
-  fallback only; a characterisation test first. Suggested for 0.23.0.
+  fallback only; a characterisation test first. Suggested for 0.23.0; not done
+  in it.
 
 ## Fixed
 

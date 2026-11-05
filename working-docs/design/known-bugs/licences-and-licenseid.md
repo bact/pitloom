@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,12 +55,14 @@ entries come first; fixed entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **`licenseid` 0.6.0 gives Pitloom no operands (S).** `resolve()`
-  answers for a whole value, so a compound with one respelt part (`Apache2 OR
-  MIT`) is `expression` with no expression and stays text; the design asked
-  for per-operand results (`Resolution-n`, `Expansion-n`). Decision Q5 (the
-  licence list version into `simplelicensing_licenseListVersion`) is not built:
-  the version is in `Resolution["lists"][0]["version"]` but not yet used. The
+- [ ] **Per-operand licence provenance is not built (S).** With `licenseid`
+  0.6.0, `resolve()` answered for a whole value, so a compound with one
+  respelt part (`Apache2 OR MIT`) stayed text. Since 0.7 (#437, #440) it is
+  read as an expression; the design's per-operand results (`Resolution-n`,
+  `Expansion-n`) wait for the licence provenance mapping (#384, T14, 0.24.0).
+  Decision Q5 (the licence list version into
+  `simplelicensing_licenseListVersion`) is not built either: the version is in
+  `Resolution["lists"][0]["version"]` but not yet used. The
   verbatim value and the reading's method have no SPDX property either: FG-6
   and FG-7 in [sbom-format-gaps.md](../sbom-format-gaps.md).
   *Found 2026-10-27, combined review of #352 to #357.*
@@ -72,7 +74,8 @@ entries come first; fixed entries stay in the last section for history.
   review.
   *Found 2026-10-27, combined review of #352 to #357.*
 - [ ] **Catalogue 18, the licence families, is later (S), decided
-  2026-10-30.** It follows the adoption, so 0.23.0; the plan lists it so.
+  2026-10-30.** It follows the adoption, so 0.24.0 (the plan, re-cut
+  2026-11-04).
   *Found 2026-10-30, `licenseid`.*
 - [ ] **A foreign warnings block overlapping a lookup takes its `licenseid`
   lines (S).** Pitloom's three warning blocks share one lock

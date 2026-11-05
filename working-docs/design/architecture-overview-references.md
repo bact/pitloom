@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,14 +44,15 @@ components.
 - **spdx-python-model (Core Bindings):** Pitloom has fully adopted the official
   generated bindings for the SPDX 3 ontology, offering full coverage of spec
   classes like AIPackage (SPDX Group 2026).
-- **license-expression (Validation):** Essential for normalizing license
-  expressions according to PEP 639 (NexB 2025).
+- **license-expression (Validation):** Proposed for normalising licence
+  expressions according to PEP 639 (NexB 2025). Pitloom uses `licenseid`
+  (0.7.1 or later) instead.
 
 ### Analysis and enrichment tools
 
 - **Tern (Container Analysis):** An open-source tool that creates SBOMs from
   container images, providing a layer-by-layer view of how components were
-  introduced (Wiz 2023). Pitloom can utilize Tern's layer insights for
+  introduced (Wiz 2023). Pitloom can utilise Tern's layer insights for
   container-based distribution (Wiz 2023; Nathan Naveen 2025).
 - **purldb-toolkit:** Facilitates identifying software components by mapping
   binaries back to source packages using Package URLs (PURLs) (PurlDB 2026).
@@ -60,6 +61,10 @@ components.
   serving as a blueprint for Pitloom's log parser (Binutils 2024).
 
 ## General steps for project implementation
+
+The original plan. Steps 4 (log interception), 6 (MLflow plugin) and 8
+(Rust backend) are not built; the others are, in the form described in the
+[implementation notes](../implementation/summary.md).
 
 1. **Specification Review:** Analysis of the SPDX 3.0 JSON-LD schema for
     AIPackage and DatasetPackage classes (SPDX Group 2024).
@@ -72,7 +77,7 @@ components.
     compiler and linker logs across Linux and Windows
     (Binutils 2024; Alpha Omega 2025).
 5. **PEP Compliance Validation:** Testing the ability to produce valid PEP 770
-    directory structures and PEP 639 license expressions
+    directory structures and PEP 639 licence expressions
     (Larson 2025; Nijhof-Verhees 2026).
 6. **Observability Integration:** Implementing the MLflow plugin to log SBOMs
     as structured dictionaries (MLflow 2026).
@@ -149,7 +154,7 @@ components.
 - PurlDB. 2026.
   "PurlDB: Package URL Database." <https://purldb.readthedocs.io/>.
 - serde-spdx. 2024.
-  "Serde Serialization for SPDX Files." crates.io.
+  "Serde Serialisation for SPDX Files." crates.io.
   <https://crates.io/crates/serde-spdx>.
 - SPDX Group. 2024.
   "SPDX 3.0.1 Specification."
@@ -204,7 +209,7 @@ See the interaction here: <https://github.com/bact/pitloom/pull/1>.
 > I want to develop a generator for Software Bill of Materials, using build
 > data from software builder, compiler, linker.
 >
-> The generator should find and include information about license, software
+> The generator should find and include information about licence, software
 > dependency, source of data (in both AI and non-AI context) into the SBOM,
 > at the very least.
 >

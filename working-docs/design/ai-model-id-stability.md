@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-10-16
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model id stability
 
-See also: [roadmap.md](roadmap.md) (Near-term -- "AI model id
-stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
+See also: [roadmap.md](roadmap.md) (To design: "AI model id stability",
+follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
 [id-registry-v3.md](../implementation/id-registry-v3.md) (decides the first question below),
 [id-registry-followups.md](id-registry-followups.md).
 
@@ -50,8 +50,8 @@ reliable way to say "this is the same model I saw last time":
   just on a separately-linked `software_File`.
 - **Caveat**: content hash is strictly *narrower* than "same model" for
   AI models, unlike source files where any byte change legitimately
-  means "different provenance." A model re-exported, re-quantized, or
-  re-saved with a different serialization -- or retrained
+  means "different provenance." A model re-exported, re-quantised, or
+  re-saved with a different serialisation -- or retrained
   non-deterministically from the same recipe -- changes every byte
   without changing what a person would call "the same model."
   Content-hash matching would under-match (mint a new id) in exactly
@@ -78,7 +78,7 @@ Closed by path keys: each model file is keyed by its own path, so two models
 with one stem have two keys and two ids; the text below is the v2 problem
 statement and the stem-era behaviour, kept as rationale.
 
-With a `pitloom id generate`-populated registry, `_lookup_ai_model_entity`'s
+With a `loom id generate`-populated registry, `_lookup_ai_model_entity`'s
 filename-stem candidate is the *only* usable key for a model with no
 `ai_model.name`/`physical_path` -- and that stem alone isn't unique
 across a project. Two models at `a/weights.npy` and `b/weights.npy`

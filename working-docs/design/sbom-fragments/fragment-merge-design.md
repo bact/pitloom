@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-09-28
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -83,7 +83,7 @@ CycloneDX addresses composition via:
 
 - **BOM-Link** -- a URI scheme (`urn:cdx:bomSerialNumber/version#componentRef`)
   that allows one BOM to reference a component or the entirety of another BOM
-  document, preserving organizational boundaries without embedding the full
+  document, preserving organisational boundaries without embedding the full
   content.
 - **Assemblies** -- nested `component` entries that describe sub-assemblies,
   mapping directly to the multi-team ownership scenario.
@@ -203,7 +203,7 @@ reconstruct it from this file.
 
 ### Merge protocol
 
-Current shipped behavior (steps 1-2), plus still-open, unbuilt items
+Current shipped behaviour (steps 1-2), plus still-open, unbuilt items
 (steps 3-5, marked accordingly):
 
 1. **Pre-merge validation** -- for each configured fragment: check file
