@@ -162,6 +162,19 @@ order and counts are in
   ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
   revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
   main into the branch, then implement (design on #384).
+  **Decided 2026-11-05:** provenance annotations are not added to the SBOM
+  output by default (they make it huge, and the taxonomy is not settled); a
+  flag turns them on (name to settle, `--provenance` proposed; with the
+  `--no-` form, a `[tool.pitloom]` key, an Action input and an API parameter).
+  Today they are on by default (`format = "both"`, `detail = "minimal"`).
+  The test suite, the manual checks and the sweeps run with it on, through
+  one shared test default; the default-off behaviour is asserted on each
+  surface (CLI, library, hook, Action) in its own tests.
+  The verbatim source metadata (`preserve-source-metadata`) is another kind of
+  data and gets its own flag, independent of the provenance flag
+  (`--preserve-source-metadata auto|always|never`, beside the existing
+  `--max-source-metadata-bytes`); its default becomes `never` (decided
+  2026-11-05; today `auto`).
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
@@ -294,6 +307,8 @@ unless the linked doc says so.
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md); issues
   [#154](https://github.com/bact/pitloom/issues/154),
   [#110](https://github.com/bact/pitloom/issues/110).
+  **Decided 2026-11-05:** no provenance annotation by default; a flag asks
+  for it (see the licence provenance item in 0.24.0).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one. See
   [dataset-splits.md](dataset-splits.md).
