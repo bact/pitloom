@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,14 +21,11 @@ together in the same generation event share one, but a graph is free to
 contain several, each covering whichever elements actually came from that
 event -- see below.
 
-SPDX 3 is Pitloom's only output format today, and it happens to define
-almost exactly this shape as `CreationInfo`, so that's what this metadata
-becomes in practice: `createdBy` (who), `createdUsing` (what tool),
-`created` (when), `comment` (how). Should Pitloom add other output formats
-later, the same who/what/when/how model would map onto whatever equivalent
-concept that format defines -- this isn't an SPDX-specific design, just its
-current, and so far only, expression. The [SPDX 3
-spec](https://spdx.github.io/spdx-spec/v3.1-dev/model/Core/Classes/CreationInfo/)
+Pitloom writes this record as SPDX 3 `CreationInfo`: `createdBy` (who),
+`createdUsing` (what tool), `created` (when), `comment` (how). The model is
+not specific to SPDX: another output format would map it onto its own
+equivalent. The [SPDX 3.0.1
+specification](https://spdx.github.io/spdx-spec/v3.0.1/model/Core/Classes/CreationInfo/)
 is the authoritative reference for the field-level detail below.
 
 A single Pitloom run -- one CLI invocation, one Hatchling build, one

@@ -72,7 +72,8 @@ examples.
 - [AI model formats](ai-model-formats.md) and [AI model scan
   limits](ai-model-scan-limits.md).
 - [G7 SBOM for AI](g7-sbom-for-ai.md) -- how much of the G7 SBOM for AI, CISA
-  2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs carry, and how to check.
+  2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs carry,
+  and how to check.
 
 ## Reference
 
@@ -88,6 +89,8 @@ generate one:
   records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the
   source of each metadata field.
+- [Messages and codes](messages.md) -- the stderr line grammar and the stable
+  code a catalogued message ends in.
 - [Resources](resources.md) -- SBOM, AIBOM, SPDX and related standards reading
   list.
 - [Project README](https://github.com/bact/pitloom#readme).

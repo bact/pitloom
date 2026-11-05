@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -324,7 +324,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `description` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_AIPackage.description` |
 | `version` | GGUF, ONNX, PT2, Safetensors, HF (the revision's 40-digit commit hash) | `ai_AIPackage.software_packageVersion` |
 | `release_time` | HF (the revision's last-modified time) | `ai_AIPackage.releaseTime`, in UTC; a time that is not ISO 8601 is left out with a `WARNING:` |
-| `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a licence value is recorded](metadata-provenance-licences.md#how-a-licence-value-is-recorded) |
+| `license` | GGUF, ONNX, PT2, Safetensors, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a licence value is recorded](metadata-provenance-licences.md#how-a-licence-value-is-recorded) |
 | `originators` | GGUF, ONNX, PT2, Safetensors, HF | `ai_AIPackage.originatedBy`: one generic `Agent` per name; see [Producer and parameter count](#producer-and-parameter-count) |
 | `supplier` | HF | `ai_AIPackage.suppliedBy`: the repository owner's generic `Agent`, the one in `originatedBy` when the name is the same; no file format fills it |
 | `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
@@ -334,10 +334,10 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `hyperparameters` | GGUF, fastText, HDF5, Keras, HF | `ai_hyperparameter`, one `DictionaryEntry` per key, sorted by key, value as text |
 | `domain`, `usage.domains` | fastText, HF | `ai_domain` |
 | `inputs`, `outputs` | see the table above | `ai_informationAboutApplication`, JSON keys `inputs`, `outputs` |
-| `usage.intended_use`, `usage.unintended_use` | none today | `ai_informationAboutApplication`, JSON keys `intended_use`, `unintended_use` |
-| `usage.limitations` | none today | `ai_limitation`, joined with `; ` |
-| `usage.safety_risk_assessment` | none today | `ai_safetyRiskAssessment` (`high`, `medium`, `low`, `serious`) |
-| `usage.known_biases` | none today | `ai_AIPackage.comment`, `Known biases: ...`, after the parameter-count line when both are there |
+| `usage.intended_use`, `usage.unintended_use` | none | `ai_informationAboutApplication`, JSON keys `intended_use`, `unintended_use` |
+| `usage.limitations` | none | `ai_limitation`, joined with `; ` |
+| `usage.safety_risk_assessment` | none | `ai_safetyRiskAssessment` (`high`, `medium`, `low`, `serious`) |
+| `usage.known_biases` | none | `ai_AIPackage.comment`, `Known biases: ...`, after the parameter-count line when both are there |
 | `doi` | HF | `externalIdentifier`, type `other`, comment `DOI` |
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |

@@ -109,10 +109,10 @@ The three build backends give the same result for the same project.
 - **No release time for a model file, and a version or producer only where the
   file states one** (a PT2 file does; most files do not). Pitloom does not copy a
   project's author onto its model.
-- **A dependency's hash is only what its lock file or index states** (a SHA-256), never
-  computed, so a dependency cannot meet a SHA-512 requirement such as BSI's.
-  A project's own hash is a SHA-256 Merkle root over its files, not the hash of
-  a built archive.
+- **A dependency's hash is only what its lock file or index states** (a
+  SHA-256), never computed, so a dependency cannot meet a SHA-512 requirement
+  such as BSI's. A project's own hash is a SHA-256 Merkle root over its files,
+  not the hash of a built archive.
 - **No hash for a Hugging Face model.** A repository has many files; hashing them
   needs a request each. A local file always gets its SHA-256 and SHA-512.
 - **A model's inputs and outputs are only what its format states or implies.**
@@ -223,11 +223,13 @@ that does not give them. For Pitloom's test SBOMs:
 | Hash of the deployable component (SHA-512) | present for model files; missing for a Hugging Face model, the library-built model and every project: a project's hash is a SHA-256 Merkle root, and a dependency or a dataset has no SHA-512 source |
 | Component version | present for a Hugging Face model (its dataset's version is the Hub revision) and the library-built model; missing for model files and projects |
 | Original licence (if it exists) | present for a Hugging Face model, the library-built model and projects |
-| Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an e-mail address or URL, and Pitloom's creator is a software agent |
+| Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an email address or URL, and Pitloom's creator is a software agent |
 | Filename, dependencies with completeness, distribution licence, structured property, effective licence, security.txt URL | missing in every scenario: Pitloom does not write them |
 
 Where BSI's own tables and the SPDX mapping differ, the checker accepts both
-(see its BSI page). Like the other standards, BSI also judges the datasets linked by `trainedOn` and `testedOn`. The coverage figures are 29–40% of the checked rules.
+(see its BSI page). Like the other standards, BSI also judges the datasets
+linked by `trainedOn` and `testedOn`. The coverage figures are 29–40% of the
+checked rules.
 
 ## Parity
 

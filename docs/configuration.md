@@ -48,8 +48,9 @@ An sdist archive's own config is read as its unpacked directory's is: the
 as a directory's does; so does one that cannot be read (not valid TOML,
 not UTF-8, or over 1 MiB -- a limit for archive members only). The error
 names the archive and member, e.g. `config file
-dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without reading it. Some keys cannot apply to
-an archive and are ignored without a warning:
+dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without
+reading it. Some keys cannot apply to an archive and are ignored without a
+warning:
 
 - `id-registry` (it could only name a file inside the archive) and
   `[tool.pitloom.fragment]` (fragments merge only into a project
@@ -132,8 +133,8 @@ string `"true"` instead of the bare value `true`) -- no silent
 coercion. `sbom-basename`/`id-registry` raise `ValueError` if set to a
 non-string, and `sbom-basename` also if it is a path rather than a file
 name (a `/`, `\`, `:` or NUL, or `.`/`..`), or is only `.spdx3.json` --
-the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
-content-type detection -- see below.
+the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off
+never errors and never blocks content-type detection -- see below.
 
 In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is
 `true`/`false`, `yes`/`no` or `1`/`0` (any case) and an integer is base 10;
@@ -155,7 +156,7 @@ under their old names.
 ## `[tool.pitloom.content-type]`
 
 Content-type detection (`magika`/filename-extension) is independent of
-`extract-file-header` above -- both are opt-in, gated separately,
+`extract-file-header` above -- that one is on by default, this one off,
 because they have different cost profiles and apply to different kinds
 of files (a header only exists in text source; a content type applies
 to every file, text or binary).
@@ -314,7 +315,7 @@ changes in the generated SBOM's Annotations.
 | `schema` | string | `"pitloom/1"` | -- | -- | -- | Which statement schema encodes provenance Annotations. |
 | `detail` | `"minimal"` \| `"full"` | `"minimal"` | -- | -- | -- | `"minimal"` emits a field-source Annotation only when the source adds signal the native value can't convey; `"full"` emits the per-field source map for every field. |
 | `preserve-source-metadata` | `"auto"` \| `"always"` \| `"never"` | `"auto"` | -- | -- | -- | Whether to embed an artefact's verbatim original metadata blob. `"auto"` does so only when the artefact isn't shipped with the distribution (and so can't be re-extracted later). |
-| `max-source-metadata-bytes` | `0` or an integer >= 8 | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | `max_source_metadata_bytes` | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited (today's behaviour). When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag, an Action input and an API parameter (`generate()`, `generate_*_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
+| `max-source-metadata-bytes` | `0` or an integer >= 8 | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | `max_source_metadata_bytes` | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited. When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag, an Action input and an API parameter (`generate()`, `generate_*_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
 
 **Invalid values / fallback behaviour:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,
