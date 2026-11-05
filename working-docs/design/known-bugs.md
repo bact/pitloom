@@ -48,12 +48,12 @@ lists its open entries first, ranked as described under
 | [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 33 | 5 | - | 38 | 10 |
 | [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 11 |
-| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 14 | - | 16 | 15 |
+| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 17 | - | 19 | 15 |
 | [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 7 |
 | [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 9 | - | 21 | 11 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 7 | 2 | 2 | 11 | 5 |
-| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 8 | - | 10 | 9 |
-| **Total** | **1** | **3** | **5** | **55** | **69** | **3** | **136** | **82** |
+| [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 10 | - | 12 | 9 |
+| **Total** | **1** | **3** | **5** | **55** | **74** | **3** | **141** | **82** |
 
 ## Parts
 

@@ -106,6 +106,26 @@ entries stay in the last section for history.
 - [ ] **The export-site test survives `repr(min(changed))` (S).** The mutant
   is equivalent for ASCII names; a non-ASCII case would kill it. Low.
   *Found 2026-11-05, review of #444.*
+- [ ] **An import failure's text is printed unmasked (S).** The
+  `library-unusable` line quotes what the import raised, through
+  `one_line`/`loggable` only: an `OSError` naming a URL with credentials
+  (`https://user:pw@host/...`, from a site hook or a `.pth` file) prints
+  them. Mask credentials where the error text is built (URL masking, as
+  for a Git URL).
+  *Found 2026-11-05, review of #446.*
+- [ ] **The Hub dataset reader imports `huggingface_hub` on its own (S).**
+  `extract/remote/huggingface_dataset.py` (the `dataset_info` and
+  `hf_hub_download` imports) does not go through
+  `optional_libraries.import_failed`, so a broken or missing client there
+  says neither `library-missing` nor `library-unusable`.
+  *Found 2026-11-05, review of #446.*
+- [ ] **A raw `model_config` cut after a parse failure carries no `over-cap`
+  (S).** When the config does not parse and its kept text is cut, the cut
+  is said inside the one `model-field-unreadable` line (`the first 500 of
+  N characters`); only a config that parses but names nothing says the cut
+  as `[over-cap]`. A second line would break the one-warning-per-attribute
+  rule the HDF5 tests hold (#446 review, left as is).
+  *Found 2026-11-05, review of #446.*
 
 ## Fixed
 

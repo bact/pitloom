@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,6 +69,17 @@ the last section for history.
   and say so in the release record. Next: a retry in the tests that call such
   a host, as a separate tests-only PR.
   *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **Three `test_over_cap_archive_names` tests fail in a full `-n`
+  run (S).** They pass alone and fail under the whole suite with xdist, on
+  `main` too: an order dependency on state another test leaves.
+  *Found 2026-11-05, review of #446.*
+- [ ] **The signal tests fail only in the agent sandbox's full run (S).**
+  `test_real_signal_during_scan_removes_extract_dir[SIGHUP]`,
+  `test_termination_signal_kills_build_tree_and_removes_temp_dirs[SIGHUP]`
+  and `test_interrupt_while_installing_restores_handlers` fail under a full
+  `-n 3` run there (the worker gets the interrupt) and pass serially and in
+  CI.
+  *Found 2026-11-05, review of #446.*
 
 ## Fixed
 

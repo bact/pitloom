@@ -66,7 +66,9 @@ Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh (this PR),
 then 2b, then 1b and 1c, then **the 0.23.0 cut**, then 4 (frames), 3, 5 to 7
 (with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
-adoption is done), and T14 (#384).
+adoption is done), and T14 (#384). Precondition of the next catalogue PR: split the
+generated references (`docs/message-codes.md` and the skills' copies, over
+the ~30 KB limit after #446) per family or per actor.
 
 "Plan" is the count in the plan made on `bccaa747`; "Now" is measured on
 54f79c57. Codes are PROPOSALS by the grammar (decisions A to M); each PR's

@@ -58,7 +58,9 @@ trip review attention:
   `working-docs/design/canonical-output-followups.md` (529), and `action.yml`
   (604); `CHANGELOG.md` (551) is exempt by nature. The generated message
   reference (`docs/message-codes.md` and its two skill copies, about 650 lines
-  and 40 KB each) is over both: splitting it needs a generator change.
+  and 40 KB each) is over the soft line limit and the ~30 KB hard limit.
+  Splitting it (per family or per actor, a generator change) is a
+  precondition of the next catalogue PR.
 
 None of the code files have crossed the 800-line hard cap, so nothing is
 currently broken -- but per AGENTS.md, a file should be split *before* crossing
