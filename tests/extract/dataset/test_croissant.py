@@ -316,7 +316,9 @@ def test_read_croissant_missing_name_raises(tmp_path: Path) -> None:
 def test_read_croissant_invalid_json_raises(tmp_path: Path) -> None:
     f = tmp_path / "bad.json"
     f.write_text("{not valid json", encoding="utf-8")
-    with pytest.raises(ValueError, match="not valid JSON"):
+    with pytest.raises(
+        ValueError, match="^FILE=.*: not valid JSON for the Croissant document; "
+    ):
         read_croissant(f)
 
 
@@ -328,7 +330,9 @@ def test_read_croissant_nonexistent_file_raises() -> None:
 def test_read_croissant_non_object_json_raises(tmp_path: Path) -> None:
     f = tmp_path / "array.json"
     f.write_text("[1, 2, 3]", encoding="utf-8")
-    with pytest.raises(ValueError, match=": not a JSON object$") as raised:
+    with pytest.raises(
+        ValueError, match=": not a JSON object for the Croissant document$"
+    ) as raised:
         read_croissant(f)
     assert code_of(raised.value) == "json-malformed"
 

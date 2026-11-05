@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
-from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
@@ -205,7 +204,7 @@ def fetch_json(
     max_bytes: int = FETCH_MAX_BYTES,
     max_nesting: Cap | None = None,
     *,
-    use: str | None = None,
+    use: str,
     subject: str = "source",
 ) -> dict[str, Any]:
     """Fetch and parse JSON from a local file path or an HTTP/HTTPS URL.
@@ -219,9 +218,8 @@ def fetch_json(
             default 50 MiB.
         max_nesting: The most levels of arrays and objects the document may
             nest (:func:`json_nests_over`); none by default.
-        use: What a local file is read for, as its ``file-unreadable`` line
-            says it (one of :data:`pitloom.messages.READ_USES`); required
-            for a local *source*.
+        use: What *source* is read for, as its lines say it (one of
+            :data:`pitloom.messages.READ_USES`).
         subject: What *source* is, in the error for a URL that cannot be
             fetched or a file that is absent (``Cannot read <subject>
             '<source>': ...``).
@@ -235,14 +233,10 @@ def fetch_json(
             not a JSON object. Each carries its ``pitloom_code``
             (``file-unreadable``, ``over-cap``, ``json-malformed``), but a
             URL that cannot be fetched and a file that is absent.
-        pitloom.core.internal_error.InternalError: A local *source* without
-            *use*.
     """
     url: str | None = None
     if isinstance(source, str) and source.startswith(("http://", "https://")):
         url = source
-    if url is None and use is None:
-        raise InternalError("fetch_json: a local source needs its use")
     try:
         if url is not None:
             with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
@@ -262,7 +256,7 @@ def fetch_json(
         # A URL that cannot be fetched and an absent file have no catalogued
         # line yet; an absent file is never unreadable.
         absent = isinstance(exc, OSError) and is_missing_errno(exc)
-        if url is not None or use is None or absent or not isinstance(exc, OSError):
+        if url is not None or absent or not isinstance(exc, OSError):
             where = quote_source(source)
             raise ValueError(f"Cannot read {subject} {where}: {exc}") from exc
         raise file_unreadable_error(exc, file=source, use=use) from exc
@@ -270,11 +264,15 @@ def fetch_json(
     if len(raw) > max_bytes:
         cap = Cap(max_bytes, "byte", "JSON-document")
         raise CodedValueError(
-            OVER_CAP, line=SOURCE_LINE, path=source, **cap.reason_values()
+            OVER_CAP, line=SOURCE_LINE, file=source, use=use, **cap.reason_values()
         )
     if max_nesting is not None and json_nests_over(raw, max_nesting.limit):
         raise CodedValueError(
-            OVER_CAP, line=SOURCE_LINE, path=source, **max_nesting.reason_values()
+            OVER_CAP,
+            line=SOURCE_LINE,
+            file=source,
+            use=use,
+            **max_nesting.reason_values(),
         )
 
     try:
@@ -284,11 +282,13 @@ def fetch_json(
     # nesting too deep to parse.
     except (ValueError, RecursionError) as exc:
         raise CodedValueError(
-            JSON_MALFORMED, line=NOT_JSON_LINE, path=source, failure=exc
+            JSON_MALFORMED, line=NOT_JSON_LINE, file=source, use=use, failure=exc
         ) from exc
 
     if not isinstance(data, dict):
-        raise CodedValueError(JSON_MALFORMED, line=NOT_OBJECT_LINE, path=source)
+        raise CodedValueError(
+            JSON_MALFORMED, line=NOT_OBJECT_LINE, file=source, use=use
+        )
     return data
 
 

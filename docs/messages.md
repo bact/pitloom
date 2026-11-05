@@ -149,9 +149,9 @@ except Exception as exc:
 - A Croissant file a dataset declaration names (`croissant=`, or
   `read_croissant()`) that cannot be read, is over a cap, is not valid JSON
   or is not a JSON object raises a `ValueError` whose `pitloom_code` is
-  `file-unreadable`, `over-cap` or `json-malformed` (its text:
-  `'<path>': not valid JSON; <failure>`). A file that is absent, or a URL
-  that cannot be fetched, raises one with no code.
+  `file-unreadable`, `over-cap` or `json-malformed` (its text: `FILE=<file>:
+  not valid JSON for the Croissant document; <failure>`). A file that is
+  absent, or a URL that cannot be fetched, raises one with no code.
 
 The command line prints the code of the exception it reports at the end of its
 `ERROR:` line.

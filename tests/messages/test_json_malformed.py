@@ -50,14 +50,25 @@ _ENTRIES: dict[str, Callable[[str], None]] = {
     "loom-dataset": _declare,
 }
 
+_DOC = "for the Croissant document"
 _CASES = {
-    "not-json": ("c.json", b"{not json", JSON_MALFORMED, "'c.json': not valid JSON; "),
-    "a-list": ("c.json", b"[1, 2]", JSON_MALFORMED, "'c.json': not a JSON object"),
+    "not-json": (
+        "c.json",
+        b"{not json",
+        JSON_MALFORMED,
+        f"FILE=c.json: not valid JSON {_DOC}; Expecting property name",
+    ),
+    "a-list": (
+        "c.json",
+        b"[1, 2]",
+        JSON_MALFORMED,
+        f"FILE=c.json: not a JSON object {_DOC}",
+    ),
     "too-deep": (
         "c.json",
         b"[" * 100,
         OVER_CAP,
-        "'c.json': larger than the 64-level Croissant-nesting cap; not read",
+        f"FILE=c.json: larger than the 64-level Croissant-nesting cap {_DOC}; not read",
     ),
     "directory": (
         "d",
@@ -88,7 +99,9 @@ def test_a_croissant_that_does_not_read_raises_its_code(
     denied = deny(tmp_path / name, "open", monkeypatch) if case == "denied" else None
     with denied or contextlib.nullcontext(), pytest.raises(ValueError) as raised:
         _ENTRIES[entry](name)
-    assert str(raised.value).startswith(text)
+    said = str(raised.value)
+    # The parser's own text ends the not-JSON line.
+    assert said.startswith(text) if case == "not-json" else said == text
     assert raised_as(raised.value, message)
 
 

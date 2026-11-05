@@ -220,10 +220,18 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
     [
         ("https://example.org/c.json", "only a local file is read", None),
         ("missing.json", "Cannot read Croissant source 'missing.json'", None),
-        ("bad.json", "^'bad.json': not valid JSON; ", "json-malformed"),
+        (
+            "bad.json",
+            "^FILE=bad.json: not valid JSON for the Croissant document; ",
+            "json-malformed",
+        ),
         ("noname.json", "has no 'name' field", None),
         ("listname.json", "field 'name' is of type list, not text", None),
-        ("latin1.json", "^'latin1.json': not valid JSON; ", "json-malformed"),
+        (
+            "latin1.json",
+            "^FILE=latin1.json: not valid JSON for the Croissant document; ",
+            "json-malformed",
+        ),
         (
             "adir",
             "^FILE=adir: could not read for the Croissant document; "

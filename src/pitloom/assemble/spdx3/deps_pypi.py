@@ -106,7 +106,9 @@ def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] |
     )
     url = f"https://pypi.org/pypi/{path}"
     try:
-        return fetch_json(url, timeout=_PYPI_TIMEOUT_SECONDS)
+        return fetch_json(
+            url, timeout=_PYPI_TIMEOUT_SECONDS, use="for the PyPI release metadata"
+        )
     except ValueError:
         return None
 

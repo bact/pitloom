@@ -91,8 +91,10 @@ MODEL_LINE: Final = Line(
 CONFIG_MEMBER_LINE: Final = Line(
     level="ERROR", template=f"config file %(path)s: {REASON}; not read"
 )
-#: A document named by its path or URL over a cap: it is not read.
-SOURCE_LINE: Final = Line(level="ERROR", template=f"%(path)s: {REASON}; not read")
+#: A JSON document over a cap: it is not read.
+SOURCE_LINE: Final = Line(
+    level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
+)
 #: A Git URL's checkout over the library caller's ``max_clone_bytes``.
 CLONE_LINE: Final = Line(
     level="ERROR",

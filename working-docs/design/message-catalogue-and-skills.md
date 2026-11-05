@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -464,8 +464,12 @@ answers H1 to H9):
 2. **Reused**: `file-unreadable` gains its first `ERROR` line (the same
    template as its warning) and four uses (the three cards, the Croissant
    document), raised through `file_unreadable_error`; `dir-unlistable` ends
-   `find_card_file`'s silence; `over-cap` gains an `ERROR` line naming a
-   document by its quoted path (`JSON-document` and `Croissant-nesting`).
+   `find_card_file`'s silence; `over-cap` gains an `ERROR` line
+   (`JSON-document` and `Croissant-nesting`). Every `fetch_json` line keys
+   the document as `file-unreadable` does, `FILE=<file>: <condition> <use>`
+   (`use` required, the PyPI fetch's included), so one call gives one key
+   form and the line names the document; `FILE=` holds a path, a URL or a
+   Hub dataset id, as the `file` field says (review of #444).
 3. **Kept as given (H1, H4 to H6)**: the SBOM's surrogate line names an
    element under `FILE=` (code first); the `_loom_dataset_meta` card
    catch-all and the registry's unencodable name stay uncoded (PRs 17,

@@ -117,7 +117,9 @@ def _card_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     [
         (
             b"---\nlicense: mit\n" + b"x" * (1 << 21),
-            "FILE=o/d: larger than the 1048576-byte dataset-card cap;",
+            "FILE=o/d: larger than the 1048576-byte dataset-card cap; frontmatter "
+            "not closed within it; skipped | Field(s) affected (skipped): license, "
+            "description, keywords",
         ),
         (
             b"---\nlicense: mit\n---\n",
@@ -146,8 +148,25 @@ def test_a_card_read_warning_names_the_dataset_not_the_cache_path(
     ):
         assert _load_dataset_card("o/d", _SHA) == (None, {})
     (message,) = _card_warnings(caplog)
-    assert message.startswith(said)
+    assert message == said
     assert str(tmp_path) not in message and "snapshots" not in message
+
+
+def test_a_malformed_card_is_named_by_its_kind_and_dataset(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The card's text is kept, its frontmatter used for nothing."""
+    card = tmp_path / "README.md"
+    card.write_bytes(b"---\nlicense: [mit\n---\nText.\n")
+    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
+        assert _load_dataset_card("o/d", _SHA) == (
+            "---\nlicense: [mit\n---\nText.\n",
+            {},
+        )
+    (message,) = _card_warnings(caplog)
+    said = "FILE=o/d: Hugging Face dataset card frontmatter is not valid YAML; "
+    # The parser's own text ends the line.
+    assert message.startswith(said) and str(tmp_path) not in message
 
 
 def test_a_card_gone_from_the_cache_is_absent_and_quiet(

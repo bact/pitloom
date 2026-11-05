@@ -125,12 +125,13 @@ def test_read_croissant_accepts_each_spelling(
     [
         (
             b'{"name": "ds", "version": ' + b"1" * 5000 + b"}",
-            "not valid JSON; ",
+            "not valid JSON for the Croissant document; ",
             "json-malformed",
         ),
         (
             b"[" * 100000,
-            "larger than the 64-level Croissant-nesting cap; not read",
+            "larger than the 64-level Croissant-nesting cap for the Croissant "
+            "document; not read",
             "over-cap",
         ),
     ],
@@ -141,7 +142,7 @@ def test_read_croissant_unreadable_json_names_the_file(
 ) -> None:
     path = tmp_path / "ds.json"
     path.write_bytes(body)
-    with pytest.raises(ValueError, match=f"^'.*ds.json': {reason}") as raised:
+    with pytest.raises(ValueError, match=f"^FILE=.*ds.json: {reason}") as raised:
         read_croissant(path)
     assert code_of(raised.value) == code
 

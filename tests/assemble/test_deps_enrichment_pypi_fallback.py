@@ -507,15 +507,15 @@ def test_fetch_pypi_release_info_versioned_url(
 ) -> None:
     captured: dict[str, object] = {}
 
-    def _fake_fetch_json(url: str, *, timeout: float) -> dict[str, object]:
-        captured["url"] = url
-        captured["timeout"] = timeout
+    def _fake_fetch_json(url: str, *, timeout: float, use: str) -> dict[str, object]:
+        captured.update(url=url, timeout=timeout, use=use)
         return {"info": {}}
 
     monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _real_fetch_pypi)
     monkeypatch.setattr(deps_pypi, "fetch_json", _fake_fetch_json)
     result = deps_pypi._fetch_pypi_release_info("requests", "2.31.0")
     assert captured["url"] == "https://pypi.org/pypi/requests/2.31.0/json"
+    assert captured["use"] == "for the PyPI release metadata"
     assert result == {"info": {}}
 
 
@@ -524,8 +524,8 @@ def test_fetch_pypi_release_info_unversioned_url(
 ) -> None:
     captured: dict[str, object] = {}
 
-    def _fake_fetch_json(url: str, *, timeout: float) -> dict[str, object]:
-        del timeout
+    def _fake_fetch_json(url: str, *, timeout: float, use: str) -> dict[str, object]:
+        del timeout, use
         captured["url"] = url
         return {"info": {}}
 
@@ -538,8 +538,8 @@ def test_fetch_pypi_release_info_unversioned_url(
 def test_fetch_pypi_release_info_returns_none_on_value_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def _raise(url: str, *, timeout: float) -> dict[str, object]:
-        del url, timeout
+    def _raise(url: str, *, timeout: float, use: str) -> dict[str, object]:
+        del url, timeout, use
         raise ValueError("network error")
 
     monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _real_fetch_pypi)

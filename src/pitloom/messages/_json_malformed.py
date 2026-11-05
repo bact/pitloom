@@ -17,10 +17,12 @@ from pitloom.messages._types import Line, Message
 
 #: A document the JSON parser refused.
 NOT_JSON_LINE: Final = Line(
-    level="ERROR", template="%(path)s: not valid JSON; %(failure)s"
+    level="ERROR", template="FILE=%(file)s: not valid JSON %(use)s; %(failure)s"
 )
 #: A document whose top level is an array, a string, a number or a literal.
-NOT_OBJECT_LINE: Final = Line(level="ERROR", template="%(path)s: not a JSON object")
+NOT_OBJECT_LINE: Final = Line(
+    level="ERROR", template="FILE=%(file)s: not a JSON object %(use)s"
+)
 
 JSON_MALFORMED: Final = Message(
     code="json-malformed",
@@ -37,6 +39,7 @@ JSON_MALFORMED: Final = Message(
     "object, and what the parser reported, as the line says. They fix or "
     "replace it and run again. Do not edit or replace the document for them; "
     "ask first, and with nobody to ask, report it only.",
+    subject_key="FILE",
     since="0.23.0",
 )
 

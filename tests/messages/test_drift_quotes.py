@@ -33,7 +33,7 @@ _MARKERS = {
     "dir-unlistable": "could not list ",
     "file-unreadable": "could not read ",
     "hyperparameter-conflict": "replaced by the parameter count",
-    "json-malformed": "not valid JSON;",
+    "json-malformed": "not valid JSON for ",
     "lfs-pointer": "Git LFS pointer",
     "lfs-pointer-malformed": "Git LFS pointer",
     "library-missing": "required library not installed",

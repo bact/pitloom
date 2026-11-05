@@ -388,8 +388,8 @@ def test_a_deep_croissant_is_read_or_refused_by_its_cap(
     with pytest.raises(ValueError) as caught:
         run_graph(project / "out.json", body_)
     assert str(caught.value) == (
-        f"'c.json': larger than the {CROISSANT_MAX_NESTING}-level "
-        "Croissant-nesting cap; not read"
+        f"FILE=c.json: larger than the {CROISSANT_MAX_NESTING}-level "
+        "Croissant-nesting cap for the Croissant document; not read"
     )
     assert code_of(caught.value) == "over-cap"
 

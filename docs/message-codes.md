@@ -73,7 +73,7 @@ A line may start with one prefix before its text:
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
-| `<file>` | a path as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
@@ -89,7 +89,7 @@ A line may start with one prefix before its text:
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
-| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 
 ### `card-malformed`
@@ -247,8 +247,8 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  ERROR: '<path>': not valid JSON; <failure> [json-malformed]
-  ERROR: '<path>': not a JSON object [json-malformed]
+  ERROR: FILE=<file>: not valid JSON <use>; <failure> [json-malformed]
+  ERROR: FILE=<file>: not a JSON object <use> [json-malformed]
   ```
 
 ### `lfs-pointer`
@@ -414,7 +414,7 @@ A line may start with one prefix before its text:
   WARNING: <key>=<name>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   WARNING: FORMAT=<format> FILE=<file>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
-  ERROR: '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
+  ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
   ```
