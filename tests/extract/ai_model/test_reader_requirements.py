@@ -37,9 +37,7 @@ _FAKE = "pitloom_fake_lib"
 
 @pytest.fixture(autouse=True, name="fake_requirement")
 def fixture_fake_requirement(monkeypatch: pytest.MonkeyPatch) -> str:
-    monkeypatch.setitem(
-        REQUIREMENTS, AiModelFormat.ONNX, Requirement(_FAKE, "fake")
-    )
+    monkeypatch.setitem(REQUIREMENTS, AiModelFormat.ONNX, Requirement(_FAKE, "fake"))
     return _FAKE
 
 

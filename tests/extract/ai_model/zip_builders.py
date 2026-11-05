@@ -86,3 +86,12 @@ def zip64_fixed(n: int) -> bytes:
     extensible data: the one layout every ``zipfile`` release reads alike."""
     d = directory(n)
     return d + zip64_record(n, len(d), 0) + locator(len(d)) + eocd(FFFF, FFFFFFFF)
+
+
+def dated_zip(files: dict[str, bytes]) -> bytes:
+    """A ZIP archive of *files*, each dated 1980 (no clock read)."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, data in files.items():
+            zf.writestr(zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0)), data)
+    return buffer.getvalue()

@@ -45,6 +45,7 @@ from pitloom.messages import (
 from pitloom.messages._model_field import ENTRIES
 from tests._message_drift import SAMPLES
 from tests.extract.ai_model.gguf_builders import UINT8, UINT32, array, gguf_file, kv
+from tests.extract.ai_model.zip_builders import dated_zip
 
 _LINES = [(m, ln) for m in ENTRIES for ln in m.lines]
 
@@ -122,22 +123,13 @@ class _Broken:
         raise RuntimeError("binding")
 
 
-def zip_bytes(files: dict[str, bytes]) -> bytes:
-    """A ZIP archive of *files*, each dated 1980 (no clock read)."""
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zf:
-        for name, data in files.items():
-            zf.writestr(zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0)), data)
-    return buffer.getvalue()
-
-
 def _zip(files: dict[str, bytes]) -> zipfile.ZipFile:
-    return zipfile.ZipFile(io.BytesIO(zip_bytes(files)))
+    return zipfile.ZipFile(io.BytesIO(dated_zip(files)))
 
 
 def _pt2(tmp_path: Path, files: dict[str, bytes]) -> None:
     path = tmp_path / "m.pt2"
-    path.write_bytes(zip_bytes(files))
+    path.write_bytes(dated_zip(files))
     pt2.read_pytorch_pt2(path)
 
 

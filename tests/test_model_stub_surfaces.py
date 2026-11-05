@@ -46,6 +46,8 @@ _PYPROJECT = (
 )
 #: A Safetensors header declaring 200 bytes that holds 8: its reader fails.
 _TRUNCATED = struct.pack("<Q", 200) + b'{"a": 1}'
+
+
 def _negative_onnx() -> bytes:
     """An ONNX model whose initializer has a dimension of -1: no count."""
     onnx = pytest.importorskip("onnx")
