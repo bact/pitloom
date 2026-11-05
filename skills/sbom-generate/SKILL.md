@@ -67,8 +67,8 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 
 - Python >= 3.10 and **pitloom >= 0.23.0** (the licence readings, message
   codes and `licenseid` 0.7 preflight below are those of 0.23.0):
-  `pip install "pitloom>=0.23.0"`, or run ephemeral via `uvx`/`pipx`. Extras take the floor after the extra:
-  `"pitloom[ai]>=0.23.0"`.
+  `pip install "pitloom>=0.23.0"`, or run ephemeral via `uvx`/`pipx`. Extras
+  take the floor after the extra: `"pitloom[ai]>=0.23.0"`.
 - AI model targets, and any project or wheel that ships model files, need
   the `ai` extra (`pitloom[ai]`) or a format-specific one
   (`pitloom[gguf]`, `pitloom[huggingface_hub]`, ...; see

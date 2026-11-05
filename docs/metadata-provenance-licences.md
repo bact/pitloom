@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -106,6 +106,7 @@ came from:
 | Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
+| A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
 Every expression is read by `licenseid`, the one reader of a declared
