@@ -169,6 +169,11 @@ order and counts are in
   note. Tests, manual checks and sweeps run with provenance on (one shared
   test default); default-off is asserted on each surface (CLI, library, hook,
   Action).
+- [ ] **Action builds the `licenseid` database** (to decide): the Action
+  installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
+  declared licence is still read). `pitloom-install.sh` could run
+  `licenseid update --source packaged` (offline, seconds); CHANGELOG
+  "Changed": `LICENSE` text matched by default.
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 

@@ -59,8 +59,9 @@ jobs:
           editable: "true"
 
       - name: Build licenseid database
+        # Offline, from the SPDX License List the licenseid wheel ships; a
+        # failure must fail the job, not weaken the self-test SBOM.
         run: licenseid update --source packaged
-        continue-on-error: true
 
       - name: Run Pitloom action against this repository
         id: pitloom
