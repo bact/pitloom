@@ -37,7 +37,7 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
     doesn't check for a Pitloom-authored ``Tool``/``SoftwareAgent`` -- it
     only checks the generic JSON-LD shape (``@context`` + ``@graph``) so a
     third-party (non-Pitloom) SPDX3 SBOM embedded via ``--sbom`` is also
-    recognized.
+    recognised.
     """
     try:
         doc = json.loads(data)
@@ -74,7 +74,7 @@ VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
 
 
 def detect_sbom_format(data: bytes) -> str | None:
-    """Return a short format id for *data*, or ``None`` if unrecognized."""
+    """Return a short format id for *data*, or ``None`` if unrecognised."""
     if _looks_like_spdx3_jsonld(data):
         return "spdx3-jsonld"
     return None
@@ -92,7 +92,7 @@ class _SbomSubjectIdentity:
 
 def _parse_jsonld_graph(data: bytes) -> list[Any] | None:
     """Parse *data* as JSON and return its ``@graph`` list, or ``None`` if
-    *data* isn't recognizable JSON-LD (bad JSON, or no list ``@graph``)."""
+    *data* isn't recognisable JSON-LD (bad JSON, or no list ``@graph``)."""
     try:
         doc = json.loads(data)
     except (ValueError, UnicodeDecodeError):
@@ -130,7 +130,7 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
     happens to carry a `name` field) is rejected with an error rather
     than silently mined for `name`/`software_packageVersion`.
 
-    Returns ``None`` if *data* isn't even recognizable JSON-LD (callers
+    Returns ``None`` if *data* isn't even recognisable JSON-LD (callers
     should already have checked via `detect_sbom_format`); returns an
     `_SbomSubjectIdentity` with a non-``None`` `.error` and both fields
     ``None`` if the graph shape doesn't match what's expected (missing
@@ -207,7 +207,7 @@ def compare_name_version(
     sbom_version: str | None,
 ) -> tuple[list[str], list[str]]:
     """Compare a wheel's METADATA name/version against an SBOM subject's,
-    after PEP 503 (name) / PEP 440 (version) normalization.
+    after PEP 503 (name) / PEP 440 (version) normalisation.
 
     Returns ``(mismatches, warnings)`` as human-readable fragments (no
     wheel-name prefix, no `WARNING:`/`ERROR:` tag) -- callers decide how
@@ -292,7 +292,7 @@ def check_spdx3_name_version(
 
     Returns ``(mismatches, warnings)``, same shape as
     :func:`compare_name_version`. Only ``"spdx3-jsonld"`` is supported --
-    any other *sbom_format* (including ``None``, unrecognized) or a
+    any other *sbom_format* (including ``None``, unrecognised) or a
     graph shape :func:`extract_spdx3_subject_identity` can't follow
     yields a single `warnings` fragment naming why and an empty
     `mismatches` -- "couldn't check" is never escalated to a mismatch.
