@@ -1,12 +1,12 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Target resolution and Package-URL targets (planned for 0.22.0)
+# Target resolution and Package-URL targets
 
 See also: [remote-source-ingestion.md](remote-source-ingestion.md) (the remote
 targets and what is not built),
@@ -14,9 +14,10 @@ targets and what is not built),
 Git target does today), [mlflow-extractor.md](mlflow-extractor.md),
 [sbom-format-gaps.md](sbom-format-gaps.md), [roadmap.md](roadmap.md).
 
-> **Status (2026-10-23):** design only, nothing built. Decided: the commit a Git
-> URL target was read at is recorded as a `pkg:git` Package-URL (below). Open:
-> everything else in [Open questions](#open-questions). Scheduled for 0.22.0.
+> **Status (2026-11-05):** design only, nothing built, not scheduled (open in
+> the [roadmap](roadmap.md)). Decided (2026-10-23): the commit a Git URL
+> target was read at is recorded as a `pkg:git` Package-URL (below). Open:
+> everything else in [Open questions](#open-questions).
 
 ## Why
 
@@ -57,7 +58,7 @@ Verified in the code on 2026-10-23.
 A new kind therefore touches: the classifier, `generate()`, the CLI
 `generate`, an options row, a subcommand, `_matrix_plan.py`, the skills'
 descriptions, and a copy of the URL policy. The surfaces can drift apart
-(CLAUDE.md: "a pattern hand-copied across 3+ call sites drifts").
+(AGENTS.md: "a pattern hand-copied across 3+ call sites drifts").
 
 ## Package-URL types that matter
 
@@ -122,8 +123,8 @@ Constraints:
 
 ## Proposed design: one target resolver
 
-Not decided; for 0.22.0 after the open questions are answered. This is a
-cross-package refactor: ask before starting it.
+Not decided; it waits for the open questions. This is a cross-package
+refactor: ask before starting it.
 
 - One table of kinds. Each entry: a matcher (string, URL or PURL to a resolved
   target), a fetcher (a context manager yielding a local artefact and the source

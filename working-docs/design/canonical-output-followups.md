@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [roadmap.md](roadmap.md) (the "Canonical output" bullet),
 [known-bugs.md](known-bugs.md) (reproduced bugs of the same theme),
 [id-registry-followups.md](id-registry-followups.md) (id scheme), "SBOM
-output" in [CLAUDE.md](../../CLAUDE.md) (bit-for-bit determinism, RFC 8785,
+output" in [AGENTS.md](../../AGENTS.md) (bit-for-bit determinism, RFC 8785,
 UTC).
 
 The one home for open questions and undecided policy on canonicalisation,
@@ -82,7 +82,7 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
   [license-rules.md](license-rules.md#6-equivalence) (sections 2, 4, 6, 8
   and "Rulings on record").
 - **Package names compare under PEP 503, versions under PEP 440** ("Recurring
-  bug patterns" in CLAUDE.md); the registry key applies PEP 503 to
+  bug patterns" in AGENTS.md); the registry key applies PEP 503 to
   `software_Package` only (`_element_key`, see
   [id-registry-v3.md](../implementation/id-registry-v3.md)).
 - **SHA-256 hex compared lowercase** (planned, step 1 of
@@ -258,7 +258,7 @@ Moved from [embed-wheel-followups.md](embed-wheel-followups.md).
 
 ### C10. What "JSON-LD: follow RDF canonicalisation" means here
 
-Found while consolidating this doc: CLAUDE.md asks JSON-LD to follow RDF
+Found while consolidating this doc: AGENTS.md asks JSON-LD to follow RDF
 canonicalisation, and no working doc records how.
 
 - **Question:** does Pitloom apply RDF canonicalisation (RDFC-1.0) at all,
@@ -270,12 +270,12 @@ canonicalisation, and no working doc records how.
   ([known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200)).
   The SPDX canonical serialisation is silent on graph order
   ([spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362), open).
-- **Options:** RFC 8785 plus `@graph` order only (reword CLAUDE.md);
+- **Options:** RFC 8785 plus `@graph` order only (reword AGENTS.md);
   RDFC-1.0 blank-node labels; RDFC-1.0 only to compare graphs.
 - **Current behaviour:** RFC 8785 plus `_graph_sort_key()`; blank-node
   labels as the serialiser gives them.
 - **Intent (user, 2026-10-08):** Pitloom should follow RDF
-  canonicalisation (RDFC-1.0) as CLAUDE.md says, but it does not yet; the
+  canonicalisation (RDFC-1.0) as AGENTS.md says, but it does not yet; the
   design needs thought first (scope: labels, comparison, or both; cost of a
   JSON-LD processor; interaction with `@graph` order).
 - **Recommendation (2026-10-08):** the wall is merge, diff and signing, not

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-31
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,7 +20,7 @@ easier for a feature or bugfix to land correctly on one surface's
 underlying extraction path while silently missing another's -- not
 because anyone decided to skip it, but because no single person is
 looking at all seven every time. The motivating instance: the G2
-declared-vs-concluded license conflict check shipped wired into the CLI's
+declared-vs-concluded licence conflict check shipped wired into the CLI's
 `pyproject.py` path, but the Hatchling build hook (`hatchling.py`) called
 the lower-level detection function directly and skipped the independent
 directory scan G2 depends on -- so every Hatchling-built project silently

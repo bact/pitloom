@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,7 +77,7 @@ the one list.
   `read_header_block` + `HeaderParser` (#286 review); that needs the bytes
   through a public route to the dist-info (not its private `_path`), so it is
   its own PR. Decide: abort as now, or read with replacement and one
-  `WARNING:`. Suggested for 0.23.0.
+  `WARNING:`. Suggested for 0.23.0; not done in it.
 - [ ] **numpy licence text keeps one extra leading space per line (S).**
   meson-python folds `License:` with 9 spaces; `_unfolded` strips 8.
   Whitespace-only lines are blank on every surface since #286; the extra

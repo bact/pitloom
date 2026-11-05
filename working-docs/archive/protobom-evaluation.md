@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-21
-Last-Modified: 2026-04-13
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -130,17 +130,17 @@ hybrid architecture inside `loom.generator`.
   bypass Protobom and are maintained natively in `spdx-python-model` classes.
 3. **Merge phase:** At export time, if the user targets SPDX 3, the Protobom
   exporter runs. We then dynamically merge our native `run.model` graphs into
-  the serialized JSON output before writing to disk.
+  the serialised JSON output before writing to disk.
 
 ## 5. Topics for further exploration
 
 - **Protobom extensions (`google.protobuf.Any`):** Protocol Buffers natively
-  support `Any` fields, allowing the embedding of arbitrary serialized protobuf
+  support `Any` fields, allowing the embedding of arbitrary serialised protobuf
   messages. The Protobom Python SDK exposes this, meaning an entire SPDX 3
   `AIPackage` could be encapsulated. However, standard Protobom exporters
-  (e.g., CycloneDX or SPDX serializers) don't inherentely know how to unpack or
+  (e.g., CycloneDX or SPDX serialisers) don't inherentely know how to unpack or
   translate this custom payload. Data will remain an opaque binary blob in the
-  serialized output without custom exporter logic.
+  serialised output without custom exporter logic.
 
 - **CycloneDX ML-BOM parity:** CycloneDX 1.7 (and 1.6/1.5) officially supports
   Machine Learning Components via `type="machine-learning-model"` and the

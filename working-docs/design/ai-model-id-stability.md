@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-10-16
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,7 @@ reliable way to say "this is the same model I saw last time":
 - **Caveat**: content hash is strictly *narrower* than "same model" for
   AI models, unlike source files where any byte change legitimately
   means "different provenance." A model re-exported, re-quantized, or
-  re-saved with a different serialization -- or retrained
+  re-saved with a different serialisation -- or retrained
   non-deterministically from the same recipe -- changes every byte
   without changing what a person would call "the same model."
   Content-hash matching would under-match (mint a new id) in exactly

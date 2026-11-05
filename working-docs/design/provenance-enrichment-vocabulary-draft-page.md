@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,13 +45,13 @@ involved.
 | `method` | Meaning |
 | --- | --- |
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
-| `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library. Says how the value was read; the package's own `LICENSE` file is still declared unless the manifest states a license. |
+| `licenseid_detection` | Licence text matched against a known SPDX licence using the [`licenseid`](https://pypi.org/project/licenseid/) library. Says how the value was read; the package's own `LICENSE` file is still declared unless the manifest states a licence. |
 | `inferred_from_authors` | Derived from the `authors` list (e.g. a copyright statement), not read verbatim from any single field. |
 | `parsed_author_list` | Extracted multiple individual entities by splitting a single, comma-separated author string. |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
-| `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
+| `synthetic environment root` | The element is Pitloom's own synthesised placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
@@ -112,7 +112,7 @@ another. Each kind has its own schema URL, embedded in the statement:
 | --- | --- | --- |
 | `fields` | `https://pitloom.dev/provenance/fields/1` | Per-field `{source, method, ...}` map -- the default provenance Annotation described above. |
 | `unification` | `https://pitloom.dev/provenance/unification/1` | Why two fragment elements were merged into one (matching SHA-256 content). |
-| `conflict` | `https://pitloom.dev/provenance/conflict/1` | Multi-source field-value disagreement, e.g. declared vs. detected license. |
+| `conflict` | `https://pitloom.dev/provenance/conflict/1` | Multi-source field-value disagreement, e.g. declared vs. detected licence. |
 | `enrichment` | `https://pitloom.dev/provenance/enrichment/1` | What an enrichment run changed on an element; each entry in `changes[]` carries a `role` from the epistemic vocabulary above. |
 | `artifact-metadata` | `https://pitloom.dev/provenance/artifact-metadata/2` | Verbatim preserved original AI-model metadata, gated by `[tool.pitloom.provenance] preserve-source-metadata`. |
 

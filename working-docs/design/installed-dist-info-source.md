@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-10-10
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,7 +50,7 @@ recorded as an SPDX G2 conflict Annotation on the main project package,
 never silently substituted -- reusing the same `ConflictCandidate`/
 `build_conflict_annotation` model already used for dependency-version
 conflicts (`deps_installed.py`) and the project's own declared/concluded
-license disagreement (`deps_license.py`).
+licence disagreement (`deps_license.py`).
 
 ## Why this slice was built first despite narrow day-to-day payoff
 

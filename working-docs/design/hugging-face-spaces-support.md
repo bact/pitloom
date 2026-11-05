@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,7 +94,7 @@ No Python is packaged and the only model is named by a string.
    found. The Hub's own `models` list is the cheaper and more complete source
    when the network is allowed. A reference found in code is a claim with
    provenance (`Method: ast_literal`); one that cannot be resolved stays absent
-   (CLAUDE.md: absent data is not an error).
+   (AGENTS.md: absent data is not an error).
 4. **The LFS pointer as a hash.** An LFS pointer holds `oid sha256:<hex>` and
    `size`: the SHA-256 and the length of the real file, by the LFS design. Pitloom
    could record that digest as the model file's hash (`Method: lfs_pointer`)
@@ -104,7 +104,7 @@ No Python is packaged and the only model is named by a string.
    an AI package built from a pointer is only a hash and a name: say so.
 5. **Fetching an LFS file** (one that is small, under the clone cap) is a policy
    question: it contacts a second server (the LFS endpoint), which the Git URL
-   guard does not cover (CLAUDE.md: a check on the URL does not cover every
+   guard does not cover (AGENTS.md: a check on the URL does not cover every
    client a fetch starts).
 
 ## Questions

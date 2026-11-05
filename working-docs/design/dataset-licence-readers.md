@@ -354,7 +354,7 @@ indented code blocks in the description rule.
 
 ## Built: edge-case hardening (2026-10-19)
 
-Rulings follow the rules in CLAUDE.md: a source that never had a value is
+Rulings follow the rules in AGENTS.md: a source that never had a value is
 quiet; one that stated something unrecordable warns.
 
 **Nesting cap.** A Croissant file nests at most `CROISSANT_MAX_NESTING` (64)

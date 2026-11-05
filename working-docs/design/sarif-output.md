@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-02
-Last-Modified: 2026-09-02
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,8 +36,8 @@ Medium-term); the two don't overlap or compete.
   once built -- see [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md))
   -- one SARIF `result` per CVE (`ruleId=CVE-xxxx`, `level=`severity,
   location = the dependency's declaration line in `pyproject.toml`).
-- Declared-vs-detected license conflicts (already shipped, see
+- Declared-vs-detected licence conflicts (already shipped, see
   [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md),
   [PR #121](https://github.com/bact/pitloom/pull/121)) -- currently a
   warning message only, would become an inline PR annotation on the
-  license line.
+  licence line.

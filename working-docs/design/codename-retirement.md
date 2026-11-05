@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-15
-Last-Modified: 2026-09-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,7 +57,7 @@ the rest) rather than one giant diff.
 
 ## Opportunistic path
 
-`working-docs/`'s own hygiene rule (CLAUDE.md -- trim a grown roadmap
+`working-docs/`'s own hygiene rule (AGENTS.md -- trim a grown roadmap
 bullet out to its own file, split an oversized doc, move a completed
 item to `implementation/`, retire a superseded one to `archive/`)
 already means `working-docs/*.md` files get touched/rewritten

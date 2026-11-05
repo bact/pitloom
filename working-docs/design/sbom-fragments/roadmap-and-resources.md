@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,7 @@ all earlier items; each can be delivered independently.
 > `spdxId` vs. SHA-256 content hash vs. structural Agent/Tool equality
 > -- see `_merge_fragment_set()`'s priority order) or *which fragments*
 > the survivor's properties were folded in from; a scalar conflict is
-> resolved silently in favor of the canonical value, with only a
+> resolved silently in favour of the canonical value, with only a
 > `log.warning` (never written to the SBOM) recording what was dropped.
 > Not planned to change without a native SPDX home for this fact (SPDX
 > 3 has no "this property came from source X, that one from source Y"
@@ -102,7 +102,7 @@ all earlier items; each can be delivered independently.
 > but as a side effect two genuinely *distinct* generation events that
 > happen to share an identical timestamp/creator/tool/comment would also
 > collapse into one -- a low-probability, currently-unencountered edge
-> case, documented here so it isn't mistaken for new behavior later.
+> case, documented here so it isn't mistaken for new behaviour later.
 
 ---
 
@@ -117,7 +117,7 @@ fragment work and should be monitored for alignment opportunities.
 | [CISA SBOM Sharing Lifecycle](https://www.cisa.gov/sites/default/files/2023-04/sbom-sharing-lifecycle-report_508.pdf) | Author/Distributor/Consumer roles; use to frame the multi-team workflow |
 | [NTIA / CISA Minimum Elements 2025](https://www.cisa.gov/sites/default/files/2025-08/2025_CISA_SBOM_Minimum_Elements.pdf) | Required fields for composed SBOMs |
 | [OpenChain AI SBOM Guide](https://github.com/OpenChain-Project/Reference-Material/blob/master/AI-SBOM-Compliance/en/Artificial-Intelligence-System-Bill-of-Materials-Compliance-Management-Guide.md) | AI-specific SBOM requirements; compliance checklist |
-| [SPDX spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362) | Open issue on canonical serialization; track for updates affecting fragment merging |
+| [SPDX spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362) | Open issue on canonical serialisation; track for updates affecting fragment merging |
 | [W&B Weave](https://github.com/wandb/weave) | LLM tracing and evaluation; target for Phase 3 extractor |
 | [DVC](https://dvc.org) | Data/model versioning with reproducible pipelines; target for Phase 3 extractor |
 | [ProvBook](https://github.com/Sheeba-Samuel/ProvBook) | Jupyter provenance via REPRODUCE-ME ontology; possible bridge to Pitloom notebook mode |

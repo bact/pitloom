@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,7 +82,7 @@ different instances of the same underlying shape:
 ## Not decided here
 
 - Whether a shared type is worth the migration cost of rewriting
-  license's `build_license_elements` onto it.
+  licence's `build_license_elements` onto it.
 - Whether `role` and a BSI-style lifecycle-stage label should be two
   separate fields on a candidate, or whether one subsumes the other.
 - What the export-time policy type/interface would look like.
