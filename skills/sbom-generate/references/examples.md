@@ -73,7 +73,7 @@ uvx --from "licenseid>=0.7.1,<0.8" licenseid update --source packaged  # no inst
 loom project . -o sbom.spdx3.json    # then generate
 ```
 
-## Built Wheel SBOM
+## Built wheel SBOM
 
 ```bash
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json

@@ -111,7 +111,7 @@ These fetch the newest release matching the spec, not the user's installed
 SBOM's ids), pin the installed one: `"pitloom==X.Y.Z"`, the number `loom
 --version` prints (`Pitloom X.Y.Z`).
 
-## Smart Entrypoint: `loom generate`
+## Smart entry point: `loom generate`
 
 Use `loom generate` for automatic target detection:
 
