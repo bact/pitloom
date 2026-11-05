@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,14 +18,17 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.22.1...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.23.0...HEAD>
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-05
+
 ### Changed
 
-- Requires `licenseid>=0.7.1,<0.8`; a declared licence value is read from its
-  packaged SPDX License List, with no licence database ([#437])
+- Requires `licenseid>=0.7.1,<0.8`, not `py-spdx-license`; a declared licence
+  is read from the packaged SPDX License List, with no database ([#437],
+  [#440], [#445])
 - Read as ids now: `MIT License (MIT)`-style names, trove paths, compounds
   (`Apache2 OR MIT`), `licenseref-foo` (`LicenseRef-foo`), `MIT or later`
   (`MIT+`) ([#437])
@@ -55,6 +58,7 @@ and this project adheres to
   characters, is an `[over-cap]` line naming the model ([#446])
 - A library that is installed but fails to import says so,
   `[library-unusable]`, not `[library-missing]` ([#446])
+- The Agent Skills require `pitloom>=0.23.0` ([#448])
 
 ### Fixed
 
@@ -79,6 +83,7 @@ and this project adheres to
 [#444]: https://github.com/bact/pitloom/pull/444
 [#445]: https://github.com/bact/pitloom/pull/445
 [#446]: https://github.com/bact/pitloom/pull/446
+[#448]: https://github.com/bact/pitloom/pull/448
 
 ## [0.22.1] - 2026-11-03
 
@@ -897,6 +902,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.23.0]: https://github.com/bact/pitloom/compare/v0.22.1...v0.23.0
 [0.22.1]: https://github.com/bact/pitloom/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/bact/pitloom/compare/v0.21.2...v0.22.0
 [0.21.2]: https://github.com/bact/pitloom/compare/v0.21.1...v0.21.2

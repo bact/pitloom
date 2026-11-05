@@ -30,8 +30,9 @@ Size: S under half a day, M about a day.
   coverage-snapshot diffs and the `scripts/` lint; fix what they find. Re-run
   2026-11-02: see
   [Release checks re-run](known-bugs/process-tooling-and-release-checks.md#release-checks-re-run-2026-11-02).
-- 0.23.0: the `licenseid` 0.7.0 adoption (#437 to #440, the final gate
-  #443), the catalogue plan refresh (#442) and catalogue PRs 2b, 1b and 1c.
+- 0.23.0 (released 2026-11-05, #434-#446): the `licenseid` 0.7.0 adoption
+  (#437 to #440, the final gate #443), the catalogue plan refresh (#442) and
+  catalogue PRs 2b, 1b and 1c.
 - 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
   (licence included), the licence provenance mapping (#384) and
   `--report`/SARIF. See

@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Adopting licenseid 0.7.0 (Pitloom 0.23.0)
 
-Status: draft, built on licenseid `main` of 2026-10-28 and its plan. Revise it
-when licenseid 0.7.0 is released (see "What to re-check").
+Status: shipped in Pitloom 0.23.0 (2026-11-05), on licenseid 0.7.1. Kept as
+the plan and its rulings.
 
 **Built: stages A to E (#437 to #440, #443).** What was built, the final
 gate and the 0.22.1 to 0.23.0 sweep are in

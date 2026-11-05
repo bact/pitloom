@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,7 +29,7 @@ Pass them through `args` (the Action itself has no dedicated multi-creator
 input):
 
 ```yaml
-- uses: bact/pitloom@v0.22.1
+- uses: bact/pitloom@v0.23.0
   with:
     project-path: "."
     output: "sbom.spdx3.json"
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-      - uses: bact/pitloom@v0.22.1
+      - uses: bact/pitloom@v0.23.0
         id: pitloom
         with:
           project-path: "."
@@ -87,7 +87,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.22.1
+      - uses: bact/pitloom@v0.23.0
         with:
           project-path: "."
           python-version: ${{ matrix.python-version }}
@@ -176,8 +176,10 @@ record separator, so empty arguments and embedded newlines survive `$(...)`.
   user's environment on a partial failure.
 
 **Tests.** `.github/workflows/action-selftest-install.yml` runs copies of the
-action whose `__about__.py` carries a fixed published version (`0.18.0`, older
-than latest, so ignoring the pin cannot pass), on ubuntu, macOS and Windows.
+action whose `__about__.py` carries a fixed published version (`0.22.0`, older
+than latest, so ignoring the pin cannot pass; override `0.22.1`), on ubuntu,
+macOS and Windows. Both cap `licenseid` below 0.7; an older release takes
+`licenseid` 0.7 and fails to import.
 `tests/scripts/` covers the probe, version reader, resolver, install script and
 the Generate step's `run:` block against stub programs (POSIX only). PR #224's
 runs confirmed the Windows and macOS legs.
