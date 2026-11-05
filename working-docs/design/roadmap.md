@@ -168,6 +168,10 @@ order and counts are in
   The test suite, the manual checks and the sweeps run with it on, through
   one shared test default; the default-off behaviour is asserted on each
   surface (CLI, library, hook, Action) in its own tests.
+  The verbatim source metadata (`preserve-source-metadata`) is another kind of
+  data and gets its own flag, independent of the provenance flag
+  (`--preserve-source-metadata auto|always|never`, beside the existing
+  `--max-source-metadata-bytes`); its default is to be settled.
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
