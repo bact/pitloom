@@ -194,12 +194,15 @@ def test_a_symlink_loop_while_resolving_is_an_os_error(
     tree: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``resolve()`` raises ``RuntimeError`` on a loop (3.10-3.12): it
-    reaches the caller as the ``OSError`` an open would raise."""
+    reaches the caller as the ``OSError`` an open would raise, saying what
+    the errno says and never the resolver's text (which names the path)."""
 
     def loop(_self: Path, strict: bool = False) -> Path:
-        raise RuntimeError(f"Symlink loop ({strict})")
+        raise RuntimeError(f"Symlink loop from '/abs/a' ({strict})")
 
     monkeypatch.setattr(Path, "resolve", loop)
     with pytest.raises(OSError) as raised:
         open_inside(tree / "root/a.txt", tree / "root")
     assert raised.value.errno == errno.ELOOP
+    assert raised.value.strerror == os.strerror(errno.ELOOP)
+    assert "/abs/a" not in str(raised.value)

@@ -169,7 +169,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   model however many names are cut).
 - A `\udXXX` in a name or value was a lone surrogate in the file (a JSON
   or YAML `"\ud800"`), which UTF-8 cannot hold: `WARNING: FORMAT=<fmt>
-  FILE=<path>: lone surrogates written as \uXXXX`.
+  FILE=<path>: lone surrogates written as \uXXXX [text-malformed]`
+  (`messages.md` says what to tell the user).
 - A CRFsuite or fastText model with no `labels` but a `num_labels` (or an
   `outputs` shape) had a label over 4 KiB: then none is recorded, and a
   CRFsuite model gets no generated description. `WARNING: FORMAT=<fmt>

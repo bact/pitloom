@@ -31,6 +31,7 @@ from pitloom.enrich.readme import (
     _parse_frontmatter,
     find_card_file,
 )
+from pitloom.logging_config import CODE_ATTR
 from tests._symlink import CAN_SYMLINK
 
 # ---------------------------------------------------------------------------
@@ -40,29 +41,34 @@ from tests._symlink import CAN_SYMLINK
 
 def test_parse_frontmatter_basic() -> None:
     text = "---\nlicense: mit\ndatasets:\n  - foo\n---\n\nSome prose.\n"
-    assert _parse_frontmatter(text) == {"license": "mit", "datasets": ["foo"]}
+    assert _parse_frontmatter(text, shown="README.md") == {
+        "license": "mit",
+        "datasets": ["foo"],
+    }
 
 
 def test_parse_frontmatter_no_delimiters() -> None:
-    assert _parse_frontmatter("Just prose, no frontmatter.\n") is None
+    assert (
+        _parse_frontmatter("Just prose, no frontmatter.\n", shown="README.md") is None
+    )
 
 
 def test_parse_frontmatter_unclosed_block() -> None:
-    assert _parse_frontmatter("---\nlicense: mit\n") is None
+    assert _parse_frontmatter("---\nlicense: mit\n", shown="README.md") is None
 
 
 def test_parse_frontmatter_malformed_yaml() -> None:
     text = "---\nlicense: [unterminated\n---\n"
-    assert _parse_frontmatter(text) is None
+    assert _parse_frontmatter(text, shown="README.md") is None
 
 
 def test_parse_frontmatter_non_mapping_root() -> None:
     text = "---\n- just\n- a\n- list\n---\n"
-    assert _parse_frontmatter(text) is None
+    assert _parse_frontmatter(text, shown="README.md") is None
 
 
 def test_parse_frontmatter_empty_block() -> None:
-    assert _parse_frontmatter("---\n---\n") is None
+    assert _parse_frontmatter("---\n---\n", shown="README.md") is None
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +303,10 @@ def test_enrich_malformed_frontmatter_is_noop(
     assert not result.fields
     assert model.license is None
     (record,) = caplog.records
-    assert record.getMessage().startswith("Failed to parse model-card frontmatter")
+    said = f"FILE={tmp_path / 'README.md'}: model card frontmatter is not valid YAML; "
+    assert record.getMessage().startswith(said)
+    assert getattr(record, CODE_ATTR) == "card-malformed"
+    assert "Field(s)" not in record.getMessage()
 
 
 def test_enrich_no_frontmatter_prose_only_is_noop() -> None:

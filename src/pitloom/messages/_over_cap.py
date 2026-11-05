@@ -91,6 +91,10 @@ MODEL_LINE: Final = Line(
 CONFIG_MEMBER_LINE: Final = Line(
     level="ERROR", template=f"config file %(path)s: {REASON}; not read"
 )
+#: A JSON document over a cap: it is not read.
+SOURCE_LINE: Final = Line(
+    level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
+)
 #: A Git URL's checkout over the library caller's ``max_clone_bytes``.
 CLONE_LINE: Final = Line(
     level="ERROR",
@@ -105,7 +109,14 @@ GIT_OUTPUT_LINE: Final = Line(
 OVER_CAP: Final = Message(
     code="over-cap",
     condition="over-cap",
-    lines=(KEY_LINE, MODEL_LINE, CONFIG_MEMBER_LINE, CLONE_LINE, GIT_OUTPUT_LINE),
+    lines=(
+        KEY_LINE,
+        MODEL_LINE,
+        CONFIG_MEMBER_LINE,
+        SOURCE_LINE,
+        CLONE_LINE,
+        GIT_OUTPUT_LINE,
+    ),
     summary="An input is larger than a cap Pitloom puts on what it reads or "
     "records, so that a crafted or unusually large input cannot exhaust time, "
     "memory or disk.",

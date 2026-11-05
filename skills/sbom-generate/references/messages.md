@@ -30,11 +30,13 @@ most one prefix from the table of prefixes.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
+| [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
-| [`file-unreadable`](#file-unreadable) | WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
+| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
+| [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read (a Croissant file) does not parse, or its top level is not an object. | 0.23.0 |
 | [`lfs-pointer`](#lfs-pointer) | ERROR, WARNING | A file is a Git LFS pointer: a small text file standing in for content the checkout does not have (made or cloned without Git LFS). | 0.22.0 |
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
@@ -44,6 +46,7 @@ most one prefix from the table of prefixes.
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
+| [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
 | [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
@@ -68,13 +71,14 @@ A line may start with one prefix before its text:
 | Value | What it is |
 | --- | --- |
 | `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
+| `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
-| `<file>` | a path as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
@@ -90,8 +94,30 @@ A line may start with one prefix before its text:
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
-| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the model hash`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
+
+### `card-malformed`
+
+- **Level**: WARNING.
+- **Means**: The YAML frontmatter at the top of a card (the block between two
+  --- lines) does not parse: a model card beside a local model, a dataset's own
+  card, or a Hugging Face dataset card a Hub model lists. The line gives what
+  the parser reported.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Used nothing of the frontmatter and went on: a model card
+  sets no license or datasets; a dataset card no license, license_name,
+  license_link, version, tags or pretty_name; a Hugging Face dataset card no
+  license or keywords (its description is still read from the card's text).
+- **Tell the user**: which card's frontmatter is not valid YAML and what the
+  parser reported, as the line says. They fix the card and generate again; a
+  Hugging Face dataset card only its maintainers can fix. Do not edit the card
+  for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: <card> frontmatter is not valid YAML; <failure> [card-malformed]
+  ```
 
 ### `dir-unlistable`
 
@@ -103,7 +129,7 @@ A line may start with one prefix before its text:
   SBOM (a build backend that lists before it excludes can name a directory it
   would leave out anyway); a dataset directory gets no hash (Evidence:
   not_measured | Reason: dir-unlistable); ID registry indexing leaves them out
-  of the index.
+  of the index; a model or dataset card in it is not found.
 - **Tell the user**: which directory could not be listed and what the system
   reported, as the line says. They give the account Pitloom runs as read and
   search access to it and generate again. Do not change permissions or
@@ -117,7 +143,8 @@ A line may start with one prefix before its text:
 
 ### `file-unreadable`
 
-- **Level**: WARNING.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: A file Pitloom found or was named could not be read: the operating
   system refused it (no read permission, a directory above it without search
   permission, a file another program holds open on Windows) or the read failed
@@ -131,7 +158,9 @@ A line may start with one prefix before its text:
   setting's field is not set from the file; the usage scan records no model
   reference from it; ID registry indexing leaves it out of the index; no
   dependency pins are read from a lock file; a model whose header could not be
-  read is not listed as an AI model.
+  read is not listed as an AI model; a model or dataset card sets none of the
+  fields it states. As an ERROR, the call that named the file raises (a
+  Croissant document: the dataset declaration fails).
 - **Tell the user**: which file could not be read and what the system reported,
   as the line says. They give the account Pitloom runs as read access to it (or
   close the program that holds it), or restore a damaged copy, and generate
@@ -143,6 +172,7 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: could not read <use>; <failure> [file-unreadable]
   WARNING: FILE=<file>: could not read for <field>; <failure> [file-unreadable]
   WARNING: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
+  ERROR: FILE=<file>: could not read <use>; <failure> [file-unreadable]
   ```
 
 ### `file-unreadable/not-utf8`
@@ -203,6 +233,27 @@ A line may start with one prefix before its text:
 
   ```text
   WARNING: FORMAT=<format> FILE=<file>: hyperparameter parameters replaced by the parameter count [hyperparameter-conflict]
+  ```
+
+### `json-malformed`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A JSON document Pitloom was given to read (a Croissant file) does
+  not parse, or its top level is not an object.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Read nothing of it: the call raises ValueError carrying the
+  code, and the dataset declaration (loom.add_dataset with croissant=, or
+  read_croissant) fails.
+- **Tell the user**: which document is not valid JSON, or not a JSON object, and
+  what the parser reported, as the line says. They fix or replace it and run
+  again. Do not edit or replace the document for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: not valid JSON <use>; <failure> [json-malformed]
+  ERROR: FILE=<file>: not a JSON object <use> [json-malformed]
   ```
 
 ### `lfs-pointer`
@@ -368,6 +419,7 @@ A line may start with one prefix before its text:
   WARNING: <key>=<name>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   WARNING: FORMAT=<format> FILE=<file>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
+  ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
   ```
@@ -413,6 +465,30 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]
+  ```
+
+### `text-malformed`
+
+- **Level**: WARNING.
+- **Means**: Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which
+  UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata,
+  a model or dataset card, a Croissant document, an SBOM fragment), or a file
+  name that is not UTF-8. For the SBOM itself, the line names the first element
+  holding one, by its name.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Wrote each lone surrogate as the six characters \udXXX, in
+  the SBOM and in its provenance, and went on; said once per file (once per SBOM
+  for element names).
+- **Tell the user**: which file (or element) holds lone surrogates, as the line
+  says, and that the SBOM shows each as \udXXX, not as the character the source
+  meant. If the exact text matters, they correct the source (a proper escape, a
+  UTF-8 file name) and generate again. Do not rename or edit files for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
+  WARNING: FORMAT=<format> FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
   ```
 
 ### `usage-unparseable`

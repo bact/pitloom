@@ -41,6 +41,11 @@ and this project adheres to
   (`+` also `Expansion-1`), not `Normalizer`; warnings give its reason ([#440])
 - `AGPL-1.0+`, `AGPL-3.0+` and `GFDL-1.1+` to `GFDL-1.3+`, `WITH` forms too,
   become their `-or-later` ids, as `GPL-2.0+` does ([#440])
+- Lone-surrogate and card lines end with `[text-malformed]`, `[card-malformed]`
+  or `[file-unreadable]`; card lines drop `| Field(s) affected` ([#444])
+- A Croissant file that cannot be read, is over a cap or is not a JSON object
+  raises with `pitloom_code` `file-unreadable`, `over-cap` or `json-malformed`
+  ([#444])
 
 ### Fixed
 
@@ -51,10 +56,14 @@ and this project adheres to
 - A value with two `WITH`s (`MIT WITH AdditionRef-x WITH
   Classpath-exception-2.0`) is kept as text, not read as an expression
   ([#440])
+- A model or dataset directory that cannot be listed warns `[dir-unlistable]`
+  instead of losing its card silently; a card read failure no longer prints its
+  path twice ([#444])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437
 [#440]: https://github.com/bact/pitloom/pull/440
+[#444]: https://github.com/bact/pitloom/pull/444
 
 ## [0.22.1] - 2026-11-03
 

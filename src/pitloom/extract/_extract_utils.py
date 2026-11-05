@@ -21,9 +21,20 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from pitloom.core.path_confine import NotRegularFileError
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
-from pitloom.messages import Cap
+from pitloom.messages import (
+    JSON_MALFORMED,
+    NOT_JSON_LINE,
+    NOT_OBJECT_LINE,
+    OVER_CAP,
+    SOURCE_LINE,
+    Cap,
+    CodedValueError,
+    file_unreadable_error,
+)
 
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw
@@ -186,11 +197,15 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
 FETCH_MAX_BYTES = 50 * 1024 * 1024
 
 
+# pylint: disable-next=too-many-arguments
 def fetch_json(
     source: str | Path,
     timeout: float = 30.0,
     max_bytes: int = FETCH_MAX_BYTES,
     max_nesting: Cap | None = None,
+    *,
+    use: str,
+    subject: str = "source",
 ) -> dict[str, Any]:
     """Fetch and parse JSON from a local file path or an HTTP/HTTPS URL.
 
@@ -203,45 +218,62 @@ def fetch_json(
             default 50 MiB.
         max_nesting: The most levels of arrays and objects the document may
             nest (:func:`json_nests_over`); none by default.
+        use: What *source* is read for, as its lines say it (one of
+            :data:`pitloom.messages.READ_USES`).
+        subject: What *source* is, in the error for a URL that cannot be
+            fetched or a file that is absent (``Cannot read <subject>
+            '<source>': ...``).
 
     Returns:
         Parsed JSON as a ``dict``.
 
     Raises:
         ValueError: If the data cannot be fetched, is not valid JSON or is
-            over *max_nesting*, or if the top-level value is not a JSON
-            object.
+            over *max_bytes* or *max_nesting*, or if the top-level value is
+            not a JSON object. Each carries its ``pitloom_code``
+            (``file-unreadable``, ``over-cap``, ``json-malformed``), but a
+            URL that cannot be fetched and a file that is absent.
     """
-    where = quote_source(source)
+    url: str | None = None
+    if isinstance(source, str) and source.startswith(("http://", "https://")):
+        url = source
     try:
-        if isinstance(source, str) and source.startswith(("http://", "https://")):
-            with urllib.request.urlopen(source, timeout=timeout) as resp:  # nosec B310
+        if url is not None:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
-                if len(raw) > max_bytes:
-                    raise ValueError(
-                        f"Source {where} response exceeds maximum limit of "
-                        f"{max_bytes} bytes"
-                    )
         else:
             # A FIFO or device would block the open or the read.
             if not stat.S_ISREG(os.stat(source).st_mode):
-                raise ValueError(f"Source {where} is not a regular file")
+                raise NotRegularFileError
             with Path(source).open("rb") as fh:
                 raw = fh.read(max_bytes + 1)
-            if len(raw) > max_bytes:
-                raise ValueError(
-                    f"Source {where} exceeds maximum limit of {max_bytes} bytes"
-                )
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
         # http.client.HTTPException (e.g. IncompleteRead on a connection that
         # closes mid-response) is not an OSError subclass, so it needs its
         # own arm here -- without it, a transient network glitch would raise
         # out of what every caller treats as a "fetch failed" ValueError path.
-        raise ValueError(f"Cannot read source {where}: {exc}") from exc
+        # A URL that cannot be fetched and an absent file have no catalogued
+        # line yet; an absent file is never unreadable.
+        absent = isinstance(exc, OSError) and is_missing_errno(exc)
+        if url is not None or absent or not isinstance(exc, OSError):
+            where = quote_source(source)
+            raise ValueError(f"Cannot read {subject} {where}: {exc}") from exc
+        raise file_unreadable_error(exc, file=source, use=use) from exc
 
+    if len(raw) > max_bytes:
+        cap = Cap(max_bytes, "byte", "JSON-document")
+        raise CodedValueError(
+            OVER_CAP, line=SOURCE_LINE, file=source, use=use, **cap.reason_values()
+        )
     if max_nesting is not None and json_nests_over(raw, max_nesting.limit):
-        raise ValueError(f"Source {where} is {max_nesting.reason}")
+        raise CodedValueError(
+            OVER_CAP,
+            line=SOURCE_LINE,
+            file=source,
+            use=use,
+            **max_nesting.reason_values(),
+        )
 
     try:
         data = json.loads(raw)
@@ -249,11 +281,13 @@ def fetch_json(
     # -16/-32), an integer over Python's digit limit; a RecursionError:
     # nesting too deep to parse.
     except (ValueError, RecursionError) as exc:
-        raise ValueError(f"Source {where} is not valid JSON: {exc}") from exc
+        raise CodedValueError(
+            JSON_MALFORMED, line=NOT_JSON_LINE, file=source, use=use, failure=exc
+        ) from exc
 
     if not isinstance(data, dict):
-        raise ValueError(
-            f"Source {where}: expected a JSON object, got {type(data).__name__}"
+        raise CodedValueError(
+            JSON_MALFORMED, line=NOT_OBJECT_LINE, file=source, use=use
         )
     return data
 

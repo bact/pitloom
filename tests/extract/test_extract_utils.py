@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import threading
 import urllib.request
 from email.message import Message
@@ -25,11 +26,15 @@ from pitloom.extract._extract_utils import (
     filename_from_url,
     json_nests_over,
 )
-from pitloom.messages import Cap
+from pitloom.messages import FILE_UNREADABLE, JSON_MALFORMED, OVER_CAP, Cap, code_of
 from tests._bounded import run_bounded_in_child
+from tests._message_drift import raised_as
+from tests._unreadable import deny
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
+#: What a local source is read for in these tests.
+_USE = "for the Croissant document"
 
 
 def test_filename_from_url_extracts_basename() -> None:
@@ -59,7 +64,7 @@ def test_filename_from_url_windows_path() -> None:
 def test_fetch_json_local_file(tmp_path: Path) -> None:
     path = tmp_path / "data.json"
     path.write_text('{"project": "pitloom"}', encoding="utf-8")
-    assert fetch_json(path) == {"project": "pitloom"}
+    assert fetch_json(path, use=_USE) == {"project": "pitloom"}
 
 
 def test_fetch_json_url_success() -> None:
@@ -69,7 +74,7 @@ def test_fetch_json_url_success() -> None:
     mock_resp.__exit__.return_value = None
 
     with patch.object(urllib.request, "urlopen", return_value=mock_resp):
-        res = fetch_json("https://example.com/api.json")
+        res = fetch_json("https://example.com/api.json", use=_USE)
     assert res == {"status": "ok"}
 
 
@@ -80,8 +85,13 @@ def test_fetch_json_url_exceeds_max_bytes() -> None:
     mock_resp.__exit__.return_value = None
 
     with patch.object(urllib.request, "urlopen", return_value=mock_resp):
-        with pytest.raises(ValueError, match="exceeds maximum limit"):
-            fetch_json("https://example.com/large.json", max_bytes=10)
+        with pytest.raises(ValueError) as raised:
+            fetch_json("https://example.com/large.json", max_bytes=10, use=_USE)
+    assert str(raised.value) == (
+        "FILE=https://example.com/large.json: larger than the 10-byte "
+        f"JSON-document cap {_USE}; not read"
+    )
+    assert raised_as(raised.value, OVER_CAP)
 
 
 @pytest.mark.parametrize(("size", "ok"), [(10, True), (11, False)], ids=["at", "over"])
@@ -92,30 +102,56 @@ def test_fetch_json_local_file_cap(tmp_path: Path, size: int, ok: bool) -> None:
     path.write_bytes(b'{"a": "' + b"x" * (size - 9) + b'"}')
     assert path.stat().st_size == size
     if ok:
-        assert fetch_json(path, max_bytes=10) == {"a": "x"}
+        assert fetch_json(path, max_bytes=10, use=_USE) == {"a": "x"}
     else:
-        with pytest.raises(ValueError, match="exceeds maximum limit"):
-            fetch_json(path, max_bytes=10)
+        with pytest.raises(ValueError) as raised:
+            fetch_json(path, max_bytes=10, use=_USE)
+        reason = f"larger than the 10-byte JSON-document cap {_USE}; not read"
+        assert str(raised.value) == f"FILE={path}: {reason}"
+        assert raised_as(raised.value, OVER_CAP)
 
 
 def test_fetch_json_invalid_json(tmp_path: Path) -> None:
     path = tmp_path / "bad.json"
     path.write_text("{not valid json", encoding="utf-8")
-    with pytest.raises(ValueError, match="not valid JSON"):
-        fetch_json(path)
+    with pytest.raises(ValueError) as raised:
+        fetch_json(path, use=_USE)
+    assert str(raised.value).startswith(f"FILE={path}: not valid JSON {_USE}; ")
+    assert raised_as(raised.value, JSON_MALFORMED)
 
 
 def test_fetch_json_non_dict(tmp_path: Path) -> None:
     path = tmp_path / "list.json"
     path.write_text("[1, 2, 3]", encoding="utf-8")
-    with pytest.raises(ValueError, match="expected a JSON object"):
-        fetch_json(path)
+    with pytest.raises(ValueError) as raised:
+        fetch_json(path, use=_USE)
+    assert str(raised.value) == f"FILE={path}: not a JSON object {_USE}"
+    assert raised_as(raised.value, JSON_MALFORMED)
 
 
 def test_fetch_json_read_error(tmp_path: Path) -> None:
+    """An absent file is not unreadable: no code yet, its own subject."""
     path = tmp_path / "nonexistent.json"
-    with pytest.raises(ValueError, match="Cannot read source"):
-        fetch_json(path)
+    with pytest.raises(ValueError, match="Cannot read source") as raised:
+        fetch_json(path, use=_USE)
+    assert code_of(raised.value) is None
+    with pytest.raises(ValueError, match="^Cannot read Croissant source '"):
+        fetch_json(path, use=_USE, subject="Croissant source")
+
+
+def test_fetch_json_names_what_stopped_a_read_never_the_path_twice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file the system refuses: ``file-unreadable``, what the system
+    reported, not the exception's text (which quotes the path again)."""
+    path = tmp_path / "denied.json"
+    path.write_text("{}", encoding="utf-8")
+    with deny(path, "open", monkeypatch), pytest.raises(ValueError) as raised:
+        fetch_json(path, use=_USE)
+    assert str(raised.value) == (
+        f"FILE={path}: could not read for the Croissant document; Permission denied"
+    )
+    assert raised_as(raised.value, FILE_UNREADABLE)
 
 
 def _local_source(tmp_path: Path, kind: str) -> Path:
@@ -135,12 +171,16 @@ def _local_source(tmp_path: Path, kind: str) -> Path:
     [
         pytest.param(
             "fifo",
-            "is not a regular file",
+            ": could not read for the Croissant document; not a regular file",
             marks=pytest.mark.skipif(not _HAS_MKFIFO, reason="POSIX only"),
         ),
-        ("directory", "is not a regular file"),
-        ("not-utf8", "is not valid JSON"),
+        (
+            "directory",
+            ": could not read for the Croissant document; not a regular file",
+        ),
+        ("not-utf8", f": not valid JSON {_USE}; "),
     ],
+    ids=["fifo", "directory", "not-utf8"],
 )
 def test_fetch_json_refuses_a_local_source_naming_it(
     tmp_path: Path, kind: str, match: str
@@ -152,7 +192,7 @@ def test_fetch_json_refuses_a_local_source_naming_it(
 
     def fetch() -> None:
         try:
-            fetch_json(path)
+            fetch_json(path, use=_USE)
         except ValueError as exc:
             raised.append(exc)
 
@@ -161,7 +201,9 @@ def test_fetch_json_refuses_a_local_source_naming_it(
     worker.join(timeout=10)
     assert not worker.is_alive(), "fetch_json blocked"
     assert len(raised) == 1
-    assert match in str(raised[0]) and f"'{path}'" in str(raised[0])
+    assert str(raised[0]).startswith(f"FILE={path}{match}")
+    entry = JSON_MALFORMED if kind == "not-utf8" else FILE_UNREADABLE
+    assert raised_as(raised[0], entry)
 
 
 def _http_error() -> HTTPError:
@@ -188,7 +230,7 @@ def test_fetch_json_url_http_error_is_closed() -> None:
     assert not exc.fp.closed
     with patch.object(urllib.request, "urlopen", side_effect=exc):
         with pytest.raises(ValueError, match="Cannot read source"):
-            fetch_json("https://example.com/missing.json")
+            fetch_json("https://example.com/missing.json", use=_USE)
     assert exc.fp.closed
 
 
@@ -233,10 +275,13 @@ def test_fetch_json_over_nesting_cap(tmp_path: Path) -> None:
     path = tmp_path / "deep.json"
     path.write_text('{"a": [[]]}', encoding="utf-8")
     cap = Cap(3, "level", "test-nesting")
-    assert fetch_json(path, max_nesting=cap) == {"a": [[]]}
-    with pytest.raises(ValueError, match="is larger than the 2-level test-nesting"):
-        fetch_json(path, max_nesting=Cap(2, "level", "test-nesting"))
-    assert fetch_json(path) == {"a": [[]]}  # no cap by default
+    assert fetch_json(path, max_nesting=cap, use=_USE) == {"a": [[]]}
+    reason = f"larger than the 2-level test-nesting cap {_USE}; not read"
+    match = f"^FILE={re.escape(str(path))}: {re.escape(reason)}$"
+    with pytest.raises(ValueError, match=match) as raised:
+        fetch_json(path, max_nesting=Cap(2, "level", "test-nesting"), use=_USE)
+    assert raised_as(raised.value, OVER_CAP)
+    assert fetch_json(path, use=_USE) == {"a": [[]]}  # no cap by default
 
 
 @pytest.mark.parametrize("name", ["plain.json", "back\\slash.json"])
@@ -247,7 +292,7 @@ def test_fetch_json_error_names_the_source_as_the_os_writes_it(
     backslash (a ``str``) or turn it into ``/`` (a Windows ``Path``)."""
     source = str(tmp_path / name)
     with pytest.raises(ValueError, match="Cannot read source") as excinfo:
-        fetch_json(source)
+        fetch_json(source, use=_USE)
     assert f"'{source}'" in str(excinfo.value)
 
 

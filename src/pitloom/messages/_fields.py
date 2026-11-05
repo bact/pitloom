@@ -178,7 +178,8 @@ _CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
 
 #: What a file was read for, or a directory listed for, as a
 #: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
-#: read`` or ``could not list``: a closed table. A project setting that lists
+#: read`` or ``could not list`` (and a ``json-malformed`` or JSON ``over-cap``
+#: line after its condition): a closed table. A project setting that lists
 #: the file is named by the ``field`` value instead.
 READ_USES: Final = (
     "for dataset hashing",
@@ -187,10 +188,19 @@ READ_USES: Final = (
     "for file scanning",
     "for ID registry indexing",
     "for license files",
+    "for the Croissant document",
+    "for the dataset card",
+    "for the Hugging Face dataset card",
+    "for the model card",
     "for the model hash",
+    "for the PyPI release metadata",
     "for the script hash",
     "for usage scanning",
 )
+
+#: The kinds of card whose YAML frontmatter Pitloom reads, as a
+#: ``card-malformed`` line names one: a closed table.
+CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -200,6 +210,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             _str,
             "<amount>",
             "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
+        ),
+        "card": Field(
+            "|".join(re.escape(kind) for kind in CARD_KINDS),
+            _str,
+            "<card>",
+            "the kind of card: " + ", ".join(f"`{kind}`" for kind in CARD_KINDS),
         ),
         "command": Field(
             r"[a-z][a-z-]*",
@@ -253,8 +269,9 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             _file,
             "<file>",
-            "a path as Pitloom names it; in quotes, escaped, when it holds a "
-            "control character",
+            "a file as Pitloom names it (its path, or a remote document's URL "
+            "or Hub dataset id); in quotes, escaped, when it holds a control "
+            "character",
             free=True,
         ),
         "format": Field(

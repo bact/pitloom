@@ -31,6 +31,8 @@ from pitloom.messages import (
     FILE_UNREADABLE_OUTSIDE,
     READ_USES,
     Message,
+    code_of,
+    file_unreadable_error,
     trusted_message,
     warn_dir_unlistable,
     warn_file_unreadable,
@@ -108,6 +110,38 @@ def test_the_entry_and_the_failure_are_the_exceptions(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         warn_file_unreadable(_LOG, exc, file="a.txt", **purpose)
     _check(_said(caplog), entry, f"FILE=a.txt: {said}; {tail}")
+
+
+@pytest.mark.parametrize(
+    ("exc", "tail"),
+    [
+        (PermissionError(13, "Permission denied", _ABS), "Permission denied"),
+        (NotRegularFileError(), "not a regular file"),
+    ],
+    ids=["denied", "not-regular"],
+)
+def test_a_read_that_raises_says_the_error_line(exc: OSError, tail: str) -> None:
+    error = file_unreadable_error(exc, file="c.json", use="for the Croissant document")
+    text = f"FILE=c.json: could not read for the Croissant document; {tail}"
+    assert isinstance(error, ValueError) and str(error) == text
+    assert code_of(error) == "file-unreadable"
+    assert trusted_message(f"ERROR: {text} [file-unreadable]") is FILE_UNREADABLE
+
+
+@pytest.mark.parametrize(
+    ("exc", "match"),
+    [
+        (FileNotFoundError(errno.ENOENT, "No such file", _ABS), "absent"),
+        (_DECODE, "no ERROR line"),
+        (OutsideRootError(), "no ERROR line"),
+    ],
+    ids=["absent", "not-utf8", "outside"],
+)
+def test_a_read_that_raises_is_never_absent_or_a_warning_only(
+    exc: BaseException, match: str
+) -> None:
+    with pytest.raises(InternalError, match=match):
+        file_unreadable_error(exc, file="c.json", use="for the Croissant document")
 
 
 def test_a_header_read_names_the_format_first(
@@ -225,22 +259,42 @@ def _texts(tree: ast.Module) -> dict[str, str]:
     }
 
 
+#: The calls that take a ``use=`` of the table: the helpers, and what hands
+#: one on to them (a card's kind, the JSON reader).
+_USE_TAKERS = frozenset(
+    {
+        "CardKind",
+        "fetch_json",
+        "file_unreadable_error",
+        "warn_dir_unlistable",
+        "warn_file_unreadable",
+    }
+)
+
+
+def _handed_on(value: ast.expr) -> bool:
+    """Whether *value* hands on a ``use`` given to the caller: the parameter
+    ``use``, or a card kind's ``.use``."""
+    return (isinstance(value, ast.Name) and value.id == "use") or (
+        isinstance(value, ast.Attribute) and value.attr == "use"
+    )
+
+
 def test_every_use_of_the_table_is_passed_and_no_other() -> None:
-    """The table is closed and live: every ``use=`` a call of a helper
-    passes is a text of it (a literal, or a module constant), and each of
-    its uses is passed by some call."""
-    helpers = {"warn_file_unreadable", "warn_dir_unlistable"}
+    """The table is closed and live: every ``use=`` a call of a taker
+    passes is a text of it (a literal, or a module constant) or hands one
+    on, and each of its uses is passed by some call."""
     passed: set[str] = set()
     for path, tree in source_modules():
         texts = _texts(tree)
         for node in ast.walk(tree):
             name = getattr(node, "func", None)
-            if getattr(name, "id", getattr(name, "attr", None)) not in helpers:
+            if getattr(name, "id", getattr(name, "attr", None)) not in _USE_TAKERS:
                 continue
             for keyword in getattr(node, "keywords", []):
-                if keyword.arg != "use":
-                    continue
                 value = keyword.value
+                if keyword.arg != "use" or _handed_on(value):
+                    continue
                 if isinstance(value, ast.Name):
                     passed.add(texts[value.id])
                 else:

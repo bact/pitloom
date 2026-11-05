@@ -60,8 +60,8 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import loggable, one_line, warn_lone_surrogates
-from pitloom.messages import Cap
+from pitloom.logging_config import one_line
+from pitloom.messages import Cap, warn_lone_surrogates
 
 log = logging.getLogger(__name__)
 
@@ -241,19 +241,17 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
     Raises:
         ValueError: *source* cannot be read, is not a Croissant document,
             nests over :data:`CROISSANT_MAX_NESTING` levels,
-            or reading it fails in any other way; the message names it.
+            or reading it fails in any other way; the message names it. A
+            read that fails on the file or its JSON carries its
+            ``pitloom_code`` (:func:`pitloom.messages.code_of`):
+            ``file-unreadable``, ``over-cap`` or ``json-malformed``.
     """
-    try:
-        data = fetch_json(source, max_nesting=CROISSANT_NESTING_CAP)
-    except ValueError as exc:
-        message = str(exc)
-        for generic, own in (
-            ("Source ", "Croissant source "),
-            ("Cannot read source ", "Cannot read Croissant source "),
-        ):
-            if message.startswith(generic):
-                message = own + message[len(generic) :]
-        raise ValueError(message) from exc
+    data = fetch_json(
+        source,
+        max_nesting=CROISSANT_NESTING_CAP,
+        use="for the Croissant document",
+        subject="Croissant source",
+    )
     src_label = str(source) if label is None else label
     try:
         return _metadata(data, source, src_label)
@@ -342,5 +340,5 @@ def _metadata(
     )
     apply_dataset_licence(meta, licence)
     if escape_lone_surrogates_in(meta)[1]:
-        warn_lone_surrogates(log, loggable(src_label))
+        warn_lone_surrogates(log, file=src_label or str(source))
     return meta

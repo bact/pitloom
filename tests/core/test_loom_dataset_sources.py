@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.messages import code_of
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.core._loom_dataset_sources_shared import (
     EXPRESSION,
@@ -215,17 +216,30 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("croissant", "match"),
+    ("croissant", "match", "code"),
     [
-        ("https://example.org/c.json", "only a local file is read"),
-        ("missing.json", "Cannot read Croissant source 'missing.json'"),
-        ("bad.json", "not valid JSON"),
-        ("noname.json", "has no 'name' field"),
-        ("listname.json", "field 'name' is of type list, not text"),
-        ("latin1.json", "Croissant source 'latin1.json' is not valid JSON"),
-        ("adir", "Croissant source 'adir' is not a regular file"),
-        ("HTTPS://example.org/c.json", "only a local file is read"),
-        (Path("https://example.org/c.json"), "only a local file is read"),
+        ("https://example.org/c.json", "only a local file is read", None),
+        ("missing.json", "Cannot read Croissant source 'missing.json'", None),
+        (
+            "bad.json",
+            "^FILE=bad.json: not valid JSON for the Croissant document; ",
+            "json-malformed",
+        ),
+        ("noname.json", "has no 'name' field", None),
+        ("listname.json", "field 'name' is of type list, not text", None),
+        (
+            "latin1.json",
+            "^FILE=latin1.json: not valid JSON for the Croissant document; ",
+            "json-malformed",
+        ),
+        (
+            "adir",
+            "^FILE=adir: could not read for the Croissant document; "
+            "not a regular file$",
+            "file-unreadable",
+        ),
+        ("HTTPS://example.org/c.json", "only a local file is read", None),
+        (Path("https://example.org/c.json"), "only a local file is read", None),
     ],
     ids=[
         "url",
@@ -240,7 +254,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
     ],
 )
 def test_unreadable_croissant_raises(
-    project: Path, croissant: str | Path, match: str
+    project: Path, croissant: str | Path, match: str, code: str | None
 ) -> None:
     """A ``croissant=`` the caller named but that cannot be read fails the
     declaration, naming it: nothing is silently dropped, and no network is
@@ -251,10 +265,11 @@ def test_unreadable_croissant_raises(
     (project / "noname.json").write_text('{"license": "MIT"}', "utf-8")
     (project / "listname.json").write_text('{"name": ["a", "b"]}', "utf-8")
     with patch("urllib.request.urlopen", autospec=True) as urlopen:
-        with pytest.raises(ValueError, match=match):
+        with pytest.raises(ValueError, match=match) as raised:
             with loom.run(project / "out.json"):
                 loom.add_dataset("t.txt", croissant=croissant)
     urlopen.assert_not_called()
+    assert code_of(raised.value) == code
     assert not (project / "out.json").exists()
 
 

@@ -15,10 +15,13 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.messages import (
+    _card_malformed,
     _file_unreadable,
+    _json_malformed,
     _lfs_pointer,
     _model_stub,
     _over_cap,
+    _text_malformed,
     _usage_unparseable,
     _usage_unusable,
 )
@@ -55,5 +58,8 @@ MESSAGES: Final = _by_code(
         *_file_unreadable.ENTRIES,
         *_usage_unparseable.ENTRIES,
         *_usage_unusable.ENTRIES,
+        *_text_malformed.ENTRIES,
+        *_card_malformed.ENTRIES,
+        *_json_malformed.ENTRIES,
     )
 )

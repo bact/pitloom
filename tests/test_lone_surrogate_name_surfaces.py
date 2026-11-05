@@ -8,7 +8,8 @@ as ``"\\udcff.py"``) gives an SBOM on every surface that reads a project or a
 dataset: the command line's ``project`` and ``generate``, the library on a
 directory and on an sdist, the Hatchling build hook and a loom dataset. Its
 name is written as text (``\\udcff``, six ASCII characters), with one
-``WARNING:``, the SBOM validates and two runs write the same bytes.
+``WARNING:`` (``[text-malformed]``), the SBOM validates and two runs write
+the same bytes.
 
 See also: tests/assemble/test_lone_surrogates.py (a lone surrogate read from
 a model's metadata), tests/core/test_untrusted_text.py (the escape).
@@ -34,6 +35,7 @@ import pytest
 from pitloom import loom
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
+from pitloom.logging_config import CODE_ATTR
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.extract.conftest import make_hook, staged_sbom, write_pyproject
 from tests.warning_helpers import logged_warnings
@@ -49,6 +51,16 @@ _NAME = os.fsdecode(_RAW) if _POSIX else "m-\udcff.py"
 _SHOWN = "m-\\udcff.py"
 _WHEN = "2026-01-01T00:00:00Z"
 _WARNING = ": lone surrogates written as \\uXXXX"
+_CODE = "text-malformed"
+
+
+def _codes(caplog: pytest.LogCaptureFixture) -> list[object]:
+    """The code of each record saying the warning."""
+    return [
+        getattr(r, CODE_ATTR, None)
+        for r in caplog.records
+        if _WARNING in r.getMessage()
+    ]
 
 
 def _demo(root: Path) -> Path:
@@ -160,7 +172,11 @@ def test_a_non_utf8_file_name_is_written_as_text(
 
     (name,) = _names(outs[0])
     assert name.endswith(f"/{_SHOWN}") and name.isascii()
-    assert said == [f"{'WARNING: ' if stderr else ''}FILE='{name}'{_WARNING}"]
+    if stderr:
+        assert said == [f"WARNING: FILE='{name}'{_WARNING} [{_CODE}]"]
+    else:
+        assert said == [f"FILE='{name}'{_WARNING}"]
+        assert _codes(caplog) == [_CODE, _CODE]  # once per run
     assert_spdx3_valid(outs[0])
     assert outs[0].read_bytes() == outs[1].read_bytes()
 
@@ -180,5 +196,6 @@ def test_a_loom_dataset_named_so_is_written_as_text(
 
     said = [m for m in logged_warnings(caplog) if _WARNING in m]
     assert said == [f"FILE='{_SHOWN}'{_WARNING}"]
+    assert _codes(caplog) == [_CODE]
     assert set(_names(out)) == {_SHOWN}
     assert_spdx3_valid(out)

@@ -17,6 +17,7 @@ tests/core/test_dataset_names.py (the shared naming rules).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 from unittest.mock import patch
@@ -27,6 +28,7 @@ from pitloom.core.dataset_names import MAX_CARD_DATASETS
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import read_huggingface
 from pitloom.extract.remote.huggingface_dataset import _load_dataset_card
+from tests._unreadable import deny
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
@@ -111,24 +113,70 @@ def _card_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
 
 
 @pytest.mark.parametrize(
-    "body",
-    [b"---\nlicense: mit\n" + b"x" * (1 << 21), None],
-    ids=["unclosed-over-cap", "missing"],
+    ("body", "said"),
+    [
+        (
+            b"---\nlicense: mit\n" + b"x" * (1 << 21),
+            "FILE=o/d: larger than the 1048576-byte dataset-card cap; frontmatter "
+            "not closed within it; skipped | Field(s) affected (skipped): license, "
+            "description, keywords",
+        ),
+        (
+            b"---\nlicense: mit\n---\n",
+            "FILE=o/d: could not read for the Hugging Face dataset card; "
+            "Permission denied",
+        ),
+    ],
+    ids=["unclosed-over-cap", "denied"],
 )
 def test_a_card_read_warning_names_the_dataset_not_the_cache_path(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, body: bytes | None
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    body: bytes,
+    said: str,
 ) -> None:
     """A card whose frontmatter is not closed within the read cap, and one
     that cannot be opened, each warn once, by dataset id."""
     card = tmp_path / "snapshots" / "README.md"
     card.parent.mkdir()
-    if body is not None:
-        card.write_bytes(body)
-    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
+    card.write_bytes(body)
+    denied = deny(card, "open", monkeypatch) if said.endswith("denied") else None
+    with (
+        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
+        denied or contextlib.nullcontext(),
+    ):
         assert _load_dataset_card("o/d", _SHA) == (None, {})
     (message,) = _card_warnings(caplog)
-    assert "o/d" in message
+    assert message == said
     assert str(tmp_path) not in message and "snapshots" not in message
+
+
+def test_a_malformed_card_is_named_by_its_kind_and_dataset(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The card's text is kept, its frontmatter used for nothing."""
+    card = tmp_path / "README.md"
+    card.write_bytes(b"---\nlicense: [mit\n---\nText.\n")
+    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
+        assert _load_dataset_card("o/d", _SHA) == (
+            "---\nlicense: [mit\n---\nText.\n",
+            {},
+        )
+    (message,) = _card_warnings(caplog)
+    said = "FILE=o/d: Hugging Face dataset card frontmatter is not valid YAML; "
+    # The parser's own text ends the line.
+    assert message.startswith(said) and str(tmp_path) not in message
+
+
+def test_a_card_gone_from_the_cache_is_absent_and_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Absent data is quiet: no card is read, and nothing is said."""
+    card = tmp_path / "snapshots" / "README.md"
+    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
+        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    assert not _card_warnings(caplog)
 
 
 def test_a_download_failure_quoting_the_cache_path_is_given_by_reason() -> None:

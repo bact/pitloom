@@ -76,6 +76,7 @@ HUB_DATASET_CARD = CardKind(
     "Hugging Face dataset card",
     Cap(MODEL_CARD_MAX_BYTES, "byte", "dataset-card"),
     field_loss_suffix("skipped", *_FIELDS_SKIPPED),
+    use="for the Hugging Face dataset card",
 )
 
 

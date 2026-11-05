@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -448,6 +448,42 @@ Left for PR 2b: the cards (`card-malformed`, the card read joining
 local read, and `over-cap` for its caps, with Croissant passing a code
 through) and the lone-surrogate warning (`text-malformed`, effect `weaker`
 by the maintainer's ruling).
+
+## Cards, Croissant files and lone surrogates
+
+Decided 2026-11-04 for #444 (PR 2b; the maintainer took the plan's
+answers H1 to H9):
+
+1. **Three new codes**, all `since="0.23.0"`, condition `malformed`:
+   `text-malformed` (effect `weaker`; helper
+   `pitloom.messages.warn_lone_surrogates`, which takes the name raw and
+   escapes it),
+   `card-malformed` (named by document, with a closed `card` field, the
+   kinds of `CARD_KINDS`) and `json-malformed` (named by format, R4;
+   `ERROR` only, effect `not-written`).
+2. **Reused**: `file-unreadable` gains its first `ERROR` line (the same
+   template as its warning) and four uses (the three cards, the Croissant
+   document), raised through `file_unreadable_error`; `dir-unlistable` ends
+   `find_card_file`'s silence; `over-cap` gains an `ERROR` line
+   (`JSON-document` and `Croissant-nesting`). Every `fetch_json` line keys
+   the document as `file-unreadable` does, `FILE=<file>: <condition> <use>`
+   (`use` required, the PyPI fetch's included), so one call gives one key
+   form and the line names the document; `FILE=` holds a path, a URL or a
+   Hub dataset id, as the `file` field says (review of #444).
+3. **Kept as given (H1, H4 to H6)**: the SBOM's surrogate line names an
+   element under `FILE=` (code first); the `_loom_dataset_meta` card
+   catch-all and the registry's unencodable name stay uncoded (PRs 17,
+   5 to 7); a URL that cannot be fetched and an absent file stay one
+   uncoded raise in `fetch_json`, its `Cannot read Croissant source` text
+   kept through a `subject` argument; Croissant no longer rewrites the
+   coded texts.
+4. **Card lines drop `| Field(s) affected` (H8)**: the entry's `did` says
+   what each kind loses. A frontmatter that is valid YAML but no mapping
+   stays quiet (H9), and so does an absent card, as an absent file does
+   everywhere (2a ruling 2).
+5. `path_confine` raises `SymlinkLoopError`, the errno's own text: the
+   resolver's text named the path.
+6. 498 to 488 uncoded sites, 155 to 153 modules.
 
 ## The `AGENTS.md` rule
 
