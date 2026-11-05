@@ -20,6 +20,7 @@ import pytest
 from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES
 from pitloom.extract.dataset import read_dataset_card
+from pitloom.logging_config import loggable
 
 
 def _card(directory: Path, body: bytes, filename: str = "README.md") -> Path:
@@ -187,18 +188,20 @@ def test_unusable_card_warns(
     assert expected in messages[0]
 
 
+@pytest.mark.parametrize("label", ["ds", "d\ts"], ids=["plain", "tab"])
 def test_lone_surrogates_are_escaped_with_one_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, label: str
 ) -> None:
     """A lone surrogate in a text field or a tag is written as ``\\uXXXX``,
-    with one ``WARNING:`` naming the card."""
+    with one ``WARNING:`` naming the card by its label, escaped once."""
     body = b'---\nlicense: "x\\ud800"\ntags: ["t\\udc00", ok]\n---\n'
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        meta = read_dataset_card(_card(tmp_path / "ds", body))
+        meta = read_dataset_card(_card(tmp_path / "ds", body), label=label)
     assert meta is not None
     assert (meta.license, meta.keywords) == ("x\\ud800", ["t\\udc00", "ok"])
     (message,) = _messages(caplog)
-    assert "lone surrogates" in message and "README.md" in message
+    named = loggable(f"{label}/README.md")
+    assert message == f"FILE={named}: lone surrogates written as \\uXXXX"
 
 
 def test_card_over_the_cap(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
