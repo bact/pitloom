@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,11 +46,12 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.22.0 or later
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.0 or later
 (pip, `uvx` or `pipx`; the Skills follow the development version, whose
-commands and messages can be newer than the last release, and releases before
-0.22.0 cannot read the ID registry format 4 they use); network access to
-install it and, for PyPI and Hugging Face lookups, at run time. AI model files
+commands and messages can be newer than the last release, and quote the
+licence readings, message codes and `licenseid` 0.7 preflight of 0.23.0);
+network access to install it and, for PyPI and Hugging Face lookups, at run
+time. AI model files
 need `pitloom[ai]`; `sbom-enrich`'s post-merge check and `sbom-validate` need
 `pitloom[validate]`; `--allow-build` needs `pitloom[build]`. Each `SKILL.md`
 declares this in its `compatibility` field. The Skills do not work where
