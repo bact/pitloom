@@ -26,9 +26,9 @@ and this project adheres to
 
 ### Changed
 
-- Requires `licenseid>=0.7.1,<0.8`, no longer `py-spdx-license`; a declared
-  licence value is read from the packaged SPDX License List, with no licence
-  database ([#437], [#440], [#445])
+- Requires `licenseid>=0.7.1,<0.8`, not `py-spdx-license`; a declared licence
+  is read from the packaged SPDX License List, with no database ([#437],
+  [#440], [#445])
 - Read as ids now: `MIT License (MIT)`-style names, trove paths, compounds
   (`Apache2 OR MIT`), `licenseref-foo` (`LicenseRef-foo`), `MIT or later`
   (`MIT+`) ([#437])
