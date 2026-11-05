@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-15
-Last-Modified: 2026-09-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,7 +43,7 @@ static discovery module at all.
   setuptools, Poetry, and PDM each produced byte-identical SBOMs with
   and without `--allow-build`, and `build_and_read_wheel()` was never
   invoked (confirmed via its own `WARNING:` line's absence from
-  stderr) -- exactly the behavior `_models_wheel_dispatch.py`'s
+  stderr) -- exactly the behaviour `_models_wheel_dispatch.py`'s
   `_discover_included_files()` is designed to guarantee (a real build
   must never run when the fast, safe static rescan already worked).
 - **`--allow-build` reproduced the real published wheel exactly for

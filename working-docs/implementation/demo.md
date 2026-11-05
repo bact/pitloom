@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -54,14 +54,14 @@ Element types:
 
 ### Captured information
 
-**Main Package:**
+**Main package:**
 
 - Name: sentimentdemo
 - Version: 0.0.2 (extracted dynamically from `__about__.py`)
 - Download: <https://github.com/bact/sentimentdemo>
 - Description: A simple sentiment analysis application...
 
-**Dependencies (All 4 captured with correct versions):**
+**Dependencies (all 4 captured with correct versions):**
 
 - fasttext: 0.9.3
 - newmm-tokenizer: 0.2.2
@@ -118,12 +118,12 @@ Generates valid SPDX 3.0 JSON-LD with:
 - `Element` relationships
 - Profile conformance declarations
 
-### 5. Official Schema Adoption
+### 5. Official schema adoption
 
 Pitloom deeply integrates with `spdx-python-model` to ensure strict structural
 schemas are effortlessly adhered to during native JSON-LD execution.
 
-### 6. Embedded ML Metadata Trackers
+### 6. Embedded ML metadata trackers
 
 Provides a contextual wrapper `pitloom.loom` to emit isolated fragments
 dynamically from training loops into your main SBOM seamlessly:
@@ -142,7 +142,7 @@ def run():
 
 The prototype's 177 tests covered:
 
-- SPDX model serialization via official models
+- SPDX model serialisation via official models
 - Metadata extraction
 - Relative path call-stack tracing in trackers
 - SBOM fragment merging & end-to-end integration
@@ -160,7 +160,7 @@ The prototype's 177 tests covered:
 
 ```bash
 cd /path/to/loom
-pip install -e ".[dev]"
+pip install --group dev -e .
 ```
 
 ### Generate SBOM
@@ -190,15 +190,19 @@ ruff check src/ tests/
 
 ## Roadmap for future enhancements
 
-As documented in the design docs:
+As documented in the design docs, with the state of each item:
 
-1. **Format-Neutral Internal Representation**:
-    Adopt Protobom or similar to decouple formats from internal data structures
-2. **Setuptools support**: Extend beyond Hatchling
-3. **File-level analysis**: Include individual files in SBOM
-4. **Build log extraction**: Capture compiled dependencies
-5. ~~**PEP 770 support**: Store SBOMs in .dist-info/sboms~~ -- completed
-6. **Validation**: Schema validation for generated SBOMs
+1. **Format-neutral internal representation**: not built; Protobom was
+   evaluated and rejected, see
+   [format-neutral-representation.md](../design/format-neutral-representation.md).
+2. ~~**Setuptools support**: extend beyond Hatchling~~ -- completed (also
+   Poetry, Flit and PDM)
+3. ~~**File-level analysis**: include individual files in the SBOM~~ --
+   completed
+4. **Build log extraction**: capture compiled dependencies
+5. ~~**PEP 770 support**: store SBOMs in `.dist-info/sboms`~~ -- completed
+6. ~~**Validation**: schema validation of generated SBOMs~~ -- completed
+   (`loom fragment validate`, `loom validate-wheel`)
 7. **Performance**: Rust backend for large projects
 
 ## Conclusion

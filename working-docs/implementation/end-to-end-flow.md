@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-08
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,7 +85,7 @@ flowchart LR
 - **Sources -> Extraction** is many-to-many by design: every supported
   project-config format, lock format, and AI-model/dataset format gets
   its own extractor module, but they all converge on the same two model
-  types one level up. Adding a seventh lock format or a new AI-model
+  types one level up. Adding a lock format or an AI-model
   format changes this layer's *inside*, never this diagram.
 - **The lock/pin cascade is a distinct step from ordinary extraction**:
   it doesn't produce its own `ProjectMetadata` -- it overlays

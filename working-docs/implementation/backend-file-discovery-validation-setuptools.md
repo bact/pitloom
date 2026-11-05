@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,7 +30,7 @@ See also:
 | python-dateutil | 2.9.0.post0 | `setup.cfg`-primary + `[tool.setuptools.dynamic]` merge, `setuptools_scm` | Correct -- gaps are `setuptools_scm`/custom-build-generated files only |
 | Django | 6.1 | PEP 621, `packages.find include=["django*"]`, PEP 639 SPDX-string `license` | Perfect match (3686/3686 files) |
 | boto3 | 1.43.81 | No `pyproject.toml`; `setup.cfg` present but empty of packaging config; imperative `setup.py` (`find_packages()`, `package_data={...}` as Python literals) | Partial result, now warned -- see Findings |
-| PyYAML | 6.0.3 | Custom `build-backend = "_pyyaml_pep517"` wrapper (not a recognized alias); imperative `setup.py` | Correctly out of scope (conservative, exact-match backend detection) |
+| PyYAML | 6.0.3 | Custom `build-backend = "_pyyaml_pep517"` wrapper (not a recognised alias); imperative `setup.py` | Correctly out of scope (conservative, exact-match backend detection) |
 | cffi | 2.1.1 | Modern PEP 621, `setuptools>=77.0.3` floor, no `[tool.setuptools]` at all (zero-config), `src/cffi` + `src/c` (C sources, no `__init__.py`) | Over-inclusion, now warned -- see Findings |
 | Markdown | 3.10.3 | Modern PEP 621, explicit `[tool.setuptools] packages = ['markdown', 'markdown.extensions']` list (not `find:`), PEP 639 SPDX-string `license` | Perfect match |
 | tzdata | 2026.3 | Legacy `setup.cfg` (`[options] packages = tzdata`, `package_dir = src`), `version = file: VERSION`, `include_package_data = True`, PSF org, package_data-heavy (627 files) | Perfect match |

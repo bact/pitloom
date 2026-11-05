@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-27
-Last-Modified: 2026-09-19
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,7 +42,7 @@ wheel-file-discovery paths map directly onto this:
 | ...Flit-core backend | -- | `flit_core.common.Module.iter_files()` + `walk_data_dir()` (`src/pitloom/core/_models_wheel_flit.py`) -- static config only; a dynamic `version`/`description` is resolved via an AST-only scan (`get_docstring_and_version_via_ast()`), never by importing the target module | Source |
 | ...any other backend (`uv_build`, ... until it lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
 | `loom wheel` | built `.whl` file | `read_wheel()` reads the real artefact directly, backend-agnostic | Build |
-| `embed-wheel` (wheel-merge step) | built `.whl` file | Same `read_wheel()` path; `_merge_file_extras` treats it as ground truth, discarding `get_wheel_files()`'s own Merkle root in favor of one computed from the real wheel's hashes | Build |
+| `embed-wheel` (wheel-merge step) | built `.whl` file | Same `read_wheel()` path; `_merge_file_extras` treats it as ground truth, discarding `get_wheel_files()`'s own Merkle root in favour of one computed from the real wheel's hashes | Build |
 
 ## Why the Hatchling and setuptools mechanisms are the same tier
 
@@ -126,10 +126,10 @@ reasons beyond scope discipline:
   static parsing is inherently portable; execution inherits the
   *target project's* build-toolchain quirks (a guarantee about
   Pitloom's own code, not every project it scans).
-- **Lifecycle-stage modeling**: `setup.py` execution would be a
+- **Lifecycle-stage modelling**: `setup.py` execution would be a
   build-stage operation happening inside a nominally source-stage
   command (`loom project`). Mixing stages silently within one static
-  scan is a modeling smell on top of being a silent deviation from
+  scan is a modelling smell on top of being a silent deviation from
   what the command claims to do.
 - **Security/surface exposure varies sharply by usage surface**: CLI
   (lower risk -- user already trusts their own project) vs. library

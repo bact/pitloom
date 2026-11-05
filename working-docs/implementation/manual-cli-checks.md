@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,13 +34,13 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | Area | `--only` |
   |---|---|
   | wheel, embed | `3,4a,16,22,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
-  | registry, ids | `9,14,20,21,S4,S5,M/id-*/*`, plus `O*` (order matrix) |
+  | registry, ids | `9,14,20,21,26,S4,S5,M/id-*/*`, plus `O*` (order matrix) |
   | `loom.run` (SDK), dataset hashing, loom models | `20,21,24,O1/*/fresh-loom,O3/*` |
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
   | AI model scan, model producer and count | `15,17,19,22,23,M/model/*` |
-| Git LFS pointers | `17,20,23` |
+  | Git LFS pointers | `17,20,23` |
   | unreadable files, unlistable directories | `9,20,24,25` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
@@ -68,7 +68,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`25`, `B1`-`B7`) it runs:
+checks (`1`-`26`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -192,7 +192,8 @@ non-CLI entry point** (see "Usage surfaces" in CLAUDE.md -- exactly the
 bug class that motivated this check):
 
 ```bash
-for sub in generate project wheel embed-wheel model enrich env merge fragment ids; do
+for sub in generate project wheel embed-wheel verify-wheel validate-wheel \
+  model enrich env merge fragment id; do
   echo "=== $sub ==="
   loom --debug "$sub" --help >/dev/null 2>&1  # smoke: flag parses on every subcommand
 done

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-10-10
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ under `[tool.poetry]`.  Issue [#64].
 | `src/pitloom/extract/project/pyproject.py` | Falls back to / merges Poetry metadata; wires in `poetry.lock` reading |
 | `src/pitloom/core/_models_wheel_poetry.py` | Wheel file discovery, delegating to poetry-core's own `WheelBuilder` |
 | `src/pitloom/assemble/spdx3/deps.py`, `document.py` | Additive locked-transitive-dependency `dependsOn` edges, `completeness` tagging |
-| `tests/extract/project/test_poetry_parsing.py`, `tests/extract/project/test_poetry_extract.py`, `tests/extract/project/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these files -- see `working-docs/design/cli-test-coverage-roadmap.md`; `test_poetry_extract.py` holds `extract_poetry_metadata()` tests, split out of `test_poetry_parsing.py` to stay under the file-size soft limit) |
+| `tests/extract/project/test_poetry_parsing.py`, `tests/extract/project/test_poetry_extract.py`, `tests/extract/project/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these files -- see `cli-test-coverage-roadmap.md`; `test_poetry_extract.py` holds `extract_poetry_metadata()` tests, split out of `test_poetry_parsing.py` to stay under the file-size soft limit) |
 | `tests/extract/lock/test_poetry.py` | `poetry.lock` parsing unit and integration tests |
 | `tests/core/models_wheel/test_models_wheel_poetry.py` | Wheel file discovery unit tests |
 | `tests/assemble/test_deps_locked_dependencies.py` | Assemble-layer additive-edge/`completeness` tests |
@@ -134,7 +134,7 @@ Any exception (not a Poetry project, malformed config) is caught and
 logged as a `WARNING:`, returning `None` so the caller falls back
 accordingly -- identical error-handling shape to the Hatchling module.
 
-Two poetry-core behaviors worth knowing before extending this:
+Two poetry-core behaviours worth knowing before extending this:
 
 - **A bare `include`/`exclude` string entry defaults to `format =
   ["sdist"]` only.** To apply to wheel builds too (what `discover()`

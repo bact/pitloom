@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,9 +19,9 @@ catalogue's taxonomy, trust rule and ratchet),
 [message-catalogue-and-skills.md](../../design/message-catalogue-and-skills.md),
 [testing-traps.md](testing-traps.md).
 
-**Status: #408 is in review, not merged** (branch `family-file-unreadable`,
-head c53ad977, 2026-10-30; catalogue PR 2a). Everything below about code
-is read from that branch.
+**Status when written: #408 in review** (branch `family-file-unreadable`,
+head c53ad977, 2026-10-30; catalogue PR 2a); merged for 0.22.0. Everything
+below about code is read from that branch.
 
 ## 1. The bug
 
@@ -147,4 +147,5 @@ The plan's own count of 511 to about 497 was off by one from the built
   project metadata, fastText and PT2 `Failed to read`) are listed in the
   plan as deferred to later catalogue PRs; each still logs `{exc}`. How
   many of them hold a path is not measured.
-- PR 2b (cards, `fetch_json`, `text-malformed`) is planned, not built.
+- PR 2b (cards, `fetch_json`, `text-malformed`) was planned, not built, when
+  this was written; built in #444 (0.23.0).

@@ -40,7 +40,7 @@ is not kept in sync with post-ship changes.
 - [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
   `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,
   array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
-- [x] **SPDX license expression normalization and declared-vs-detected
+- [x] **SPDX license expression normalisation and declared-vs-detected
   conflict detection (G2)** -- via [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license).
   See [multi-source-conflict.md](provenance/multi-source-conflict.md)
   ([PR #121](https://github.com/bact/pitloom/pull/121)).

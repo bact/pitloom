@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,13 +12,13 @@ See also [annotation-provenance.md](annotation-provenance.md) (canonical
 design rationale, start here),
 [annotation-mechanism.md](annotation-mechanism.md),
 [role-vocabulary.md](role-vocabulary.md),
-[use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary),
+[use-case-catalog.md](use-case-catalog.md) (G2's short catalogue summary),
 [license-rules.md](../../design/license-rules.md)
 (the conflict model's open questions, a prerequisite for systematic licence
 rules).
 
 This file is the implementation depth behind G2 -- the largest and
-most fleshed-out use case in the catalog. The `role` vocabulary G2
+most fleshed-out use case in the catalogue. The `role` vocabulary G2
 relies on is documented once, generally, in
 [role-vocabulary.md](role-vocabulary.md) rather than repeated here.
 
@@ -45,7 +45,7 @@ URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 }
 ```
 
-Only emitted when candidates actually disagree after normalization
+Only emitted when candidates actually disagree after normalisation
 (`_license.py` `classify_license`, read by `licenseid.resolve` since #440;
 built on the [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license)
 parser before —
@@ -134,12 +134,12 @@ conflict Annotation is added on disagreement.
 `normalize_license_expression` (as first built, in `_license.py`; its
 role is now `classify_license`, see
 [license-typing.md](../license-typing.md)) is the new, stronger
-canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
-is normalized first — but only when the operator stands alone as its own
+canonicalisation step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
+is normalised first — but only when the operator stands alone as its own
 whitespace/paren-delimited token, never when it's hyphen-glued into an
 identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —
 then the result is parsed and canonically sorted via `py-spdx-license`
-(a new base dependency). This both canonicalizes bare-id casing (same as
+(a new base dependency). This both canonicalises bare-id casing (same as
 `canonicalize_license_id`, which it falls back to on a parse failure) and
 dedupes/reorders compound expressions, which `canonicalize_license_id`
 alone never handled.
@@ -153,16 +153,16 @@ back with and without a redundant outer paren
 compare against one fixed string. Checked `normalize_license_expression`
 (`classify_license` re-checked 2026-10-04 on the pair and the mixed
 `AND`/`OR` cases below: same results)
-against all four of that report's example pairs — every pair normalizes
+against all four of that report's example pairs — every pair normalises
 to an identical string. Separately verified the harder case, where a
 paren is *not* redundant: for mixed `AND`/`OR` expressions,
 `MIT AND Apache-2.0 OR BSD-3-Clause` (no parens, relies on `AND` binding
 tighter than `OR` per the SPDX spec) and
 `(MIT AND Apache-2.0) OR BSD-3-Clause` (explicit parens matching that
-same default precedence) both normalize to `Apache-2.0 AND MIT OR
+same default precedence) both normalise to `Apache-2.0 AND MIT OR
 BSD-3-Clause`, while `MIT AND (Apache-2.0 OR BSD-3-Clause)` (parens
 *overriding* default precedence, semantically different) correctly stays
-distinct and keeps its now-necessary paren. So the normalization strips
+distinct and keeps its now-necessary paren. So the normalisation strips
 parens exactly when they're redundant and keeps them exactly when they're
 load-bearing — not a blanket strip-all-parens heuristic.
 

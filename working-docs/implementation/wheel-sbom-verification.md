@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 ## Why this exists
 
 The Hatchling-hook rewiring and code-review fixes (name/dependency
-canonicalization parity, Poetry fallback, PURLs, file hashes -- see
+canonicalisation parity, Poetry fallback, PURLs, file hashes -- see
 [hatchling-build-hook.md](hatchling-build-hook.md)) had only
 been checked against local dogfood builds and unit/integration tests
 before this pass. This document records independent checks against
@@ -362,7 +362,7 @@ Same as rc1 below, against `https://pypi.org/pypi/pitloom/0.13.3/json`.
 - **Fields.** `CreationInfo.specVersion` = `"3.0.1"`; `createdBy` is a
   real `Person` (Arthit Suriyawongkul, with an `email` `ExternalIdentifier`)
   rather than the default "Pitloom" `SoftwareAgent` seen in earlier
-  verifications -- confirms `[[tool.pitloom.creator]]` config is honored
+  verifications -- confirms `[[tool.pitloom.creator]]` config is honoured
   on the actual PyPI-published build, not just in local tests. `Tool`
   (`createdUsing`) reports `summary: "Pitloom 0.13.0-rc1"`, matching the
   release version. The main `pitloom` `software_Package` carries

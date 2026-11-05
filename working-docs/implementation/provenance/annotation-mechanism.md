@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,7 @@ artefact's internal key, a synthesized phantom package), or the raw PEP 508
   `"auto"` (preserve an AI model's verbatim metadata only when the artefact is
   not shipped in the distribution and can't be re-extracted).
 - `max-source-metadata-bytes = <int>` — default `0` (unlimited). Byte
-  budget for the serialized artifact-metadata `Annotation.statement`
+  budget for the serialised artifact-metadata `Annotation.statement`
   (2026-08-26); unlike its siblings, also has a `--max-source-metadata-bytes`
   CLI flag / `action.yml` input, passed as the field-level override
   `ConfigOverrides.max_source_metadata_bytes` (normalised once in
@@ -197,14 +197,14 @@ through `build()` → `add_ai_models()` as one opaque object.
 
 **Also 2026-08-26**: `_build_json_annotation()` (shared by all four
 schemas) switched from plain `json.dumps(..., sort_keys=True)` to true
-RFC 8785 (JCS) canonicalization (`rfc8785.dumps()`, already a project
+RFC 8785 (JCS) canonicalisation (`rfc8785.dumps()`, already a project
 dependency, used for the outer document). The statements it builds
 became genuinely canonical, not just key-sorted — no insignificant
 whitespace, so every statement also shrank a little for free.
 `_sanitize_for_json()`'s fallback for unrecognized types (`np.float32`,
 `Decimal`, etc.) changed from relying on `json.dumps`'s `default=str`
 hook (which `rfc8785.dumps()` has no equivalent of) to stringifying them
-itself before the value ever reaches the serializer.
+itself before the value ever reaches the serialiser.
 
 **2026-10-08 (#294): one helper for every embedded JSON text.** The
 2026-08-26 switch missed the `fields` statement (`PitloomV1Encoder.encode()`

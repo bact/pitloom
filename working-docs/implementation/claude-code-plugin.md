@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,10 +29,11 @@ fits alongside Pitloom's other surfaces.
 |- plugin.json           Plugin manifest (name, description, author, license).
 `- marketplace.json      Self-hosted marketplace entry (source: "./").
 skills/
-|- sbom-generate/        Generate skill (see agent-skill.md) -- bundled
-|                        as-is; drives 'loom generate' / 'loom project' / 'loom wheel' / 'loom model'.
-|- sbom-enrich/          Enrich skill -- same.
-`- sbom-validate/        Validate skill -- thin wrapper around the
+|- sbom-generate/        Generate skill (see agent-skill.md), bundled as is;
+|                        drives `loom generate`, `project`, `wheel`, `model`.
+|- sbom-enrich/          Enrich skill, bundled as is.
+`- sbom-validate/        Validate skill, bundled as is; runs `loom fragment
+                         validate`, `loom validate-wheel` and the
                          third-party `spdx3-validate` CLI.
 ```
 
@@ -93,7 +94,7 @@ other two.
   2.1.114) rejects it as an unrecognized key at the schema root, contrary
   to an earlier version of this note claiming it was "ignored at load
   time" (it validated fine against an older CLI build; the strict-schema
-  behavior changed). `plugin.json` likewise has no `displayName` field in
+  behaviour changed). `plugin.json` likewise has no `displayName` field in
   the currently-validated schema -- `name` + `description` already cover
   that. Re-verify against the installed `claude` CLI version with
   `claude plugin validate .claude-plugin/plugin.json` /

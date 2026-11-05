@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -88,7 +88,7 @@ codebase, not introduced here).
 
 ## Reading the code vs. this doc
 
-This document summarizes shape and intent. For exact current behavior
+This document summarises shape and intent. For exact current behaviour
 (which properties are merged vs. skipped, the unification priority
 order, error conditions), read `fragments.py` and
 `_fragments_unify.py` directly -- this doc is not kept in lockstep with

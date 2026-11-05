@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,7 +126,7 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
   `application/ld+json` both match; anything with two slashes does not. Use
   `application/json`.
 - `statement` — optional free string (the annotation body).
-- `subject` — **required**, an `Element` reference (serialized as the subject's
+- `subject` — **required**, an `Element` reference (serialised as the subject's
   `spdxId`).
 - Inherited from `Element`: `spdxId`, `creationInfo` (**required**), `name`,
   `comment`, etc.
@@ -166,7 +166,7 @@ reproducible builds.
    keeps the graph small, and mirrors the existing `provenance` dict 1:1.
 
 2. **`contentType = "application/json"`**, `statement` = a JSON string.
-   *Serialization limit, accepted:* in both JSON-LD and Turtle the `statement`
+   *Serialisation limit, accepted:* in both JSON-LD and Turtle the `statement`
    is a single string literal — the JSON is opaque text to SPARQL, parseable
    only after string extraction. This is acceptable now. If a consumer later
    needs field-level SPARQL, revisit with per-field `text/plain` annotations
@@ -205,7 +205,7 @@ reproducible builds.
    the call sites. Requirements this imposes on the design:
    - The `schema` id (a URL) is self-describing and lives inside the statement
      payload, so a reader can always tell which encoder produced it.
-   - The encoder owns **both** the `contentType` and the serialized
+   - The encoder owns **both** the `contentType` and the serialised
      `statement` — a future schema may need a different MIME (e.g.
      `application/ld+json`) or a non-JSON body. The builder must not assume
      `application/json`.

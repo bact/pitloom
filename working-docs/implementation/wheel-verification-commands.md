@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-20
-Last-Modified: 2026-09-01
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,8 +41,8 @@ than `embed_wheel_sbom`, since it covers every embedding path, not
 just `--sbom`-supplied SBOMs. Default severity `WARNING:` (exit 0);
 `--fail-on-mismatch` makes it `ERROR:` (exit 1). Shared helpers:
 `read_wheel_name_version` (`src/pitloom/_wheel_sbom_location.py`, also
-now used by `_derive_wheel_sbom_filename`,
-`src/pitloom/_embed_wheel.py:149-166`, replacing its previously-inlined
+now used by `_derive_wheel_sbom_filename`
+in `src/pitloom/_embed_wheel.py`, replacing its previously-inlined
 METADATA parse), `extract_spdx3_subject_identity`, and
 `check_spdx3_name_version` (both `src/pitloom/_sbom_format.py`).
 
