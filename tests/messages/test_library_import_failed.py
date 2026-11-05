@@ -27,6 +27,7 @@ from typing import cast
 
 import pytest
 
+from pitloom.cli.commands import utils
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.optional_libraries import (
     HUB,
@@ -46,6 +47,7 @@ from pitloom.messages import (
     LIBRARY_MISSING,
     LIBRARY_MISSING_IMPORT_FAILED,
     code_of,
+    trusted_message,
 )
 from tests._message_drift import raised_as
 
@@ -198,3 +200,20 @@ def test_a_broken_magika_is_said_once_and_falls_back_per_file(
         assert guessed == ("text/x-python", "extension_guess")
     finally:
         _file_headers._get_magika.cache_clear()
+
+
+@pytest.mark.parametrize("kind", ["missing", "broken"])
+def test_a_validator_that_cannot_be_imported_says_which(
+    kind: str,
+    broken: Callable[..., None],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    if kind == "broken":
+        broken("spdx3_validate")
+    else:
+        monkeypatch.setitem(sys.modules, "spdx3_validate", cast(ModuleType, None))
+    assert utils._import_spdx3_validate() is None
+    entry = LIBRARY_MISSING if kind == "missing" else LIBRARY_MISSING_IMPORT_FAILED
+    (line,) = capsys.readouterr().err.splitlines()
+    assert trusted_message(line) is entry

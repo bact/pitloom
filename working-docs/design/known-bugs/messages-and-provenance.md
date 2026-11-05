@@ -59,10 +59,10 @@ entries stay in the last section for history.
   *Found 2026-11-02, PyPI 0.22.0 verification (a 0.22.1 candidate).*
 - [ ] **19 in-scope message sites pass another message through with no code
   (S).** Their text is another message, not a template of their own,
-  so no code of the inner message is forwarded or checked: `scanner_wheel.py` 2
-  (1b, fixed in #446), `croissant.py` and `path_confine.py` (2b, fixed in #444), 11 in the CLI
-  (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3,
-  `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
+  so no code of the inner message is forwarded or checked: `scanner_wheel.py`
+  2 (1b, fixed in #446), `croissant.py` and `path_confine.py` (2b, fixed in
+  #444), 11 in the CLI (`cli/commands/utils.py` 3, `cli/id.py` 3,
+  `cli/options.py` 3, `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
   `setuptools_cfg.py` (12), `archive_member_names.py` (16) and
   `_loom_active_run.py` (17). Each goes with its family in the migration plan;
   none is fixed alone. The relay of `licenseid` warnings

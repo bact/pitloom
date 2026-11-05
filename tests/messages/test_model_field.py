@@ -32,6 +32,7 @@ from pitloom.extract.ai_model import _hdf5_warnings, fasttext, onnx, pytorch
 from pitloom.extract.ai_model import pytorch_pt2 as pt2
 from pitloom.extract.ai_model.hdf5_config import (
     ConfigProblem,
+    ConfigShapeError,
     parse_training_config,
 )
 from pitloom.extract.ai_model.unrecordable import UNRECORDABLE, log_unrecordable
@@ -250,3 +251,13 @@ def test_a_config_problem_names_its_first_part_then_every_reason(
     )
     assert problem is not None
     assert problem.text == f"{problem.part} {problem.error}"
+
+
+def test_a_config_shape_error_keeps_its_part_through_a_pickle() -> None:
+    error = ConfigShapeError("layers[0]", "is not an object")
+    copied = pickle.loads(pickle.dumps(error))  # nosec B301
+    assert (copied.part, copied.reason, str(copied)) == (
+        "layers[0]",
+        "is not an object",
+        "layers[0] is not an object",
+    )
