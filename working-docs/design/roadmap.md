@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -160,6 +160,8 @@ order and counts are in
   ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
   revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
   main into the branch, then implement (design on #384).
+  **Decided 2026-11-05:** provenance annotations are not added to the SBOM
+  output automatically (they make it huge, and the taxonomy is not settled).
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
@@ -292,6 +294,8 @@ unless the linked doc says so.
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md); issues
   [#154](https://github.com/bact/pitloom/issues/154),
   [#110](https://github.com/bact/pitloom/issues/110).
+  **Decided 2026-11-05:** no provenance annotation is added to the output
+  automatically (the SBOM would grow huge; the taxonomy is not settled).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one. See
   [dataset-splits.md](dataset-splits.md).
