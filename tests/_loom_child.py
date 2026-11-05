@@ -7,7 +7,7 @@
 lines as a script reads them: for the surface tests of the catalogue.
 
 See also: tests/test_model_stub_surfaces.py, tests/test_model_field_surfaces.py
-and tests/test_library_import_failed_surfaces.py.
+and tests/test_library_unusable_surfaces.py.
 """
 
 from __future__ import annotations

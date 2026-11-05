@@ -299,7 +299,7 @@ but isn't. For the wording and bounds of any case, read
 - **AI model stubs:** an `ai_AIPackage` with no `ai_*` property and no
   `Source: <model file> | Field: ...` comment was not read. Its stderr line
   ends in the cause's code (`[reader-unsafe]`, `[library-missing]`,
-  `[library-missing/import-failed]`, `[model-unreadable]`, `[over-cap]`); when
+  `[library-unusable]`, `[model-unreadable]`, `[over-cap]`); when
   one does, read `references/messages.md` and relay its advice to the user.
   Never install an extra, raise a ceiling or add `--trust-wheel-model` on your
   own. A failed read leaves a stub with a `WARNING:` (exit 0); a file whose

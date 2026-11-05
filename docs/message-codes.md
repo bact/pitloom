@@ -37,7 +37,7 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
-| [`library-missing/import-failed`](#library-missingimport-failed) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
+| [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
@@ -367,7 +367,7 @@ A line may start with one prefix before its text:
   ERROR: required library not installed: <module>; install <requirement> [library-missing]
   ```
 
-### `library-missing/import-failed`
+### `library-unusable`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
@@ -388,8 +388,8 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-missing/import-failed]
-  ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-missing/import-failed]
+  WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-unusable]
+  ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-unusable]
   ```
 
 ### `model-field-conflict`

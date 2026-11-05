@@ -209,7 +209,7 @@ def test_a_reader_records_code_is_kept_when_relogged(
             "demo/real.gguf",
             b"GGUF",
             ImportError("gone"),
-            "library-missing/import-failed",
+            "library-unusable",
             "required library failed to import: gone; reinstall pitloom[gguf]",
         ),
     ],

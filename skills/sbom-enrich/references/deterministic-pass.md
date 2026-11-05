@@ -34,7 +34,7 @@ missing library or a parse failure is no obstacle: `loom enrich` reads the model
 too (native readers included, so a format a wheel scan's gate leaves unread is
 read here) and the README or model card next to it. It writes the fragment and
 exits 0 with the one `WARNING:` the scan gave, ending in its code
-(`[model-unreadable]`, `[library-missing]`, `[library-missing/import-failed]`
+(`[model-unreadable]`, `[library-missing]`, `[library-unusable]`
 or `[over-cap]`; its `FILE=` is the path as given, not the scan's
 project-relative one), and the model stays a stub: `messages.md` says what to
 tell the user. A model read without some fields (`[model-field-unreadable]`)

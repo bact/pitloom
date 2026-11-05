@@ -54,7 +54,7 @@ and a separate variant for an import that is found but fails.
 - **What the repository says of those two.** The registry-key note records
   the remote entries as "a second PR" and gives its reasons (its own decision
   set; a later PR would need registry format 5). The ledger has the
-  import-failed entry (S, found 2026-10-30, from #404) without a release. Three
+  import-failure entry (S, found 2026-10-30, from #404) without a release. Three
   neighbouring entries are marked "later (0.22.x or 0.23.0)". So the repository
   shows both as open and unscheduled; the caller reports 0.23.0.
 - **`licenseid` 0.7.0 is still not on PyPI.** Checked 2026-11-02 through the

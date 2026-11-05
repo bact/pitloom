@@ -6,7 +6,7 @@
 """The optional libraries Pitloom imports for a step, each with the extra of
 Pitloom that installs it, and the one error a step raises when its library
 is missing (``library-missing``, :func:`missing`) or fails to import
-(``library-missing/import-failed``, :func:`import_failed`).
+(``library-unusable``, :func:`import_failed`).
 
 See also: :mod:`pitloom.extract.ai_model.reader_requirements` (the model
 readers' libraries) and :mod:`pitloom.messages._model_stub` (the entry).
@@ -20,7 +20,7 @@ from typing import Final
 from pitloom.logging_config import one_line
 from pitloom.messages import (
     LIBRARY_MISSING,
-    LIBRARY_MISSING_IMPORT_FAILED,
+    LIBRARY_UNUSABLE,
     CodedImportError,
 )
 
@@ -64,12 +64,12 @@ def not_installed(requirement: Requirement, exc: BaseException) -> bool:
 def import_failed(requirement: Requirement, exc: BaseException) -> CodedImportError:
     """The error a step raises when importing *requirement*'s module raised
     *exc*: :func:`missing` when the module is not installed
-    (:func:`not_installed`), else ``library-missing/import-failed``, naming
+    (:func:`not_installed`), else ``library-unusable``, naming
     what the import reported."""
     if not_installed(requirement, exc):
         return missing(requirement)
     return CodedImportError(
-        LIBRARY_MISSING_IMPORT_FAILED,
+        LIBRARY_UNUSABLE,
         module=requirement.module,
         error=one_line(exc),
         requirement=requirement.spec,

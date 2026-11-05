@@ -63,7 +63,7 @@ END: Final = "<!-- END GENERATED -->"
 #: code whose cause leaves a model's SBOM entry thinner than its file.
 MODEL_OUTCOMES: Final = {
     "library-missing": "a stub",
-    "library-missing/import-failed": "a stub",
+    "library-unusable": "a stub",
     "lfs-pointer": "no `ai_AIPackage`",
     "lfs-pointer-malformed": "no `ai_AIPackage`",
     "model-field-unreadable": "read, without the fields the line names",

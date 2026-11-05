@@ -221,18 +221,24 @@ answers M1 to M10):
    the model's.
 4. **Uncoded still**: fickling's own stderr (M5); the scan's usage hint is
    PR 3's (M9).
-5. **`library-missing/import-failed` (M1)**:
+5. **`library-unusable`, a family of its own** (M1 as ruled on review: the
+   maintainer renamed the planned variant of `library-missing`; a variant
+   never changes its family's condition, decision E, and an installed
+   library that fails to import is `unusable`, not `missing`).
+   The code is final (decision L).
    `optional_libraries.import_failed(requirement, exc)` gives
-   `library-missing` only for a `ModuleNotFoundError` naming the module or a
-   submodule (a `None` in `sys.modules` too), else the variant, naming what
-   the import raised. Each optional import catches `Exception` (a broken
-   shared library raises `OSError`), its body the import only: the five
-   readers, NumPy (once, before any read: its helpers' `try` made an import
-   error `model-unreadable`), the Hub client, magika (the failure cached, not
-   `None`) and `spdx3_validate` (a static code per branch: a code read from
-   the exception counts as forwarded, uncoded). Not the build subprocess
-   (`find_spec`; a child's failure is a build failure, PR 14) nor fickling
-   (optional).
+   `library-missing` only for a `ModuleNotFoundError` naming the module
+   itself (a `None` in `sys.modules` too); a submodule's name means the
+   package imported, so it is `library-unusable`, naming what the import
+   raised. Each optional import catches `Exception` (a broken shared library
+   raises `OSError`), its body the import only: the five readers, NumPy
+   (once, before any read: its helpers' `try` made an import error
+   `model-unreadable`), the Hub client, magika (the failure cached, not
+   `None`; in `auto` mode a broken one warns once per process and files
+   take extension types) and `spdx3_validate` (a static code per branch: a
+   code read from the exception counts as forwarded, uncoded). Not the build
+   subprocess (`find_spec`; a child's failure is a build failure, PR 14),
+   fickling (optional) nor the Hub dataset reader's own import (ledger).
 6. **Drift test**: a family may list several markers (M6), and a quote in a
    table cell reads `\|` as `|`.
 7. `scanner_wheel` raises `MemberReadError`, an `OSError` whose text is the

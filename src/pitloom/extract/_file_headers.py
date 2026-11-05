@@ -222,7 +222,7 @@ def _get_magika() -> Any:
 
 def require_magika_available() -> None:
     """Raise the ``library-missing`` error
-    (:class:`~pitloom.messages.CodedImportError`, ``/import-failed`` for an
+    (:class:`~pitloom.messages.CodedImportError`, ``library-unusable`` for an
     installed one) when ``magika`` isn't importable.
 
     Called once, up front (not per file), when

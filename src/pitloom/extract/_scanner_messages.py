@@ -26,7 +26,7 @@ from pitloom.logging_config import escape_controls, loggable, one_line
 from pitloom.messages import (
     LFS_POINTER_MALFORMED,
     LIBRARY_MISSING,
-    LIBRARY_MISSING_IMPORT_FAILED,
+    LIBRARY_UNUSABLE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,
     code_of,
@@ -104,7 +104,7 @@ def _say_library(
     path: Path | None,
 ) -> None:
     """``library-missing`` when the module *fmt*'s reader needs is not
-    installed, else ``library-missing/import-failed`` naming what its import
+    installed, else ``library-unusable`` naming what its import
     reported: the cause of a reader's coded *exc*, or *exc* itself, raised
     by a bare import (the NumPy reader's)."""
     requirement = REQUIREMENTS[fmt]
@@ -121,7 +121,7 @@ def _say_library(
     error = detail(cause, path, where)
     emit(
         log,
-        LIBRARY_MISSING_IMPORT_FAILED,
+        LIBRARY_UNUSABLE,
         _WARNING,
         format=fmt,
         file=where,

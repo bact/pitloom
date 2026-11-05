@@ -185,7 +185,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     Raises:
         ImportError: If ``huggingface_hub`` is not installed, or fails to
             import: a :class:`~pitloom.messages.CodedImportError`,
-            ``library-missing`` (or ``/import-failed``).
+            ``library-missing`` (``library-unusable`` when installed).
         ValueError: If *source* is not a valid Hugging Face URL or model ID.
     """
     try:

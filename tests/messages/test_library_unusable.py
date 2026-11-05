@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``library-missing/import-failed``: a library that is installed but fails
+"""``library-unusable``: a library that is installed but fails
 to import is told from one that is not installed, by every import Pitloom
 makes of an optional library (the model readers, the Hub client, magika).
 
-See also: tests/test_library_import_failed_surfaces.py (the surfaces) and
+See also: tests/test_library_unusable_surfaces.py (the surfaces) and
 tests/core/test_optional_libraries.py (the libraries).
 """
 
@@ -45,7 +45,7 @@ from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     LIBRARY_MISSING,
-    LIBRARY_MISSING_IMPORT_FAILED,
+    LIBRARY_UNUSABLE,
     code_of,
     trusted_message,
 )
@@ -81,7 +81,7 @@ def test_only_the_module_itself_missing_is_not_installed(
 ) -> None:
     error = import_failed(_FAKE, exc)
     assert not_installed(_FAKE, exc) is missing
-    entry = LIBRARY_MISSING if missing else LIBRARY_MISSING_IMPORT_FAILED
+    entry = LIBRARY_MISSING if missing else LIBRARY_UNUSABLE
     assert code_of(error) == entry.code and raised_as(error, entry)
 
 
@@ -147,12 +147,12 @@ def test_a_reader_whose_library_is_broken_is_a_stub_saying_so(
     path = _FIXTURES / fixture
     with pytest.raises(ImportError) as caught:
         read_ai_model(path, model_format=fmt)
-    assert raised_as(caught.value, LIBRARY_MISSING_IMPORT_FAILED)
+    assert raised_as(caught.value, LIBRARY_UNUSABLE)
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         meta = read_model_candidate(local_model_candidate(path))
     assert not meta.provenance  # a stub
     (record,) = [r for r in caplog.records if hasattr(r, CODE_ATTR)]
-    assert getattr(record, CODE_ATTR) == LIBRARY_MISSING_IMPORT_FAILED.code
+    assert getattr(record, CODE_ATTR) == LIBRARY_UNUSABLE.code
     assert record.getMessage() == (
         f"FORMAT={fmt} FILE={path}: required library failed to import: "
         f"libfake.so: cannot open shared object file; reinstall {requirement.spec}"
@@ -167,7 +167,7 @@ def test_a_library_whose_dependency_is_missing_is_broken(
         read_ai_model(
             _FIXTURES / "hdf5/example-model.h5", model_format=AiModelFormat.HDF5
         )
-    assert code_of(caught.value) == LIBRARY_MISSING_IMPORT_FAILED.code
+    assert code_of(caught.value) == LIBRARY_UNUSABLE.code
     assert ": No module named 'dep'; reinstall pitloom[hdf5]" in str(caught.value)
 
 
@@ -177,7 +177,7 @@ def test_a_broken_hub_client_is_said_before_any_fetch(
     broken(HUB.module)
     with pytest.raises(ImportError) as caught:
         read_huggingface("google-bert/bert-base-uncased")
-    assert raised_as(caught.value, LIBRARY_MISSING_IMPORT_FAILED)
+    assert raised_as(caught.value, LIBRARY_UNUSABLE)
     assert str(caught.value).startswith(
         "required library failed to import: huggingface_hub: libfake.so"
     )
@@ -193,7 +193,7 @@ def test_a_broken_magika_is_said_once_and_falls_back_per_file(
         for _ in range(2):
             with pytest.raises(ImportError) as caught:
                 _file_headers.require_magika_available()
-            assert raised_as(caught.value, LIBRARY_MISSING_IMPORT_FAILED)
+            assert raised_as(caught.value, LIBRARY_UNUSABLE)
             causes.append(caught.value.__cause__)
         assert isinstance(causes[0], OSError) and causes[1] is causes[0]  # cached
         guessed = _file_headers.guess_content_type(b"x", "a.py", method="magika")
@@ -214,6 +214,6 @@ def test_a_validator_that_cannot_be_imported_says_which(
     else:
         monkeypatch.setitem(sys.modules, "spdx3_validate", cast(ModuleType, None))
     assert utils._import_spdx3_validate() is None
-    entry = LIBRARY_MISSING if kind == "missing" else LIBRARY_MISSING_IMPORT_FAILED
+    entry = LIBRARY_MISSING if kind == "missing" else LIBRARY_UNUSABLE
     (line,) = capsys.readouterr().err.splitlines()
     assert trusted_message(line) is entry

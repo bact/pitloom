@@ -54,7 +54,7 @@ and this project adheres to
 - The unparsed Keras `model_config` cut to 500 characters is an `[over-cap]`
   line naming the model ([#446])
 - A library that is installed but fails to import says so,
-  `[library-missing/import-failed]`, not `not installed` ([#446])
+  `[library-unusable]`, not `not installed` ([#446])
 
 ### Fixed
 

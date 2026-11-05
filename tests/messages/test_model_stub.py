@@ -60,14 +60,14 @@ def test_the_family_has_its_seven_codes() -> None:
     assert sorted(_ENTRIES) == [
         "hyperparameter-conflict",
         "library-missing",
-        "library-missing/import-failed",
+        "library-unusable",
         "model-unreadable",
         "model-wrong-format",
         "parameter-count-invalid",
         "reader-unsafe",
     ]
     assert {c: m.since for c, m in _ENTRIES.items() if m.since != "0.22.0"} == {
-        "library-missing/import-failed": "0.23.0"
+        "library-unusable": "0.23.0"
     }
     assert HYPERPARAMETER_CONFLICT.actor == HYPERPARAMETER_CONFLICT.effect == "none"
     assert all(m.actor == "user" for m in _ENTRIES.values() if m.effect != "none")

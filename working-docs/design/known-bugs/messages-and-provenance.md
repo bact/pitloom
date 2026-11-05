@@ -116,7 +116,7 @@ release ships.
 ### Fixed, Found in review rounds, not yet prioritised
 
 - [x] **An import that is found but fails was reported as "not installed"
-  (S), fixed (#446).** It says `library-missing/import-failed`, naming what
+  (S), fixed (#446).** It says `library-unusable`, naming what
   the import raised (`optional_libraries.import_failed`), at every optional
   import but the build subprocess's.
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*

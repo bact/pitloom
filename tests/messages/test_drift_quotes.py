@@ -38,7 +38,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "json-malformed": ("not valid JSON for ",),
     "lfs-pointer": ("Git LFS pointer",),
     "lfs-pointer-malformed": ("Git LFS pointer",),
-    "library-missing": ("required library ",),
+    "library-missing": ("required library not installed",),
+    "library-unusable": ("required library failed to import",),
     "model-field-conflict": ("the length of array ", "appear more than once"),
     "model-field-unreadable": (
         "Failed to read fastText model",

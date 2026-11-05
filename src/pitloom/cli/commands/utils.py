@@ -36,7 +36,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import LIBRARY_MISSING, LIBRARY_MISSING_IMPORT_FAILED, code_of
+from pitloom.messages import LIBRARY_MISSING, LIBRARY_UNUSABLE, code_of
 
 
 def cli_error_handler(
@@ -210,7 +210,7 @@ def _locate_and_detect(
 
 def _import_spdx3_validate() -> Any | None:
     """Import ``spdx3_validate``, printing the ``library-missing`` ``ERROR:``
-    (the extra to install) if missing, ``library-missing/import-failed`` if
+    (the extra to install) if missing, ``library-unusable`` if
     it fails to import.
 
     Called directly by ``fragment validate`` before its own path-existence
@@ -228,7 +228,7 @@ def _import_spdx3_validate() -> Any | None:
             print_error(str(missing(VALIDATE)), code=LIBRARY_MISSING.code)
         else:
             error = import_failed(VALIDATE, exc)
-            print_error(str(error), code=LIBRARY_MISSING_IMPORT_FAILED.code)
+            print_error(str(error), code=LIBRARY_UNUSABLE.code)
         return None
     return spdx3_validate
 

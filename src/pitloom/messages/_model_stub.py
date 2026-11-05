@@ -5,7 +5,7 @@
 
 """Why a model file is listed without its metadata (a format-only entry, a
 "stub") or not listed as a model, and why its parameter count is missing or
-replaced: ``library-missing`` (and ``/import-failed``), ``reader-unsafe``,
+replaced: ``library-missing``, ``library-unusable``, ``reader-unsafe``,
 ``model-unreadable``, ``model-wrong-format``, ``parameter-count-invalid`` and
 ``hyperparameter-conflict``. An input over a cap is ``over-cap``; a Git LFS
 pointer is ``lfs-pointer``.
@@ -65,21 +65,21 @@ LIBRARY_MISSING: Final = Message(
 )
 
 #: A model reader's library installed but failing to import.
-LIBRARY_IMPORT_FAILED_LINE: Final = Line(
+LIBRARY_UNUSABLE_LINE: Final = Line(
     level="WARNING",
     template="FORMAT=%(format)s FILE=%(file)s: required library failed to import: "
     "%(error)s; reinstall %(requirement)s",
 )
 #: A library a step needs installed but failing to import.
-LIBRARY_IMPORT_FAILED_ERROR_LINE: Final = Line(
+LIBRARY_UNUSABLE_ERROR_LINE: Final = Line(
     level="ERROR",
     template="required library failed to import: %(module)s: %(error)s; "
     "reinstall %(requirement)s",
 )
-LIBRARY_MISSING_IMPORT_FAILED: Final = Message(
-    code="library-missing/import-failed",
-    condition="missing",
-    lines=(LIBRARY_IMPORT_FAILED_LINE, LIBRARY_IMPORT_FAILED_ERROR_LINE),
+LIBRARY_UNUSABLE: Final = Message(
+    code="library-unusable",
+    condition="unusable",
+    lines=(LIBRARY_UNUSABLE_LINE, LIBRARY_UNUSABLE_ERROR_LINE),
     summary="A library Pitloom needs for a step is installed but fails to "
     "import: a broken or partial install, a library it needs in turn missing, "
     "or a build for another Python or platform.",
@@ -255,7 +255,7 @@ HYPERPARAMETER_CONFLICT: Final = Message(
 
 ENTRIES: Final = (
     LIBRARY_MISSING,
-    LIBRARY_MISSING_IMPORT_FAILED,
+    LIBRARY_UNUSABLE,
     READER_UNSAFE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,

@@ -4,13 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A library that is installed but fails to import is said with
-``[library-missing/import-failed]`` on every surface: a project's scan (a
+``[library-unusable]`` on every surface: a project's scan (a
 model reader's library), ``loom model`` naming a Hugging Face model,
 ``loom fragment validate`` and ``--content-type-method magika`` on the
 command line's stderr, the Hatchling build hook and the library. The broken
 library is a package, on the child's import path, whose import raises.
 
-See also: tests/messages/test_library_import_failed.py (the rule and each
+See also: tests/messages/test_library_unusable.py (the rule and each
 import).
 """
 
@@ -30,7 +30,7 @@ from tests._loom_child import coded_lines, run_loom
 from tests._wheel_models import safetensors_bytes
 from tests.extract.conftest import make_hook, staged_sbom
 
-_CODE = "library-missing/import-failed"
+_CODE = "library-unusable"
 _PYPROJECT = (
     b'[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
     b'[project]\nname = "demo"\nversion = "1.0"\n'
