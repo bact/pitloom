@@ -50,12 +50,10 @@ from pitloom.plugins._hatch_config import validate_config
 log = logging.getLogger(__name__)
 
 
-#: Hatchling only started reading build_data["sbom_files"] -- the mechanism
-#: this hook relies on to place a build-time-generated SBOM at
-#: .dist-info/sboms/ -- in this release (PEP 770). Older Hatchling accepts
-#: the mutated build_data silently and never embeds the file, so the wheel
-#: builds "successfully" with no SBOM and no warning; this must therefore be
-#: checked explicitly rather than left to fail silently.
+#: The first Hatchling that reads build_data["sbom_files"], which this hook
+#: uses to place the SBOM at .dist-info/sboms/ (PEP 770). Older Hatchling
+#: accepts the mutated build_data and never embeds the file, so the wheel
+#: builds with no SBOM and no warning: the version is checked explicitly.
 _MIN_HATCHLING_SBOM_VERSION = "1.29.0"
 
 #: Shared prefix for every _check_hatchling_sbom_support() error, so both
