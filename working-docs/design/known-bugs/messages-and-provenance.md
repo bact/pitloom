@@ -63,7 +63,7 @@ entries stay in the last section for history.
   reference, `tests/messages/test_drift_quotes.py`, the skill quotes and the
   ratchet. Target: 0.23.0.
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
-- [ ] **Catalogue 1b is not coded (S).** The 27 "model fields read in part"
+- [ ] **Catalogue 1b is not coded (S).** The 19 "model fields read in part"
   sites (`model-field-unread`) keep their free text; 0.23.0.
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
 - [ ] **The `--allow-build` `Build:` warning is uncoded (S).** It needs the

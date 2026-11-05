@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -100,7 +100,7 @@ not a cause) and `not-a-model` (merged into `wrong-format`).
   ebd03963). The scanner's line is the message; a reader's text is its
   detail (decision J).
 - **D10: row 1 is split.** 1a is this PR (the 18 covered sites and the
-  detail rule). 1b (also 0.22.0) takes the 27 sites of fields read in
+  detail rule). 1b (now 0.23.0) takes the 19 sites of fields read in
   part. Six sites moved to later PRs. The design record's counts and the
   migration plan's row-1 count (68 sites) are in different units and were
   not reconciled for these notes.
