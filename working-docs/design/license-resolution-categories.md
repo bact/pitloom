@@ -140,7 +140,7 @@ value as stated; the builder's classification does the rest.
 - Same annex, ABNF: an `idstring` holds letters, digits, `-` and `.` only, so
   `Apache 2.0` is no id under any case folding; whitespace separates tokens
   and its amount carries nothing; brackets group.
-- Same annex, clause "Simple licence expressions": a `+` after a List id means
+- Same annex, clause "Simple license expressions": a `+` after a List id means
   "or any later version". The List names the deprecated `GPL-2.0+` exactly as
   `GPL-2.0-or-later` (probe: the 12 GPL/LGPL `X`/`X+` ids share names with
   `X-only`/`X-or-later`).

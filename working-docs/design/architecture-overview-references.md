@@ -154,7 +154,7 @@ The original plan. Steps 4 (log interception), 6 (MLflow plugin) and 8
 - PurlDB. 2026.
   "PurlDB: Package URL Database." <https://purldb.readthedocs.io/>.
 - serde-spdx. 2024.
-  "Serde Serialisation for SPDX Files." crates.io.
+  "Serde Serialization for SPDX Files." crates.io.
   <https://crates.io/crates/serde-spdx>.
 - SPDX Group. 2024.
   "SPDX 3.0.1 Specification."

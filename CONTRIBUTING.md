@@ -136,7 +136,8 @@ pyrefly check examples/ src/ tests/
 bandit -r src/pitloom
 ```
 
-These are the commands CI runs.
+CI runs these commands, with `ruff format --check` for formatting and
+Bandit in its own workflow (`bandit.yaml`).
 
 [pep8]: https://peps.python.org/pep-0008/
 
