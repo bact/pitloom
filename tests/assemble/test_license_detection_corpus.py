@@ -47,6 +47,26 @@ def test_a_real_licence_file_gives_its_licence_or_none(name: str) -> None:
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("MIT", "MIT"),
+        ("MIT OR Apache-2.0", "Apache-2.0 OR MIT"),
+        ("MIT/Apache-2.0", None),
+        ("MIT, ISC", None),
+        ("Apache-2.0 / MIT", None),
+    ],
+    ids=["one-id", "expression", "slash", "comma", "spaced-slash"],
+)
+def test_a_tag_value_is_read_whole_or_not_at_all(
+    value: str, expected: str | None
+) -> None:
+    """``SPDX-License-Identifier: MIT/Apache-2.0`` is not an expression:
+    it is not detected as its first id."""
+    text = f"# {'x' * 100}\nSPDX-License-Identifier: {value}\n"
+    assert detect_license_from_text(text) == expected
+
+
+@pytest.mark.parametrize(
     "fixture", ["setuptools/pyyaml-6.0.3", "setuptools/requests-2.34.2"]
 )
 def test_an_sdist_concludes_its_own_licence(fixture: str) -> None:

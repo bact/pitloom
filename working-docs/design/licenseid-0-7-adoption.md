@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ gate and the 0.22.1 to 0.23.0 sweep are in
 [licenseid-0-7-adoption-built.md](../implementation/licenseid-0-7-adoption-built.md).
 
 **Stage A is built (#437, 2026-11-03), on the released 0.7.0.** Pitloom
-requires `licenseid>=0.7.0,<0.8`; text detection uses
+requires `licenseid>=0.7.1,<0.8`; text detection uses
 `LicenseDetector().detect()` (`Detection["expression"]`); a declared value
 is read by `resolve(value, source="packaged")`, with no database (the
 database gate and the database-stamp cache are gone, an `lru_cache` keeps
@@ -91,7 +91,7 @@ names, no id, or deferred assumed readings).
 
 | Area | Change |
 | - | - |
-| `pyproject.toml` | `licenseid>=0.7.0,<0.8`; move `py-spdx-license` from dependencies to the test group |
+| `pyproject.toml` | `licenseid>=0.7.1,<0.8`; move `py-spdx-license` from dependencies to the test group |
 | `extract/_license_classify.py` (479 lines) | `_classify` = early exits (surrogates, `NOASSERTION`, `NONE`, `UNKNOWN`, several lines, over 200 characters) then `resolve()`. Delete about 250 lines: `_strict_parse`, `_canonical_string`, `_gap_term`, `_gap_expression`, `_GAP_*`, `_successor_id`, `with_successor_ids`, `_replace_deprecated`, `_DEPRECATED_SUCCESSORS`, `_looks_like_expression`, `_parse_locally`, `_ambiguous_deprecated_ids`, the py-spdx-license imports |
 | `is_listed_name`, `same_licence`, `tag_deprecated_license_ids` | use the `listed_name` category and `operands[*].candidates`, not `get_spdx_license` |
 | `extract/_license_resolve.py` (151) | accept `prose_form`, `trove_name`, `assumed_only`, `deprecated_ambiguous`; drop `expression`; delete `_FOLDABLE` (licenseid refuses the dropped-character cases itself); notes from `operands`/`reason` |

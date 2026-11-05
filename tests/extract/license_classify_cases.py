@@ -169,6 +169,11 @@ CASES = [
     ("GPLv3", "expression", "GPL-3.0", False),  # its -only/-or-later unknown
     ("BSD 3-Clause License", "expression", "BSD-3-Clause", False),  # prose
     ("MIT or later", "expression", "MIT+", False),  # a stated "or later"
+    # a dash or no-break space before "or later" is still the grant
+    ("GPL-2.0 - or later", "expression", "GPL-2.0-or-later", False),
+    ("GPL-2.0 \u2013 or later", "expression", "GPL-2.0-or-later", False),
+    ("GPL-2.0\u00a0or later", "expression", "GPL-2.0-or-later", False),
+    ("LGPL-2.1 - or later", "expression", "LGPL-2.1-or-later", False),
     ("StandardML-NJ", "expression", "SMLNJ", False),  # renamed on the List
     # licences joined by a semicolon name no operator: text, not a guess
     ("MIT; Apache-2.0", "text", "MIT; Apache-2.0", False),

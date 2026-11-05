@@ -27,8 +27,8 @@ from types import MappingProxyType
 from typing import Final
 
 #: The List name, case folded, of each deprecated id whose name
-#: ``licenseid.resolve`` reads no expression in (``licenseid`` 0.7.0, SPDX
-#: License List 3.29.0), to that id.
+#: ``licenseid.resolve`` reads no expression in (``licenseid`` 0.7.0 to 0.7.1,
+#: SPDX License List 3.29.0), to that id.
 UNREAD_LISTED_NAMES: Final[Mapping[str, str]] = MappingProxyType(
     {
         name.casefold(): license_id
