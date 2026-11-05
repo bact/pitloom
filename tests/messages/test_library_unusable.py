@@ -66,7 +66,7 @@ _BROKEN = "OSError('libfake.so: cannot open shared object file')"
             ),
             True,
         ),
-        (ModuleNotFoundError("x", name=f"{_FAKE.module}.sub"), True),
+        (ModuleNotFoundError("x", name=f"{_FAKE.module}.sub"), False),
         (ModuleNotFoundError("No module named 'dep'", name="dep"), False),
         (ModuleNotFoundError("x", name=f"{_FAKE.module}_other"), False),
         (ModuleNotFoundError("x"), False),
@@ -159,16 +159,35 @@ def test_a_reader_whose_library_is_broken_is_a_stub_saying_so(
     )
 
 
-def test_a_library_whose_dependency_is_missing_is_broken(
+@pytest.mark.parametrize(
+    ("module", "fmt", "fixture", "name"),
+    [
+        ("h5py", AiModelFormat.HDF5, "hdf5/example-model.h5", "dep"),
+        (
+            "onnx",
+            AiModelFormat.ONNX,
+            "onnx/light-inception-v2.onnx",
+            "onnx.onnx_cpp2py_export",
+        ),
+    ],
+    ids=["dependency", "own-submodule"],
+)
+def test_a_library_missing_a_module_it_imports_is_unusable(
+    module: str,
+    fmt: AiModelFormat,
+    fixture: str,
+    name: str,
     broken: Callable[..., None],
 ) -> None:
-    broken("h5py", "ModuleNotFoundError(\"No module named 'dep'\", name='dep')")
+    """The package imported, so it is installed: a module it imports in
+    turn, its own extension included, is missing."""
+    broken(module, f"ModuleNotFoundError(\"No module named '{name}'\", name={name!r})")
     with pytest.raises(ImportError) as caught:
-        read_ai_model(
-            _FIXTURES / "hdf5/example-model.h5", model_format=AiModelFormat.HDF5
-        )
+        read_ai_model(_FIXTURES / fixture, model_format=fmt)
     assert code_of(caught.value) == LIBRARY_UNUSABLE.code
-    assert ": No module named 'dep'; reinstall pitloom[hdf5]" in str(caught.value)
+    assert str(caught.value).endswith(
+        f": No module named '{name}'; reinstall {REQUIREMENTS[fmt].spec}"
+    )
 
 
 def test_a_broken_hub_client_is_said_before_any_fetch(

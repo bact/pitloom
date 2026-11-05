@@ -53,12 +53,11 @@ def missing(requirement: Requirement) -> CodedImportError:
 
 def not_installed(requirement: Requirement, exc: BaseException) -> bool:
     """Whether *exc*, raised by importing *requirement*'s module, says the
-    module itself is not there: a :class:`ModuleNotFoundError` naming it or
-    one of its submodules (a ``None`` in :data:`sys.modules` too), not a
-    module it imports in turn."""
-    name = exc.name if isinstance(exc, ModuleNotFoundError) else None
-    module = requirement.module
-    return name is not None and (name == module or name.startswith(f"{module}."))
+    module itself is not there: a :class:`ModuleNotFoundError` naming it (a
+    ``None`` in :data:`sys.modules` too). One naming a module it imports in
+    turn, its own submodules included, means the package is installed but
+    broken."""
+    return isinstance(exc, ModuleNotFoundError) and exc.name == requirement.module
 
 
 def import_failed(requirement: Requirement, exc: BaseException) -> CodedImportError:
