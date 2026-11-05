@@ -40,6 +40,7 @@ from pitloom.extract.ai_model.archive_member import (
     record_archive_contents,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.logging_config import one_line
 from pitloom.messages import (
     MODEL_FIELD_UNREADABLE,
     PT2_EXTRA_LINE,
@@ -115,7 +116,7 @@ def _warn_unread(line: Line, exc: Exception, lost: tuple[str, ...], entry: str) 
         logging.WARNING,
         line=line,
         entry=entry,
-        error=str(exc),
+        error=one_line(exc),
         fields=lost,
     )
 
@@ -265,7 +266,7 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
             MODEL_FIELD_UNREADABLE,
             logging.WARNING,
             line=PT2_TAGS_LINE,
-            error=str(exc),
+            error=one_line(exc),
             fields=("properties.tags (kept as raw string)",),
         )
         return tags_raw, None

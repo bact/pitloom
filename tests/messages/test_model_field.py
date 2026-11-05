@@ -281,3 +281,20 @@ def test_a_kept_raw_config_says_whether_it_was_cut(
         "model_config.config is not an object; kept as "
         f"properties.model_config_raw{kept} | Field(s) affected (skipped): name"
     )
+
+
+def test_an_error_without_text_is_named_by_its_class(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A reader's line never fails to print: an exception with no message
+    gives its class name, one with a line break one line."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        pt2._read_pt2_text(_zip({"extra/name": b""}), "extra/name\n", "name")
+        with mock.patch.object(pt2, "read_archive_member", side_effect=OSError()):
+            pt2._read_pt2_text(_zip({}), "extra/name", "name")
+    assert [r.getMessage() for r in caplog.records] == [
+        "Failed to read PT2 extra file 'extra/name\\n': \"There is no item named "
+        "'extra/name\\\\n' in the archive\" | Field(s) affected (skipped): name",
+        "Failed to read PT2 extra file extra/name: OSError | Field(s) affected "
+        "(skipped): name",
+    ]

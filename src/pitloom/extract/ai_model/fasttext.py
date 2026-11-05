@@ -28,7 +28,7 @@ from pitloom.extract._extract_utils import (
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, one_line
 from pitloom.messages import (
     FASTTEXT_ARGS_LINE,
     FASTTEXT_LABELS_LINE,
@@ -126,7 +126,7 @@ def _extract_fasttext_args(
             MODEL_FIELD_UNREADABLE,
             logging.WARNING,
             line=FASTTEXT_ARGS_LINE,
-            error=str(exc),
+            error=one_line(exc),
             fields=(
                 "hyperparameters",
                 "properties.lossName",
@@ -168,7 +168,7 @@ def _extract_fasttext_labels(model: Any) -> list[str]:
             MODEL_FIELD_UNREADABLE,
             logging.WARNING,
             line=FASTTEXT_LABELS_LINE,
-            error=str(exc),
+            error=one_line(exc),
             fields=("properties.labels", "outputs"),
         )
         return []

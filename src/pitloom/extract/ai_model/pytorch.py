@@ -210,7 +210,7 @@ def _read_pytorch_zip(
                 line=PICKLE_MEMBER_LINE,
                 entry=pkl_entry,
                 name=source,
-                error=str(exc),
+                error=one_line(exc),
                 fields=_TYPE_ONLY,
             )
 
