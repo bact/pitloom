@@ -7,7 +7,7 @@
 
 These classes are the format-neutral internal representation of AI model
 metadata. They have no dependency on any SBOM library or model file format
-library, making them easy to test and to consume from any serializer.
+library, making them easy to test and to consume from any serialiser.
 """
 
 from __future__ import annotations

@@ -30,7 +30,7 @@ AST-only version scan, PDM's ``WheelBuilder``/``Context``-not-``.build()``
 avoidance).
 
 See also: ``working-docs/design/non-hatchling-file-discovery.md``
-(Track A/B split, "build-and-read" as roadmap item #4) and
+(Track A/B split, the build-and-read mechanism) and
 ``working-docs/implementation/allow-build-timeout.md`` (subprocess
 design, traps, rejected paths).
 """

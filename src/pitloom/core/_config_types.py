@@ -119,9 +119,8 @@ class FragmentConfig:
             ``FragmentMergeError`` instead of the default warn-and-skip.
             Defaults to False.
         sha256: Optional expected SHA-256 hex digest of the fragment file,
-            checked for display only by ``pitloom fragment list`` -- NOT
-            enforced during merge yet (see roadmap: "fragment sign +
-            SHA-256 verification in merge").
+            checked only by ``loom fragment list``, for display; not
+            enforced during merge (roadmap: ``loom fragment sign``).
         link_to_main: Reserved for a future SPDX relationship type between
             the fragment's root element and the project's main package.
             Stored but not yet acted on anywhere.

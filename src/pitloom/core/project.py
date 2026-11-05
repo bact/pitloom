@@ -44,7 +44,7 @@ class ProjectFile:
 
     Attributes:
         physical_path: Project-root-relative path to the physical file on
-            disk (see CLAUDE.md's ``physical_path``/``distribution_path``
+            disk (see AGENTS.md's ``physical_path``/``distribution_path``
             contract). A file sourced by the ``--allow-build`` build-and-read
             mechanism (``pitloom.core._models_wheel_build_and_read``) has an
             absolute path into a temporary extraction directory instead
@@ -247,7 +247,7 @@ class ProjectMetadata:
     :attr:`field_conflicts` records a genuine disagreement between this
     metadata's own value for a field and a second, independently-sourced
     candidate (e.g. an in-tree ``.egg-info``/``.dist-info`` -- see
-    :mod:`pitloom.extract.project.installed`) that was rejected in favor of
+    :mod:`pitloom.extract.project.installed`) that was rejected in favour of
     this instance's value. Empty for metadata that was never reconciled
     against a second source.
 
