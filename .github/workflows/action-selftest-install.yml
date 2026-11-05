@@ -7,8 +7,10 @@
 #
 # Every leg runs a copy of the action (.selftest-action/) whose
 # src/pitloom/__about__.py carries a fixed version, so the tests do not depend
-# on this commit's own version being on PyPI, and the derived version (0.18.0)
+# on this commit's own version being on PyPI, and the derived version (0.22.0)
 # differs from PyPI's latest, so an action that ignored its pin would fail.
+# Both fixed versions cap licenseid below 0.7: a release that does not
+# (0.21.1 and older) installs licenseid 0.7, and its loom fails to import.
 
 name: Action self-test (install)
 
@@ -42,23 +44,23 @@ jobs:
         include:
           # Pinned version derived from the checkout; the workflow's own
           # Python is kept.
-          - {name: "derived / ubuntu", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.18.0", expect_version: "0.18.0", expect_python: "3.11"}
-          - {name: "derived / macos", os: macos-latest, preinstalled_python: "3.11", copy_version: "0.18.0", expect_version: "0.18.0", expect_python: "3.11"}
-          - {name: "derived / windows", os: windows-latest, preinstalled_python: "3.11", copy_version: "0.18.0", expect_version: "0.18.0", expect_python: "3.11"}
+          - {name: "derived / ubuntu", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.22.0", expect_version: "0.22.0", expect_python: "3.11"}
+          - {name: "derived / macos", os: macos-latest, preinstalled_python: "3.11", copy_version: "0.22.0", expect_version: "0.22.0", expect_python: "3.11"}
+          - {name: "derived / windows", os: windows-latest, preinstalled_python: "3.11", copy_version: "0.22.0", expect_version: "0.22.0", expect_python: "3.11"}
           # A PEP 668 Python is unusable, so the action installs 3.x instead.
-          - {name: "fallback / ubuntu", os: ubuntu-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.18.0", expect_version: "0.18.0", forbid_python: "3.11"}
-          - {name: "fallback / macos", os: macos-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.18.0", expect_version: "0.18.0", forbid_python: "3.11"}
-          - {name: "fallback / windows", os: windows-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.18.0", expect_version: "0.18.0", forbid_python: "3.11"}
+          - {name: "fallback / ubuntu", os: ubuntu-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.22.0", expect_version: "0.22.0", forbid_python: "3.11"}
+          - {name: "fallback / macos", os: macos-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.22.0", expect_version: "0.22.0", forbid_python: "3.11"}
+          - {name: "fallback / windows", os: windows-latest, preinstalled_python: "3.11", mark_externally_managed: true, copy_version: "0.22.0", expect_version: "0.22.0", forbid_python: "3.11"}
           # An explicit pitloom-version beats the derived one.
-          - {name: "override", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.18.0", pitloom_version: "0.18.1", expect_version: "0.18.1", expect_python: "3.11"}
+          - {name: "override", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.22.0", pitloom_version: "0.22.1", expect_version: "0.22.1", expect_python: "3.11"}
           # An explicit python-version is honoured.
-          - {name: "explicit python", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.18.0", action_python: "3.12", expect_version: "0.18.0", expect_python: "3.12"}
+          - {name: "explicit python", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "0.22.0", action_python: "3.12", expect_version: "0.22.0", expect_python: "3.12"}
           # A pinned ref whose version is not on PyPI: the install script
           # must fail with its own error, after deriving the version.
           - {name: "unreleased fails", os: ubuntu-latest, preinstalled_python: "3.11", copy_version: "999.0.0", expect_failure: true}
           # Whatever Python the runner image ships: usable or fallback, the
           # action must succeed.
-          - {name: "bare runner", os: ubuntu-latest, copy_version: "0.18.0", expect_version: "0.18.0"}
+          - {name: "bare runner", os: ubuntu-latest, copy_version: "0.22.0", expect_version: "0.22.0"}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

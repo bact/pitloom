@@ -176,8 +176,10 @@ record separator, so empty arguments and embedded newlines survive `$(...)`.
   user's environment on a partial failure.
 
 **Tests.** `.github/workflows/action-selftest-install.yml` runs copies of the
-action whose `__about__.py` carries a fixed published version (`0.18.0`, older
-than latest, so ignoring the pin cannot pass), on ubuntu, macOS and Windows.
+action whose `__about__.py` carries a fixed published version (`0.22.0`, older
+than latest, so ignoring the pin cannot pass; override `0.22.1`), on ubuntu,
+macOS and Windows. Both cap `licenseid` below 0.7; an older release takes
+`licenseid` 0.7 and fails to import.
 `tests/scripts/` covers the probe, version reader, resolver, install script and
 the Generate step's `run:` block against stub programs (POSIX only). PR #224's
 runs confirmed the Windows and macOS legs.
