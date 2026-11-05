@@ -14,9 +14,9 @@ they run the same tool.
 
 See also: [SBOM from a Git URL](git-urls.md) for `loom project <url>`,
 [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
-[SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which hold the
-`embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment` and `id`
-subcommands.
+[SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which
+hold the `embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment`
+and `id` subcommands.
 
 ## Quick guide
 
@@ -262,8 +262,8 @@ of new ids (`--update-id-registry`): [Loom ID registry](id-registry.md).
 
 ## Useful flags
 
-Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
-`merge`/`fragment`/`id`, which take only their own flags), unless noted:
+Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
+(not `merge`/`fragment`/`id`, which take only their own flags), unless noted:
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
@@ -281,9 +281,9 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   from](configuration.md#where-settings-come-from) for the precedence table.
 - `--pretty` -- indent the JSON (default: compact). Only whitespace between
   tokens is added; key order and values are the compact (RFC 8785) text's.
-- `--offline` / `--no-offline` -- forbid network access (PyPI/Hugging Face
-  lookups), or, with `--no-offline`, allow it over a config `offline = true`.
-  Not on `enrich` either.
+- `--offline` / `--no-offline` -- forbid network access (PyPI and Hugging
+  Face lookups; a Git URL target is an error), or, with `--no-offline`, allow
+  it over a config `offline = true`. Not on `enrich`.
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
   other targets never read a lock file) and `enrich` (for `--project-dir`
   document identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
@@ -310,6 +310,9 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   registry](id-registry.md).
 - `--describe-relationship` / `--no-describe-relationship` -- include (or
   suppress) human-readable text on SPDX relationships.
+- `--extract-file-header` / `--no-extract-file-header` -- scan each source
+  file's leading comment header for `SPDX-File*` tags and a per-file
+  `SPDX-License-Identifier` (on by default).
 - `--content-type` / `--no-content-type` -- detect each file's real content
   type via magika/mimetypes (off by default: real per-file cost).
   `--content-type-method {auto,magika,extension}` picks the detector: `auto`
@@ -399,9 +402,12 @@ Stdout is data only (`--help`/`--version` aside), one `KEY=VALUE` record a
 line; counts, hints and `-v` go to stderr as `INFO:`. A written SBOM prints
 `PITLOOM_SBOM_OUTPUT_PATH=<path>`; embed prints `WHEEL=<w> SBOM=<arcname>`.
 With `-o -` stdout is the SBOM alone (`loom project . -o - | jq .`): no path
-line, and the embed record is an `INFO:` line. Others: `verify-`/
-`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`; `fragment
-validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`. A
+line, and the embed record is an `INFO:` line. Others: `verify-wheel`
+`WHEEL=<w> STATUS=ok|failed`; `validate-wheel` `WHEEL=<w>
+STATUS=valid|skipped|failed`; `fragment validate` `FILE=<f> STATUS=valid`;
+`fragment list` one `PATH=<p> ROLE=...` line per fragment ([SBOM
+fragments](fragments.md#list-configured-fragments)); `id`
+`PITLOOM_ID_REGISTRY_PATH=<path>`. A
 value with a non-printable character (tab, NBSP, ZWJ) prints quoted,
 ASCII-escaped. A catalogued stderr line ends in a stable `[code]`: see
 [Messages and codes](messages.md).
