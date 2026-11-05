@@ -244,7 +244,8 @@ The script's own string matters only for a dataset with no path below the root.
   nothing.
 - A package is keyed by the version it states ([Package
   keys](#package-keys)); one with none, or `NOASSERTION`, by its bare name.
-- A key held by several elements is skipped, as before.
+- A key held by several elements is skipped (see [What a registry
+  pins](id-registry.md#what-a-registry-pins)).
 
 ## Fallbacks print `INFO:`
 
@@ -297,11 +298,11 @@ import` writes for a `loom model` SBOM).
 
 ## What changed for an existing registry
 
-Pitloom 0.22.0 writes version 4, whose package keys hold the version. A
-version 3 file is refused on every command, with one `ERROR: ID registry file
-'<path>': version 3, expected 4 (no migration support -- delete it and re-run
-`loom id generate` or `loom id import`)`, and is left as it is: nothing is
-dropped or rewritten. To keep its ids, delete it and `loom id import` the last
+Pitloom 0.22.0 and later write version 4, whose package keys hold the
+version. A version 3 file is refused on every command, with one ``ERROR: ID
+registry file '<path>': version 3, expected 4 (no migration support -- delete
+it and re-run `loom id generate` or `loom id import`)``, and is left as it is:
+nothing is dropped or rewritten. To keep its ids, delete it and `loom id import` the last
 SBOM a run made with it (every file, model and dataset keeps its id, and each
 package is keyed by the version that SBOM states); `loom id generate` alone
 starts afresh, with new ids.

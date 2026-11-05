@@ -180,7 +180,10 @@ crafted file can make very slow or very large (GGUF, fickling). A hostile
 file can crash Pitloom, hang it, or exhaust memory, and Ctrl-C cannot stop
 a native parser while it runs. A wheel is often a file you did not build.
 
-Pitloom logs one line per scan, naming the gated formats it met that it has not already named. In a batch (`embed-wheel` with several wheels) each format is named once, in the first wheel that has it, and a later wheel with a different gated format gets its own line:
+Pitloom logs one line per scan, naming the gated formats it met that it has
+not already named. In a batch (`embed-wheel` with several wheels) each format
+is named once, in the first wheel that has it, and a later wheel with a
+different gated format gets its own line:
 
 ```text
 INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx. Pass --trust-wheel-model for a wheel you trust.
@@ -299,7 +302,8 @@ that table:
 - A file whose header is that of a model but which the reader cannot parse
   (truncated, corrupt) gives `WARNING: FORMAT=<fmt> FILE=<path>: failed to
   extract metadata; <error>` and a stub. A missing optional library gives
-  a stub and `required library not installed`.
+  a stub and `required library not installed`; one that is installed but
+  fails to import, a stub and `required library failed to import`.
 - A file whose header contradicts its model suffix, or a Git LFS pointer, is
   not a model, but is still listed as a `software_File` (a pointer by its
   `oid`, as in [Git URLs](git-urls.md)); see [What is a
