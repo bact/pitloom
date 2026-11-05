@@ -24,7 +24,7 @@ and this project adheres to
 
 ### Changed
 
-- Requires `licenseid>=0.7.0,<0.8`; a declared licence value is read from its
+- Requires `licenseid>=0.7.1,<0.8`; a declared licence value is read from its
   packaged SPDX License List, with no licence database ([#437])
 - Read as ids now: `MIT License (MIT)`-style names, trove paths, compounds
   (`Apache2 OR MIT`), `licenseref-foo` (`LicenseRef-foo`), `MIT or later`
@@ -46,6 +46,8 @@ and this project adheres to
 - A Croissant file that cannot be read, is over a cap or is not a JSON object
   raises with `pitloom_code` `file-unreadable`, `over-cap` or `json-malformed`
   ([#444])
+- `GPL-2.0 - or later` (hyphen, en or em dash, or no-break space before "or
+  later") is read as `GPL-2.0-or-later`, not kept as text ([#445])
 
 ### Fixed
 
@@ -59,11 +61,14 @@ and this project adheres to
 - A model or dataset directory that cannot be listed warns `[dir-unlistable]`
   instead of losing its card silently; a card read failure no longer prints its
   path twice ([#444])
+- A tag value such as `MIT/Apache-2.0` or `MIT, ISC` no longer detects as its
+  first id (`MIT`) ([#445])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437
 [#440]: https://github.com/bact/pitloom/pull/440
 [#444]: https://github.com/bact/pitloom/pull/444
+[#445]: https://github.com/bact/pitloom/pull/445
 
 ## [0.22.1] - 2026-11-03
 
