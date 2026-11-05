@@ -161,7 +161,10 @@ order and counts are in
   revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
   main into the branch, then implement (design on #384).
   **Decided 2026-11-05:** provenance annotations are not added to the SBOM
-  output automatically (they make it huge, and the taxonomy is not settled).
+  output by default (they make it huge, and the taxonomy is not settled); a
+  flag turns them on (name to settle, `--provenance` proposed; with the
+  `--no-` form, a `[tool.pitloom]` key, an Action input and an API parameter).
+  Today they are on by default (`format = "both"`, `detail = "minimal"`).
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
@@ -294,8 +297,8 @@ unless the linked doc says so.
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md); issues
   [#154](https://github.com/bact/pitloom/issues/154),
   [#110](https://github.com/bact/pitloom/issues/110).
-  **Decided 2026-11-05:** no provenance annotation is added to the output
-  automatically (the SBOM would grow huge; the taxonomy is not settled).
+  **Decided 2026-11-05:** no provenance annotation by default; a flag asks
+  for it (see the licence provenance item in 0.24.0).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one. See
   [dataset-splits.md](dataset-splits.md).
