@@ -251,7 +251,8 @@ codes](message-codes.md)): the `ValueError` carries the text `loom model`
 prints and the attribute `pitloom_code` (`pitloom.messages.code_of(exc)`).
 `read_ai_model()` in `pitloom.extract.ai_model.reader` raises the same errors.
 A Hugging Face model read without `huggingface_hub` raises an `ImportError`
-coded `library-missing`, naming the extra to install.
+coded `library-missing`, naming the extra to install
+(`library-missing/import-failed` when it is installed but fails to import).
 
 ## Tracking decorator
 

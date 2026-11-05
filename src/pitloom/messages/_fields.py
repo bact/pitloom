@@ -199,6 +199,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "control character",
             free=True,
         ),
+        "fields": Field(
+            rf"{_MODEL_FIELD}(?:, {_MODEL_FIELD})*",
+            joined,
+            "<fields>",
+            "the model fields not recorded, or recorded weaker, comma-separated, "
+            "each with a note in brackets when it has one (`type_of_model`, "
+            "`properties.tags (kept as raw string)`)",
+        ),
         "file": Field(
             r".+",
             file_text,
@@ -227,14 +235,6 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         "limit": Field(
             r"0|[1-9][0-9]*", number_text, "<limit>", "the cap, in its unit"
         ),
-        "lost": Field(
-            rf"{_MODEL_FIELD}(?:, {_MODEL_FIELD})*",
-            joined,
-            "<fields>",
-            "the model fields not recorded, or recorded weaker, comma-separated, "
-            "each with a note in brackets when it has one (`type_of_model`, "
-            "`properties.tags (kept as raw string)`)",
-        ),
         "module": Field(
             r"[a-z][a-z0-9_]*",
             plain_text,
@@ -253,7 +253,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         "number": Field(
             r"0|[1-9][0-9]*",
             number_text,
-            "<N>",
+            "<number>",
             "a whole number: a count, or a length in characters",
         ),
         "oid": Field(

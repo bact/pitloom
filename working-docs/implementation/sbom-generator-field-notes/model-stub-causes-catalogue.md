@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,7 @@ See also: [README.md](README.md) (index of these notes),
 A to M this PR applies),
 [provenance-injection-and-message-contract.md](provenance-injection-and-message-contract.md)
 (section 2: the messages as a contract with the skills),
-[message-catalogue-and-skills.md](../../design/message-catalogue-and-skills.md)
+[message-catalogue-families.md](../message-catalogue-families.md)
 ("The model-stub causes": D1 to D12),
 [model-file-metadata.md](model-file-metadata.md),
 [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md)

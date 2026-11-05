@@ -48,7 +48,7 @@ def _warn(line: Line, problem: ConfigProblem, **values: object) -> None:
         line=line,
         part=problem.part,
         error=problem.error,
-        lost=problem.lost,
+        fields=problem.lost,
         **values,
     )
 

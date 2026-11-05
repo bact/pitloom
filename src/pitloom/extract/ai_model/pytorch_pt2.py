@@ -117,7 +117,7 @@ def _warn_unread(
         logging.WARNING,
         line=line,
         error=str(exc),
-        lost=lost,
+        fields=lost,
         **values,
     )
 

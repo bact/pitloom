@@ -25,9 +25,9 @@ from pitloom.logging_config import field_loss_suffix
 from pitloom.messages._types import Line, Message
 
 #: What a line ends in: the fields left unset.
-_SKIPPED: Final = field_loss_suffix("skipped", "%(lost)s")
+_SKIPPED: Final = field_loss_suffix("skipped", "%(fields)s")
 #: What a line ends in: the fields recorded weaker.
-_DEGRADED: Final = field_loss_suffix("degraded", "%(lost)s")
+_DEGRADED: Final = field_loss_suffix("degraded", "%(fields)s")
 
 
 def _skipped(template: str) -> Line:

@@ -87,14 +87,14 @@ def test_a_line_keeps_its_code_through_the_scans_frame(
 @pytest.mark.parametrize(
     ("values", "line"),
     [
-        ({"lost": "type_of_model"}, None),
-        ({"lost": ()}, None),
-        ({"lost": ("type_of_model [x]",)}, None),
+        ({"fields": "type_of_model"}, None),
+        ({"fields": ()}, None),
+        ({"fields": ("type_of_model [x]",)}, None),
         ({"part": "model config"}, MODEL_FIELD_UNREADABLE.lines[10]),
         ({"number": -1}, MODEL_FIELD_CONFLICT.lines[1]),
         ({"elements": ("model-architecture",)}, FIELD_NOT_RECORDABLE.lines[0]),
     ],
-    ids=["lost-text", "lost-empty", "lost-forged", "part", "number", "elements"],
+    ids=["fields-text", "fields-empty", "fields-forged", "part", "number", "elements"],
 )
 def test_a_value_out_of_shape_is_refused(
     values: dict[str, object], line: Line | None

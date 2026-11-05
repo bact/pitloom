@@ -127,7 +127,7 @@ def _extract_fasttext_args(
             logging.WARNING,
             line=FASTTEXT_ARGS_LINE,
             error=str(exc),
-            lost=(
+            fields=(
                 "hyperparameters",
                 "properties.lossName",
                 "type_of_model",
@@ -169,7 +169,7 @@ def _extract_fasttext_labels(model: Any) -> list[str]:
             logging.WARNING,
             line=FASTTEXT_LABELS_LINE,
             error=str(exc),
-            lost=("properties.labels", "outputs"),
+            fields=("properties.labels", "outputs"),
         )
         return []
     return list(labels or ())

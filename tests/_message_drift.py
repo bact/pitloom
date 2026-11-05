@@ -56,7 +56,7 @@ SAMPLES: dict[str, object] = {
     "formats": ["gguf", "onnx"],
     "key": "FIELD",
     "limit": 1024,
-    "lost": ("type_of_model", "properties.tags (kept as raw string)"),
+    "fields": ("type_of_model", "properties.tags (kept as raw string)"),
     "module": "h5py",
     "name": "a.txt",
     "number": 2,

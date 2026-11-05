@@ -152,7 +152,8 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     IR version 4 on, a name in both is an input with a default, and kept.
 18. `domain`, `opset.<domain>` and every `metadata_props` entry as
     `metadata_props.<key>`; a repeated key keeps its last value, with one
-    `WARNING:` per file.
+    `WARNING: ... ONNX metadata_props: <N> key(s) appear more than once;
+    kept the last value of each: <keys> [model-field-conflict]` per file.
 19. The class at the top of `data.pkl` (often `OrderedDict` for a state
     dict), found by `fickling` without running the pickle.
 20. The archive member list and count; for PT2 also `extra/author` (also

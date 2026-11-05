@@ -46,6 +46,13 @@ and this project adheres to
 - A Croissant file that cannot be read, is over a cap or is not a JSON object
   raises with `pitloom_code` `file-unreadable`, `over-cap` or `json-malformed`
   ([#444])
+- Model fields a reader could not read, keys a model states twice and fields
+  SPDX 3.0.1 cannot record end in `[model-field-unreadable]`,
+  `[model-field-conflict]` or `[field-not-recordable]` ([#446])
+- The unparsed Keras `model_config` cut to 500 characters is an `[over-cap]`
+  line naming the model ([#446])
+- A library that is installed but fails to import says so,
+  `[library-missing/import-failed]`, not `not installed` ([#446])
 
 ### Fixed
 
@@ -64,6 +71,7 @@ and this project adheres to
 [#437]: https://github.com/bact/pitloom/pull/437
 [#440]: https://github.com/bact/pitloom/pull/440
 [#444]: https://github.com/bact/pitloom/pull/444
+[#446]: https://github.com/bact/pitloom/pull/446
 
 ## [0.22.1] - 2026-11-03
 

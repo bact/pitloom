@@ -89,7 +89,7 @@ def _warn_type_unread(line: Line, exc: Exception) -> None:
         logging.WARNING,
         line=line,
         error=one_line(exc),
-        lost=_TYPE_ONLY,
+        fields=_TYPE_ONLY,
     )
 
 
@@ -211,7 +211,7 @@ def _read_pytorch_zip(
                 entry=pkl_entry,
                 name=source,
                 error=str(exc),
-                lost=_TYPE_ONLY,
+                fields=_TYPE_ONLY,
             )
 
     return type_of_model, properties, source_metadata(properties, natives), provenance

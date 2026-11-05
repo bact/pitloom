@@ -144,7 +144,8 @@ except Exception as exc:
   `git.output-too-large` and whose `pitloom_code` is `over-cap`.
 - A library a step needs that is not installed (a model reader's, the Hugging
   Face Hub client) raises an `ImportError` whose `pitloom_code` is
-  `library-missing`; a model file that is not one, a `ValueError` whose
+  `library-missing`, `library-missing/import-failed` when it is installed but
+  fails to import; a model file that is not one, a `ValueError` whose
   `pitloom_code` is `model-wrong-format`.
 - A Croissant file a dataset declaration names (`croissant=`, or
   `read_croissant()`) that cannot be read, is over a cap, is not valid JSON

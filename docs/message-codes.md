@@ -27,6 +27,7 @@ most one prefix from the table of prefixes.
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
+| [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
@@ -36,6 +37,9 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
+| [`library-missing/import-failed`](#library-missingimport-failed) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
+| [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
+| [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
@@ -70,9 +74,12 @@ A line may start with one prefix before its text:
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
+| `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
+| `<fields>` | the model fields not recorded, or recorded weaker, comma-separated, each with a note in brackets when it has one (`type_of_model`, `properties.tags (kept as raw string)`) |
 | `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
@@ -80,8 +87,10 @@ A line may start with one prefix before its text:
 | `<limit>` | the cap, in its unit |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
+| `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
+| `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
@@ -134,6 +143,23 @@ A line may start with one prefix before its text:
 
   ```text
   WARNING: DIR=<dir>: could not list <use>; <failure> [dir-unlistable]
+  ```
+
+### `field-not-recordable`
+
+- **Level**: INFO.
+- **Means**: A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1
+  has no property for (the model architecture).
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Wrote the value in the broader property the line names
+  (ai_typeOfModel, after the type), or did not record it; the SBOM is otherwise
+  unchanged.
+- **Nothing to do**: SPDX 3.0.1 has no property for the element; the line says
+  where its value is written, if anywhere.
+- **Lines**:
+
+  ```text
+  INFO: FORMAT=<format> FILE=<file>: no SPDX 3.0.1 property: <elements> [field-not-recordable]
   ```
 
 ### `file-unreadable`
@@ -339,6 +365,83 @@ A line may start with one prefix before its text:
   ```text
   WARNING: FORMAT=<format> FILE=<file>: required library not installed; install <requirement> [library-missing]
   ERROR: required library not installed: <module>; install <requirement> [library-missing]
+  ```
+
+### `library-missing/import-failed`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A library Pitloom needs for a step is installed but fails to
+  import: a broken or partial install, a library it needs in turn missing, or a
+  build for another Python or platform.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: For a model file, listed the model by its file, format and
+  hashes only (a format-only entry, named after its file), without its metadata.
+  For any other step, did not run it: no SBOM of a Hugging Face model, no
+  validation, no SBOM with magika content types. Installed nothing.
+- **Tell the user**: which models or which step went without the library, what
+  the import reported and which extra reinstalls it, as the line names it. They
+  reinstall it where Pitloom runs (with uvx or pipx, in the --from or --spec
+  requirement) and run again; a model reader then runs on each such file, so
+  only for files they trust. Do not install anything or run again for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-missing/import-failed]
+  ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-missing/import-failed]
+  ```
+
+### `model-field-conflict`
+
+- **Level**: WARNING.
+- **Means**: A model states one key twice: a GGUF file states the length of an
+  array as a key of its own, or an ONNX file repeats a metadata_props key.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Recorded what the file's own reader sees: the GGUF key as the
+  file states it, not the length Pitloom would derive; the last value of each
+  repeated ONNX key, as protobuf keeps it.
+- **Nothing to do**: the SBOM states what the model's own reader sees; the other
+  value is still in the model.
+- **Lines**:
+
+  ```text
+  WARNING: GGUF key <entry> is in the file; the length of array <name> is not a property [model-field-conflict]
+  WARNING: ONNX metadata_props: <number> key(s) appear more than once; kept the last value of each: <name> [model-field-conflict]
+  ```
+
+### `model-field-unreadable`
+
+- **Level**: WARNING.
+- **Means**: A model reader read the file but not one of its parts (a fastText
+  call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or
+  config): the fields the line names are not recorded, or are recorded weaker.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Recorded the rest of the model; the line names the fields
+  skipped (not recorded) or degraded (kept in a weaker form, such as raw text),
+  and what the reader reported.
+- **Tell the user**: which model and which fields the SBOM lacks, and what the
+  reader reported, as the line says: a damaged or unusual file, or a format
+  version Pitloom does not read. The rest of the model is read. Do not edit or
+  replace the file for them.
+- **Lines**:
+
+  ```text
+  WARNING: Failed to read fastText model.f.getArgs(): <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to read fastText model labels: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: fickling failed to parse pickle bytes: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: fickling parsed pickle but AST walk failed: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to inspect <entry> in <name>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to parse PT2 metadata entry <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to read PT2 extra file <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to parse PT2 extra/tags as JSON: <error> | Field(s) affected (degraded): <fields> [model-field-unreadable]
+  WARNING: Failed to parse PT2 model graph <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to read PT2 <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> attribute cannot be read; <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> <error>; kept as properties.model_config_raw | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> <error>; kept as properties.model_config_raw, the first <limit> of <number> characters | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> <error>; the fields read before it are kept | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> <error>; reading stopped there | Field(s) affected (skipped): <fields> [model-field-unreadable]
   ```
 
 ### `model-unreadable`
