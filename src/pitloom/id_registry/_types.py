@@ -227,7 +227,7 @@ def _is_eligible_file(
 
 def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
     """*path* as the ``FILE=``/``DIR=`` warnings show it: relative to
-    *project_root* in POSIX form, as ``pitloom project`` shows it, else as
+    *project_root* in POSIX form, as ``loom project`` shows it, else as
     given (a path outside the project)."""
     try:
         return Path(path).relative_to(project_root).as_posix()
@@ -409,7 +409,7 @@ def _iter_files(
     root: a ``FILE=``/``DIR=`` warning instead). Below a directory path,
     a file that cannot be ``stat()``-ed is skipped with the shared
     ``FILE=`` warning, a directory that cannot be listed with the
-    ``DIR=`` one, as ``pitloom project`` does."""
+    ``DIR=`` one, as ``loom project`` does."""
     seen: set[Path] = set()
     excluded = None if exclude is None else SameFile(exclude)
     for raw_path in paths:

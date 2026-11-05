@@ -25,8 +25,8 @@ __all__ = ["document_id", "read_sbom_objects"]
 
 def _require_graph_list(raw: bytes) -> None:
     """Raise ``ValueError`` when the JSON *raw* has an ``@graph`` that is
-    not a list, or holds a non-object (the deserializer would leak a
-    ``TypeError``). Text that is not JSON is left to the deserializer's
+    not a list, or holds a non-object (the deserialiser would leak a
+    ``TypeError``). Text that is not JSON is left to the deserialiser's
     own error."""
     try:
         data = json.loads(raw)
