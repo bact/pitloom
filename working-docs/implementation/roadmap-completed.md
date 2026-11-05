@@ -375,7 +375,7 @@ The G7 and conformance work; full breakdown in
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger on
   `docs/g7-sbom-for-ai.md`; open gaps are under
-  [0.23.0](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+  [0.23.0](../design/roadmap.md#0230-licenseid-07-and-message-catalogue).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element SPDX 3.0.1 has no property for (today the architecture, in
   `ai_typeOfModel`; no reader drops a value). Always on, stderr only
@@ -435,7 +435,7 @@ Moved from [known-bugs.md](../design/known-bugs.md).
 
 Released 2026-10-30. Moved from [roadmap.md](../design/roadmap.md), as they
 stood there. Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue).
 
 - [x] **`embed-wheel --sbom` input check** (#374): invalid JSON, a non-object
   or a non-SPDX-3 `.spdx3.json` is refused before the wheel is written.
@@ -473,7 +473,7 @@ stood there. Open items:
 
 Released 2026-11-03. Fixes found in the cold reviews of 2026-11-02 and the
 re-run of the 0.22.0 release checks. Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue).
 
 - [x] **`--scan-model-usage` reads ASTs** (#413): `comment` is read, write,
   read and write, or unknown access; mentions skipped; new codes
@@ -502,8 +502,8 @@ re-run of the 0.22.0 release checks. Open items:
 ## Shipped in 0.23.0 (PRs #434-#446)
 
 Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage) and its
-0.24.0 section.
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue) and
+its 0.24.0 section.
 
 - [x] **`licenseid` 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
   declared licence value is read by `licenseid` alone, from its packaged SPDX

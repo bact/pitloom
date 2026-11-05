@@ -98,13 +98,7 @@ Keras, fastText, GGUF, Safetensors and ONNX readers (#426, #427, #433);
 Built in 0.22.1 (#413-#433). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0221-prs-413-433).
 
-### 0.23.0: G7 SBOM for AI field coverage
-
-The 1.0 headline ([#77](https://github.com/bact/pitloom/issues/77)); breakdown
-in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
-2026-09-17):** deterministic field population belongs in core; fuzzy mapping (a
-free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
-Skill.
+### 0.23.0: licenseid 0.7 and message catalogue
 
 **Released 2026-11-05** (v0.23.0), cut early (maintainer ruling 2026-11-04).
 See [CHANGELOG.md](../../CHANGELOG.md) and
@@ -175,11 +169,25 @@ order and counts are in
   (`--preserve-source-metadata auto|always|never`, beside the existing
   `--max-source-metadata-bytes`); its default becomes `never` (decided
   2026-11-05; today `auto`).
+  Scheduled as the flags item below.
+- [ ] **Provenance and source-metadata flags** (decided 2026-11-05, in the
+  licence provenance item above): `--provenance`/`--no-provenance`, default
+  off (today on); `--preserve-source-metadata auto|always|never`, default
+  `never` (today `auto`). Each needs `[tool.pitloom]` keys, Action inputs, API
+  parameters, the Hatchling hook, skills, a `_matrix_plan.py` entry and a
+  CHANGELOG "Changed" note; tests, manual checks and sweeps run with
+  provenance on (one shared test default), default-off asserted per surface.
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
 ### 1.0
 
+- [ ] **G7 SBOM for AI field coverage** (the headline,
+  [#77](https://github.com/bact/pitloom/issues/77)): breakdown in
+  [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
+  2026-09-17):** deterministic field population belongs in core; fuzzy mapping
+  (a free-text "producer" to a `Person`/`Organization`) stays with the
+  `sbom-enrich` Skill.
 - [ ] **Versioning and compatibility policy** (decision, not code): does
   1.0 commit to SemVer stability, replacing "no backward compat needed
   yet"? Which surfaces (CLI flags and output, library API,
@@ -308,7 +316,7 @@ unless the linked doc says so.
   [#154](https://github.com/bact/pitloom/issues/154),
   [#110](https://github.com/bact/pitloom/issues/110).
   **Decided 2026-11-05:** no provenance annotation by default; a flag asks
-  for it (see the licence provenance item in 0.24.0).
+  for it (see the flags item in 0.24.0).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one. See
   [dataset-splits.md](dataset-splits.md).
