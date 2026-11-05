@@ -298,12 +298,12 @@ but isn't. For the wording and bounds of any case, read
   scanned.
 - **AI model stubs:** an `ai_AIPackage` with no `ai_*` property and no
   `Source: <model file> | Field: ...` comment was not read. Its stderr line
-  ends in the cause's code (`[reader-unsafe]`, `[library-missing]` or
-  `/import-failed`, `[model-unreadable]`, `[over-cap]`); when one does, read
-  `references/messages.md` and relay its advice to the user. Never install an
-  extra, raise a ceiling or add `--trust-wheel-model` on your own. A failed
-  read leaves a stub with a `WARNING:` (exit 0); a file whose header
-  contradicts its suffix is no model (`[model-wrong-format]`, no
+  ends in the cause's code (`[reader-unsafe]`, `[library-missing]`,
+  `[library-missing/import-failed]`, `[model-unreadable]`, `[over-cap]`); when
+  one does, read `references/messages.md` and relay its advice to the user.
+  Never install an extra, raise a ceiling or add `--trust-wheel-model` on your
+  own. A failed read leaves a stub with a `WARNING:` (exit 0); a file whose
+  header contradicts its suffix is no model (`[model-wrong-format]`, no
   `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse it (`ERROR:`,
   exit 1).
 - **Model producer, parameter count** exist for some formats only (absence is
