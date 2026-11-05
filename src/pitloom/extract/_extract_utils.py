@@ -238,12 +238,14 @@ def fetch_json(
         pitloom.core.internal_error.InternalError: A local *source* without
             *use*.
     """
-    is_url = isinstance(source, str) and source.startswith(("http://", "https://"))
-    if not is_url and use is None:
+    url: str | None = None
+    if isinstance(source, str) and source.startswith(("http://", "https://")):
+        url = source
+    if url is None and use is None:
         raise InternalError("fetch_json: a local source needs its use")
     try:
-        if is_url:
-            with urllib.request.urlopen(source, timeout=timeout) as resp:  # nosec B310
+        if url is not None:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
         else:
             # A FIFO or device would block the open or the read.
@@ -260,7 +262,7 @@ def fetch_json(
         # A URL that cannot be fetched and an absent file have no catalogued
         # line yet; an absent file is never unreadable.
         absent = isinstance(exc, OSError) and is_missing_errno(exc)
-        if is_url or use is None or absent or not isinstance(exc, OSError):
+        if url is not None or use is None or absent or not isinstance(exc, OSError):
             where = quote_source(source)
             raise ValueError(f"Cannot read {subject} {where}: {exc}") from exc
         raise file_unreadable_error(exc, file=source, use=use) from exc
