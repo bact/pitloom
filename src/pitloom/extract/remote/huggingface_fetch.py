@@ -6,7 +6,7 @@
 """Hugging Face Hub I/O and licence resolution helpers.
 
 Downloads and parses raw data from a Hugging Face Hub repository
-(``config.json``, the model card, ``model_info()``, and license files) and
+(``config.json``, the model card, ``model_info()``, and licence files) and
 resolves the model's SPDX license identifier.
 
 See also: :mod:`pitloom.extract.remote.huggingface` (public facade) and
@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 # A card YAML licence that is a placeholder (``other``, ``custom``, ...) falls
 # back to license-file detection (:func:`is_vague_license_value`).
-# Filenames (case-sensitive, root of repo) considered license candidates.
+# Filenames (case-sensitive, root of repo) considered licence candidates.
 # Listed in priority order: no extension first, then common suffixes.
 _HF_LICENSE_FILENAMES: tuple[str, ...] = (
     "LICENSE",
@@ -198,7 +198,7 @@ def _detect_license_from_hf_files(
     model_id: str,
     revision: str | None = None,
 ) -> tuple[str | None, str | None]:
-    """Try to detect an SPDX license ID from license files in a HF repository.
+    """Try to detect an SPDX license ID from licence files in a HF repository.
 
     Downloads each candidate file in priority order and runs
     :func:`~pitloom.extract._license_text_match.detect_license_from_text`

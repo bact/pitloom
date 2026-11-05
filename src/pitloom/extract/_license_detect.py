@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""File and metadata scanning for project-level license files and metadata.
+"""File and metadata scanning for project-level licence files and metadata.
 
 See also: :mod:`pitloom.extract._license` for the public facade and
 :mod:`pitloom.extract._license_text_match` for text matching.
@@ -35,8 +35,8 @@ _LICENSE_SUFFIXES = ("", ".txt", ".rst", ".md")
 CITATION_CFF = "CITATION.cff"
 CODEMETA_JSON = "codemeta.json"
 
-#: Largest license file (or ``CITATION.cff``/``codemeta.json``) read for
-#: detection. Real license texts are a few KiB to some tens of KiB; a
+#: Largest licence file (or ``CITATION.cff``/``codemeta.json``) read for
+#: detection. Real licence texts are a few KiB to some tens of KiB; a
 #: larger one is skipped with one ``WARNING:`` (:data:`LICENSE_FILE_CAP`).
 LICENSE_FILE_MAX_BYTES = 256 * 1024
 #: :data:`LICENSE_FILE_MAX_BYTES` as every reader of a licence source warns
@@ -50,7 +50,7 @@ _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
 
 
 def _looks_like_spdx_license_id(value: str) -> bool:
-    """Return True when *value* looks like a bare SPDX License ID, not license text."""
+    """Return True when *value* looks like a bare SPDX License ID, not licence text."""
     stripped = value.strip()
     return bool(
         stripped
@@ -102,7 +102,7 @@ def license_source_names(names: Iterable[str]) -> list[str]:
 
 
 def find_license_files(project_dir: Path) -> list[Path]:
-    """Return existing license files in *project_dir* in priority order
+    """Return existing licence files in *project_dir* in priority order
     (see :func:`pick_license_names`)."""
     try:
         names = [p.name for p in project_dir.iterdir() if p.is_file()]
@@ -184,9 +184,9 @@ def license_candidates_from_members(
 ) -> list[tuple[str, str]]:
     """Return ``[(value, source_description), ...]`` for all license
     sources among *members*: a project root's files, by exact name, to
-    their bytes (``CITATION.cff``, ``codemeta.json``, the license files of
+    their bytes (``CITATION.cff``, ``codemeta.json``, the licence files of
     :func:`pick_license_names`; other names are ignored). An empty or
-    whitespace-only license file gives no candidate. *archive* names the
+    whitespace-only licence file gives no candidate. *archive* names the
     archive the members come from (``| File: <archive>`` in each source).
 
     See also: :func:`collect_license_candidates`, the directory adapter.

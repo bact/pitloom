@@ -313,7 +313,7 @@ def build_file_declared_license(
     consult the source at all.
 
     Dedup is by ``(kind, value)`` via :func:`get_or_create_license_element`
-    -- a file whose license matches the project's or another file's reuses
+    -- a file whose licence matches the project's or another file's reuses
     the same element.
     """
     element = get_or_create_license_element(
@@ -449,7 +449,7 @@ def attach_main_package_license(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
-    """Attach declared and/or concluded license elements and relationships for
+    """Attach declared and/or concluded licence elements and relationships for
     the main Python project package.
 
     ``metadata.license_name`` truthy does not guarantee two-candidate mode:

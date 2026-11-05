@@ -315,7 +315,7 @@ def _parse_poetry_urls(poetry: dict[str, Any]) -> dict[str, str]:
 def _resolve_poetry_license(
     poetry: dict[str, Any], project_dir: Path
 ) -> ProjectMetadata:
-    """Resolve ``[tool.poetry]``'s declared license, then what the
+    """Resolve ``[tool.poetry]``'s declared licence, then what the
     project's own licence files say
     (:func:`~pitloom.extract._license.apply_in_package_license_files`).
 

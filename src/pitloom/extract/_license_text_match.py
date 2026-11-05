@@ -126,7 +126,7 @@ def _detector(*, declared: bool = False) -> LicenseDetector | None:
 _MIN_LICENSE_TEXT_LENGTH = 100
 """Below this length, *text* is a short label (e.g. ``"MIT License
 (MIT)"``, seen in real-world ``[project.license].text`` values), not an
-actual license body -- similarity-matching it against ``licenseid``'s
+actual licence body -- similarity-matching it against ``licenseid``'s
 database is unreliable at this length and can score a coincidental
 false positive above the match threshold. Every real SPDX license
 text is well over this length (0BSD, the shortest, is ~500 characters),
@@ -299,7 +299,7 @@ def detect_license_from_text(
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database cannot be used, *text* is too short to be a
-    real license body, or no match exceeds the threshold. *text* is read as
+    real licence body, or no match exceeds the threshold. *text* is read as
     written and without its copyright notice lines (:func:`_readings`); the
     better-scoring reading counts (:func:`_best_readings`). A licence
     *stated* (the manifest's own id or expression) that it matches at
