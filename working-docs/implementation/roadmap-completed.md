@@ -522,3 +522,5 @@ Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
   sdist or wheel.
 - [x] **Docs and tests** (#434, #436, #442): the 0.22.1 PyPI verification;
   live Git tests retry a transient 5xx answer; the catalogue plan refresh.
+- [x] **Release PR** (#448): the skills require `pitloom>=0.23.0`; the action
+  install self-test uses releases that cap `licenseid` below 0.7.
