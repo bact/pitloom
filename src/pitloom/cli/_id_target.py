@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Where `pitloom id generate`/`import` write the registry: the target
+"""Where `loom id generate`/`import` write the registry: the target
 resolution and the config hint.
 
 See also: :mod:`pitloom.cli.id` (the commands).
@@ -52,7 +52,7 @@ def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
     :func:`pitloom.extract.project.read_project` selects between
     ``pyproject.toml``'s ``[tool.pitloom]`` and ``setup.cfg``'s
     ``[tool:pitloom]`` for every other Pitloom surface (see
-    ``CLAUDE.md``'s "Usage surfaces": a hand-rolled pyproject.toml-only
+    ``AGENTS.md``'s "Usage surfaces": a hand-rolled pyproject.toml-only
     read here would silently diverge from that selection).
 
     Returns the defaults and ``_PYPROJECT_TABLE`` when *project_dir* has no
@@ -107,7 +107,7 @@ def _normalized_absolute(path: Path) -> Path:
 
 
 def _no_id_registry_declared_error(table: str) -> ValueError:
-    """The ``ValueError`` `pitloom id generate`/`import` raise when
+    """The ``ValueError`` `loom id generate`/`import` raise when
     neither a flag nor the project's own config declares a registry
     location -- no implicit default file is assumed (see docs/cli.md's
     "Pin ids across fragments")."""
@@ -120,7 +120,7 @@ def _no_id_registry_declared_error(table: str) -> ValueError:
 def _resolve_id_registry_target(
     flag: Path | None, project_dir: Path
 ) -> tuple[Path, bool, _ConfigSlot]:
-    """Resolve the registry path `pitloom id generate`/`import` writes to.
+    """Resolve the registry path `loom id generate`/`import` writes to.
 
     Precedence: *flag* (``--id-registry``/``-o``; a relative *flag*
     resolves against the current directory, like every other command,

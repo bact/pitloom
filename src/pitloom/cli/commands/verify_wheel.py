@@ -139,12 +139,12 @@ def _check_one_wheel(
 
 @cli_error_handler("wheel SBOM verification failed")
 def _run_verify_wheel_command(args: argparse.Namespace) -> int:
-    """Run `pitloom verify-wheel`.
+    """Run `loom verify-wheel`.
 
     Structural check: is an SBOM present at the PEP 770 location
     (``.dist-info/sboms/``), does its extension match the recommendation
     for its detected format, and does its declared subject name/version
-    match the wheel's own ``.dist-info/METADATA`` (PEP 503/440-normalized).
+    match the wheel's own ``.dist-info/METADATA`` (PEP 503/440-normalised).
     A name/version mismatch is a `WARNING:` by default; pass
     `--fail-on-mismatch` to make it an `ERROR:` (exit 1) instead. See
     `validate-wheel` for schema/SHACL content validation.
