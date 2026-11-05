@@ -38,7 +38,8 @@ history.
   `format_version` and `properties.*` get provenance in the package comment
   and fields annotation, but nothing in `assemble/` emits those fields, and
   a shipped model skips the artifact-metadata annotation under
-  `preserve-source-metadata=auto`, so the values (e.g. CRFsuite labels
+  `preserve-source-metadata=auto` (the default today; `never` is planned,
+  decided 2026-11-05), so the values (e.g. CRFsuite labels
   beyond the 20 in the description) appear nowhere. Either emit them or
   drop their provenance. Repro: `loom project` (or `loom wheel`, auto mode)
   on pythainlp gives 8 `ai_AIPackage` and 0 artifact-metadata annotations,

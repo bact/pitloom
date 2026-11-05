@@ -174,12 +174,12 @@ checkpoint at all) is a different, prior failure mode --
 `detect_ai_model_format()` simply doesn't return `AiModelFormat.JAX` for
 it, same as any other format's magic-byte miss.
 
-No new SPDX3 `ExternalRef`/`ExternalIdentifier` vocabulary term is needed
+No new SPDX 3 `ExternalRef`/`ExternalIdentifier` vocabulary term is needed
 (resolved in conversation, not yet written up elsewhere): the codebase's
 existing `other` + explanatory `comment` convention
 (`src/pitloom/assemble/spdx3/_ai_package.py`'s DOI/arXiv handling) already
 covers "no vocab term fits", and `format_version`/`framework`/
-`framework_version` are pre-existing unmapped-to-SPDX3 gaps tracked in
+`framework_version` are pre-existing unmapped-to-SPDX 3 gaps tracked in
 `working-docs/design/sbom-enrichment.md`, not something JAX-specific.
 
 ## Fixture plan

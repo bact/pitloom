@@ -53,9 +53,9 @@ trip review attention:
   `extract/ai_model/test_pytorch_pt2.py` (531). The `hf_patches/` catalogs run
   to 583 lines.
 - **Docs** (same limits, ~30KB): over 500 lines are
-  `working-docs/design/mlflow-extractor.md` (597),
+  `working-docs/design/mlflow-extractor.md` (602),
   `working-docs/implementation/manual-cli-checks.md` (587) and
-  `working-docs/design/canonical-output-followups.md` (536), and `action.yml`
+  `working-docs/design/canonical-output-followups.md` (535), and `action.yml`
   (621); `CHANGELOG.md` (551) is exempt by nature. The generated message
   reference (`docs/message-codes.md` and its two skill copies, about 650 lines
   and 40 KB each) is over the soft line limit and the ~30 KB hard limit.

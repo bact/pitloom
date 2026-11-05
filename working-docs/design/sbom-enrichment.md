@@ -27,7 +27,7 @@ Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
 | `format_info.format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
 | `format_info.framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
 | `format_info.framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
-| `properties`, `raw_metadata` | no SPDX field; preserved verbatim in the artifact-metadata `Annotation` (`preserve-source-metadata`) |
+| `properties`, `raw_metadata` | no SPDX field; preserved verbatim in the artifact-metadata `Annotation` when `preserve-source-metadata` allows |
 | `provenance` | `comment` |
 
 `ai_AIPackage` elements are linked to the main Python package via an SPDX

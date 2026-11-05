@@ -53,14 +53,14 @@ the original Phase 1/4 plan turned out to already be built.
   per-fragment read/parse (`_fragment_read_status` in
   `cli/commands/fragment.py`) and `merge_fragments()`'s own read/parse
   (`assemble/spdx3/fragments.py`) are two independently-written code
-  paths doing the same "open, JSON-parse, SPDX3-deserialise" job --
+  paths doing the same "open, JSON-parse, SPDX 3 deserialise" job --
   `fragment list` calls `JSONLDDeserializer().deserialize_data()` on
   pre-parsed JSON (to avoid re-parsing bytes it already parsed for the
   SHA-256/element-count checks), `merge_fragments()` calls
   `JSONLDDeserializer().read()` directly on an open file handle. They
   agree today, but nothing keeps them in sync if either the deserialiser
   library or one call site changes independently. A shared
-  "read+parse+deserialise a fragment, return raw bytes and the SPDX3
+  "read+parse+deserialise a fragment, return raw bytes and the SPDX 3
   object set" helper would close this; deferred since it isn't a live
   bug and reworking it risks reintroducing the double-JSON-parse
   inefficiency the current split was built to avoid.

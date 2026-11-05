@@ -8,10 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # MLflow run extractor
 
-See also: [roadmap.md](roadmap.md) (Backlog),
-[extractor-integrations.md](sbom-fragments/extractor-integrations.md)
-(W&B Weave and DVC, the same shape).
-
+See also: [roadmap.md](roadmap.md),
+[extractor-integrations.md](sbom-fragments/extractor-integrations.md).
 Status: design; nothing is built.
 
 ## Overview
