@@ -35,7 +35,12 @@ from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import warn_over_cap
+from pitloom.messages import (
+    MODEL_FIELD_CONFLICT,
+    ONNX_REPEATED_LINE,
+    emit,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 
@@ -166,12 +171,13 @@ def _warn_repeated_keys(keys: list[str]) -> None:
     naming the first few, each cut short."""
     shown = ", ".join(one_line(key, limit=_SHOWN_KEY_CHARS) for key in keys[:3])
     more = ", ..." if len(keys) > 3 else ""
-    log.warning(
-        "ONNX metadata_props: %d key(s) appear more than once; kept the last "
-        "value of each: %s%s",
-        len(keys),
-        shown,
-        more,
+    emit(
+        log,
+        MODEL_FIELD_CONFLICT,
+        logging.WARNING,
+        line=ONNX_REPEATED_LINE,
+        number=len(keys),
+        name=shown + more,
     )
 
 
@@ -311,8 +317,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     try:
         # pylint: disable=import-outside-toplevel
         import onnx
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.ONNX) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.ONNX, exc) from exc
 
     try:
         # load_external_data=False avoids loading large external tensor files

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,17 +34,16 @@ Following PR #161's decomposition passes, the ratchet ceilings are:
 
 ## File-size limits status (DRIFTED -- needs a follow-up pass)
 
-Snapshot of 2026-11-04 (`wc -l`) for `src/`, 2026-10-22 for `tests/`. Organic
+Snapshot of 2026-11-05 (`wc -l`) for `src/`, 2026-10-22 for `tests/`. Organic
 growth keeps crossing the soft limit, none of it individually large enough to
 trip review attention:
 
 - **`src/`** (soft limit 400-500, hard cap 800): 50 files exceed 400 lines and
-  11 exceed 500 (`extract/_license.py` is 219 since its split in #438 and
+  10 exceed 500 (`extract/_license.py` is 219 since its split in #438 and
   #440). Worst: `extract/_usage_ast.py` (619), `extract/ai_model/pytorch_pt2.py`
-  (579), `export/spdx3_json.py` (559), `assemble/spdx3/deps_license.py` (520),
+  (583), `export/spdx3_json.py` (559), `assemble/spdx3/deps_license.py` (520),
   `extract/remote/huggingface_field.py` (513), `core/ai_metadata.py` (511),
-  `id_registry/_registry.py` (510), `extract/ai_model/hdf5_config.py` and
-  `assemble/spdx3/provenance.py` (504 each), `assemble/spdx3/_ai_package.py`
+  `id_registry/_registry.py` (510), `assemble/spdx3/provenance.py` (504), `assemble/spdx3/_ai_package.py`
   and `core/_config_parse.py` (502 each).
 - **`tests/`** (excluding the `hf_patches/` mock catalogs): files over 500 lines
   are `assemble/test_deps_enrichment_pypi_fallback.py` (691, the worst, near the
@@ -57,7 +56,11 @@ trip review attention:
   `working-docs/design/mlflow-extractor.md` (597),
   `working-docs/implementation/manual-cli-checks.md` (532) and
   `working-docs/design/canonical-output-followups.md` (529), and `action.yml`
-  (604); `CHANGELOG.md` (551) is exempt by nature.
+  (604); `CHANGELOG.md` (551) is exempt by nature. The generated message
+  reference (`docs/message-codes.md` and its two skill copies, about 650 lines
+  and 40 KB each) is over the soft line limit and the ~30 KB hard limit.
+  Splitting it (per family or per actor, a generator change) is a
+  precondition of the next catalogue PR.
 
 None of the code files have crossed the 800-line hard cap, so nothing is
 currently broken -- but per AGENTS.md, a file should be split *before* crossing

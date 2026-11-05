@@ -13,15 +13,23 @@ See also: :mod:`pitloom.messages._types` (the templates) and
 
 from __future__ import annotations
 
-import os
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable, one_line
+from pitloom.messages._field_writers import (
+    bytes_text,
+    count_text,
+    failure_text,
+    file_text,
+    free_text,
+    joined,
+    number_text,
+    path_text,
+    plain_text,
+)
 from pitloom.messages._model_limits import MODEL_LIMIT_REASONS
 
 
@@ -43,103 +51,6 @@ class Field:
     free: bool = False
 
 
-def size_text(size: int) -> str:
-    """*size* as every message and comment states it: ``1 byte``, ``N bytes``."""
-    return f"{size} byte" if size == 1 else f"{size} bytes"
-
-
-def _path_text(value: object) -> str:
-    """*value*, a ``str`` or :class:`os.PathLike` path, as text.
-
-    Raises:
-        ValueError: It is neither, or names a path in bytes.
-    """
-    text = os.fspath(value) if isinstance(value, os.PathLike) else value
-    if not isinstance(text, str):
-        raise ValueError(f"not a path: {value!r}")
-    return text
-
-
-def _file(value: object) -> str:
-    """A ``FILE=`` value: the path as it is when printable, else escaped."""
-    return loggable(_path_text(value))
-
-
-def _path(value: object) -> str:
-    """A path in quotes, as every message quotes one."""
-    return quote_source(_path_text(value))
-
-
-def _count(value: object) -> str:
-    """`` (N files)`` for two files or more, else nothing."""
-    number = _whole(value)
-    return f" ({number} files)" if number > 1 else ""
-
-
-def _size(value: object) -> str:
-    return size_text(_whole(value))
-
-
-def _whole(value: object) -> int:
-    """*value* when it is an ``int`` of zero or more (a ``bool`` is not).
-
-    Raises:
-        ValueError: It is not.
-    """
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"not a whole number: {value!r}")
-    return value
-
-
-def _limit(value: object) -> str:
-    return str(_whole(value))
-
-
-def _str(value: object) -> str:
-    """*value* when it is a ``str``.
-
-    Raises:
-        ValueError: It is not.
-    """
-    if not isinstance(value, str):
-        raise ValueError(f"not text: {value!r}")
-    return value
-
-
-def _name(value: object) -> str:
-    """A free text value: as it is when printable, else escaped."""
-    return loggable(_str(value))
-
-
-def _failure(value: object) -> str:
-    """What stopped a read, from the exception *value*, on one line: an
-    :class:`OSError`'s own description (``strerror``, ``Permission
-    denied``), never its text, which quotes the path; any other
-    exception's text, its class name when it has none.
-
-    Raises:
-        ValueError: *value* is not an exception (a text included).
-    """
-    if not isinstance(value, BaseException):
-        raise ValueError(f"not an exception: {value!r}")
-    if isinstance(value, OSError) and value.strerror:
-        return one_line(value.strerror)
-    return one_line(value)
-
-
-def _formats(value: object) -> str:
-    """A list or tuple of format names, comma-separated; an empty one
-    writes nothing, which the field's shape refuses.
-
-    Raises:
-        ValueError: It is neither (a ``str`` included), or holds anything
-            but text.
-    """
-    if not isinstance(value, (list, tuple)):
-        raise ValueError(f"not a list of formats: {value!r}")
-    return ", ".join(_str(item) for item in value)
-
-
 #: A whole number in a bound-check reason (each ``%d`` of the table).
 _NUMBER: Final = "(?:0|[1-9][0-9]*)"
 #: The bound-check reasons as one pattern, each ``%d`` a whole number.
@@ -148,6 +59,14 @@ _REASONS: Final = "|".join(
     for text in MODEL_LIMIT_REASONS
 )
 
+
+#: A G7 element as a ``field-not-recordable`` line names it.
+_ELEMENT: Final = r"[a-z][a-z0-9-]* \((?:not recorded|written in [A-Za-z_]+)\)"
+#: A model field as a ``model-field-unreadable`` line names it: a dotted
+#: name, a note in brackets after it when it has one.
+_MODEL_FIELD: Final = r"[a-z_][A-Za-z0-9_.]*(?: \([^()]+\))?"
+#: One step of a Keras config key path (``layers[0]``).
+_KEY_STEP: Final = r"[a-z_]+(?:\[(?:0|[1-9][0-9]*)\])?"
 
 #: The keys an over-cap line names its input by: a file, a directory, a
 #: metadata field (or table), a dataset, a marker or a requirement.
@@ -207,40 +126,55 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
     {
         "amount": Field(
             r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes|[1-9][0-9]* (?:KiB|MiB|GiB)",
-            _str,
+            plain_text,
             "<amount>",
             "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
         ),
         "card": Field(
             "|".join(re.escape(kind) for kind in CARD_KINDS),
-            _str,
+            plain_text,
             "<card>",
             "the kind of card: " + ", ".join(f"`{kind}`" for kind in CARD_KINDS),
         ),
         "command": Field(
             r"[a-z][a-z-]*",
-            _str,
+            plain_text,
             "<command>",
             "the git command that was stopped or failed (`clone`, `fetch`)",
         ),
         "count": Field(
             r"(?: \((?:[2-9]|[1-9][0-9]+) files\))?",
-            _count,
+            count_text,
             "<count>",
             "the number of files in brackets, `(N files)`, after a space when "
             "there are two or more; else nothing",
         ),
         "dir": Field(
             r".+",
-            _file,
+            file_text,
             "<dir>",
             "a directory as Pitloom names it; in quotes, escaped, when it holds "
             "a control character",
             free=True,
         ),
+        "elements": Field(
+            rf"{_ELEMENT}(?:, {_ELEMENT})*",
+            joined,
+            "<elements>",
+            "G7 elements, comma-separated, each with where its value is written "
+            "(`model-architecture (written in ai_typeOfModel)`) or `(not recorded)`",
+        ),
+        "entry": Field(
+            r".+",
+            free_text,
+            "<entry>",
+            "an archive member or a metadata key, as the file names it; in "
+            "quotes, escaped, when it holds a control character",
+            free=True,
+        ),
         "error": Field(
             r".+",
-            _name,
+            free_text,
             "<error>",
             "what the reader or the file system reported, on one line; in "
             "quotes, escaped, when it holds a control character",
@@ -248,7 +182,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "failure": Field(
             r".+",
-            _failure,
+            failure_text,
             "<failure>",
             "what the operating system reported (`Permission denied`), never "
             "the path it names, or what the decoder or reader reported; on one "
@@ -257,7 +191,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "field": Field(
             r".+",
-            _name,
+            free_text,
             "<field>",
             "the project setting that lists the file (`project.readme`, "
             "`tool.setuptools.dynamic.dependencies`, `setup.cfg "
@@ -265,9 +199,17 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "control character",
             free=True,
         ),
+        "fields": Field(
+            rf"{_MODEL_FIELD}(?:, {_MODEL_FIELD})*",
+            joined,
+            "<fields>",
+            "the model fields not recorded, or recorded weaker, comma-separated, "
+            "each with a note in brackets when it has one (`type_of_model`, "
+            "`properties.tags (kept as raw string)`)",
+        ),
         "file": Field(
             r".+",
-            _file,
+            file_text,
             "<file>",
             "a file as Pitloom names it (its path, or a remote document's URL "
             "or Hub dataset id); in quotes, escaped, when it holds a control "
@@ -279,66 +221,82 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "formats": Field(
             r"[a-z][a-z0-9_]*(?:, [a-z][a-z0-9_]*)*",
-            _formats,
+            joined,
             "<formats>",
             "model formats, comma-separated (`gguf, onnx`)",
         ),
         "key": Field(
             "|".join(sorted(CAP_KEYS)),
-            _str,
+            plain_text,
             "<key>",
             "the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field "
             "or table), `DATASET`, `MARKER` or `REQUIREMENT`",
         ),
-        "limit": Field(r"0|[1-9][0-9]*", _limit, "<limit>", "the cap, in its unit"),
+        "limit": Field(
+            r"0|[1-9][0-9]*", number_text, "<limit>", "the cap, in its unit"
+        ),
         "module": Field(
             r"[a-z][a-z0-9_]*",
-            _str,
+            plain_text,
             "<module>",
             "the Python module Pitloom imports for the step (`h5py`)",
         ),
         "name": Field(
             r".*",
-            _name,
+            free_text,
             "<name>",
             "the input as Pitloom names it (a path, a field, a dataset, the start "
             "of a requirement); in quotes, escaped, when it holds a control "
             "character",
             free=True,
         ),
+        "number": Field(
+            r"0|[1-9][0-9]*",
+            number_text,
+            "<number>",
+            "a whole number: a count, or a length in characters",
+        ),
         "oid": Field(
             r"[0-9a-f]{64}", str, "<oid>", "the SHA-256 the pointer states, in hex"
         ),
         "outcome": Field(
             r".+",
-            _str,
+            plain_text,
             "<outcome>",
             "what Pitloom kept, and what it did not read or record",
             free=True,
         ),
+        "part": Field(
+            rf"{_KEY_STEP}(?:\.{_KEY_STEP})*",
+            plain_text,
+            "<part>",
+            "the part of a Keras or HDF5 model that was not read: a root "
+            "attribute (`model_config`) or a key path in a config "
+            "(`training_config.optimizer`, `layers[0].config`)",
+        ),
         "path": Field(
             r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'",
-            _path,
+            path_text,
             "'<path>'",
             "a path in quotes",
         ),
         "purpose": Field(
             rf"{_CAP_WORD}(?: {_CAP_WORD}){{0,2}}",
-            _str,
+            plain_text,
             "<cap>",
             "the cap's name; a setting's name when a setting sets it "
             "(`max-model-extract-bytes`)",
         ),
         "python": Field(
             r"[0-9]+\.[0-9]+",
-            _str,
+            plain_text,
             "<x.y>",
             "the Python version Pitloom runs on, as `3.10`: the grammar a file "
             "was read as",
         ),
         "reason": Field(
             _REASONS,
-            _str,
+            plain_text,
             "<reason>",
             "what the bound check found: a count the file cannot hold, a "
             "malformed ZIP central directory, or a GGUF version or ZIP archive "
@@ -346,33 +304,33 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "requirement": Field(
             r"pitloom\[[a-z][a-z0-9_-]*\]",
-            _str,
+            plain_text,
             "<requirement>",
             "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
             "`pitloom[ai]` installs every model reader",
         ),
         "size": Field(
             r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes",
-            _size,
+            bytes_text,
             "<size>",
             "a size in bytes (`1 byte`, `N bytes`)",
         ),
         "unit": Field(
             "|".join(sorted(CAP_UNITS)),
-            _str,
+            plain_text,
             "<unit>",
             "what the cap counts, singular (`byte`, `entry`, `level`)",
         ),
         "use": Field(
             "|".join(re.escape(use) for use in READ_USES),
-            _str,
+            plain_text,
             "<use>",
             "what the file was read for, or the directory listed for: "
             + ", ".join(f"`{use}`" for use in READ_USES),
         ),
         "value": Field(
             r".*",
-            _name,
+            free_text,
             "<value>",
             "the value as the file states it (a tensor dimension: its Python "
             "repr, cut to 40 characters); in quotes, escaped, when it holds a "

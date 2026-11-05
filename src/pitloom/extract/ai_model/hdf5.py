@@ -67,11 +67,14 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
-from pitloom.extract.ai_model.hdf5_config import (
-    RAW_CONFIG_CHARS,
+from pitloom.extract.ai_model._hdf5_warnings import (
     log_attribute_problem,
     log_model_config_problem,
     log_training_config_problem,
+)
+from pitloom.extract.ai_model.hdf5_config import (
+    RAW_CONFIG_CHARS,
+    RAW_CONFIG_KEY,
     parse_model_config,
     parse_training_config,
 )
@@ -217,8 +220,9 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     try:
         # pylint: disable=import-outside-toplevel
         import h5py
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.HDF5) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.HDF5, exc) from exc
 
     try:
         hf = h5py.File(str(model_path), "r")
@@ -252,6 +256,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         training_config_raw = _read_attr(hf.attrs, "training_config").text
         backend = _read_attr(hf.attrs, "backend")
 
+        fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
         if keras_version_raw:
             framework = "keras"
             framework_version = keras_version_raw
@@ -275,11 +280,13 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             )
             kept_raw = not type_of_model and not name
             if kept_raw:
-                properties["model_config_raw"] = model_config_raw[:RAW_CONFIG_CHARS]
-                provenance["properties.model_config_raw"] = (
+                properties[RAW_CONFIG_KEY] = model_config_raw[:RAW_CONFIG_CHARS]
+                provenance[f"properties.{RAW_CONFIG_KEY}"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
                 )
-            log_model_config_problem(problem, model_config_raw, kept_raw)
+            log_model_config_problem(
+                problem, model_config_raw, kept_raw, fmt, str(model_path)
+            )
 
         if training_config_raw:
             log_training_config_problem(
@@ -289,10 +296,9 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             )
 
     # A number or boolean attribute is typed; its text is never cut (64 bits).
-    for key, attr in (("backend", backend), ("model_config_raw", model_config)):
+    for key, attr in (("backend", backend), (RAW_CONFIG_KEY, model_config)):
         if key in properties and attr.scalar is not None:
             natives[key] = attr.scalar
-    fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

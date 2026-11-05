@@ -156,7 +156,7 @@ when a place is a workaround:
 | :------ | :---------- |
 | Parameter count | An `ai_hyperparameter` entry `parameters`, with a comment saying it is a count of elements, not a hyperparameter |
 | Context length | An `ai_hyperparameter` entry under the source's own key (such as `llama.context_length`) |
-| Architecture | Appended to `ai_typeOfModel` after the model type, so the two cannot be told apart; Pitloom says so once per model with an `INFO:` line (`no SPDX 3.0.1 property: model-architecture (written in ai_typeOfModel)`) |
+| Architecture | Appended to `ai_typeOfModel` after the model type, so the two cannot be told apart; Pitloom says so once per model with an `INFO:` line (`no SPDX 3.0.1 property: model-architecture (written in ai_typeOfModel) [field-not-recordable]`) |
 | Input and output | A labelled JSON text in `ai_informationAboutApplication`; the checker counts the property as present, which is not a statement of intended use |
 | A model's known biases | Text in the package comment |
 | A model's own file metadata | An annotation, preserved and not interpreted |

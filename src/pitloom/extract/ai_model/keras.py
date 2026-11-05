@@ -42,6 +42,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
 )
+from pitloom.extract.ai_model._hdf5_warnings import log_config_kept
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     read_archive_member,
@@ -49,17 +50,16 @@ from pitloom.extract.ai_model.archive_member import (
 from pitloom.extract.ai_model.hdf5_config import (
     ConfigProblem,
     ConfigShapeError,
-    log_model_config_problem,
     member_text,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
 
 def _text_member(
-    parent: dict[str, Any], key: str, what: str, problems: list[str]
+    parent: dict[str, Any], key: str, what: str, problems: list[ConfigShapeError]
 ) -> tuple[str | None, bool]:
     """``parent[key]`` as text, and whether it was a value to keep.
 
@@ -70,7 +70,7 @@ def _text_member(
     try:
         return member_text(parent, key, what), True
     except ConfigShapeError as exc:
-        problems.append(one_line(exc))
+        problems.append(exc)
         return None, False
 
 
@@ -103,7 +103,7 @@ def _parse_model_config(
     Returns:
         Tuple of ``(type_of_model, name)``.
     """
-    problems: list[str] = []
+    problems: list[ConfigShapeError] = []
     lost: list[str] = []
     type_of_model, ok = _text_member(
         config_data, "class_name", "config.class_name", problems
@@ -146,9 +146,7 @@ def _parse_model_config(
 
     if problems:
         # One WARNING for the whole config, as the HDF5 reader words it.
-        log_model_config_problem(
-            ConfigProblem("; ".join(problems), tuple(lost)), "", False
-        )
+        log_config_kept(ConfigProblem.of(problems, lost))
     return type_of_model, name
 
 

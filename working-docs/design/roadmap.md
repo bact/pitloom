@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -113,7 +113,9 @@ docs and skills, #439; stage C, declared values read by `licenseid` alone, #440;
 see [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). Shipping in 0.23.0:
 the adoption's final gate (stage E), the catalogue plan refresh, catalogue PR 2b
 (cards, `fetch_json`, lone surrogate) and PRs 1b and 1c (model fields read in
-part, `library-missing/import-failed`); the ratchet falls from 498 to 463. Moved
+part, `library-unusable`); the ratchet falls from 498 to 469. The generated
+message reference is then over the size limit: splitting it comes before the
+next catalogue PR. Moved
 to 0.24.0: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18 and
 the licence provenance mapping
 ([#384](https://github.com/bact/pitloom/pull/384), T14), `--report` and SARIF.

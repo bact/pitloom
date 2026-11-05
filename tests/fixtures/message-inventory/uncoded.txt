@@ -91,14 +91,8 @@ pitloom.extract._extract_utils 1
 pitloom.extract._license_classify 3
 pitloom.extract._license_resolve 1
 pitloom.extract._license_text_match 2
-pitloom.extract.ai_model.fasttext 2
-pitloom.extract.ai_model.gguf 1
-pitloom.extract.ai_model.hdf5_config 5
-pitloom.extract.ai_model.onnx 1
-pitloom.extract.ai_model.pytorch 3
-pitloom.extract.ai_model.pytorch_pt2 5
+pitloom.extract.ai_model.pytorch 1
 pitloom.extract.ai_model.reader 1
-pitloom.extract.ai_model.unrecordable 1
 pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
@@ -142,7 +136,6 @@ pitloom.extract.remote.huggingface 2
 pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 6
 pitloom.extract.scanner 1
-pitloom.extract.scanner_wheel 2
 pitloom.extract.wheel 1
 pitloom.id_registry._format 25
 pitloom.id_registry._generate 4

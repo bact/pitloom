@@ -44,28 +44,6 @@ entries stay in the last section for history.
   forged entry, which sanitising now blocks; ruling it out means tracking which
   side of each fold supplied the entry.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
-- [ ] **An import that is found but fails is reported as "not installed"
-  (S).** A reader library that is present but raises on import gets the
-  missing-extra message, which hides the real cause.
-  Recommendation: add the variant code `library-missing/import-failed` with
-  the error line `required library failed to import: %(module)s: %(cause)s;
-  reinstall %(requirement)s` and the warning line `FORMAT=.. FILE=..:
-  required library failed to import: %(cause)s`. Add one helper,
-  `optional_libraries.import_failed(requirement, exc)`, that returns
-  `missing()` only when `isinstance(exc, ModuleNotFoundError)` and
-  `exc.name` is `requirement.module` (or a submodule of it), and the failed
-  variant otherwise. Route the 11 or so sites through it (onnx, fasttext,
-  gguf, safetensors, hdf5, numpy, `huggingface.py:192`, `_get_magika`,
-  `spdx3_validate` in `cli/commands/utils.py`, the build subprocess) and
-  `say_unread` in `extract/_scanner_messages.py`. The scanner's
-  `require_library` uses `find_spec` and never imports, so the failure must be
-  caught at read time. Touches `messages/_model_stub.py`, the generated
-  reference, `tests/messages/test_drift_quotes.py`, the skill quotes and the
-  ratchet. Target: 0.23.0.
-  *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
-- [ ] **Catalogue 1b is not coded (S).** The 19 "model fields read in part"
-  sites (`model-field-unread`) keep their free text; 0.23.0.
-  *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
 - [ ] **The `--allow-build` `Build:` warning is uncoded (S).** It needs the
   frames PR (catalogue 4).
   *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
@@ -81,10 +59,10 @@ entries stay in the last section for history.
   *Found 2026-11-02, PyPI 0.22.0 verification (a 0.22.1 candidate).*
 - [ ] **19 in-scope message sites pass another message through with no code
   (S).** Their text is another message, not a template of their own,
-  so no code of the inner message is forwarded or checked: `scanner_wheel.py` 2
-  (1b), `croissant.py` and `path_confine.py` (2b, fixed in #444), 11 in the CLI
-  (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3,
-  `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
+  so no code of the inner message is forwarded or checked: `scanner_wheel.py`
+  2 (1b, fixed in #446), `croissant.py` and `path_confine.py` (2b, fixed in
+  #444), 11 in the CLI (`cli/commands/utils.py` 3, `cli/id.py` 3,
+  `cli/options.py` 3, `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
   `setuptools_cfg.py` (12), `archive_member_names.py` (16) and
   `_loom_active_run.py` (17). Each goes with its family in the migration plan;
   none is fixed alone. The relay of `licenseid` warnings
@@ -128,6 +106,31 @@ entries stay in the last section for history.
 - [ ] **The export-site test survives `repr(min(changed))` (S).** The mutant
   is equivalent for ASCII names; a non-ASCII case would kill it. Low.
   *Found 2026-11-05, review of #444.*
+- [ ] **An import failure's text is printed unmasked (S).** The
+  `library-unusable` line quotes what the import raised, through
+  `one_line`/`loggable` only: an `OSError` naming a URL with credentials
+  (`https://user:pw@host/...`, from a site hook or a `.pth` file) prints
+  them. Mask credentials where the error text is built (URL masking, as
+  for a Git URL).
+  *Found 2026-11-05, review of #446.*
+- [ ] **The Hub dataset reader imports `huggingface_hub` on its own (S).**
+  `extract/remote/huggingface_dataset.py` (the `dataset_info` and
+  `hf_hub_download` imports) does not go through
+  `optional_libraries.import_failed`, so a broken or missing client there
+  says neither `library-missing` nor `library-unusable`.
+  *Found 2026-11-05, review of #446.*
+- [ ] **A raw `model_config` cut after a parse failure carries no `over-cap`
+  (S).** When the config does not parse and its kept text is cut, the cut
+  is said inside the one `model-field-unreadable` line (`the first 500 of
+  N characters`); only a config that parses but names nothing says the cut
+  as `[over-cap]`. A second line would break the one-warning-per-attribute
+  rule the HDF5 tests hold (#446 review, left as is).
+  *Found 2026-11-05, review of #446.*
+- [ ] **A library whose package directory is gone says `library-missing`
+  (S).** With its `.dist-info` still installed but the package removed, the
+  import raises `ModuleNotFoundError` naming the module, so the line says
+  "not installed; install" where a reinstall is the fix. Edge case; left.
+  *Found 2026-11-05, second review of #446.*
 
 ## Fixed
 
@@ -137,6 +140,15 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **An import that is found but fails was reported as "not installed"
+  (S), fixed (#446).** It says `library-unusable`, naming what
+  the import raised (`optional_libraries.import_failed`), at every optional
+  import but the build subprocess's.
+  *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
+- [x] **Catalogue 1b was not coded (S), fixed (#446).** The reader sites say
+  `model-field-unreadable`, `model-field-conflict`, `field-not-recordable`
+  or `over-cap`; fickling's own stderr stays uncoded.
+  *Found 2026-10-30, from #404 (model stub, catalogue 1a).*
 - [x] **Where the `ERROR` template of the unreadable family first lands was
   open (S), fixed (#444).** It landed in `fetch_json`: a Croissant document
   that cannot be read raises `file-unreadable` with the `ERROR` form of the

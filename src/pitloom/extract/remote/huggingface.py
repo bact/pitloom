@@ -71,7 +71,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     AiModelUsage,
 )
-from pitloom.core.optional_libraries import HUB, missing
+from pitloom.core.optional_libraries import HUB, import_failed
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
@@ -183,14 +183,16 @@ def read_huggingface(source: str) -> AiModelMetadata:
         ``extra_data`` and ``extra_lists``.
 
     Raises:
-        ImportError: If ``huggingface_hub`` is not installed: a
-            :class:`~pitloom.messages.CodedImportError`, ``library-missing``.
+        ImportError: If ``huggingface_hub`` is not installed, or fails to
+            import: a :class:`~pitloom.messages.CodedImportError`,
+            ``library-missing`` (``library-unusable`` when installed).
         ValueError: If *source* is not a valid Hugging Face URL or model ID.
     """
     try:
         __import__(HUB.module)
-    except ImportError as exc:
-        raise missing(HUB) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise import_failed(HUB, exc) from exc
 
     model_id = parse_hf_model_id(source)
     if model_id is None:

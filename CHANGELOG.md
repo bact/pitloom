@@ -48,6 +48,13 @@ and this project adheres to
   ([#444])
 - `GPL-2.0 - or later` (hyphen, en or em dash, or no-break space before "or
   later") is read as `GPL-2.0-or-later`, not kept as text ([#445])
+- Model fields a reader could not read, keys a model states twice and fields
+  SPDX 3.0.1 cannot record end in `[model-field-unreadable]`,
+  `[model-field-conflict]` or `[field-not-recordable]` ([#446])
+- A Keras `model_config` that parses but names no class or name, cut to 500
+  characters, is an `[over-cap]` line naming the model ([#446])
+- A library that is installed but fails to import says so,
+  `[library-unusable]`, not `[library-missing]` ([#446])
 
 ### Fixed
 
@@ -63,12 +70,15 @@ and this project adheres to
   path twice ([#444])
 - A tag value such as `MIT/Apache-2.0` or `MIT, ISC` no longer detects as its
   first id (`MIT`) ([#445])
+- `--content-type` with a `magika` that fails to import keeps every file,
+  typed by extension, with one `[library-unusable]` warning ([#446])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437
 [#440]: https://github.com/bact/pitloom/pull/440
 [#444]: https://github.com/bact/pitloom/pull/444
 [#445]: https://github.com/bact/pitloom/pull/445
+[#446]: https://github.com/bact/pitloom/pull/446
 
 ## [0.22.1] - 2026-11-03
 

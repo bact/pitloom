@@ -189,23 +189,45 @@ def test_a_reader_records_code_is_kept_when_relogged(
 
 
 @pytest.mark.parametrize(
-    ("member", "magic", "code", "tail"),
+    ("member", "magic", "error", "code", "tail"),
     [
-        ("demo/real.pt", _PT, "model-unreadable", "failed to extract metadata; gone"),
+        (
+            "demo/real.pt",
+            _PT,
+            ImportError("gone"),
+            "model-unreadable",
+            "failed to extract metadata; gone",
+        ),
         (
             "demo/real.gguf",
             b"GGUF",
+            ModuleNotFoundError("No module named 'gguf'", name="gguf"),
             "library-missing",
             "required library not installed; install pitloom[gguf]",
         ),
+        (
+            "demo/real.gguf",
+            b"GGUF",
+            ImportError("gone"),
+            "library-unusable",
+            "required library failed to import: gone; reinstall pitloom[gguf]",
+        ),
     ],
-    ids=["no-library-needed", "library-needed"],
+    ids=["no-library-needed", "library-needed", "library-broken"],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_an_import_error_is_a_missing_library_only_for_a_format_needing_one(
-    member: str, magic: bytes, code: str, tail: str, caplog: pytest.LogCaptureFixture
+    member: str,
+    magic: bytes,
+    error: ImportError,
+    code: str,
+    tail: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """PyTorch reads through the standard library: its import error is the
-    reader's own failure; GGUF's names the extra that installs ``gguf``."""
+    reader's own failure; GGUF's names the extra that installs ``gguf``, or
+    reinstalls it when ``gguf`` is there but fails to import (a bare import
+    error, as the NumPy reader's own import raises)."""
     candidate = ModelCandidate(
         distribution_path=member,
         physical_path=member,
@@ -215,7 +237,7 @@ def test_an_import_error_is_a_missing_library_only_for_a_format_needing_one(
         ),
     )
     with (
-        patch(_READ, side_effect=ImportError("gone")),
+        patch(_READ, side_effect=error),
         patch("pitloom.extract.scanner.require_library"),
     ):
         models = discover_ai_models([candidate])

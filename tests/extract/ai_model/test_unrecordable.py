@@ -28,7 +28,6 @@ from pitloom.assemble import generate_model_sbom
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract.ai_model.unrecordable import (
     NOTICE_LEVEL,
-    NOTICE_TEXT,
     Unrecordable,
     log_unrecordable,
     notice_unrecordable,
@@ -38,6 +37,8 @@ from pitloom.extract.scanner_project import local_model_candidate
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
 
 _LOGGER = "pitloom.extract.ai_model.unrecordable"
+#: The text after the ``FORMAT=``/``FILE=`` prefix (``field-not-recordable``).
+NOTICE_TEXT = "no SPDX 3.0.1 property"
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "aimodels"
 _GGUF = _FIXTURES / "gguf" / "stories260K.gguf"
 _ARCH = "model-architecture (written in ai_typeOfModel)"
@@ -187,5 +188,7 @@ def test_the_cli_prints_the_notice_once_on_stderr(
     lines = [line for line in captured.err.splitlines() if NOTICE_TEXT in line]
     assert len(lines) == 1
     assert lines[0].startswith("INFO: FORMAT=gguf FILE=")
-    assert lines[0].endswith(f"stories260K.gguf: {NOTICE_TEXT}: {_ARCH}")
+    assert lines[0].endswith(
+        f"stories260K.gguf: {NOTICE_TEXT}: {_ARCH} [field-not-recordable]"
+    )
     assert NOTICE_TEXT not in captured.out

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.optional_libraries import not_installed
 from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
@@ -25,8 +26,10 @@ from pitloom.logging_config import escape_controls, loggable, one_line
 from pitloom.messages import (
     LFS_POINTER_MALFORMED,
     LIBRARY_MISSING,
+    LIBRARY_UNUSABLE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,
+    code_of,
     emit,
 )
 
@@ -77,21 +80,54 @@ def say_unread(
 ) -> None:
     """The one warning on *log* for a confirmed model whose read failed: a
     bound the file is over (``model-unreadable``, the closed reason), its
-    library missing (``library-missing``: an import error of a format that
-    needs one), else the reader's own error (``model-unreadable``, the text
-    of :func:`detail`), an import error of a reader that needs no library
-    included."""
+    library missing or failing to import (``library-missing``: an import
+    error of a format that needs one, :func:`_say_library`), else the
+    reader's own error (``model-unreadable``, the text of :func:`detail`), an
+    import error of a reader that needs no library included."""
     where = candidate.physical_path
     requirement = REQUIREMENTS.get(fmt)
     if isinstance(exc, ModelLimitExceeded):
         reason = exc.reason
         emit(log, MODEL_UNREADABLE, _WARNING, format=fmt, file=where, reason=reason)
     elif isinstance(exc, ImportError) and requirement is not None:
-        spec = requirement.spec
-        emit(log, LIBRARY_MISSING, _WARNING, format=fmt, file=where, requirement=spec)
+        _say_library(log, fmt, candidate, exc, path)
     else:
         error = detail(exc, path, where)
         emit(log, MODEL_UNREADABLE, _WARNING, format=fmt, file=where, error=error)
+
+
+def _say_library(
+    log: logging.Logger,
+    fmt: AiModelFormat,
+    candidate: ModelCandidate,
+    exc: ImportError,
+    path: Path | None,
+) -> None:
+    """``library-missing`` when the module *fmt*'s reader needs is not
+    installed, else ``library-unusable`` naming what its import
+    reported: the cause of a reader's coded *exc*, or *exc* itself, raised
+    by a bare import (the NumPy reader's)."""
+    requirement = REQUIREMENTS[fmt]
+    where, spec = candidate.physical_path, requirement.spec
+    code = code_of(exc)
+    cause: BaseException
+    if code is None:
+        missing, cause = not_installed(requirement, exc), exc
+    else:
+        missing, cause = code == LIBRARY_MISSING.code, exc.__cause__ or exc
+    if missing:
+        emit(log, LIBRARY_MISSING, _WARNING, format=fmt, file=where, requirement=spec)
+        return
+    error = detail(cause, path, where)
+    emit(
+        log,
+        LIBRARY_UNUSABLE,
+        _WARNING,
+        format=fmt,
+        file=where,
+        error=error,
+        requirement=spec,
+    )
 
 
 def say_not_a_model(

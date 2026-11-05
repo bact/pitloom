@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ The grammar ratchet keeps new uncoded messages out
 
 - **0.23.0**: the `licenseid` 0.7.0 adoption (built, #437 to #440), the
   adoption's final gate (stage E), this plan's refresh, PR 2b and PRs 1b and
-  1c. The ratchet falls from 498 to 463 (1b: 22, 2b: 13).
+  1c. The ratchet falls from 498 to 469 (2b: 10, #444; 1b: 19, #446).
 - **0.24.0**: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to
   18 (the licence families last), the licence provenance mapping (#384, T14)
   and `--report` with SARIF.
@@ -66,7 +66,9 @@ Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh (this PR),
 then 2b, then 1b and 1c, then **the 0.23.0 cut**, then 4 (frames), 3, 5 to 7
 (with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
-adoption is done), and T14 (#384).
+adoption is done), and T14 (#384). Precondition of the next catalogue PR: split the
+generated references (`docs/message-codes.md` and the skills' copies, over
+the ~30 KB limit after #446) per family or per actor.
 
 "Plan" is the count in the plan made on `bccaa747`; "Now" is measured on
 54f79c57. Codes are PROPOSALS by the grammar (decisions A to M); each PR's
@@ -74,8 +76,8 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 
 | # | Cut | Families (uncoded now) | Codes to define (proposed) | Actor / effect | Ratchet, plan then now | Effort / agents |
 | - | - | - | - | - | - | - |
-| 1b | 0.23.0 | model-field-unread 19 (`extract/ai_model/` hdf5_config 5, pytorch_pt2 5, pytorch 3, fasttext 2, gguf, onnx, unrecordable; `_ai_package.py` release time); model-scan-decision 1 (`scanner.py`); passthrough in `scanner_wheel.py` 2 | `model-field-unreadable`, `model-field-conflict`, `model-field-invalid`, `field-not-recordable` (#404 D10) | user / thinner (conflict: none) | -25, now -22 | M; Opus plan and implementation, Sonnet tests |
-| 1c | 0.23.0 | none (coded sites gain a variant) | `library-missing/import-failed`, helper `optional_libraries.import_failed(requirement, exc)` for about 11 sites | user / thinner | 0 | S-M; Opus; may ride with 1b |
+| 1b | 0.23.0 | model-field-unread 19 (`extract/ai_model/` hdf5_config 5, pytorch_pt2 5, pytorch 3, fasttext 2, gguf, onnx, unrecordable; `_ai_package.py` release time); model-scan-decision 1 (`scanner.py`); passthrough in `scanner_wheel.py` 2 | `model-field-unreadable`, `model-field-conflict`, `model-field-invalid` (built folded into `-unreadable`), `field-not-recordable` (#404 D10) | user / thinner (conflict: none) | -25, now -22; built -19 (#446) | M; Opus plan and implementation, Sonnet tests |
+| 1c | 0.23.0 | none (coded sites gain a code) | `library-unusable` (planned as a variant of `library-missing`; its own family on review, final), helper `optional_libraries.import_failed(requirement, exc)` for about 11 sites | user / thinner | 0; built 0 (#446) | S-M; Opus; may ride with 1b |
 | 2b | 0.23.0 | card-unreadable 3 (`enrich/readme.py` 2, `_loom_dataset_meta.py` 1); source-unreadable 5 and over-cap 2 (`fetch_json`, `extract/_extract_utils.py`); croissant passthrough 1; `id_registry/_types.py` indexing read 1; `core/path_confine.py` passthrough 1; lone surrogate (`warn_lone_surrogates`, 6 callers, helper in `logging_config.py`, out of scope); `find_card_file` silent (adds a line) | `card-malformed`, `text-malformed` (weaker); reuse `file-unreadable` (first `ERROR` template), `dir-unlistable`, `over-cap`; JSON parse as `json-malformed` (R4) | user / thinner (`text-malformed`: weaker) | -13, now -13 (helper move: 0); built -10 (#444) | M; Opus |
 | 3 | 0.24.0 | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52 | M-L; Opus plan, Sonnet helper and sites |
 | 4 | 0.24.0 | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |

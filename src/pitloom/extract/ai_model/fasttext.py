@@ -28,8 +28,15 @@ from pitloom.extract._extract_utils import (
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import field_loss_suffix, loggable
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.logging_config import loggable, one_line
+from pitloom.messages import (
+    FASTTEXT_ARGS_LINE,
+    FASTTEXT_LABELS_LINE,
+    MODEL_FIELD_UNREADABLE,
+    Cap,
+    emit,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 
@@ -83,10 +90,10 @@ def _load_fasttext_model(model_path: Path) -> Any:
     """Load a fastText model with consistent dependency and format errors."""
     try:
         # pylint: disable=import-outside-toplevel
-
         import fasttext
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.FASTTEXT) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.FASTTEXT, exc) from exc
 
     try:
         return fasttext.load_model(str(model_path))
@@ -114,15 +121,20 @@ def _extract_fasttext_args(
         args = model.f.getArgs()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
-            "skipped",
-            "hyperparameters",
-            "properties.lossName",
-            "type_of_model",
-            "properties.labels",
-            "outputs",
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=FASTTEXT_ARGS_LINE,
+            error=one_line(exc),
+            fields=(
+                "hyperparameters",
+                "properties.lossName",
+                "type_of_model",
+                "properties.labels",
+                "outputs",
+            ),
         )
-        log.warning(msg, loggable(str(exc)))
         return hyperparameters, properties, type_of_model
 
     for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
@@ -151,10 +163,14 @@ def _extract_fasttext_labels(model: Any) -> list[str]:
         labels = get_labels()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to read fastText model labels: %s" + field_loss_suffix(
-            "skipped", "properties.labels", "outputs"
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=FASTTEXT_LABELS_LINE,
+            error=one_line(exc),
+            fields=("properties.labels", "outputs"),
         )
-        log.warning(msg, loggable(str(exc)))
         return []
     return list(labels or ())
 

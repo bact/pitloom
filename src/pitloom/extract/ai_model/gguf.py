@@ -36,6 +36,7 @@ from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
+from pitloom.messages import GGUF_LENGTH_LINE, MODEL_FIELD_CONFLICT, emit
 
 log = logging.getLogger(__name__)
 
@@ -233,10 +234,13 @@ def _read_fields(
         raw_metadata[key] = _array_summary(gguf_field)
         length_key = key + _ARRAY_LENGTH_SUFFIX
         if length_key in scalar_keys:
-            log.warning(
-                "GGUF key %s is in the file; the length of array %s is not a property",
-                loggable(length_key),
-                loggable(key),
+            emit(
+                log,
+                MODEL_FIELD_CONFLICT,
+                logging.WARNING,
+                line=GGUF_LENGTH_LINE,
+                entry=length_key,
+                name=key,
             )
             continue
         fields[length_key] = raw_metadata[key]["length"]
@@ -394,8 +398,9 @@ def _load_fields(
     try:
         # pylint: disable=import-outside-toplevel
         from gguf import GGUFReader
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.GGUF) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.GGUF, exc) from exc
 
     try:
         check_gguf_header(model_path)

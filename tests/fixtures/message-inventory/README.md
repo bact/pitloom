@@ -74,3 +74,9 @@ never by raising a count.
   left the family's lines for an uncoded line of their own: a listed
   requirements file not found and a file name an ID registry cannot hold.
   No count rose.
+- 2026-11-05 (#446): 488 to 469 sites, 153 to 146 modules. 17 model
+  reader warnings say `model-field-unreadable`, `model-field-conflict`,
+  `field-not-recordable` or `over-cap`, several readers through one `emit`
+  each (in scope 579 to 572); fickling's own stderr stays uncoded. The
+  scanner's two wheel-member translations raise `MemberReadError`, the
+  detail of the scanner's line (`DETAIL_EXC`). No count rose.

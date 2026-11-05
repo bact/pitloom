@@ -40,7 +40,17 @@ from pitloom.extract.ai_model.archive_member import (
     record_archive_contents,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
-from pitloom.logging_config import field_loss_suffix, loggable
+from pitloom.logging_config import one_line
+from pitloom.messages import (
+    MODEL_FIELD_UNREADABLE,
+    PT2_EXTRA_LINE,
+    PT2_GRAPH_LINE,
+    PT2_META_LINE,
+    PT2_TAGS_LINE,
+    PT2_VERSION_LINE,
+    Line,
+    emit,
+)
 
 log = logging.getLogger(__name__)
 
@@ -79,10 +89,7 @@ def _read_pt2_meta_entry(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to parse PT2 metadata entry %s: %s" + field_loss_suffix(
-            "skipped", "name"
-        )
-        log.warning(msg, loggable(meta_entry), loggable(str(exc)))
+        _warn_unread(PT2_META_LINE, exc, ("name",), entry=meta_entry)
     return None, None
 
 
@@ -100,12 +107,18 @@ def _resolve_pt2_version(
     return read_text("extra/version", "version"), "version"
 
 
-def _warn_pt2_extra_read_failure(full: str, field: str, exc: Exception) -> None:
-    """Log a WARNING for a PT2 ``extra/`` file that exists but failed to
-    read. Module-level, not nested in ``_read_pt2_extra_files``, so its
-    ``msg`` local doesn't count against that function's locals budget."""
-    msg = "Failed to read PT2 extra file %s: %s" + field_loss_suffix("skipped", field)
-    log.warning(msg, loggable(full), loggable(str(exc)))
+def _warn_unread(line: Line, exc: Exception, lost: tuple[str, ...], entry: str) -> None:
+    """The ``model-field-unreadable`` warning of *line* for the read of
+    member *entry* that raised *exc*: the fields *lost*."""
+    emit(
+        log,
+        MODEL_FIELD_UNREADABLE,
+        logging.WARNING,
+        line=line,
+        entry=entry,
+        error=one_line(exc),
+        fields=lost,
+    )
 
 
 def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
@@ -118,17 +131,8 @@ def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        _warn_pt2_extra_read_failure(full, field, exc)
+        _warn_unread(PT2_EXTRA_LINE, exc, (field,), entry=full)
         return None
-
-
-def _warn_pt2_extra_tags_malformed(exc: Exception) -> None:
-    """Log a WARNING for a PT2 ``extra/tags`` file that isn't valid JSON.
-    Same locals-budget rationale as :func:`_warn_pt2_extra_read_failure`."""
-    msg = "Failed to parse PT2 extra/tags as JSON: %s" + field_loss_suffix(
-        "degraded", "properties.tags (kept as raw string)"
-    )
-    log.warning(msg, loggable(str(exc)))
 
 
 def _detect_root_prefix(file_list: list[str]) -> str:
@@ -257,7 +261,14 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
         tags = json.loads(tags_raw)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        _warn_pt2_extra_tags_malformed(exc)
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=PT2_TAGS_LINE,
+            error=one_line(exc),
+            fields=("properties.tags (kept as raw string)",),
+        )
         return tags_raw, None
     if isinstance(tags, list):
         return ", ".join(_tag_text(t) for t in tags), tags
@@ -343,10 +354,7 @@ def _read_pt2_graph_io(
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        msg = "Failed to parse PT2 model graph %s: %s" + field_loss_suffix(
-            "skipped", "inputs", "outputs"
-        )
-        log.warning(msg, loggable(model_json_path), loggable(str(exc)))
+        _warn_unread(PT2_GRAPH_LINE, exc, ("inputs", "outputs"), entry=model_json_path)
         return [], []
 
     inputs = _spec_tensor_names(signature.get("input_specs"), "user_input")
@@ -381,10 +389,12 @@ def _read_pt2_format_version(
             raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
-            msg = "Failed to read PT2 %sarchive_version: %s" + field_loss_suffix(
-                "skipped", "version (archive_version fallback)"
+            _warn_unread(
+                PT2_VERSION_LINE,
+                exc,
+                ("version (archive_version fallback)",),
+                entry=f"{prefix}archive_version",
             )
-            log.warning(msg, loggable(prefix), loggable(str(exc)))
     return None, None
 
 

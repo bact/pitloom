@@ -37,8 +37,16 @@ from pitloom.extract.ai_model.archive_member import (
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.stderr_capture import capture_stderr
-from pitloom.logging_config import field_loss_suffix, loggable, one_line
-from pitloom.messages import Cap
+from pitloom.logging_config import one_line
+from pitloom.messages import (
+    FICKLING_PARSE_LINE,
+    FICKLING_WALK_LINE,
+    MODEL_FIELD_UNREADABLE,
+    PICKLE_MEMBER_LINE,
+    Cap,
+    Line,
+    emit,
+)
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +76,23 @@ def _top_class(pickled: Any) -> str | None:
     return None
 
 
+#: What a pickle that fickling could not read leaves unset.
+_TYPE_ONLY = ("type_of_model",)
+
+
+def _warn_type_unread(line: Line, exc: Exception) -> None:
+    """The ``model-field-unreadable`` warning of *line* for fickling's
+    *exc*: no ``type_of_model``."""
+    emit(
+        log,
+        MODEL_FIELD_UNREADABLE,
+        logging.WARNING,
+        line=line,
+        error=one_line(exc),
+        fields=_TYPE_ONLY,
+    )
+
+
 def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
     """The first pickle of *pkl_file*, verified bounded; ``None`` (with a
     warning) when it is not a well-formed pickle.
@@ -90,10 +115,7 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
     except ValueError as exc:
         if len(data) > limit:
             raise ModelOverCap(Cap(limit, "byte", "first-pickle")) from None
-        msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
-            "skipped", "type_of_model"
-        )
-        log.warning(msg, one_line(exc))
+        _warn_type_unread(FICKLING_PARSE_LINE, exc)
         return None
 
 
@@ -123,22 +145,22 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     if pickle_bytes is None:
         return None
 
-    failure: str | None = None
+    failure: tuple[Line, Exception] | None = None
     type_of_model: str | None = None
     with capture_stderr() as sink:
         try:
             pkl = Pickled.load(io.BytesIO(pickle_bytes))
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
-            failure = f"fickling failed to parse pickle bytes: {one_line(exc)}"
+            failure = (FICKLING_PARSE_LINE, exc)
         else:
             try:
                 type_of_model = _top_class(pkl)
             # pylint: disable-next=broad-exception-caught
             except Exception as exc:
-                failure = f"fickling parsed pickle but AST walk failed: {one_line(exc)}"
+                failure = (FICKLING_WALK_LINE, exc)
     if failure is not None:
-        log.warning("%s%s", failure, field_loss_suffix("skipped", "type_of_model"))
+        _warn_type_unread(*failure)
     stderr = one_line(sink.text(), _FICKLING_STDERR_CHARS)
     if stderr:
         log.warning("fickling reported on stderr: %s", stderr)
@@ -181,10 +203,16 @@ def _read_pytorch_zip(
             raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
-            msg = "Failed to inspect %s in %s: %s" + field_loss_suffix(
-                "skipped", "type_of_model"
+            emit(
+                log,
+                MODEL_FIELD_UNREADABLE,
+                logging.WARNING,
+                line=PICKLE_MEMBER_LINE,
+                entry=pkl_entry,
+                name=source,
+                error=one_line(exc),
+                fields=_TYPE_ONLY,
             )
-            log.warning(msg, loggable(pkl_entry), loggable(source), loggable(str(exc)))
 
     return type_of_model, properties, source_metadata(properties, natives), provenance
 

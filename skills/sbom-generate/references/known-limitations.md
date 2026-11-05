@@ -188,9 +188,10 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   field, e.g. an ONNX graph name) or the model file. Which fields are escaped:
   <https://bact.github.io/pitloom/metadata-reading-back/>.
 - `INFO: FORMAT=<fmt> FILE=<path>: no SPDX 3.0.1 property: model-architecture
-  (written in ai_typeOfModel)`, once per model: the architecture has no
-  property of its own, so it is recorded beside the model type. Expected, not
-  a problem; mention it when the user asks where the architecture is.
+  (written in ai_typeOfModel) [field-not-recordable]`, once per model: the
+  architecture has no property of its own, so it is recorded beside the model
+  type. Expected, not a problem; mention it when the user asks where the
+  architecture is.
 - No `ai_typeOfModel` on an ONNX model: a node uses an `ai.onnx.ml`
   operator (trees, linear models, SVMs), and the file does not say which
   kind of model that is, so it is left unset, silently. Otherwise it is

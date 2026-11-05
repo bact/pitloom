@@ -29,6 +29,7 @@ from types import ModuleType
 import pytest
 
 from pitloom.messages import ACTOR_HEADINGS, FRAMES, MESSAGES
+from pitloom.messages import _model_field as model_field
 from pitloom.messages import _model_stub as model_stub
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -85,10 +86,11 @@ def test_the_docs_catalogue_has_its_own_page() -> None:
 
 
 def test_the_model_table_lists_every_cause_that_thins_a_model() -> None:
-    """Each entry of the model-stub module whose effect leaves the model
-    thinner, and the cap and pointer families, in the order of their codes,
-    each linked to its section beside the page."""
-    thinner = {m.code for m in model_stub.ENTRIES if m.effect == "thinner"}
+    """Each entry of the model-stub and model-field modules whose effect
+    leaves the model thinner, and the cap and pointer families, in the order
+    of their codes, each linked to its section beside the page."""
+    entries = (*model_stub.ENTRIES, *model_field.ENTRIES)
+    thinner = {m.code for m in entries if m.effect == "thinner"}
     wanted = thinner | {"over-cap", "lfs-pointer", "lfs-pointer-malformed"}
     assert set(gen.MODEL_OUTCOMES) == wanted
     assert all(MESSAGES[code].effect == "thinner" for code in gen.MODEL_OUTCOMES)

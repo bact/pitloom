@@ -5,8 +5,8 @@
 
 """Why a model file is listed without its metadata (a format-only entry, a
 "stub") or not listed as a model, and why its parameter count is missing or
-replaced: ``library-missing``, ``reader-unsafe``, ``model-unreadable``,
-``model-wrong-format``, ``parameter-count-invalid`` and
+replaced: ``library-missing``, ``library-unusable``, ``reader-unsafe``,
+``model-unreadable``, ``model-wrong-format``, ``parameter-count-invalid`` and
 ``hyperparameter-conflict``. An input over a cap is ``over-cap``; a Git LFS
 pointer is ``lfs-pointer``.
 
@@ -62,6 +62,53 @@ LIBRARY_MISSING: Final = Message(
     "run again; a model reader then runs on each such file, so only for files "
     f"they trust. Do not install anything or run again for them; {_ASK}",
     subject_key="FILE",
+)
+
+#: A model reader's library installed but failing to import.
+LIBRARY_UNUSABLE_LINE: Final = Line(
+    level="WARNING",
+    template="FORMAT=%(format)s FILE=%(file)s: required library failed to import: "
+    "%(error)s; reinstall %(requirement)s",
+)
+#: A library a step needs installed but failing to import.
+LIBRARY_UNUSABLE_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="required library failed to import: %(module)s: %(error)s; "
+    "reinstall %(requirement)s",
+)
+#: magika failing to import under content-type method ``auto``: once per process.
+LIBRARY_UNUSABLE_CONTENT_LINE: Final = Line(
+    level="WARNING",
+    template="required library failed to import: %(module)s: %(error)s; "
+    "content types from file extensions; reinstall %(requirement)s",
+)
+LIBRARY_UNUSABLE: Final = Message(
+    code="library-unusable",
+    condition="unusable",
+    lines=(
+        LIBRARY_UNUSABLE_LINE,
+        LIBRARY_UNUSABLE_ERROR_LINE,
+        LIBRARY_UNUSABLE_CONTENT_LINE,
+    ),
+    summary="A library Pitloom needs for a step is installed but fails to "
+    "import: a broken or partial install, a library it needs in turn missing, "
+    "or a build for another Python or platform.",
+    did="For a model file, listed the model by its file, format and hashes only "
+    "(a format-only entry, named after its file), without its metadata. For "
+    "any other step, did not run it: no SBOM of a Hugging Face model, no "
+    "validation, no SBOM with magika content types (method magika); with "
+    "method auto, every file's content type from its extension, said once per "
+    "process. Installed nothing.",
+    effect="thinner",
+    actor="user",
+    advice="Tell the user which models or which step went without the library, "
+    "what the import reported and which extra reinstalls it, as the line names "
+    "it. They reinstall it where Pitloom runs (with uvx or pipx, in the --from "
+    "or --spec requirement) and run again; a model reader then runs on each "
+    "such file, so only for files they trust. Do not install anything or run "
+    f"again for them; {_ASK}",
+    subject_key="FILE",
+    since="0.23.0",
 )
 
 #: The formats a wheel scan does not read: one line per scan.
@@ -220,6 +267,7 @@ HYPERPARAMETER_CONFLICT: Final = Message(
 
 ENTRIES: Final = (
     LIBRARY_MISSING,
+    LIBRARY_UNUSABLE,
     READER_UNSAFE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,
