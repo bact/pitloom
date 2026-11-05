@@ -28,6 +28,7 @@ from unittest import mock
 
 import pytest
 
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import _hdf5_warnings, fasttext, onnx, pytorch
 from pitloom.extract.ai_model import pytorch_pt2 as pt2
 from pitloom.extract.ai_model.hdf5_config import (
@@ -155,6 +156,7 @@ def _gguf(tmp_path: Path) -> None:
     read_gguf(path)
 
 
+_H5 = AiModelFormat.HDF5
 _PROBLEM = ConfigProblem("model_config.config", "is not an object", ("name",))
 
 #: Each reader site: how to reach it, and the code its one record carries.
@@ -177,17 +179,21 @@ _SITES: dict[str, tuple[Callable[[Path], object], str]] = {
         "u",
     ),
     "config-raw": (
-        lambda _: _hdf5_warnings.log_model_config_problem(_PROBLEM, "{}", True, ""),
+        lambda _: _hdf5_warnings.log_model_config_problem(
+            _PROBLEM, "{}", True, _H5, ""
+        ),
         "u",
     ),
     "config-raw-cut": (
         lambda _: _hdf5_warnings.log_model_config_problem(
-            _PROBLEM, "x" * 501, True, ""
+            _PROBLEM, "x" * 501, True, _H5, ""
         ),
         "u",
     ),
     "config-kept": (
-        lambda _: _hdf5_warnings.log_model_config_problem(_PROBLEM, "{}", False, ""),
+        lambda _: _hdf5_warnings.log_model_config_problem(
+            _PROBLEM, "{}", False, _H5, ""
+        ),
         "u",
     ),
     "training-config": (
@@ -197,7 +203,9 @@ _SITES: dict[str, tuple[Callable[[Path], object], str]] = {
         "u",
     ),
     "raw-config-cap": (
-        lambda _: _hdf5_warnings.log_model_config_problem(None, "x" * 501, True, "m"),
+        lambda _: _hdf5_warnings.log_model_config_problem(
+            None, "x" * 501, True, _H5, "m"
+        ),
         "over-cap",
     ),
     "gguf-length": (_gguf, "c"),
@@ -275,7 +283,7 @@ def test_a_kept_raw_config_says_whether_it_was_cut(
     raw: str, kept: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        _hdf5_warnings.log_model_config_problem(_PROBLEM, raw, True, "")
+        _hdf5_warnings.log_model_config_problem(_PROBLEM, raw, True, _H5, "")
     (record,) = caplog.records
     assert record.getMessage() == (
         "model_config.config is not an object; kept as "
@@ -297,4 +305,16 @@ def test_an_error_without_text_is_named_by_its_class(
         "'extra/name\\\\n' in the archive\" | Field(s) affected (skipped): name",
         "Failed to read PT2 extra file extra/name: OSError | Field(s) affected "
         "(skipped): name",
+    ]
+
+
+def test_the_raw_config_cap_names_the_model_as_its_siblings_do(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Read on its own, not through a scan, the cut names format and file."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        _hdf5_warnings.log_model_config_problem(None, "x" * 501, True, _H5, "m.h5")
+    assert [r.getMessage() for r in caplog.records] == [
+        "FORMAT=hdf5 FILE=m.h5: larger than the 500-character raw-model-config "
+        "cap; the first 500 of 501 characters kept in properties.model_config_raw"
     ]

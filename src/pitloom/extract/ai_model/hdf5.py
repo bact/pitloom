@@ -256,6 +256,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         training_config_raw = _read_attr(hf.attrs, "training_config").text
         backend = _read_attr(hf.attrs, "backend")
 
+        fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
         if keras_version_raw:
             framework = "keras"
             framework_version = keras_version_raw
@@ -284,7 +285,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                     f"{source} | Field: model_config attribute (unparsed)"
                 )
             log_model_config_problem(
-                problem, model_config_raw, kept_raw, str(model_path)
+                problem, model_config_raw, kept_raw, fmt, str(model_path)
             )
 
         if training_config_raw:
@@ -298,7 +299,6 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     for key, attr in (("backend", backend), (RAW_CONFIG_KEY, model_config)):
         if key in properties and attr.scalar is not None:
             natives[key] = attr.scalar
-    fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

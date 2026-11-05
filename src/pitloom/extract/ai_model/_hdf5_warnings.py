@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 
+from pitloom.core.ai_metadata import AiModelFormat, model_cap
 from pitloom.extract.ai_model.hdf5_config import (
     ATTRIBUTE_FIELDS,
     RAW_CONFIG_CHARS,
@@ -53,20 +54,25 @@ def _warn(line: Line, problem: ConfigProblem) -> None:
 
 
 def log_model_config_problem(
-    problem: ConfigProblem | None, raw: str, kept_raw: bool, where: str
+    problem: ConfigProblem | None,
+    raw: str,
+    kept_raw: bool,
+    fmt: AiModelFormat,
+    where: str,
 ) -> None:
     """Say, in one ``WARNING:``, what became of a ``model_config`` that could
     not be read whole: *problem* (``None`` for a valid object without a class
     or name), whether the raw text is *kept_raw* in
     ``properties.model_config_raw`` (cut to :data:`RAW_CONFIG_CHARS`, an
-    ``over-cap`` naming the model *where* when that is all), or the fields
+    ``over-cap`` naming the model, *fmt* file *where*, when that is all), or
+    the fields
     read before it are kept and the rest skipped."""
     cut = kept_raw and len(raw) > RAW_CONFIG_CHARS
     if problem is None:
         if cut:
             warn_over_cap(
                 log,
-                RAW_CONFIG_CAP,
+                model_cap(RAW_CONFIG_CAP, fmt),
                 where,
                 f"the first {RAW_CONFIG_CHARS} of {len(raw)} characters kept in "
                 "properties.model_config_raw",
