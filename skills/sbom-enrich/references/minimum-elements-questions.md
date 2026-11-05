@@ -50,7 +50,7 @@ actually in the project.
   `--creator-type`, `--creator-email`; the main package's creator comes from an
   e-mail in `[project].authors`. Non-interactive: use what the project already
   declares, else report the gap; never invent an address.
-- **BSI distribution artifact** (COMP-004, COMP-007): "Which built file is
+- **BSI distribution artefact** (COMP-004, COMP-007): "Which built file is
   distributed (e.g. `dist/<name>-<version>-py3-none-any.whl`)?" Its SHA-512 is
   computed from that file (`sha512sum`, or `shasum -a 512` on macOS) only
   after the user names it; the SBOM then describes that archive, so regenerate

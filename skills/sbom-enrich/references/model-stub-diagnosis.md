@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,7 +45,8 @@ table what the code leaves of the model:
 
 Relay the advice; never install an extra, add `--trust-wheel-model` or raise
 a cap yourself. `... identity unknown` is the wheel's own name and version,
-not a model: see `sbom-generate`.
+not a model: see `sbom-generate`'s known limitations ("Refused wheels and
+unknown identity").
 
 Fields the file itself would give (hyperparameters, inputs, outputs, an author,
 a parameter count) are better read than inferred: tell the user the cause

@@ -41,9 +41,8 @@ doesn't match its own `ExternalMap` entry. This skill runs
 wrong. It works on any SPDX 3 JSON document, not just Pitloom's own
 output: a hand-authored fragment, a merged SBOM, a third-party file.
 
-This skill is one of three (`sbom-generate`, `sbom-enrich`,
-`sbom-validate`) meant to be installed together: it refers to sections of
-`sbom-generate`.
+Part of a trio with `sbom-generate` and `sbom-enrich` (install all three):
+it refers to sections of `sbom-generate`.
 
 Pitloom's CLI splits two checks, and users treat the words as synonyms:
 
@@ -69,23 +68,18 @@ SBOM for AI 2026, BSI TR-03183-2 v2.1), with or without the
 standard's minimum elements". A schema/SHACL pass here says nothing about
 it.
 
-Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/sbom-validate
-[sbom-file]` (`/pitloom:sbom-validate [sbom-file]` when installed via the
-Claude Code plugin; the syntax depends on the client, e.g.
-`$sbom-validate` in Codex). `sbom-file` is optional -- point it at a
-specific file when a project has more than one SBOM; omit it to let the
-agent find the one to validate.
-
-For copy-paste recipes, read `references/examples.md`.
+Triggers on natural-language requests (see the description), or explicitly
+with `/sbom-validate [sbom-file]` (`/pitloom:sbom-validate` via the Claude
+Code plugin; `$sbom-validate` in Codex). `sbom-file` is optional: name one
+when a project has more than one SBOM; omit it to let the agent find the one
+to validate. For copy-paste recipes, read `references/examples.md`.
 
 ## Requirements
 
 Python >= 3.10 and **pitloom >= 0.23.0** (the commands, output lines and
-messages below are those of 0.23.0; the sibling skills write ID registry
-format 4, which releases before 0.22.0 cannot read), the `loom`/`pitloom` entry
-point or standalone `spdx3-validate` CLI; `loom fragment validate` needs the
-`validate` extra (`pip install "pitloom[validate]>=0.23.0"`).
+messages below are those of 0.23.0), the `loom`/`pitloom` entry point or the
+standalone `spdx3-validate` CLI; `loom fragment validate` needs the `validate`
+extra (`pip install "pitloom[validate]>=0.23.0"`).
 
 ## Run the validator
 
@@ -148,17 +142,17 @@ loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl     # present, right pla
 loom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl   # schema/SHACL content check
 ```
 
-Each command prints one stdout line per wheel, `WHEEL=<name>
-STATUS=<status>`: `ok`/`failed` for `verify-wheel`, `valid`/`skipped`/
-`failed` for `validate-wheel` (a failure's reason is the `ERROR:` on
-stderr; its schema/SHACL lines name the SBOM inside the wheel as
-`<wheel>/<member>`, in a fixed order). **Exit 0 is not always a clean pass.** A name/version mismatch in
-`verify-wheel` is only a `WARNING:` (exit 0, still `STATUS=ok`) unless
-`--fail-on-mismatch` is given: report any `WARNING:`, and add
-`--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a format it has
-no validator for prints `STATUS=skipped` and exits 0: report it as "not
-validated". A wheel with several `.dist-info/sboms/` entries needs
-`--sbom-filename NAME` on either command, else `ERROR:`.
+Each command prints one stdout line per wheel, `WHEEL=<name> STATUS=<status>`:
+`ok`/`failed` for `verify-wheel`, `valid`/`skipped`/`failed` for
+`validate-wheel` (a failure's reason is the `ERROR:` on stderr; its schema/SHACL
+lines name the SBOM inside the wheel as `<wheel>/<member>`, in a fixed order).
+**Exit 0 is not always a clean pass.** A name/version mismatch in `verify-wheel`
+is only a `WARNING:` (exit 0, still `STATUS=ok`) unless `--fail-on-mismatch` is
+given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
+`validate-wheel` on an SBOM in a format it has no validator for prints
+`STATUS=skipped` and exits 0: report it as "not validated". A wheel with several
+`.dist-info/sboms/` entries needs `--sbom-filename NAME` on either command, else
+`ERROR:`.
 
 A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
 exit 1; the other wheels are still checked (an unexpected `validate-wheel`
@@ -222,15 +216,14 @@ asked for `embed-wheel --allow-build`, always pass an explicit
 
 ## See also
 
-- Read `references/examples.md` for copy-paste recipes, including multi-file
-  and merged-graph validation.
+- `references/examples.md`: read it for copy-paste recipes, including
+  multi-file and merged-graph validation.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/references/examples.md>
-- The sibling `sbom-generate` skill -- produces the SBOM this validates.
+- `sbom-generate`: produces the SBOM this skill validates.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
-- The sibling `sbom-enrich` skill -- this skill is its mandatory
-  post-merge conformance check.
+- `sbom-enrich`: this skill is its mandatory post-merge check.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/SKILL.md>
-- `docs/resources.md` -- SPDX 3 spec, ontology, JSON-LD, and JSON Schema
-  links (including the per-minor-version URL pattern), plus the
-  `spdx3-validate` validator this skill wraps.
+- `docs/resources.md`: SPDX 3 spec, ontology, JSON-LD and JSON Schema links
+  (including the per-minor-version URL pattern), and the `spdx3-validate`
+  validator this skill wraps.
   <https://bact.github.io/pitloom/resources/>

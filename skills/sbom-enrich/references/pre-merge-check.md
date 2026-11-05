@@ -19,8 +19,8 @@ properties) before registration. Otherwise a fragment that fails to read is
 skipped with only a `WARNING:` (the merge fails if it is registered with
 `required = true`), a wasted `loom` run. It does not catch a bare unrecognised
 type with no other key, not even `spdxId` (read as an extensible object), or a
-missing required property (step 10 does). Exit 0 is a pass. This is the one home
-of the snippet.
+missing required property (step 10 does). Exit 0 is a pass. This is the one
+home of the snippet.
 
 It imports `spdx_python_model`, which only Pitloom's own environment has, so
 run it with the interpreter Pitloom is installed in, not whichever `python3` is

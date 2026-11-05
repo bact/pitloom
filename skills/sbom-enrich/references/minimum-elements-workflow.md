@@ -115,11 +115,11 @@ with checker `2355afc`, 2026-10-28); a document-level rule
 is missing.
 
 Outcomes: `present` (the property exists; its value is not judged; a rule with
-sub-rules, like G7's `MDL-006`, is `present` when any sub-rule is),
-`missing`, `not-applicable` (nothing of that kind, e.g. no dataset, or a
-BSI "if it exists" element the package does not give) and `out-of-scope` (the
-checker does not check it: report it from `minimum-elements.md` instead, never
-as passed). A `permission` rule (BSI COMP-015 and -017; COMP-016 is not checked) is optional.
+sub-rules, like G7's `MDL-006`, is `present` when any sub-rule is), `missing`,
+`not-applicable` (nothing of that kind, e.g. no dataset, or a BSI "if it exists"
+element the package does not give) and `out-of-scope` (the checker does not
+check it: report it from `minimum-elements.md` instead, never as passed). A
+`permission` rule (BSI COMP-015 and -017; COMP-016 is not checked) is optional.
 
 Per `missing` rule, look the element up in `minimum-elements.md` and do the
 first that fits:
