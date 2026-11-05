@@ -253,6 +253,6 @@ def test_a_loom_dataset_card_record_carries_the_code(
             loom.add_dataset("corpus")
     (record,) = [r for r in _said(caplog) if _NOT_YAML in r.getMessage()]
     assert record.getMessage().startswith(
-        f"FILE=corpus/README.md: dataset card {_NOT_YAML}"
+        f"FILE={Path('corpus') / 'README.md'}: dataset card {_NOT_YAML}"
     )
     assert getattr(record, CODE_ATTR) == "card-malformed"

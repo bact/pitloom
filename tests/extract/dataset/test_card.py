@@ -151,7 +151,7 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
     [
         (
             b"---\nlicense: [mit\n---\n",
-            "/README.md: dataset card frontmatter is not valid YAML; while parsing",
+            "README.md: dataset card frontmatter is not valid YAML; while parsing",
         ),
         (b"---\nversion: true\n---\n", "field version is of type bool, not text"),
         (b"---\nversion: 1.10\n---\n", "version is of type float, not text; quote"),
