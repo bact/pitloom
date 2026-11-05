@@ -244,12 +244,12 @@ def test_a_config_problem_names_its_first_part_then_every_reason(
     monkeypatch.setattr("pitloom.extract.ai_model.hdf5_config.canonical_json", too_deep)
     raw = '{"optimizer": 1, "loss": ["x"]}'
     problem = parse_training_config(raw, "", {}, {})
+    assert problem is not None
     assert problem == ConfigProblem(
         "training_config.optimizer",
         "is not an object; training_config.loss is nested too deeply",
         ("properties.optimizer", "properties.loss"),
     )
-    assert problem is not None
     assert problem.text == f"{problem.part} {problem.error}"
 
 
