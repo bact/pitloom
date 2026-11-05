@@ -35,7 +35,7 @@ separate `spdx3-validate --json` shell-out.
 
 An embedded SBOM's declared subject `name`/`software_packageVersion`
 (SPDX3 JSON-LD only) is cross-checked against the wheel's own
-`.dist-info/METADATA` `Name`/`Version`, PEP 503/440-normalized. Lives
+`.dist-info/METADATA` `Name`/`Version`, PEP 503/440-normalised. Lives
 in `verify-wheel` (`src/pitloom/cli/commands/verify_wheel.py`) rather
 than `embed_wheel_sbom`, since it covers every embedding path, not
 just `--sbom`-supplied SBOMs. Default severity `WARNING:` (exit 0);

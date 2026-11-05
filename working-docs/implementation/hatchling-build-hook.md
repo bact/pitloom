@@ -34,7 +34,7 @@ the time `initialize()` runs, Hatchling has already:
   `metadata_from_hatchling()` catches it and degrades gracefully, mirroring
   `read_pyproject()`'s own tolerance for the same case.
 - Normalised the project `name` per PEP 503 (`_` and `.` collapsed to `-`,
-  lowercased) as `core.name`, while retaining the original, un-normalized
+  lowercased) as `core.name`, while retaining the original, un-normalised
   spelling as `core.raw_name`. `metadata_from_hatchling()` uses `raw_name`,
   matching the literal spelling `read_pyproject()` reports for the same
   `[project] name` in `pyproject.toml`, so the CLI and the build hook agree
@@ -235,7 +235,7 @@ runtime detection already handles it, and it stays ready if upstream
 reintroduces the second parameter.
 
 The `TYPE_CHECKING` split exists because mypy/pyright/pyrefly (strict)
-analyze a function body unconditionally -- a single helper containing
+analyse a function body unconditionally -- a single helper containing
 *both* subscript arities as plain code would always have one rejected as
 a static type error. `if TYPE_CHECKING: ... else: ...` is special-cased
 by all three checkers to skip the untaken branch entirely, so the `else`

@@ -58,7 +58,7 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 - ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
 - ✅ **`loom generate` project-config precedence fix**: PR [#116](https://github.com/bact/pitloom/pull/116) merged to `main`.
-- ✅ **G2 -- multi-source disagreement, generalized** (the Annotation-evidence
+- ✅ **G2 -- multi-source disagreement, generalised** (the Annotation-evidence
   half of N2, not itself an N-item but directly completes it): declared-vs-
   independently-detected license conflict detection, generic
   `provenance/conflict/1` Annotation schema (reusable for any field),
@@ -202,7 +202,7 @@ N4, N5, N6 together on one representative model. Confirms: all five
 native constructs present on the same document at once; no Annotation
 duplicates a value now covered natively; two generation runs with
 identical inputs produce byte-identical JSON; the combined document
-round-trips through `spdx-python-model` deserialization without loss.
+round-trips through `spdx-python-model` deserialisation without loss.
 `test_fragment_origin_round_trips_when_merged` covers N1's `ExternalMap`
 shape directly (the real merge path is separately covered by
 `test_merge_fragments_populates_spdx_document_imports` in

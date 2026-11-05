@@ -16,7 +16,7 @@ this page assumes that one as background and doesn't restate it.
 
 See also: [poetry-support.md](poetry-support.md)'s "`poetry.lock`
 transitive dependencies" section and [pep751-pylock-support.md](pep751-pylock-support.md)
-for the two formats this cascade was generalized from;
+for the two formats this cascade was generalised from;
 [lock-files.md](../design/lock-files.md) for the broader multi-format
 roadmap; [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for the
 source/build/deployed staging model that makes every source here

@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [summary.md](summary.md) (implementation summary) and
 [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md)
-(the CLI, test-suite, and source modularization this tree reflects).
+(the CLI, test-suite, and source modularisation this tree reflects).
 
 This tree is the canonical reference for the repository's file/directory
 layout; `README.md` and design docs point here rather than duplicating
@@ -181,7 +181,7 @@ pitloom/
 │       │   ├── dataset_merge.py  # One dataset referenced more than once becomes one dataset
 │       │   ├── dataset_names.py  # When two dataset spellings are one dataset; the listing cap
 │       │   ├── dataset_metadata.py # DatasetMetadata
-│       │   ├── document.py  # DocumentModel (assembled, pre-serialization)
+│       │   ├── document.py  # DocumentModel (assembled, pre-serialisation)
 │       │   ├── enrich_config.py  # [tool.pitloom.enrich] / EnrichConfig
 │       │   ├── evidence.py  # Evidence levels of a recorded fact, and the one writer of their provenance segment
 │       │   ├── extra_gate.py  # The extras a requirement marker requires, read from its text

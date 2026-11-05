@@ -204,7 +204,7 @@ lock (an unparseable top-level `package` key, or an individual
 `[[package]]` entry missing `name`/`version`) is skipped with a
 `WARNING:`, not silently dropped, per this repo's "no silent
 deviations" rule; two `[[package]]` entries for the same
-PEP 503-canonicalized name that disagree on version (compared under
+PEP 503-canonicalised name that disagree on version (compared under
 PEP 440 equality, not raw string equality) are skipped with a
 `WARNING:` too, rather than one silently overwriting the other.
 

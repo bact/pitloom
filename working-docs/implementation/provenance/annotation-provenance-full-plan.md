@@ -127,7 +127,7 @@ rides only in `comment`), `sbom-enrichment.md:145-169`.
   and a build-time-resolution note (`deps.py:52`). SPDX stores only the resolved
   `software_packageVersion=2.28.1`; there is no native field for the original constraint or
   the fact resolution happened from the build environment. Needed to reproduce/re-resolve or
-  analyze version drift; the SBOM should be self-contained rather than sending readers back to
+  analyse version drift; the SBOM should be self-contained rather than sending readers back to
   `pyproject.toml`.
 
 - **G4 — Sub-file extraction location for opaque binary formats — USEFUL.**
@@ -199,7 +199,7 @@ relevant subset is still emitted as SPDX classes/properties/relationships — ra
 ## Phase 2 (documented now, built after the Annotation work): native-first backfill
 
 Several facts above have a real SPDX 3 home that Pitloom does not yet populate — it records
-them only in a comment/Annotation, or mirrors/normalizes them away. The native-first principle
+them only in a comment/Annotation, or mirrors/normalises them away. The native-first principle
 says the *fact/value* belongs in the native construct; the Annotation should then shrink to only
 the non-native residual. Building these is deferred to a next phase, but documenting the target
 now keeps the two halves coherent and prevents the Annotation from ossifying as the permanent home
@@ -249,7 +249,7 @@ Parsed and validated in `src/pitloom/core/config.py` next to `_read_provenance_s
 
 - **Field-level (extraction):** keep the `pitloom/1` envelope
   `{schema, fields: {field: {source, location, method, note}}}`. No shape change; minimal mode
-  simply *filters* which fields appear (see high-signal test below). Formalize the `method`
+  simply *filters* which fields appear (see high-signal test below). Formalise the `method`
   vocabulary already produced by extractors: `dynamic_extraction`, `licenseid_detection`,
   `inferred_from_authors`, `inspect_caller`, `file_directive`, `attr_directive`, plus the
   enrichment-reserved `inference`.

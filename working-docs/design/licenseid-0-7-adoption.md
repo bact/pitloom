@@ -44,7 +44,8 @@ On licenseid `main` then: `ListLookup` (`listlookup.py`) and the shared list
 rules (`listrules.py`), both no-behaviour-change groundwork. Not there yet:
 compounds in `resolve()`, `operands`, `components`, `reason`, the
 packaged-list fallback, newer-list-wins, prose forms, trove names. Pitloom
-could not adopt any of it before those landed; it could only measure, and prepare (section 5).
+could not adopt any of it before those landed; it could only measure, and
+prepare (section 5).
 
 ## 2. Data: the parity corpus through Pitloom
 

@@ -120,8 +120,8 @@ The implementation is verified across two layers:
   as built: the one pair left open
   ([sbom-package-boundary.md](../design/sbom-package-boundary.md)). A wheel's
   `.data/` directory is payload (listed and hashed under its wheel path, not
-  its install destination); only the own `.dist-info` is excluded. The recompute procedure
-  is in `docs/cli.md`.
+  its install destination); only the own `.dist-info` is excluded. The
+  recompute procedure is in `docs/cli.md`.
 - **Signed wheels are refused.** `RECORD.jws`/`RECORD.p7s` sign the `RECORD`
   the embed rewrites. Keeping them leaves a signature that fails to verify
   (worse than none); silently dropping loses trust data. Default is a

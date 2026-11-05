@@ -27,7 +27,7 @@ checklist (N1-N6). G2's own implementation depth lives separately in
 - **Generation** — G1 inferred/detected/AI-generated qualifier (necessary,
   **implemented**: `licenseid_detection`, `inferred_from_authors` have no
   native assertedness marker); **G2 multi-source disagreement** (necessary
-  on conflict, **implemented for license**, generalized beyond license — see
+  on conflict, **implemented for license**, generalised beyond license — see
   [multi-source-conflict.md](multi-source-conflict.md) for the full
   mechanism); G3 declared constraint vs resolved version (useful,
   **implemented** — SPDX keeps only the resolved version); G4 sub-file

@@ -22,7 +22,7 @@ most fleshed-out use case in the catalogue. The `role` vocabulary G2
 relies on is documented once, generally, in
 [role-vocabulary.md](role-vocabulary.md) rather than repeated here.
 
-## G2 — multi-source disagreement (2026-08-10, generalized, license implemented)
+## G2 — multi-source disagreement (2026-08-10, generalised, license implemented)
 
 License is the first field this fires for, but the *mechanism* — several
 sources reporting different values for the same field — applies to any

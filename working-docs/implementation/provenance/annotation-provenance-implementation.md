@@ -65,7 +65,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 
-#: Segment-key normalization for the ``"Key: value | Key: value"`` strings.
+#: Segment-key normalisation for the ``"Key: value | Key: value"`` strings.
 _KEY_MAP = {
     "source": "source",
     "field": "location",
@@ -105,7 +105,7 @@ class ProvenanceEncoder(Protocol):
     content_type: str  # value for Annotation.contentType
 
     def encode(self, provenance: dict[str, str]) -> str:
-        """Return the serialized ``Annotation.statement`` body."""
+        """Return the serialised ``Annotation.statement`` body."""
         ...
 
 

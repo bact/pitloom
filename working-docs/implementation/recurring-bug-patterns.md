@@ -127,7 +127,7 @@ shape described, not just the module where each was first found.
     conflated in an explanation or a docstring.** Pitloom's own
     `is_same_version()` compares two version strings via
     `packaging.version.Version` equality: `"1.0"` == `"1.0.0"` ==
-    `"1.0.0.0"` (trailing-zero-padded normalization), a fixed, narrow
+    `"1.0.0.0"` (trailing-zero-padded normalisation), a fixed, narrow
     notion of "the same release" -- not "the latest release compatible
     with 1.0" and not a caret/tilde-style range (`^1.0.0` accepting
     `1.0.1`). The two are easy to blur in prose (a reader's SemVer

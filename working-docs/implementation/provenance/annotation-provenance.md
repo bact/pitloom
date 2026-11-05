@@ -230,7 +230,7 @@ class ProvenanceEncoder(Protocol):
     content_type: str  # MIME for the Annotation.contentType
 
     def encode(self, provenance: dict[str, str]) -> str:
-        """Return the serialized Annotation.statement body."""
+        """Return the serialised Annotation.statement body."""
 ```
 
 A tiny registry maps `schema_id -> encoder`; `resolve_encoder(id)` raises a

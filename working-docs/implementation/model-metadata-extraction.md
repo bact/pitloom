@@ -46,7 +46,7 @@ Format detection is handled by
 
 ### Netron
 
-Netron is a visualizer and metadata extractor supporting nearly all common
+Netron is a visualiser and metadata extractor supporting nearly all common
 formats (ONNX, PyTorch, TensorFlow, GGUF, Core ML, RKNN, and many more).
 <https://github.com/lutzroeder/netron>
 

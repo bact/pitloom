@@ -32,7 +32,7 @@ tracking and uses SPDX 3 CreationInfo for transparency and auditability.
 > `CreationInfo` (N3, with the `enrich/` MVP) are emitted as native SPDX
 > constructs with no provenance residual for the value itself. G2
 > (multi-source disagreement detection) is now implemented for license, and
-> generalized to any field for when future candidate sources land. A2
+> generalised to any field for when future candidate sources land. A2
 > (superseded identity across builds) remains design-only. See
 > [`annotation-provenance.md`](annotation-provenance.md)
 > §10 for the full design, current status, and code citations for all

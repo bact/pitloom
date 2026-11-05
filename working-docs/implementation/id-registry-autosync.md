@@ -145,13 +145,13 @@ by path keys; see
 recoverable instead of silently dropping the second model: it gets its
 own id and a warning instead of reusing the first model's.
 
-`_resolve_directory_hits_for_file()` memoizes every ancestor directory
+`_resolve_directory_hits_for_file()` memoises every ancestor directory
 it has already resolved for the current file pass in a `seen_dirs` set
 -- not just the ones recorded in `dir_hits`, which only holds
 successful claims. A directory whose hit is rejected by the session's
 claim (`IdRegistrySession.entity_id()`, lost the first-claimant race) or
 whose lookup
-misses adds no `dir_hits` entry either way, so memoizing on `dir_hits`
+misses adds no `dir_hits` entry either way, so memoising on `dir_hits`
 membership alone would re-look-up and, on a rejection, re-log the same
 `WARNING: ID registry: ... registered for both ...` once per file sharing
 that directory instead of once per directory.
@@ -232,7 +232,7 @@ size); with it, each release is O(keys actually sharing that id).
 harvested directory and a same-named package (or any two
 differently-typed entities sharing a name) no longer overwrite each
 other. `pitloom.id_registry._types._entity_key(name, type_name)` is the single place
-a `PACKAGE_ENTITY_TYPE` entity's name is PEP 503-canonicalized
+a `PACKAGE_ENTITY_TYPE` entity's name is PEP 503-canonicalised
 (`packaging.utils.canonicalize_name`), used by `register_entity()`,
 `lookup_entity()`, and harvest alike -- a caller like
 `_resolve_deployed_package_hits()` passes a dependency's declared name

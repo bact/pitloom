@@ -85,13 +85,13 @@ other two.
 - `marketplace.json`'s own top-level description lives under
   `metadata.description`, not a bare top-level `description` key --
   `claude plugin validate` (CLI 2.1.114) rejects the latter as an
-  unrecognized key and, if omitted entirely, warns
+  unrecognised key and, if omitted entirely, warns
   `"No marketplace description provided"`. This is the marketplace's own
   description (shown when browsing/listing the marketplace itself), a
   different thing from the per-plugin entry's deliberately-omitted
   `description` in the bullet above.
 - Neither manifest declares `$schema` -- `claude plugin validate` (CLI
-  2.1.114) rejects it as an unrecognized key at the schema root, contrary
+  2.1.114) rejects it as an unrecognised key at the schema root, contrary
   to an earlier version of this note claiming it was "ignored at load
   time" (it validated fine against an older CLI build; the strict-schema
   behaviour changed). `plugin.json` likewise has no `displayName` field in

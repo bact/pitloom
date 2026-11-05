@@ -25,7 +25,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Fully migrated to the official `spdx-python-model` library
    - Proper JSON-LD serialisation and validation
    - Deterministic UUIDv5 SPDX document IDs (`compute_doc_uuid`) keyed on
-     project name, version, normalized dependencies,
+     project name, version, normalised dependencies,
      and SHA-256 Merkle root of wheel files
    - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
@@ -69,7 +69,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      for source code (Source SBOM)
    - `generate_wheel_sbom()` and `generate_model_sbom()` orchestrate the
      pipeline for built wheels and AI models
-     (Analyzed SBOM), utilizing `extract/wheel.py`, `extract/ai_model/`
+     (Analyzed SBOM), using `extract/wheel.py`, `extract/ai_model/`
      and `extract/binary.py` to identify phantom dependencies
    - `generate_env_sbom()` orchestrates the pipeline for active
      environments (Deployed SBOM), mapping the tree using `env.py`
@@ -120,7 +120,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      explicit `--offline` support (Analyzed AIBOM)
    - `loom env` scans the active installed environment (Deployed SBOM)
    - `loom merge` stitches dynamic execution fragments (Runtime SBOM)
-   - Python API harmonized 1:1 (`pitloom.generate()`,
+   - Python API harmonised 1:1 (`pitloom.generate()`,
      `generate_project_sbom()`, `generate_wheel_sbom()`,
      `generate_model_sbom()`, `generate_env_sbom()`,
      `generate_merged_sbom()`, `enrich_model()`)
@@ -164,7 +164,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 3. **Generator integration tests**
    - End-to-end SBOM generation
-   - Generic fragment merging via Deserialization
+   - Generic fragment merging via Deserialisation
 
 4. **SDK tracker tests**
    - `test_loom.py` verifies both Decorator and Context Manager tracking

@@ -65,7 +65,7 @@ separate `[[package]]` entry per requested extra variant of a package
 always agreeing on `version` -- unlike `uv.lock`'s genuinely conflicting
 duplicates. It uses `resolve_pinned_dependencies()` (see "Sharing
 code across formats" below) to group its `(name, version)` pairs by
-PEP 503-canonicalized name, then only treats a name as ambiguous (skip,
+PEP 503-canonicalised name, then only treats a name as ambiguous (skip,
 `WARNING:`) when its entries actually *disagree* on `version`; entries
 that agree are collapsed to one `name==version`, not two.
 
@@ -101,7 +101,7 @@ table to group by name -- so the extractor collects every line's
 `resolve_pinned_dependencies()` helper `pdm.py` uses, once
 all lines have parsed: a name repeating with agreeing versions
 collapses to one entry, a genuine conflict rejects the whole file. The
-grouping compares PEP 503-canonicalized names, not the literal spelling
+grouping compares PEP 503-canonicalised names, not the literal spelling
 on each line -- a hand-written file mixing `Flask==1.0` and
 `flask==2.0` is a real conflict between two spellings of one PyPI
 package, not two different packages.
@@ -127,7 +127,7 @@ question, not an oversight: PEP 508 defines a URL requirement as a
 specifier -- neither spec defines how to derive a normalised version
 from a URL. A git tag or filename that merely looks version-shaped is
 an arbitrary string the maintainer chose, with no guarantee it
-round-trips to a real PEP 440 version (capitalization, a leading `v`,
+round-trips to a real PEP 440 version (capitalisation, a leading `v`,
 a non-version tag like `stable`, ...). Confirming the real version
 would mean fetching the URL and inspecting the installed package's own
 metadata -- against this repo's "prevent excessive network access"

@@ -140,7 +140,7 @@ Truncation happens at the dictionary level only — whole `metadata` keys
 are dropped, largest-serialized-size first, never a value cut
 mid-string (which would produce invalid JSON). This is implemented in
 `assemble/spdx3/provenance.py`'s `_truncate_metadata_for_budget()`,
-re-checking the real RFC 8785-serialized byte length of the candidate
+re-checking the real RFC 8785-serialised byte length of the candidate
 envelope after each drop rather than approximating it — cheap at the
 realistic key counts here (a model's own KV/metadata table: dozens of
 keys, not thousands). When triggered, the envelope gains
@@ -201,7 +201,7 @@ RFC 8785 (JCS) canonicalisation (`rfc8785.dumps()`, already a project
 dependency, used for the outer document). The statements it builds
 became genuinely canonical, not just key-sorted — no insignificant
 whitespace, so every statement also shrank a little for free.
-`_sanitize_for_json()`'s fallback for unrecognized types (`np.float32`,
+`_sanitize_for_json()`'s fallback for unrecognised types (`np.float32`,
 `Decimal`, etc.) changed from relying on `json.dumps`'s `default=str`
 hook (which `rfc8785.dumps()` has no equivalent of) to stringifying them
 itself before the value ever reaches the serialiser.
@@ -212,11 +212,11 @@ kept `json.dumps(sort_keys=True)`, spaced), and JSON texts outside
 annotations were spaced too: `ai_informationAboutApplication`, fastText
 and CRFsuite `labels`, HDF5 `loss`/`metrics`, and the JSON text of a
 collection nested past the 32-level bound. All now go through
-`pitloom.core.canonical_json.canonical_json()` (the sanitizer moved there
+`pitloom.core.canonical_json.canonical_json()` (the sanitiser moved there
 as `json_safe()`), so every `Annotation.statement` and every other JSON
 text in an SBOM string is RFC 8785. `json_safe()` makes a string of what
 RFC 8785 rejects: NaN and the infinities as `scalar_text()` spells them
-(`NaN`, `INF`, `-INF`; the sanitizer used to write `Infinity`, a second
+(`NaN`, `INF`, `-INF`; the sanitiser used to write `Infinity`, a second
 spelling of one value), and an integer beyond +-(2^53 - 1) as its full
 decimal (`rfc8785` raises `IntegerDomainError`; a float would lose
 digits). Artifact-metadata values are already `scalar_text()` strings, so

@@ -65,7 +65,7 @@ continuous across the parts.
 ### Found and fixed during implementation review
 
 - `emit_provenance` originally matched neither `if` branch for an
-  unrecognized `provenance_format`, silently dropping the provenance with no
+  unrecognised `provenance_format`, silently dropping the provenance with no
   comment, no Annotation, and no error — contradicting its own docstring's
   claim of a `"both"` fallback. Fixed to raise `ValueError` (matching
   `resolve_encoder`'s fail-fast pattern); regression test:
@@ -124,7 +124,7 @@ in this directory:
 ## 10. Security/robustness hardening (2026-07-21)
 
 Agent-driven adversarial review of the provenance-string construction and
-JSON-serialization paths (`record_dict_field_provenance`, `_sanitize_for_json`)
+JSON-serialisation paths (`record_dict_field_provenance`, `_sanitize_for_json`)
 found and fixed two real gaps:
 
 - **Provenance-string delimiter injection.** Both a dict key from an
