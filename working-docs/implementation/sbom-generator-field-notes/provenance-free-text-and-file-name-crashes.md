@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,8 +57,8 @@ what PR 402 found and decided; it repeats none of that.
   lone surrogate as text each logged the same `WARNING:` by hand. They now
   call one helper, `warn_lone_surrogates()`, "ready for the SBOM writer to
   use too" (2a561bc0). The writer is the sixth caller. The catalogue plan
-  moves the helper into `pitloom.messages` as the code `text-malformed`
-  (planned in the PR 2b plan; see
+  moved the helper into `pitloom.messages` as the code `text-malformed`
+  (planned in the PR 2b plan, built in #444; see
   [raw-exception-text-leaks-paths.md](raw-exception-text-leaks-paths.md)).
 - **Lossy but unambiguous? Not checked.** `\udcff` in the SBOM stands for
   the byte `0xFF`. A file literally named with a backslash and `udcff` is

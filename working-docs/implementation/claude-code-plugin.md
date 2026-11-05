@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,10 +29,11 @@ fits alongside Pitloom's other surfaces.
 |- plugin.json           Plugin manifest (name, description, author, license).
 `- marketplace.json      Self-hosted marketplace entry (source: "./").
 skills/
-|- sbom-generate/        Generate skill (see agent-skill.md) -- bundled
-|                        as-is; drives 'loom generate' / 'loom project' / 'loom wheel' / 'loom model'.
-|- sbom-enrich/          Enrich skill -- same.
-`- sbom-validate/        Validate skill -- thin wrapper around the
+|- sbom-generate/        Generate skill (see agent-skill.md), bundled as is;
+|                        drives `loom generate`, `project`, `wheel`, `model`.
+|- sbom-enrich/          Enrich skill, bundled as is.
+`- sbom-validate/        Validate skill, bundled as is; runs `loom fragment
+                         validate`, `loom validate-wheel` and the
                          third-party `spdx3-validate` CLI.
 ```
 

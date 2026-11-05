@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-27
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,7 @@ verified exceeded as of 2026-08-21:
 
 - `src/pitloom/__main__.py` (was 1,320 lines) split into
   `src/pitloom/cli/` (`parser.py`, `options.py`, `verbose.py`,
-  `constants.py`, `ids.py`, `commands/` with one file per verb).
+  `constants.py`, `id.py`, `commands/` with one file per verb).
 - Test suite modularized into `tests/cli/`/`tests/core/`/
   `tests/extract/`/`tests/assemble/`, mirroring the source layout
   (folder-per-area once an area reaches 3+ related files, per
