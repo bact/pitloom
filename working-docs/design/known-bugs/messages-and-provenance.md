@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,6 +101,33 @@ entries stay in the last section for history.
   sites).
   One line; it can go in any catalogue PR (PR 17 in the plan). Target: 0.24.0.
   *Found 2026-11-04, catalogue plan refresh.*
+- [ ] **A symbolic-link loop counts as absent (S).** `is_missing_errno`
+  takes `ELOOP` as missing: a looping Croissant path raises the uncoded
+  `Cannot read Croissant source ...: [Errno 40] ...`, a looping card
+  directory stays quiet, while `docs/messages.md` says only an absent file
+  carries no code. For PR 3 (`input-not-found`).
+  *Found 2026-11-05, review of #444.*
+- [ ] **A deep card frontmatter reads as malformed (S).** Valid YAML 5000
+  levels deep prints `... frontmatter is not valid YAML; maximum recursion
+  depth exceeded` (`card-malformed`): a depth limit, not malformed YAML.
+  *Found 2026-11-05, review of #444.*
+- [ ] **An empty name raises `ValueError` in two helpers (S).**
+  `warn_lone_surrogates(file='')` and `read_card(..., name='')` raise, so a
+  warning would become a failure that a catch-all swallows. No caller passes
+  one today.
+  *Found 2026-11-05, review of #444.*
+- [ ] **The reference overstates library-only errors (S).** For
+  `json-malformed` and the `file-unreadable` `ERROR` line it says the
+  command stops (exit 1, no SBOM written), by rule (decision E), though
+  only the library raises them (`read_croissant`, `loom.add_dataset`).
+  *Found 2026-11-05, review of #444.*
+- [ ] **Two Croissant caps are on no docs page (S).** The 50 MiB
+  `JSON-document` and the 64-level `Croissant-nesting` caps; no page lists
+  the dataset readers' caps.
+  *Found 2026-11-05, review of #444.*
+- [ ] **The export-site test survives `repr(min(changed))` (S).** The mutant
+  is equivalent for ASCII names; a non-ASCII case would kill it. Low.
+  *Found 2026-11-05, review of #444.*
 
 ## Fixed
 
