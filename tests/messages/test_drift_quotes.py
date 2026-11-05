@@ -27,24 +27,39 @@ from pitloom.messages import MESSAGES
 from tests._docs_scan import CLI_DOC_FILES, read
 from tests._message_drift import quote_matches, relative
 
-#: The text that marks a quote as saying a family's message.
-_MARKERS = {
-    "card-malformed": "frontmatter is not valid YAML",
-    "dir-unlistable": "could not list ",
-    "file-unreadable": "could not read ",
-    "hyperparameter-conflict": "replaced by the parameter count",
-    "json-malformed": "not valid JSON for ",
-    "lfs-pointer": "Git LFS pointer",
-    "lfs-pointer-malformed": "Git LFS pointer",
-    "library-missing": "required library not installed",
-    "model-unreadable": "failed to extract metadata",
-    "model-wrong-format": "header is not ",
-    "over-cap": " cap;",
-    "parameter-count-invalid": "parameter count not recorded",
-    "reader-unsafe": "Pass --trust-wheel-model",
-    "text-malformed": "lone surrogates written",
-    "usage-unparseable": "could not parse as Python ",
-    "usage-unusable": "not scanned for usage",
+#: The texts that mark a quote as saying a family's message: one, or one per
+#: line for a family whose lines share no core.
+_MARKERS: dict[str, tuple[str, ...]] = {
+    "card-malformed": ("frontmatter is not valid YAML",),
+    "dir-unlistable": ("could not list ",),
+    "field-not-recordable": ("no SPDX 3.0.1 property",),
+    "file-unreadable": ("could not read ",),
+    "hyperparameter-conflict": ("replaced by the parameter count",),
+    "json-malformed": ("not valid JSON for ",),
+    "lfs-pointer": ("Git LFS pointer",),
+    "lfs-pointer-malformed": ("Git LFS pointer",),
+    "library-missing": ("required library ",),
+    "model-field-conflict": ("the length of array ", "appear more than once"),
+    "model-field-unreadable": (
+        "Failed to read fastText model",
+        "fickling failed to parse pickle",
+        "fickling parsed pickle but",
+        "Failed to inspect ",
+        "Failed to parse PT2 ",
+        "Failed to read PT2 ",
+        "attribute cannot be read",
+        "kept as properties.model_config_raw",
+        "the fields read before it are kept",
+        "reading stopped there",
+    ),
+    "model-unreadable": ("failed to extract metadata",),
+    "model-wrong-format": ("header is not ",),
+    "over-cap": (" cap;",),
+    "parameter-count-invalid": ("parameter count not recorded",),
+    "reader-unsafe": ("Pass --trust-wheel-model",),
+    "text-malformed": ("lone surrogates written",),
+    "usage-unparseable": ("could not parse as Python ",),
+    "usage-unusable": ("not scanned for usage",),
 }
 
 #: Quotes of a tool's own lines, which no pattern here covers: (file, quote).
@@ -63,8 +78,11 @@ def _quotes() -> list[tuple[str, tuple[str, ...], str]]:
     for path in CLI_DOC_FILES:
         text = _FENCE.sub("", read(path))
         for span in _SPAN.finditer(text):
-            quote = " ".join(span.group(2).split())
-            families = tuple(f for f, marker in _MARKERS.items() if marker in quote)
+            # A table cell escapes a pipe, in a code span too (GFM).
+            quote = " ".join(span.group(2).replace("\\|", "|").split())
+            families = tuple(
+                f for f, markers in _MARKERS.items() if any(m in quote for m in markers)
+            )
             if families and (relative(path), quote) not in _EXTERNAL:
                 found.append((relative(path), families, quote))
     return found
@@ -98,9 +116,12 @@ def test_the_scan_found_quotes() -> None:
 def test_a_quote_is_a_piece_of_the_catalogue(
     file: str, families: tuple[str, ...], quote: str
 ) -> None:
-    assert any(quote_matches(quote, f, _MARKERS[f]) for f in families), (
-        f"{file}: {quote!r}"
-    )
+    assert any(
+        quote_matches(quote, f, marker)
+        for f in families
+        for marker in _MARKERS[f]
+        if marker in quote
+    ), f"{file}: {quote!r}"
 
 
 @pytest.mark.parametrize(
@@ -140,7 +161,7 @@ def test_a_quote_is_a_piece_of_the_catalogue(
 def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
     quote: str, expected: bool
 ) -> None:
-    assert quote_matches(quote, "lfs-pointer", _MARKERS["lfs-pointer"]) is expected
+    assert quote_matches(quote, "lfs-pointer", *_MARKERS["lfs-pointer"]) is expected
 
 
 @pytest.mark.parametrize(
@@ -175,4 +196,4 @@ def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
     ids=lambda v: str(v)[:24],
 )
 def test_the_matcher_reads_the_values_of_a_cap_line(quote: str, expected: bool) -> None:
-    assert quote_matches(quote, "over-cap", _MARKERS["over-cap"]) is expected
+    assert quote_matches(quote, "over-cap", *_MARKERS["over-cap"]) is expected

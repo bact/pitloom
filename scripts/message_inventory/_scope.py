@@ -62,6 +62,7 @@ DETAIL_EXC = frozenset(
         "on_duplicate",
         "NotAModel",
         "_shape_error",
+        "MemberReadError",
     }
 )
 #: Exception classes that are programming errors or process control.

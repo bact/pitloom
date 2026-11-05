@@ -65,6 +65,13 @@ _CHUNK_BYTES = 8192
 _Member = tuple[str, zipfile.ZipInfo]
 
 
+class MemberReadError(OSError):
+    """A wheel member that could not be read or copied out: the
+    system's own description of the failure, never the temporary path, as
+    the detail of the scanner's ``file-unreadable`` or
+    ``model-unreadable`` line."""
+
+
 #: Formats whose reader is not run on a wheel's files unless the caller
 #: trusts the wheel (``--trust-wheel-model``): a native parser (fastText,
 #: HDF5, ONNX), a pickle parser (PyTorch ``.pt``/``.pth``, through
@@ -151,7 +158,7 @@ def _sniffer(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> Callable[[], bytes]:
             with zf.open(info) as fh:
                 return fh.read(SNIFF_BYTES)
         except MEMBER_READ_ERRORS as exc:
-            raise OSError(str(exc)) from exc
+            raise MemberReadError(str(exc)) from exc
 
     return _sniff
 
@@ -231,7 +238,7 @@ def _materializer(
                     _copy_out(zf, info, target, scratch)
                 except OSError as exc:
                     # Its text would name the temporary path.
-                    raise OSError(
+                    raise MemberReadError(
                         exc.errno, exc.strerror or type(exc).__name__
                     ) from None
             with charging_reads(scratch.spend):

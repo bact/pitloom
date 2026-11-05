@@ -317,8 +317,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     try:
         # pylint: disable=import-outside-toplevel
         import onnx
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.ONNX) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.ONNX, exc) from exc
 
     try:
         # load_external_data=False avoids loading large external tensor files

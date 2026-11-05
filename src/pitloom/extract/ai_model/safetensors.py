@@ -221,8 +221,9 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     try:
         # pylint: disable=import-outside-toplevel
         from safetensors import safe_open
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.SAFETENSORS) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.SAFETENSORS, exc) from exc
 
     source = provenance_source(model_path.name)
     provenance: dict[str, str] = {}

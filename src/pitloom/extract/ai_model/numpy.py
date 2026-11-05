@@ -32,7 +32,10 @@ from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
-from pitloom.extract.ai_model.reader_requirements import require_library
+from pitloom.extract.ai_model.reader_requirements import (
+    REQUIREMENTS,
+    missing_library,
+)
 from pitloom.logging_config import loggable
 from pitloom.messages import Cap
 
@@ -253,12 +256,16 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         AiModelMetadata with the array information in ``properties``.
 
     Raises:
-        ImportError: If ``numpy`` is not installed.
+        ImportError: If ``numpy`` is not installed, or fails to import.
         ValueError: If the file cannot be read as a valid NumPy file.
         pitloom.extract.ai_model.limits.ModelLimitExceeded: A header is over
             its bound.
     """
-    require_library(AiModelFormat.NUMPY)
+    try:  # once, before any read: the helpers' own imports then cannot fail
+        __import__(REQUIREMENTS[AiModelFormat.NUMPY].module)
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.NUMPY, exc) from exc
 
     source = provenance_source(model_path.name)
     format_version: str | None = None

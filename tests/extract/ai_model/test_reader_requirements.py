@@ -32,19 +32,22 @@ from pitloom.messages import LIBRARY_MISSING, code_of
 from tests._message_drift import raised_as
 
 
+_FAKE = "pitloom_fake_lib"
+
+
 @pytest.fixture(autouse=True, name="fake_requirement")
 def fixture_fake_requirement(monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setitem(
-        REQUIREMENTS, AiModelFormat.ONNX, Requirement("pitloom_fake_lib", "fake")
+        REQUIREMENTS, AiModelFormat.ONNX, Requirement(_FAKE, "fake")
     )
-    return "pitloom_fake_lib"
+    return _FAKE
 
 
 def test_a_library_that_cannot_be_found_raises_the_readers_error() -> None:
     text = "required library not installed: pitloom_fake_lib; install pitloom[fake]"
     with pytest.raises(ImportError, match=r"^required .*pitloom\[fake\]$") as caught:
         require_library(AiModelFormat.ONNX)
-    error = missing_library(AiModelFormat.ONNX)
+    error = missing_library(AiModelFormat.ONNX, ModuleNotFoundError(name=_FAKE))
     assert str(caught.value) == str(error) == text
     assert code_of(caught.value) == code_of(error) == "library-missing"
     assert raised_as(error, LIBRARY_MISSING)
@@ -74,6 +77,6 @@ def test_every_error_names_its_module_and_its_extra() -> None:
     for fmt, requirement in REQUIREMENTS.items():
         if fmt is AiModelFormat.ONNX:
             continue  # replaced by the fixture
-        text = str(missing_library(fmt))
+        text = str(missing_library(fmt, ModuleNotFoundError(name=requirement.module)))
         assert f": {requirement.module}; " in text
         assert text.endswith(f"; install pitloom[{requirement.extra}]")

@@ -398,8 +398,9 @@ def _load_fields(
     try:
         # pylint: disable=import-outside-toplevel
         from gguf import GGUFReader
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.GGUF) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.GGUF, exc) from exc
 
     try:
         check_gguf_header(model_path)

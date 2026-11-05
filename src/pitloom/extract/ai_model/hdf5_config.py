@@ -31,6 +31,8 @@ from pitloom.logging_config import one_line
 #: Characters of an unparsed ``model_config`` kept in
 #: ``properties["model_config_raw"]``.
 RAW_CONFIG_CHARS = 500
+#: The property an unparsed ``model_config`` is kept in.
+RAW_CONFIG_KEY = "model_config_raw"
 
 _MODEL_CONFIG_FIELDS = (
     "type_of_model",

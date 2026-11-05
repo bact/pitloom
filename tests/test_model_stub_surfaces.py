@@ -18,9 +18,7 @@ tests/assemble/test_model_outcome_parity.py (one outcome per kind of file).
 from __future__ import annotations
 
 import logging
-import os
 import struct
-import subprocess  # nosec B404
 import sys
 from pathlib import Path
 from typing import Any
@@ -33,13 +31,13 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import MESSAGES, code_of, trusted_message
+from pitloom.messages import MESSAGES, code_of
+from tests._loom_child import coded_lines, run_loom
 from tests._message_drift import raised_as
 from tests._wheel_models import write_model_wheel
 from tests.extract.ai_model.gguf_builders import gguf_file
 from tests.extract.conftest import make_hook
 
-_SRC = str(Path(__file__).resolve().parents[1] / "src")
 #: A Hatchling project whose wheel ships the ``demo`` package, models included.
 _PYPROJECT = (
     b'[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
@@ -48,17 +46,6 @@ _PYPROJECT = (
 )
 #: A Safetensors header declaring 200 bytes that holds 8: its reader fails.
 _TRUNCATED = struct.pack("<Q", 200) + b'{"a": 1}'
-#: Runs ``loom`` with the modules of its first argument made unimportable.
-_RUN = (
-    "import sys\n"
-    "for name in filter(None, sys.argv[1].split(',')):\n"
-    "    sys.modules[name] = None\n"
-    "from pitloom.__main__ import main\n"
-    "sys.argv = ['loom', *sys.argv[2:]]\n"
-    "sys.exit(main())\n"
-)
-
-
 def _negative_onnx() -> bytes:
     """An ONNX model whose initializer has a dimension of -1: no count."""
     onnx = pytest.importorskip("onnx")
@@ -95,38 +82,9 @@ def _project(root: Path) -> Path:
     return root
 
 
-def _loom(
-    args: list[str], cwd: Path, block: str = ""
-) -> subprocess.CompletedProcess[bytes]:
-    """``loom`` in a child process, *block* (``a,b``) unimportable there; its
-    output as bytes, not decoded."""
-    env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [_SRC, env.get("PYTHONPATH")]))
-    return subprocess.run(  # nosec B603
-        [sys.executable, "-c", _RUN, block, *args],
-        cwd=cwd,
-        env=env,
-        capture_output=True,
-        check=False,
-        timeout=300,
-    )
-
-
-def _coded(stderr: bytes) -> dict[str, str]:
-    """Each trusted line of *stderr* (a carriage return dropped) by its text
-    and its code, as a script reads them."""
-    found = {}
-    for raw in stderr.decode("utf-8").split("\n"):
-        line = raw.removesuffix("\r")
-        message = trusted_message(line)
-        if message is not None:
-            found[line] = message.code
-    return found
-
-
 def _codes_by_file(stderr: bytes) -> dict[str, str]:
     """The code of the trusted line naming each model file."""
-    lines = _coded(stderr)
+    lines = coded_lines(stderr)
     return {
         name: code
         for name in _models()
@@ -137,7 +95,7 @@ def _codes_by_file(stderr: bytes) -> dict[str, str]:
 
 def test_a_project_scan_ends_each_cause_in_its_code(tmp_path: Path) -> None:
     project = _project(tmp_path / "proj")
-    done = _loom(["project", str(project), "-o", str(tmp_path / "o.json")], tmp_path)
+    done = run_loom(["project", str(project), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 0, done.stderr
     assert _codes_by_file(done.stderr) == {n: c for n, (_, c) in _models().items()}
 
@@ -145,9 +103,9 @@ def test_a_project_scan_ends_each_cause_in_its_code(tmp_path: Path) -> None:
 def test_a_missing_library_is_said_per_model_with_its_extra(tmp_path: Path) -> None:
     project = _project(tmp_path / "proj")
     args = ["project", str(project), "-o", str(tmp_path / "o.json")]
-    done = _loom(args, tmp_path, block="safetensors,gguf")
+    done = run_loom(args, tmp_path, block="safetensors,gguf")
     assert done.returncode == 0, done.stderr
-    lines = _coded(done.stderr)
+    lines = coded_lines(done.stderr)
     missing = sorted(line for line, code in lines.items() if code == "library-missing")
     assert len(missing) == 2
     assert missing[0].endswith(
@@ -160,9 +118,9 @@ def test_a_missing_library_is_said_per_model_with_its_extra(tmp_path: Path) -> N
 def test_a_wheel_scan_names_its_gated_formats_once(tmp_path: Path) -> None:
     members = {"demo/m.gguf": gguf_file(0, 0), "demo/m.onnx": b"\x08\x07"}
     wheel = write_model_wheel(tmp_path / "dist", members)
-    done = _loom(["wheel", str(wheel), "-o", str(tmp_path / "w.json")], tmp_path)
+    done = run_loom(["wheel", str(wheel), "-o", str(tmp_path / "w.json")], tmp_path)
     assert done.returncode == 0, done.stderr
-    (line,) = [ln for ln, code in _coded(done.stderr).items() if code]
+    (line,) = [ln for ln, code in coded_lines(done.stderr).items() if code]
     assert line.startswith("INFO: AI models in a wheel in these formats ")
     assert line.endswith(
         ": gguf, onnx. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]"
@@ -188,9 +146,9 @@ def test_a_model_file_named_on_its_own_gets_its_code(
     pytest.importorskip("safetensors")
     path = tmp_path / name
     path.write_bytes(data)
-    done = _loom([command, str(path), "-o", str(tmp_path / "o.json")], tmp_path)
+    done = run_loom([command, str(path), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == status, done.stderr
-    coded = _coded(done.stderr)
+    coded = coded_lines(done.stderr)
     assert list(coded.values()) == [code]
     line = next(iter(coded))
     assert line.startswith("ERROR: " if status else "WARNING: FORMAT=safetensors ")
@@ -198,9 +156,9 @@ def test_a_model_file_named_on_its_own_gets_its_code(
 
 def test_a_directory_named_as_a_model_is_refused(tmp_path: Path) -> None:
     (tmp_path / "d.onnx").mkdir()
-    done = _loom(["model", str(tmp_path / "d.onnx")], tmp_path)
+    done = run_loom(["model", str(tmp_path / "d.onnx")], tmp_path)
     assert done.returncode == 1
-    coded = _coded(done.stderr)
+    coded = coded_lines(done.stderr)
     assert list(coded.values()) == ["model-wrong-format"]
     line = next(iter(coded))
     assert line.endswith(
@@ -212,9 +170,9 @@ def test_a_directory_named_as_a_model_is_refused(tmp_path: Path) -> None:
 def test_a_hub_model_without_its_client_says_the_extra(tmp_path: Path) -> None:
     """The import is checked before anything is fetched: no network."""
     args = ["model", "google-bert/bert-base-uncased", "-o", str(tmp_path / "h.json")]
-    done = _loom(args, tmp_path, block="huggingface_hub")
+    done = run_loom(args, tmp_path, block="huggingface_hub")
     assert done.returncode == 1
-    assert _coded(done.stderr) == {
+    assert coded_lines(done.stderr) == {
         "ERROR: model command failed: required library not installed: "
         "huggingface_hub; install pitloom[huggingface_hub] [library-missing]": (
             "library-missing"

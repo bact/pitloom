@@ -90,10 +90,10 @@ def _load_fasttext_model(model_path: Path) -> Any:
     """Load a fastText model with consistent dependency and format errors."""
     try:
         # pylint: disable=import-outside-toplevel
-
         import fasttext
-    except ImportError as exc:
-        raise missing_library(AiModelFormat.FASTTEXT) from exc
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        raise missing_library(AiModelFormat.FASTTEXT, exc) from exc
 
     try:
         return fasttext.load_model(str(model_path))

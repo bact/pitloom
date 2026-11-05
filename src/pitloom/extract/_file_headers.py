@@ -46,7 +46,7 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.optional_libraries import MAGIKA, missing
+from pitloom.core.optional_libraries import MAGIKA, import_failed
 from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
@@ -207,21 +207,23 @@ def _get_magika() -> Any:
     ``Magika()`` loads an ONNX inference session -- expensive enough that
     re-creating it per file (once per call to :func:`guess_content_type`)
     would multiply the ~5ms/file cost this feature is gated on. Returns
-    ``None`` when ``magika`` isn't installed, cached the same way so the
-    failed import isn't retried on every call either.
+    the exception the import raised when ``magika`` cannot be imported,
+    cached the same way so the failed import isn't retried on every call
+    either.
     """
     try:
         # pylint: disable=import-outside-toplevel
         from magika import Magika
-    except ImportError:
-        return None
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # a broken install raises more than ImportError
+        return exc
     return Magika()
 
 
 def require_magika_available() -> None:
     """Raise the ``library-missing`` error
-    (:class:`~pitloom.messages.CodedImportError`) when ``magika`` isn't
-    importable.
+    (:class:`~pitloom.messages.CodedImportError`, ``/import-failed`` for an
+    installed one) when ``magika`` isn't importable.
 
     Called once, up front (not per file), when
     ``[tool.pitloom.content-type] method = "magika"`` is explicitly
@@ -230,8 +232,9 @@ def require_magika_available() -> None:
     guess (as ``"auto"`` would) would hide that the SBOM's content types
     are lower-quality than requested.
     """
-    if _get_magika() is None:
-        raise missing(MAGIKA)
+    found = _get_magika()
+    if isinstance(found, BaseException):
+        raise import_failed(MAGIKA, found) from found
 
 
 def guess_content_type(
@@ -255,7 +258,7 @@ def guess_content_type(
     """
     if method != "extension":
         magika_instance = _get_magika()
-        if magika_instance is not None:
+        if not isinstance(magika_instance, BaseException):
             try:
                 result = magika_instance.identify_bytes(data)
                 label: str = result.output.label
