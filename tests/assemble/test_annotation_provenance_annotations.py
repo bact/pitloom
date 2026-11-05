@@ -281,7 +281,7 @@ def test_build_source_metadata_annotation_nan_and_infinity_are_valid_json() -> N
 
 def test_build_source_metadata_annotation_set_is_deterministic() -> None:
     """A ``set`` has no stable iteration order across processes
-    (``PYTHONHASHSEED`` randomization) -- it must be normalized to a sorted
+    (``PYTHONHASHSEED`` randomisation) -- it must be normalised to a sorted
     list, not left to a generic ``str()`` fallback, to preserve the
     byte-stable-SBOM guarantee."""
     ci = _make_ci()

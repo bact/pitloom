@@ -118,7 +118,7 @@ def test_enrich_then_merge_matches_one_shot_enrich() -> None:
         fragment_path.write_text(fragment_json)
 
         exporter = Spdx3JsonExporter()
-        # Re-deserialize the base doc into the exporter's object set, then merge.
+        # Re-deserialise the base doc into the exporter's object set, then merge.
         with tempfile.NamedTemporaryFile(
             suffix=".spdx3.json", mode="w", delete=False, dir=tmpdir
         ) as base_file:
@@ -165,9 +165,9 @@ def test_fixture_license_export(fixture_path: Path) -> None:
     Skips when:
     - The fixture file is absent from the repository clone.
     - The required optional library is not installed.
-    - The model format does not embed a license (``meta.license is None``).
+    - The model format does not embed a licence (``meta.license is None``).
 
-    When a license is present, asserts that the assembled ``build_model()``
+    When a licence is present, asserts that the assembled ``build_model()``
     output contains one ``hasDeclaredLicense`` relationship (the model file's
     own statement) pointing to a licence element (``LicenseExpression`` or
     ``SimpleLicensingText``) whose value matches the extracted license string,

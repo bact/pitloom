@@ -6,10 +6,10 @@
 """Tests for get_wheel_files() file-header scanning and content-type
 detection.
 
-See also: tests/core/test_models.py for dependency normalization,
+See also: tests/core/test_models.py for dependency normalisation,
 doc-uuid, and SPDX-id generation tests;
 tests/core/models_wheel/test_models_wheel_dispatch.py for backend
-dispatch and fallback-warning behavior tests.
+dispatch and fallback-warning behaviour tests.
 """
 
 import sys

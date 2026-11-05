@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for license text detection utilities: SPDX id/expression
+"""Tests for licence text detection utilities: SPDX id/expression
 recognition, license-file discovery, CITATION.cff/codemeta.json readers,
 candidate collection, and mocked (DB-absent) detection.
 
@@ -126,7 +126,7 @@ def test_find_license_files_priority_no_extension_first() -> None:
 
 
 def test_find_license_files_copying() -> None:
-    """COPYING is recognised as a license file."""
+    """COPYING is recognised as a licence file."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "COPYING").write_text("GPL license text")
@@ -134,7 +134,7 @@ def test_find_license_files_copying() -> None:
 
 
 def test_find_license_files_rst() -> None:
-    """LICENSE.rst is recognised as a license file."""
+    """LICENSE.rst is recognised as a licence file."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "LICENSE.rst").write_text("MIT License")
@@ -142,7 +142,7 @@ def test_find_license_files_rst() -> None:
 
 
 def test_find_license_files_empty_dir() -> None:
-    """An empty directory yields no license files."""
+    """An empty directory yields no licence files."""
     with tempfile.TemporaryDirectory() as d:
         assert not find_license_files(Path(d))
 
@@ -185,7 +185,7 @@ def test_codemeta_json(raw: bytes, expected: str | None) -> None:
 
 
 def test_collect_candidates_priority_order() -> None:
-    """CITATION.cff comes before codemeta.json which comes before license files."""
+    """CITATION.cff comes before codemeta.json which comes before licence files."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "CITATION.cff").write_text("license: MIT\n")
@@ -319,7 +319,7 @@ def test_detect_project_from_license_file_with_detection() -> None:
 
 
 def test_detect_project_no_sources_returns_none() -> None:
-    """Returns (None, None) when no license sources exist and no hint is given."""
+    """Returns (None, None) when no licence sources exist and no hint is given."""
     with tempfile.TemporaryDirectory() as d:
         result_id, prov = detect_license_for_project(Path(d))
         assert result_id is None

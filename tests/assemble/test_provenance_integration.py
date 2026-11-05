@@ -5,7 +5,7 @@
 
 """End-to-end integration test for native SPDX 3 constructs.
 
-Exercises fragment origin / ExternalMap, declared vs. concluded license,
+Exercises fragment origin / ExternalMap, declared vs. concluded licence,
 ExternalIdentifier & ExternalRef, descendantOf base-model lineage, and dataset
 creator Agent + publishedBy together on a single representative input (N1,
 N2, N4, N5, N6). N3 (a second CreationInfo for an enrichment-created
@@ -16,7 +16,7 @@ needs its own enrichment-run input rather than fitting the shared
 
 - all native constructs appear correctly on the same document;
 - provenance Annotations are trimmed to residual signal and do not duplicate
-  values now covered natively;
+  values covered natively;
 - output is byte-identical across two generation runs with identical inputs;
 - the combined document can be round-tripped through the repo's SPDX 3 model.
 """
@@ -319,7 +319,7 @@ def test_fragment_origin_round_trips_when_merged() -> None:
 
 
 def test_provenance_annotations_do_not_duplicate_native_values() -> None:
-    """Residual provenance Annotations must not re-state values now native."""
+    """Residual provenance Annotations must not re-state native values."""
     graph, _ = _load_graph(_build_integrated_model())
     annotations = [e for e in graph if e.get("type") == "Annotation"]
 
@@ -333,7 +333,7 @@ def test_provenance_annotations_do_not_duplicate_native_values() -> None:
         assert "url" not in fields, "model URL should be native"
         assert "creator" not in fields, "dataset creator should be native"
 
-    # The license detection *method* is residual signal, but the license value
+    # The licence detection *method* is residual signal, but the licence value
     # itself lives in the LicenseExpression element.
     schema_url = "https://pitloom.dev/provenance/fields/1"
     license_statements = [
@@ -364,7 +364,7 @@ def test_combined_output_is_deterministic() -> None:
 
 
 def test_combined_document_round_trips_through_spdx_model() -> None:
-    """The combined SBOM is accepted by spdx-python-model deserialization."""
+    """The combined SBOM is accepted by spdx-python-model deserialisation."""
     exporter = build_model(_build_integrated_model(), CreationMetadata())
     raw_json = exporter.to_json(pretty=False)
 

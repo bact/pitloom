@@ -53,7 +53,7 @@ def test_extract_exact_pin_rejects_wildcards_and_ranges() -> None:
     is a range, never an exact release pin -- but a genuine exact ==/===
     clause combined with another (non-wildcard) clause still fully
     determines the version (e.g. `==1.0,<=2.0` -- the `<=2.0` is
-    redundant, not conflicting) and must still be recognized as pinned,
+    redundant, not conflicting) and must still be recognised as pinned,
     per "explicit pin beats local environment"."""
     req_wild, pin_wild = _extract_exact_pin("requests==1.*")
     assert isinstance(req_wild, Requirement)
@@ -172,7 +172,7 @@ def test_resolve_version_compound_specifier_with_exact_pin_wins_over_locked(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A compound specifier that embeds a genuine exact pin (e.g.
-    `foo>=1.0,==1.5`) must still be recognized as pinned -- the declared
+    `foo>=1.0,==1.5`) must still be recognised as pinned -- the declared
     pin wins over a conflicting locked_version, with a warning, the same
     as a bare `==1.5` would."""
     with caplog.at_level(logging.WARNING):

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate` argument errors and warnings: an unreadable PATH, a
+"""`loom id generate` argument errors and warnings: an unreadable PATH, a
 bad ``--project-dir``, a PATH named like a skipped directory, ``..`` after
 a symlink, ``-o -``, and a declared registry named anything.
 

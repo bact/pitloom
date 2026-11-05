@@ -160,7 +160,7 @@ def _patch_hf_calls(
                     "created_at": "2023-09-20T13:03:50+00:00",
                 }
             ),
-            # Prevent real network calls for license file detection in tests.
+            # Prevent real network calls for licence file detection in tests.
             # Override per-test via an extra patch when file detection is under test.
             _detect_license_from_hf_files=MagicMock(return_value=(None, None)),
         ),

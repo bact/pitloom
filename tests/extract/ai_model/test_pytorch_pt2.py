@@ -413,7 +413,7 @@ def test_read_pt2_meta_entry_model_name_and_invalid_json() -> None:
 
 
 def test_read_pt2_zip_large_file_list() -> None:
-    """_read_pt2_zip summarizes archive contents when > 20 members are present."""
+    """_read_pt2_zip summarises archive contents when > 20 members are present."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = [f"entry_{i}.bin" for i in range(25)]
     mock_zf.open.return_value.__enter__.return_value.read.return_value = b""

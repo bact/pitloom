@@ -14,7 +14,7 @@ tests/core/models_wheel/test_models_wheel_dispatch.py's
 ``test_get_wheel_files_uv_build_fallback_warns_about_wheel_exclude``/
 ``test_get_wheel_files_uv_build_fallback_no_hint_without_file_filter_keys``
 for the end-to-end (parsed real pyproject.toml -> sharpened WARNING:)
-behavior this function feeds into.
+behaviour this function feeds into.
 """
 
 from __future__ import annotations

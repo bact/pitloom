@@ -260,7 +260,7 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     # A pinned revision skips the reproducibility warning, and a matching
-    # license file yields the detected SPDX ID plus provenance string.
+    # licence file yields the detected SPDX ID plus provenance string.
     license_file = tmp_path / "LICENSE"
     license_file.write_text("MIT License text...", encoding="utf-8")
 
@@ -288,7 +288,7 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
 def test_detect_license_from_hf_files_undetected_continues_to_next_file(
     tmp_path: Path,
 ) -> None:
-    """When a candidate license file's text doesn't match any known
+    """When a candidate licence file's text doesn't match any known
     license, the loop continues to the next candidate rather than
     returning immediately -- and falls through to (None, None) once all
     candidates are exhausted."""

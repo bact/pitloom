@@ -104,7 +104,7 @@ format = "not-a-real-format"
 def test_extract_pitloom_provenance_case_sensitive_values_rejected() -> None:
     """Validation is intentionally exact-case-only, not case-insensitive --
     "Both"/"ANNOTATION"/"Full" are rejected the same as any other unknown
-    value, not silently normalized. Documents that case-sensitivity is a
+    value, not silently normalised. Documents that case-sensitivity is a
     deliberate choice, not an oversight."""
     for key, value in (
         ("format", "Both"),

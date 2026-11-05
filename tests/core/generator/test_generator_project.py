@@ -125,7 +125,7 @@ description = "A test package"
 def test_generate_project_sbom_invalid_content_type_method_raises() -> None:
     """An explicit content_type_method outside auto/magika/extension must
     raise immediately, matching the TOML/CLI paths' own validation --
-    not silently fall through to guess_content_type's "auto" behavior."""
+    not silently fall through to guess_content_type's "auto" behaviour."""
     pyproject_content = """
 [build-system]
 requires = ["hatchling"]
@@ -341,7 +341,7 @@ def test_add_package_files_skips_relationships_when_build_relationship_none(
 
 
 def test_build_document_ai_model_license_adds_simple_licensing_profile() -> None:
-    """When an AI model has a license and the project has no license,
+    """When an AI model has a licence and the project has no licence,
     simpleLicensing profile must be added to profileConformance."""
     project = ProjectMetadata(name="ai-lic-project", version="1.0.0", license_name=None)
     ai_model = AiModelMetadata(name="test-model", license="Apache-2.0")

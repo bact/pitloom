@@ -172,7 +172,7 @@ license-files = ["LICENSE"]
 
 
 # ---------------------------------------------------------------------------
-# _resolve_license_hint -- direct unit tests for each license object shape
+# _resolve_license_hint -- direct unit tests for each licence object shape
 # ---------------------------------------------------------------------------
 
 
@@ -212,7 +212,7 @@ def test_read_pyproject_license_toml_dotted_key_matches_inline_table(
 
 
 def test_resolve_license_hint_text_object() -> None:
-    """A License object exposing ``.text`` (PEP 639 inline license text)."""
+    """A License object exposing ``.text`` (PEP 639 inline licence text)."""
     license_obj = SimpleNamespace(text="Some custom license text.")
     with tempfile.TemporaryDirectory() as d:
         hint, base_prov, fallback = _resolve_license_hint(license_obj, Path(d))

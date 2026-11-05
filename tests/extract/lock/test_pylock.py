@@ -199,7 +199,7 @@ def test_newer_minor_lock_version_still_parsed_with_warning(
 ) -> None:
     """A newer *minor* version within the same major is forward-compatible
     per PEP 751 -- read anyway, just with a warning that some content may
-    be unrecognized."""
+    be unrecognised."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pylock.toml").write_text(

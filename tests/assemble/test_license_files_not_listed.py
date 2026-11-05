@@ -8,7 +8,7 @@
 The build backend copies them into the wheel's own ``.dist-info/licenses/``;
 an SBOM describes the packaged project, not that container, so no file,
 directory or file-level ``hasDeclaredLicense`` element is emitted for them.
-The package-level declared license stays.
+The package-level declared licence stays.
 
 See also:
 - :mod:`tests.extract.test_wheel_payload` for the wheel-reading surfaces.
@@ -77,8 +77,8 @@ def _assert_no_dist_info(graph: list[dict[str, Any]]) -> None:
 def test_declared_license_files_not_listed(
     tmp_path: Path, surface: Callable[[Path], str]
 ) -> None:
-    """A declared license file yields no file/directory element and no
-    file-level license link; the package-level declared license and a
+    """A declared licence file yields no file/directory element and no
+    file-level license link; the package-level declared licence and a
     source file's own ``SPDX-License-Identifier`` header link both stay."""
     (tmp_path / "pyproject.toml").write_text(_PYPROJECT, encoding="utf-8")
     (tmp_path / "LICENSE").write_text("MIT License\n", encoding="utf-8")
@@ -106,7 +106,7 @@ def test_declared_license_files_not_listed(
     assert licenses[targets.pop(main_id)] == "MIT"
     header_file_id = files["lfdemo/__init__.py"]["spdxId"]
     assert licenses[targets.pop(header_file_id)] == "Apache-2.0"
-    assert not targets  # nothing else carries a declared license
+    assert not targets  # nothing else carries a declared licence
     assert "project.license-files" not in json.dumps(graph)
 
 
@@ -116,7 +116,7 @@ def test_declared_license_files_not_listed(
 )
 def test_real_world_license_files_not_listed(tmp_path: Path, fixture: str) -> None:
     """Real sdists declaring ``[project.license-files]``: nothing under
-    ``.dist-info`` in the SBOM, package-level declared license kept."""
+    ``.dist-info`` in the SBOM, package-level declared licence kept."""
     fixture_dir = REAL_WORLD_ROOT / "setuptools" / fixture
     if not sdist_available(fixture_dir):
         pytest.skip(f"{fixture}: vendored sdist not present")

@@ -94,8 +94,7 @@ def test_parse_frontmatter_uses_the_line_rule(
 def test_both_readers_take_a_card_that_starts_with_blank_lines_or_a_bom(
     lead: str,
 ) -> None:
-    """As the description reader always did (blank lines), and now the
-    frontmatter reader too."""
+    """Both readers skip leading blank lines or a BOM."""
     card = lead + "---\nlicense: mit\n---\n\nBody para.\n"
     assert _parse_frontmatter(card, shown="README.md") == {"license": "mit"}
     assert card_description(card) == "Body para."
@@ -113,8 +112,8 @@ def test_both_readers_take_a_card_that_starts_with_blank_lines_or_a_bom(
 def test_a_card_without_frontmatter_has_no_description_or_frontmatter(
     card: str,
 ) -> None:
-    """A ``---`` rule in the body is no frontmatter: the first one used to
-    open one, so a second rule made "End text." the description."""
+    """A ``---`` rule in the body is no frontmatter: read as an opener, a
+    second rule would make "End text." the description."""
     assert _parse_frontmatter(card, shown="README.md") is None
     assert card_description(card) is None
 

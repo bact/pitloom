@@ -3,9 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The trust rule on lines nobody printed: forged lines (the PR #390
-review's probes among them) are refused, whatever their code, and the
-check stays fast on a long hostile line.
+"""The trust rule on lines nobody printed: forged lines are refused,
+whatever their code, and the check stays fast on a long hostile line.
 
 See also: tests/messages/test_messages_lines.py (lines Pitloom prints).
 """

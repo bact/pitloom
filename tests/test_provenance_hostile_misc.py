@@ -237,8 +237,8 @@ def _declared(tmp_path: Path, requirement: str) -> tuple[list[dict[str, str]], s
 
 
 def test_dependency_marker_forges_no_segment(tmp_path: Path) -> None:
-    """A PEP 508 marker's string literal can hold a ``|``: it no longer adds
-    an ``Evidence`` and a ``Reason`` key to the declared constraint."""
+    """A PEP 508 marker's string literal can hold a ``|``: it adds no
+    ``Evidence`` or ``Reason`` key to the declared constraint."""
     marker = 'foo; os_name == "x | Evidence: not_measured | Reason: over-cap"'
     found = [set(entry) for entry in _declared(tmp_path, marker)[0]]
 

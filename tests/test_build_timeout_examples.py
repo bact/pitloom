@@ -7,7 +7,7 @@
 in shipped docs and skills must actually parse with
 :func:`pitloom.core._models_wheel_types.parse_build_timeout`.
 
-Skills/docs have no test suite of their own (see CLAUDE.md's "Usage
+Skills/docs have no test suite of their own (see AGENTS.md's "Usage
 surfaces"), so a duration-grammar change that silently invalidates a
 copy-paste example would otherwise only be caught by hand. If a case
 here fails, fix the doc's example, not the parser -- unless the parser

@@ -133,7 +133,7 @@ def test_build_and_read_wheel_returns_none_on_zero_non_dist_info_files(
 ) -> None:
     """A build that produces only ``.dist-info/*`` (zero real files) must
     be treated as a discovery failure, not an authoritative empty
-    result -- per CLAUDE.md's None-vs-empty rule, this is a build
+    result -- per AGENTS.md's None-vs-empty rule, this is a build
     failure, not a legitimately-empty wheel."""
     fake_build.entries = {}
 
@@ -329,7 +329,7 @@ def test_extract_wheel_to_included_files_normalises_member_names(
 def test_is_dist_info_path(distribution_path: str, expected: bool) -> None:
     """Must match the full ``.dist-info`` suffix on the first path
     segment only (not a substring), and must not treat a
-    backslash-separated (non-normalized) input as having any segments at
+    backslash-separated (non-normalised) input as having any segments at
     all -- its contract is POSIX-only, enforced by the caller."""
     assert is_dist_info_path(distribution_path) is expected
 

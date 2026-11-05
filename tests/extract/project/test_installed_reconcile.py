@@ -130,7 +130,7 @@ def test_reconcile_requires_python_declared_empty_both_sides_not_a_conflict(
 ) -> None:
     """Both sides explicitly declare "no constraint" -- not a conflict,
     and must not crash either (the same None-vs-comparator hazard, with
-    the two normalized-empty values actually equal)."""
+    the two normalised-empty values actually equal)."""
     static = static_metadata(requires_python=None)
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python="")

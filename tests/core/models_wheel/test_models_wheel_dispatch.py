@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for get_wheel_files() backend dispatch and fallback-warning
-behavior.
+behaviour.
 
 See also: tests/core/models_wheel/test_models_wheel_files.py for
 file-header scanning and content-type detection tests;
@@ -202,11 +202,9 @@ def test_get_wheel_files_unhandled_backend_no_pyproject_skips_doomed_hatchling(
 def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A backend with no dedicated discovery module (e.g. ``uv_build``,
-    ahead of its own dedicated support landing) still gets a result via
-    the Hatchling heuristic, but now with an explicit warning instead of
-    silently risking an inaccurate file list -- closing the gap for
-    every unhandled backend, not just setuptools."""
+    """A backend with no dedicated discovery module (e.g. ``uv_build``)
+    still gets a result via the Hatchling heuristic, with an explicit
+    warning rather than a silently inaccurate file list."""
     make_backend_project(tmp_path, "uv_build")
 
     with caplog.at_level(logging.WARNING):

@@ -164,7 +164,7 @@ def test_distribution_path_top_level_module_has_no_leading_slash() -> None:
 def test_distribution_path_normalizes_backslashes() -> None:
     """A backslash reaching *package* (a malformed
     ``packages``/``package_dir`` entry, not necessarily only a Windows
-    artifact) is normalized to a forward slash, not left as-is."""
+    artifact) is normalised to a forward slash, not left as-is."""
     assert _distribution_path("foo\\bar", "x.py") == "foo/bar/x.py"
 
 

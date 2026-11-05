@@ -13,7 +13,7 @@ to that file's own tests beyond both covering ``get_wheel_files()``
 dispatch with ``BuildOptions(allow=True)``.
 
 See also: tests/core/models_wheel/test_models_wheel_allow_build.py for
-every other ``--allow-build`` dispatch behavior (unaffected by
+every other ``--allow-build`` dispatch behaviour (unaffected by
 ``build_timeout``'s addition);
 tests/core/models_wheel/test_models_wheel_build_and_read.py for
 ``build_and_read_wheel()``'s own timeout handling

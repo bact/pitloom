@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for metadata_from_hatchling()'s field-mapping and edge-case
-behavior.
+behaviour.
 
 See also: test_hatch_hook_metadata_parity.py for the CLI-vs-hook
 metadata-parity tests, split out to keep this file under this repo's
@@ -255,7 +255,7 @@ def test_metadata_from_hatchling_tolerates_missing_readme_file() -> None:
 
 
 def test_metadata_from_hatchling_tolerates_missing_license_file() -> None:
-    """A declared license *file* that does not exist must not crash the hook.
+    """A declared licence *file* that does not exist must not crash the hook.
 
     Mirrors :func:`test_metadata_from_hatchling_tolerates_missing_readme_file`
     for ``core.license`` / ``core.license_expression``, which raise the same
@@ -268,7 +268,7 @@ def test_metadata_from_hatchling_tolerates_missing_license_file() -> None:
         hatch_pm = hatchling_metadata_core.ProjectMetadata(
             str(tmp_path), PluginManager()
         )
-        # Should not raise; falls through to license detection (finds nothing).
+        # Should not raise; falls through to licence detection (finds nothing).
         metadata = metadata_from_hatchling(hatch_pm, tmp_path)
 
         assert metadata.license_name is None

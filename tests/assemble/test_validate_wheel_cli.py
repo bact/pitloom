@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for `pitloom validate-wheel` (schema/SHACL content validation --
+"""Tests for `loom validate-wheel` (schema/SHACL content validation --
 no location/extension check, see `verify-wheel` for that).
 
 See also: :mod:`tests.assemble.test_verify_wheel_cli` for the structural
@@ -177,10 +177,10 @@ def test_validate_wheel_corrupt_zip_errors(
 ) -> None:
     """A file that isn't even a valid ZIP archive -> ERROR, exit 1.
 
-    Exercises find_embedded_sbom's BadZipFile -> refusal normalization
+    Exercises find_embedded_sbom's BadZipFile -> refusal normalisation
     directly (distinct from a well-formed ZIP that's merely missing
     .dist-info, covered by the malformed-wheel test). OSError is
-    deliberately NOT normalized (see open_wheel_zip) -- not this test's
+    deliberately NOT normalised (see open_wheel_zip) -- not this test's
     concern."""
     wheel_path = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     wheel_path.write_bytes(b"not a zip file at all")

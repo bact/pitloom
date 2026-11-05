@@ -63,7 +63,7 @@ def _assert_no_duplicate_spdx_ids(
     whenever the caller has one: checking its ``object_set`` directly is
     the strict form, since Pitloom's own ``_deduplicate_named_elements``
     (``pitloom.export.spdx3_json``) silently drops a later same-id element
-    from the *serialized* ``@graph`` whenever its fields are byte-for-byte
+    from the *serialised* ``@graph`` whenever its fields are byte-for-byte
     identical to an earlier one -- which can mask a genuine duplicate id
     on two elements that happen to carry identical content (e.g. two
     same-fallback-name AI model packages). Pass *sbom_json* (the

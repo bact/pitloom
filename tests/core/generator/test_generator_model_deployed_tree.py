@@ -14,7 +14,7 @@ See also: tests/core/generator/test_generator_model.py, which
 covers build_deployed() registry-based id reuse -- basic AI-model
 assembly and usage-file lifecycle scoping live there too.
 tests/core/generator/test_generator_model_enrichment.py for
-license handling on regular (non-deployed) assembler paths.
+licence handling on regular (non-deployed) assembler paths.
 """
 
 from __future__ import annotations

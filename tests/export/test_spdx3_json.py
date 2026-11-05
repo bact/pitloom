@@ -6,7 +6,7 @@
 """Tests for pitloom.export.spdx3_json: require_spdx_id(), sha256_hash(),
 sha512_hash(), file_hashes() (and pitloom.export.hashes reading them back),
 _annotate_relationships(), and Spdx3JsonExporter's license indexing and
-to_json()/to_file() serialization.
+to_json()/to_file() serialisation.
 
 See also: tests/id_registry/shared.py, which builds a fuller Spdx3JsonExporter
 document for pitloom.id_registry tests; tests/core/conftest.py, which exercises
@@ -367,7 +367,7 @@ def _build_minimal_document(exporter: Spdx3JsonExporter) -> dict[str, str]:
 
 def test_to_json_raises_on_duplicate_spdx_id() -> None:
     """Two objects sharing a spdxId but differing in content (here,
-    ``name``) must never reach serialized output -- a last-resort safety
+    ``name``) must never reach serialised output -- a last-resort safety
     net behind the id-reservation fixes (see
     working-docs/implementation/id-registry-autosync.md's "Duplicate-
     spdxId safety net" section). This is ``_deduplicate_named_elements``'s
