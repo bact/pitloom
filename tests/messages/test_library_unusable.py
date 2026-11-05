@@ -236,3 +236,30 @@ def test_a_validator_that_cannot_be_imported_says_which(
     entry = LIBRARY_MISSING if kind == "missing" else LIBRARY_UNUSABLE
     (line,) = capsys.readouterr().err.splitlines()
     assert trusted_message(line) is entry
+
+
+@pytest.mark.parametrize("kind", ["broken", "missing"])
+def test_auto_content_types_say_a_broken_magika_once(
+    kind: str,
+    broken: Callable[..., None],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``auto`` falls back to the file extension either way; a broken
+    magika warns once per process, a missing one is quiet."""
+    if kind == "broken":
+        broken(MAGIKA.module)
+    else:
+        monkeypatch.setitem(sys.modules, MAGIKA.module, cast(ModuleType, None))
+    _file_headers._get_magika.cache_clear()
+    try:
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
+            for name in ("a.py", "b.py"):
+                guessed = _file_headers.guess_content_type(b"x", name)
+                assert guessed == ("text/x-python", "extension_guess")
+    finally:
+        _file_headers._get_magika.cache_clear()
+    warned = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert [getattr(r, CODE_ATTR) for r in warned] == (
+        [LIBRARY_UNUSABLE.code] if kind == "broken" else []
+    )

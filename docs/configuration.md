@@ -175,7 +175,9 @@ generation time, before any file is scanned -- you asked for `magika`
 specifically, so this fails loudly rather than silently degrading every
 file's `contentType` the way `"auto"` would. `"auto"`/`"extension"`
 never raise for a missing/inconclusive detector; they just resolve to
-`None` for that file. Overrides below only ever apply while `enabled`
+`None` for that file. With `"auto"`, a `magika` that is installed but fails
+to import gives every file its extension's type and one `WARNING:` a run
+(`library-unusable`). Overrides below only ever apply while `enabled`
 is `true` -- with it `false`, no file gets a `contentType` at all,
 configured overrides or not.
 

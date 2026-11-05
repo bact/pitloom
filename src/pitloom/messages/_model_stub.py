@@ -76,17 +76,29 @@ LIBRARY_UNUSABLE_ERROR_LINE: Final = Line(
     template="required library failed to import: %(module)s: %(error)s; "
     "reinstall %(requirement)s",
 )
+#: magika failing to import under content-type method ``auto``: once a run.
+LIBRARY_UNUSABLE_CONTENT_LINE: Final = Line(
+    level="WARNING",
+    template="required library failed to import: %(module)s: %(error)s; "
+    "content types from file extensions; reinstall %(requirement)s",
+)
 LIBRARY_UNUSABLE: Final = Message(
     code="library-unusable",
     condition="unusable",
-    lines=(LIBRARY_UNUSABLE_LINE, LIBRARY_UNUSABLE_ERROR_LINE),
+    lines=(
+        LIBRARY_UNUSABLE_LINE,
+        LIBRARY_UNUSABLE_ERROR_LINE,
+        LIBRARY_UNUSABLE_CONTENT_LINE,
+    ),
     summary="A library Pitloom needs for a step is installed but fails to "
     "import: a broken or partial install, a library it needs in turn missing, "
     "or a build for another Python or platform.",
     did="For a model file, listed the model by its file, format and hashes only "
     "(a format-only entry, named after its file), without its metadata. For "
     "any other step, did not run it: no SBOM of a Hugging Face model, no "
-    "validation, no SBOM with magika content types. Installed nothing.",
+    "validation, no SBOM with magika content types (method magika); with "
+    "method auto, every file's content type from its extension, said once a "
+    "run. Installed nothing.",
     effect="thinner",
     actor="user",
     advice="Tell the user which models or which step went without the library, "

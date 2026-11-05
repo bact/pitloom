@@ -54,7 +54,7 @@ and this project adheres to
 - The unparsed Keras `model_config` cut to 500 characters is an `[over-cap]`
   line naming the model ([#446])
 - A library that is installed but fails to import says so,
-  `[library-unusable]`, not `not installed` ([#446])
+  `[library-unusable]`, not `[library-missing]` ([#446])
 
 ### Fixed
 
@@ -70,6 +70,9 @@ and this project adheres to
   path twice ([#444])
 - A tag value such as `MIT/Apache-2.0` or `MIT, ISC` no longer detects as its
   first id (`MIT`) ([#445])
+- With `--content-type` (method `auto`), a `magika` that fails to import keeps
+  every file, typed by its extension, with one `[library-unusable]` warning,
+  not one `[file-unreadable]` per file ([#446])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437

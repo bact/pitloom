@@ -46,8 +46,10 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.optional_libraries import MAGIKA, import_failed
+from pitloom.core.optional_libraries import MAGIKA, import_failed, not_installed
 from pitloom.core.quote_source import quote_source
+from pitloom.logging_config import one_line
+from pitloom.messages import LIBRARY_UNUSABLE, LIBRARY_UNUSABLE_CONTENT_LINE, emit
 
 log = logging.getLogger(__name__)
 
@@ -220,6 +222,23 @@ def _get_magika() -> Any:
     return Magika()
 
 
+def _warn_unusable_magika(exc: BaseException) -> None:
+    """Say once a process that an installed ``magika`` failed to import
+    (``library-unusable``), content types falling back to the extension; a
+    ``magika`` that is not installed is absent data, quiet."""
+    if not not_installed(MAGIKA, exc):
+        emit(
+            log,
+            LIBRARY_UNUSABLE,
+            logging.WARNING,
+            line=LIBRARY_UNUSABLE_CONTENT_LINE,
+            once="library-unusable:magika",
+            module=MAGIKA.module,
+            error=one_line(exc),
+            requirement=MAGIKA.spec,
+        )
+
+
 def require_magika_available() -> None:
     """Raise the ``library-missing`` error
     (:class:`~pitloom.messages.CodedImportError`, ``library-unusable`` for an
@@ -258,7 +277,9 @@ def guess_content_type(
     """
     if method != "extension":
         magika_instance = _get_magika()
-        if not isinstance(magika_instance, BaseException):
+        if isinstance(magika_instance, BaseException):
+            _warn_unusable_magika(magika_instance)
+        else:
             try:
                 result = magika_instance.identify_bytes(data)
                 label: str = result.output.label

@@ -113,6 +113,20 @@ def test_a_step_whose_library_is_broken_stops_with_its_code(
     }
 
 
+def test_auto_content_types_keep_the_files_and_warn_once(tmp_path: Path) -> None:
+    """A broken magika under ``--content-type`` (method ``auto``): every
+    file keeps its extension's type, with one warning for the run."""
+    project = _project(tmp_path / "proj")
+    (project / "demo" / "b.py").write_bytes(b"x = 1\n")
+    site = _broken(tmp_path / "site", "magika")
+    args = ["project", "proj", "--content-type", "-o", "o.json"]
+    done = run_loom(args, tmp_path, path=[site])
+    assert done.returncode == 0, done.stderr
+    assert list(coded_lines(done.stderr).values()) == [_CODE]
+    sbom = (tmp_path / "o.json").read_text(encoding="utf-8")
+    assert '"text/x-python"' in sbom
+
+
 @pytest.fixture(name="broken_safetensors")
 def fixture_broken_safetensors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``safetensors`` broken in this process (its real modules hidden)."""

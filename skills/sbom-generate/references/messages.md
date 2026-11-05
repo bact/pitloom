@@ -383,7 +383,9 @@ A line may start with one prefix before its text:
 - **Pitloom did**: For a model file, listed the model by its file, format and
   hashes only (a format-only entry, named after its file), without its metadata.
   For any other step, did not run it: no SBOM of a Hugging Face model, no
-  validation, no SBOM with magika content types. Installed nothing.
+  validation, no SBOM with magika content types (method magika); with method
+  auto, every file's content type from its extension, said once a run. Installed
+  nothing.
 - **Tell the user**: which models or which step went without the library, what
   the import reported and which extra reinstalls it, as the line names it. They
   reinstall it where Pitloom runs (with uvx or pipx, in the --from or --spec
@@ -395,6 +397,7 @@ A line may start with one prefix before its text:
   ```text
   WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-unusable]
   ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-unusable]
+  WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
   ```
 
 ### `model-field-conflict`
