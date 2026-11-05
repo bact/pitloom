@@ -62,8 +62,8 @@ entries stay in the last section for history.
   *Found 2026-10-29, Git LFS pointer work.*
 - [ ] **A dataset member that disappears mid-walk is silent and leaves no hash
   (S), decided 2026-10-30: later (not done in 0.22.x or 0.23.0).** The
-  current behaviour is kept (absent is quiet, no root); skipping the member and hashing the rest
-  was not chosen.
+  current behaviour is kept (absent is quiet, no root); skipping the member
+  and hashing the rest was not chosen.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
 - [ ] **A `404` from the Hub looks like a failure (S).** `_safe_load_json` in
   `extract/remote/huggingface_fetch.py` cannot tell a 404 from a failed request

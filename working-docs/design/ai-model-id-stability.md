@@ -50,7 +50,7 @@ reliable way to say "this is the same model I saw last time":
   just on a separately-linked `software_File`.
 - **Caveat**: content hash is strictly *narrower* than "same model" for
   AI models, unlike source files where any byte change legitimately
-  means "different provenance." A model re-exported, re-quantized, or
+  means "different provenance." A model re-exported, re-quantised, or
   re-saved with a different serialisation -- or retrained
   non-deterministically from the same recipe -- changes every byte
   without changing what a person would call "the same model."

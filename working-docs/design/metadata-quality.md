@@ -23,14 +23,14 @@ file-size guidance -- moved verbatim, no content changed.
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
   Also a prerequisite for systematic licence rules:
   [license-rules.md](license-rules.md).
-- [x] **Generalize multi-source conflict detection beyond licence** --
+- [x] **Generalise multi-source conflict detection beyond licence** --
   `build_conflict_annotation`/`ConflictCandidate` now also fires for
   dependency version, not just licence. See
   [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md).
 - [ ] **Generic multi-candidate field representation** -- today each
   multi-source field (licence, dependency version) hand-builds its own
   `ConflictCandidate` list at its own assembly call site; there's no
-  shared type carrying a labeled candidate set (declared/detected/
+  shared type carrying a labelled candidate set (declared/detected/
   concluded, or a richer vocabulary such as BSI TR-03183's original/
   distribution/effective) from extraction through assembly, nor a shared
   per-field policy for "which roles map to which native SPDX relationship

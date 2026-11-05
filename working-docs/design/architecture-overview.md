@@ -27,7 +27,7 @@ Author-year citations such as (Alpha Omega 2025) refer to the reference list in
 
 The transition of the global software industry toward a more transparent and
 secure supply chain has reached a critical juncture.
-Modern software development is no longer characterized by the creation of
+Modern software development is no longer characterised by the creation of
 monolithic, self-contained codebases; rather, it is a process of assembling
 diverse, often opaque, components from a myriad of upstream sources (IBM 2026).
 This shift has introduced profound security challenges, most notably the
@@ -56,7 +56,7 @@ An SBOM is essentially a machine-readable "ingredients list" for a software
 application, providing exhaustive details on every library, framework, and
 sub-module included in the distribution (IBM 2026).
 In the context of increasing cybersecurity threats, such as the Log4j and
-XZ Utils exploits, the absence of an accurate SBOM forces organizations into
+XZ Utils exploits, the absence of an accurate SBOM forces organisations into
 reactive, manual inspection of their environments--a process that is
 fundamentally unscalable (Alpha Omega 2025).
 

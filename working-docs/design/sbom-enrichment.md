@@ -424,7 +424,7 @@ The following namespace is reserved for that purpose:
 - `pitloom:ai:dataset:training:name` -- name or URI of the training dataset
 - `pitloom:ai:dataset:training:size` -- volume of data (e.g., `1.2TB`)
 - `pitloom:ai:dataset:training:split` -- ratio or segment used (e.g., `train`)
-- `pitloom:ai:dataset:preprocessing` -- normalization or transformation applied
+- `pitloom:ai:dataset:preprocessing` -- normalisation or transformation applied
 
 ### Metrics and evaluation
 

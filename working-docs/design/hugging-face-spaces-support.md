@@ -14,7 +14,8 @@ targets), [target-resolution-and-purl.md](target-resolution-and-purl.md) (a
 [remote-git-ingestion.md](../implementation/remote-git-ingestion.md).
 
 > **Status (2026-10-23):** a limitation is recorded and a direction sketched.
-> Nothing here is built or decided.
+> Nothing here is built or decided, except item 4 of the direction (the LFS
+> pointer as a hash; built in 0.22.0).
 
 ## What works today
 
@@ -48,8 +49,9 @@ Other limits of a Git fetch of a Space or of any repository:
   so the working tree holds pointer files (`version https://git-lfs...`, about
   130 bytes), and no AI model is read. The same holds for any GitLab or Codeberg
   repository that stores a model through LFS (a GitLab repository searched the
-  same day had three `.onnx` files, all pointers). Built in 0.22.0: a pointer is listed by its `oid`, with one
-  `WARNING:`; see [git-lfs-pointers.md](../implementation/git-lfs-pointers.md).
+  same day had three `.onnx` files, all pointers). Built in 0.22.0: a pointer
+  is listed by its `oid`, with one `WARNING:`; see
+  [git-lfs-pointers.md](../implementation/git-lfs-pointers.md).
 - **Where the model lives.** The file list of a project comes from its build
   backend; a model at the repository root or in a hidden folder is not in it.
 
@@ -99,9 +101,11 @@ No Python is packaged and the only model is named by a string.
    `size`: the SHA-256 and the length of the real file, by the LFS design. Pitloom
    could record that digest as the model file's hash (`Method: lfs_pointer`)
    without downloading it, and say that the file itself was not read. This also
-   helps every Git source with LFS, not only Spaces; built in 0.22.0
-   (one shared pointer detector, [git-lfs-pointers.md](../implementation/git-lfs-pointers.md)). The file's format and metadata stay unread, so
-   an AI package built from a pointer is only a hash and a name: say so.
+   helps every Git source with LFS, not only Spaces. Built in 0.22.0 (one
+   shared pointer detector,
+   [git-lfs-pointers.md](../implementation/git-lfs-pointers.md)). The file's
+   format and metadata stay unread, so an AI package built from a pointer is
+   only a hash and a name: say so.
 5. **Fetching an LFS file** (one that is small, under the clone cap) is a policy
    question: it contacts a second server (the LFS endpoint), which the Git URL
    guard does not cover (AGENTS.md: a check on the URL does not cover every

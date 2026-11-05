@@ -50,8 +50,8 @@ pure-Python packages mix with hardware-specific Conda binaries.
 Building an effective SBOM generator requires targeting modern,
 high-performance tools like `uv` and `pixi` while establishing the PEP 751
 (`pylock.toml`) standard as a universal baseline.
-The blueprint below outlines a prioritized extraction roadmap, an internal
-normalization schema, and serialisers for CycloneDX 1.7 and SPDX 3.0.
+The blueprint below outlines a prioritised extraction roadmap, an internal
+normalisation schema, and serialisers for CycloneDX 1.7 and SPDX 3.0.
 The provided code is illustrative—implementers should adapt and adjust these
 foundational models to fit their specific system requirements.
 
@@ -66,13 +66,13 @@ simply by asking users to run `[tool] export --format pylock`.
 | --- | --- | --- |
 | **1: The Universal Core** | `pylock.toml` (PEP 751) | **Done (2026-09-02)** -- see the "See also" note above. The official Python interoperability standard. Universal fallback. |
 | | `pyproject.toml` | Standard project metadata (PEP 621) to define the root SBOM component. |
-| | `uv.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
-| | `requirements.txt` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
+| | `uv.lock` | **Done (2026-09-04)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
+| | `requirements.txt` | **Done (2026-09-05)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
 | **2: AI/ML Native Binary** | `pixi.lock` | Essential for AI: natively resolves both Python packages and system-level C/C++ CUDA/Conda binaries. |
 | | `conda-lock.yml` | Maps Conda data science packages alongside PyPI wheels. |
 | **3: Corporate Standards** | `poetry.lock` | **Done (2026-08-31)** -- see the "See also" note above. Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
-| **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
-| | `Pipfile.lock` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Largely legacy tooling. |
+| **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
+| | `Pipfile.lock` | **Done (2026-09-05)** -- see [lock-file-cascade.md](../implementation/lock-file-cascade.md). Largely legacy tooling. |
 
 ---
 

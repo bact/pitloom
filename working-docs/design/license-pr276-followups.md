@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ resolution) and may change direction there. Group C is housekeeping.
 - **A wheel runs no in-package licence detection.** A directory, the
   library, the Hatchling hook and (since the sdist licence-detection PR) an
   sdist read the project's `LICENSE`; `loom wheel` records the METADATA
-  `License:` text only. Needs `License-File:` selection (0.21.0).
+  `License:` text only. Needs `License-File:` selection (not built; carried over from 0.21.0).
 - **A licence text in `PKG-INFO` stays text.** For `license = {file =
   "LICENSE"}` (a centred Apache header, checked live with a Hatchling
   sdist) the directory and the hook declare `Apache-2.0` (`licenseid`
@@ -108,4 +108,4 @@ user leanings are recorded there, not decisions.
 - Tests reach private names where no public seam exists
   (`_find_main_document` call count).
 - Over the size limits: `tests/assemble/test_deps_enrichment_pypi_fallback.py`
-  (695 lines, older than #276), `AGENTS.md` (~507), `roadmap.md` (~511).
+  (691 lines, older than #276) and `AGENTS.md` (about 30 KB).

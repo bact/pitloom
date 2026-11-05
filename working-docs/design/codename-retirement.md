@@ -8,18 +8,19 @@ SPDX-License-Identifier: CC0-1.0
 
 # Retire the letter-number use-case codename taxonomy
 
-See also: [roadmap.md](roadmap.md) (Near-term -- "Internal codenames"),
-`working-docs/implementation/provenance/use-case-catalog.md` (the
-catalog this taxonomy comes from).
+See also: [roadmap.md](roadmap.md) ("Needs systematic rules": "Retire the
+use-case codenames"),
+[use-case-catalog.md](../implementation/provenance/use-case-catalog.md) (the
+catalogue this taxonomy comes from).
 
-Split out of `roadmap.md` (2026-09-15) once this item's detail grew
-past a summary -- this file, not the roadmap bullet, is now the source
-of truth for scope and approach.
+Split out of `roadmap.md` (2026-09-15) once this item's detail grew past a
+summary. This file, not the roadmap bullet, is the source of truth for scope
+and approach.
 
 ## Scope
 
-Retire the whole letter-number use-case codename taxonomy, not just
-"G2". `working-docs/implementation/provenance/use-case-catalog.md`
+Retire the whole letter-number use-case codename taxonomy, not just "G2".
+[use-case-catalog.md](../implementation/provenance/use-case-catalog.md)
 defines a full scheme -- G1-G7 (generation), A1-A2 (aggregation), E1-E2
 (enrichment), P1 (preservation), N1-N6 (Phase-2 native-backfill
 checklist), plus others found the same way (R1, M1-M4, L6, L8, U1, C4,

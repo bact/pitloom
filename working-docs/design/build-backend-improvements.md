@@ -59,7 +59,7 @@ file-size guidance -- moved verbatim, no content changed.
 - [x] **Unify `extract/project/installed.py`'s RFC 822 Core-Metadata
   parser with `extract/wheel.py`'s** -- closed (2026-09-15, PR #215):
   widened to all four sites with the same duplicated `Project-URL`
-  -splitting shape, consolidated into one parametrized
+  -splitting shape, consolidated into one parametrised
   `extract/_core_metadata.py::parse_project_urls()`. See
   [installed-dist-info-source.md](installed-dist-info-source.md#relationship-to-extractwheelpys-parser).
 - [ ] **Real installed `.dist-info` (site-packages) as a metadata

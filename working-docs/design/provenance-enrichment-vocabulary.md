@@ -11,6 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 **Status:** draft, parked for later review.
 This file exists so a human or an AI agent can pick the work
 back up later without re-deriving the research.
+**Decided 2026-11-05:** provenance annotations are off by default and a flag
+turns them on (planned for 0.24.0; see the "Provenance and source-metadata
+flags" item in [roadmap.md](roadmap.md)). Today they are on by default.
 
 See [working-docs/implementation/provenance/](../implementation/provenance/)
 for the shipped provenance mechanism this vocabulary describes

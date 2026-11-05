@@ -72,7 +72,7 @@ for AI/ML domains**.
 
 ### The missing relationships
 
-SPDX 3 AI profiles introduce specialized semantic relationships such as
+SPDX 3 AI profiles introduce specialised semantic relationships such as
 `trainedOn`, `hasDataFile`, or `finetunedFrom`.
 Protobom's `EdgeType` primitive focuses on traditional software supply chain
 links (e.g., `DEPENDS_ON`, `CONTAINS`, `STATIC_LINK`).

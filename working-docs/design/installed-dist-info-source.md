@@ -144,7 +144,7 @@ oversight, just not in this feature's V1 field scope (see the field
 mapping table above). Worth unifying into one shared RFC 822
 Core-Metadata parser later, once a second caller besides `wheel.py`
 actually needs `Download-URL`/author-list correctness, rather than
-speculatively generalizing now.
+speculatively generalising now.
 
 ## Reuse note (not duplicated by the future phase)
 
@@ -186,7 +186,7 @@ local/editable install came from, per
 [PEP 610](https://peps.python.org/pep-0610/)) is the cross-check
 mechanism -- before trusting a `site-packages/*.dist-info` candidate,
 compare its `direct_url.json`'s path against the project directory being
-scanned, the same way the in-tree name-canonicalization gate rejects a
+scanned, the same way the in-tree name-canonicalisation gate rejects a
 wrong-package candidate. `direct_url.json` is **not guaranteed present**
 (PEP 610 doesn't require it outside VCS/direct-URL/editable installs), so
 a non-editable ordinary `pip install <name>` candidate has no path to

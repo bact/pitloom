@@ -1,14 +1,14 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-09-14
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Performance optimizations
+# Performance optimisations
 
-Known, non-blocking optimization opportunities — analyzed and deferred,
+Known, non-blocking optimisation opportunities — analysed and deferred,
 not rejected. Each entry records the bottleneck, expected impact, what
 blocks a fix, and where the relevant code lives.
 

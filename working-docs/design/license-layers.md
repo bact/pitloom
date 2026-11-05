@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,6 +67,10 @@ unchanged); `LicenseDatabase.get_deprecated_mappings()` gives the
 (`mit license` and `Apache License 2.0` give `MIT` and `Apache-2.0`). It
 does not map a classifier's own name: `Apache Software License` and
 `BSD License` give `None`.
+
+The table and the issue list below are the plan of 2026-10-04, written on
+`licenseid` 0.3.7. Since #437 and #440, `licenseid` 0.7 reads the canonical
+form, the grammar, the successors and the List names (see above).
 
 | Item | Target home |
 | --- | --- |

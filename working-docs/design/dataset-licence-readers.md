@@ -13,13 +13,15 @@ See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
 [roadmap.md](roadmap.md),
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
 
-Status 2026-10-19: all three readers and the shared mapping built (see
+Status (2026-10-19): all three readers and the shared mapping are built (see
 [Built: readers 1 and 2](#built-readers-1-and-2) and
 [Built: reader 3](#built-reader-3)); licence lists and non-prose card
 descriptions ruled on and built (see
 [Built: licence lists and card descriptions](#built-licence-lists-and-card-descriptions)).
 
-## Where things stand
+## Where things stood before the readers
+
+The state when this note was written (2026-10-18); the readers are now built.
 
 - The writing side exists: `DatasetMetadata.license` becomes a
   `hasDeclaredLicense` relationship through `add_license_relationships`

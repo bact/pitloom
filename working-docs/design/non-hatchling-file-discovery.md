@@ -26,7 +26,7 @@ one discovery module per static/declarative backend (`_models_wheel_hatchling.py
 `_models_wheel_setuptools.py`, `_models_wheel_poetry.py`,
 `_models_wheel_pdm.py`, `_models_wheel_flit.py`); any backend with no
 dedicated module (`uv_build`, or a Track B backend, or any future/
-unrecognized backend) resolves via the generic build-and-read mechanism
+unrecognised backend) resolves via the generic build-and-read mechanism
 (`_models_wheel_build_and_read.py`, see below) when `--allow-build` is
 passed, and otherwise falls back to the Hatchling heuristic with a
 logged warning, same as before. The bug below (originally reported for
@@ -37,7 +37,7 @@ Confirmed by direct testing before the fix:
 
 - For a non-Hatchling project whose layout happens to match
   Hatchling's own auto-detection conventions (a single top-level
-  package, or `src/<name>`, named after the normalized project name),
+  package, or `src/<name>`, named after the normalised project name),
   it works by coincidence.
 - For a setuptools project using
   `[tool.setuptools.packages.find] where=` (or `MANIFEST.in`,
@@ -246,7 +246,7 @@ one line. Four remain:
 - **`scripts/compare_allow_build.py` duplicates sdist extraction already
   in `tests/fixtures/real_world.py`** -- `_extract_archive()`
   reimplements `extract_sdist()`'s tar/zip-open, `filter="data"`,
-  single-top-level-dir logic, generalized to accept any archive path.
+  single-top-level-dir logic, generalised to accept any archive path.
   Dev-only script, not shipped code, no user-facing risk -- low priority.
 - **`--allow-build`-sourced files never match a `loom id
   generate`-pinned registry entry** -- `IdRegistry.generate()` (`id_registry/_registry.py`)

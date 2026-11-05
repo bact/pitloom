@@ -146,4 +146,4 @@ status box above).
 2. **Subdirectory fragment syntax**: `#subdirectory=packages/core` (a page URL
    already names a folder).
 3. **Submodule handling**: Should Git submodules be recursively extracted, or
-   modeled as independent dependency relationships in SPDX 3?
+   modelled as independent dependency relationships in SPDX 3?

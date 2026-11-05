@@ -37,7 +37,7 @@ An ideal internal representation must be:
 ## Architecture
 
 ```text
-Extractors                     Core model              Serializers / Assemblers
+Extractors                     Core model              Serialisers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
 read_pyproject()         ─┐
 read_setuptools()        ─┤
@@ -95,7 +95,7 @@ To add a CycloneDX serialiser, for example:
 ## Protobom evaluation
 
 Protobom was evaluated as a candidate for the format-neutral layer
-(see `working-docs/archive/protobom-evaluation.md`). While it provides a
+(see [protobom-evaluation.md](../archive/protobom-evaluation.md)). While it provides a
 Protocol Buffers–based universal SBOM representation with good support for
 SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
 AI/Dataset/Build profiles that are central to Pitloom's use cases. Adopting

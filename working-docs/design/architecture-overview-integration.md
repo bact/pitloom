@@ -64,8 +64,9 @@ See [hatchling-build-hook.md](../implementation/hatchling-build-hook.md).
 
 The SBOM is placed at `{name}-{version}.dist-info/sboms/{name}-{version}.spdx3.json`
 inside the wheel archive (default basename; `sbom-basename` overrides it).
-Downstream tools (Trivy, Grype, pip-audit) can discover and consume the SBOM without a separate
-distribution step. Implemented as part of the Hatchling build hook.
+Downstream tools (Trivy, Grype, pip-audit) can discover and consume the
+SBOM without a separate distribution step. Implemented as part of the
+Hatchling build hook.
 
 #### 3. MLflow run extractor (`pitloom.extract.mlflow`) [planned]
 
@@ -173,7 +174,7 @@ context without reading the full document. The highest-priority nodes are:
 `json.loads()` round trip, with no changes to `spdx-python-model`; the key
 and its tiers are in the implementation doc above.
 
-**Relationship to JSON canonicalization standards.**
+**Relationship to JSON canonicalisation standards.**
 RFC 8259 §4 ([datatracker.ietf.org/doc/rfc8259](https://datatracker.ietf.org/doc/rfc8259/))
 defines JSON arrays as *ordered sequences* of values, meaning `@graph` element
 order is semantically meaningful and is preserved by all conforming parsers.
