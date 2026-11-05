@@ -138,8 +138,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``wheel`` subcommand."""
-    # Note: Using 4-space indent
-    # 3. Built Wheel: loom wheel <WHEEL_FILE>
+    # Built wheel: loom wheel <WHEEL_FILE>
     wheel_parser = subparsers.add_parser(
         "wheel",
         parents=[parent_parser],

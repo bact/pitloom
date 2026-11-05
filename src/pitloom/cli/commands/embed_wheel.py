@@ -233,8 +233,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``embed-wheel`` subcommand."""
-    # Note: Using 4-space indent
-    # 3b. Embed into Wheel: loom embed-wheel <WHEEL_FILES...>
+    # Embed into a wheel: loom embed-wheel <WHEEL_FILES...>
     embed_parser = subparsers.add_parser(
         "embed-wheel",
         parents=[parent_parser],

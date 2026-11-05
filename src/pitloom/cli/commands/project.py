@@ -182,8 +182,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``project`` subcommand."""
-    # Note: Using 4-space indent
-    # 2. Project Source & Sdist: loom project [PATH]
+    # Project source and sdist: loom project [PATH]
     proj_parser = subparsers.add_parser(
         "project",
         parents=[parent_parser],

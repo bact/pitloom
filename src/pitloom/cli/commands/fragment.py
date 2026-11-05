@@ -145,8 +145,8 @@ def _fragment_sha256_status(
     """Three-state SHA-256 display: ``-`` (not configured), ``unknown``
     (configured but the file couldn't be read), or ``match``/``mismatch``.
     Logs a WARNING on mismatch. *raw* is checked independently of JSON
-    validity -- a fragment with broken JSON can still have its hash
-    verified, matching pre-existing behaviour."""
+    validity: a fragment with broken JSON can still have its hash
+    verified."""
     if expected_sha256 is None:
         return "-"
     if raw is None:
