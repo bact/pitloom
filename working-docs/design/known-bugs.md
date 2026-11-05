@@ -30,9 +30,11 @@ Size: S under half a day, M about a day.
   coverage-snapshot diffs and the `scripts/` lint; fix what they find. Re-run
   2026-11-02: see
   [Release checks re-run](known-bugs/process-tooling-and-release-checks.md#release-checks-re-run-2026-11-02).
-- 0.23.0: the `licenseid` 0.7.0 adoption, the licence provenance mapping
-  (#384), the remaining catalogue families (1b, 2b, 3 to 18, licence
-  included) and `--report`/SARIF. See
+- 0.23.0: the `licenseid` 0.7.0 adoption (#437 to #440, the final gate
+  #443), the catalogue plan refresh (#442) and catalogue PRs 2b, 1b and 1c.
+- 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
+  (licence included), the licence provenance mapping (#384) and
+  `--report`/SARIF. See
   [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
 ## Open entries by part and priority
@@ -44,14 +46,14 @@ lists its open entries first, ranked as described under
 | Part | P0 | P1 | P2 | P3 | Found | Leads | Open | Fixed |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
 | [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 33 | 5 | - | 38 | 10 |
-| [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 4 | 3 | 10 | - | 17 | 11 |
+| [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 11 |
-| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 13 | - | 15 | 7 |
+| [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 15 | - | 17 | 7 |
 | [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 7 |
 | [Extraction, fragments and merge](known-bugs/extraction-and-fragments.md) | 1 | - | 3 | 8 | 9 | - | 21 | 11 |
 | [CLI, Action, hook and wheel](known-bugs/surfaces-hook-and-wheel.md) | - | - | - | 7 | 2 | 2 | 11 | 5 |
 | [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 8 | - | 10 | 9 |
-| **Total** | **1** | **3** | **7** | **55** | **69** | **3** | **138** | **71** |
+| **Total** | **1** | **3** | **5** | **55** | **70** | **3** | **137** | **74** |
 
 ## Parts
 

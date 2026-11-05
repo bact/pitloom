@@ -11,6 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 Status: draft, built on licenseid `main` of 2026-10-28 and its plan. Revise it
 when licenseid 0.7.0 is released (see "What to re-check").
 
+**Built: stages A to E (#437 to #440, #443).** What was built, the final
+gate and the 0.22.1 to 0.23.0 sweep are in
+[licenseid-0-7-adoption-built.md](../implementation/licenseid-0-7-adoption-built.md).
+
 **Stage A is built (#437, 2026-11-03), on the released 0.7.0.** Pitloom
 requires `licenseid>=0.7.0,<0.8`; text detection uses
 `LicenseDetector().detect()` (`Detection["expression"]`); a declared value
