@@ -171,7 +171,7 @@ merge it into (an earlier SBOM of the project), `-` if the file could not
 be read or the project's own metadata cannot be (one `WARNING:`).
 A missing or broken fragment logs the same `WARNING:` wording a real
 build would log for it. Exits non-zero only when a `required = true`
-fragment is missing, unreadable, fails to parse as valid SPDX3 JSON-LD,
+fragment is missing, unreadable, fails to parse as valid SPDX 3 JSON-LD,
 or is that same document -- the same conditions that would also fail
 an actual build (see [Merge fragments](#merge-fragments) above); a
 non-required missing fragment or a `SHA256` mismatch is informational

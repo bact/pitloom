@@ -33,10 +33,11 @@ wheel's real file list. This is a **security-relevant** decision --
 it executes third-party build-time code from the project being scanned
 -- so:
 
-- It's off by default and must be passed explicitly every time; there is
-  **no** `[tool.pitloom]` config-file equivalent, unlike every other flag
-  in this guide. A target project's own `pyproject.toml` must never be
-  able to silently opt itself into code execution for whoever scans it.
+- It's off by default and must be passed explicitly every time; like
+  `--trust-wheel-model` and `--allow-signed-wheel`, it has **no**
+  `[tool.pitloom]` config-file equivalent. A target project's own
+  `pyproject.toml` must never be able to silently opt itself into code
+  execution for whoever scans it.
 - Only enable it for a project whose build script you trust.
 - Requires the optional `pitloom[build]` extra (`pip install
   pitloom[build]`).
