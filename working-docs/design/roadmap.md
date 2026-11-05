@@ -165,6 +165,9 @@ order and counts are in
   flag turns them on (name to settle, `--provenance` proposed; with the
   `--no-` form, a `[tool.pitloom]` key, an Action input and an API parameter).
   Today they are on by default (`format = "both"`, `detail = "minimal"`).
+  The test suite, the manual checks and the sweeps run with it on, through
+  one shared test default; the default-off behaviour is asserted on each
+  surface (CLI, library, hook, Action) in its own tests.
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
