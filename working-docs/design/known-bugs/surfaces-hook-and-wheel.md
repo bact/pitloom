@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,10 +104,11 @@ release ships.
 ### Fixed, Found in review rounds, not yet prioritised
 
 - [x] **`embed-wheel --sbom FILE` embeds a file it cannot parse or read as SPDX 3
-  (S).** Fixed in the next release: `pitloom._sbom_format.refuse_unusable_given_sbom`
+  (S).** Fixed in 0.22.0 (#374): `pitloom._sbom_format.refuse_unusable_given_sbom`
   refuses invalid JSON, a non-object and a `.spdx3.json` that is not SPDX 3
-  before the wheel is written. Malformed JSON named `x.spdx3.json` was embedded with a skip
-  `WARNING:` (exit 0), where `fragment validate` says `ERROR: Invalid JSON`; a
-  CycloneDX file named `.spdx3.json` is now refused too. Parse failure of a
+  before the wheel is written. Malformed JSON named `x.spdx3.json` was
+  embedded with a skip `WARNING:` (exit 0), where `fragment validate` says
+  `ERROR: Invalid JSON`; a CycloneDX file named `.spdx3.json` is now refused
+  too. Parse failure of a
   file the user named should be an error before the wheel is written.
   *Found 2026-10-28, 0.21.0 release review.*
