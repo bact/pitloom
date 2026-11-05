@@ -76,7 +76,7 @@ simply by asking users to run `[tool] export --format pylock`.
 
 ---
 
-## 2. Internal Normalization Schema (Pydantic)
+## 2. Internal Normalisation Schema (Pydantic)
 
 This model acts as the translation layer. Parsers map proprietary lock file
 syntax into this single, standard representation.

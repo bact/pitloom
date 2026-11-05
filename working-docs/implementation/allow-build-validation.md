@@ -104,7 +104,7 @@ code search (`build-backend = "uv_build"` in `pyproject.toml`, filtered
 to packages actually published on PyPI with both a real sdist and a
 real wheel available) -- specifically to stress-test whether rendercv's
 `wheel-exclude` divergence and the `has_uv_build_backend_overrides()`
-warning-sharpening (previous round) generalize, or were a one-off.
+warning-sharpening (previous round) generalise, or were a one-off.
 
 | Package | Version | `[tool.uv...]` config | Result |
 | :--- | :--- | :--- | :--- |

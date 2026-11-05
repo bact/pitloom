@@ -59,8 +59,8 @@ and this project adheres to
 - A library that is installed but fails to import says so,
   `[library-unusable]`, not `[library-missing]` ([#446])
 - The Agent Skills require `pitloom>=0.23.0` ([#448])
-- Docs, skills and code comments corrected and made consistent (British English,
-  `loom` commands) ([#449])
+- Docs, skills and code comments corrected and made consistent; `loom merge`,
+  `project` and `enrich` help text fixed ([#449])
 
 ### Fixed
 

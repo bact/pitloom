@@ -222,7 +222,7 @@ licence wasn't confirmed from the LICENSE file's exception list alone --
 would need that specific script's own header checked before ever treating
 it as clean MIT. A concrete illustration of why vendoring a real repo's
 output costs more than a repo-level licence badge suggests, and another
-data point favoring the synthetic-generation plan above over vendoring any
+data point favouring the synthetic-generation plan above over vendoring any
 of these.
 
 **Code licence vs. artefact licence -- these are two separate questions,

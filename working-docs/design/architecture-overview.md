@@ -150,7 +150,7 @@ storing SBOM documents within the package archive (Larson 2025).
 Pitloom uses this mechanism (built) so that SBOMs remain accessible after
 installation (Larson 2025; Trivy 2025).
 
-### PEP 639: Standardized licensing with SPDX expressions
+### PEP 639: Standardised licensing with SPDX expressions
 
 Prior to PEP 639, licences were often declared using ambiguous Trove
 classifiers or free-form text fields (Nijhof-Verhees 2026).

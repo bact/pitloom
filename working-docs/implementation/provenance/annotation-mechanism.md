@@ -137,7 +137,7 @@ open question #7). `max-source-metadata-bytes` (`ProvenanceConfig` field
 `max_source_metadata_bytes`, default `0` = unlimited) caps this.
 
 Truncation happens at the dictionary level only — whole `metadata` keys
-are dropped, largest-serialized-size first, never a value cut
+are dropped, largest-serialised-size first, never a value cut
 mid-string (which would produce invalid JSON). This is implemented in
 `assemble/spdx3/provenance.py`'s `_truncate_metadata_for_budget()`,
 re-checking the real RFC 8785-serialised byte length of the candidate

@@ -45,7 +45,7 @@ trip review attention:
   `extract/remote/huggingface_field.py` (513), `core/ai_metadata.py` (511),
   `id_registry/_registry.py` (510), `assemble/spdx3/provenance.py` (504),
   `assemble/spdx3/_ai_package.py` and `core/_config_parse.py` (502 each).
-- **`tests/`** (excluding the `hf_patches/` mock catalogs): files over 500 lines
+- **`tests/`** (excluding the `hf_patches/` mock catalogues): files over 500 lines
   are `assemble/test_deps_enrichment_pypi_fallback.py` (691, the worst, near the
   hard cap), `extract/lock/test_common.py` (579), `cli/test_cli_option_reach.py`
   (565), `core/models_wheel/test_models_wheel_setuptools.py` (542),
