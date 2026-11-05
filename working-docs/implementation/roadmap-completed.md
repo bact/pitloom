@@ -154,7 +154,7 @@ implementation docs, every change in `CHANGELOG.md` `[0.20.0]`.
 - [x] **Windows and macOS CI** (#220), the earlier 1.0-table items 1-2;
   stale G7 gap claims in `minimum-elements.md` fixed (2026-09-20), item 4.
   See [windows-macos-ci.md](windows-macos-ci.md).
-- [x] **CLI split, test modularization, coverage** (closed 2026-08-21). See
+- [x] **CLI split, test modularisation, coverage** (closed 2026-08-21). See
   [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md).
 - [x] **CHANGELOG split** (2026-09-30) -- 0.19.0+ in `CHANGELOG.md`, older
   in `CHANGELOG-archive.md`.
@@ -298,7 +298,7 @@ AI model metadata made uniform and safer:
   fragment description (roadmap 0.21.0, "A fragment value beats a value read
   from the file").
 
-## Shipped in 0.21.0 (PRs #300-#350)
+## Shipped in 0.21.0 (PRs #300-#361)
 
 Moved from [roadmap.md](../design/roadmap.md) on 2026-10-29, as they stood
 there. The release items; the ones still open are in

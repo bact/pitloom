@@ -306,14 +306,3 @@ nothing is dropped or rewritten. To keep its ids, delete it and `loom id
 import` the last SBOM a run made with it (every file, model and dataset keeps
 its id, and each package is keyed by the version that SBOM states); `loom id
 generate` alone starts afresh, with new ids.
-
-Earlier, with version 3, these entries stopped matching:
-a model pinned by its stem or own name (`-e STEM:ai_AIPackage`), a dataset
-pinned by a string that differs from the canonical path (`./data/t.txt`),
-a wheel-only lookup of a file a hatch `sources` remap moved by more than one
-part, and a file named by a raw un-normalised archive member name. A registry
-written by a pre-release v3 build is regenerated (`loom id generate`), and ids
-may renumber once. A retrained model logs `ID registry: content changed for
-...; minting a new spdxId` for the file and for the package. A Git LFS pointer
-whose entry a wheel, sdist or `--allow-build` run wrote with the text's digest
-gets a new id once, then keeps it.

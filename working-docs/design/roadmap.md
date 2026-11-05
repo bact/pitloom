@@ -25,7 +25,7 @@ lines plus a link; detail lives in the linked doc.
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
 shipped up to 0.23.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
-0.20.2 on 2026-10-09, 0.21.0 #300-#350 and 0.21.1 #364-#366 on 2026-10-28,
+0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
 0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#446
 on 2026-11-05), including their release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
@@ -71,9 +71,9 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   replacing library reads, parity-tested; HDF5 last. See
   [model-metadata-readers.md](model-metadata-readers.md).
 
-Built for 0.21.0 (#300-#350): registry v3, Git URL ingestion and hosts,
+Built for 0.21.0 (#300-#361): registry v3, Git URL ingestion and hosts,
 G7/CISA/FSCT/BSI conformance tests, SHA-512. See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0210-prs-300-350).
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0210-prs-300-361).
 
 ### 0.22.0
 

@@ -54,7 +54,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     merge_parser.add_argument(
         "fragments_dir",
         type=Path,
-        help="Directory containing .spdx3.json fragments.",
+        help="Directory of SPDX 3 fragments (every *.json file in it).",
     )
     merge_parser.add_argument(
         "-o",
