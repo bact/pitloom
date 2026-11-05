@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-04
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ See also: [licenseid-0-7-adoption.md](../design/licenseid-0-7-adoption.md)
 [licences-and-licenseid.md](../design/known-bugs/licences-and-licenseid.md)
 (open entries).
 
-Pitloom requires `licenseid>=0.7.0,<0.8` (released 2026-11-03). A declared
+Pitloom requires `licenseid>=0.7.1,<0.8` (0.7.0: 2026-11-03). A declared
 licence value is read by `licenseid.resolve(value, source="packaged")`, on
 the SPDX License List the `licenseid` wheel ships, with no database; only
 licence-text detection (`LicenseDetector().detect()`) needs one. Pitloom no

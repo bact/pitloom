@@ -94,7 +94,7 @@ class DeclaredResolution:
     """What ``licenseid`` read in a declared value: the *expression* to record,
     its *category*, the *steps* it took (``separator``, ``version_spelling``,
     ...), the qualifier steps (*expansions*) apart, whether it *decided*
-    something beyond form, the *tool* that read it (``licenseid==0.7.0``),
+    something beyond form, the *tool* that read it (``licenseid==0.7.1``),
     and each *deprecated* id whose successors are ambiguous, as
     ``ID (ID-only or ID-or-later)``."""
 
