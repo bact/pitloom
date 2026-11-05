@@ -14,7 +14,7 @@ RFC 8785 requires:
 References:
   - RFC 8785: https://www.rfc-editor.org/rfc/rfc8785
   - SPDX 3 canonical serialisation:
-    https://spdx.github.io/spdx-spec/v3.0.1/serialisations/#canonical-serialisation
+    https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization
 """
 
 from __future__ import annotations
