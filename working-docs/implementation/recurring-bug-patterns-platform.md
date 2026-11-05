@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -143,6 +143,18 @@ the move.
   of the fickling stderr capture (`stderr_capture.py`). Any other
   process-global state a test can change (logger handlers, `sys.stderr`
   proxies, signal handlers, `warnings` filters) needs the same restore.
+  Revised in PR #449: the fixture snapshotted the logger when a test
+  started, but a module- or session-scoped fixture (a `WheelBuilder` build,
+  the G7 AI scenario SBOMs) runs `configure_logging()` before it, so the
+  snapshot took `INFO` plus a handler for the clean state and kept it for
+  the rest of the worker. On macOS 3.13 CI, `test_persist_registry.py`
+  then captured `INFO` records logged outside its `caplog.at_level` block,
+  and `test_over_cap_archive_names.py` lost its `DEBUG` ones. Repro:
+  `pytest -n0 tests/assemble/test_wheel_integration.py
+  tests/id_registry/test_persist_registry.py`. The fixture now sets a fixed
+  unconfigured state before and after each test (`tests/_logger_state.py`):
+  a restore of process-global state restores a known baseline, never a
+  snapshot taken after broader-scoped fixtures ran.
 - **`--dist=loadscope` hides cross-module leaks that `worksteal` shows.**
   loadscope keeps a module on one worker, so a leak only reaches tests of
   modules that happen to follow it. Switching to worksteal (for speed)

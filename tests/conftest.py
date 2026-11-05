@@ -21,6 +21,7 @@ from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_text_match import _get_detector
 from pitloom.logging_config import _WARNED_ONCE
 from tests._environ import environ_restored
+from tests._logger_state import pitloom_logger_unconfigured
 from tests._message_drift import record_problem
 
 # pylint: disable-next=unused-import
@@ -166,19 +167,15 @@ def _reset_warn_once_state() -> None:
 
 @pytest.fixture(autouse=True)
 def _restore_pitloom_logger() -> Iterator[None]:
-    """Put the ``pitloom`` logger's handlers and level back after each test.
+    """Start and end each test with the ``pitloom`` logger unconfigured.
 
-    ``configure_logging()`` binds a handler to the ``sys.stderr`` of the
-    moment, which under ``capsys``/``capfd`` is a capture stream closed when
-    that test ends. Left in place, a later test on the same worker that logs
-    gets ``--- Logging error ---`` on its stderr (a closed file), so any test
-    asserting an empty stderr fails depending on xdist ordering.
+    A fixed state, not a snapshot taken when the test starts: a module- or
+    session-scoped fixture that calls ``configure_logging()`` runs before
+    this one, and a snapshot would keep its level and handler for every
+    later test on the worker (see :mod:`tests._logger_state`).
     """
-    logger = logging.getLogger("pitloom")
-    handlers, level = logger.handlers, logger.level
-    yield
-    logger.handlers = handlers
-    logger.setLevel(level)
+    with pitloom_logger_unconfigured():
+        yield
 
 
 @pytest.fixture(autouse=True)

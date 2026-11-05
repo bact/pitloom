@@ -134,7 +134,7 @@ Tests, platform and CI:
 - **A test helper that normalises what it captures hides the bug class** (`text=True` turns CRLF into LF): decode bytes yourself; mutation-test shell/CI changes.
 - **A test reaching the network via a subprocess/library bypasses the socket block**: mark it `network` (real host), route through `tests/_network.py`; a local server is `loopback`.
 - **Patching a function on a shared stdlib module patches it for every thread**: import the name into the module under test and patch that.
-- **A logging handler bound to `sys.stderr` under `capsys` outlives the capture stream**: `tests/conftest.py` restores the `pitloom` logger per test; new process-global state a test mutates needs the same.
+- **A logging handler bound to `sys.stderr` under `capsys` outlives the capture stream**: `tests/conftest.py` resets the `pitloom` logger to a fixed unconfigured state per test (a snapshot keeps a module fixture's configuration); new process-global state a test mutates needs the same.
 - **A long `parametrize` value becomes the test id** (Windows `PYTEST_CURRENT_TEST` cap 32,767 chars): short `ids=`; conftest fails ids over 1,000.
 - **A `skipif` condition runs at import time on every platform**: use one short-circuited module constant; same for POSIX-only names in decorators and `parametrize`.
 - **A hardcoded POSIX path in a test skips the "absolute" branch on Windows**: build it from `tempfile.gettempdir()`.
