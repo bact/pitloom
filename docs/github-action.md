@@ -29,6 +29,18 @@ Standalone SBOM artefact:
 Set up Python first: the action uses the Python on `PATH`. See
 [Python selection](#python-selection).
 
+To match `LICENSE` files, build the `licenseid` database before the action
+(the action installs only Pitloom; no network needed):
+
+```yaml
+- run: pip install 'licenseid>=0.7.1,<0.8' && licenseid update --source packaged
+```
+
+Without it a declared licence is still read, but a `LICENSE` file is not
+matched, and the step logs `INFO: licenseid database not found: ... license
+text detection skipped` (a licence declared) or `WARNING: licenseid database
+cannot be used: ... license text detection skipped` (none declared).
+
 Generate and embed PEP 770 SBOM into built wheels:
 
 ```yaml

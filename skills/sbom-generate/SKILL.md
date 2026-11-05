@@ -155,7 +155,7 @@ Element ids are content-addressed, so unchanged source reproduces them with
 no registry. A Loom ID registry (a JSON file) pins ids across runs whose
 inputs differ. It is used **only when declared**, never searched for:
 `--id-registry FILE`, else the `id-registry` config key. Nothing declared: no
-registry, silently. Declared but missing, invalid or an old version 2 file:
+registry, silently. Declared but missing, invalid or an old version 3 or 2 file:
 one `ERROR:`, exit 1. No run ever creates one.
 
 **When the user asks to pin ids** ("pin the ids", "keep ids stable", "create
@@ -164,7 +164,7 @@ id import SBOM -o FILE --project-dir PROJECT` yourself, without asking
 again, and report the exact command and every `INFO:`/`WARNING:`/`ERROR:` it
 printed. FILE is the one the user names,
 else the config's, else `loom-id-registry.json` in the project root. A
-rejected version 2 file: ask before deleting it (its pins are lost;
+rejected version 3 or 2 file: ask before deleting it (its pins are lost;
 non-interactive: stop and report the `ERROR:`).
 
 **Before generating:** a declared registry is used: tell the user which file,
