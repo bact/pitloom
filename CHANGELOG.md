@@ -59,6 +59,8 @@ and this project adheres to
 - A library that is installed but fails to import says so,
   `[library-unusable]`, not `[library-missing]` ([#446])
 - The Agent Skills require `pitloom>=0.23.0` ([#448])
+- Docs, skills and code comments corrected and made consistent (British English,
+  `loom` commands) ([#449])
 
 ### Fixed
 
@@ -84,6 +86,7 @@ and this project adheres to
 [#445]: https://github.com/bact/pitloom/pull/445
 [#446]: https://github.com/bact/pitloom/pull/446
 [#448]: https://github.com/bact/pitloom/pull/448
+[#449]: https://github.com/bact/pitloom/pull/449
 
 ## [0.22.1] - 2026-11-03
 
