@@ -302,10 +302,10 @@ Pitloom 0.22.0 and later write version 4, whose package keys hold the
 version. A version 3 file is refused on every command, with one ``ERROR: ID
 registry file '<path>': version 3, expected 4 (no migration support -- delete
 it and re-run `loom id generate` or `loom id import`)``, and is left as it is:
-nothing is dropped or rewritten. To keep its ids, delete it and `loom id import` the last
-SBOM a run made with it (every file, model and dataset keeps its id, and each
-package is keyed by the version that SBOM states); `loom id generate` alone
-starts afresh, with new ids.
+nothing is dropped or rewritten. To keep its ids, delete it and `loom id
+import` the last SBOM a run made with it (every file, model and dataset keeps
+its id, and each package is keyed by the version that SBOM states); `loom id
+generate` alone starts afresh, with new ids.
 
 Earlier, with version 3, these entries stopped matching:
 a model pinned by its stem or own name (`-e STEM:ai_AIPackage`), a dataset

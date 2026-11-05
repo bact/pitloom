@@ -328,10 +328,10 @@ auto-discovered. Once declared, `loom project`/`wheel`/`env`/`generate` (and
 the Action, which wraps them) harvest newly-minted ids back into it by
 default -- see `update-id-registry` in [Configuration](configuration.md).
 That write only ever touches the runner's local checkout; it never needs
-elevated permissions itself (that's a `git push`, which Pitloom never does). But the write is
-ephemeral unless a workflow step commits it back, so a release/publish
-job that intentionally runs with `permissions: contents: read` (common
-for trusted PyPI publishing -- see this repo's own
+elevated permissions itself (that's a `git push`, which Pitloom never does).
+But the write is ephemeral unless a workflow step commits it back, so a
+release/publish job that intentionally runs with `permissions: contents: read`
+(common for trusted PyPI publishing -- see this repo's own
 [`pypi-publish.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/pypi-publish.yml))
 can update `loom-id-registry.json` locally but shouldn't have its permissions
 relaxed just to push that one file.

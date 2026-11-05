@@ -25,8 +25,8 @@ Pitloom ships three Skills:
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project (a directory
   or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or
   pre-existing) SBOM directly into a built wheel per PEP 770's
-  `.dist-info/sboms/` convention. Asked to pin ids, it creates or updates a [Loom ID
-  registry](id-registry.md) with `loom id generate`/`import`.
+  `.dist-info/sboms/` convention. Asked to pin ids, it creates or updates a
+  [Loom ID registry](id-registry.md) with `loom id generate`/`import`.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a licence guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can
@@ -53,10 +53,11 @@ readings and message codes they quote are those of 0.23.0. Before the first
 run that reads licences, `sbom-generate` builds the `licenseid` 0.7 database
 (`licenseid update --source packaged`, no network). Network access is needed
 to install `pitloom` and, at run time, for PyPI and Hugging Face lookups. AI
-model files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and `sbom-validate` need
-`pitloom[validate]`; `--allow-build` needs `pitloom[build]`. Each `SKILL.md`
-declares this in its `compatibility` field. The Skills do not work where
-packages cannot be installed, e.g. Claude API code execution.
+model files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and
+`sbom-validate` need `pitloom[validate]`; `--allow-build` needs
+`pitloom[build]`. Each `SKILL.md` declares this in its `compatibility` field.
+The Skills do not work where packages cannot be installed, e.g. Claude API code
+execution.
 
 ## Quick guide
 
