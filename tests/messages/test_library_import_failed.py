@@ -11,6 +11,8 @@ See also: tests/test_library_import_failed_surfaces.py (the surfaces) and
 tests/core/test_optional_libraries.py (the libraries).
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import copy
@@ -103,7 +105,7 @@ def test_a_none_in_sys_modules_is_not_installed(
 @pytest.fixture(name="broken")
 def fixture_broken(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[Callable[[str, str], None]]:
+) -> Iterator[Callable[..., None]]:
     """Makes a module importable from a package whose import raises."""
 
     def make(module: str, raised: str = _BROKEN) -> None:
@@ -129,11 +131,11 @@ _READERS = [
 ]
 
 
-@pytest.mark.parametrize(("fmt", "fixture"), _READERS, ids=lambda v: str(v))
+@pytest.mark.parametrize(("fmt", "fixture"), _READERS, ids=str)
 def test_a_reader_whose_library_is_broken_is_a_stub_saying_so(
     fmt: AiModelFormat,
     fixture: str,
-    broken: Callable[[str, str], None],
+    broken: Callable[..., None],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The library is installed (``find_spec`` finds it) but its import
@@ -156,17 +158,19 @@ def test_a_reader_whose_library_is_broken_is_a_stub_saying_so(
 
 
 def test_a_library_whose_dependency_is_missing_is_broken(
-    broken: Callable[[str, str], None],
+    broken: Callable[..., None],
 ) -> None:
     broken("h5py", "ModuleNotFoundError(\"No module named 'dep'\", name='dep')")
     with pytest.raises(ImportError) as caught:
-        read_ai_model(_FIXTURES / "hdf5/example-model.h5", model_format="hdf5")
+        read_ai_model(
+            _FIXTURES / "hdf5/example-model.h5", model_format=AiModelFormat.HDF5
+        )
     assert code_of(caught.value) == LIBRARY_MISSING_IMPORT_FAILED.code
     assert ": No module named 'dep'; reinstall pitloom[hdf5]" in str(caught.value)
 
 
 def test_a_broken_hub_client_is_said_before_any_fetch(
-    broken: Callable[[str, str], None],
+    broken: Callable[..., None],
 ) -> None:
     broken(HUB.module)
     with pytest.raises(ImportError) as caught:
@@ -178,17 +182,19 @@ def test_a_broken_hub_client_is_said_before_any_fetch(
 
 
 def test_a_broken_magika_is_said_once_and_falls_back_per_file(
-    broken: Callable[[str, str], None],
+    broken: Callable[..., None],
 ) -> None:
     broken(MAGIKA.module)
     _file_headers._get_magika.cache_clear()
     try:
+        causes = []
         for _ in range(2):
             with pytest.raises(ImportError) as caught:
                 _file_headers.require_magika_available()
             assert raised_as(caught.value, LIBRARY_MISSING_IMPORT_FAILED)
+            causes.append(caught.value.__cause__)
+        assert isinstance(causes[0], OSError) and causes[1] is causes[0]  # cached
         guessed = _file_headers.guess_content_type(b"x", "a.py", method="magika")
         assert guessed == ("text/x-python", "extension_guess")
-        assert _file_headers._get_magika.cache_info().misses == 1
     finally:
         _file_headers._get_magika.cache_clear()

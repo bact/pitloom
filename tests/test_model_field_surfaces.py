@@ -61,7 +61,9 @@ def test_the_command_line_ends_the_readers_line_in_its_code(
     }[command]
     done = run_loom([command, str(target), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 0, done.stderr
-    (line,) = coded_lines(done.stderr)
+    lines = list(coded_lines(done.stderr))
+    assert len(lines) == 1, done.stderr
+    line = lines[0]
     assert line.startswith("WARNING: FORMAT=pytorch_pt2 FILE=")
     assert line.endswith(f"m.pt2{_TAGS}")
 

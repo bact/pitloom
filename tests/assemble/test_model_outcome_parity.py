@@ -132,6 +132,7 @@ _KINDS = {
         "FORMAT=hdf5 FILE=",
         needs="h5py",
         degraded=True,
+        code="model-field-unreadable",
     ),
     "text_gguf": Kind(
         "m.gguf",

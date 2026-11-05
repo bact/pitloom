@@ -106,19 +106,17 @@ def _resolve_pt2_version(
     return read_text("extra/version", "version"), "version"
 
 
-def _warn_unread(
-    line: Line, exc: Exception, lost: tuple[str, ...], **values: object
-) -> None:
-    """The ``model-field-unreadable`` warning of *line* for the read that
-    raised *exc*: the fields *lost*, *values* the line's others."""
+def _warn_unread(line: Line, exc: Exception, lost: tuple[str, ...], entry: str) -> None:
+    """The ``model-field-unreadable`` warning of *line* for the read of
+    member *entry* that raised *exc*: the fields *lost*."""
     emit(
         log,
         MODEL_FIELD_UNREADABLE,
         logging.WARNING,
         line=line,
+        entry=entry,
         error=str(exc),
         fields=lost,
-        **values,
     )
 
 
@@ -262,7 +260,14 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
         tags = json.loads(tags_raw)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        _warn_unread(PT2_TAGS_LINE, exc, ("properties.tags (kept as raw string)",))
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=PT2_TAGS_LINE,
+            error=str(exc),
+            fields=("properties.tags (kept as raw string)",),
+        )
         return tags_raw, None
     if isinstance(tags, list):
         return ", ".join(_tag_text(t) for t in tags), tags

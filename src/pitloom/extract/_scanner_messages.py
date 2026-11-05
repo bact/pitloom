@@ -110,6 +110,7 @@ def _say_library(
     requirement = REQUIREMENTS[fmt]
     where, spec = candidate.physical_path, requirement.spec
     code = code_of(exc)
+    cause: BaseException
     if code is None:
         missing, cause = not_installed(requirement, exc), exc
     else:

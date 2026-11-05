@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 RAW_CONFIG_CAP = Cap(RAW_CONFIG_CHARS, "character", "raw-model-config")
 
 
-def _warn(line: Line, problem: ConfigProblem, **values: object) -> None:
+def _warn(line: Line, problem: ConfigProblem) -> None:
     emit(
         log,
         MODEL_FIELD_UNREADABLE,
@@ -49,7 +49,6 @@ def _warn(line: Line, problem: ConfigProblem, **values: object) -> None:
         part=problem.part,
         error=problem.error,
         fields=problem.lost,
-        **values,
     )
 
 
@@ -73,7 +72,17 @@ def log_model_config_problem(
                 "properties.model_config_raw",
             )
     elif cut:
-        _warn(CONFIG_RAW_CUT_LINE, problem, limit=RAW_CONFIG_CHARS, number=len(raw))
+        emit(
+            log,
+            MODEL_FIELD_UNREADABLE,
+            logging.WARNING,
+            line=CONFIG_RAW_CUT_LINE,
+            part=problem.part,
+            error=problem.error,
+            limit=RAW_CONFIG_CHARS,
+            number=len(raw),
+            fields=problem.lost,
+        )
     elif kept_raw:
         _warn(CONFIG_RAW_LINE, problem)
     else:

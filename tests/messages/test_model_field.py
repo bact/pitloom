@@ -11,6 +11,8 @@ See also: tests/test_model_field_surfaces.py (the surfaces) and
 tests/messages/test_model_stub.py (a model not read at all).
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import io
@@ -20,6 +22,7 @@ import struct
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest import mock
 
@@ -105,22 +108,12 @@ def test_a_value_out_of_shape_is_refused(
         shape.render(given)
 
 
-class _Broken:
-    """A fastText model whose binding raises on every call."""
+def _raise() -> None:
+    raise RuntimeError("binding")
 
-    # pylint: disable-next=too-few-public-methods
-    class f:  # noqa: N801  (the binding's attribute name)
-        """The binding's model."""
 
-        @staticmethod
-        def getArgs() -> None:  # noqa: N802
-            """Raise as a broken binding does."""
-            raise RuntimeError("binding")
-
-    @staticmethod
-    def get_labels() -> None:
-        """Raise as a broken binding does."""
-        raise RuntimeError("binding")
+#: A fastText model whose binding raises on every call.
+_BROKEN = SimpleNamespace(f=SimpleNamespace(getArgs=_raise), get_labels=_raise)
 
 
 def _zip(files: dict[str, bytes]) -> zipfile.ZipFile:
@@ -165,8 +158,8 @@ _PROBLEM = ConfigProblem("model_config.config", "is not an object", ("name",))
 
 #: Each reader site: how to reach it, and the code its one record carries.
 _SITES: dict[str, tuple[Callable[[Path], object], str]] = {
-    "fasttext-args": (lambda _: fasttext._extract_fasttext_args(_Broken), "u"),
-    "fasttext-labels": (lambda _: fasttext._extract_fasttext_labels(_Broken), "u"),
+    "fasttext-args": (lambda _: fasttext._extract_fasttext_args(_BROKEN), "u"),
+    "fasttext-labels": (lambda _: fasttext._extract_fasttext_labels(_BROKEN), "u"),
     "fickling-parse": (lambda _: pytorch._bounded_pickle(io.BytesIO(b"x")), "u"),
     "fickling-walk": (_fickling_walk, "u"),
     "pickle-member": (_pickle_member, "u"),
@@ -255,4 +248,5 @@ def test_a_config_problem_names_its_first_part_then_every_reason(
         "is not an object; training_config.loss is nested too deeply",
         ("properties.optimizer", "properties.loss"),
     )
+    assert problem is not None
     assert problem.text == f"{problem.part} {problem.error}"
