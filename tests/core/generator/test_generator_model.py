@@ -32,7 +32,7 @@ from pitloom.id_registry import IdRegistry
 
 
 def test_assembler_ai_model_with_inputs_outputs() -> None:
-    """Test that AI model metadata with inputs/outputs is serialized into SPDX 3."""
+    """Test that AI model metadata with inputs/outputs is serialised into SPDX 3."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.PYTORCH_PT2),
@@ -76,9 +76,9 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     assert len(contains_rels) == 1
     assert any(pkg["spdxId"] in r["to"] for r in contains_rels)
 
-    # no license relationship *from the AI package* when ai_model.license is
+    # no licence relationship *from the AI package* when ai_model.license is
     # not set (the main project package gets its own NOASSERTION fallback
-    # when it has no declared license either -- see build()'s license block
+    # when it has no declared licence either -- see build()'s license block
     # -- which is a separate, expected relationship, not this one).
     ai_pkg_license_rels = [
         r

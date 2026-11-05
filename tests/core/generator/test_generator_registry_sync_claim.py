@@ -6,7 +6,7 @@
 """Id-mint collisions, calling
 ``build()``/``build_deployed()`` directly (rather than the
 ``generate_*_sbom()`` string-returning wrappers) so every assertion runs
-against the exporter's own ``object_set`` -- never the serialized JSON,
+against the exporter's own ``object_set`` -- never the serialised JSON,
 which can mask a real duplicate id (see
 :mod:`tests.core.generator.test_generator_registry_sync_ai`'s
 ``_assert_ten_distinct_ai_package_ids`` docstring for why).

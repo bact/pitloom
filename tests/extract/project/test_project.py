@@ -197,7 +197,7 @@ def test_read_project_build_system_only_pyproject_no_setuptools_fallback(
     """When a ``[build-system]``-only ``pyproject.toml`` has no
     ``setup.cfg``/``setup.py`` to fall back to either, ``read_project()``
     still returns ``read_pyproject()``'s (nameless) result -- no
-    FileNotFoundError, matching prior behavior for this narrower case."""
+    FileNotFoundError, matching prior behaviour for this narrower case."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         '[build-system]\nrequires = ["setuptools"]\n'

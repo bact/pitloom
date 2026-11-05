@@ -28,11 +28,11 @@ if TYPE_CHECKING:
 
 BUILD_LOG_PREFIX = "Build: "
 """Shared ``WARNING:`` sub-prefix for every ``--allow-build``/build-and-
-read-related log message (CLAUDE.md's "CLI output" convention: a shared,
+read-related log message (AGENTS.md's "CLI output" convention: a shared,
 literal sub-prefix so a subsystem's own messages are easy to grep/compare
 as a group, matching the existing ``"ID registry: "`` precedent). One
 constant instead of a hand-copied literal at each call site -- see
-CLAUDE.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
+AGENTS.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
 
 
 #: Whether :func:`warn_discovery_failed` ran on this thread since the last
@@ -153,7 +153,7 @@ def has_uv_build_backend_overrides(pyproject_data: dict[str, object]) -> bool:
 
     uv_build has no static discovery module of its own (see
     :mod:`pitloom.core._models_wheel_dispatch`), so the Hatchling-based
-    heuristic fallback used in its place has no way to honor these --
+    heuristic fallback used in its place has no way to honour these --
     it can only see files that physically exist on disk, not a
     directive telling it to exclude some of them. Confirmed empirically
     (``working-docs/implementation/backend-file-discovery-validation.md``'s
@@ -164,7 +164,7 @@ def has_uv_build_backend_overrides(pyproject_data: dict[str, object]) -> bool:
 
     Used only to sharpen the fallback's own ``WARNING:`` wording with a
     concrete pointer to ``--allow-build`` when this specific, known
-    divergence risk is present -- never to change dispatch behavior
+    divergence risk is present -- never to change dispatch behaviour
     itself, and never consulted for any backend other than uv_build."""
     tool = pyproject_data.get("tool")
     if not isinstance(tool, dict):
@@ -194,10 +194,10 @@ def is_dist_info_path(distribution_path: str) -> bool:
     every other backend's ``IncludedFile`` contract of pre-build source
     files only.
 
-    *distribution_path* MUST already be POSIX-normalized (see
+    *distribution_path* MUST already be POSIX-normalised (see
     :func:`to_posix_distribution_path`; for a wheel member name,
     :func:`pitloom.core.archive_member_names.zip_file_members`) -- this function does no
-    normalization of its own and will not recognize a
+    normalisation of its own and will not recognise a
     backslash-separated path as a ``.dist-info`` path.
     """
     return "/" in distribution_path and distribution_path.split("/", 1)[0].endswith(
@@ -206,13 +206,13 @@ def is_dist_info_path(distribution_path: str) -> bool:
 
 
 def to_posix_distribution_path(path: str) -> str:
-    """Normalize *path* to forward-slash separators for use as an
+    """Normalise *path* to forward-slash separators for use as an
     ``IncludedFile.distribution_path`` -- a wheel's internal paths are
     always ``/``-separated regardless of the platform Pitloom runs on.
 
-    Shared so this one-line normalization doesn't keep getting
+    Shared so this one-line normalisation doesn't keep getting
     hand-copied per backend discovery module (setuptools, Hatchling,
-    Poetry, Flit each needed it independently) -- see CLAUDE.md's note
+    Poetry, Flit each needed it independently) -- see AGENTS.md's note
     that a pattern repeated across 3+ call sites drifts. A wheel's own ZIP
     member names need more than this (``./``, ``..``, absolute names): use
     :func:`pitloom.core.archive_member_names.zip_file_members`."""

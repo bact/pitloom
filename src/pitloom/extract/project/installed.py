@@ -212,7 +212,7 @@ def find_installed_metadata_candidate(
     Returns ``(marker_file_path, human_label)`` for the single winning
     candidate (e.g. ``(Path(".../mypkg.egg-info/PKG-INFO"),
     "mypkg.egg-info")``), or ``None`` when nothing usable was found. See
-    :func:`_discover_candidate` for the full behavior this wraps.
+    :func:`_discover_candidate` for the full behaviour this wraps.
     """
     candidate = _discover_candidate(project_dir, resolved_name, quiet=quiet)
     if candidate is None:

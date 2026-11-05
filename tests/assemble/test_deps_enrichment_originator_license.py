@@ -489,7 +489,7 @@ def test_extract_release_hash_validates_hex_sha256() -> None:
         _extract_release_hash({"urls": [{"digests": {"sha256": "too-short"}}]}) is None
     )
     assert _extract_release_hash({"urls": [{"digests": {"sha256": "g" * 64}}]}) is None
-    # Uppercase normalized to lowercase
+    # Uppercase normalised to lowercase
     upper_hash = ("A" * 32) + ("B" * 32)
     assert (
         _extract_release_hash({"urls": [{"digests": {"sha256": upper_hash}}]})

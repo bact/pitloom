@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Integration tests against the real licenseid database, plus tests for
-G2 license detection (``detect_independent_license``) and its provenance
+G2 licence detection (``detect_independent_license``) and its provenance
 tagging; expression normalisation is in ``tests/extract/test_license_classify.py``.
 
 See also: test_license_detection.py -- the sibling covering detection
@@ -33,7 +33,7 @@ _VERSION = version("licenseid")
 # Integration tests -- require real licenseid database
 # ---------------------------------------------------------------------------
 
-# Canonical MIT license text (no copyright header, matches SPDX template closely)
+# Canonical MIT licence text (no copyright header, matches SPDX template closely)
 _MIT_TEXT = """\
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -145,9 +145,8 @@ def test_detect_independent_license_tags_licenseid_tool_version() -> None:
 
 
 def test_detect_license_for_project_delegates_directory_scan() -> None:
-    """detect_license_for_project's own directory-search fallback now goes
-    through detect_independent_license -- same result, same Tool: tagging,
-    confirming the extraction didn't change external behavior."""
+    """detect_license_for_project's own directory-search fallback goes
+    through detect_independent_license: same result, same Tool: tagging."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
@@ -205,7 +204,7 @@ def test_tag_deprecated_license_ids_leaves_the_rest_alone(expression: str) -> No
 
 
 def test_tag_license_normalization_noop_when_unchanged() -> None:
-    """No normalization happened (raw already canonical): provenance is
+    """No normalisation happened (raw already canonical): provenance is
     returned unchanged, nothing to flag."""
     prov = "Source: pyproject.toml | Field: project.license"
     assert tag_license_normalization(prov, "MIT", "MIT") == prov

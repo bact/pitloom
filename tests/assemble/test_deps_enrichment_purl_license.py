@@ -234,7 +234,7 @@ def test_add_dependencies_dedupes_separator_canonicalization() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _enrich_from_installed -- the concluded license relationship is kept
+# _enrich_from_installed -- the concluded licence relationship is kept
 # ---------------------------------------------------------------------------
 
 
@@ -245,7 +245,7 @@ def test_enrich_from_installed_adds_concluded_license_relationship(
     (declared, concluded) depending on whether the source is "transparent";
     "installed metadata" is not, so it returns the *concluded* slot, and the
     caller must keep that relationship: a dependency enriched from installed
-    metadata gets a license relationship when ``License-Expression`` is
+    metadata gets a licence relationship when ``License-Expression`` is
     present.
     """
     monkeypatch.setattr(

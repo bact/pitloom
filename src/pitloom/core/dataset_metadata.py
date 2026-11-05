@@ -7,7 +7,7 @@
 
 These classes are the format-neutral internal representation of dataset
 metadata. They have no dependency on any SBOM library, making them easy
-to test and to consume from any serializer.
+to test and to consume from any serialiser.
 """
 
 from __future__ import annotations

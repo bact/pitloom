@@ -23,7 +23,7 @@ Base directory per declaration route:
   ``pitloom.id_registry.resolve.resolve_registry`` itself, against the
   project directory for a directory project target, else cwd (a file
   target -- sdist/wheel/model/env/standalone -- or no project at all).
-  ``pitloom id generate``/``pitloom id import`` resolve a relative
+  ``loom id generate``/``loom id import`` resolve a relative
   ``-o``/``--id-registry`` the same way -- against cwd -- via their own
   :func:`pitloom.cli._id_target._resolve_id_registry_target` (``id import``'s
   project directory *is* cwd already, so this is only observable for
@@ -49,7 +49,7 @@ See also: :mod:`tests.id_registry.surfaces_base` (``Declare``, relaxed to
 accept a relative path for this module), :mod:`tests.id_registry.
 test_surfaces` (the absolute-path declaration/failure/completeness
 tests this module complements), :mod:`tests.id_registry.
-test_relative_paths_id_commands` (`pitloom id generate`/`pitloom id
+test_relative_paths_id_commands` (`loom id generate`/`loom id
 import`'s own cwd-based resolution, split out here).
 """
 
@@ -71,7 +71,7 @@ from tests.id_registry.surfaces_base import Declare, demo_project, demo_wheel
 from tests.id_registry.surfaces_shared import CLI_SURFACES, SUPPORTED_MODES, SURFACES
 
 #: CLI surfaces resolved by the generic ``run_options()`` cascade -- every
-#: ``cli-*`` surface offering ``flag`` except the two ``pitloom id``
+#: ``cli-*`` surface offering ``flag`` except the two ``loom id``
 #: subcommands, which have their own resolution (see module docstring).
 _GENERIC_CLI_FLAG_SURFACES: tuple[str, ...] = tuple(
     sorted(
@@ -123,7 +123,7 @@ def test_cli_flag_relative_resolves_against_cwd(
     assert loaded == [expected], f"{surface}: loaded {loaded}, expected {[expected]}"
 
 
-# `pitloom id generate`/`pitloom id import`'s own cwd-based resolution
+# `loom id generate`/`loom id import`'s own cwd-based resolution
 # (flag, PATH arguments, the M-e end-to-end workflow) moved to
 # tests.id_registry.test_relative_paths_id_commands -- this file's size.
 

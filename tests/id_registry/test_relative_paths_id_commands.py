@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Relative path resolution for `pitloom id generate`/`pitloom id
+"""Relative path resolution for `loom id generate`/`loom id
 import`'s own ``-o``/``--id-registry`` and PATH arguments -- split out
 of :mod:`tests.id_registry.test_relative_paths` (this file's own size)
 since these two subcommands share one resolution function
@@ -13,7 +13,7 @@ other surface's.
 See also: :mod:`tests.id_registry.test_relative_paths` (every other
 declaration route's base-directory tests, and the module docstring
 there for the full per-route breakdown), :mod:`tests.cli.
-test_cli_id_config_errors` (the rest of `pitloom id`'s CLI tests).
+test_cli_id_config_errors` (the rest of `loom id`'s CLI tests).
 """
 
 # pylint: disable=missing-function-docstring
@@ -30,7 +30,7 @@ from pitloom.id_registry import FILE_TYPE, IdRegistry
 from tests.id_registry.surfaces_base import Declare, _run_cli, demo_project
 from tests.id_registry.surfaces_shared import SURFACES
 
-# --- `pitloom id generate`: same cwd-based rule as every other command --
+# --- `loom id generate`: same cwd-based rule as every other command --
 
 
 def test_cli_id_generate_flag_relative_resolves_against_cwd(
@@ -118,7 +118,7 @@ def test_cli_id_generate_then_project_from_same_cwd_reuses_ids(
 
     Flat (non-``src``-layout) project deliberately: ``physical_path`` ==
     ``distribution_path`` there, so this test isn't also exercising that
-    unrelated divergence (see ``CLAUDE.md``'s "physical_path vs
+    unrelated divergence (see ``AGENTS.md``'s "physical_path vs
     distribution_path") -- just registry-path resolution and id reuse."""
     demo_project(tmp_path)  # writes tmp_path / "proj"
     monkeypatch.chdir(tmp_path)

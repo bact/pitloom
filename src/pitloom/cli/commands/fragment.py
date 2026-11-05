@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 
 @cli_error_handler("fragment validate failed")
 def _run_fragment_validate(args: argparse.Namespace) -> int:
-    """Run `pitloom fragment validate`."""
+    """Run `loom fragment validate`."""
     # Both checks run and report independently -- a user missing the
     # optional dependency AND passing a bad path should see both ERROR:
     # lines in one run, not just the first one, for one round trip.
@@ -111,7 +111,7 @@ def _fragment_read_status(
         # command reject a fragment a real build would merge successfully.
         data = json.loads(raw)
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        # Broad on purpose, matching the SPDX3-deserialize catch below --
+        # Broad on purpose, matching the SPDX3-deserialise catch below --
         # a narrower catch (e.g. just JSONDecodeError) still lets an
         # unusual failure (e.g. RecursionError on deeply nested JSON)
         # abort this entire command instead of degrading just this one
@@ -124,12 +124,12 @@ def _fragment_read_status(
     elements = len(graph) if isinstance(graph, list) else None
     try:
         # deserialize_data(), not read() -- data is already parsed above,
-        # no need to hand the deserializer raw bytes to re-parse as JSON.
+        # no need to hand the deserialiser raw bytes to re-parse as JSON.
         object_set = spdx3.SHACLObjectSet()
         spdx3.JSONLDDeserializer().deserialize_data(data, object_set)
     except Exception as exc:  # pylint: disable=broad-exception-caught
         # Matches merge_fragments()'s own broad catch (fragments.py) --
-        # the JSON-LD deserializer can raise a wide variety of exception
+        # the JSON-LD deserialiser can raise a wide variety of exception
         # types for a malformed/non-SPDX3 document, none of them a stable
         # public contract worth narrowing to.
         log.warning(
@@ -145,8 +145,8 @@ def _fragment_sha256_status(
     """Three-state SHA-256 display: ``-`` (not configured), ``unknown``
     (configured but the file couldn't be read), or ``match``/``mismatch``.
     Logs a WARNING on mismatch. *raw* is checked independently of JSON
-    validity -- a fragment with broken JSON can still have its hash
-    verified, matching pre-existing behaviour."""
+    validity: a fragment with broken JSON can still have its hash
+    verified."""
     if expected_sha256 is None:
         return "-"
     if raw is None:
@@ -178,14 +178,14 @@ def _print_fragment_list_line(
     modified: str | None,
     same_document: bool | None,
 ) -> None:
-    """Print one `pitloom fragment list` output line for *frag*: every
+    """Print one `loom fragment list` output line for *frag*: every
     KEY=VALUE pair describes the same one data point (this fragment), so
-    they belong on the same line per CLAUDE.md's CLI-output convention
+    they belong on the same line per AGENTS.md's CLI-output convention
     ("Default: line-delimited, one data point per line") -- one line per
     fragment, not one line per field."""
     # frag.role is None (not configured) vs "" (explicitly set empty) are
     # distinct states -- only None prints as "-", matching this project's
-    # own None-vs-empty convention (see CLAUDE.md "Recurring bug patterns").
+    # own None-vs-empty convention (see AGENTS.md "Recurring bug patterns").
     role = frag.role if frag.role is not None else "-"
     print_kv(
         PATH=frag.path,
@@ -278,7 +278,7 @@ def _own_document_id(project_dir: Path) -> str | None:
 
 @cli_error_handler("fragment list failed")
 def _run_fragment_list(args: argparse.Namespace) -> int:
-    """Run `pitloom fragment list`."""
+    """Run `loom fragment list`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
 
@@ -297,7 +297,7 @@ def _run_fragment_list(args: argparse.Namespace) -> int:
 
 
 def _run_fragment_command(args: argparse.Namespace) -> int:
-    """Dispatch `pitloom fragment <command> ...` arguments."""
+    """Dispatch `loom fragment <command> ...` arguments."""
     if args.fragment_command == "validate":
         return _run_fragment_validate(args)
     if args.fragment_command == "list":

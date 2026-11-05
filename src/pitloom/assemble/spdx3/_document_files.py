@@ -45,7 +45,7 @@ from pitloom.extract._license import warn_unless_expression
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
-# (media-kind categories) and anything unrecognized have no
+# (media-kind categories) and anything unrecognised have no
 # SoftwarePurpose equivalent -- SPDX 3's own spec is explicit that
 # SoftwarePurpose is "intrinsic to how the Element is being used rather
 # than the content of the Element", a genuinely different axis from a
@@ -143,7 +143,7 @@ def _emit_file_header_metadata(
     # discovered file (see ProjectFile.physical_path's docstring), whose
     # physical_path is an absolute path into a fresh tempfile.mkdtemp()
     # directory that differs every run -- baking that into a "Source:"
-    # provenance string would break SBOM determinism (CLAUDE.md's "SBOM
+    # provenance string would break SBOM determinism (AGENTS.md's "SBOM
     # output" invariant) even though the file's own content is
     # unchanged. distribution_path is always deterministic, so use it
     # instead whenever physical_path isn't project-relative.

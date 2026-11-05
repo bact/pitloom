@@ -237,14 +237,14 @@ def _truncate_metadata_for_budget(
     capped_key_count: int,
 ) -> tuple[dict[str, Any], list[str]] | None:
     """Drop the largest metadata entries first until the artifact-metadata
-    envelope's serialized size fits ``max_metadata_bytes``. A dropped key
+    envelope's serialised size fits ``max_metadata_bytes``. A dropped key
     takes its ``valueTypes`` entry with it.
 
     Returns ``(kept_metadata, dropped_keys)`` -- ``dropped_keys`` is empty
     when nothing needed dropping. Returns ``None`` if even an empty
     ``metadata: {}`` (plus the marker fields) wouldn't fit the budget.
 
-    Re-checks the real serialized size of the candidate envelope at every
+    Re-checks the real serialised size of the candidate envelope at every
     step rather than approximating it -- the realistic key count here (a
     single AI model's metadata table) is small enough (dozens of keys, not
     thousands) that this stays cheap even though it isn't asymptotically
@@ -309,7 +309,7 @@ def build_source_metadata_annotation(
     marks the result ``truncated`` with that ``truncatedKeyCount`` and
     ``maxEntries``, without naming the keys.
 
-    ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialized
+    ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialised
     Annotation's size: when exceeded, the largest metadata entries are
     dropped first and the result is marked with
     ``truncated``/``truncatedKeys``/``truncatedKeyCount``/

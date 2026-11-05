@@ -153,7 +153,7 @@ def test_filename_matches_version_unparseable_filename_falls_back_to_substring()
     None
 ):
     """A filename that's neither a valid wheel nor sdist filename (an
-    unrecognized extension) still falls back to the substring/suffix
+    unrecognised extension) still falls back to the substring/suffix
     heuristic rather than raising."""
     assert _filename_matches_version("pkg-1.0.0-linux.tar.bz2", "1.0.0")
     assert not _filename_matches_version("pkg-2.0.0-linux.tar.bz2", "1.0.0")
@@ -184,7 +184,7 @@ def test_filename_matches_version_supports_legacy_sdist_extensions() -> None:
     assert _filename_matches_version("foo-1.0.tgz", "1.0")
     assert _filename_matches_version("foo-1.0.tar.xz", "1.0")
     assert not _filename_matches_version("foo-2.0.tar.bz2", "1.0")
-    # PEP 440 normalization across trailing zeros
+    # PEP 440 normalisation across trailing zeros
     assert _filename_matches_version("foo-1.0.0.tar.bz2", "1.0")
     assert _filename_matches_version("foo-1.0.tar.bz2", "1.0.0")
     # Pre-release rejection
@@ -193,7 +193,7 @@ def test_filename_matches_version_supports_legacy_sdist_extensions() -> None:
 
 
 def test_filename_matches_version_supports_local_version_normalization() -> None:
-    """PEP 427/625 normalizes '+' in local versions to '_' in filenames."""
+    """PEP 427/625 normalises '+' in local versions to '_' in filenames."""
     assert _filename_matches_version(
         "torch-2.0.0_cpu-cp310-cp310-linux_x86_64.whl", "2.0.0+cpu"
     )
@@ -256,7 +256,7 @@ def test_filename_matches_version_case_insensitive_fallback() -> None:
 
 def test_parse_artifact_version_catches_invalid_filenames() -> None:
     """Invalid wheel or sdist filenames containing the target version string
-    are caught and swallowed during PEP 427/625 local version normalization."""
+    are caught and swallowed during PEP 427/625 local version normalisation."""
     # A filename containing "-1.0_cpu-" but which is not a valid wheel (too few tags)
     assert _parse_artifact_version("pkg-1.0_cpu-invalid.whl", "1.0+cpu") is None
     # To trigger the sdist exception, we pass a version string that is

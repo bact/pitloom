@@ -287,14 +287,14 @@ def test_apply_originator_creates_others_external_ref() -> None:
 
 
 def test_resolve_remote_authors_file_offline_and_errors() -> None:
-    """Test offline behavior and network-failure fallback for remote authors
+    """Test offline behaviour and network-failure fallback for remote authors
     files.
 
     ``ftp://`` as the *repo_url* scheme does not exercise the function's
     "disallowed scheme" ``ValueError`` branch: ``_resolve_remote_authors_file``
     only inspects ``netloc`` (which ``urlparse`` populates the same way
     regardless of scheme) and always builds an ``https://`` raw-content URL
-    for recognized hosts, so a non-http(s) *repo_url* still reaches the real
+    for recognised hosts, so a non-http(s) *repo_url* still reaches the real
     fetch path. This test therefore mocks the fetch instead of relying on a
     real network call.
     """
@@ -322,7 +322,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert ctype is None
     assert content is None
 
-    # Test lru_cache behavior (call twice, check it returns identical)
+    # Test lru_cache behaviour (call twice, check it returns identical)
     # without hitting the network again on the second call.
     locator2, ctype2, content2 = deps_originator._resolve_remote_authors_file(
         "https://github.com/foo/pkg-offline-fallback",

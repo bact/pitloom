@@ -88,7 +88,7 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() 
 
 
 def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -> None:
-    """CLI and hook paths agree on G2 when the declared license and an
+    """CLI and hook paths agree on G2 when the declared licence and an
     independently-detected LICENSE file disagree.
 
     Both paths resolve the same ``license_concluded`` value:

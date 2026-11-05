@@ -55,8 +55,8 @@ def test_hook_with_sampleproject_fixture() -> None:
     data = json.loads(staged.read_text(encoding="utf-8"))
     graph = data["@graph"]
     pkg_names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
-    # metadata_from_hatchling() uses core.raw_name (the un-normalized name),
-    # not Hatchling's PEP-503-normalized core.name, so the package name here
+    # metadata_from_hatchling() uses core.raw_name (the un-normalised name),
+    # not Hatchling's PEP-503-normalised core.name, so the package name here
     # is "sampleproject_hatchling" -- exactly the spelling written in
     # pyproject.toml's [project] name -- matching what the CLI (read_pyproject)
     # would report for the same project.
@@ -303,7 +303,7 @@ def test_hook_uses_hatchling_resolved_dynamic_version() -> None:
     graph = data["@graph"]
     packages = [e for e in graph if e.get("type") == "software_Package"]
     # metadata_from_hatchling() uses core.raw_name, so the package name is
-    # "sampleproject_hatchling_dynver" -- the un-normalized spelling written
+    # "sampleproject_hatchling_dynver" -- the un-normalised spelling written
     # in pyproject.toml's [project] name -- while the PURL is still
     # PEP-503-canonicalized (build_pypi_purl -> canonicalize_name()).
     (main_pkg,) = [

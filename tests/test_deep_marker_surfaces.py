@@ -9,9 +9,9 @@
 an sdist's ``PKG-INFO``, a wheel's ``Requires-Dist``, a ``requirements.txt``
 and a ``pylock.toml`` marker.
 
-``packaging`` raised ``RecursionError`` parsing it, failing the whole run.
-Each route now finishes, the requirement refused with the marker-nesting
-cap's ``WARNING:``, the other requirements kept.
+Parsing it, ``packaging`` raises ``RecursionError``. Each route finishes,
+the requirement refused with the marker-nesting cap's ``WARNING:``, the
+other requirements kept.
 
 See also: tests/core/test_pep508.py (the cap, the ``RecursionError``).
 """

@@ -75,8 +75,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``enrich`` subcommand."""
-    # Note: Using 4-space indent
-    # 4b. Enrichment only: loom enrich <SOURCE>
+    # Enrichment only: loom enrich <SOURCE>
     enrich_parser = subparsers.add_parser(
         "enrich",
         parents=[parent_parser],

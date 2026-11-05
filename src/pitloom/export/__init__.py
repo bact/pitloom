@@ -3,4 +3,4 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Serializers for writing SBOM data to specific output formats."""
+"""Serialisers for writing SBOM data to specific output formats."""

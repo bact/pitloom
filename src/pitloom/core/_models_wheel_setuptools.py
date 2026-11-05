@@ -217,7 +217,7 @@ def _distribution_path(package: str, filename: str) -> str:
     """Build a wheel-relative, forward-slash-only distribution path for
     *filename* under *package* -- without a leading slash when *package*
     is the top-level (empty) package (e.g. top-level ``py_modules``/
-    ``package_data``), and with any backslash normalized regardless of
+    ``package_data``), and with any backslash normalised regardless of
     source (a malformed ``packages``/``package_dir`` entry, or a
     Windows-style *filename* from setuptools' own file enumeration)."""
     prefix = package.replace(".", "/")

@@ -12,7 +12,7 @@ describing one record holds all its pairs, space-separated; a value is
 printed as is (see :func:`kv_line`), so a value that may hold a space goes
 last.
 
-See also: ``CLAUDE.md`` "CLI output"; :mod:`tests.kv_helpers` (the test-side
+See also: ``AGENTS.md`` "CLI output"; :mod:`tests.kv_helpers` (the test-side
 parser).
 """
 

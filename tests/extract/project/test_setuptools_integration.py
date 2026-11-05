@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Integration and license fallback tests for read_setuptools().
+"""Integration and licence fallback tests for read_setuptools().
 
 See also:
 - :mod:`tests.extract.project.test_setuptools_cfg` for setup.cfg metadata tests.
@@ -139,7 +139,7 @@ def test_read_setuptools_license_conflict_py_only() -> None:
 
 
 def test_read_setuptools_license_resolution_runs_once_when_both_files_present() -> None:
-    """When both setup.cfg and setup.py exist, license resolution runs once."""
+    """When both setup.cfg and setup.py exist, licence resolution runs once."""
     cfg = "[metadata]\nname = cfg-pkg\nversion = 1.0\nlicense = MIT\n"
     py = "from setuptools import setup\nsetup(name='py-pkg', version='2.0')\n"
     with tempfile.TemporaryDirectory() as d:

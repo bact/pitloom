@@ -201,7 +201,7 @@ def configure_logging(*, debug: bool | None = None) -> None:
 
     ``log.info(...)`` and ``log.warning(...)`` records become ``INFO: ...``
     and ``WARNING: ...``, the grep-able ``LEVEL: <description>`` convention of
-    CLAUDE.md's "CLI output" section (without a handler, ``INFO`` is dropped
+    AGENTS.md's "CLI output" section (without a handler, ``INFO`` is dropped
     and ``WARNING`` has no prefix). ``DEBUG`` is suppressed unless *debug* is
     ``True``, or *debug* is ``None`` and ``PITLOOM_DEBUG`` is one of
     ``1``/``true``/``yes``/``on`` (case-insensitive); the CLI passes no

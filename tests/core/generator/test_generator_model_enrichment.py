@@ -46,7 +46,7 @@ from ..conftest import (
 def test_assembler_ai_model_with_license(
     model_name: str, license_id: str, hf_id: str
 ) -> None:
-    """AI model with a license (its card's) must produce one
+    """AI model with a licence (its card's) must produce one
     hasDeclaredLicense relationship, and simpleLicensing in profileConformance.
 
     Model/license pairs are taken from real Hugging Face Hub data recorded in
@@ -107,7 +107,7 @@ def test_build_model_with_license(
 
 
 def test_build_model_without_license() -> None:
-    """build_model() for a model with no license produces no license
+    """build_model() for a model with no licence produces no licence
     relationships and no simpleLicensing in profileConformance.
 
     microsoft/resnet-18 is a real Hugging Face model that does not declare a

@@ -94,7 +94,7 @@ def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | N
 
 @cli_error_handler("wheel SBOM validation failed")
 def _run_validate_wheel_command(args: argparse.Namespace) -> int:
-    """Run `pitloom validate-wheel`.
+    """Run `loom validate-wheel`.
 
     Content check only: validates a wheel's embedded SBOM against its
     format's schema/SHACL rules (currently SPDX3 JSON-LD only, via

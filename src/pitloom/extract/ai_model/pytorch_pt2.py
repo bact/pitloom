@@ -177,7 +177,7 @@ def _read_pt2_extra_files(
     - ``model_version`` or ``version`` -> :attr:`~AiModelMetadata.version`
     - ``license``       -> :attr:`~AiModelMetadata.license`
     - ``author``        -> ``properties["author"]``
-    - ``tags``          -> ``properties["tags"]`` (JSON array serialized as
+    - ``tags``          -> ``properties["tags"]`` (JSON array serialised as
       comma-separated string, or raw value if not JSON)
 
     Args:

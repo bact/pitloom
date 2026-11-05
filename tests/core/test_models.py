@@ -77,7 +77,7 @@ def test_models_edge_cases() -> None:
 
 
 def test_normalize_dep_pep503() -> None:
-    """PEP 503 name normalization leaves version/marker portion untouched."""
+    """PEP 503 name normalisation leaves version/marker portion untouched."""
     assert _normalize_dep("Foo_Bar>=1.0") == "foo-bar>=1.0"
     assert _normalize_dep("PyProject.Metadata") == "pyproject-metadata"
     assert _normalize_dep("hatchling>=1.29.0") == "hatchling>=1.29.0"
@@ -96,7 +96,7 @@ def test_compute_doc_uuid_deterministic() -> None:
 
 
 def test_compute_doc_uuid_dep_normalization() -> None:
-    """Dependency name normalization is applied before hashing."""
+    """Dependency name normalisation is applied before hashing."""
     uuid_canonical = compute_doc_uuid("mypkg", "1.0", ["my-lib>=1.0"])
     uuid_underscore = compute_doc_uuid("mypkg", "1.0", ["my_lib>=1.0"])
     uuid_dot = compute_doc_uuid("mypkg", "1.0", ["my.lib>=1.0"])
@@ -258,7 +258,7 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
     so their relative sort order flips depending on the separator: ``/``
     (0x2F) sorts before ``0`` (0x30), so ``pkg/zoo.py`` sorts first in
     POSIX form -- but ``\\`` (0x5C) sorts *after* ``0``, so
-    ``pkg\\zoo.py`` would sort *second* in un-normalized Windows form.
+    ``pkg\\zoo.py`` would sort *second* in un-normalised Windows form.
     With only one file (or a pair whose order doesn't happen to flip),
     the Merkle root would trivially match either way and this test
     wouldn't actually prove anything.

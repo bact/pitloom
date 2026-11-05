@@ -324,7 +324,7 @@ def test_license_concluded_none_when_no_license_file() -> None:
 def test_license_concluded_none_when_nothing_declared() -> None:
     """No project.license field at all -- G2's independent-scan gate never
     fires (license_name itself already comes from pure detection in this
-    case, existing pre-G2 behavior, unaffected)."""
+    case, existing pre-G2 behaviour, unaffected)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         pyproject_path = _write_pyproject(tmppath, license_line="")

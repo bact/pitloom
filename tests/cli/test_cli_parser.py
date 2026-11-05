@@ -296,7 +296,7 @@ def test_allow_build_flags_absent_on_non_project_commands(
     """A command that never calls ``get_wheel_files()`` on a project
     directory must not advertise ``--allow-build``/``--no-build-isolation``
     at all: an accepted-but-silently-inert flag is the failure class
-    CLAUDE.md's "Usage surfaces" section warns about."""
+    AGENTS.md's "Usage surfaces" section warns about."""
     parser = _build_parser()
 
     with pytest.raises(SystemExit):

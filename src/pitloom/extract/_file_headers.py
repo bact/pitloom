@@ -308,7 +308,7 @@ def resolve_content_type_override(
 
     Patterns are plain shell-glob syntax matched via
     :func:`fnmatch.fnmatchcase` -- always case-sensitive, unlike plain
-    :func:`fnmatch.fnmatch` (which case-normalizes via
+    :func:`fnmatch.fnmatch` (which case-normalises via
     ``os.path.normcase``, a no-op on POSIX but lowercasing on Windows) --
     so the same pattern behaves identically on every platform regardless
     of the host filesystem's own case-sensitivity. Matched against

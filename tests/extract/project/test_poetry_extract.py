@@ -290,7 +290,7 @@ def test_extract_provenance_wildcard_python_records_requires_python() -> None:
 
 
 def test_extract_provenance_capitalized_python_key_records_requires_python() -> None:
-    """A capitalized `Python` key (unusual, but _parse_poetry_deps()
+    """A capitalised `Python` key (unusual, but _parse_poetry_deps()
     matches it case-insensitively for the *value*) must get the same
     provenance treatment -- a case-sensitive presence check would
     silently miss it (the misattribution the presence-based check prevents)."""

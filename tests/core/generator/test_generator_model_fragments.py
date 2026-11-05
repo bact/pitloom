@@ -10,7 +10,7 @@ build_model() base-model lineage.
 See also: tests/core/generator/test_generator_model.py for
 registry-based id reuse in the assembler/build_deployed().
 tests/core/generator/test_generator_model_enrichment.py for
-license handling, external identifiers, and README enrichment
+licence handling, external identifiers, and README enrichment
 variants.
 """
 

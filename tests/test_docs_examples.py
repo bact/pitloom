@@ -5,7 +5,7 @@
 
 """Drift-guard: the examples in the user manual still fit the current code.
 
-Docs and skills have no test suite of their own (see CLAUDE.md's "Usage
+Docs and skills have no test suite of their own (see AGENTS.md's "Usage
 surfaces"), so a renamed flag, a moved import or a retired config key would
 leave a copy-paste example broken with every other test green. Each example is
 checked, not run:

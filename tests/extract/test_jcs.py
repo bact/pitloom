@@ -13,8 +13,8 @@ RFC 8785 requires:
 
 References:
   - RFC 8785: https://www.rfc-editor.org/rfc/rfc8785
-  - SPDX 3 canonical serialization:
-    https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization
+  - SPDX 3 canonical serialisation:
+    https://spdx.github.io/spdx-spec/v3.0.1/serialisations/#canonical-serialisation
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def test_compact_output_graph_array_order_preserved() -> None:
         graph = data["@graph"]
         types = [e["type"] for e in graph]
 
-        # Priority order must be intact after rfc8785 serialization.
+        # Priority order must be intact after rfc8785 serialisation.
         assert types[0] == "CreationInfo", (
             "rfc8785 must not reorder @graph: CreationInfo must be first"
         )

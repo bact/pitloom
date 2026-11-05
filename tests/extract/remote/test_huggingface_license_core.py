@@ -71,7 +71,7 @@ def test_read_huggingface_license_from_card() -> None:
 
 
 def test_license_from_file_when_card_has_none() -> None:
-    # When model card has no license field, license files are checked.
+    # When model card has no license field, licence files are checked.
     card_data = _make_card_data(license=None, pipeline_tag="text-generation")
     with _patch_hf_calls(card_data=card_data):
         with patch(
@@ -213,7 +213,7 @@ def test_list_license_files_in_repo_failure_logs_and_returns_empty(
 def test_detect_license_from_hf_files_download_failure_logs_and_continues(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # A license candidate is listed, but downloading/reading it fails --
+    # A licence candidate is listed, but downloading/reading it fails --
     # the loop must catch, log, and continue (returning (None, None) since
     # no other candidates exist) rather than raising.
     with patch(
@@ -316,7 +316,7 @@ def test_aya_vision_no_license_when_gated() -> None:
     # model_info reports license="cc-by-nc-4.0" but the extractor reads
     # license from card YAML -> absent card -> license is None.
     # This test documents a known gap: license is only captured when the
-    # model card YAML is accessible or a license file can be downloaded.
+    # model card YAML is accessible or a licence file can be downloaded.
     with _patch_aya_vision():
         meta = read_huggingface("CohereLabs/aya-vision-8b")
     assert meta.license is None

@@ -167,7 +167,7 @@ def test_hook_declared_bad_registry_raises_one_error_no_sbom_files(
 def test_id_generate_creates_missing_declared_registry_and_logs_hint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """`pitloom id generate` treats a missing declared file as "create it",
+    """`loom id generate` treats a missing declared file as "create it",
     not a failure -- and, since it did not come from the project's own
     config, logs the config hint."""
     project = demo_project(tmp_path)

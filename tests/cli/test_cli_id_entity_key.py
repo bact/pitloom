@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate -e NAME:TYPE` stores a dataset, a model or a file
+"""`loom id generate -e NAME:TYPE` stores a dataset, a model or a file
 below the root by its path key and digest, anything else by name.
 
 See also: tests/core/test_loom_dataset_path_keys.py (the loom lookup of it).

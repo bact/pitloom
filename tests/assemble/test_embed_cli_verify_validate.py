@@ -272,7 +272,7 @@ def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     wheel_path = _make_dummy_wheel(tmp_path, "validateflag", "1.0.0")
     sbom_file = tmp_path / "bad.spdx3.json"
     # @context present (so it's detected as spdx3-jsonld and actually
-    # reaches spdx3_validate.validate()) but unrecognized -> UnknownVersionError.
+    # reaches spdx3_validate.validate()) but unrecognised -> UnknownVersionError.
     sbom_file.write_text('{"@context": "bogus", "@graph": []}', encoding="utf-8")
 
     monkeypatch.setattr(
@@ -303,7 +303,7 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--validate against an embedded SBOM with no registered validator
-    for its (unrecognized) format WARNs and skips -- that's not the same
+    for its (unrecognised) format WARNs and skips -- that's not the same
     as failing, so the command still exits 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "skipflag", "1.0.0")
     sbom_file = tmp_path / "notspdx3.json"

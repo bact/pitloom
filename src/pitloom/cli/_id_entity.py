@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The key and SHA-256 ``pitloom id generate -e NAME:TYPE`` stores.
+"""The key and SHA-256 ``loom id generate -e NAME:TYPE`` stores.
 
 See also: :mod:`pitloom.cli.id` (the command), :mod:`pitloom._loom_dataset`
 (the loom lookup of a dataset pin).

@@ -68,7 +68,7 @@ def discover(
 
     Uses :class:`~pdm.backend.wheel.WheelBuilder` (not the plain
     ``Builder`` base) so a ``src/``-layout project's ``package-dir``
-    config is normalized away the same way a real PDM wheel would --
+    config is normalised away the same way a real PDM wheel would --
     ``WheelBuilder._collect_files()`` overrides the base class
     specifically to strip that prefix, which the base class alone does
     not do (see the ``physical_path``/``distribution_path`` split every
@@ -131,20 +131,16 @@ def discover(
         with _chdir(project_dir):
             builder = WheelBuilder(project_dir)
             context = Context(
-                # A path guaranteed never to exist on disk (a random
-                # UUID under the system temp root, never created) --
-                # guarantees _collect_build_files()'s `if not
-                # context.build_dir.exists()` guard short-circuits, so
-                # it can never pick up stale build output (see
-                # docstring). Deliberately not tempfile.TemporaryDirectory():
-                # that actually creates the directory on disk (a real
-                # mkdtemp()/cleanup round trip) purely to prove
-                # non-existence, which a plain unused path already
-                # guarantees without touching the filesystem -- this
-                # call runs under the discovery dispatcher's exclusive
-                # write lock (see _chdir's docstring), so avoiding the
-                # extra I/O here also shortens how long every other
-                # discoverer is blocked.
+                # A path that never exists (a random UUID under the
+                # system temp root, never created), so
+                # _collect_build_files()'s `if not
+                # context.build_dir.exists()` guard short-circuits and
+                # never picks up stale build output (see docstring). Not
+                # tempfile.TemporaryDirectory(): that creates a directory
+                # only to prove non-existence, and this call holds the
+                # discovery dispatcher's exclusive write lock (see
+                # _chdir's docstring), so extra I/O blocks every other
+                # discoverer for longer.
                 build_dir=Path(tempfile.gettempdir())
                 / f"pitloom-unused-{uuid.uuid4().hex}",
                 dist_dir=project_dir,

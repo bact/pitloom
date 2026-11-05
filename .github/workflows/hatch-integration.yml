@@ -120,8 +120,8 @@ jobs:
               for e in graph
               if e.get("type") == "software_Package"
           ]
-          # metadata_from_hatchling() uses core.raw_name (the un-normalized
-          # name), not Hatchling's PEP-503-normalized core.name, so the
+          # metadata_from_hatchling() uses core.raw_name (the un-normalised
+          # name), not Hatchling's PEP-503-normalised core.name, so the
           # package name in the SBOM is "sampleproject_hatchling" -- exactly
           # the spelling written in pyproject.toml's [project] name --
           # matching what the CLI (read_pyproject) would report.

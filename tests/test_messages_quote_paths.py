@@ -5,7 +5,7 @@
 
 """Drift guard: a path or file name in a log record or a stderr line goes
 through `quote_source` (a path), `loggable` or `one_line` (other untrusted
-text), as CLAUDE.md's "CLI output" section says, so Windows backslashes are not
+text), as AGENTS.md's "CLI output" section says, so Windows backslashes are not
 doubled and a newline cannot start another line.
 
 The formatter of `configure_logging` escapes control characters whatever a call

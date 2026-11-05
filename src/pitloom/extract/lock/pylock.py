@@ -74,7 +74,7 @@ _GROUP_MARKER_VARIABLES = frozenset({"extra", "extras", "dependency_groups"})
 #: 2.x could change the schema incompatibly) but may still read a newer
 #: *minor* version within the same major (additive, backward-compatible
 #: fields only, per PEP 751) -- with a warning that some of its content
-#: may go unrecognized.
+#: may go unrecognised.
 _SUPPORTED_LOCK_FILE_VERSION = (1, 0)
 
 
@@ -298,7 +298,7 @@ def _evaluate_group_node(
 
     PEP 508 gives ``and`` higher precedence than ``or``, but
     ``Marker()._markers`` doesn't nest same-precedence-level terms to
-    reflect that -- an unparenthesized ``A or B and C`` is one flat list
+    reflect that -- an unparenthesised ``A or B and C`` is one flat list
     ``[A, "or", B, "and", C]``, not ``[A, "or", [B, "and", C]]``. A plain
     left-to-right fold over that list would compute ``(A or B) and C``
     instead of the correct ``A or (B and C)``. Grouping every term at

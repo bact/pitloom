@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for read_pyproject()'s [tool.poetry] fallback/override behaviour,
-fixture-based integration coverage, and G2 license fallback/conflict on the
+fixture-based integration coverage, and G2 licence fallback/conflict on the
 poetry-only path.
 
 See also: test_poetry_parsing.py for low-level [tool.poetry] parsing helpers.
@@ -286,7 +286,7 @@ def test_fixture_read_pyproject_falls_back_to_poetry() -> None:
 
 
 # ---------------------------------------------------------------------------
-# G2: license fallback detection / conflict (poetry-only path)
+# G2: licence fallback detection / conflict (poetry-only path)
 #
 # The poetry-only extraction path applies the licence files through
 # apply_in_package_license() in _license.py, the one rule every project
