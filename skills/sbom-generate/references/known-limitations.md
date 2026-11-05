@@ -62,10 +62,11 @@ no licence relationship -- Pitloom never asserts a licence it was not told
   next to an address (after a closed `<address>` or a bare address, before
   a bare address, between two `<address>` entries), with a `WARNING:`:
   `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org> and Bob <b@x.org>` are
-  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
-  is split on `,` and `;`, never `and` (`Ann and Bob <t@x.org>` is one
-  author), with a `WARNING:`; a name and addresses are never paired by position
-  (`Jane, Bob` plus two addresses is three authors). A bare wheel's
+  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`,
+  `author_email`) is split on `,` and `;`, never `and` (`Ann and Bob
+  <t@x.org>` is one author), with a `WARNING:`; a name and addresses are
+  never paired by position (`Jane, Bob` plus two addresses is three
+  authors). A bare wheel's
   `METADATA` loses the declared order and poetry-core writes only the
   first author; `embed-wheel --project-dir` and an sdist with
   `pyproject.toml` keep it.
@@ -174,8 +175,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
 - A CRFsuite or fastText model with no `labels` but a `num_labels` (or an
   `outputs` shape) had a label over 4 KiB: then none is recorded, and a
   CRFsuite model gets no generated description. `WARNING: FORMAT=<fmt>
-  FILE=<path>: larger than the 4096-byte label cap; no label recorded`. A CRFsuite
-  description shows at most 20 labels of 64 characters each, by design.
+  FILE=<path>: larger than the 4096-byte label cap; no label recorded`. A
+  CRFsuite description shows at most 20 labels of 64 characters each, by design.
 - `\u202e`, `\ufeff` and the like in a name, description, type,
   hyperparameter, `ai_informationAboutApplication`, a reference, a
   licence, or a Hugging Face base model or dataset are escaped invisible,
@@ -291,8 +292,8 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.7.1,<0.8" licenseid update --source packaged`). It uses the copy in
-the `licenseid` wheel: no network. On a missing database it creates it
+"licenseid>=0.7.1,<0.8" licenseid update --source packaged`). It uses the copy
+in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`
 (`STATUS=unchanged`) and changes nothing, so

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,21 +11,23 @@ SPDX-License-Identifier: CC0-1.0
 See also: [examples.md](examples.md); the Pitloom site page "SBOM from a Git
 URL" (<https://bact.github.io/pitloom/git-urls/>).
 
-`loom project <url>` / `loom generate <url> -o FILE` fetch the repository (or the
-folder a pasted page URL names: GitLab `.../-/tree/main/svc`, GitHub
+`loom project <url>` / `loom generate <url> -o FILE` fetch the repository
+(or the folder a pasted page URL names: GitLab `.../-/tree/main/svc`, GitHub
 `.../tree/v1/src`, Codeberg/Gitea `.../src/branch/main/svc`, Bitbucket
-`.../src/main/svc`, SourceHut `.../tree/main/item/svc`, Gitiles `.../+/refs/heads/main/svc`,
-cgit `.../tree/svc?h=main`, Azure DevOps `...?path=/svc&version=GBmain`) shallowly
-into a temporary directory and read it as a project. It needs the `git` program.
-Recommend the repository's **clone URL** (the host's Clone button) unless the user
-wants one branch, tag or folder: a clone URL names the default branch and is never
-misread, a page URL is read by the host's conventions. Rules to state to the user:
+`.../src/main/svc`, SourceHut `.../tree/main/item/svc`, Gitiles
+`.../+/refs/heads/main/svc`, cgit `.../tree/svc?h=main`, Azure DevOps
+`...?path=/svc&version=GBmain`) shallowly into a temporary directory and read
+it as a project. It needs the `git` program. Recommend the repository's
+**clone URL** (the host's Clone button) unless the user wants one branch, tag
+or folder: a clone URL names the default branch and is never misread, a page
+URL is read by the host's conventions. Rules to state to the user:
 
 - Only `http`/`https` URLs are fetched. `ssh://`, `git://`, `file://` and
   `git@host:path` get `WARNING: Git source: Cannot fetch <url>: only http and
   https URLs are fetched ...`, then `ERROR: SBOM generation failed: ...`
   (exit 1). A Hugging Face model address is a model, not a repository: use
-  `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a repository.
+  `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a
+  repository.
 - The repository is untrusted: its own `[tool.pitloom]` is ignored (an `INFO:`
   says so; `--config FILE` applies) and its build backend never runs:
   `--allow-build` gets `WARNING: Build: <url>: --allow-build has no effect for

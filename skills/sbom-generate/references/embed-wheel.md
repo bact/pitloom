@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -71,5 +71,6 @@ loom embed-wheel dist/*.whl --project-dir . --verify --validate
 
 A pass adds no line; a failure prints `ERROR:` lines and exits 1, after the
 wheel was rewritten; with `--sbom FILE --validate`, an SPDX 3 file that
-fails validation is refused before any wheel is written (exit 1). For checking an already-embedded wheel later, use the
-`sbom-validate` skill ("Validate a wheel's embedded SBOM").
+fails validation is refused before any wheel is written (exit 1). To check an
+already-embedded wheel later, use the `sbom-validate` skill ("Validate a
+wheel's embedded SBOM").
