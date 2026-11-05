@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for get_wheel_files()'s discovery-lock concurrency behavior
+"""Tests for get_wheel_files()'s discovery-lock concurrency behaviour
 (``_DiscoveryLock``'s reader/writer split and writer-priority guarantee).
 
 See also: tests/core/models_wheel/test_models_wheel_dispatch.py for

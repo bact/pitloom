@@ -307,11 +307,11 @@ def _discover_with_registered_backend(
         return files, _noop_cleanup
     failed = take_discovery_failure()
     # The registered backend's own static discoverer gave up. This is
-    # the "robustness fallback for Track A" the roadmap names for the
-    # build-and-read mechanism -- ANY registered backend (setuptools,
-    # poetry, pdm, flit) benefits automatically here, with zero
-    # backend-specific wiring, because build_and_read_wheel() doesn't
-    # care what backend it is. Must never be reached when the static
+    # the "robustness fallback for Track A" of the build-and-read
+    # mechanism (non-hatchling-file-discovery.md): ANY registered backend
+    # (setuptools, poetry, pdm, flit) gets it with no backend-specific
+    # wiring, because build_and_read_wheel() does not care which backend
+    # it is. Must never be reached when the static
     # discoverer already succeeded above (that returns immediately) -- a
     # real build must never run when the fast, safe static rescan
     # already worked.

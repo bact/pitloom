@@ -7,7 +7,7 @@
 / ``generate_wheel_sbom`` / ``generate_env_sbom`` harvesting newly-minted ids
 back into the resolved registry after generation, so a multi-step
 project -> wheel -> env pipeline keeps stable ids without a manual
-``pitloom id generate``/``import`` step in between.
+``loom id generate``/``import`` step in between.
 
 See also: :mod:`tests.id_registry.test_registry` for ``IdRegistry.harvest()`` itself.
 """
@@ -160,7 +160,7 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
 
 def test_generate_project_sbom_auto_updates_registry(tmp_path: Path) -> None:
     """A fresh, empty registry gets populated after generation -- no
-    separate ``pitloom id generate``/``import`` step needed."""
+    separate ``loom id generate``/``import`` step needed."""
     _write_smoke_project(tmp_path)
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()

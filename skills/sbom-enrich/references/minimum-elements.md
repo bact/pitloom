@@ -42,17 +42,18 @@ alias that works with a `WARNING:`), `cisa2026`, `g7ai`, `bsi`. Rule ids are
 `BOM-G7AI2026-<cluster>-<n>`, cluster `MD`, `SLP`, `MDL`, `DP`, `INF`, `SP` or
 `KPI`, a recommendation under a requirement written `MDL-006.1`. A rule the
 checker's rule file marks `catalogue-only` is listed but never checked, and is
-reported `out-of-scope`. The checker's `present` means the property it looks for exists, not that its
-value is right or that the standard's intent is met (NTIA's and CISA's author
-rules accept Pitloom's own software-agent creator, for example). The component rules of every
-standard judge each package reachable from the SBOM root through composition
-and dependency relationships, plus datasets and models linked by
-`trainedOn`/`testedOn`; a dataset linked in no way is not judged.
+reported `out-of-scope`. The checker's `present` means the property it looks for
+exists, not that its value is right or that the standard's intent is met (NTIA's
+and CISA's author rules accept Pitloom's own software-agent creator, for
+example). The component rules of every standard judge each package reachable
+from the SBOM root through composition and dependency relationships, plus
+datasets and models linked by `trainedOn`/`testedOn`; a dataset linked in no way
+is not judged.
 
 Status legend: **covered** -- Pitloom emits this deterministically.
 **conditional** -- emitted only when a source has it (a dependency resolving
-against installed metadata or PyPI, a format's field); verify per run. **gap** --
-this workflow's actual job. **not automatable** -- no file or answer this
+against installed metadata or PyPI, a format's field); verify per run. **gap**
+-- this workflow's actual job. **not automatable** -- no file or answer this
 workflow can gather will satisfy it; say so plainly rather than implying it can
 be filled.
 
@@ -139,7 +140,7 @@ value and hash algorithm are two) and 6 practices.
 | SBOM Generation Context | `software_Sbom.software_sbomType` (`source`/`build`/`analyzed`/`deployed`/`runtime`; CISA 2026's "before build"/"build"/"after build" map onto it) | covered |
 | SBOM Timestamp | `CreationInfo.created` | covered |
 | SBOM Tool Name | `Tool.name` (e.g. `"Pitloom"`) | covered |
-| SBOM Tool Version | `Tool.summary` text (`"Pitloom 0.21.0"`) and the `Tool`'s `packageUrl` `externalIdentifier` (`pkg:pypi/pitloom@0.21.0`): **SPDX 3.0.1 has no `Tool.version` property** (added in 3.1-dev; `creation_info.py`) | covered through these workarounds only -- a spec-version limitation, not something a fragment can fix; `META-008` is `out-of-scope` |
+| SBOM Tool Version | `Tool.summary` text (`"Pitloom 0.23.0"`) and the `Tool`'s `packageUrl` `externalIdentifier` (`pkg:pypi/pitloom@0.23.0`): **SPDX 3.0.1 has no `Tool.version` property** (added in 3.1-dev; `creation_info.py`) | covered through these workarounds only -- a spec-version limitation, not something a fragment can fix; `META-008` is `out-of-scope` |
 | SBOM Version | none -- no field tracks a version for the SBOM document itself, distinct from the tool's version | **gap** this workflow cannot fill safely (it needs a real versioning scheme for the SBOM outputs) -- report it as unaddressed, never fabricate a `"1.0"` |
 | SBOM Dependency Relationship | see Component Dependency Relationship below -- same field, same coverage | covered for a project; **gap** for a single-model SBOM |
 
@@ -173,26 +174,27 @@ JSON-LD -- covered).
 default software agent passes), META-003/-004 format name and version
 (`specVersion`), META-005 generation context, META-006 timestamp, META-007 tool
 name (`createdUsing`), COMP-001 producer (`originatedBy` on every package),
-COMP-002 dependency relationship (document-level), COMP-003/-004 hash
-(any `Hash` with a value, so the main package's Merkle root passes), COMP-005
-identifiers, COMP-006 licence (`hasDeclaredLicense` only: a dependency with
-only a PyPI-concluded licence is missing), COMP-007 name, COMP-008 version.
+COMP-002 dependency relationship (document-level), COMP-003/-004 hash (any
+`Hash` with a value, so the main package's Merkle root passes), COMP-005
+identifiers, COMP-006 licence (`hasDeclaredLicense` only: a dependency with only
+a PyPI-concluded licence is missing), COMP-007 name, COMP-008 version.
 `out-of-scope`: META-002 signature, META-008 tool version, META-009 SBOM
-version, PP-001 to PP-006. Usual misses (all in `cisa2026-expected.tsv`): COMP-001 for
-every dataset and for a model whose source names no producer, COMP-002 for a
-single-model SBOM, COMP-006 for dependencies (their licence is concluded) and
-for a model whose source states no licence, COMP-008 for a model file that
-states no version, and COMP-003/-004 for a Hugging Face model or any dataset
-outside `loom.run` (no hash).
+version, PP-001 to PP-006. Usual misses (all in `cisa2026-expected.tsv`):
+COMP-001 for every dataset and for a model whose source names no producer,
+COMP-002 for a single-model SBOM, COMP-006 for dependencies (their licence is
+concluded) and for a model whose source states no licence, COMP-008 for a model
+file that states no version, and COMP-003/-004 for a Hugging Face model or any
+dataset outside `loom.run` (no hash).
 
 ## G7 SBOM for AI 2026 (additive -- apply only when an `ai_AIPackage` is present)
 
-Checker `g7ai`: 81 rules (`BOM-G7AI2026-<id>`), 25 of them `out-of-scope`: Metadata
-10 (3), System Level Properties 12 (3), Models 28 (7), Dataset Properties 23 (5),
-Infrastructure 2 (2), Security Properties 4 (3), Key Performance Indicators 2 (2),
-the `out-of-scope` count in brackets. The Metadata cluster (`MD-001` to `-010`)
-reads what CISA 2026's SBOM Metadata does; its `out-of-scope` rules are the SBOM
-version, author signature and tool version. How much a default run fills, per cluster and model source: Pitloom's "G7 SBOM
+Checker `g7ai`: 81 rules (`BOM-G7AI2026-<id>`), 25 of them `out-of-scope`:
+Metadata 10 (3), System Level Properties 12 (3), Models 28 (7), Dataset
+Properties 23 (5), Infrastructure 2 (2), Security Properties 4 (3), Key
+Performance Indicators 2 (2), the `out-of-scope` count in brackets. The Metadata
+cluster (`MD-001` to `-010`) reads what CISA 2026's SBOM Metadata does; its
+`out-of-scope` rules are the SBOM version, author signature and tool version.
+How much a default run fills, per cluster and model source: Pitloom's "G7 SBOM
 for AI" page (<https://bact.github.io/pitloom/g7-sbom-for-ai/>).
 
 ### Models cluster
@@ -239,12 +241,13 @@ property of its own.
   `ai_informationAboutTraining`, so it is `present` for any model with a type
   although a type is not a training technique; `.2` is `out-of-scope`.
 - Direct reads on the package: `MDL-001` name; `-002` identifier
-  (`software_packageUrl`, an `externalIdentifier` or `software_contentIdentifier`);
-  `-003` `software_packageVersion`; `-004` `builtTime` or `releaseTime`; `-005`
-  `originatedBy`; `-007`/`-008` `verifiedUsing` on the `ai_AIPackage` itself (the
-  linked `software_File`'s hash does not count); `-012` `hasDeclaredLicense`
-  only (a concluded licence does not count); `-013` any `externalRef` (a DOI
-  `ExternalIdentifier` alone does not).
+  (`software_packageUrl`, an `externalIdentifier` or
+  `software_contentIdentifier`); `-003` `software_packageVersion`; `-004`
+  `builtTime` or `releaseTime`; `-005` `originatedBy`; `-007`/`-008`
+  `verifiedUsing` on the `ai_AIPackage` itself (the linked `software_File`'s
+  hash does not count); `-012` `hasDeclaredLicense` only (a concluded licence
+  does not count); `-013` any `externalRef` (a DOI `ExternalIdentifier` alone
+  does not).
 
 ### System Level Properties
 
@@ -279,8 +282,8 @@ expect most to stay open gaps.
 
 ## BSI TR-03183-2 v2.1 (SBOM content, section 5.2; checker `bsi`)
 
-Moved to [`minimum-elements-bsi.md`](minimum-elements-bsi.md): element table, what Pitloom
-writes and what the user must supply.
+Moved to [`minimum-elements-bsi.md`](minimum-elements-bsi.md): element table,
+what Pitloom writes and what the user must supply.
 
 ## Optional extra check (not a required step)
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,7 @@ This transparency is crucial for:
 ## What the `method` values mean
 
 The `method` field in a provenance entry says *how* Pitloom arrived at a
-value, not just where it read it from. Values in use today:
+value, not just where it read it from:
 
 | `method` | Meaning |
 | --- | --- |
@@ -179,11 +179,12 @@ segment is kept, even from a source that is otherwise left out.
 
 ## How a dependency-version source is chosen
 
-The same disagreement-detection mechanism also applies to a dependency's
-resolved version, once a project lock file is in play (see [Dependency
-sources and precedence](dependency-sources.md)). Unlike licence, there's
-no independent-detection procedure here -- both candidates are the
-project's own stated claims, just from two different files, so **both are
+The disagreement detection of [a licence
+source](metadata-provenance-licences.md#how-a-licence-source-is-chosen) also
+applies to a dependency's resolved version, once a project lock file is in play
+(see [Dependency sources and precedence](dependency-sources.md)). Unlike
+licence, there's no independent-detection procedure here -- both candidates are
+the project's own stated claims, just from two different files, so **both are
 `role: "declared"`**, not a `declared`/`detected` pair:
 
 - A direct dependency pinned exactly (e.g. `requests==2.31.0`) whose

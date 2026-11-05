@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for license detection edge cases, tool tag formatting, and OS error handling.
+"""Tests for licence detection edge cases, tool tag formatting, and OS error handling.
 
 See also:
-- :mod:`tests.assemble.test_license_detection` for primary license detection suite.
-- :mod:`tests.assemble.test_license_normalization` for expression normalization.
+- :mod:`tests.assemble.test_license_detection` for primary licence detection suite.
+- :mod:`tests.assemble.test_license_normalization` for expression normalisation.
 """
 
 # pylint: disable=protected-access
@@ -78,7 +78,7 @@ def test_license_from_codemeta_json_edge_cases(raw: bytes) -> None:
 
 
 def test_collect_license_candidates_file_read_oserror() -> None:
-    """collect_license_candidates handles OSError when reading license file."""
+    """collect_license_candidates handles OSError when reading licence file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         p = Path(tmpdir)
         lic = p / "LICENSE"
@@ -112,8 +112,8 @@ def test_module_level_version_lookup_missing_packages() -> None:
 
 
 def test_collect_license_candidates_skips_blank_file_and_continues() -> None:
-    """collect_license_candidates skips a whitespace-only license file and keeps
-    scanning subsequent license files instead of stopping."""
+    """collect_license_candidates skips a whitespace-only licence file and keeps
+    scanning subsequent licence files instead of stopping."""
     with tempfile.TemporaryDirectory() as tmpdir:
         p = Path(tmpdir)
         (p / "LICENSE").write_text("   \n  \n", encoding="utf-8")
@@ -125,7 +125,7 @@ def test_collect_license_candidates_skips_blank_file_and_continues() -> None:
 
 
 def test_detect_independent_license_loop_continuation() -> None:
-    """detect_independent_license skips unrecognized text candidates until match."""
+    """detect_independent_license skips unrecognised text candidates until match."""
     with tempfile.TemporaryDirectory() as tmpdir:
         p = Path(tmpdir)
         lic1 = p / "LICENSE"

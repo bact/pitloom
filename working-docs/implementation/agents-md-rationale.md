@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,8 +34,8 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 
 - **Route a cross-cutting choice through one shared, explicit mechanism** that every surface already calls or reads, instead of updating each surface's call site by hand. E.g. `--debug` threads through the `PITLOOM_DEBUG` env var so every downstream no-argument `configure_logging()` call agrees, rather than requiring every subcommand generator to remember to pass `debug=True` itself.
 - **A docstring or comment describing "how surface X does Y" is a claim, not a fact.** Verify it against that surface's actual entry-point code (`__main__.main()`, `plugins/hatch.py`, the public library-API functions) before trusting or writing it -- a stale claim invites the exact regression it was meant to prevent, the moment someone trusts it instead of rereading the code.
-- **A pattern hand-copied across 3+ call sites drifts.** When the same kind of message/check/value is written at several call sites (e.g. a `WARNING:` naming which SBOM field a failure skips), factor the shared shape into one helper/constant instead of retyping it per site -- otherwise wording or behavior silently diverges between sites with no single place to notice or fix it.
-- **A test asserting on one surface doesn't cover the others.** When behavior must hold identically across surfaces (CLI vs library API vs Hatchling hook vs GitHub Action) or across every subcommand, add a regression test that exercises each surface/subcommand it's meant to hold for -- not just whichever one was easiest to reach from a test.
+- **A pattern hand-copied across 3+ call sites drifts.** When the same kind of message/check/value is written at several call sites (e.g. a `WARNING:` naming which SBOM field a failure skips), factor the shared shape into one helper/constant instead of retyping it per site -- otherwise wording or behaviour silently diverges between sites with no single place to notice or fix it.
+- **A test asserting on one surface doesn't cover the others.** When behaviour must hold identically across surfaces (CLI vs library API vs Hatchling hook vs GitHub Action) or across every subcommand, add a regression test that exercises each surface/subcommand it's meant to hold for -- not just whichever one was easiest to reach from a test.
 - **A skill is discovered through its frontmatter `description` only.** A body section documenting a command does not make it triggerable, and the skills have no tests. When a CLI command/flag is added or renamed, enumerate `add_parser(` subcommands against every `skills/*/SKILL.md` description; keep Pitloom's *verify* (structural) vs *validate* (schema/SHACL) distinction explicit, since users treat them as synonyms; give combined asks ("generate SBOM meeting CISA") an explicit hand-off in both skills; and give every "ask a follow-up" step a non-interactive fallback. Audit method, decisions and the deferred gaps: [skills-trigger-coverage.md](skills-trigger-coverage.md).
 
 ## Design principles
@@ -46,7 +46,7 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 
 ## Code health and continuous refactoring
 
-- **Reuse/dedup is a defensiveness strategy, not just an efficiency one**: with this many usage surfaces, backends, and file formats (see "Usage surfaces" below), two independent implementations of the same operation (a hash, a type check, a message string, a cascade rule) don't just cost extra lines -- they're two places that can silently disagree the next time either one is touched. Reuse a shared helper even when the duplicate is small/cheap and the duplication itself wastes nothing measurable; the point is to make drift structurally impossible, not to save a few lines.
+- **Reuse/dedup is a defensiveness strategy, not just an efficiency one**: with this many usage surfaces, backends, and file formats (see "Usage surfaces" above), two independent implementations of the same operation (a hash, a type check, a message string, a cascade rule) don't just cost extra lines -- they're two places that can silently disagree the next time either one is touched. Reuse a shared helper even when the duplicate is small/cheap and the duplication itself wastes nothing measurable; the point is to make drift structurally impossible, not to save a few lines.
 
 ## Python
 

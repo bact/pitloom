@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-16
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -145,7 +145,7 @@ differs every run. Found while fixing the IRI encoding (#253); see
 [id-registry-autosync.md](../implementation/id-registry-autosync.md) for
 why reservation is a no-op there.
 
-Items found by the last three reviewers of this round are in
+Items found by the last three reviewers of the registry v3 round are in
 [id-registry-followups-v3-review.md](id-registry-followups-v3-review.md).
 
 ## Registry v3: follow-ups (2026-10-15)

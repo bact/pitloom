@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate`/`pitloom id import`'s own
+"""`loom id generate`/`loom id import`'s own
 project-config resolution: a broken/invalid config must be one ``ERROR:``
 line and exit 1 (never a traceback), a ``setup.cfg``-only project's
 ``[tool:pitloom] id-registry`` must be honoured the same way a
@@ -12,7 +12,7 @@ through, and the "add to [tool.pitloom]" hint must name the right table
 and be suppressed exactly when the target is already the project's own
 declared file.
 
-See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests).
+See also: test_cli_id.py (the rest of `loom id`'s CLI tests).
 """
 
 from __future__ import annotations
@@ -201,7 +201,7 @@ def test_id_import_bare_setup_py_with_flag_ignores_read_failure(
 
 
 # ---------------------------------------------------------------------------
-# LOW 3: a relative `-o` with ".." segments displays normalized, not raw
+# LOW 3: a relative `-o` with ".." segments displays normalised, not raw
 # ---------------------------------------------------------------------------
 
 
@@ -211,7 +211,7 @@ def test_id_generate_dotdot_flag_path_displays_normalized(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`-o ../registry.json`, run from a subdirectory of the project, is
-    written to and reported at its normalized absolute path -- no
+    written to and reported at its normalised absolute path -- no
     literal ``..`` segment survives into the printed confirmation."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x = 1\n")

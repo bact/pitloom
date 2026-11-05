@@ -343,7 +343,7 @@ def test_target_resolves_to_project(target: str, expected: bool) -> None:
 
 
 def test_target_resolves_to_project_model_file(tmp_path: Path) -> None:
-    """A real on-disk file with a recognized model extension is not a
+    """A real on-disk file with a recognised model extension is not a
     project target -- matches generate()'s own dispatch check, which also
     requires target_path.is_file()."""
     model_file = tmp_path / "weights.safetensors"

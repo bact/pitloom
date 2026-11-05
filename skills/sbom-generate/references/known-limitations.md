@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -62,10 +62,11 @@ no licence relationship -- Pitloom never asserts a licence it was not told
   next to an address (after a closed `<address>` or a bare address, before
   a bare address, between two `<address>` entries), with a `WARNING:`:
   `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org> and Bob <b@x.org>` are
-  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
-  is split on `,` and `;`, never `and` (`Ann and Bob <t@x.org>` is one
-  author), with a `WARNING:`; a name and addresses are never paired by position
-  (`Jane, Bob` plus two addresses is three authors). A bare wheel's
+  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`,
+  `author_email`) is split on `,` and `;`, never `and` (`Ann and Bob
+  <t@x.org>` is one author), with a `WARNING:`; a name and addresses are
+  never paired by position (`Jane, Bob` plus two addresses is three
+  authors). A bare wheel's
   `METADATA` loses the declared order and poetry-core writes only the
   first author; `embed-wheel --project-dir` and an sdist with
   `pyproject.toml` keep it.
@@ -174,8 +175,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
 - A CRFsuite or fastText model with no `labels` but a `num_labels` (or an
   `outputs` shape) had a label over 4 KiB: then none is recorded, and a
   CRFsuite model gets no generated description. `WARNING: FORMAT=<fmt>
-  FILE=<path>: larger than the 4096-byte label cap; no label recorded`. A CRFsuite
-  description shows at most 20 labels of 64 characters each, by design.
+  FILE=<path>: larger than the 4096-byte label cap; no label recorded`. A
+  CRFsuite description shows at most 20 labels of 64 characters each, by design.
 - `\u202e`, `\ufeff` and the like in a name, description, type,
   hyperparameter, `ai_informationAboutApplication`, a reference, a
   licence, or a Hugging Face base model or dataset are escaped invisible,
@@ -291,8 +292,8 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.7.1,<0.8" licenseid update --source packaged`). It uses the copy in
-the `licenseid` wheel: no network. On a missing database it creates it
+"licenseid>=0.7.1,<0.8" licenseid update --source packaged`). It uses the copy
+in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`
 (`STATUS=unchanged`) and changes nothing, so
@@ -314,6 +315,14 @@ Report the line and the command. When the project declares a licence and the
 file is only missing, the line is `INFO: licenseid database not found: <path>
 -- license text detection skipped; run 'licenseid update --source packaged'`:
 only the `LICENSE` file is not matched.
+
+`WARNING: licenseid database cannot be used: database: not found: no home
+directory; pass --db -- license text detection skipped` (always a `WARNING:`,
+declared licence or not): the account has no home directory (`HOME`, or
+`USERPROFILE` on Windows, is blank, or unset with no account entry), so
+`licenseid` cannot find its database, and `licenseid update` fails the same
+way. `loom` has no `--db` option: tell the
+user to run it with a home directory set. A declared licence is still read.
 
 `WARNING: licenseid: <subject>: <condition>...` is a warning of `licenseid`
 itself, relayed once per run. `WARNING: licenseid: database: build v2 outdated:

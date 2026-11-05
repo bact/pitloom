@@ -79,8 +79,8 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
   that reads licences (project, wheel, sdist, model, Git URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
   "licenseid>=0.7.1,<0.8" licenseid update --source packaged`; one command
-  per line in PowerShell). No network, skips when current, safe to repeat. Do not
-  generate first and fix after: without the database no `LICENSE` text is
+  per line in PowerShell). No network, skips when current, safe to repeat. Do
+  not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).
   If it fails, say so once, generate anyway and report the resulting
   `WARNING:`/`INFO:` line; never run a network `licenseid update` or
@@ -111,7 +111,7 @@ These fetch the newest release matching the spec, not the user's installed
 SBOM's ids), pin the installed one: `"pitloom==X.Y.Z"`, the number `loom
 --version` prints (`Pitloom X.Y.Z`).
 
-## Smart Entrypoint: `loom generate`
+## Smart entry point: `loom generate`
 
 Use `loom generate` for automatic target detection:
 
@@ -155,7 +155,7 @@ Element ids are content-addressed, so unchanged source reproduces them with
 no registry. A Loom ID registry (a JSON file) pins ids across runs whose
 inputs differ. It is used **only when declared**, never searched for:
 `--id-registry FILE`, else the `id-registry` config key. Nothing declared: no
-registry, silently. Declared but missing, invalid or an old version 2 file:
+registry, silently. Declared but missing, invalid or an old version 3 or 2 file:
 one `ERROR:`, exit 1. No run ever creates one.
 
 **When the user asks to pin ids** ("pin the ids", "keep ids stable", "create
@@ -164,7 +164,7 @@ id import SBOM -o FILE --project-dir PROJECT` yourself, without asking
 again, and report the exact command and every `INFO:`/`WARNING:`/`ERROR:` it
 printed. FILE is the one the user names,
 else the config's, else `loom-id-registry.json` in the project root. A
-rejected version 2 file: ask before deleting it (its pins are lost;
+rejected version 3 or 2 file: ask before deleting it (its pins are lost;
 non-interactive: stop and report the `ERROR:`).
 
 **Before generating:** a declared registry is used: tell the user which file,

@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The registry location is required, never assumed: `pitloom id
-generate`/`pitloom id import` with neither ``--id-registry``/``-o`` nor a
+"""The registry location is required, never assumed: `loom id
+generate`/`loom id import` with neither ``--id-registry``/``-o`` nor a
 declared project ``id-registry`` key print exactly one ``ERROR:`` line,
 exit 1, and write nothing -- no implicit ``loom-id-registry.json`` file.
 
-See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests),
+See also: test_cli_id.py (the rest of `loom id`'s CLI tests),
 test_cli_id_config_errors.py (broken-config precedence and the
 "add to [tool.pitloom]" hint).
 """

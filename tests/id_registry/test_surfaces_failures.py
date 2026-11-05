@@ -14,7 +14,7 @@ resolves each through a different code path (see
 per-route base-directory breakdown) -- only sweeping every mode, not just
 ``flag``, catches a route-specific failure.
 
-``pitloom id generate``/``pitloom id import`` are excluded from both
+``loom id generate``/``loom id import`` are excluded from both
 sweeps below: they are registry-*producing* commands, not
 registry-*consuming* ones, so neither invariant applies to them as
 written --

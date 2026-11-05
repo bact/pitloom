@@ -41,7 +41,7 @@ reader of the generated SBOM can tell the two kinds of evidence apart.
 **A URL-based line (``name @ https://...`` or ``git+https://...``) is a
 PEP 508 direct reference, not a PEP 440 version specifier, and always
 disqualifies the whole file -- even one that looks like a tagged
-release.** Neither spec defines deriving a normalized version from a
+release.** Neither spec defines deriving a normalised version from a
 URL, and a git tag/filename is an arbitrary string with no guaranteed
 relationship to the package's real version. Confirming it would mean
 fetching the URL, which conflicts with this repo's "prevent excessive

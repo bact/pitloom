@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,8 +48,9 @@ An sdist archive's own config is read as its unpacked directory's is: the
 as a directory's does; so does one that cannot be read (not valid TOML,
 not UTF-8, or over 1 MiB -- a limit for archive members only). The error
 names the archive and member, e.g. `config file
-dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without reading it. Some keys cannot apply to
-an archive and are ignored without a warning:
+dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without
+reading it. Some keys cannot apply to an archive and are ignored without a
+warning:
 
 - `id-registry` (it could only name a file inside the archive) and
   `[tool.pitloom.fragment]` (fragments merge only into a project
@@ -123,8 +124,8 @@ and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 | `max-model-extract-bytes` | positive integer | `536870912` (512 MiB) | `--max-model-extract-bytes BYTES` | `max-model-extract-bytes` | `max_model_extract_bytes` | Largest AI model file copied out of a wheel to be read; one wheel's models together may use four times this. What happens over either: [Size and count caps](ai-model-scan-limits.md#size-and-count-caps); each `WARNING:` ends in [`[over-cap]`](message-codes.md#over-cap). Zero, negative or not an integer is an error, not "unlimited", on every surface, even where it has no effect. Wheel targets only (`wheel`, `generate x.whl`, `wheel --embed`, `embed-wheel` without `--project-dir`): the flag or keyword (`generate()`, `generate_wheel_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`), else `--config`/`pitloom_config=` (a library `PitloomConfig` value is named as `pitloom_config` in the error), else the default. The flag or keyword on any other target warns that it has no effect; a project's own key is ignored there, but a bad value in it is still an error, as the table is validated whenever it is read. |
 | `max-dataset-hash-bytes` | positive integer | `4294967296` (4 GiB) | `--max-dataset-hash-bytes` (`loom id generate` only) | -- (no Action step hashes a dataset) | `max_dataset_hash_bytes` (`loom.Run` only) | Most bytes `loom` reads to hash one dataset, a file or all files of a directory together. Over it, the dataset gets no hash and one `WARNING:` naming this key, ending in [`[over-cap]`](message-codes.md#over-cap); sizes are checked first, so such a dataset is not opened. Zero, negative or not an integer is an error, not "unlimited" (exit 2 for the flag). Read by `loom.Run` (`max_dataset_hash_bytes=`, else `pitloom_config=`; a `PitloomConfig` value is named as `pitloom_config` in the error) and by `loom id generate` with `-e` for a dataset (the flag, else the project's own key); every other surface ignores it, but a bad value is still an error wherever the table is read. |
 | `enrich` | bool | `false` | `--enrich` / `--no-enrich` | `enrich` | `enrich` | Run local README/model-card enrichment for discovered AI models. |
-| `id-registry` | string | `null`: no registry; nothing is searched | `--id-registry` | -- | `id_registry` | Path to the Loom ID registry file, relative to the project directory (or to the `--config` file's own directory, when set there). Used only when declared here, via `--id-registry`, or via a `--config` file -- never auto-discovered. `loom.Run` reads only an explicit `pitloom_config=`, never a project's `[tool.pitloom]`: its own `id_registry=` argument wins and resolves relative to the current directory; a `pitloom_config=` file's `id-registry` resolves relative to that file's directory. A declared file that's missing, unreadable or invalid raises `ValueError` (CLI: `ERROR:` and exit 1; hook: fails the build). |
-| `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | -- | `update_id_registry` | After generating, harvest newly-minted ids back into a *declared* registry and save it -- never creates one. Effective on `project`/`wheel`/`env`/`generate`, and on `loom.Run` (a model declared with `path=`); given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped; set to `true` in `[tool.pitloom]`, the Hatchling hook and `embed-wheel --project-dir` (which never write a registry) note it with one `INFO:`. No effect when no registry is declared -- see [Loom ID registry](id-registry.md). |
+| `id-registry` | string | `null`: no registry; nothing is searched | `--id-registry` | `id-registry` | `id_registry` | Path to the Loom ID registry file, relative to the project directory (or to the `--config` file's own directory, when set there). Used only when declared here, via `--id-registry`, or via a `--config` file -- never auto-discovered. `loom.Run` reads only an explicit `pitloom_config=`, never a project's `[tool.pitloom]`: its own `id_registry=` argument wins and resolves relative to the current directory; a `pitloom_config=` file's `id-registry` resolves relative to that file's directory. A declared file that's missing, unreadable or invalid raises `ValueError` (CLI: `ERROR:` and exit 1; hook: fails the build). |
+| `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | `update-id-registry` | `update_id_registry` | After generating, harvest newly-minted ids back into a *declared* registry and save it -- never creates one. Effective on `project`/`wheel`/`env`/`generate`, and on `loom.Run` (a model declared with `path=`); given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped; set to `true` in `[tool.pitloom]`, the Hatchling hook and `embed-wheel --project-dir` (which never write a registry) note it with one `INFO:`. No effect when no registry is declared -- see [Loom ID registry](id-registry.md). |
 
 **Invalid values / fallback behaviour:** every boolean above raises
 `ValueError` at config-read time if set to a non-boolean (e.g. the TOML
@@ -132,8 +133,8 @@ string `"true"` instead of the bare value `true`) -- no silent
 coercion. `sbom-basename`/`id-registry` raise `ValueError` if set to a
 non-string, and `sbom-basename` also if it is a path rather than a file
 name (a `/`, `\`, `:` or NUL, or `.`/`..`), or is only `.spdx3.json` --
-the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
-content-type detection -- see below.
+the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off
+never errors and never blocks content-type detection -- see below.
 
 In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is
 `true`/`false`, `yes`/`no` or `1`/`0` (any case) and an integer is base 10;
@@ -155,7 +156,7 @@ under their old names.
 ## `[tool.pitloom.content-type]`
 
 Content-type detection (`magika`/filename-extension) is independent of
-`extract-file-header` above -- both are opt-in, gated separately,
+`extract-file-header` above -- that one is on by default, this one off,
 because they have different cost profiles and apply to different kinds
 of files (a header only exists in text source; a content type applies
 to every file, text or binary).
@@ -314,7 +315,7 @@ changes in the generated SBOM's Annotations.
 | `schema` | string | `"pitloom/1"` | -- | -- | -- | Which statement schema encodes provenance Annotations. |
 | `detail` | `"minimal"` \| `"full"` | `"minimal"` | -- | -- | -- | `"minimal"` emits a field-source Annotation only when the source adds signal the native value can't convey; `"full"` emits the per-field source map for every field. |
 | `preserve-source-metadata` | `"auto"` \| `"always"` \| `"never"` | `"auto"` | -- | -- | -- | Whether to embed an artefact's verbatim original metadata blob. `"auto"` does so only when the artefact isn't shipped with the distribution (and so can't be re-extracted later). |
-| `max-source-metadata-bytes` | `0` or an integer >= 8 | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | `max_source_metadata_bytes` | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited (today's behaviour). When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag, an Action input and an API parameter (`generate()`, `generate_*_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
+| `max-source-metadata-bytes` | `0` or an integer >= 8 | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | `max_source_metadata_bytes` | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited. When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance-artifact-metadata.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag, an Action input and an API parameter (`generate()`, `generate_*_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
 
 **Invalid values / fallback behaviour:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,

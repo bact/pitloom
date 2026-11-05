@@ -8,31 +8,26 @@ SPDX-License-Identifier: CC0-1.0
 
 # Adopting licenseid 0.7.0 (Pitloom 0.23.0)
 
-Status: shipped in Pitloom 0.23.0 (2026-11-05), on licenseid 0.7.1. Kept as
-the plan and its rulings.
-
-**Built: stages A to E (#437 to #440, #443).** What was built, the final
-gate and the 0.22.1 to 0.23.0 sweep are in
+Status: shipped in Pitloom 0.23.0 (2026-11-05), on licenseid 0.7.1 (stages A
+to E, #437 to #440 and #443). Sections 1 to 7 are the pre-release plan, kept
+for its rulings and sweep data; sections 1, 5 and 7 are history. What was
+built, the final gate and the 0.22.1 to 0.23.0 sweep are in
 [licenseid-0-7-adoption-built.md](../implementation/licenseid-0-7-adoption-built.md).
 
-**Stage A is built (#437, 2026-11-03), on the released 0.7.0.** Pitloom
-requires `licenseid>=0.7.1,<0.8`; text detection uses
-`LicenseDetector().detect()` (`Detection["expression"]`); a declared value
-is read by `resolve(value, source="packaged")`, with no database (the
-database gate and the database-stamp cache are gone, an `lru_cache` keeps
-the answers); every call runs inside
-`pitloom.extract._licenseid_relay.relay_licenseid_warnings()`, which says
-each `LicenseIdWarning` once as `WARNING: licenseid: ...` (`INFO:` for
-`variant not stated`), recording only the lookup's own thread, under the one
-lock of Pitloom's warning blocks (`pitloom.core.warning_capture`), with a
-filter put first once rather than per call; `canonicalize_license_id` is
-deleted; CI builds the
-database with `licenseid update --source packaged`, uncached. The sweep
-matched the plan's minimal-port prediction: curated 308 strings, 8 lost (the
-refusals), 10 gained, 0 changed; PyPI 462 values, 7 gained (33 projects), 0
-lost; byte-identical with and without a database. Pitloom's own parser,
-`assumed_only` and the rest of the plan are stages B to E. This document
-keeps its pre-release text below.
+Stage A (#437, 2026-11-03, on the released 0.7.0): Pitloom requires
+`licenseid>=0.7.1,<0.8`. Text detection uses `LicenseDetector().detect()`
+(`Detection["expression"]`). A declared value is read by
+`resolve(value, source="packaged")`, with no database (the database gate and
+the database-stamp cache are gone; an `lru_cache` keeps the answers). Every
+call runs inside `pitloom.extract._licenseid_relay.relay_licenseid_warnings()`,
+which says each `LicenseIdWarning` once as `WARNING: licenseid: ...` (`INFO:`
+for `variant not stated`). It records only the lookup's own thread, under the
+one lock of Pitloom's warning blocks (`pitloom.core.warning_capture`), with a
+filter put first once rather than per call. `canonicalize_license_id` is
+deleted. CI builds the database with `licenseid update --source packaged`,
+uncached. The sweep matched the plan's minimal-port prediction: curated 308
+strings, 8 lost (the refusals), 10 gained, 0 changed; PyPI 462 values, 7
+gained (33 projects), 0 lost; byte-identical with and without a database.
 
 The rule for the two calls: `resolve()` reads a declared value (package
 metadata) and returns the canonical expression; `detect()` reads licence
@@ -40,16 +35,17 @@ text.
 
 See also: [license-resolution-categories.md](license-resolution-categories.md),
 [roadmap.md](roadmap.md), licenseid `working-docs/design/resolver-0-7-plan.md`
-(tasks T13 and T14 are this work),
-[known-bugs.md](known-bugs.md) ("licenseid 0.6.0 gives Pitloom no operands").
+(T13 is this work; T14, the provenance mapping, is open),
+[known-bugs.md](known-bugs.md) ("Per-operand licence provenance is not built").
 
-## 1. What exists today
+## 1. What existed when planned
 
-On licenseid `main`: `ListLookup` (`listlookup.py`) and the shared list rules
-(`listrules.py`), both no-behaviour-change groundwork. Not there yet: compounds
-in `resolve()`, `operands`, `components`, `reason`, the packaged-list fallback,
-newer-list-wins, prose forms, trove names. Pitloom cannot adopt any of it before
-those land; what can be done now is measuring, and the preparations in section 5.
+On licenseid `main` then: `ListLookup` (`listlookup.py`) and the shared list
+rules (`listrules.py`), both no-behaviour-change groundwork. Not there yet:
+compounds in `resolve()`, `operands`, `components`, `reason`, the
+packaged-list fallback, newer-list-wins, prose forms, trove names. Pitloom
+could not adopt any of it before those landed; it could only measure, and
+prepare (section 5).
 
 ## 2. Data: the parity corpus through Pitloom
 
@@ -104,7 +100,7 @@ names, no id, or deferred assumed readings).
 test group for a drift guard: every expression Pitloom accepts must parse with
 the library. Its mypy override stays for the tests.
 
-## 4. Behaviour changes to announce in 0.23.0
+## 4. Behaviour changes announced in 0.23.0
 
 `StandardML-NJ` becomes `SMLNJ`; compounds with a respelt operand resolve, in
 licenseid's canonical order; prose and trove names become ids (18 of 139 corpus
@@ -112,7 +108,7 @@ values); `LGPLv3` and the `GNU ... (GPLv2)` classifier names are recorded as
 `assumed_only`, as written; a declared value no longer needs a database; the
 SBOM depends on the `licenseid` and list versions, not on `licenseid update`.
 
-## 5. Preparation that can start now
+## 5. Preparation before the pin
 
 1. Keep the sweep script and run it against each licenseid change that lands
    (`HOME=$(mktemp -d) licenseid update --source packaged`, then

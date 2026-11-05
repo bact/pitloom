@@ -106,7 +106,7 @@ class ProvenanceEncoder(Protocol):
     content_type: str
 
     def encode(self, provenance: dict[str, str]) -> str:
-        """Return the serialized Annotation.statement body."""
+        """Return the serialised Annotation.statement body."""
         raise NotImplementedError
 
 

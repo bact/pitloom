@@ -1,20 +1,20 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-27
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# CLI split, test-suite modularization, and coverage roadmap
+# CLI split, test-suite modularisation, and coverage roadmap
 
 **Status: CLOSED.** All three original goals shipped and were
 verified exceeded as of 2026-08-21:
 
 - `src/pitloom/__main__.py` (was 1,320 lines) split into
   `src/pitloom/cli/` (`parser.py`, `options.py`, `verbose.py`,
-  `constants.py`, `ids.py`, `commands/` with one file per verb).
-- Test suite modularized into `tests/cli/`/`tests/core/`/
+  `constants.py`, `id.py`, `commands/` with one file per verb).
+- Test suite modularised into `tests/cli/`/`tests/core/`/
   `tests/extract/`/`tests/assemble/`, mirroring the source layout
   (folder-per-area once an area reaches 3+ related files, per
   `AGENTS.md`'s Testing section).
@@ -35,7 +35,7 @@ doc instead: [complexity-and-file-size-roadmap.md](../design/complexity-and-file
 
 ```text
 This doc's scope (the __main__.py -> cli/ split, test-suite
-modularization, and coverage floor raise) is CLOSED -- do not redo
+modularisation, and coverage floor raise) is CLOSED -- do not redo
 any of it. For file-size or coverage follow-up, check
 complexity-and-file-size-roadmap.md instead.
 ```

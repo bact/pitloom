@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-09
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,11 +108,12 @@ blocked the release. Highest first.
   and the release assets would no longer match. Setting `SOURCE_DATE_EPOCH`
   ([known-bugs.md](known-bugs/process-tooling-and-release-checks.md#p3-after-0200))
   would make a rebuild identical.
-- [ ] **`ubuntu-latest` becomes Ubuntu 26 from 2026-10-19 (medium).**
-  Every Linux job moves with the label
-  ([runner-images#14748](https://github.com/actions/runner-images/issues/14748)).
-  Watch the first runs after that date; pin `ubuntu-24.04` on the release
-  path (`pypi-publish.yml`) if anything breaks.
+- [ ] **`ubuntu-latest` is to become Ubuntu 26 (medium).** Announced for
+  2026-10-19 ([runner-images#14748](https://github.com/actions/runner-images/issues/14748));
+  not seen yet: a job on `ubuntu-latest` on 2026-11-05 ran image
+  `ubuntu-24.04` (20261028.624). Every Linux job moves with the label. Watch
+  the first runs after it moves; pin `ubuntu-24.04` on the release path
+  (`pypi-publish.yml`) if anything breaks.
 - [ ] **`release: published` fires for a pre-release too (low).** A
   GitHub pre-release goes to PyPI; skip it or document it.
 - [ ] **`changelog-check.yml` uses a two-dot diff (low).** A PR whose base

@@ -50,9 +50,10 @@ for it, always pass an explicit `--build-timeout` (`sbom-generate`'s "Choosing
 already has. Non-Python dependencies of a mixed-ecosystem project get none
 (`sbom-generate`'s "Known limitations"): say so, don't imply it closes the gap.
 
-Part of a trio with `sbom-generate` and `sbom-validate`. Invoke by trigger
-phrasing or `/sbom-enrich [sbom-file]` (`/pitloom:sbom-enrich` via the Claude
-Code plugin; `$sbom-enrich` in Codex). For a worked example, read
+Part of a trio with `sbom-generate` and `sbom-validate` (install all three).
+Triggers on natural-language requests (see the description), or explicitly
+with `/sbom-enrich [sbom-file]` (`/pitloom:sbom-enrich` via the Claude Code
+plugin; `$sbom-enrich` in Codex). For a worked example, read
 `references/examples.md`.
 
 ## Requirements
@@ -60,8 +61,8 @@ Code plugin; `$sbom-enrich` in Codex). For a worked example, read
 Python >= 3.10 and **pitloom >= 0.23.0** (the message codes and licence
 readings below are those of 0.23.0): `pip install "pitloom>=0.23.0"`; an AI
 model file needs `"pitloom[ai]>=0.23.0"`, the post-merge check
-`"pitloom[validate]>=0.23.0"`.
-Ephemeral runs: `sbom-generate`'s "Run without installing anything persistent".
+`"pitloom[validate]>=0.23.0"`. Ephemeral runs: `sbom-generate`'s "Run
+without installing anything persistent".
 Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
 PowerShell equivalents (5.1 has no `&&`).
 
@@ -285,8 +286,7 @@ non-interactive stop and report the `ERROR:`.
 
 ## See also
 
-- Sibling `sbom-generate` (generates the base SBOM; owns the ID registry
-  reference):
+- `sbom-generate`: generates the base SBOM; owns the ID registry reference.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
-- Sibling `sbom-validate` (the mandatory post-merge check):
+- `sbom-validate`: the mandatory post-merge check.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>

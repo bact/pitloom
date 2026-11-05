@@ -182,8 +182,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``project`` subcommand."""
-    # Note: Using 4-space indent
-    # 2. Project Source & Sdist: loom project [PATH]
+    # Project source and sdist: loom project [PATH]
     proj_parser = subparsers.add_parser(
         "project",
         parents=[parent_parser],
@@ -209,7 +208,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         proj_parser,
         " -- fall back to direct dependencies + environment introspection "
         "only (no-op for an sdist archive target: no lock-file concept "
-        "applies there)",
+        "applies there).",
     )
     add_archive_project_dir_argument(proj_parser)
     add_allow_build_argument(proj_parser)

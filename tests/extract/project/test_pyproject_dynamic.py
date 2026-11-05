@@ -276,7 +276,7 @@ def test_dynamic_version_hatch_path_inside_project(
 
 
 def test_prepare_dynamic_version_flit_falsy_field_skipped(tmp_path: Path) -> None:
-    """A falsy or unrecognized field in the Flit resolver's return value is
+    """A falsy or unrecognised field in the Flit resolver's return value is
     skipped rather than folded in (lines 84-85 and the loop continuing past
     the version/description ``elif`` with neither branch taken)."""
     project_data = {"name": "pkg", "dynamic": ["version", "description"]}

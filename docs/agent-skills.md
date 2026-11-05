@@ -23,18 +23,18 @@ page -- it installs the exact same three `SKILL.md` files described here.
 Pitloom ships three Skills:
 
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project (a directory
-  or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or pre-existing) SBOM
-  directly into a built wheel per PEP 770's `.dist-info/sboms/`
-  convention. Asked to pin ids, it creates or updates a [Loom ID
-  registry](id-registry.md) with `loom id generate`/`import`.
+  or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or
+  pre-existing) SBOM directly into a built wheel per PEP 770's
+  `.dist-info/sboms/` convention. Asked to pin ids, it creates or updates a
+  [Loom ID registry](id-registry.md) with `loom id generate`/`import`.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a licence guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can
   also ask the SBOM author directly for gaps no file answers. It also
   has a standards-driven mode: run a gap analysis against a named
   standard's minimum elements (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM
-  for AI 2026 or BSI TR-03183-2) and only ask about what's actually missing. Requires a base SBOM
-  to already exist; run `sbom-generate` first.
+  for AI 2026 or BSI TR-03183-2) and only ask about what's actually
+  missing. Requires a base SBOM to already exist; run `sbom-generate` first.
 - `sbom-validate` -- checks an SPDX 3 JSON document for schema and SHACL
   conformance (`loom fragment validate`, built on the third-party
   `spdx3-validate`), catching a missing required property or a wrong
@@ -47,15 +47,17 @@ Pitloom ships three Skills:
 The three Skills refer to each other, so install all three together.
 
 **Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.0 or later
-(pip, `uvx` or `pipx`; the Skills follow the development version, whose
-commands and messages can be newer than the last release, and quote the
-licence readings, message codes and `licenseid` 0.7 preflight of 0.23.0);
-network access to install it and, for PyPI and Hugging Face lookups, at run
-time. AI model files
-need `pitloom[ai]`; `sbom-enrich`'s post-merge check and `sbom-validate` need
-`pitloom[validate]`; `--allow-build` needs `pitloom[build]`. Each `SKILL.md`
-declares this in its `compatibility` field. The Skills do not work where
-packages cannot be installed, e.g. Claude API code execution.
+(pip, `uvx` or `pipx`). The Skills follow the development version, whose
+commands and messages can be newer than the last release; the licence
+readings and message codes they quote are those of 0.23.0. Before the first
+run that reads licences, `sbom-generate` builds the `licenseid` 0.7 database
+(`licenseid update --source packaged`, no network). Network access is needed
+to install `pitloom` and, at run time, for PyPI and Hugging Face lookups. AI
+model files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and
+`sbom-validate` need `pitloom[validate]`; `--allow-build` needs
+`pitloom[build]`. Each `SKILL.md` declares this in its `compatibility` field.
+The Skills do not work where packages cannot be installed, e.g. Claude API code
+execution.
 
 ## Quick guide
 
@@ -122,7 +124,7 @@ Skills trigger two ways:
 - **Natural language** -- ask in plain language, e.g. "generate an SBOM
   for this project", "enrich this SBOM with the dataset it was trained
   on", or "validate this SBOM". The agent matches your request against
-  each `SKILL.md`'s `description` front matter and loads the matching
+  each `SKILL.md`'s `description` frontmatter and loads the matching
   Skill automatically.
 - **Explicit invocation** -- `/sbom-generate [target]`,
   `/sbom-enrich [sbom-file]`, and `/sbom-validate [sbom-file]`. The syntax
@@ -219,14 +221,14 @@ for multi-file and merged-graph recipes.
 
 ## Configuration
 
-Each Skill's `SKILL.md` front matter carries a `description` (drives
+Each Skill's `SKILL.md` frontmatter carries a `description` (drives
 natural-language auto-trigger matching) and a `compatibility` note (what
 the Skill needs to run, above). It has no `argument-hint`: that key is
 outside the Agent Skills specification, and claude.ai and the Skills API
 reject it. Each Skill's body says what argument it takes instead --
 `sbom-generate` accepts a project directory, sdist, wheel, model file,
-Hugging Face model ID or Git URL, while the other two need an existing SBOM file
-path. Nothing else needs configuring to use the Skills as-is.
+Hugging Face model ID or Git URL, while the other two need an existing SBOM
+file path. Nothing else needs configuring to use the Skills as-is.
 
 ## See also
 

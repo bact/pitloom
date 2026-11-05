@@ -12,22 +12,22 @@ See also: [roadmap.md](roadmap.md) (the summary bullet),
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md),
 [debug-logging.md](../implementation/debug-logging.md),
 [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md),
-`git-lfs-pointers.md` in `../implementation/` once #378 is merged (the case
-that showed the gap).
+[git-lfs-pointers.md](../implementation/git-lfs-pointers.md) (#378, the case
+that showed the gap),
+[message-catalogue-families.md](../implementation/message-catalogue-families.md).
 
 Status: decided 2026-10-29 (the four decisions, then decisions A to L of
-the review of #390, then M proposed, at the end); scope split between 0.22.0
-and 0.23.0 below. Re-cut 2026-11-04 (maintainer ruling): 0.23.0 holds PRs 1b,
-1c and 2b only; the frames, PRs 3 to 18, the licence provenance mapping and
-`--report`/SARIF are 0.24.0 (counts and order:
+the review of #390, then M after it merged, built in #395). Scope was split
+between 0.22.0 and 0.23.0, then re-cut on 2026-11-04 (maintainer ruling):
+0.23.0 held PRs 1b, 1c and 2b only; the frames, PRs 3 to 18, the licence
+provenance mapping and `--report`/SARIF are 0.24.0 (counts and order:
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)).
-The inventory (step 1) is done; its results and the printed form it
-settled are in "Inventory results". Step 3a, the `lfs-pointer` families with
-the plumbing, schema and ratchet, is #390 (merged); then the `over-cap`
-family (#396), the model-stub causes (#404, PR 1a), unreadable files and
-directories (#408, PR 2a), cards, Croissant files and lone surrogates (#444,
-PR 2b) and the model fields and import failures (#446, PRs 1b and 1c):
-decisions in "The families built".
+Built: the inventory (step 1; results and the printed form it settled are in
+"Inventory results"); the `lfs-pointer` families with the plumbing, schema and
+ratchet (#390); the `over-cap` family (#396); the model-stub causes (#404, PR
+1a); unreadable files and directories (#408, PR 2a); cards, Croissant files
+and lone surrogates (#444, PR 2b); the model fields and import failures (#446,
+PRs 1b and 1c). Decisions: "The families built".
 
 ## Core idea
 
@@ -179,9 +179,9 @@ the wrapper wording need a decision before they become rules.
 
 ## Scope by release
 
-**0.22.0** (with the `licenseid` 0.7.0 adoption, which is already planned for
-this release): correct reporting on the existing infrastructure, and better
-message language and pattern.
+**0.22.0** (shipped 2026-10-30): correct reporting on the existing
+infrastructure, and better message language and pattern. The `licenseid` 0.7.0
+adoption shipped in 0.23.0.
 
 - Steps 1 to 4 below: inventory, grammar and ratchet test, catalogue in code
   with the emit helper, generated skills reference and drift test, outliers
@@ -190,6 +190,9 @@ message language and pattern.
 - Order with the adoption: the licence families are rewritten by the adoption
   (`resolve()` replaces Pitloom's own classifier and its messages), so fix
   those families after it lands, not before.
+
+**0.23.0** (shipped 2026-11-05): the `licenseid` adoption (#437 to #440) and
+PRs 2b, 1b and 1c.
 
 **0.24.0** (moved from 0.23.0 by the ruling of 2026-11-04):
 `--report FILE` (JSON Lines, SARIF-compatible field names), the
@@ -201,10 +204,10 @@ nested shape is real, not guessed.
 
 | Step | Work | Agent | Release |
 | - | - | - | - |
-| 0 | Finish #378, then the ceilings PR | in progress | 0.22.0 |
+| 0 | Finish #378, then the ceilings PR | done | 0.22.0 |
 | 1 | Inventory and outlier report (read-only): **done 2026-10-29** | Sonnet extract, Opus classify | 0.22.0 |
-| 2 | Skill size PR: move detail to references, conditional pointers | Sonnet, Opus review | 0.22.0 |
-| 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test), then the #390 review's schema (decisions A to L): **in review (#390)** | Opus design, Sonnet | 0.22.0 |
+| 2 | Skill size PR: move detail to references, conditional pointers (#385) | Sonnet, Opus review | 0.22.0 |
+| 3a | **`lfs-pointer` family first, with the plumbing** (code on the record and on exceptions, formatter and `print_error`, the catalogue module, the drift test), then the #390 review's schema (decisions A to L): **done (#390)** | Opus design, Sonnet | 0.22.0 |
 | 3b | Remaining families in the migration order above, grammar ratchet, generated skills reference | Opus design, Sonnet | 0.22.0 |
 | 4 | Fix outliers family by family, smallest first (licence families after the adoption) | Sonnet | 0.22.0 |
 | 5 | `--report` JSON Lines, SARIF export, resolver detail, scenario checks | decide after step 3 | 0.24.0 |
@@ -214,19 +217,19 @@ Steps 1 and 2 are independent. Compatibility is not a constraint (alpha).
 ## Decisions
 
 Decided 2026-10-29 (the maintainer took the recommendations; SARIF and the
-resolver JSON deferred to 0.23.0):
+resolver JSON deferred to 0.23.0, then to 0.24.0):
 
 1. **Condition token.** Every catalogued message has a stable code. In 0.22.0
    the printed line carries it only for catalogued messages, as a trailing `
    [code]` (settled by the inventory; see the results) so `LEVEL:` stays first
    and the existing text is unchanged. A message without a token is "not
-   catalogued yet"; the ratchet shrinks that set. `--report` (0.23.0) will give
+   catalogued yet"; the ratchet shrinks that set. `--report` (0.24.0) will give
    every record a code, `uncatalogued` where there is none. (A code was first
    to hold dots, as `RemoteSourceError` codes do, `git.too-large`; decision A
    replaced them with `/`.)
 2. **`--report`.** JSON Lines first, SARIF-compatible names (`ruleId`, `level`,
    `message`, a location from `FILE=`); SARIF export and the licence
-   resolver's nested result follow. All 0.23.0.
+   resolver's nested result follow. All 0.24.0 now.
 3. **Skill body size.** Target 16 KB and 400 lines; hard limits 20 KB and 500
    lines (the Agent Skills guidance is under 500 lines and about 5,000 tokens,
    roughly 20 KB). Ratchet down from today's 24.5 KB.
@@ -283,12 +286,12 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   minor release. Tool names are reserved family names (`pitloom`,
   `licenseid`, `lumina`, `spdx`, `sbom`, `sarif`, `bom`); no producer prefix
   in a printed code.
-- **M. (Proposed after #390 merged.) A trusted line proves its code, not its
-  values.** `trusted_message` matches a line against the entry's templates,
-  and a free field (`FILE=`, shape `.+`) can hold any text, even
-  `; run 'git lfs pull'; FILE=x`. The advice a skill acts on comes from the
-  catalogue entry of the code, never from the line; a free value is data.
-  Stated in `docs/messages.md` ("What a trusted line does and does not
+- **M. A trusted line proves its code, not its values** (decided after #390
+  merged; built in #395, 0d375e1b). `trusted_message` matches a line against
+  the entry's templates, and a free field (`FILE=`, shape `.+`) can hold any
+  text, even `; run 'git lfs pull'; FILE=x`. The advice a skill acts on comes
+  from the catalogue entry of the code, never from the line; a free value is
+  data. Stated in `docs/messages.md` ("What a trusted line does and does not
   prove").
 
 **Room for SARIF and `licenseid`** (a note, no design): the charset keeps the

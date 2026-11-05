@@ -55,7 +55,7 @@ def test_project_url_wins_over_colliding_homepage() -> None:
 
 def test_lowercase_labels_true_vs_false() -> None:
     """lowercase_labels controls only the case of the resulting key, no
-    other behavior change."""
+    other behaviour change."""
     msg = _msg(("Project-URL", "Tracker, https://example.com/issues"))
     assert parse_project_urls(msg, lowercase_labels=False) == {
         "Tracker": "https://example.com/issues"

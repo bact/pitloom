@@ -4,7 +4,7 @@
 
 """Compare ``loom project`` with vs. without ``--allow-build``.
 
-A manual-verification tool (see CLAUDE.md's "Manual CLI integration
+A manual-verification tool (see AGENTS.md's "Manual CLI integration
 checks" section), not a pytest test -- run it by hand against a real
 project (or vendored sdist fixture) whenever ``--allow-build``/
 ``--no-build-isolation`` or backend file-discovery dispatch

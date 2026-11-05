@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-28
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,6 +28,5 @@ what has actually shipped (`merge_fragments` unification, the
 | [roadmap-and-resources.md](roadmap-and-resources.md) | The phased implementation roadmap tying the above together, plus the existing-tools/community-resources table and references. |
 | [open-items.md](open-items.md) | What's already shipped vs. still open, re-verified against current code (2026-09-28) -- trimmed out of `roadmap.md`'s own summary bullet. |
 
-See also [working-docs/design/mlflow-extractor.md](../mlflow-extractor.md)
-(the existing, separate MLflow extractor design this cluster's MLflow
-updates build on).
+See also [mlflow-extractor.md](../mlflow-extractor.md) (the separate MLflow
+extractor design this cluster's MLflow updates build on).

@@ -6,12 +6,12 @@
 """Format-neutral document model for assembled SBOM content.
 
 ``DocumentModel`` is the format-neutral internal document model that decouples
-metadata extraction from output serialization. It holds all captured information
-so that any serializer can use what it needs without touching the extractors.
+metadata extraction from output serialisation. It holds all captured information
+so that any serialiser can use what it needs without touching the extractors.
 
 Architecture::
 
-    Extractors -> DocumentModel -> Serializers / Assemblers
+    Extractors -> DocumentModel -> Serialisers / Assemblers
 """
 
 from __future__ import annotations
@@ -25,9 +25,9 @@ from pitloom.core.project import FilesOrigin, PhantomDependency, ProjectMetadata
 
 @dataclass
 class DocumentModel:
-    """Format-neutral assembled document ready for serialization.
+    """Format-neutral assembled document ready for serialisation.
 
-    Holds everything that *could* appear in any output format. Serializers
+    Holds everything that *could* appear in any output format. Serialisers
     pick the fields they understand and ignore the rest.
 
     Attributes:

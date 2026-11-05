@@ -443,7 +443,7 @@ runs:
           # Model mode has no project-dir file discovery, so these three
           # inputs would silently do nothing -- warn once per
           # explicitly-set one instead of dropping it quietly ("no
-          # silent deviations", see CLAUDE.md), matching how Pitloom's
+          # silent deviations", see AGENTS.md), matching how Pitloom's
           # own BuildOptions warns for the same "given but has no
           # effect" case on every other surface. Never passed to
           # "loom model" itself. Duration parsing is still never done in
@@ -561,12 +561,10 @@ runs:
               echo "::notice::${line#INFO: }"
               ;;
             *)
-              # A continuation line of a multi-line LEVEL: message --
-              # the CLI output convention doesn't forbid one, even though
-              # loom doesn't currently emit any. Re-annotate at the same
-              # level rather than silently dropping it from the
-              # PR-facing summary (it's still visible above via "tee"
-              # either way).
+              # An untagged line: the CLI output convention forbids one
+              # and loom emits none. Annotate it at the last level rather
+              # than drop it from the PR-facing summary (the raw echo
+              # above shows it either way).
               if [ -n "${last_annotation_level}" ] && [ -n "${line}" ]; then
                 echo "::${last_annotation_level}::${line}"
               fi

@@ -15,13 +15,15 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 
 ## Where the output goes
 
-Without `-o`, `project` writes `<name>-<version>.spdx3.json` (`sbom.spdx3.json`
-for a project with no name), `wheel` and `model` write `<file name>.spdx3.json`
-(e.g. `model.onnx.spdx3.json`) and `env` writes `deployed-environment.spdx3.json`,
-all in the current directory; `generate` exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
+Without `-o`, `project` writes `<name>-<version>.spdx3.json`
+(`sbom.spdx3.json` for a project with no name), `wheel` and `model` write
+`<file name>.spdx3.json` (e.g. `model.onnx.spdx3.json`) and `env` writes
+`deployed-environment.spdx3.json`, all in the current directory; `generate`
+exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
 `-o -` writes the SBOM there instead. `embed-wheel` prints one
-`WHEEL=<name> SBOM=<path inside the wheel>` line per wheel (default `<name>-<version>.spdx3.json` under `.dist-info/sboms/`;
-`--sbom-basename` or the config key `sbom-basename` changes it).
+`WHEEL=<name> SBOM=<path inside the wheel>` line per wheel (default
+`<name>-<version>.spdx3.json` under `.dist-info/sboms/`; `--sbom-basename`
+or the config key `sbom-basename` changes it).
 
 ## Project SBOM (directory or sdist), ephemeral run
 
@@ -71,7 +73,7 @@ uvx --from "licenseid>=0.7.1,<0.8" licenseid update --source packaged  # no inst
 loom project . -o sbom.spdx3.json    # then generate
 ```
 
-## Built Wheel SBOM
+## Built wheel SBOM
 
 ```bash
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
@@ -112,13 +114,13 @@ with zipfile.ZipFile(sys.argv[1]) as zf:
 ## AI model SBOM, local file
 
 ```bash
-uvx --from 'pitloom[ai]>=0.23.0' loom model model.safetensors -o model.spdx3.json
+uvx --from "pitloom[ai]>=0.23.0" loom model model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
 
 ```bash
-uvx --from 'pitloom[huggingface_hub]>=0.23.0' loom model mistralai/Mistral-7B-v0.1 \
+uvx --from "pitloom[huggingface_hub]>=0.23.0" loom model mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,11 +73,14 @@ where they differ, and a flag with no effect on a target logs
   exhaust memory on a hostile file (else listed without metadata, one
   `INFO:`). Never add it unless the user states the wheel is trusted. Other
   targets and `embed-wheel --project-dir` warn that it has no effect.
+- `--max-model-extract-bytes BYTES` -- on a built wheel, read a model file
+  only up to BYTES (four times it per wheel; default 512 MiB); a larger one
+  is listed without metadata. Only when asked.
 - `--content-type` / `--no-content-type` -- per-file content-type/MIME
   detection (`magika`, or a filename-extension guess). Off by default and
   **opt-in only**: add it only when the request implies wanting that data,
   since it costs ~5ms/file with `magika`. `--content-type-method
-  {auto,magika,extension}` forces a detector (default `auto`).
+  {auto,extension,magika}` forces a detector (default `auto`).
 - `--build-timeout DURATION` -- with `--allow-build` only; see
   [build-timeout.md](build-timeout.md).
 - `--id-registry FILE` -- declare the Loom ID registry for this run.
@@ -87,6 +90,6 @@ where they differ, and a flag with no effect on a target logs
   `--project-dir DIR` on `wheel`/`project <sdist>` keys their files below
   DIR in a registry rooted above it (reads nothing from DIR).
 - `--describe-relationship` (relationship text), `--max-source-metadata-bytes
-  N` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
+  BYTES` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
   `--no-build-isolation` ([build-timeout.md](build-timeout.md)): only when
   asked.

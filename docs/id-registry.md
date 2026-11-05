@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -235,13 +235,12 @@ directory called `build` is indexed. A dataset directory also leaves out
 symbolic links to directories and the declared registry file. `id generate`
 also leaves out the declared registry, matched by identity and never by name:
 a stray `loom-id-registry.json` that is not the declared file is indexed. The
-set is
-`IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
+set is `IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
 
 ## Harvesting new ids
 
-`loom project`/`wheel`/`env` also write newly minted ids back into a
-*declared* registry after each run (`--update-id-registry`, on by default;
+`loom project`/`wheel`/`env`/`generate` also write newly minted ids back into
+a *declared* registry after each run (`--update-id-registry`, on by default;
 `--no-update-id-registry` to stop; never creates a registry). Running `loom
 project`, then `loom wheel --id-registry loom-id-registry.json` and `loom env
 --id-registry loom-id-registry.json`, keeps the same spdxIds with no manual
@@ -325,15 +324,14 @@ by its project path. `id import` of an SBOM whose `@graph` is not a list is
 
 A registry is used only when declared: via the Action's `id-registry` input, or
 via `[tool.pitloom] id-registry` in the project's own config. Nothing is
-auto-discovered. Once declared, `loom project`/`wheel`/`env` (and this
-Action, which wraps them) harvest newly-minted ids back into it by
+auto-discovered. Once declared, `loom project`/`wheel`/`env`/`generate` (and
+the Action, which wraps them) harvest newly-minted ids back into it by
 default -- see `update-id-registry` in [Configuration](configuration.md).
 That write only ever touches the runner's local checkout; it never needs
-elevated permissions itself
-(that's a `git push`, which Pitloom never does). But the write is
-ephemeral unless a workflow step commits it back, so a release/publish
-job that intentionally runs with `permissions: contents: read` (common
-for trusted PyPI publishing -- see this repo's own
+elevated permissions itself (that's a `git push`, which Pitloom never does).
+But the write is ephemeral unless a workflow step commits it back, so a
+release/publish job that intentionally runs with `permissions: contents: read`
+(common for trusted PyPI publishing -- see this repo's own
 [`pypi-publish.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/pypi-publish.yml))
 can update `loom-id-registry.json` locally but shouldn't have its permissions
 relaxed just to push that one file.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ this page assumes that one as background and doesn't restate it.
 
 See also: [poetry-support.md](poetry-support.md)'s "`poetry.lock`
 transitive dependencies" section and [pep751-pylock-support.md](pep751-pylock-support.md)
-for the two formats this cascade was generalized from;
+for the two formats this cascade was generalised from;
 [lock-files.md](../design/lock-files.md) for the broader multi-format
 roadmap; [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for the
 source/build/deployed staging model that makes every source here
@@ -48,50 +48,29 @@ ordered cascade -- all six formats now registered in it.
 _LockExtractor = Callable[[Path, str | None], list[str] | None]
 _LockHashExtractor = Callable[[Path, list[str]], dict[str, str] | None]
 
-_LOCK_SOURCES: list[tuple[str, _LockExtractor, _LockHashExtractor | None, str]] = [
-    (
-        "pylock.toml",
-        _ignore_expected_name(extract_pylock_dependencies),
-        extract_pylock_hashes,
-        "resolved_lockfile",
-    ),
-    (
-        "uv.lock",
-        extract_uv_lock_dependencies,
-        extract_uv_lock_hashes,
-        "resolved_lockfile",
-    ),
-    (
-        "poetry.lock",
-        _ignore_expected_name(extract_poetry_lock_dependencies),
-        extract_poetry_lock_hashes,
-        "resolved_lockfile",
-    ),
-    (
-        "pdm.lock",
-        _ignore_expected_name(extract_pdm_lock_dependencies),
-        extract_pdm_lock_hashes,
-        "resolved_lockfile",
-    ),
-    (
-        "Pipfile.lock",
-        _ignore_expected_name(extract_pipfile_lock_dependencies),
-        extract_pipfile_hashes,
-        "resolved_lockfile",
-    ),
-    (
-        "requirements.txt",
-        _ignore_expected_name(extract_pinned_requirements_dependencies),
-        None,
-        "pinned_requirements",
-    ),
+
+class _LockSource(NamedTuple):
+    name: str
+    extractor: _LockExtractor
+    hash_extractor: _LockHashExtractor | None
+    method: str  # provenance `Method:` tag
+    extra_pins: ExtraPinExtractor | None = None  # pins for the project's extras
+
+
+_LOCK_SOURCES: list[_LockSource] = [
+    _LockSource("pylock.toml", ..., extract_pylock_hashes, "resolved_lockfile"),
+    _LockSource("uv.lock", ..., extract_uv_lock_hashes, "resolved_lockfile", ...),
+    _LockSource("poetry.lock", ..., extract_poetry_lock_hashes, "resolved_lockfile", ...),
+    _LockSource("pdm.lock", ..., extract_pdm_lock_hashes, "resolved_lockfile", ...),
+    _LockSource("Pipfile.lock", ..., extract_pipfile_lock_hashes, "resolved_lockfile"),
+    _LockSource("requirements.txt", ..., None, "pinned_requirements"),
 ]
 
 
 def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> None: ...
 ```
 
-Each entry pairs a source name, an extractor matching the uniform
+Each `_LockSource` pairs a source name, an extractor matching the uniform
 `_LockExtractor` shape (`(project_dir, expected_name) -> list[str] | None`
 of exact-pin PEP 508 strings), and a provenance `Method` tag. Only
 `uv.lock`'s own extractor uses *expected_name* (to disambiguate a shared

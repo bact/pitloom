@@ -43,7 +43,7 @@ from .conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_subject
 
 
 def test_emit_provenance_unknown_format_raises() -> None:
-    """An unrecognized provenance_format must fail loudly, not silently drop
+    """An unrecognised provenance_format must fail loudly, not silently drop
     the provenance (neither branch in emit_provenance would otherwise fire)."""
     _clear_doc_counters(_DOC_UUID)
     exporter = Spdx3JsonExporter()
@@ -66,7 +66,7 @@ def test_emit_provenance_unknown_format_raises() -> None:
 
 
 def test_emit_provenance_unknown_detail_raises() -> None:
-    """An unrecognized provenance_detail must fail loudly, not silently behave
+    """An unrecognised provenance_detail must fail loudly, not silently behave
     as 'full'."""
     _clear_doc_counters(_DOC_UUID)
     exporter = Spdx3JsonExporter()

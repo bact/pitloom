@@ -127,7 +127,7 @@ def test_embed_sbom_in_wheel_corrupt_zip_raises_value_error(tmp_path: Path) -> N
 
     embed_sbom_in_wheel shares open_wheel_zip with find_embedded_sbom
     (see test_validate_wheel_corrupt_zip_errors), so it inherits the same
-    BadZipFile -> refusal normalization."""
+    BadZipFile -> refusal normalisation."""
     corrupt_wheel = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     corrupt_wheel.write_bytes(b"not a zip file at all")
     with pytest.raises(ValueError, match="wheel refused"):

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,7 +65,7 @@ continuous across the parts.
 ### Found and fixed during implementation review
 
 - `emit_provenance` originally matched neither `if` branch for an
-  unrecognized `provenance_format`, silently dropping the provenance with no
+  unrecognised `provenance_format`, silently dropping the provenance with no
   comment, no Annotation, and no error — contradicting its own docstring's
   claim of a `"both"` fallback. Fixed to raise `ValueError` (matching
   `resolve_encoder`'s fail-fast pattern); regression test:
@@ -86,7 +86,7 @@ continuous across the parts.
   flag; all are reachable only via `pyproject.toml` or explicit keyword
   arguments to the library API. Not required by these acceptance criteria; the
   `pyproject.toml` config path is fully wired end to end (CLI, Hatchling
-  build hook, and library API all honor `[tool.pitloom.provenance]` or
+  build hook, and library API all honour `[tool.pitloom.provenance]` or
   explicit keyword arguments).
 - `pitloom.loom` always uses `provenance_format = "both"` (hardcoded, not
   config-driven) — it is a standalone SDK invoked from ad hoc scripts, not
@@ -101,11 +101,11 @@ continuous across the parts.
 
 ---
 
-## (Former §10) Boundary refinement, role vocabulary, use-case catalog, and G2 -- moved 2026-08-25
+## (Former §10) Boundary refinement, role vocabulary, use-case catalogue, and G2 -- moved 2026-08-25
 
 This section originally covered non-native/high-signal Annotation
 boundaries, the `role` vocabulary, the G1-G4/A1-A2/E1-E2/P1 use-case
-catalog, and the Phase 2 native-first backfill checklist -- it grew past
+catalogue, and the Phase 2 native-first backfill checklist -- it grew past
 this file's own 800-line size cap and was split into four sibling files
 in this directory:
 
@@ -116,15 +116,15 @@ in this directory:
   (`declared`/`detected`/`externalReported`/`inferred`/`sbomAuthorSupplied`),
   decision rule, source-recording convention, role-to-native mapping.
 - [`use-case-catalog.md`](use-case-catalog.md) -- the G1-G4/A1-A2/E1-E2/P1
-  catalog and the Phase 2 N1-N6 backfill checklist.
+  catalogue and the Phase 2 N1-N6 backfill checklist.
 - [`multi-source-conflict.md`](multi-source-conflict.md) -- G2's own
-  implementation depth (license-conflict schema, normalization logic,
+  implementation depth (license-conflict schema, normalisation logic,
   what's built, real-world validation, future candidate sources).
 
 ## 10. Security/robustness hardening (2026-07-21)
 
 Agent-driven adversarial review of the provenance-string construction and
-JSON-serialization paths (`record_dict_field_provenance`, `_sanitize_for_json`)
+JSON-serialisation paths (`record_dict_field_provenance`, `_sanitize_for_json`)
 found and fixed two real gaps:
 
 - **Provenance-string delimiter injection.** Both a dict key from an
@@ -166,11 +166,11 @@ found and fixed two real gaps:
   (e.g. `frozenset`, where `<` means "is a proper subset of"), so a
   set-of-frozensets stayed input-order-dependent even after the first
   attempt.
-  **Known-dormant, not fixed:** extractors are expected to normalize
+  **Known-dormant, not fixed:** extractors are expected to normalise
   numpy/library-native scalars (via `.tolist()`/`.item()`) before they reach
   `raw_metadata` -- confirmed true of every current extractor against real
   fixtures -- so `_sanitize_for_json` doesn't special-case numpy types. A
-  future extractor that skips that normalization would silently mis-serialize
+  future extractor that skips that normalisation would silently mis-serialise
   (e.g. a `numpy.int64` becoming a JSON string via the generic `default=str`
   fallback); noted in the function's docstring as an assumption, not guarded
   against, since guarding it well requires a numpy dependency this module

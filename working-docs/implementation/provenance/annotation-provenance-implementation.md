@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ Tests; section numbers (§N) are continuous across the parts.
 
 ### 5.1 Parser: provenance string → structured dict
 
-Segment key normalization mapping (case-insensitive):
+Segment key normalisation mapping (case-insensitive):
 
 - `Source` → `source`
 - `Field` → `location`
@@ -65,7 +65,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 
-#: Segment-key normalization for the ``"Key: value | Key: value"`` strings.
+#: Segment-key normalisation for the ``"Key: value | Key: value"`` strings.
 _KEY_MAP = {
     "source": "source",
     "field": "location",
@@ -105,7 +105,7 @@ class ProvenanceEncoder(Protocol):
     content_type: str  # value for Annotation.contentType
 
     def encode(self, provenance: dict[str, str]) -> str:
-        """Return the serialized ``Annotation.statement`` body."""
+        """Return the serialised ``Annotation.statement`` body."""
         ...
 
 

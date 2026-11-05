@@ -103,8 +103,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``generate`` subcommand."""
-    # Note: Using 4-space indent
-    # 1. Smart Entrypoint: loom generate [TARGET]
+    # Smart entry point: loom generate [TARGET]
     gen_parser = subparsers.add_parser(
         "generate",
         parents=[parent_parser],

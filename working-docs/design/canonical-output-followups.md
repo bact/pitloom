@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [roadmap.md](roadmap.md) (the "Canonical output" bullet),
 [known-bugs.md](known-bugs.md) (reproduced bugs of the same theme),
 [id-registry-followups.md](id-registry-followups.md) (id scheme), "SBOM
-output" in [CLAUDE.md](../../CLAUDE.md) (bit-for-bit determinism, RFC 8785,
+output" in [AGENTS.md](../../AGENTS.md) (bit-for-bit determinism, RFC 8785,
 UTC).
 
 The one home for open questions and undecided policy on canonicalisation,
@@ -82,12 +82,12 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
   [license-rules.md](license-rules.md#6-equivalence) (sections 2, 4, 6, 8
   and "Rulings on record").
 - **Package names compare under PEP 503, versions under PEP 440** ("Recurring
-  bug patterns" in CLAUDE.md); the registry key applies PEP 503 to
+  bug patterns" in AGENTS.md); the registry key applies PEP 503 to
   `software_Package` only (`_element_key`, see
   [id-registry-v3.md](../implementation/id-registry-v3.md)).
-- **SHA-256 hex compared lowercase** (planned, step 1 of
-  [id-registry-v3-rollout.md](../implementation/id-registry-v3-rollout.md)); `sha256_hash()`
-  already lowercases what it emits.
+- **SHA-256 hex compared lowercase** (step 1 of
+  [id-registry-v3-rollout.md](../implementation/id-registry-v3-rollout.md));
+  `sha256_hash()` already lowercases what it emits.
 
 ## 1. Identifiers and name comparison
 
@@ -258,7 +258,7 @@ Moved from [embed-wheel-followups.md](embed-wheel-followups.md).
 
 ### C10. What "JSON-LD: follow RDF canonicalisation" means here
 
-Found while consolidating this doc: CLAUDE.md asks JSON-LD to follow RDF
+Found while consolidating this doc: AGENTS.md asks JSON-LD to follow RDF
 canonicalisation, and no working doc records how.
 
 - **Question:** does Pitloom apply RDF canonicalisation (RDFC-1.0) at all,
@@ -270,12 +270,12 @@ canonicalisation, and no working doc records how.
   ([known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200)).
   The SPDX canonical serialisation is silent on graph order
   ([spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362), open).
-- **Options:** RFC 8785 plus `@graph` order only (reword CLAUDE.md);
+- **Options:** RFC 8785 plus `@graph` order only (reword AGENTS.md);
   RDFC-1.0 blank-node labels; RDFC-1.0 only to compare graphs.
 - **Current behaviour:** RFC 8785 plus `_graph_sort_key()`; blank-node
   labels as the serialiser gives them.
 - **Intent (user, 2026-10-08):** Pitloom should follow RDF
-  canonicalisation (RDFC-1.0) as CLAUDE.md says, but it does not yet; the
+  canonicalisation (RDFC-1.0) as AGENTS.md says, but it does not yet; the
   design needs thought first (scope: labels, comparison, or both; cost of a
   JSON-LD processor; interaction with `@graph` order).
 - **Recommendation (2026-10-08):** the wall is merge, diff and signing, not
@@ -351,12 +351,14 @@ origin; KB is [known-bugs.md](known-bugs.md).
   (`licenseid` `get_license_by_name()`); keep text, equal only when
   compared (today); classifier names need new `licenseid` data
   ([license-layers.md](license-layers.md)).
-- **Current behaviour:** text, a known deviation
-  ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text));
-  `licenseid.resolve` reads a List name as its id, except 14 deprecated
-  ids' names, which `same_licence()` (`extract/_license_names.py`, a
-  stop-gap table) treats as equal to their id. KB: "A model licence that
-  is a name or URL becomes licence text".
+- **Current behaviour:** since `licenseid` 0.7 (#437, #440),
+  `licenseid.resolve` reads a List name (`MIT License`) and a
+  `License :: ...` path as its id. A bare classifier name
+  (`Apache Software License`) stays text, as a known deviation
+  ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text)),
+  and the names of 14 deprecated ids are read by `same_licence()`
+  (`extract/_license_names.py`, a stop-gap table) as equal to their id. KB:
+  "A model licence that is a name or URL becomes licence text".
 - **Recommendation:** upstream first; Pitloom keeps an adapter.
 - **Owner:** licence layers. Was license-rules question 11.
 
@@ -366,14 +368,15 @@ origin; KB is [known-bugs.md](known-bugs.md).
   without case, and by string or by what they map to?
 - **Why it matters:** SPDX matches licence ids without case, but
   `LicenseRef-Foo` and `LicenseRef-foo` are two elements; `licenseref-foo`
-  is rejected by the parser and becomes text (checked 2026-10-08). A merge
+  was text until `licenseid` 0.7 (#437); it is now `LicenseRef-foo`. A merge
   unifies a user's `LicenseRef-x` by string: two fragments mapping it to
   different `customIdToUri` texts keep the first.
 - **Options:** as written (state it); canonical prefix case, idstring as
   written; fold for comparison, first-seen spelling stored; unify by
   idstring plus target text.
-- **Current behaviour:** listed ids take the List's case (decided);
-  `LicenseRef-`/`DocumentRef-` as written.
+- **Current behaviour:** listed ids take the List's case (decided); the
+  `LicenseRef-` prefix takes its canonical case (`licenseref-foo` is
+  `LicenseRef-foo`), the idstring as written.
 - **Owner:** licence rules. Was in [metadata-quality.md](metadata-quality.md)
   and [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
 
@@ -401,7 +404,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Options:** `AND` (as several classifiers and the G7 #3 dataset list);
   `OR` (dual licensing); text plus one `WARNING:`; `NOASSERTION`. A rewrite
   records `Normalized-From`.
-- **Current behaviour:** text as written (checked 2026-10-08).
+- **Current behaviour:** text as written (checked 2026-10-08, and on
+  `licenseid` 0.7.1).
 - **Owner:** licence rules. Found in the #294 reviews; was in KB.
 
 ### C16. `other` and vague licence values across formats
@@ -454,8 +458,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
   ambiguous URL stays text or becomes `NOASSERTION` (never a guessed
   `-only`); deprecated ids as candidates or not; the provenance tag (as
   `tag_license_normalization`); Pitloom or upstream, with C12.
-- **Current behaviour:** text as written. KB: "A model licence that is a
-  name or URL becomes licence text".
+- **Current behaviour:** text as written (also on `licenseid` 0.7.1). KB:
+  "A model licence that is a name or URL becomes licence text".
 - **Owner:** licence layers. Was license-rules question 17.
 
 ### C19. Licence tie-breaks as written rules
@@ -492,12 +496,13 @@ origin; KB is [known-bugs.md](known-bugs.md).
   `licenseid` (and bundled SPDX List) version?
 - **Why it matters:** the concluded licence can change with an upgrade and
   no input change: `licenseid` 0.4 capped scores to 1, so MIT tied
-  `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins floors only;
+  `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins
+  `licenseid>=0.7.1,<0.8` (a floor and the next minor);
   Python version effects on scores are not measured.
 - **Options:** state determinism per (Pitloom, `licenseid`) versions, as
   provenance records (`Tool: licenseid==<v>`); run the corpus
   (`tests/fixtures/license-texts/`) on the floor and latest versions in CI;
-  an upper pin (against the floor-only practice).
+  an upper pin on a patch release (stricter than the current `<0.8`).
 - **Current behaviour:** same corpus results on 0.3.7 and 0.4
   ([license-rules.md](license-rules.md#4-declared-or-concluded)); not run
   per version in CI.

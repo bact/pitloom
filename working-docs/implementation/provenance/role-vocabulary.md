@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,7 +22,7 @@ and the source classes is a prerequisite for systematic licence rules:
 The `role` vocabulary is general-purpose -- it is reused by G2
 (multi-source disagreement), E1/E2 (enrichment lineage), and
 file-header extraction alike -- so it gets its own file. For G2's own
-implementation depth (schema, normalization logic, what's built), see
+implementation depth (schema, normalisation logic, what's built), see
 [multi-source-conflict.md](multi-source-conflict.md).
 
 **`role` vocabulary** — an epistemic-process label (*whose* determination

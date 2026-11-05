@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-10-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,9 +14,10 @@ config sources, `INERT`),
 [sdist-own-config.md](../implementation/sdist-own-config.md) (PR #232: an
 sdist's own config).
 
-Not started. One big item, to be fixed together rather than one finding
-at a time: each item below was found while fixing a neighbour, and each
-past fix of one surface left the others to drift.
+Mostly open (struck-through items are resolved). One big item, to be fixed
+together rather than one finding at a time: each item below was found while
+fixing a neighbour, and each past fix of one surface left the others to
+drift.
 
 ## Goal
 
@@ -63,11 +64,11 @@ accident of which code path it goes through.
   (`core/_config_types.py`); a new typed key (e.g. `scan-model-usage`,
   `max-model-extract-bytes`) must be added there.
   `tests/extract/project/test_setup_cfg_values.py` fails until it is.
-- **Unknown `[tool.pitloom]` keys are ignored silently** -- a typo such as
-  `ofline = true` changes nothing and says nothing; likelier in a named
-  `--config` file. The same for a key a target cannot use: a project's own
-  `max-model-extract-bytes` is ignored with no message (it applies to a wheel
-  target only), against "no silent deviations".
+- ~~**Unknown `[tool.pitloom]` keys are ignored silently**~~ --
+  **Resolved** (decided 2026-10-04): one `WARNING:` per key per config source
+  (`core/_config_keys.py`). Still open: a key a target cannot use is ignored
+  with no message (a project's own `max-model-extract-bytes` applies to a
+  wheel target only), against "no silent deviations".
 - **`read_pitloom_config` gates on `Path.exists()`** -- see
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md#found-while-doing-this-not-fixed-here).
 

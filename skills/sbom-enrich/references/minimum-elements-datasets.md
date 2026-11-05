@@ -18,25 +18,25 @@ present (the G7 checklist is additive).
 Checker rules `BOM-G7AI2026-DP-001` to `-010` (23 with sub-rules; `DP-003.1`
 domain, `.2` format, `DP-006.4` synthetic method, `DP-008.2`/`.3` copyright and
 sensitive category are `out-of-scope`). A rule marked *any-of* is `present` when
-any sub-rule is. It reads: `DP-001` `name`; `DP-002` *any-of* lifecycle role
-(a `trainedOn`/`testedOn` pointing at the dataset), `dataset_datasetAvailability`,
-`dataset_confidentialityLevel`; `DP-003` *any-of* `dataset_datasetType` (`noAssertion`
-does not count); `DP-004` `software_packageUrl`, an `externalIdentifier` or
-`software_contentIdentifier`; `DP-005` `verifiedUsing` on the package; `DP-006`
-*any-of* `originatedBy`, `dataset_dataCollectionProcess`,
-`dataset_dataPreprocessing`; `DP-007` `dataset_datasetSize` (bytes)
-or `dataset_knownBias` (a Croissant record count is not recorded and does not
-satisfy it: SPDX 3.0.1 has no property for one); `DP-008` *any-of* `dataset_hasSensitivePersonalInformation`
-or `dataset_anonymizationMethodUsed`; `DP-009` `dependsOn` or `descendantOf`
-from the dataset; `DP-010` `hasDeclaredLicense` only. Verified on Pitloom 0.21.0
-(checker `82a63b9`, 2026-10-23; the expected tables are unchanged at the
-current pin `2355afc`) with a mocked and a real Hugging Face model
-with Hub datasets, a library-built model with a dataset and a `loom.run`
-fragment with a local Croissant file (see the note in
-[`minimum-elements.md`](minimum-elements.md)). A Croissant file is read only by
-`loom.run` (`croissant=`) and the library's `read_croissant()` (alias
-`read_dataset()`), never from a
-project directory or a Hub dataset.
+any sub-rule is. It reads: `DP-001` `name`; `DP-002` *any-of* lifecycle role (a
+`trainedOn`/`testedOn` pointing at the dataset), `dataset_datasetAvailability`,
+`dataset_confidentialityLevel`; `DP-003` *any-of* `dataset_datasetType`
+(`noAssertion` does not count); `DP-004` `software_packageUrl`, an
+`externalIdentifier` or `software_contentIdentifier`; `DP-005` `verifiedUsing`
+on the package; `DP-006` *any-of* `originatedBy`,
+`dataset_dataCollectionProcess`, `dataset_dataPreprocessing`; `DP-007`
+`dataset_datasetSize` (bytes) or `dataset_knownBias` (a Croissant record count
+is not recorded and does not satisfy it: SPDX 3.0.1 has no property for one);
+`DP-008` *any-of* `dataset_hasSensitivePersonalInformation` or
+`dataset_anonymizationMethodUsed`; `DP-009` `dependsOn` or `descendantOf` from
+the dataset; `DP-010` `hasDeclaredLicense` only. Verified on Pitloom 0.21.0
+(checker `82a63b9`, 2026-10-23; the expected tables are unchanged at the current
+pin `2355afc`) with a mocked and a real Hugging Face model with Hub datasets, a
+library-built model with a dataset and a `loom.run` fragment with a local
+Croissant file (see the note in [`minimum-elements.md`](minimum-elements.md)). A
+Croissant file is read only by `loom.run` (`croissant=`) and the library's
+`read_croissant()` (alias `read_dataset()`), never from a project directory or a
+Hub dataset.
 
 | Element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |

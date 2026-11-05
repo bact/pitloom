@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,29 +70,28 @@ agree on it.
   `Agent` up, so new `Agent` rows in a committed registry are expected; they
   are not something to pin.
 - **Datasets** (`dataset_DatasetPackage`) only through the Python SDK
-  (`pitloom.loom.Run(..., id_registry=...)`, which reads `[tool.pitloom]`
-  only from an explicit `pitloom_config=`). A package whose path exists below
-  the root is keyed by that path (`data/t.txt`, `./data/t.txt` and an absolute
-  path are one package per run), anything else (URL, missing or outside-the-root
+  (`pitloom.loom.Run(..., id_registry=...)`, which reads `[tool.pitloom]` only
+  from an explicit `pitloom_config=`). A package whose path exists below the
+  root is keyed by that path (`data/t.txt`, `./data/t.txt` and an absolute path
+  are one package per run), anything else (URL, missing or outside-the-root
   path) by the name as first declared. In one run, names that differ only by
   whitespace runs or, for a Hugging Face repository id, case (`Org/Data`,
-  `org/data`) are one package, as for a model card's datasets; the registry
-  is asked for the first spelling only (an id pinned under a later one is not
-  used, with a `WARNING:`). Two spellings of one missing path (`./a`, `a`)
-  are two packages. `add_output_dataset(input_datasets=...)`
-  matches the string an input was declared with, not its key: another spelling logs a `WARNING:` and skips
+  `org/data`) are one package, as for a model card's datasets; the registry is
+  asked for the first spelling only (an id pinned under a later one is not used,
+  with a `WARNING:`). Two spellings of one missing path (`./a`, `a`) are two
+  packages. `add_output_dataset(input_datasets=...)` matches the string an input
+  was declared with, not its key: another spelling logs a `WARNING:` and skips
   the link. An entry **with** a SHA-256 is content-gated (a file's SHA-256, a
-  directory's Merkle root): a refreshed dataset, or a file added to a
-  directory, is a new package id. An entry **without** one (a pin made
-  before the data existed, an old pin) hits any content, with `INFO: ...
-  content not checked`; running the same `-e` again once the data exists
-  adopts the digest and keeps the id (`INFO: ... pin now gated by its
-  SHA-256`), unless the entry already records another digest (new id). A
-  dataset that is one file also has a `software_File` (the package `contains`
-  it); a dataset directory gets a Merkle root and no file elements. Run-time
-  harvest never records a dataset package.
-  `loom id generate <dataset-dir>` does **not** pin the package (it indexes
-  the files below it as `software_File`s). Pin it with `loom id generate -e
+  directory's Merkle root): a refreshed dataset, or a file added to a directory,
+  is a new package id. An entry **without** one (a pin made before the data
+  existed, an old pin) hits any content, with `INFO: ... content not checked`;
+  running the same `-e` again once the data exists adopts the digest and keeps
+  the id (`INFO: ... pin now gated by its SHA-256`), unless the entry already
+  records another digest (new id). A dataset that is one file also has a
+  `software_File` (the package `contains` it); a dataset directory gets a Merkle
+  root and no file elements. Run-time harvest never records a dataset package.
+  `loom id generate <dataset-dir>` does **not** pin the package (it indexes the
+  files below it as `software_File`s). Pin it with `loom id generate -e
   NAME:dataset_DatasetPackage -o <registry>` (an existing `NAME` is stored as
   its path key with its digest, so pin after the data exists), or by `loom id
   import` of an SBOM or loom fragment that has it (records the digest).
@@ -150,7 +149,10 @@ nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
 loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
-# more: --project-dir DIR (both; import from above the project needs it)  --namespace IRI  -e NAME[:TYPE] (repeatable, generate only)  --max-dataset-hash-bytes BYTES (generate only; caps a -e dataset's hashing)
+# more: --project-dir DIR (both; import from above the project needs it)
+#       --namespace IRI, -e NAME[:TYPE] (repeatable),
+#       --max-dataset-hash-bytes BYTES (caps a -e dataset's hashing):
+#       generate only
 ```
 
 - `-o`/`--id-registry` is required unless the project config already
@@ -211,10 +213,10 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   `ID registry: path has a skipped directory name (build), skipping: <path>`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
-- **Namespace**: a new registry gets one minted from the project directory's name and a
-  random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id generate`
-  only, `id import` has no such option) sets a reproducible one. An existing
-  registry with another namespace is an `ERROR:`, exit 1.
+- **Namespace**: a new registry gets one minted from the project directory's
+  name and a random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id
+  generate` only, `id import` has no such option) sets a reproducible one. An
+  existing registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
   (`--project-dir`, default the current directory, for both `generate` and
   `import`) relative to its own file. `id generate`, or `id import` with an
@@ -300,12 +302,12 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
   passes `id_registry=` (or `pitloom_config=`) itself.
 - A dataset is hashed when declared, so declare an output dataset after the
   file is written, or it has no hash and is not found.
-- To pin, run once the files exist, from the project directory:
-  `loom id generate data out/pred.csv script.py -e data/train.txt:dataset_DatasetPackage
+- To pin, run once the files exist, from the project directory: `loom id
+  generate data out/pred.csv script.py -e data/train.txt:dataset_DatasetPackage
   -o loom-id-registry.json` (files and the script are `software_File`; the
-  dataset package needs its own `-e`, named by its path from the project
-  root). Until then each unpinned item logs `WARNING: loom: ... not found in
-  registry; minting a new spdxId`: expected on a first run, not an error.
+  dataset package needs its own `-e`, named by its path from the project root).
+  Until then each unpinned item logs `WARNING: loom: ... not found in registry;
+  minting a new spdxId`: expected on a first run, not an error.
 - A dataset path that exists below the root is matched by its path key, so
   `data/t.txt`, `./data/t.txt` and `../data/t.txt` from a subdirectory reach one
   package. A name pin made before the data existed has no hash and hits any
@@ -335,11 +337,11 @@ generate`/`id import` (above).
 - **Ignored**: Hugging Face targets ignore `--id-registry` (also a
   `WARNING:` if passed).
 
-A run writes each element under the key its lookup used. `dataset_DatasetPackage`
-ids are never harvested; an `ai_AIPackage` only when it carries its file's
-hash. An element with no recorded key (merged fragment, `id import`) never
-moves an id held under another key of the same type, and a stale element (an
-older SHA-256) never rolls a newer entry back.
+A run writes each element under the key its lookup used.
+`dataset_DatasetPackage` ids are never harvested; an `ai_AIPackage` only when it
+carries its file's hash. An element with no recorded key (merged fragment, `id
+import`) never moves an id held under another key of the same type, and a stale
+element (an older SHA-256) never rolls a newer entry back.
 
 ## Log lines that are not a broken registry
 
@@ -354,10 +356,11 @@ older SHA-256) never rolls a newer entry back.
   `id import` only; the SBOM holds several elements under that name, so no
   single id can be pinned for it.
 - `INFO: ID registry: content changed for <key>; minting a new spdxId
-  (old: <id>).` -- a file, model or dataset pin whose content differs from its entry
-  gets a new id (`id generate` re-indexing or `-e`, a `loom.Run` model with
-  `path=`, a model file in a project run); normal after an edit or a retrain (a
-  `project` run reports a changed file as `updated stale entries` above).
+  (old: <id>).` -- a file, model or dataset pin whose content differs from
+  its entry gets a new id (`id generate` re-indexing or `-e`, a `loom.Run`
+  model with `path=`, a model file in a project run); normal after an edit or
+  a retrain (a `project` run reports a changed file as `updated stale
+  entries` above).
 - `INFO: ID registry: model X: no registry entry records its SHA-256; a new
   id is used` -- `project`, `model`, `wheel` and the like: the model's entry
   has no hash (an old or imported one) or another; it never hits and the run

@@ -234,7 +234,7 @@ def is_weak_licence(value: str | None) -> bool:
 def tag_license_normalization(
     provenance: str, raw: str, normalized: str, *, resolver: bool = True
 ) -> str:
-    """Append a note to *provenance* when normalization changed the value:
+    """Append a note to *provenance* when normalisation changed the value:
     ``Normalized-From``, and the resolver's keys
     (:func:`~pitloom.extract._license_resolve.resolution_notes`) unless
     *resolver* is false (no reading was involved, as for ``UNKNOWN`` ->

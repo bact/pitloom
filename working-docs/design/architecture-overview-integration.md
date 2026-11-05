@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,20 +26,20 @@ compliant, composite SBOM document.
 
 This assembly model reflects the reality that no single tool or team
 has visibility into the full provenance of a modern AI system.
-See `working-docs/design/sbom-fragments/` for the detailed design of the
-fragment system, vocabulary alignment with SPDX 3 / CycloneDX / CISA
+See [sbom-fragments/](sbom-fragments/README.md) for the detailed design of
+the fragment system, vocabulary alignment with SPDX 3 / CycloneDX / CISA
 standards, and the roadmap for new integrations.
 
 ### Information sources and extractors
 
 | Source | Extractor / mechanism | What it contributes |
 | :---- | :---- | :---- |
-| `pyproject.toml` | `pitloom.extract.project.pyproject` | Package identity, version, license, dependencies, authors |
-| `setup.cfg` / `setup.py` | `pitloom.extract.project.setuptools` | Package identity, version, license, dependencies, authors |
+| `pyproject.toml` | `pitloom.extract.project.pyproject` | Package identity, version, licence, dependencies, authors |
+| `setup.cfg` / `setup.py` | `pitloom.extract.project.setuptools` | Package identity, version, licence, dependencies, authors |
 | Python environment | `pitloom.extract.env` | Deployed environment dependency graph |
 | Built wheel (`.whl`) | `pitloom.extract.wheel` / `binary` | Analyzed wheel metadata, files, and phantom dependencies |
 | AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
-| Dataset files (Croissant JSON-LD) | `pitloom.extract.dataset` | Dataset identity, schema, license, provenance |
+| Dataset files (Croissant JSON-LD) | `pitloom.extract.dataset` | Dataset identity, schema, licence, provenance |
 | MLflow tracking server | `pitloom.extract.mlflow` [planned] | Training run tags, params, metrics, dataset inputs |
 | W&B Weave | `pitloom.extract.weave` [planned] | Versioned model objects, dataset objects, evaluation traces |
 | DVC repository | `pitloom.extract.dvc` [planned] | Content-hashed data/model files, pipeline stage provenance |
@@ -58,16 +58,17 @@ A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
 during `hatch build` or `python -m build` and embeds it in the wheel's
 `.dist-info/sboms/` directory per PEP 770. Users opt in by adding
 `pitloom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
-See `working-docs/implementation/hatchling-build-hook.md`.
+See [hatchling-build-hook.md](../implementation/hatchling-build-hook.md).
 
 #### 2. PEP 770 wheel embedding [built]
 
 The SBOM is placed at `{name}-{version}.dist-info/sboms/{name}-{version}.spdx3.json`
-inside the wheel archive (default basename; overridable via `sbom-basename`). Downstream tools (Trivy, Grype, pip-audit) can
-discover and consume the SBOM without any separate distribution step.
-Implemented as part of the Hatchling build hook.
+inside the wheel archive (default basename; `sbom-basename` overrides it).
+Downstream tools (Trivy, Grype, pip-audit) can discover and consume the
+SBOM without a separate distribution step. Implemented as part of the
+Hatchling build hook.
 
-#### 3. MLflow run extractor (`pitloom.extract.mlflow`)
+#### 3. MLflow run extractor (`pitloom.extract.mlflow`) [planned]
 
 Reads a completed MLflow run and maps its tags, parameters, and metrics
 to an SPDX 3 AI BOM fragment. Uses
@@ -75,7 +76,7 @@ to an SPDX 3 AI BOM fragment. Uses
 layer so projects already tagging MLflow runs with STAV keys require no
 additional instrumentation. The top-level `pitloom.loom.from_mlflow_run()`
 function provides the public API.
-See `working-docs/design/mlflow-extractor.md`.
+See [mlflow-extractor.md](mlflow-extractor.md).
 
 #### 4. W&B Weave extractor (`pitloom.extract.weave`) [planned]
 
@@ -87,8 +88,8 @@ Weave's model version URIs (`weave:///entity/project/object/Name:hash`)
 map naturally to SPDX `ai_AIPackage` with a content-addressed
 `software_downloadLocation`. Evaluation results become SPDX `Annotation`
 elements. The top-level function is `pitloom.loom.from_weave_model()`.
-See `working-docs/design/sbom-fragments/extractor-integrations.md` for
-the full object mapping.
+See [extractor-integrations.md](sbom-fragments/extractor-integrations.md)
+for the full object mapping.
 
 #### 5. DVC extractor (`pitloom.extract.dvc`) [planned]
 
@@ -109,14 +110,13 @@ duplicate-ID and dangling-reference checks, unification of equal elements, and
 `SpdxDocument.imports` population. Open (not built): `loom fragment sign` and
 SHA-256 verification before a merge; see
 [sbom-fragments/open-items.md](sbom-fragments/open-items.md).
-See `working-docs/design/sbom-fragments/fragment-merge-design.md`.
+See [fragment-merge-design.md](sbom-fragments/fragment-merge-design.md).
 
 ### Data flow: extraction -> document model -> assembly
 
 See [end-to-end-flow.md](../implementation/end-to-end-flow.md) for a
-generic, stage-level version of this diagram -- the version here is the fuller,
-more implementation/integration-specific picture, including the still-planned
-pieces.
+generic, stage-level version of this diagram. The version here is fuller and
+integration-specific, and includes the planned pieces.
 
 ```text
 Information sources
@@ -174,7 +174,7 @@ context without reading the full document. The highest-priority nodes are:
 `json.loads()` round trip, with no changes to `spdx-python-model`; the key
 and its tiers are in the implementation doc above.
 
-**Relationship to JSON canonicalization standards.**
+**Relationship to JSON canonicalisation standards.**
 RFC 8259 §4 ([datatracker.ietf.org/doc/rfc8259](https://datatracker.ietf.org/doc/rfc8259/))
 defines JSON arrays as *ordered sequences* of values, meaning `@graph` element
 order is semantically meaningful and is preserved by all conforming parsers.
@@ -192,11 +192,11 @@ produce a deterministic `@graph` element ordering.
 This limitation is acknowledged in the SPDX specification repository
 ([spdx/spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362)),
 where the working group proposes referencing JCS as part of the canonical
-serialization specification while noting that "additional specifications are
-needed to cover items like graph serialization and handling contexts and
+serialisation specification while noting that "additional specifications are
+needed to cover items like graph serialisation and handling contexts and
 namespace prefixes." The issue remains open.
 
-The SPDX 3.0.1 canonical serialization specification
+The SPDX 3.0.1 canonical serialisation specification
 ([spdx.github.io/spdx-spec/v3.0.1/serializations](https://spdx.github.io/spdx-spec/v3.0.1/serializations/))
 currently mandates alphabetical ordering of *properties within each object*,
 but is silent on `@graph` element ordering. Imposing an explicit element order

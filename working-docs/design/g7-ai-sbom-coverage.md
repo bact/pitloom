@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,7 +45,7 @@ notice for information read but not recordable:
 Deterministic field population (anything a file format, a structured
 API response, or explicit `loom`-decorator/SDK input can supply)
 belongs in core CLI/API, since it must stay reproducible per "SBOM
-output" in CLAUDE.md. Fuzzy mapping that core can't do deterministically
+output" in AGENTS.md. Fuzzy mapping that core can't do deterministically
 -- e.g. turning a free-text "producer" string into a properly-
 disambiguated SPDX `Person`/`Organization` -- stays the agent/Skill's
 job (`sbom-enrich`), not core's. Every item below is scoped to fit the
@@ -62,7 +62,7 @@ in places** -- re-checked against the current assembly code
 
 **Already covered, checklist says "gap" -- fix the doc, not the code:**
 Model version, Model description, Model external references
-(doi/arxiv/url via `_add_external_identifiers_and_refs`), Model license
+(doi/arxiv/url via `_add_external_identifiers_and_refs`), Model licence
 (via `build_license_elements`, same mechanism as the main package).
 
 **Genuinely absent -- and mostly pure wiring, not new extraction:**

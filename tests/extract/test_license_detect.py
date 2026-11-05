@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for :mod:`pitloom.extract._license_detect`: which root-level
-license file is picked when names differ only in case, the size cap on a
+licence file is picked when names differ only in case, the size cap on a
 detection input, and the directory adapter against the bytes core it feeds.
 
 See also: tests/assemble/test_license_detection.py and
@@ -268,7 +268,7 @@ def test_detection_input_over_cap_is_skipped_with_one_warning(
 ) -> None:
     """Over the cap, a detection input is skipped with one ``WARNING:``
     naming it (not one per read), read no further than one byte past the
-    cap; the next license file is still used. Exactly at the cap is
+    cap; the next licence file is still used. Exactly at the cap is
     read."""
     assert LICENSE_FILE_MAX_BYTES == 256 * 1024
     raw = head + b"#" * (LICENSE_FILE_MAX_BYTES + over - len(head))

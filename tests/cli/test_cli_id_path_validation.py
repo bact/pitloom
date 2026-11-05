@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate` PATH-argument handling:
+"""`loom id generate` PATH-argument handling:
 
 * a PATH outside ``--project-dir`` (relative or absolute) is a clean,
   single ``ERROR:`` line and exit 1 -- not a raw ``relative_to()``
@@ -14,7 +14,7 @@
   line, not a raw traceback -- ``-o`` keeps its own dangling-symlink
   handling (no ``os.path.realpath``).
 
-See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests),
+See also: test_cli_id.py (the rest of `loom id`'s CLI tests),
 test_cli_id_registry_required.py ("no registry declared" ERROR wording).
 """
 

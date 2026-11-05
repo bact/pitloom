@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
-# needs to name or recognize an SPDX3 JSON-LD SBOM file.
+# needs to name or recognise an SPDX3 JSON-LD SBOM file.
 SPDX3_JSONLD_EXTENSION = ".spdx3.json"
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
@@ -142,7 +142,7 @@ def _creation_info_fingerprint(element: dict[str, Any]) -> tuple[str, ...]:
     """Return a content-based fingerprint for a CreationInfo @graph entry.
 
     Covers all user-visible fields while excluding the blank-node @id, which
-    is an implementation artefact assigned at serialization time and not part
+    is an implementation artefact assigned at serialisation time and not part
     of the semantic content.  List fields are sorted so that two nodes whose
     createdBy/createdUsing lists differ only in order are still considered
     identical.

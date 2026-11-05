@@ -128,7 +128,7 @@ jobs:
         # Schema/SHACL check on the SBOM the build hook actually embedded
         # -- distinct from "Validate SBOM with spdx3-validate" below,
         # which checks a separately generated standalone SBOM from a
-        # different code path (see CLAUDE.md's "Usage surfaces").
+        # different code path (see AGENTS.md's "Usage surfaces").
         # Fetches the SPDX schema/context too: retried and classified as
         # in "Validate SBOM with spdx3-validate" below.
         id: validate_wheel_sbom

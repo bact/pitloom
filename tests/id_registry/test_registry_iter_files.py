@@ -6,7 +6,7 @@
 """Tests for the ``id generate`` walk, :func:`pitloom.id_registry._types._iter_files`:
 a walk root that cannot be ``stat()``-ed fails the same way on every Python
 version; a subdirectory that cannot be listed, a file that cannot be
-``stat()``-ed or read, is skipped with the warning ``pitloom project``
+``stat()``-ed or read, is skipped with the warning ``loom project``
 gives (``dir-unlistable``, ``file-unreadable``), never silently, and
 naming no directory of this machine.
 
@@ -129,7 +129,7 @@ def test_a_file_that_cannot_be_stat_ed_is_skipped_with_the_shared_warning(
 ) -> None:
     """A file below the walk root that cannot be ``stat()``-ed (its
     directory readable but not searchable): the shared ``FILE=`` warning
-    ``pitloom project`` gives too, the path project-relative (else as
+    ``loom project`` gives too, the path project-relative (else as
     walked), and the walk goes on."""
     root = _project(tmp_path)
     denied = root / "src" / "sub" / "b.py"

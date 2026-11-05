@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate --namespace` (D8), the project root a registry
+"""`loom id generate --namespace` (D8), the project root a registry
 stores (D9) and the model hash `id generate` records (D3), through the real
 argument parser.
 
-See also: test_cli_id.py (the rest of `pitloom id`), tests/core/
+See also: test_cli_id.py (the rest of `loom id`), tests/core/
 test_iri_namespace.py (the IRI rule), tests/id_registry/
 test_registry_format.py (the registry-level checks).
 """

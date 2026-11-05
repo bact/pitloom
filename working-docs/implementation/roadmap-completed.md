@@ -40,7 +40,7 @@ is not kept in sync with post-ship changes.
 - [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
   `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,
   array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
-- [x] **SPDX license expression normalization and declared-vs-detected
+- [x] **SPDX license expression normalisation and declared-vs-detected
   conflict detection (G2)** -- via [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license).
   See [multi-source-conflict.md](provenance/multi-source-conflict.md)
   ([PR #121](https://github.com/bact/pitloom/pull/121)).
@@ -154,7 +154,7 @@ implementation docs, every change in `CHANGELOG.md` `[0.20.0]`.
 - [x] **Windows and macOS CI** (#220), the earlier 1.0-table items 1-2;
   stale G7 gap claims in `minimum-elements.md` fixed (2026-09-20), item 4.
   See [windows-macos-ci.md](windows-macos-ci.md).
-- [x] **CLI split, test modularization, coverage** (closed 2026-08-21). See
+- [x] **CLI split, test modularisation, coverage** (closed 2026-08-21). See
   [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md).
 - [x] **CHANGELOG split** (2026-09-30) -- 0.19.0+ in `CHANGELOG.md`, older
   in `CHANGELOG-archive.md`.
@@ -298,7 +298,7 @@ AI model metadata made uniform and safer:
   fragment description (roadmap 0.21.0, "A fragment value beats a value read
   from the file").
 
-## Shipped in 0.21.0 (PRs #300-#350)
+## Shipped in 0.21.0 (PRs #300-#361)
 
 Moved from [roadmap.md](../design/roadmap.md) on 2026-10-29, as they stood
 there. The release items; the ones still open are in
@@ -375,7 +375,7 @@ The G7 and conformance work; full breakdown in
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger on
   `docs/g7-sbom-for-ai.md`; open gaps are under
-  [0.23.0](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+  [1.0](../design/roadmap.md#10).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element SPDX 3.0.1 has no property for (today the architecture, in
   `ai_typeOfModel`; no reader drops a value). Always on, stderr only
@@ -435,7 +435,9 @@ Moved from [known-bugs.md](../design/known-bugs.md).
 
 Released 2026-10-30. Moved from [roadmap.md](../design/roadmap.md), as they
 stood there. Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue) and
+its [0.24.0](../design/roadmap.md#0240-message-catalogue-and-licence-provenance)
+section.
 
 - [x] **`embed-wheel --sbom` input check** (#374): invalid JSON, a non-object
   or a non-SPDX-3 `.spdx3.json` is refused before the wheel is written.
@@ -473,7 +475,9 @@ stood there. Open items:
 
 Released 2026-11-03. Fixes found in the cold reviews of 2026-11-02 and the
 re-run of the 0.22.0 release checks. Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage).
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue) and
+its [0.24.0](../design/roadmap.md#0240-message-catalogue-and-licence-provenance)
+section.
 
 - [x] **`--scan-model-usage` reads ASTs** (#413): `comment` is read, write,
   read and write, or unknown access; mentions skipped; new codes
@@ -502,8 +506,9 @@ re-run of the 0.22.0 release checks. Open items:
 ## Shipped in 0.23.0 (PRs #434-#446)
 
 Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
-[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage) and its
-0.24.0 section.
+[roadmap.md](../design/roadmap.md#0230-licenseid-07-and-message-catalogue) and
+its [0.24.0](../design/roadmap.md#0240-message-catalogue-and-licence-provenance)
+section.
 
 - [x] **`licenseid` 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
   declared licence value is read by `licenseid` alone, from its packaged SPDX

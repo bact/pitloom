@@ -187,7 +187,7 @@ def test_pytorch_fixture_format(pytorch_fixture: Any) -> None:
 
 
 def test_read_pytorch_zip_large_file_list() -> None:
-    """_read_pytorch_zip truncates and summarizes archive contents if > 20 entries."""
+    """_read_pytorch_zip truncates and summarises archive contents if > 20 entries."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = [f"file_{i}.bin" for i in range(25)]
 
@@ -217,7 +217,7 @@ def test_read_pytorch_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
     """A file that passes the ``zipfile.is_zipfile()`` signature check but
     fails to actually open (truncated/corrupt central directory) must
     raise ValueError, not propagate a bare zipfile.BadZipFile -- the same
-    "Raises: ValueError" contract every sibling extractor honors for a
+    "Raises: ValueError" contract every sibling extractor honours for a
     whole-file-open failure."""
     fake_pt = tmp_path / "corrupt_zip.pt"
     fake_pt.write_bytes(b"PK\x03\x04truncated")
@@ -234,7 +234,7 @@ def test_read_pytorch_raw_pickle_open_oserror(tmp_path: Path) -> None:
     """read_pytorch raises ValueError when the raw pickle file itself can't
     be opened -- matching its own documented "Raises: ValueError: If the
     file cannot be opened" contract, the same one every sibling extractor
-    (hdf5.py, numpy.py, ...) honors for a whole-file-open failure (as
+    (hdf5.py, numpy.py, ...) honours for a whole-file-open failure (as
     opposed to a single field failing to extract, which degrades
     gracefully instead)."""
     fake_pt = tmp_path / "unreadable.pt"

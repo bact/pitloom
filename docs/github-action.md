@@ -29,6 +29,18 @@ Standalone SBOM artefact:
 Set up Python first: the action uses the Python on `PATH`. See
 [Python selection](#python-selection).
 
+To match `LICENSE` files, build the `licenseid` database before the action
+(the action installs only Pitloom; no network needed):
+
+```yaml
+- run: pip install 'licenseid>=0.7.1,<0.8' && licenseid update --source packaged
+```
+
+Without it a declared licence is still read, but a `LICENSE` file is not
+matched, and the step logs `INFO: licenseid database not found: ... license
+text detection skipped` (a licence declared) or `WARNING: licenseid database
+cannot be used: ... license text detection skipped` (none declared).
+
 Generate and embed PEP 770 SBOM into built wheels:
 
 ```yaml
@@ -83,13 +95,13 @@ Set `python-version` to always run `setup-python` with that version.
 ## Usage details
 
 By default the action scans the checkout root as a Python project and
-writes `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`,
-then `sbom.spdx3.json` as a last resort, unless the project's
-`[tool.pitloom] sbom-basename` overrides it, a trailing `.spdx3.json` dropped with a `WARNING:` -- the same default-naming
-logic `loom project` uses directly; a control character, whitespace, `/`, `\` or
-`:` in the name or version becomes `_`, and a name Windows opens as a device,
-such as `con`, gives `sbom`). Point it at an AI model instead of a
-project directory with `model:`:
+writes `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`, then
+`sbom.spdx3.json` as a last resort, unless the project's `[tool.pitloom]
+sbom-basename` overrides it, a trailing `.spdx3.json` dropped with a `WARNING:`
+-- the same default-naming logic `loom project` uses directly; a control
+character, whitespace, `/`, `\` or `:` in the name or version becomes `_`, and a
+name Windows opens as a device, such as `con`, gives `sbom`). Point it at an AI
+model instead of a project directory with `model:`:
 
 ```yaml
 - uses: bact/pitloom@v0.23.0
@@ -97,11 +109,11 @@ project directory with `model:`:
     model: path/to/model.safetensors
 ```
 
-A model whose read fails (truncated, over a bound, a missing extra) still
-gives a format-only entry: the step succeeds and the action surfaces the
-`WARNING:` as an annotation. A file that is not a model (an unpulled Git
-LFS pointer included), or is absent or unreadable, fails the step.
-See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+A model whose read fails (truncated, over a bound, a missing extra) still gives
+a format-only entry: the step succeeds and the action surfaces the `WARNING:` as
+an annotation. A file that is not a model (an unpulled Git LFS pointer
+included), or is absent or unreadable, fails the step. See [AI model scan
+limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Set `embed-wheel: "dist/*.whl"` (see the quick guide) to embed the SBOM into
 built wheels (PEP 770) for any build backend (`flit`, `setuptools`,
@@ -134,15 +146,15 @@ becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
 ## Loom ID registry in CI
 
-Declare a registry with the `id-registry` input (or `[tool.pitloom] id-registry`);
-the action then harvests newly minted ids back into it, in the runner's
-checkout only. To commit it back without relaxing a publish job's permissions,
-see [Loom ID registry: In CI](id-registry.md#in-ci). A registry committed
-under an earlier Pitloom release (format version 3 or 2) fails the step with
-an `ERROR:` and is left as it is; regenerate it with `loom id generate` or
-`loom id import`. A version 4 registry needs the action pinned to the first
-release with registry format 4 (`@v0.22.0` or later): `@v0.21.x` reads version
-3 only.
+Declare a registry with the `id-registry` input (or `[tool.pitloom]
+id-registry`); the action then harvests newly minted ids back into it, in the
+runner's checkout only. To commit it back without relaxing a publish job's
+permissions, see [Loom ID registry: In CI](id-registry.md#in-ci). A registry
+committed under an earlier Pitloom release (format version 3 or 2) fails the
+step with an `ERROR:` and is left as it is; regenerate it with `loom id
+generate` or `loom id import`. A version 4 registry needs the action pinned to
+the first release with registry format 4 (`@v0.22.0` or later): `@v0.21.x` reads
+version 3 only.
 
 ## Configuration
 
@@ -171,7 +183,7 @@ Inputs (all optional):
 | `update-id-registry` | *(empty)* | `true`/`false` to force harvesting newly-minted ids back into a *declared* registry on or off; empty defers to `[tool.pitloom] update-id-registry` (on by default). No effect when no registry is declared, and never creates one. |
 | `offline` | *(empty)* | `true`/`false` to force network access (PyPI/Hugging Face lookups) off or on; empty defers to `[tool.pitloom] offline` (off by default). |
 | `use-lockfile` | *(empty)* | `true`/`false` to force the lock/pin file cascade off or on; empty defers to `[tool.pitloom] use-lockfile` (on by default). Only applies in project mode -- a no-op in model/embed-wheel mode, since neither reads a lock file. See [Dependency sources and precedence](dependency-sources.md). |
-| `trust-wheel-model` | `false` | **SECURITY:** with `embed-wheel` **and `project-path: ""`**, `"true"` reads AI model files inside the wheel with every format reader, including the [formats gated in wheels](ai-model-scan-limits.md#formats-gated-in-wheels), whose readers can crash or hang on a hostile file; by default such a model is listed without metadata. Only for a wheel you trust: a hostile model file can crash or hang the step or exhaust memory. No `[tool.pitloom]` equivalent. With the default `project-path: .` the action passes `--project-dir`, the models are read from the project, not the wheel, and the input logs `::warning::trust-wheel-model has no effect with project-path set`; outside `embed-wheel` mode it logs `::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)`. |
+| `trust-wheel-model` | `false` | **SECURITY:** with `embed-wheel` **and `project-path: ""`**, `"true"` reads AI model files inside the wheel with every format reader, including the [formats gated in wheels](ai-model-scan-limits.md#formats-gated-in-wheels), whose readers can crash or hang on a hostile file; by default such a model is listed without metadata. Only for a wheel you trust: a hostile model file can crash or hang the step or exhaust memory. No `[tool.pitloom]` equivalent. With the default `project-path: .` the action passes `--project-dir`, the models are read from the project, not the wheel, and the input logs `::warning::trust-wheel-model has no effect with project-path set (AI models are read from the project, not the wheel); set project-path to an empty string`; outside `embed-wheel` mode it logs `::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)`. |
 | `allow-signed-wheel` | `false` | **SECURITY:** with `embed-wheel`, `"true"` embeds into a wheel that carries a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`), removing the signature (one `INFO:` per file); re-sign afterwards. By default such a wheel is refused and left untouched. Order the steps build, `embed-wheel`, sign/attest, upload: the embed invalidates signatures and hashes over the wheel file. See [Signed wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent. Outside `embed-wheel` mode it logs `::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)`. |
 | `allow-build` | `false` | **SECURITY:** `"true"` lets Pitloom invoke the scanned project's own PEP 517 build backend (subprocess; may install build-requires from the network) to discover a wheel's real file list. Executes third-party build-time code from the project being scanned -- only enable for a project whose build script you trust. No `[tool.pitloom]` equivalent; defaults to `"false"`, not empty, since there's no config layer to defer to. Applies in project/embed-wheel mode; explicitly set in model mode, it has no effect and logs `::warning::allow-build has no effect in model mode (no project-directory file discovery there)`. See [`--allow-build`](allow-build.md). |
 | `no-build-isolation` | `false` | With `allow-build: "true"`, skip creating an isolated build environment and use the runner's already-installed build backend instead. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)`. |
@@ -189,7 +201,7 @@ Output:
 | :--- | :--- |
 | `sbom-path` | Path to the generated SBOM file (a path with a non-printable character arrives quoted and ASCII-escaped, as `loom` prints it). Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
 
-## Code example: Build and Publish PEP 770 Wheel
+## Code example: build and publish a PEP 770 wheel
 
 ```yaml
 name: Build and Publish
@@ -216,7 +228,7 @@ jobs:
 
       # 3. Publish PEP 770-compliant wheel to PyPI
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypa-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@release/v1
 ```
 
 ## See also

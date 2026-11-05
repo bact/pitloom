@@ -8,7 +8,7 @@ entry on the main project package.
 
 See also: :mod:`pitloom.assemble.spdx3.deps_license`'s
 :func:`~pitloom.assemble.spdx3.deps_license.attach_main_package_license`,
-whose declared/concluded license conflict wiring this generalizes to any
+whose declared/concluded licence conflict wiring this generalises to any
 :class:`~pitloom.core.project.ProjectMetadata` field (e.g. a field an
 in-tree ``.egg-info``/``.dist-info`` disagreed with, see
 :mod:`pitloom.extract.project.installed`).

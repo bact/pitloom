@@ -45,7 +45,7 @@ from pitloom.extract.project.pyproject import (
 
 def test_read_pyproject_no_project_no_poetry_detects_license_from_dir() -> None:
     """No ``[project]``/``[tool.poetry]``: falls through to an empty
-    ``ProjectMetadata`` whose license is detected independently from the
+    ``ProjectMetadata`` whose licence is detected independently from the
     project directory (line 85's ``license_prov`` truthy branch)."""
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)

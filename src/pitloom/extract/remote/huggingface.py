@@ -19,7 +19,7 @@ Sources used (all optional - missing files are silently skipped):
   (``base_model:relation:id``, ``arxiv:*``, ``doi:*``, ``dataset:*`` prefixes)
   and the stated parameter count (``safetensors.total``, else ``gguf.total``)
 * License files (``LICENSE``, ``LICENCE``, ``COPYING``, etc.) - used when
-  the model card has no license or a vague value such as ``"other"``
+  the model card has no licence or a vague value such as ``"other"``
 
 Standard fields populated:
 
@@ -42,7 +42,7 @@ Extension slots populated:
 
 * ``extra_data`` - hub provenance (author, sha, dates, URL), tokenizer class,
   library name, secondary license name, raw evaluation results (``model-index``),
-  the raw card YAML license value when it is overridden by file detection
+  the raw card YAML licence value when it is overridden by file detection
   (``hf.license_raw``), base model ID (``hf.base_model``), base model
   relationship type (``hf.base_model_relation``: ``finetune`` / ``quantized``
   / ``merge`` / ``adapter``), and DOI (``hf.doi``)
@@ -54,7 +54,7 @@ License detection uses ``licenseid`` (a core dependency) with an up-to-date
 database (``licenseid update --source packaged``).
 
 See also: this module is a thin facade. Fetching raw Hugging Face Hub data
-and resolving the license lives in
+and resolving the licence lives in
 :mod:`pitloom.extract.remote.huggingface_fetch`; mapping that raw data onto
 :class:`~pitloom.core.ai_metadata.AiModelMetadata` fields lives in
 :mod:`pitloom.extract.remote.huggingface_field`.

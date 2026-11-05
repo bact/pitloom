@@ -30,7 +30,7 @@ from ..conftest import (
 
 def test_build_file_native_copyright_and_declared_license() -> None:
     """A file's own SPDX-FileCopyrightText/License-Identifier tags set
-    native fields directly; the license relationship is hasDeclaredLicense,
+    native fields directly; the licence relationship is hasDeclaredLicense,
     never hasConcludedLicense (a file's own tag always is its own claim,
     nothing to classify against)."""
     files = [
@@ -287,7 +287,7 @@ def test_build_file_summary_combines_contributors_and_file_type_sorted() -> None
 
 def test_build_file_no_header_data_emits_nothing_extra() -> None:
     """A file with no header-derived data at all gets no summary, no
-    Annotation, no license relationship, and no native copyright/purpose/
+    Annotation, no licence relationship, and no native copyright/purpose/
     contentType fields -- matches today's pre-feature output exactly."""
     files = [
         ProjectFile(

@@ -288,7 +288,7 @@ def _paths(tmp: Path) -> dict[str, str]:
     sbom.write_text('{"@context": "x", "@graph": []}', encoding="utf-8")
     config = tmp / "reach-config.toml"
     config.write_text(f'[tool.pitloom]\nsbom-basename = "{_MARKER}"\n', "utf-8")
-    # A declared registry must load (a missing/broken one is now an ERROR,
+    # A declared registry must load (a missing/broken one is an ERROR,
     # not a silent no-op) -- a real, empty, valid registry is enough for
     # this module's own purpose of checking the flag/kwarg reaches the
     # library, not that anything in it is looked up.

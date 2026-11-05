@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-09-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,10 +24,10 @@ Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
 | `type_of_model` | `ai_typeOfModel` |
 | `hyperparameters` | `ai_hyperparameter` (list of `DictionaryEntry`) |
 | `inputs` / `outputs` | `ai_informationAboutApplication` (JSON string) |
-| `format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
-| `framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
-| `framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
-| `properties` | not yet mapped (stored in `AiModelMetadata.properties`, not emitted to SPDX) |
+| `format_info.format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
+| `format_info.framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
+| `format_info.framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
+| `properties`, `raw_metadata` | no SPDX field; preserved verbatim in the artifact-metadata `Annotation` when `preserve-source-metadata` allows |
 | `provenance` | `comment` |
 
 `ai_AIPackage` elements are linked to the main Python package via an SPDX
@@ -51,7 +51,7 @@ types between `ai_AIPackage` and `dataset_DatasetPackage`:
 
 - `AiModelMetadata.datasets` (`pitloom.core.ai_metadata`) is a
   `list[DatasetReference]` (`pitloom.core.dataset_metadata`) carrying each
-  dataset's role, name, URI, and license -- populated today by the
+  dataset's role, name, URI, and licence -- populated today by the
   README/model-card frontmatter enricher (`enrich/readme.py`) and the
   Hugging Face extractor (`extract/remote/huggingface.py`).
 - `add_datasets_for_model()` (`src/pitloom/assemble/spdx3/dataset.py`)
@@ -72,7 +72,7 @@ in machine-readable Croissant format (JSON-LD extension of `schema.org/Dataset`)
 adopted by Hugging Face, Kaggle, and OpenML.
 <https://github.com/mlcommons/croissant>
 
-To avoid SBOM bloat, only top-level identity fields (name, license, task) should
+To avoid SBOM bloat, only top-level identity fields (name, licence, task) should
 be inlined into the `dataset_DatasetPackage` element; exhaustive provenance can
 be linked via an `ExternalRef` pointing to the Croissant document URL.
 
@@ -90,9 +90,9 @@ such as OpenSSF Scorecard and package registries.
 | Source | What it provides | Network required | Default | Status |
 | :----- | :--------------- | :--------------- | :------ | :----- |
 | Repository README / model card | License, dataset references (YAML frontmatter only -- not prose; see below) | No (local file) | **Disabled** (opt-in) | **Shipped** (`enrich/readme.py`) |
-| Hugging Face Hub metadata | Architecture, tags, license, dataset links, paper references | Yes | User opt-in | Not started |
+| Hugging Face Hub metadata | Architecture, tags, licence, dataset links, paper references | Yes | User opt-in | Shipped as a model source (`loom model <hub-id>`, `extract/remote/huggingface*.py`); not an `enrich` pass |
 | OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | User opt-in | Not started |
-| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | User opt-in | Not started |
+| Parlay package enrichment | Package ecosystem metadata (description, homepage, licence) | Yes | User opt-in | Not started |
 | PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in | Not started |
 
 Every source defaults **off**, including the local, no-network README
@@ -214,7 +214,7 @@ An AI agent (e.g. Claude Code, or another Agent-SDK-based runtime) is
 itself an enrichment source, distinct from the code-side enrichers above.
 Where a README/model-card parser is limited to pattern matching, an agent
 can read prose, reason about intent, and infer information no structured
-extractor can reach -- a plausible license from ambiguous wording, what a
+extractor can reach -- a plausible licence from ambiguous wording, what a
 dependency is actually *for*, or a `trainedOn`/`testedOn` dataset
 relationship implied by a paragraph rather than a machine-readable field.
 
@@ -231,7 +231,7 @@ for the full sequencing.
 
 | Source | What it provides | Network required | Default |
 | :----- | :--------------- | :--------------- | :------ |
-| AI agent (Skill / plugin) | Prose-derived inference: license guesses, dependency purpose, dataset relationships, anything requiring reading comprehension rather than parsing | Optional (agent-dependent; Pitloom itself needs none) | User opt-in (agent only enriches when asked, or when a skill/plugin step explicitly runs) |
+| AI agent (Skill / plugin) | Prose-derived inference: licence guesses, dependency purpose, dataset relationships, anything requiring reading comprehension rather than parsing | Optional (agent-dependent; Pitloom itself needs none) | User opt-in (agent only enriches when asked, or when a skill/plugin step explicitly runs) |
 
 ### Delivery path: fragment merge, not direct edits
 
@@ -424,7 +424,7 @@ The following namespace is reserved for that purpose:
 - `pitloom:ai:dataset:training:name` -- name or URI of the training dataset
 - `pitloom:ai:dataset:training:size` -- volume of data (e.g., `1.2TB`)
 - `pitloom:ai:dataset:training:split` -- ratio or segment used (e.g., `train`)
-- `pitloom:ai:dataset:preprocessing` -- normalization or transformation applied
+- `pitloom:ai:dataset:preprocessing` -- normalisation or transformation applied
 
 ### Metrics and evaluation
 

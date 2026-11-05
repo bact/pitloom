@@ -5,7 +5,7 @@
 
 """Portability guard: every ``skills/*/SKILL.md`` stays a valid Agent Skill.
 
-The skills have no test suite of their own (see CLAUDE.md's "Usage
+The skills have no test suite of their own (see AGENTS.md's "Usage
 surfaces"), and a client that validates strictly (claude.ai and the
 Skills API upload, ``skills-ref validate``) rejects a frontmatter key
 outside the specification -- Claude Code alone tolerates it. If a case

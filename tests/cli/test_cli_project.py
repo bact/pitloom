@@ -203,8 +203,8 @@ def test_project_command_malformed_pitloom_config_surfaces_error(
     """A malformed [tool.pitloom] section must be a hard error, not a silent
     fallback to default config.
 
-    ``creator-name`` directly under ``[tool.pitloom]`` is the old/invalid
-    single-valued form (creators now live under
+    ``creator-name`` directly under ``[tool.pitloom]`` is an invalid
+    single-valued form (creators live under
     ``[[tool.pitloom.creator]]``), so ``read_pyproject`` raises ``ValueError``.
     ``_run_project_command`` reads the project once via ``read_project()``; that
     error must propagate rather than being silently discarded: exit code 1,

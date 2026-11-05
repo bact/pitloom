@@ -99,7 +99,7 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     """report_embed_result prints one WHEEL=/SBOM= data line to stdout and
     the two INFO: side-effect lines to stderr, matching every other
     INFO:/WARNING:/ERROR: line."""
-    # The two side-effect lines go through logging (see CLAUDE.md's "CLI
+    # The two side-effect lines go through logging (see AGENTS.md's "CLI
     # output" section), unlike the confirmation line above them -- calling
     # this function directly, without going through __main__.main(), skips
     # the configure_logging() call that normally wires INFO: up to stderr.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,7 +32,7 @@ tracking and uses SPDX 3 CreationInfo for transparency and auditability.
 > `CreationInfo` (N3, with the `enrich/` MVP) are emitted as native SPDX
 > constructs with no provenance residual for the value itself. G2
 > (multi-source disagreement detection) is now implemented for license, and
-> generalized to any field for when future candidate sources land. A2
+> generalised to any field for when future candidate sources land. A2
 > (superseded identity across builds) remains design-only. See
 > [`annotation-provenance.md`](annotation-provenance.md)
 > §10 for the full design, current status, and code citations for all
@@ -80,7 +80,7 @@ no native home at all and are always recorded: **fragment-unification**
 rationale (which criterion merged two elements) and **artifact-metadata
 preservation** (an AI model's verbatim original metadata, config-gated to when
 the model is not shipped and can't be re-extracted). See §10 of the
-implementation plan for the use-case catalog and the Phase 2 native-backfill
+implementation plan for the use-case catalogue and the Phase 2 native-backfill
 checklist.
 
 **Size, bounded (2026-08-26):** artifact-metadata preservation
@@ -91,8 +91,8 @@ metadata verbatim into a single `Annotation.statement` -- for a real
 production model with a large vocabulary (e.g. a GGUF LLM's 32K-128K+
 token list), that field alone could inflate a single Annotation into the
 multi-megabyte range. `[tool.pitloom.provenance] max-source-metadata-bytes`
-(default `0`, unlimited -- unchanged behavior unless a project opts in)
-now caps the serialized statement's size: whole `metadata` keys are
+(default `0`, unlimited -- unchanged behaviour unless a project opts in)
+now caps the serialised statement's size: whole `metadata` keys are
 dropped, largest first, and the reduction is marked explicitly
 (`truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes`)
 rather than silently losing data. See

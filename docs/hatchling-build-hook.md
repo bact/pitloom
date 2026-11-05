@@ -47,6 +47,13 @@ No separate `pip install` step is needed beyond that -- the build
 front-end (`pip`, `build`, `hatch`) installs `pitloom` as a build-time
 dependency automatically, the same way it installs Hatchling itself.
 
+To match `LICENSE` files, the build machine also needs the `licenseid`
+database: run `licenseid update --source packaged` once (needs `licenseid`
+installed, as it is with `pip install pitloom`; no network). Without it the
+hook logs a `WARNING:` ("licenseid database cannot be used ... license text
+detection skipped"), or an `INFO:` when a licence is declared, and still reads
+the declared licence.
+
 > [!NOTE]
 > Hatchling 1.32.3 changed the build-hook plugin interface, and 1.32.4
 > reverted the change. Pitloom works with both, but other build-hook
@@ -57,7 +64,8 @@ dependency automatically, the same way it installs Hatchling itself.
 
 Every `hatch build`/`python -m build` invocation:
 
-1. Generates a Build SBOM (`software_SbomType.build`) for the project being built.
+1. Generates a Build SBOM (`software_SbomType.build`) for the project being
+   built.
 2. Merges in any fragments registered under `[tool.pitloom.fragment]`
    (see the [Python API](python-api.md#tracking-decorator) tracking
    decorator, or a hand-authored fragment).
@@ -85,7 +93,8 @@ same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
 [Merge fragments](fragments.md#merge-fragments)) fails the build outright
 with an `ERROR: SBOM generation failed: <reason>` line (once, whatever the
 cause: an invalid setting, a missing `required = true` fragment, a malformed
-`SOURCE_DATE_EPOCH`), and "generation skipped: hook disabled" is an `INFO:`.
+`SOURCE_DATE_EPOCH`), and a disabled hook logs `INFO: Pitloom build hook:
+disabled; skipping SBOM generation.`
 
 The hook skips, with one `INFO:`, a build that is not a wheel (an sdist) and
 the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not
@@ -94,7 +103,8 @@ the project's files, so an SBOM would list files that are not in it.
 A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
 name as the hook's SBOM, ignoring case (typically `loom project`'s default
 `<name>-<version>.spdx3.json`), is an `ERROR:`, as the wheel would hold the
-name twice, or two names that Windows and macOS extract onto one file: set `[tool.pitloom] sbom-basename` to another name, or drop the entry.
+name twice, or two names that Windows and macOS extract onto one file: set
+`[tool.pitloom] sbom-basename` to another name, or drop the entry.
 
 ## Reproducible builds
 

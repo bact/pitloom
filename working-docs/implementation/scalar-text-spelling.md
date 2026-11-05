@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,7 +47,7 @@ Measured (real `rfc8785` 0.1.4, checked against RFC 8785 Appendix B, all
 
 ## Which layer: SPDX tokens vs text inside strings
 
-The SPDX 3.0.1 canonical serialization
+The SPDX 3.0.1 canonical serialisation
 (<https://spdx.github.io/spdx-spec/v3.0.1/serializations/>) fixes JSON
 *tokens*: `true`/`false`/`null` lowercase, integers in base 10 without
 leading zeros, and nothing about floating-point numbers. It governs typed

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-18
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,7 +59,7 @@ file-size guidance -- moved verbatim, no content changed.
 - [x] **Unify `extract/project/installed.py`'s RFC 822 Core-Metadata
   parser with `extract/wheel.py`'s** -- closed (2026-09-15, PR #215):
   widened to all four sites with the same duplicated `Project-URL`
-  -splitting shape, consolidated into one parametrized
+  -splitting shape, consolidated into one parametrised
   `extract/_core_metadata.py::parse_project_urls()`. See
   [installed-dist-info-source.md](installed-dist-info-source.md#relationship-to-extractwheelpys-parser).
 - [ ] **Real installed `.dist-info` (site-packages) as a metadata
@@ -81,7 +81,7 @@ file-size guidance -- moved verbatim, no content changed.
   `[tool.pitloom] use-lockfile = false`) disabling automatic lock-file
   discovery across every usage surface; on by default. Also fixed a
   related `loom enrich` doc-identity bug found along the way.
-  See [lock-file-cascade.md](../implementation/lock-file-cascade-opt-out.md#--no-use-lockfile-opt-out).
+  See [lock-file-cascade-opt-out.md](../implementation/lock-file-cascade-opt-out.md#--no-use-lockfile-opt-out).
 - [x] **Preserve lock file hashes in `--offline` mode** -- SHA-256 digests
   parsed from `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`
   now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API

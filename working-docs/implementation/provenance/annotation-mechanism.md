@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,7 @@ artefact's internal key, a synthesized phantom package), or the raw PEP 508
   `"auto"` (preserve an AI model's verbatim metadata only when the artefact is
   not shipped in the distribution and can't be re-extracted).
 - `max-source-metadata-bytes = <int>` — default `0` (unlimited). Byte
-  budget for the serialized artifact-metadata `Annotation.statement`
+  budget for the serialised artifact-metadata `Annotation.statement`
   (2026-08-26); unlike its siblings, also has a `--max-source-metadata-bytes`
   CLI flag / `action.yml` input, passed as the field-level override
   `ConfigOverrides.max_source_metadata_bytes` (normalised once in
@@ -137,10 +137,10 @@ open question #7). `max-source-metadata-bytes` (`ProvenanceConfig` field
 `max_source_metadata_bytes`, default `0` = unlimited) caps this.
 
 Truncation happens at the dictionary level only — whole `metadata` keys
-are dropped, largest-serialized-size first, never a value cut
+are dropped, largest-serialised-size first, never a value cut
 mid-string (which would produce invalid JSON). This is implemented in
 `assemble/spdx3/provenance.py`'s `_truncate_metadata_for_budget()`,
-re-checking the real RFC 8785-serialized byte length of the candidate
+re-checking the real RFC 8785-serialised byte length of the candidate
 envelope after each drop rather than approximating it — cheap at the
 realistic key counts here (a model's own KV/metadata table: dozens of
 keys, not thousands). When triggered, the envelope gains
@@ -197,14 +197,14 @@ through `build()` → `add_ai_models()` as one opaque object.
 
 **Also 2026-08-26**: `_build_json_annotation()` (shared by all four
 schemas) switched from plain `json.dumps(..., sort_keys=True)` to true
-RFC 8785 (JCS) canonicalization (`rfc8785.dumps()`, already a project
+RFC 8785 (JCS) canonicalisation (`rfc8785.dumps()`, already a project
 dependency, used for the outer document). The statements it builds
 became genuinely canonical, not just key-sorted — no insignificant
 whitespace, so every statement also shrank a little for free.
-`_sanitize_for_json()`'s fallback for unrecognized types (`np.float32`,
+`_sanitize_for_json()`'s fallback for unrecognised types (`np.float32`,
 `Decimal`, etc.) changed from relying on `json.dumps`'s `default=str`
 hook (which `rfc8785.dumps()` has no equivalent of) to stringifying them
-itself before the value ever reaches the serializer.
+itself before the value ever reaches the serialiser.
 
 **2026-10-08 (#294): one helper for every embedded JSON text.** The
 2026-08-26 switch missed the `fields` statement (`PitloomV1Encoder.encode()`
@@ -212,11 +212,11 @@ kept `json.dumps(sort_keys=True)`, spaced), and JSON texts outside
 annotations were spaced too: `ai_informationAboutApplication`, fastText
 and CRFsuite `labels`, HDF5 `loss`/`metrics`, and the JSON text of a
 collection nested past the 32-level bound. All now go through
-`pitloom.core.canonical_json.canonical_json()` (the sanitizer moved there
+`pitloom.core.canonical_json.canonical_json()` (the sanitiser moved there
 as `json_safe()`), so every `Annotation.statement` and every other JSON
 text in an SBOM string is RFC 8785. `json_safe()` makes a string of what
 RFC 8785 rejects: NaN and the infinities as `scalar_text()` spells them
-(`NaN`, `INF`, `-INF`; the sanitizer used to write `Infinity`, a second
+(`NaN`, `INF`, `-INF`; the sanitiser used to write `Infinity`, a second
 spelling of one value), and an integer beyond +-(2^53 - 1) as its full
 decimal (`rfc8785` raises `IntegerDomainError`; a float would lose
 digits). Artifact-metadata values are already `scalar_text()` strings, so

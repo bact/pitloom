@@ -26,7 +26,7 @@ from pitloom.core.untrusted_text import escape_display_controls, escape_lone_sur
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
-#: Segment-key normalization for "Key: value | Key: value" strings. The
+#: Segment-key normalisation for "Key: value | Key: value" strings. The
 #: grammar's segment order is Source | Field | Method | Evidence | Reason;
 #: ``Evidence`` and ``Reason`` are written only by
 #: :func:`pitloom.core.evidence.evidence_segment`. Any other known key
@@ -57,7 +57,7 @@ PROVENANCE_PROPERTY_FIELDS = {
 }
 
 #: Smallest possible non-empty JCS-encoded JSON object (e.g. ``{"a":""}``),
-#: computed from the real serializer so it can't silently drift from it.
+#: computed from the real serialiser so it can't silently drift from it.
 MIN_SOURCE_METADATA_BYTES = len(rfc8785.dumps({"a": ""}))
 
 
@@ -252,7 +252,7 @@ class ProvenanceConfig:
         detail: Provenance detail level ("minimal", "full").
         preserve_source_metadata: How to preserve source metadata
             ("auto", "always", "never").
-        max_source_metadata_bytes: Byte budget for the serialized
+        max_source_metadata_bytes: Byte budget for the serialised
             artifact-metadata Annotation.statement; 0 (default) means
             unlimited, below :data:`MIN_SOURCE_METADATA_BYTES` is an error. See
             :func:`require_max_source_metadata_bytes`.

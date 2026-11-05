@@ -307,7 +307,7 @@ def test_deps_originator_edge_branches() -> None:
     urls = _parse_project_urls(mock_pkg)
     assert urls == {"home": "https://example.com"}
 
-    # _resolve_remote_authors_file with an unrecognized host: no known
+    # _resolve_remote_authors_file with an unrecognised host: no known
     # blob/raw URL scheme, so it returns the bare repo URL with no fetch.
     loc, ctype, text = _resolve_remote_authors_file(
         "https://bitbucket.org/foo/bar",

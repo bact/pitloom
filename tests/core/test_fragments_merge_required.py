@@ -6,7 +6,7 @@
 """Tests for merge_fragments()'s required=True enforcement.
 
 See also: test_fragments_merge.py (the rest of merge_fragments()'s
-behavior -- split out once this file grew past the project's file-size
+behaviour -- split out once this file grew past the project's file-size
 soft limit).
 """
 

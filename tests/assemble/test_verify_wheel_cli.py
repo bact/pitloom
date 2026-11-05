@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for `pitloom verify-wheel` (PEP 770 location + recommended
+"""Tests for `loom verify-wheel` (PEP 770 location + recommended
 extension -- structural check only, no schema/SHACL content validation).
 
 See also:
@@ -151,7 +151,7 @@ def test_verify_wheel_unrecognized_format_warns(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A non-JSON-LD embedded file has no detected format -> WARNING,
-    not ERROR -- unrecognized isn't the same as a location problem."""
+    not ERROR -- unrecognised isn't the same as a location problem."""
     wheel_path = _make_dummy_wheel(tmp_path, "otherpkg", "1.0.0")
     with zipfile.ZipFile(wheel_path) as zf:
         dist_info = next(

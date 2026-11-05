@@ -75,8 +75,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``enrich`` subcommand."""
-    # Note: Using 4-space indent
-    # 4b. Enrichment only: loom enrich <SOURCE>
+    # Enrichment only: loom enrich <SOURCE>
     enrich_parser = subparsers.add_parser(
         "enrich",
         parents=[parent_parser],
@@ -108,6 +107,6 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         enrich_parser,
         " when computing the base document's identity for --project-dir "
         "matching -- must match whatever setting produced that base SBOM, "
-        "or omit to auto-match its [tool.pitloom] config",
+        "or omit to auto-match its [tool.pitloom] config.",
     )
     enrich_parser.set_defaults(func=_run_enrich_command)

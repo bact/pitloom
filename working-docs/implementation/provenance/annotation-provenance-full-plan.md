@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-10-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,7 +42,7 @@ beyond the native value itself.** Two confirmed decisions:
 - **Scope now = doc + generation + aggregation.** Refine the emitter to the boundary,
   implement fragment-unification annotations (that code path exists today), implement
   artifact-metadata preservation for AI models (a generation-time concern, config-gated),
-  and write the use-case catalog into working-docs. Enrichment-override annotations are
+  and write the use-case catalogue into working-docs. Enrichment-override annotations are
   captured as design only (the `enrich/` subpackage is unbuilt).
 
 A second Annotation role emerged beyond provenance-of-extraction: **metadata
@@ -102,7 +102,7 @@ Citations: native inventory — `document.py:60-97,173-281`, `ai.py:124-357`,
 identity). Enrichment — `skills/enrich/SKILL.md:40-60` (`Source: AI agent | Method: inference`
 rides only in `comment`), `sbom-enrichment.md:145-169`.
 
-## Use-case catalog (the deliverable the user asked for)
+## Use-case catalogue (the deliverable the user asked for)
 
 ### Generation
 
@@ -127,7 +127,7 @@ rides only in `comment`), `sbom-enrichment.md:145-169`.
   and a build-time-resolution note (`deps.py:52`). SPDX stores only the resolved
   `software_packageVersion=2.28.1`; there is no native field for the original constraint or
   the fact resolution happened from the build environment. Needed to reproduce/re-resolve or
-  analyze version drift; the SBOM should be self-contained rather than sending readers back to
+  analyse version drift; the SBOM should be self-contained rather than sending readers back to
   `pyproject.toml`.
 
 - **G4 — Sub-file extraction location for opaque binary formats — USEFUL.**
@@ -184,7 +184,7 @@ relevant subset is still emitted as SPDX classes/properties/relationships — ra
 - **P1 — Verbatim original artefact metadata blob — USEFUL; NECESSARY when the artefact is not shipped.**
   Pitloom's native mapping is deliberately lossy and selective: it lifts a chosen subset of a model's
   GGUF kv-store / safetensors `__metadata__` / ONNX `metadata_props` / HF `config.json` + model-card
-  YAML into `ai_typeOfModel`, `ai_hyperparameter`, `ai_domain`, etc. (`ai.py:124-200`), normalizing or
+  YAML into `ai_typeOfModel`, `ai_hyperparameter`, `ai_domain`, etc. (`ai.py:124-200`), normalising or
   dropping everything else. When the artefact does **not** travel with the SBOM — a remote HF model
   referenced by URL, a large weights file excluded from the wheel, a model pulled at deploy time — the
   original metadata can never be re-extracted from the artefact, and an SPDX `ExternalRef` (used today
@@ -199,7 +199,7 @@ relevant subset is still emitted as SPDX classes/properties/relationships — ra
 ## Phase 2 (documented now, built after the Annotation work): native-first backfill
 
 Several facts above have a real SPDX 3 home that Pitloom does not yet populate — it records
-them only in a comment/Annotation, or mirrors/normalizes them away. The native-first principle
+them only in a comment/Annotation, or mirrors/normalises them away. The native-first principle
 says the *fact/value* belongs in the native construct; the Annotation should then shrink to only
 the non-native residual. Building these is deferred to a next phase, but documenting the target
 now keeps the two halves coherent and prevents the Annotation from ossifying as the permanent home
@@ -231,7 +231,7 @@ Add two keys alongside the existing `format` / `schema`:
 
 - `detail = "minimal" | "full"` — default `"minimal"`.
   - `minimal`: field Annotations only for G1–G4 signals; process Annotations (A1) always.
-  - `full`: also emit the plain per-field source map (current behavior) for exhaustive audit.
+  - `full`: also emit the plain per-field source map (current behaviour) for exhaustive audit.
 - `preserve_source_metadata = "auto" | "always" | "never"` — default `"auto"` (P1).
   - `auto`: embed the verbatim artifact-metadata blob **only when the artefact is not shipped**
     with the distribution (remote HF model, model referenced by URL, weights excluded from the
@@ -249,7 +249,7 @@ Parsed and validated in `src/pitloom/core/config.py` next to `_read_provenance_s
 
 - **Field-level (extraction):** keep the `pitloom/1` envelope
   `{schema, fields: {field: {source, location, method, note}}}`. No shape change; minimal mode
-  simply *filters* which fields appear (see high-signal test below). Formalize the `method`
+  simply *filters* which fields appear (see high-signal test below). Formalise the `method`
   vocabulary already produced by extractors: `dynamic_extraction`, `licenseid_detection`,
   `inferred_from_authors`, `inspect_caller`, `file_directive`, `attr_directive`, plus the
   enrichment-reserved `inference`.
@@ -271,7 +271,7 @@ Parsed and validated in `src/pitloom/core/config.py` next to `_read_provenance_s
 
 > **Decision (2026-07-21):** implemented as a *denylist*, not the allowlist this
 > section originally proposed. For a provenance feature the failure direction
-> matters more than precision: an allowlist ("keep only recognized high-signal
+> matters more than precision: an allowlist ("keep only recognised high-signal
 > patterns") fails **closed** — a new extractor emitting genuinely useful
 > non-native provenance is silently dropped until someone extends the allowlist.
 > A denylist fails **open** — new sources are kept by default; you only lose the

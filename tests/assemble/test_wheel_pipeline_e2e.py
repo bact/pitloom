@@ -165,7 +165,7 @@ def _by_type(graph: list[dict[str, Any]], type_name: str) -> list[dict[str, Any]
 
 #: A ``LifecycleScopedRelationship`` (used for scoped ``generates``/
 #: ``hasDataFile`` edges) is a ``Relationship`` subclass at the Python level,
-#: but serializes with its own JSON-LD ``type`` -- match both.
+#: but serialises with its own JSON-LD ``type`` -- match both.
 _RELATIONSHIP_TYPES = ("Relationship", "LifecycleScopedRelationship")
 
 

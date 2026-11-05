@@ -202,7 +202,7 @@ def _read_npz_metadata(
 
 
 def _detect_numpy_kind(model_path: Path) -> str | None:
-    """Detect whether file is a .npy file, .npz archive, or unrecognized."""
+    """Detect whether file is a .npy file, .npz archive, or unrecognised."""
     try:
         with model_path.open("rb") as fh:
             magic = fh.read(8)

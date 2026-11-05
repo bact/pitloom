@@ -96,8 +96,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``model`` subcommand."""
-    # Note: Using 4-space indent
-    # 4. AI Model Asset: loom model <SOURCE> [--offline]
+    # AI model asset: loom model <SOURCE> [--offline]
     model_parser = subparsers.add_parser(
         "model",
         parents=[parent_parser],

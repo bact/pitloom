@@ -142,7 +142,7 @@ def test_default_discovery_fails_loudly_for_module_name_mismatch(
     backend-aware" warning and Hatchling's own specific "no directory
     that matches the name of your project" one), not a silent one.
 
-    Note this is *not* the ``None``-vs-``[]`` distinction CLAUDE.md's
+    Note this is *not* the ``None``-vs-``[]`` distinction AGENTS.md's
     "Recurring bug patterns" section describes: ``_models_wheel_hatchling
     .discover()`` genuinely returns ``None`` here, but
     ``_discover_with_no_static_module()``'s own Hatchling-fallback call

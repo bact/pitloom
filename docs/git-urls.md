@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,8 +56,8 @@ from the server's own branches and tags, longest match first.
 - Where the ref is in the query (cgit, Azure DevOps) it is exact: it is not
   split from the folder, and a `?h=` or `?id=` after a cgit page name is the ref
   whatever the folder is called (`src`, `tree`), unless the path holds a GitLab
-  (`-`) or Gitea (`src/commit|branch|tag`) marker, which makes the query stray. A query that names no ref
-  (`?ref_type=heads`) is ignored, as before. An Azure DevOps `version` that does
+  (`-`) or Gitea (`src/commit|branch|tag`) marker, which makes the query stray.
+  An Azure DevOps `version` that does
   not start with `GB`, `GT` or `GC` names no ref: the default branch is read and
   an `INFO:` says so.
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot

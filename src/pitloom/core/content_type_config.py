@@ -51,7 +51,7 @@ class ContentTypeConfig:
             is on: ``"auto"`` (default -- try ``magika``, fall back to a
             filename-extension guess via stdlib ``mimetypes`` when
             ``magika`` isn't installed or its result is inconclusive),
-            ``"magika"`` (same per-file behavior as ``"auto"``, but
+            ``"magika"`` (same per-file behaviour as ``"auto"``, but
             raises a clear error up front if the ``magika`` package
             isn't installed at all, rather than silently degrading),
             or ``"extension"`` (skip ``magika`` entirely, resolve purely

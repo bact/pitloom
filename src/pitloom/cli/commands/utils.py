@@ -42,7 +42,7 @@ from pitloom.messages import LIBRARY_MISSING, LIBRARY_UNUSABLE, code_of
 def cli_error_handler(
     error_msg: str,
 ) -> Callable[[Callable[..., int]], Callable[..., int]]:
-    """Decorator to standardize CLI error handling and tracebacks."""
+    """Decorator to standardise CLI error handling and tracebacks."""
 
     def decorator(func: Callable[..., int]) -> Callable[..., int]:
         @wraps(func)
@@ -73,7 +73,7 @@ def existing_model_path(given: Path) -> Path | None:
 
 
 def _print_sbom_output_path(output_path: Path | str) -> None:
-    """Report the resolved SBOM output path in KEY=VALUE form (see CLAUDE.md).
+    """Report the resolved SBOM output path in KEY=VALUE form (see AGENTS.md).
 
     Nothing is printed for ``-``: stdout is then the SBOM itself, and a line
     after it would break ``loom ... -o - | jq .``.
@@ -271,7 +271,7 @@ def _validate_spdx3_documents(
 ) -> int:
     """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
 
-    Shared by ``pitloom fragment validate`` and ``pitloom validate-wheel``
+    Shared by ``loom fragment validate`` and ``loom validate-wheel``
     -- same underlying `spdx3_validate.validate()` call, same install-hint
     on missing dependency, same per-violation ``ERROR:`` line handling.
     Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
@@ -293,7 +293,7 @@ def _validate_spdx3_documents(
     try:
         result = spdx3_validate.validate(paths, check_merged=check_merged)
     except spdx3_validate.SpdxValidateError as exc:
-        # A document can't even be loaded/parsed (bad JSON, unrecognized
+        # A document can't even be loaded/parsed (bad JSON, unrecognised
         # @context, incompatible versions across paths) -- distinct from a
         # ValidationResult carrying schema/SHACL findings below, but still
         # a validation failure the caller should report cleanly, not an

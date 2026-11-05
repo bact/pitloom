@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-21
-Last-Modified: 2026-07-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ TechOps reports.
 
 To ensure long-term maintainability and flexibility, Pitloom introduces a
 format-neutral internal document model. This approach decouples metadata
-extraction from final output serialization, enabling the same extraction
+extraction from final output serialisation, enabling the same extraction
 pipeline to drive any requested output format.
 
 ## Goals
@@ -27,17 +27,17 @@ An ideal internal representation must be:
 
 - **Format-neutral**: Not tied to SPDX, CycloneDX, or any other spec's
   structural quirks.
-- **Lossless**: Preserves all captured information so every serializer can
+- **Lossless**: Preserves all captured information so every serialiser can
   use what it needs.
 - **Composable**: Combines metadata from multiple sources (pyproject.toml,
-  AI model files, MLflow runs, pre-generated fragments) before serialization.
-- **Serializer-agnostic**: Any number of serializers can consume the same
+  AI model files, MLflow runs, pre-generated fragments) before serialisation.
+- **Serialiser-agnostic**: Any number of serialisers can consume the same
   `DocumentModel` independently.
 
 ## Architecture
 
 ```text
-Extractors                     Core model              Serializers / Assemblers
+Extractors                     Core model              Serialisers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
 read_pyproject()         ─┐
 read_setuptools()        ─┤
@@ -58,7 +58,7 @@ class DocumentModel:
 ```
 
 `DocumentModel` holds everything that *could* appear in any output format.
-Serializers pick the fields they understand and ignore the rest.
+Serialisers pick the fields they understand and ignore the rest.
 
 ### Separation of concerns
 
@@ -77,14 +77,14 @@ Serializers pick the fields they understand and ignore the rest.
 | `AiModelMetadata` | `pitloom.core.ai_metadata` | AI model fields (fastText, GGUF, HDF5/Keras v1–v2, Keras v3, NumPy, ONNX, PyTorch, PyTorch PT2, Safetensors) |
 | `PitloomConfig` | `pitloom.core.config` | `[tool.pitloom]` settings (`pretty`, `fragments`) |
 | `CreationMetadata` | `pitloom.core.creation` | SBOM creator / timestamp |
-| `DocumentModel` | `pitloom.core.document` | Composed document ready for serialization |
+| `DocumentModel` | `pitloom.core.document` | Composed document ready for serialisation |
 
 All of these are plain Python dataclasses with no dependency on any SBOM
-library, making them easy to test and to target from any serializer.
+library, making them easy to test and to target from any serialiser.
 
 ## Adding a new output format
 
-To add a CycloneDX serializer, for example:
+To add a CycloneDX serialiser, for example:
 
 1. Create `pitloom/assemble/cyclonedx/` subpackage.
 2. Write `build(doc: DocumentModel) -> str` that reads `doc.project`,
@@ -95,9 +95,9 @@ To add a CycloneDX serializer, for example:
 ## Protobom evaluation
 
 Protobom was evaluated as a candidate for the format-neutral layer
-(see `working-docs/archive/protobom-evaluation.md`). While it provides a
-Protocol Buffers–based universal SBOM representation with good support for
-SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
+(see [protobom-evaluation.md](../archive/protobom-evaluation.md)). While it
+provides a Protocol Buffers–based universal SBOM representation with good
+support for SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
 AI/Dataset/Build profiles that are central to Pitloom's use cases. Adopting
 Protobom would introduce a significant dependency while leaving key fields
 unmapped. The lightweight `DocumentModel` approach is preferred for the

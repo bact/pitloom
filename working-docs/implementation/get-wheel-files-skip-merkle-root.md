@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-09-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,7 @@ that this caller throws away -- real, avoidable I/O for large projects.
   `not skip_merkle_root`, this would make `get_wheel_files(...,
   skip_merkle_root=True)` return `(None, [])` unconditionally --
   discarding every discovered file on every call, the opposite of the
-  intended optimization. Caught during plan review, before
+  intended optimisation. Caught during plan review, before
   implementation; fixed by checking `project_files` instead (the two
   lists are populated 1:1 in the same loop body regardless of the
   flag).
@@ -132,8 +132,8 @@ needed any more) and removed the triplicated forwarding.
   `_resolve_file_header_extras()`.
 - `src/pitloom/core/_models_wheel_types.py`: `FileScanConfig`.
 - `src/pitloom/core/project.py`: `ProjectFile.digest_sha256`.
-- `src/pitloom/embed.py`: `_build_sbom_from_project_and_wheel()`,
-  `_compute_wheel_merkle_root()`.
+- `src/pitloom/_embed_build_sbom.py`: `_build_sbom_from_project_and_wheel()`;
+  `src/pitloom/core/models.py`: `merkle_root_of_files()`.
 - `src/pitloom/assemble/spdx3/_document_files.py`: the `cast()` site.
 - Tests:
   `tests/core/models_wheel/test_models_wheel_skip_merkle_root.py`.

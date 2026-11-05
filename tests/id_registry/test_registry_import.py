@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for ``IdRegistry.import_sbom`` and ``pitloom id import``.
+"""Tests for ``IdRegistry.import_sbom`` and ``loom id import``.
 
 See also: test_registry.py, test_registry_harvest.py,
 test_registry_generate.py, shared.py.
@@ -249,7 +249,7 @@ def test_cli_import_then_model_reuses_a_hashed_ai_package_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """End to end, through the CLI only: an SBOM whose AIPackage carries a
-    hash is imported, then ``pitloom model`` looks the model up by stem: its
+    hash is imported, then ``loom model`` looks the model up by stem: its
     file is outside the registry's root (the import's current directory),
     so it is keyed by its name."""
     monkeypatch.chdir(tmp_path)

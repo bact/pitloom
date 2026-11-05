@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -122,7 +122,7 @@ wrote an SBOM that `sbomcheck` read.
 6. **What the SBOM says**: the release's declared requirements (`requires_dist`,
    extras as optional), not a resolved environment; the SBOM states so.
 7. **Surfaces**: CLI, `generate_project_sbom`/wheel API, skill hand-off; the
-   same resolver for all (CLAUDE.md "usage surfaces").
+   same resolver for all (AGENTS.md "usage surfaces").
 8. **Open**: extras on or off by default; a private index with credentials
    (same token rules as the section above); offline cache of the resolved file.
 
@@ -146,4 +146,4 @@ status box above).
 2. **Subdirectory fragment syntax**: `#subdirectory=packages/core` (a page URL
    already names a folder).
 3. **Submodule handling**: Should Git submodules be recursively extracted, or
-   modeled as independent dependency relationships in SPDX 3?
+   modelled as independent dependency relationships in SPDX 3?

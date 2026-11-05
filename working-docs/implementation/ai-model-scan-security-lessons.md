@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,8 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [ai-model-scanning.md](ai-model-scanning.md) (the design as
 built), [model-metadata-readers.md](../design/model-metadata-readers.md)
 (the planned header-only readers), `docs/ai-model-scan-limits.md` (the
-user-facing caps).
-See also: [SBOM generator field notes](sbom-generator-field-notes/README.md).
+user-facing caps) and
+[SBOM generator field notes](sbom-generator-field-notes/README.md).
 
 Experience notes from PR #263 (scan AI models inside built wheels), written
 as raw material for a paper on building an SBOM generator for AI artefacts.

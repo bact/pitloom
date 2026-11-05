@@ -44,8 +44,7 @@ def _run_env_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``env`` subcommand."""
-    # Note: Using 4-space indent
-    # 5. Deployed Environment: loom env
+    # Deployed environment: loom env
     env_parser = subparsers.add_parser(
         "env",
         parents=[parent_parser],

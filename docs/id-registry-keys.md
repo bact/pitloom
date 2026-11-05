@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -244,7 +244,8 @@ The script's own string matters only for a dataset with no path below the root.
   nothing.
 - A package is keyed by the version it states ([Package
   keys](#package-keys)); one with none, or `NOASSERTION`, by its bare name.
-- A key held by several elements is skipped, as before.
+- A key held by several elements is skipped (see [What a registry
+  pins](id-registry.md#what-a-registry-pins)).
 
 ## Fallbacks print `INFO:`
 
@@ -297,22 +298,11 @@ import` writes for a `loom model` SBOM).
 
 ## What changed for an existing registry
 
-Pitloom 0.22.0 writes version 4, whose package keys hold the version. A
-version 3 file is refused on every command, with one `ERROR: ID registry file
-'<path>': version 3, expected 4 (no migration support -- delete it and re-run
-`loom id generate` or `loom id import`)`, and is left as it is: nothing is
-dropped or rewritten. To keep its ids, delete it and `loom id import` the last
-SBOM a run made with it (every file, model and dataset keeps its id, and each
-package is keyed by the version that SBOM states); `loom id generate` alone
-starts afresh, with new ids.
-
-Earlier, with version 3, these entries stopped matching:
-a model pinned by its stem or own name (`-e STEM:ai_AIPackage`), a dataset
-pinned by a string that differs from the canonical path (`./data/t.txt`),
-a wheel-only lookup of a file a hatch `sources` remap moved by more than one
-part, and a file named by a raw un-normalised archive member name. A registry
-written by a pre-release v3 build is regenerated (`loom id generate`), and ids
-may renumber once. A retrained model logs `ID registry: content changed for
-...; minting a new spdxId` for the file and for the package. A Git LFS pointer
-whose entry a wheel, sdist or `--allow-build` run wrote with the text's digest
-gets a new id once, then keeps it.
+Pitloom 0.22.0 and later write version 4, whose package keys hold the
+version. A version 3 file is refused on every command, with one ``ERROR: ID
+registry file '<path>': version 3, expected 4 (no migration support -- delete
+it and re-run `loom id generate` or `loom id import`)``, and is left as it is:
+nothing is dropped or rewritten. To keep its ids, delete it and `loom id
+import` the last SBOM a run made with it (every file, model and dataset keeps
+its id, and each package is keyed by the version that SBOM states); `loom id
+generate` alone starts afresh, with new ids.

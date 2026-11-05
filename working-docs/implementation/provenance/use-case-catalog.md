@@ -1,12 +1,12 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Use-case catalog
+# Use-case catalogue
 
 See also [annotation-provenance.md](annotation-provenance.md) (canonical
 design rationale, start here),
@@ -22,12 +22,12 @@ The taxonomy of *why* an Annotation earns its place for each use case
 checklist (N1-N6). G2's own implementation depth lives separately in
 [multi-source-conflict.md](multi-source-conflict.md).
 
-## Use-case catalog (why the Annotation earns its place)
+## Use-case catalogue (why the Annotation earns its place)
 
 - **Generation** — G1 inferred/detected/AI-generated qualifier (necessary,
   **implemented**: `licenseid_detection`, `inferred_from_authors` have no
   native assertedness marker); **G2 multi-source disagreement** (necessary
-  on conflict, **implemented for license**, generalized beyond license — see
+  on conflict, **implemented for license**, generalised beyond license — see
   [multi-source-conflict.md](multi-source-conflict.md) for the full
   mechanism); G3 declared constraint vs resolved version (useful,
   **implemented** — SPDX keeps only the resolved version); G4 sub-file
@@ -82,7 +82,7 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   `statement` is a plain `xsd:string` with no spec-mandated limit, so this
   was never a compliance violation, just a real scale gap. `[tool.pitloom.
   provenance] max-source-metadata-bytes` (default `0`, unlimited —
-  unchanged behavior for existing users) now caps it: whole `metadata`
+  unchanged behaviour for existing users) now caps it: whole `metadata`
   keys are dropped, largest first, never a value cut mid-string, and the
   result carries an explicit `truncated`/`truncatedKeys`/
   `truncatedKeyCount`/`maxMetadataBytes` marker rather than silently

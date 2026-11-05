@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ LICENSE / LICENCE /
 ──────────────────────────────────────────────────────────────────────────────
 EXTRACT LAYER  (src/pitloom/extract/)
 ──────────────────────────────────────────────────────────────────────────────
-pyproject.py         pytorch_pt2.py         huggingface.py
+pyproject.py         pytorch_pt2.py         huggingface_fetch.py
 setuptools.py        (zip entry            ┌──────────────────────────────┐
 poetry.py, sdist.py   extra/license)       │ 1. card YAML license:        │
 hatchling.py                               │    if vague/missing:         │
@@ -189,13 +189,13 @@ an sdist's link member is not read.
 
 Only formats that embed metadata in the file itself can carry a licence:
 
-| Format      | Extractor              | Licence field               |
-| :---------- | :--------------------- | :-------------------------- |
-| PyTorch PT2 | `pytorch_pt2.py`       | `extra/license` zip entry   |
-| GGUF        | `gguf.py`              | not yet mapped              |
-| Safetensors | `safetensors.py`       | not yet mapped              |
-| ONNX        | `onnx.py`              | not yet mapped              |
-| Others      | various                | not yet mapped              |
+| Format      | Extractor              | Licence field                       |
+| :---------- | :--------------------- | :---------------------------------- |
+| PyTorch PT2 | `pytorch_pt2.py`       | `extra/license` zip entry           |
+| GGUF        | `gguf.py`              | `general.license`                   |
+| Safetensors | `safetensors.py`       | `__metadata__` `modelspec.license`  |
+| ONNX        | `onnx.py`              | `model_license` metadata property   |
+| Others      | various                | none                                |
 
 The `AiModelMetadata.license` field is `None` when no embedded licence
 is found; the assembler handles this gracefully by emitting no licence
@@ -203,7 +203,8 @@ relationships.
 
 ### HuggingFace Hub source
 
-`huggingface.py` implements a two-step resolution in `_resolve_license()`:
+`huggingface_fetch.py` implements a two-step resolution in
+`_resolve_license()`:
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
@@ -226,9 +227,10 @@ relationships.
 ### `licenseid` dependency
 
 Text-based licence detection (`detect_license_from_text()` in
-`_license.py`) uses the `licenseid` package, which is a mandatory
-pitloom dependency. The database must be built before detection is
-possible (offline, from the SPDX License List the `licenseid` wheel ships):
+`_license_text_match.py`, re-exported by `_license.py`) uses the `licenseid`
+package, which is a mandatory pitloom dependency. The database must be built
+before detection is possible (offline, from the SPDX License List the
+`licenseid` wheel ships):
 
 ```shell
 licenseid update --source packaged
@@ -242,28 +244,23 @@ The database is stored at
 `~/.local/share/licenseid/licenses.db`. Pitloom accepts the top detection
 when its score meets a threshold of 0.85 (`detect_license_from_text()`).
 
-**Declared values: `resolve()`** (`licenseid` 0.7.0 or later). After the
-strict parse and the `+`/`AdditionRef-` gap reading fail, `_classify()` asks
-`licenseid.resolve()` (`_license_resolve.py`, through
-`_license.resolve_declared_value()`, on the SPDX License List packaged with
-`licenseid`: `source="packaged"`, 0.7.0 or later, so no database is needed)
-about a single-line value in any field.
-An answer with an expression and one of the categories `exact`, `lexical`,
-`listed_name`, `deprecated_equal_successor`, `plus_to_or_later`,
-`stated_qualifier`, `separator`, `version_spelling` is checked again by the
-strict parse and recorded as an expression, a compound whose operands are all
-read (`Apache2 OR MIT`) included. A bare deprecated id (`assumed_only`), a
-split one (`deprecated_ambiguous`), several licences and none stay as they
-were. A reading that decided something
+**Declared values: `resolve()`** (`licenseid` 0.7.1 or later).
+`classify_license()` asks `licenseid.resolve()` (`_license_resolve.py`, through
+`_license_classify._expression_or_text()`) about every single-line value of at
+most 200 characters, in any field, on the SPDX License List packaged with
+`licenseid` (`source="packaged"`: no database is needed). An answer with an
+expression is recorded as that expression, a compound whose operands are all
+read (`Apache2 OR MIT`) included; a value it names nothing in stays text, with
+`licenseid`'s `reason`. A bare deprecated id (`assumed_only`) and a split one
+(`deprecated_ambiguous`) stay as written. A reading that decided something
 (not case, spacing or `+`) is one `INFO:` per value; provenance adds
 `Method: licenseid_resolution`, `Resolution-1`, `Expansion-1` and `Tool`
-beside `Normalized-From`. A value with a character the reading would drop
-(`Apache 2.0?`, U+FFFD) is not read (`_license_resolve._FOLDABLE`). Answers are
-cached per value for the process (`clear_resolution_cache()` empties the
-cache). The answer does not depend on the database: with none, or one built
-by another release, a value gives the same reading. Only when the
-`licenseid` install has no packaged list does nothing get read: the value
-stays text and its error is relayed once per process.
+beside `Normalized-From`. Answers are cached per value for the process
+(`clear_resolution_cache()` empties the cache). The answer does not depend on
+the database: with none, or one built by another release, a value gives the
+same reading. Only when the `licenseid` install has no packaged list does
+nothing get read: the value stays text and its error is relayed once per
+process.
 
 ## Stage 2: format-neutral model
 
@@ -414,9 +411,9 @@ file, so the surviving header path is proven untouched.
 - `hasDeclaredLicense` and `hasConcludedLicense` may point at the same
   element (one value) or at two (two-candidate mode, main package only).
   Multiple declared licences concluded as a conjunction are not modelled.
-- GGUF, Safetensors, ONNX, and most other model formats do not embed a
-  machine-readable licence field. Licence data for those models must come
-  from an external source such as HuggingFace Hub or a user-supplied
+- Keras, HDF5, NumPy, fastText, CRFsuite and PyTorch (non-PT2) files do not
+  embed a machine-readable licence field. Licence data for those models must
+  come from an external source such as HuggingFace Hub or a user-supplied
   fragment.
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
@@ -434,9 +431,12 @@ file, so the surviving header path is proven untouched.
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `stated_license()`, `license_from_candidates()`, `apply_in_package_license()` (the one stated/silent rule), `detect_license_for_project()` |
+| `src/pitloom/extract/_license.py` | `stated_license()`, `license_from_candidates()`, `apply_in_package_license()` (the one stated/silent rule), `detect_license_for_project()`; re-exports the licence helpers |
+| `src/pitloom/extract/_license_text_match.py` | `detect_license_from_text()`: licence text detection with `licenseid`'s detector |
+| `src/pitloom/extract/_license_resolve.py` | `resolve_declared_value()`: the one reader of a declared value (`licenseid.resolve`), answers cached per value |
+| `src/pitloom/extract/_license_names.py` | `same_licence()`: when two classified values name one licence |
 | `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes core, directory adapter, case rule, size cap |
-| `src/pitloom/extract/_license_classify.py` | `classify_license()`, `same_licence()` and the provenance notes of a rewrite |
+| `src/pitloom/extract/_license_classify.py` | `classify_license()` and the provenance notes of a rewrite |
 | `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents and a lone `License :: OSI Approved` dropped) |
 | `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
 | `src/pitloom/extract/project/_installed_reconcile.py` | static vs installed licence check by `same_licence()`; a weak static value gives way |
@@ -448,7 +448,7 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/extract/project/hatchling.py` | Hatchling build-hook licence extraction |
 | `src/pitloom/extract/project/setuptools.py` | setuptools project licence extraction |
 | `src/pitloom/extract/project/poetry.py` | Poetry project licence extraction |
-| `src/pitloom/extract/remote/huggingface.py` | HuggingFace Hub card YAML and file-based detection |
+| `src/pitloom/extract/remote/huggingface_fetch.py` | HuggingFace Hub card YAML and file-based detection (`_resolve_license()`) |
 | `src/pitloom/extract/ai_model/pytorch_pt2.py` | PT2 archive `extra/license` entry |
 | `src/pitloom/core/project.py` | `ProjectMetadata.license_name` field |
 | `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license` field |
@@ -463,7 +463,7 @@ file, so the surviving header path is proven untouched.
 | `tests/extract/test_license_detect.py` | Case rule, size cap, and the directory-vs-bytes drift guard |
 | `tests/assemble/test_license_sdist_parity.py` | One licence value on the directory (CLI, library), the hook and the sdist (tar.gz, zip) |
 | `tests/extract/project/test_sdist_license.py` | sdist licence members: top directory, case, cap, links, unsafe names; `PKG-INFO`-less fallback |
-| `tests/assemble/test_license_detection.py`, `tests/assemble/test_license_normalization.py` | Unit tests for `_license.py` utilities (originally `tests/test_license.py`, later split -- see `cli-test-coverage-roadmap.md`) |
-| `tests/core/generator/test_generator_project_enrichment.py`, `tests/core/generator/test_generator_project_structure.py` | End-to-end licence export tests with fixture files (originally `tests/test_generator.py`, since split by generation target and further by section -- see `cli-test-coverage-roadmap.md`) |
+| `tests/assemble/test_license_detection.py`, `tests/assemble/test_license_normalization.py` | Unit tests for `_license.py` utilities (split from the former `tests/test_license.py`; see `cli-test-coverage-roadmap.md`) |
+| `tests/core/generator/test_generator_project_enrichment.py`, `tests/core/generator/test_generator_project_structure.py` | End-to-end licence export tests with fixture files (split from the former `tests/test_generator.py`; see `cli-test-coverage-roadmap.md`) |
 | `tests/assemble/test_license_files_not_listed.py` | Declared `[project.license-files]` yield no SBOM element (library, Hatchling hook, vendored real-world fixtures) |
 | `tests/assemble/test_deps_license.py` | Unit tests for `build_license_elements()`/`is_license_concluded()`/`get_or_create_license_element()`, split out of `test_deps_enrichment_pypi_fallback.py` to stay under the file-size soft limit |

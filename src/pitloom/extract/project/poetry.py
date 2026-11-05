@@ -291,7 +291,7 @@ def _build_poetry_provenance(
 
 
 def _parse_poetry_readme(readme_raw: str | list[str] | None) -> str | None:
-    """Normalize ``[tool.poetry].readme``, which may be a bare string or a
+    """Normalise ``[tool.poetry].readme``, which may be a bare string or a
     list of strings (multiple readme files -- only the first is used)."""
     if isinstance(readme_raw, list):
         return readme_raw[0].strip() if readme_raw else None
@@ -315,7 +315,7 @@ def _parse_poetry_urls(poetry: dict[str, Any]) -> dict[str, str]:
 def _resolve_poetry_license(
     poetry: dict[str, Any], project_dir: Path
 ) -> ProjectMetadata:
-    """Resolve ``[tool.poetry]``'s declared license, then what the
+    """Resolve ``[tool.poetry]``'s declared licence, then what the
     project's own licence files say
     (:func:`~pitloom.extract._license.apply_in_package_license_files`).
 

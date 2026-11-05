@@ -272,7 +272,7 @@ def test_generate_project_sbom_license_case_only_difference_not_a_conflict() -> 
     """A declared `license = "mit"` (valid but non-canonically cased, kept
     verbatim since Pitloom never rewrites a bare SPDX id) and a detected
     canonical "MIT" from the LICENSE file are the *same* license: no G2
-    conflict Annotation and one license element."""
+    conflict Annotation and one licence element."""
     pyproject_content = """
 [project]
 name = "test-package"

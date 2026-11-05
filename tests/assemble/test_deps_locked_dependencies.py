@@ -205,7 +205,7 @@ def test_locked_dependencies_completeness_by_method() -> None:
 def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:
     """A direct dependency declared with the author's own casing (e.g.
     ``Django``) must still dedup against a lock-resolved entry that PEP
-    503-normalizes it (``django``) -- and dash/underscore variants must
+    503-normalises it (``django``) -- and dash/underscore variants must
     dedup the same way: names are compared normalised, so a package
     declared both directly and in the lock emits one node/edge."""
     project = ProjectMetadata(
@@ -324,7 +324,7 @@ def test_locked_dependencies_omitted_matches_empty_list() -> None:
     """Omitting ``locked_dependencies`` entirely (every pre-existing call
     site) must produce the same UUID as passing an empty list *with no
     provenance* -- the new parameter is purely additive, never a
-    behavior change for callers that don't know about it."""
+    behaviour change for callers that don't know about it."""
     omitted = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
     empty = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=[])
 

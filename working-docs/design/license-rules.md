@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,9 @@ built), [license-pipeline.md](../implementation/license-pipeline.md)
 Status: input for a later redesign of licence conflict resolution and
 cascading. Sections 1 to 8 record the behaviour shipped in PR #276
 (element typing), #283 (sdist licence detection) and #284 (fragment
-merge), checked against `src/pitloom` on 2026-10-05.
+merge), checked against `src/pitloom` on 2026-10-05. Since #437 and #440,
+`licenseid` 0.7 reads every declared value (`extract/_license_resolve.py`);
+re-check the spelling rules of sections 2, 6 and 7 before relying on them.
 [Open questions](#open-questions) records what is not settled, with the
 evidence and the user's leanings. A leaning is input, not a decision.
 Questions on how licence values are spelled, classified and compared

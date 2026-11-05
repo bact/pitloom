@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""`pitloom id generate -e NAME:dataset_DatasetPackage` hashes at most
+"""`loom id generate -e NAME:dataset_DatasetPackage` hashes at most
 ``--max-dataset-hash-bytes``, else the project's own
 ``max-dataset-hash-bytes``, else 4 GiB.
 

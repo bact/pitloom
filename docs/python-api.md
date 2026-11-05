@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,8 +20,8 @@ Three entry points:
 - **[Standalone enrichment](#standalone-enrichment)** -- call
   `enrich_model()` to read a local README/model-card's YAML frontmatter
   (licence, datasets) into a mergeable fragment: datasets and their
-  `trainedOn` link, with the licence recorded in its enrichment annotation -- no code annotation needed, the Python equivalent of `loom
-  enrich`.
+  `trainedOn` link, with the licence recorded in its enrichment annotation
+  -- no code annotation needed, the Python equivalent of `loom enrich`.
 - **[Tracking decorator](#tracking-decorator)** -- annotate a training or
   evaluation script with `@loom.run(...)` to emit a small SPDX fragment
   describing what that run produced, to be merged into the SBOM later.
@@ -143,8 +143,9 @@ call. An sdist's own config is read as its unpacked directory's is.
 Other arguments that mirror a CLI flag or config key:
 
 - `max_source_metadata_bytes=` (`generate()`, `generate_project_sbom()`,
-  `generate_wheel_sbom()`, `generate_env_sbom()`, `generate_model_sbom()`): `--max-source-metadata-bytes`;
-  see [Metadata provenance](metadata-provenance.md).
+  `generate_wheel_sbom()`, `generate_env_sbom()`, `generate_model_sbom()`):
+  `--max-source-metadata-bytes`; see [Metadata
+  provenance](metadata-provenance.md).
 - `scan_model_usage=` (`generate()`, `generate_project_sbom()`,
   `generate_wheel_sbom()`; `ConfigOverrides.scan_model_usage` for
   `embed_wheel_sbom()`, with or without `project_dir=`): `--scan-model-usage`.
@@ -157,10 +158,12 @@ Other arguments that mirror a CLI flag or config key:
 - `max_model_extract_bytes=` (`generate()`, `generate_wheel_sbom()`;
   `ConfigOverrides.max_model_extract_bytes` for `embed_wheel_sbom()` without
   `project_dir=`): `--max-model-extract-bytes`, the per-model ceiling of a
-  wheel's model scan; it wins over `pitloom_config=`'s `max-model-extract-bytes`.
-  Other targets warn that it has no effect; a value that is not an integer of
-  at least 1 (`True` included) raises `ValueError` on every target.
-- `id_registry=`: `--id-registry`; see [Loom ID registry](id-registry.md#from-python).
+  wheel's model scan; it wins over `pitloom_config=`'s
+  `max-model-extract-bytes`. Other targets warn that it has no effect; a value
+  that is not an integer of at least 1 (`True` included) raises `ValueError` on
+  every target.
+- `id_registry=`: `--id-registry`; see [Loom ID
+  registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an
   sdist, `generate()` on either): `--project-dir` of `wheel`/`project`, the
   project directory the archive was built from, so its files are keyed below
@@ -193,8 +196,9 @@ above).
 Pass `creation_metadata=CreationMetadata(...)` to name creators, tools, a
 timestamp, or a comment on the record -- see [Creation
 metadata](creation-metadata.md) for the full field reference. Without
-it, these functions fall back to `[[tool.pitloom.creator]]` /
-`[tool.pitloom.provenance]` from whichever config applies to the target
+it, these functions fall back to `[[tool.pitloom.creator]]`,
+`[[tool.pitloom.creation-tool]]` and `[tool.pitloom.creation]` from whichever
+config applies to the target
 -- the project's own `[tool.pitloom]` for `generate_project_sbom()` and
 `embed_wheel_sbom(project_dir=...)`, or an explicit `pitloom_config=`
 for every other target (see [Explicit config](#explicit-config-pitloom_config)
@@ -320,43 +324,43 @@ A `path=` that cannot be read (a NUL in it included) gets the usual
 unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
 the enclosing run, so a recursive `@loom.run` call is safe.
 
-The run also records *which script produced what*: the calling script
-becomes a `software_File` (with SHA-256 and SHA-512 hashes) with `generates`
-relationships to the model it trained and/or the output datasets it
-wrote. A dataset that is a file gets SHA-256 and SHA-512 hashes and a `software_File`
-it `contains`; a directory gets a SHA-256 Merkle root over its files' paths
-and content, its `comment` saying so, and no file elements. Below a dataset
-directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)
-and symbolic links to directories are left out of the root, as is the
-declared registry file. A missing or remote dataset name gets no hash.
-Hashing one dataset reads at most `max_dataset_hash_bytes=` (else the
-config's `max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets
-no hash and one `WARNING:`. A dataset that is a file also gets its size in
-bytes (`dataset_datasetSize`): the bytes read, or, over the cap, its
-`stat()` size, with the hash's absence and the reason in the
-[provenance](metadata-provenance.md).
-A directory, a Git LFS pointer and a file under 1,024 bytes that is over
-the cap get no size. The keyword is an integer of at least 1:
-`0` and a `bool` raise `ValueError` as the run begins.
-A dataset is hashed when it is declared, an output dataset too: call
-`add_output_dataset()` after the step has written the file, or it carries the
-hash of the file it replaces. One name holding one content is one package per
-run: declaring it again (as input and output, or twice) adds its roles to the
-same package, with no collision warning. A name that is no path is compared as
-a model card's `datasets:` entry is: whitespace runs count as one space and a
-Hugging Face repository id is case-insensitive (`Org/Data` is `org/data`), the
-package keeping the first spelling, which alone is looked up in the ID
-registry; an id pinned under a later spelling is not used, with one `WARNING:`.
+The run also records *which script produced what*: the calling script becomes a
+`software_File` (with SHA-256 and SHA-512 hashes) with `generates` relationships
+to the model it trained and/or the output datasets it wrote. A dataset that is a
+file gets SHA-256 and SHA-512 hashes and a `software_File` it `contains`; a
+directory gets a SHA-256 Merkle root over its files' paths and content, its
+`comment` saying so, and no file elements. Below a dataset directory, the
+[directories `id generate` skips](id-registry.md#directories-that-are-skipped)
+and symbolic links to directories are left out of the root, as is the declared
+registry file. A missing or remote dataset name gets no hash. Hashing one
+dataset reads at most `max_dataset_hash_bytes=` (else the config's
+`max-dataset-hash-bytes`, else 4 GiB); over it, the dataset gets no hash and one
+`WARNING:`. A dataset that is a file also gets its size in bytes
+(`dataset_datasetSize`): the bytes read, or, over the cap, its `stat()` size,
+with the hash's absence and the reason in the
+[provenance](metadata-provenance.md). A directory, a Git LFS pointer and a file
+under 1,024 bytes that is over the cap get no size. The keyword is an integer of
+at least 1: `0` and a `bool` raise `ValueError` as the run begins. A dataset is
+hashed when it is declared, an output dataset too: call `add_output_dataset()`
+after the step has written the file, or it carries the hash of the file it
+replaces. One name holding one content is one package per run: declaring it
+again (as input and output, or twice) adds its roles to the same package, with
+no collision warning. A name that is no path is compared as a model card's
+`datasets:` entry is: whitespace runs count as one space and a Hugging Face
+repository id is case-insensitive (`Org/Data` is `org/data`), the package
+keeping the first spelling, which alone is looked up in the ID registry; an id
+pinned under a later spelling is not used, with one `WARNING:`.
 
-A dataset can carry what its own metadata states. Pass `croissant=` (a
-local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any
-of the four dataset calls: its licence becomes the dataset's
-`hasDeclaredLicense`, and its version, description, download URL, creator
-(`publishedBy`) and dataset-profile fields (collection process, preprocessing,
-known bias, sensitive personal information) are written onto the package. A dataset that is a directory has its card read too: the YAML
-frontmatter of its `README.md` gives `license`, `version` and `tags` (the tags
-are read but have no SPDX 3.0.1 dataset property to go in). Pass
-`declared_license=` to state the licence yourself:
+A dataset can carry what its own metadata states. Pass `croissant=` (a local
+[Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any of the
+four dataset calls: its licence becomes the dataset's `hasDeclaredLicense`, and
+its version, description, download URL, creator (`publishedBy`) and
+dataset-profile fields (collection process, preprocessing, known bias, sensitive
+personal information) are written onto the package. A dataset that is a
+directory has its card read too: the YAML frontmatter of its `README.md` gives
+`license`, `version` and `tags` (the tags are read but have no SPDX 3.0.1
+dataset property to go in). Pass `declared_license=` to state the licence
+yourself:
 
 ```python
 with loom.run("fragments/train.json"):
@@ -364,43 +368,42 @@ with loom.run("fragments/train.json"):
     loom.add_dataset("data/extra.txt", declared_license="CC-BY-4.0")
 ```
 
-Each field comes from the first source that states it: `declared_license=`,
-then the Croissant file, then the card. A source's `unknown`, `N/A` or
-`NOASSERTION` states nothing (a version, creator or licence of that text is
-left out), and its download URL must be a URL. A `declared_license=` on any call for
-the dataset wins over every Croissant file and card, whichever call came
-first; of two declared licences, the first call's wins. The call's own name,
-`dataset_type` and `data_preprocessing=` (even `[]`) always win. A licence
-that is an SPDX expression is written as a `LicenseExpression`, any other text
-as a `SimpleLicensingText`. Your own `declared_license="NOASSERTION"` (any
-case) is your statement: written as the `NoAssertionLicense` individual, and
-no source replaces it. Any other placeholder, yours or a source's (`unknown`,
-blank, a bare `other`), and a source's `NOASSERTION`, is no licence, written as
-nothing and logged as nothing, so the next source may state one. A
-`declared_license=` that is not a string raises `TypeError`. `other` with a
-`license_name` and/or `license_link` (a Hugging Face card's fields) is written
-as that name followed by the link. Each field a source gave is named in the
-package's provenance (`license: Source: data/corpus/README.md | Field:
-license`). A list of several licences gives each its own
-`hasDeclaredLicense`, in order and once each (letter case ignored), by the
-rules above (a bare `other` among them gives none), and the package comment
-says the source does not state whether they combine as AND or OR. A licence
-that holds no text (a number, a mapping), a `version` written as a decimal number (YAML and JSON read `1.10` as
-`1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
-`3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
-the wrong shape (a description that is a list of several texts; a creator,
-URL or tag that is a number) is left out, with one `WARNING:`. A card that cannot be read at all (front
-matter YAML cannot parse: an impossible date such as `2024-02-30`, a number
-of thousands of digits, nesting thousands of levels deep) is skipped with one
-`WARNING:`, and the declaration goes on with its other sources: the card is
-read because the dataset is a directory, not because you named it. A
-`croissant=` file you name is different: a URL, a missing file, one that is
-not a regular file (a FIFO), one that is not Croissant, one that nests more
-than 64 levels of arrays and objects or one that fails to
-be read in any other way raises `ValueError` naming it, at the call: loom
-reads no network source. A source file is opened as given and named in
-provenance by its path from the current directory, or by its bare name when
-it lies outside it. Hashing and the registry do not change: the sources add
+Each field comes from the first source that states it: `declared_license=`, then
+the Croissant file, then the card. A source's `unknown`, `N/A` or `NOASSERTION`
+states nothing (a version, creator or licence of that text is left out), and its
+download URL must be a URL. A `declared_license=` on any call for the dataset
+wins over every Croissant file and card, whichever call came first; of two
+declared licences, the first call's wins. The call's own name, `dataset_type`
+and `data_preprocessing=` (even `[]`) always win. A licence that is an SPDX
+expression is written as a `LicenseExpression`, any other text as a
+`SimpleLicensingText`. Your own `declared_license="NOASSERTION"` (any case) is
+your statement: written as the `NoAssertionLicense` individual, and no source
+replaces it. Any other placeholder, yours or a source's (`unknown`, blank, a
+bare `other`), and a source's `NOASSERTION`, is no licence, written as nothing
+and logged as nothing, so the next source may state one. A `declared_license=`
+that is not a string raises `TypeError`. `other` with a `license_name` and/or
+`license_link` (a Hugging Face card's fields) is written as that name followed
+by the link. Each field a source gave is named in the package's provenance
+(`license: Source: data/corpus/README.md | Field: license`). A list of several
+licences gives each its own `hasDeclaredLicense`, in order and once each (letter
+case ignored), by the rules above (a bare `other` among them gives none), and
+the package comment says the source does not state whether they combine as AND
+or OR. A licence that holds no text (a number, a mapping), a `version` written
+as a decimal number (YAML and JSON read `1.10` as `1.1`), a card `version` that
+is not quoted text (YAML 1.1 reads `1:1:1` as `3661` and `010` as `8`: quote it,
+`version: "1.0"`), and any other value of the wrong shape (a description that is
+a list of several texts; a creator, URL or tag that is a number) is left out,
+with one `WARNING:`. A card that cannot be read at all (frontmatter YAML cannot
+parse: an impossible date such as `2024-02-30`, a number of thousands of digits,
+nesting thousands of levels deep) is skipped with one `WARNING:`, and the
+declaration goes on with its other sources: the card is read because the dataset
+is a directory, not because you named it. A `croissant=` file you name is
+different: a URL, a missing file, one that is not a regular file (a FIFO), one
+that is not Croissant, one that nests more than 64 levels of arrays and objects
+or one that fails to be read in any other way raises `ValueError` naming it, at
+the call: loom reads no network source. A source file is opened as given and
+named in provenance by its path from the current directory, or by its bare name
+when it lies outside it. Hashing and the registry do not change: the sources add
 fields, not identity.
 
 These `generates` edges are scoped `build` -- they describe a build-time
@@ -475,18 +478,17 @@ As on every other surface, `loom.run`/`loom.Run` uses a registry only when
 one is declared (`id_registry=`, or `id-registry` in `pitloom_config=`
 below): with none, no registry is used -- nothing is searched for or
 auto-discovered. A declared registry that's missing, unreadable or invalid
-(a format version 2 file included) raises `ValueError` when the `with
+(a format version 3 or 2 file included) raises `ValueError` when the `with
 loom.run(...)` block (or the decorated call) begins, before any fragment
 work happens.
 
 `loom.run` reads no `[tool.pitloom]` of its own. Pass `pitloom_config=` (a
-`PitloomConfig`, or the path of a TOML file holding `[tool.pitloom]`,
-relative to the current directory) to set `id-registry`,
-`update-id-registry` or `max-dataset-hash-bytes`; no other key has an
-effect there.
-`id_registry=` wins over the config's `id-registry`, and
-`max_dataset_hash_bytes=` over its `max-dataset-hash-bytes`. A config file that is
-missing, unreadable or invalid raises `ValueError` as the run begins.
+`PitloomConfig`, or the path of a TOML file holding `[tool.pitloom]`, relative
+to the current directory) to set `id-registry`, `update-id-registry` or
+`max-dataset-hash-bytes`; no other key has an effect there. `id_registry=` wins
+over the config's `id-registry`, and `max_dataset_hash_bytes=` over its
+`max-dataset-hash-bytes`. A config file that is missing, unreadable or invalid
+raises `ValueError` as the run begins.
 
 The merge itself (`pitloom.assemble.merge_fragments`, run by
 `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`
@@ -502,7 +504,8 @@ fragments](fragments.md) and [API reference](api.md#fragment-merging).
 
 - [Command line](cli.md) -- the same generation targets, from a shell.
 - [Wheel SBOMs](wheel-sbom.md#from-python) -- embedding an SBOM in a wheel.
-- [Loom ID registry](id-registry.md#from-python) and [`--allow-build`](allow-build.md#from-python) -- their library arguments.
+- [Loom ID registry](id-registry.md#from-python) and
+  [`--allow-build`](allow-build.md#from-python) -- their library arguments.
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies.
 - [Hatchling build hook](hatchling-build-hook.md) -- how registered

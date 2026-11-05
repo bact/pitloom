@@ -158,8 +158,8 @@ def _locked_transitive_only_dependencies(
 
     Names are compared PEP 503-canonicalized (lowercased, ``-``/``_``/``.``
     folded to ``-``) since a lock file's resolved package names are
-    normalized while the author's ``pyproject.toml`` spelling (e.g.
-    ``"Django"``) may not be -- comparing raw, unnormalized names would
+    normalised while the author's ``pyproject.toml`` spelling (e.g.
+    ``"Django"``) may not be -- comparing raw, unnormalised names would
     treat those as different packages and double-emit the edge this
     function exists to avoid. See ``_try_read_poetry()`` in
     ``pitloom.extract.project.pyproject`` for why this is source-stage-only.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,7 @@ The measured result on every surface, as a matrix, is in
   `.dist-info`. Another `*.dist-info` vendored under a package is payload.
 - Not listed: the own `.dist-info` (`METADATA`, `WHEEL`, `RECORD`,
   `licenses/`, `sboms/`, signatures), including links to it (no license-file
-  elements, no `hasDeclaredLicense` on a license file).
+  elements, no `hasDeclaredLicense` on a licence file).
 - Pitloom may still write into the container (the embedded SBOM under
   `sboms/`, `RECORD`): that is packaging enrichment, separate from SBOM
   content.

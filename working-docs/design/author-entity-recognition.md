@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,8 +16,9 @@ built today),
 [sbom-generator-field-notes/spdx-modelling.md](../implementation/sbom-generator-field-notes/spdx-modelling.md)
 (paper note, section 5).
 
-**Status:** a warning, not a heuristic, is built; the NLP / named-entity-recognition
-(NER) approach below is a candidate follow-up, not planned for a release.
+**Status:** a warning, not a heuristic, is built. The NLP / named-entity
+recognition (NER) approach below is a candidate follow-up, not planned for a
+release.
 
 ## Problem
 
@@ -73,7 +74,7 @@ model:
    of `suppliedBy`/`originatedBy`, so when neither type is deterministic
    (`TheBloke`, `Qwen`, a lone handle) emit the base `Agent`, not a guessed
    `Person`.
-4. **Online only:** query the hub (Hugging Face user vs organization
+4. **Online only:** query the hub (Hugging Face user vs organisation
    overview) to resolve a single-token namespace; never offline.
 
 Figures for footprint, accuracy and the example table come from the notes and

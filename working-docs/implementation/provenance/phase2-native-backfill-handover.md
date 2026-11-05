@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-09-01
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ SPDX-License-Identifier: CC0-1.0
 > **Goal**: move six facts (N1-N6) that previously lived only in a free-text comment or Annotation into their proper native SPDX 3 constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`, relationships, etc.), then trim each corresponding Annotation down to just the residual that still has no native home.
 >
 > **Full design record**: [`annotation-provenance-full-plan.md`](annotation-provenance-full-plan.md)
-> has the entire original Phase 1 plan (boundary principle, use-case catalog
+> has the entire original Phase 1 plan (boundary principle, use-case catalogue
 > G1-G4/A1/A2/E1/E2/P1, the N1-N6 table with rationale, config/schema design)
 > archived in-repo. This handover is a status/next-steps summary; read the
 > full plan if you need the *why* behind any N-item or Annotation shape.
@@ -58,7 +58,7 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 - ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
 - ✅ **`loom generate` project-config precedence fix**: PR [#116](https://github.com/bact/pitloom/pull/116) merged to `main`.
-- ✅ **G2 -- multi-source disagreement, generalized** (the Annotation-evidence
+- ✅ **G2 -- multi-source disagreement, generalised** (the Annotation-evidence
   half of N2, not itself an N-item but directly completes it): declared-vs-
   independently-detected license conflict detection, generic
   `provenance/conflict/1` Annotation schema (reusable for any field),
@@ -202,7 +202,7 @@ N4, N5, N6 together on one representative model. Confirms: all five
 native constructs present on the same document at once; no Annotation
 duplicates a value now covered natively; two generation runs with
 identical inputs produce byte-identical JSON; the combined document
-round-trips through `spdx-python-model` deserialization without loss.
+round-trips through `spdx-python-model` deserialisation without loss.
 `test_fragment_origin_round_trips_when_merged` covers N1's `ExternalMap`
 shape directly (the real merge path is separately covered by
 `test_merge_fragments_populates_spdx_document_imports` in
@@ -225,8 +225,8 @@ respectively).
   narrow-focus Sonnet review agents (parallel, read-only, each required
   to produce a concrete repro) → triage findings → fix → re-verify.
   Two rounds of this caught 5 real issues (delimiter injection, JSON
-  NaN/Infinity validity, non-deterministic set serialization) in Phase 1.
-- Determinism requirement: `sort_keys=True` in all JSON serialization,
+  NaN/Infinity validity, non-deterministic set serialisation) in Phase 1.
+- Determinism requirement: `sort_keys=True` in all JSON serialisation,
   sorted lists/sets before emission — Pitloom SBOMs must be byte-stable
   across runs.
 - Comments in code: concise, describe *current* state only — don't

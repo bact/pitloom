@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom sbom-enrich skill: copy-paste recipe
+# Pitloom's `sbom-enrich` skill: copy-paste recipe
 
 Companion to `../SKILL.md`. This recipe is meant to be run as-is or
 adapted with minimal edits. Snippets are POSIX shell; on Windows use
@@ -31,17 +31,17 @@ dataset and `trainedOn`.
 loom enrich model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
 
-`--project-dir .` matters here: `sbom.spdx3.json` is a **project-level**
-SBOM (from `loom project .`, step 5 below), and a project-level document
-assigns this model's `ai_AIPackage` a different id than a standalone `loom
-model model.safetensors` run would. Without `--project-dir`, the fragment
-would reference an id absent from `sbom.spdx3.json` and the merge in step 5
-would fail (a dangling-reference `WARNING:`, then an `ERROR:` and a non-zero
-exit). A `loom model` base cannot be merged into at all (`loom model`
-ignores registered fragments, silently): draft, then hand the fragment over
-unmerged. Pass the same `--config`, `--id-registry` and `--use-lockfile` as
-the base run if it used them. `-o` is always explicit: without it the
-fragment lands in the current directory as `<model file name>.enrich.spdx3.json`.
+`--project-dir .` matters here: `sbom.spdx3.json` is a **project-level** SBOM
+(from `loom project .`, step 5 below), and a project-level document assigns this
+model's `ai_AIPackage` a different id than a standalone `loom model
+model.safetensors` run would. Without `--project-dir`, the fragment would
+reference an id absent from `sbom.spdx3.json` and the merge in step 5 would fail
+(a dangling-reference `WARNING:`, then an `ERROR:` and a non-zero exit). A `loom
+model` base cannot be merged into at all (`loom model` ignores registered
+fragments, silently): draft, then hand the fragment over unmerged. Pass the same
+`--config`, `--id-registry` and `--use-lockfile` as the base run if it used
+them. `-o` is always explicit: without it the fragment lands in the current
+directory as `<model file name>.enrich.spdx3.json`.
 
 This parses only `README.md`'s YAML frontmatter and writes a standalone
 fragment -- no prose reading, no reasoning, no network. The fragment holds the
@@ -59,9 +59,9 @@ python3 -c "import json; print(json.load(open('model.enrich.spdx3.json'))['@grap
 
 ## 2. Draft a fragment for what prose adds
 
-The frontmatter enrichment already covered `datasets:` (and logged `license`); it never runs on
-prose, so the "evaluated on imagenet-val" relationship stated in the
-README body is still an agent-only finding. A `Relationship` must start
+The frontmatter enrichment already covered `datasets:` (and logged `license`);
+it never runs on prose, so the "evaluated on imagenet-val" relationship stated
+in the README body is still an agent-only finding. A `Relationship` must start
 from the model's real id, so first read it from the base SBOM:
 
 ```bash
@@ -117,14 +117,14 @@ Put the printed id where `<AIPackage-spdxId>` appears below.
 
 ### Override example
 
-If instead the README's prose contradicted the frontmatter -- say
-`license: apache-2.0` in frontmatter (the SBOM states it because the base run used `--enrich`), but the body text says "note: as of
-v2 this model is actually MIT-licensed, the header above is stale" -- the
-agent's fragment would override, recording both values and why rather than
-silently replacing the deterministic result. A licence is a
-`simplelicensing_LicenseExpression` element linked to the model by a
-`Relationship`, so the override is a pair of `@graph` entries, with `<AIPackage-spdxId>`
-filled in as above:
+If instead the README's prose contradicted the frontmatter -- say `license:
+apache-2.0` in frontmatter (the SBOM states it because the base run used
+`--enrich`), but the body text says "note: as of v2 this model is actually
+MIT-licensed, the header above is stale" -- the agent's fragment would override,
+recording both values and why rather than silently replacing the deterministic
+result. A licence is a `simplelicensing_LicenseExpression` element linked to the
+model by a `Relationship`, so the override is a pair of `@graph` entries, with
+`<AIPackage-spdxId>` filled in as above:
 
 ```json
 {
@@ -233,15 +233,15 @@ this):
 - `suppliedBy` (one value) is taken from the fragment: Pitloom sets none on
   a model it read from a file, and a Hugging Face base is never merged
   into. Set it only for a distributor the card or the user names.
-- A `parameters` entry in the package's `ai_hyperparameter` (a count the
-  card states) is added only where the base has none; a base entry with
-  another value wins, with `WARNING: Merge: conflicting 'ai_hyperparameter'
-  key 'parameters' on ai_AIPackage <id> '<name>': keeping '<base>', dropping
-  '<yours>'.` (the same for any `ai_hyperparameter`/`ai_metric` key). The merge adds Pitloom's count note itself: do not type it
-  into the `comment`; say in the package's own provenance `comment` that
-  the entry is the card's figure, not a sum of tensor elements. A
-  `comment` on a restated package is appended to the base's, after `; `,
-  or on a new line when either side's adjoining line is a
+- A `parameters` entry in the package's `ai_hyperparameter` (a count the card
+  states) is added only where the base has none; a base entry with another value
+  wins, with `WARNING: Merge: conflicting 'ai_hyperparameter' key 'parameters'
+  on ai_AIPackage <id> '<name>': keeping '<base>', dropping '<yours>'.` (the
+  same for any `ai_hyperparameter`/`ai_metric` key). The merge adds Pitloom's
+  count note itself: do not type it into the `comment`; say in the package's own
+  provenance `comment` that the entry is the card's figure, not a sum of tensor
+  elements. A `comment` on a restated package is appended to the base's after
+  a `;` and a space, or on a new line when either side's adjoining line is a
   `Metadata provenance:` line.
 - A restated `spdxId` the base no longer has (the source changed after the
   fragment was drafted) adds a second `ai_AIPackage`, with no warning, and
@@ -310,8 +310,8 @@ The merged output now contains the `imagenet-1k` dataset and `trainedOn`
 relationship from `loom enrich`, and the `imagenet-val` `dataset_DatasetPackage`
 element and `testedOn` relationship the agent inferred, alongside everything
 Pitloom extracted directly. Each carries its provenance: the deterministic ones
-a `pitloom.enrich.readme` tool and an enrichment `Annotation`, the agent-inferred
-ones their `comment`.
+a `pitloom.enrich.readme` tool and an enrichment `Annotation`, the
+agent-inferred ones their `comment`.
 
 ## 6. Post-merge check (mandatory)
 
@@ -323,13 +323,12 @@ relationship type) that plain JSON-syntax validity would miss. Minimal fallback:
 
 ## 7. Report back to the user
 
-Summarise what came from which pass (e.g. "`loom enrich` added the
-`imagenet-1k` training dataset from the README's frontmatter; separately, I added an `imagenet-val`
-dataset reference based on the README's prose 'Evaluation' section --
-please review before treating this as authoritative"). If any value was
-overridden (see the override example above), name it explicitly. Never
-present agent-inferred fragment content as if it were Pitloom's own
-extraction.
+Summarise what came from which pass (e.g. "`loom enrich` added the `imagenet-1k`
+training dataset from the README's frontmatter; separately, I added an
+`imagenet-val` dataset reference based on the README's prose 'Evaluation'
+section -- please review before treating this as authoritative"). If any value
+was overridden (see the override example above), name it explicitly. Never
+present agent-inferred fragment content as if it were Pitloom's own extraction.
 
 ## See also
 

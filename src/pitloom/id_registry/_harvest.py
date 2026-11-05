@@ -393,7 +393,7 @@ def _import_sbom_element(
     keys: RecordedKeys | None = None,
     hashes: RecordedHashes | None = None,
 ) -> None:
-    """Harvest a single deserialized SBOM element into *registry*.
+    """Harvest a single deserialised SBOM element into *registry*.
 
     Records, never classifies: an element with an id, a name and a compact
     type other than ``"object"`` is written under the key *keys* holds for

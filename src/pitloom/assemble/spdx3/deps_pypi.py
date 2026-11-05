@@ -166,7 +166,7 @@ def _prefetch_pypi_release_infos(
     with its own TCP+TLS handshake and up to a
     :data:`_PYPI_TIMEOUT_SECONDS` timeout on failure).
 
-    ``version == "unknown"`` is normalized to ``None`` here, matching
+    ``version == "unknown"`` is normalised to ``None`` here, matching
     :func:`_fetch_pypi_release_info`'s own "no pin -> latest release"
     semantics -- so two dependencies that both have an unresolved version
     share a single fetch instead of one per occurrence.

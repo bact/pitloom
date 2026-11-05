@@ -46,8 +46,7 @@ def _run_merge_command(args: argparse.Namespace) -> int:
 
 def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None:
     """Add the ``merge`` subcommand."""
-    # Note: Using 4-space indent
-    # 6. Fragment Merger: loom merge <FRAGMENTS_DIR>
+    # Fragment merger: loom merge <FRAGMENTS_DIR>
     merge_parser = subparsers.add_parser(
         "merge",
         help="Merge dynamic execution SBOM fragments into a combined SBOM.",
@@ -55,7 +54,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     merge_parser.add_argument(
         "fragments_dir",
         type=Path,
-        help="Directory containing .spdx3.json fragments.",
+        help="Directory of SPDX 3 fragments (every *.json file in it).",
     )
     merge_parser.add_argument(
         "-o",

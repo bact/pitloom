@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,7 +25,7 @@ time to keep that change small.
 
 Two fields now hand-build a G2 `ConflictCandidate` list, each at its own
 assembly call site, with no shared representation carrying the underlying
-labeled values from extraction through assembly:
+labelled values from extraction through assembly:
 
 - **License**: `ProjectMetadata` carries two separate named fields
   (`license_name` = declared, `license_concluded` = detected), each extracted
@@ -37,7 +37,7 @@ labeled values from extraction through assembly:
   candidate values (declared specifier, lock-resolved version) from
   already-resolved data, on demand, inside the assembly layer.
 
-Neither carries a general "here is a field with N labeled candidate
+Neither carries a general "here is a field with N labelled candidate
 values" shape. The open question: is it worth introducing one -- e.g. a
 `FieldCandidates`-style type (a mapping of role -> value) threaded from
 extraction through assembly -- plus a shared per-field export policy
@@ -69,12 +69,12 @@ binary declared/detected split -- not decided here.
 
 Both are implemented in full in
 [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
--- read that file for the actual mechanics, normalization, and code
+-- read that file for the actual mechanics, normalisation, and code
 locations. This doc only records that they're two independent, structurally
 different instances of the same underlying shape:
 
 - License: two named extraction fields, two native relationships, a
-  strict normalize-then-equality conflict test.
+  strict normalise-then-equality conflict test.
 - Dependency version: no extraction field, one native relationship slot,
   a specifier-containment conflict test, and an asymmetric candidate
   shape (one side a concrete version, the other a specifier expression).
@@ -82,7 +82,7 @@ different instances of the same underlying shape:
 ## Not decided here
 
 - Whether a shared type is worth the migration cost of rewriting
-  license's `build_license_elements` onto it.
+  licence's `build_license_elements` onto it.
 - Whether `role` and a BSI-style lifecycle-stage label should be two
   separate fields on a candidate, or whether one subsumes the other.
 - What the export-time policy type/interface would look like.

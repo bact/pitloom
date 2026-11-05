@@ -1,12 +1,12 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# CLI UX Analysis: Consolidating Generation Subcommands & Input-Centric Redesign
+# CLI UX analysis: consolidating generation subcommands, input-centric redesign
 
 See [docs/cli.md](../../docs/cli.md) for the shipped subcommand
 reference and worked examples -- this file covers the rationale behind
@@ -18,9 +18,11 @@ the redesign, not the current command surface itself.
 > notes below came from there) — kept as one file since the two had
 > near-total content overlap.
 
-This document details the architectural evolution of Pitloom's CLI subcommands, from stage-centric names (`source`, `analyze`, `deployed`) to an **Input-Centric Surface** with CISA SBOM Types compliance.
+This document details the evolution of Pitloom's CLI subcommands, from
+stage-centric names (`source`, `analyze`, `deployed`) to an **input-centric
+surface** that follows the CISA SBOM types.
 
-## Specification reference & governance context
+## Specification references
 
 Pitloom's lifecycle data model is aligned with official CISA guidance:
 
@@ -30,7 +32,7 @@ Pitloom's lifecycle data model is aligned with official CISA guidance:
 
 ---
 
-## 1. Background & Evolution
+## 1. Background and evolution
 
 ### Initial State (post-v0.12.0 and pre-v0.13.0)
 
@@ -43,7 +45,7 @@ The CLI initially exposed subcommands named directly after CISA SBOM lifecycle s
 
 ---
 
-## 2. Architectural Critique of Stage-Centric Subcommands
+## 2. Critique of stage-centric subcommands
 
 An architectural review post-v0.12.0 identified key friction points with stage-centric CLI subcommands:
 
@@ -57,7 +59,7 @@ An architectural review post-v0.12.0 identified key friction points with stage-c
 
 ---
 
-## 3. Decoupling User UX from Internal CISA Data Model
+## 3. Decoupling the user interface from the CISA data model
 
 The key resolution is to separate the **User Interface (UX)** from the **Emitted Data Model**:
 
@@ -68,14 +70,14 @@ The key resolution is to separate the **User Interface (UX)** from the **Emitted
 
 ---
 
-## 4. Input Target to CISA SBOM Type Mapping
+## 4. Input target to CISA SBOM type mapping
 
 | Subcommand | Input Target | Network | CISA SBOM Type | SPDX 3 `software_sbomType` |
 | :--- | :--- | :--- | :--- | :--- |
 | `loom project` | Directory or `.tar.gz`/`.zip` sdist | Offline | **Source** | `[source]` |
 | `loom project` | `http(s)` Git repository URL | Online (an error with `--offline`) | **Source** | `[source]` |
 | `loom wheel` | Built `.whl` archive | Offline | **Analyzed** | `[analyzed]` |
-| `loom model` | Local `.gguf`/`.safetensors`/`.onnx` file | Offline | **Analyzed** | `[analyzed]` |
+| `loom model` | Local model file (`.gguf`, `.safetensors`, `.onnx`, ...) | Offline | **Analyzed** | `[analyzed]` |
 | `loom model` | Hugging Face URL / Model ID | Online (unless `--offline`) | **Analyzed** | `[analyzed]` |
 | `loom env` | Python `venv` / `site-packages` | Offline | **Deployed** | `[deployed]` |
 | `loom merge` | Dynamic execution `.spdx3.json` fragments | Offline | **Runtime** | `[runtime]` |

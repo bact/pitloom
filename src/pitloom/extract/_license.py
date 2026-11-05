@@ -117,7 +117,7 @@ def license_from_candidates(
 def detect_independent_license(
     project_dir: Path, *, stated: str | None = None
 ) -> tuple[str | None, str | None]:
-    """Detect a license purely from project-directory files (*stated*: see
+    """Detect a licence purely from project-directory files (*stated*: see
     :func:`license_from_candidates`)."""
     found = license_from_candidates(
         collect_license_candidates(project_dir), stated=stated

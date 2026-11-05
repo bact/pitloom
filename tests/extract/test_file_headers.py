@@ -185,7 +185,7 @@ def test_guess_content_type_falls_back_to_extension_when_magika_unavailable(
 def test_guess_content_type_returns_none_when_neither_resolves(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An unrecognized extension with magika unavailable resolves nothing."""
+    """An unrecognised extension with magika unavailable resolves nothing."""
     monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
     mime_type, method = guess_content_type(b"whatever bytes", "mystery.xyzzy123")
     assert (mime_type, method) == (None, None)

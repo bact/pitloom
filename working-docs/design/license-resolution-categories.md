@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-26
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,7 +19,9 @@ reading a compound operand by operand (0.7.0 gives `operands`; Pitloom
 reads a compound only as one answer), the licence
 list version (Q5, in `Resolution["lists"]` but not used), a cross-field
 indicator for a concluded licence (Q4) and the `alias`/`listed_url` categories
-(0.7.0 has neither).
+(0.7.0 has neither). Decided 2026-11-05: provenance annotations are off by
+default and a flag turns them on (0.24.0); the provenance notes below are
+written when it is on.
 
 See also: [license-typing.md](../implementation/license-typing.md) (the one
 classifier and element builder),

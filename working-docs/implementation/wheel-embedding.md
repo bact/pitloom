@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,7 +34,8 @@ and Python build version.
 
 ## Architecture
 
-Wheel embedding is implemented in `pitloom.embed`:
+Wheel embedding is implemented in `pitloom.embed` (the facade over
+`_embed_wheel.py`, `_embed_generate.py`, `_embed_build_sbom.py`):
 
 ```text
 Built .whl archive (ZIP)
@@ -116,10 +117,11 @@ The implementation is verified across two layers:
   Analyzed (`loom wheel`, standalone embed) the wheel as built; Source and the
   hook's Build the pre-build source walk, so they differ when the build adds
   payload (expected). `embed-wheel --project-dir` is Build but hashes the wheel
-  as built: the one pair left open (roadmap). A wheel's `.data/` directory is
-  payload (listed and hashed under its wheel path, not its install
-  destination); only the own `.dist-info` is excluded. The recompute procedure
-  is in `docs/cli.md`.
+  as built: the one pair left open
+  ([sbom-package-boundary.md](../design/sbom-package-boundary.md)). A wheel's
+  `.data/` directory is payload (listed and hashed under its wheel path, not
+  its install destination); only the own `.dist-info` is excluded. The
+  recompute procedure is in `docs/cli.md`.
 - **Signed wheels are refused.** `RECORD.jws`/`RECORD.p7s` sign the `RECORD`
   the embed rewrites. Keeping them leaves a signature that fails to verify
   (worse than none); silently dropping loses trust data. Default is a
@@ -169,7 +171,7 @@ What the table shows:
   (expected by SBOM type; documented in `docs/cli.md`).
 - The one pair that does not follow the type rule is the two Build SBOMs: the
   hook (`aea983...`) and `embed-wheel --project-dir` (`44f765...`). Open, see
-  the roadmap.
+  [sbom-package-boundary.md](../design/sbom-package-boundary.md).
 
 Signed wheel, same project with `RECORD.jws` and `RECORD.p7s` added:
 

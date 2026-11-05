@@ -51,7 +51,7 @@ class Run(contextlib.ContextDecorator):
 
     The fragment's SPDX ``CreationInfo`` is configurable on par with the CLI
     and Hatchling build hook: pass a ``CreationMetadata`` to name a creator
-    (a person, organization, or automated agent), or override the tool,
+    (a person, organisation, or automated agent), or override the tool,
     timestamp, and comment. With none given, the fragment records the
     ``SoftwareAgent`` "Pitloom" (createdBy) and ``Tool`` "Pitloom"
     (createdUsing) of an unattended run::

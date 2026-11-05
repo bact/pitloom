@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,6 +44,14 @@ exact call signature.
 ::: pitloom.embed.embed_sbom_in_wheel
 
 ::: pitloom.embed.ConfigOverrides
+
+::: pitloom.embed.EmbedFileCache
+
+::: pitloom.extract.wheel.wheel_identity
+
+## Build options
+
+::: pitloom.core.build_options.BuildOptions
 
 ## Fragment merging
 
@@ -94,6 +102,14 @@ API](python-api.md#tracking-decorator) page.
 ::: pitloom.core.provenance.ProvenanceConfig
 
 ::: pitloom.core.provenance.require_max_source_metadata_bytes
+
+## Messages
+
+::: pitloom.messages.code_of
+
+::: pitloom.messages.trusted_message
+
+::: pitloom.messages.Message
 
 ## ID registry
 

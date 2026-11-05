@@ -97,8 +97,8 @@ def test_sbom_graph_contains_package(built_wheel: Path) -> None:
     """The SBOM graph must contain a software_Package element for
     sampleproject_hatchling.
 
-    ``metadata_from_hatchling()`` uses ``core.raw_name`` (the un-normalized
-    name), not Hatchling's PEP-503-normalized ``core.name``, so the package
+    ``metadata_from_hatchling()`` uses ``core.raw_name`` (the un-normalised
+    name), not Hatchling's PEP-503-normalised ``core.name``, so the package
     name in the SBOM is "sampleproject_hatchling" -- exactly the spelling
     written in the fixture's ``pyproject.toml`` ``[project] name`` -- matching
     what the CLI (``read_pyproject``) would report for the same project.
@@ -196,9 +196,9 @@ def test_sbom_graph_contains_file_hashes(built_wheel: Path) -> None:
 
 
 def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
-    """The main package must carry a pkg:pypi PURL (name normalized to
+    """The main package must carry a pkg:pypi PURL (name normalised to
     sampleproject-hatchling per PEP 503), even though the package element's
-    own ``name`` is the un-normalized "sampleproject_hatchling"."""
+    own ``name`` is the un-normalised "sampleproject_hatchling"."""
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         data = json.loads(zf.read(sbom_entry))

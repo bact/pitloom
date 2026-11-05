@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,8 @@ Pitloom ships three Anthropic Agent-Skills -- `skills/sbom-generate/`,
 `skills/sbom-enrich/`, and `skills/sbom-validate/` -- so an AI coding
 agent can generate, optionally enrich, and validate an SBOM on request,
 driving the same `loom` CLI a person would use from a terminal (plus,
-for validation, the third-party `spdx3-validate` CLI).
+for validation, the third-party `spdx3-validate` CLI that `loom fragment
+validate` wraps).
 
 See [adoption-surfaces.md](adoption-surfaces.md) for how this
 fits alongside Pitloom's other surfaces, and
@@ -29,12 +30,10 @@ the `sbom-enrich` skill builds on.
 skills/
 |- sbom-generate/
 |  |- SKILL.md                  Generate a base SBOM/AIBOM.
-|  `- references/
-|     `- examples.md            Copy-paste generate recipes.
+|  `- references/               Recipes, CLI flags, limitations, messages.
 |- sbom-enrich/
 |  |- SKILL.md                  Enrich an existing SBOM as a fragment.
-|  `- references/
-|     `- examples.md            A full worked fragment example.
+|  `- references/               Worked examples, minimum elements, messages.
 `- sbom-validate/
    |- SKILL.md                  Validate an SPDX 3 document (schema + SHACL).
    `- references/
@@ -113,7 +112,8 @@ None of the three skills contains Pitloom code of its own.
    (`Source: AI agent | Role: inferred` for a prose-derived guess,
    `Source: SBOM author | Role: sbomAuthorSupplied` for a fact stated
    directly), so it is never confused with Pitloom's own extraction.
-3. **`sbom-validate`.** Run the third-party
+3. **`sbom-validate`.** Run `loom fragment validate`,
+   `loom validate-wheel` or the third-party
    [`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) CLI
    against any SPDX 3 JSON document -- schema (JSON Schema) plus shape
    (SHACL) validation, catching a missing required property or a wrong
@@ -121,23 +121,19 @@ None of the three skills contains Pitloom code of its own.
    Pitloom's own output, a hand-authored fragment, or a third-party SPDX
    3 file.
 
-See `skills/sbom-generate/references/examples.md`,
-`skills/sbom-enrich/references/examples.md`, and
-`skills/sbom-validate/references/examples.md` for the exact commands and
-a full worked fragment example.
+See `skills/*/references/examples.md` for the exact commands and a full
+worked fragment example.
 
 ### Relaying `WARNING:`/`ERROR:` stderr to the user
 
-`sbom-generate` and `sbom-enrich` both run `loom` directly (`sbom-validate`
-only wraps the separate `spdx3-validate` CLI, so it is out of scope
-here). `loom` logs to stderr with a grep-able `WARNING:`/`ERROR:` prefix
-(e.g. artifact-metadata truncation -- see
+All three skills run `loom` (`sbom-validate` through `loom fragment
+validate` and the wheel commands). `loom` logs to stderr with a grep-able
+`WARNING:`/`ERROR:` prefix (e.g. artifact-metadata truncation -- see
 [metadata-provenance.md](provenance/metadata-provenance.md)) that doesn't
-always fail the command or show up in the output JSON. Both SKILL.md
-files instruct the agent to scan captured stderr for these prefixes
-after running `loom` and relay any hit to the user in plain language,
-rather than letting it pass by unmentioned just because the command
-exited 0. This is the AI-agent-Skill equivalent of the GitHub Actions
+always fail the command or show up in the output JSON. Each SKILL.md
+instructs the agent to scan captured stderr for these prefixes after
+running `loom` and relay any hit to the user in plain language, rather than
+letting it pass by unmentioned just because the command exited 0. This is the AI-agent-Skill equivalent of the GitHub Actions
 gap tracked in [roadmap.md](../design/roadmap.md#backlog-designed-not-scheduled) (SARIF output).
 
 ## Also available as a Claude Code plugin

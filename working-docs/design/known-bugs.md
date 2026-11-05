@@ -56,6 +56,9 @@ lists its open entries first, ranked as described under
 | [Process, tooling and release checks](known-bugs/process-tooling-and-release-checks.md) | - | - | - | 2 | 10 | - | 12 | 9 |
 | **Total** | **1** | **3** | **5** | **55** | **75** | **3** | **142** | **82** |
 
+Open = the `- [ ]` entries plus the Leads, which are plain bullets with no box;
+Fixed = the `- [x]` entries. The P and Found columns count `- [ ]` entries only.
+
 ## Parts
 
 - [AI model readers and

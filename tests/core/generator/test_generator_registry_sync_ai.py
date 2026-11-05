@@ -8,7 +8,7 @@
 reserved before the first mint, or a registry hit claimed via
 :class:`~pitloom.id_registry.IdRegistrySession` under a model's key
 (:func:`~pitloom.assemble.spdx3.ai.model_lookup_key`; e.g. after
-``pitloom id import`` of the document's own earlier SBOM)
+``loom id import`` of the document's own earlier SBOM)
 can be handed out again by a sibling model's fresh mint under the same
 ``(doc_uuid, "AIPackage-<name>")`` counter.
 
@@ -51,7 +51,7 @@ def _numpy_models() -> list[AiModelMetadata]:
 
 def _assert_ten_distinct_ai_package_ids(exporter: object) -> None:
     """Count ``ai_AIPackage`` objects directly on the exporter's own
-    in-memory object set, never via serialized JSON-LD: serialization
+    in-memory object set, never via serialised JSON-LD: serialisation
     itself does not merge by id, but Pitloom's own
     ``_deduplicate_named_elements`` (``export/spdx3_json.py``) drops a
     second element sharing a ``spdxId`` with an earlier one whenever every
@@ -73,7 +73,7 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
     tmp_path: Path,
 ) -> None:
     """Run 1 builds 10 same-prefix AI models with no registry. Its own
-    SBOM is imported into a fresh registry (``pitloom id import``'s
+    SBOM is imported into a fresh registry (``loom id import``'s
     mechanism) and a stale ``numpy`` entry is pinned, then run 2 rebuilds
     against that registry. A lookup hit for one model's file stem must be
     reserved, or a sibling model's later fresh mint could land on the exact

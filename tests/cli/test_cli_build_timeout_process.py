@@ -86,7 +86,7 @@ def test_loom_project_build_timeout_falls_back_and_cleans_up(tmp_path: Path) -> 
     stderr = result.stderr.decode("utf-8", errors="replace")
     assert result.returncode == 0, stderr
     lines = [line for line in stderr.splitlines() if line.strip()]
-    # Every stderr line carries exactly one level tag (CLAUDE.md "CLI output").
+    # Every stderr line carries exactly one level tag (AGENTS.md "CLI output").
     assert all(line.startswith(_TAGS) for line in lines), lines
     assert sum("timed out after 20s" in line for line in lines) == 1, lines
     assert json.loads(out.read_bytes())["@graph"]

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-10-14
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -138,8 +138,7 @@ its file list came from static discovery, as without `--allow-build`
 (the backend's own, setuptools for a project declaring none, the
 Hatchling heuristic only when that fails; none at all when static
 discovery is unsupported, e.g. a `setup.py` passing `packages` itself),
-not the real
-build, so it may be incomplete, mis-pathed or empty.
+not the real build, so it may be incomplete, mis-pathed or empty.
 Offer a re-run with a larger `--build-timeout` in an interactive
 session; in a non-interactive run, just report what happened. **Never
 silently retry with `--allow-build` again on your own initiative** -- a
@@ -160,12 +159,11 @@ WARNING: Build: received SIGTERM during the build -- exiting after cleanup
 (`after the build` once the build has finished; the signal name
 varies) and ends killed by that signal (exit status 143 for SIGTERM,
 129 for SIGHUP). Ctrl-C (SIGINT) prints `ERROR: interrupted` instead,
-exit status 130. Either way,
-tell the user the run was interrupted, not a Pitloom failure, and offer
-to re-run.
+exit status 130. Either way, tell the user the run was interrupted, not a
+Pitloom failure, and offer to re-run.
 
-After a successful `--allow-build` build, `INFO: Build: killed
-processes the build left running` just reports cleanup;
+After a successful `--allow-build` build, `INFO: Build: killed processes
+the build left running (process group <N>)` just reports cleanup;
 
 ```text
 WARNING: Build: could not confirm the processes the build left running (process group <N>) terminated

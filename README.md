@@ -47,8 +47,13 @@ User manual: <https://bact.github.io/pitloom/>
 
 ```bash
 pip install pitloom
+licenseid update --source packaged   # once: enables LICENSE-file matching
 loom project .     # SBOM for the Python project in the current dir
 ```
+
+Without the `licenseid` database, a declared licence is still read, but a
+`LICENSE` file is not matched (`INFO:` or `WARNING:`, depending on whether a
+licence is declared).
 
 Extras enable more metadata extraction (see [CONTRIBUTING.md](CONTRIBUTING.md)
 for the dev install):
@@ -56,6 +61,7 @@ for the dev install):
 ```bash
 pip install "pitloom[ai]"              # AI model files and Hugging Face Hub
 pip install "pitloom[content-type]"    # content type detection (Magika)
+pip install "pitloom[validate]"        # SPDX 3 schema/SHACL validation
 ```
 
 ## Usage
@@ -175,7 +181,8 @@ def evaluate_model():
 ```
 
 See [Python API](docs/python-api.md) for lineage between several datasets in
-one run, and [Loom ID registry](docs/id-registry.md) for stable ids across fragments.
+one run, and [Loom ID registry](docs/id-registry.md) for stable ids across
+fragments.
 
 ### GitHub Action
 
@@ -232,11 +239,11 @@ per-field metadata provenance. See a more complete example in
 - [Metadata provenance](docs/metadata-provenance.md): SPDX 3 `Annotation`
   elements recording the source of each field, so "why does the SBOM say the
   concluded licence is MIT?" has a traceable answer.
-- [Loom ID registry](docs/id-registry.md): an optional registry that keeps `spdxId`s
-  stable across fragments and runs.
+- [Loom ID registry](docs/id-registry.md): an optional registry that keeps
+  `spdxId`s stable across fragments and runs.
 - [G7 SBOM for AI](docs/g7-sbom-for-ai.md): how much of the G7 SBOM for AI,
-  CISA 2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs carry, as
-  `ntia-conformance-checker` reads them.
+  CISA 2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs
+  carry, as `ntia-conformance-checker` reads them.
 - [Resources](docs/resources.md): SBOM, AIBOM and SPDX reading list.
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf),
   [PEP 770](https://peps.python.org/pep-0770/) and Bennet et al.,

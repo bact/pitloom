@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``pitloom id``: create and update the Loom ID registry."""
+"""``loom id``: create and update the Loom ID registry."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ from pitloom.logging_config import print_error
 
 log = logging.getLogger("pitloom.id_registry")
 
-#: Candidate directory names for `pitloom id generate`'s implicit-paths
+#: Candidate directory names for `loom id generate`'s implicit-paths
 #: fallback (see :func:`_default_id_generate_paths`). CLI-only: no other
 #: id_registry consumer needs this list.
 _DEFAULT_ID_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
@@ -151,7 +151,7 @@ def _name_problem(type_name: str, name: str) -> tuple[str, str] | None:
 
 
 def _default_id_generate_paths(project_dir: Path) -> list[Path]:
-    """Return default candidate paths for `pitloom id generate`."""
+    """Return default candidate paths for `loom id generate`."""
     return [
         project_dir / name
         for name in _DEFAULT_ID_GENERATE_DIR_NAMES
@@ -278,7 +278,7 @@ def _register_entities(
 
 
 def _run_id_generate(args: argparse.Namespace) -> int:
-    """Run `pitloom id generate`."""
+    """Run `loom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     if not os.path.isdir(project_dir):
         print_error(
@@ -308,7 +308,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
 
 
 def _run_id_import(args: argparse.Namespace) -> int:
-    """Run `pitloom id import`."""
+    """Run `loom id import`."""
     sbom_path: Path = args.sbom.resolve()
     if not os.path.isfile(sbom_path):
         print_error(f"SBOM file not found: {quote_source(sbom_path)}")
@@ -352,7 +352,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
 
 
 def _run_id_command(args: argparse.Namespace) -> int:
-    """Dispatch `pitloom id <command> ...` arguments."""
+    """Dispatch `loom id <command> ...` arguments."""
     if args.id_command == "generate":
         return _run_id_generate(args)
     if args.id_command == "import":

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,11 @@ SPDX-License-Identifier: CC0-1.0
 
 # Handoff to `licenseid`: what Pitloom needs upstream
 
-Status: prompt to give a session working in the `licenseid` repository
-(Pitloom never edits it). Written 2026-10-08 after the #294 reviews.
+Status: historical. A prompt to give a session working in the `licenseid`
+repository (Pitloom never edits it), written 2026-10-08 after the #294
+reviews against `licenseid` 0.4.3. Pitloom has since adopted `licenseid` 0.7.1
+([licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)); the version and the
+tables below describe 0.4.3.
 
 See also: [canonical-output-followups.md](canonical-output-followups.md)
 (C11 to C21, the questions behind this),

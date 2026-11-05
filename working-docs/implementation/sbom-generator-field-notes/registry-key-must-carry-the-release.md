@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,10 +20,10 @@ section 6.1),
 [known-bugs.md](../../design/known-bugs.md),
 [open-research-questions.md](open-research-questions.md).
 
-**Status: #407 is in review, not merged** (branch
-`registry-package-version-key`, head eb3fed66, 2026-10-30). Everything
-below about its code is read from that branch; the remote-entry plan
-(section 6) is a recommendation, not built.
+**Status when written: #407 in review** (branch
+`registry-package-version-key`, head eb3fed66, 2026-10-30); merged for
+0.22.0. Everything below about its code is read from that branch; the
+remote-entry plan (section 6) is a recommendation, not built.
 
 ## 1. The finding: a registry made two releases less distinct than none
 
