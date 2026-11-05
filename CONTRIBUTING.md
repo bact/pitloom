@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,7 +44,8 @@ We use GitHub issues to track all bugs and feature requests.
 - Fork the repository and create your branch off `main`.
 - Keep changes focused and scoped to a single concern.
 - Write descriptive commit messages explaining user impact, not just
-  implementation details (see [How to Write a Git Commit Message][commit-guide]).
+  implementation details (see [How to Write a Git Commit
+  Message][commit-guide]).
 - All commits **must be signed off** to certify compliance with the
   [*Developer Certificate of Origin (DCO)*][dco]:
 
@@ -120,16 +121,22 @@ Formatting, linting, and strict type checking form part of the project's
 quality gate and must pass before opening a pull request:
 
 ```bash
-# Format & lint with Ruff
-ruff format
-ruff check src/ tests/
-
-# Type-checking & strict linting
-mypy src/
-pyright src/
-pyrefly check src/
+# Format and lint
+ruff format examples/ src/ tests/
+ruff check examples/ src/ tests/
+flake8 examples/ src/ tests/
 pylint examples/ src/ tests/ tests/*/
+
+# Type checking
+mypy examples/ src/ tests/
+pyright examples/ src/ tests/
+pyrefly check examples/ src/ tests/
+
+# Security
+bandit -r src/pitloom
 ```
+
+These are the commands CI runs.
 
 [pep8]: https://peps.python.org/pep-0008/
 
