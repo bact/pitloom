@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,8 @@ pitloom/
 │   ├── id-registry-keys.md
 │   ├── index.md
 │   ├── mascot.png
+│   ├── message-codes.md            # Generated from the catalogue (scripts/generate_message_reference.py)
+│   ├── messages.md
 │   ├── metadata-provenance.md      # Also metadata-provenance-{artifact-metadata,authors,licences}.md
 │   ├── metadata-reading-back.md
 │   ├── python-api.md
@@ -70,6 +72,7 @@ pitloom/
 │       │   │   ├── _agents.py  # The one generic Agent per name (originators, supplier, dataset creators)
 │       │   │   ├── _ai_originators.py  # Model originators and supplier as Agents
 │       │   │   ├── _ai_package.py  # AIPackage creation and optional field mapping
+│       │   │   ├── _dep_groups.py  # Declared dependency strings resolved and grouped into packages, once per list
 │       │   │   ├── _dep_scope.py  # Edge kind of a dependency: required or optional (extras)
 │       │   │   ├── _display_text.py  # Display text of an element built from untrusted model data
 │       │   │   ├── _document_conflicts.py  # Conflict Annotation per field conflict on the main package
@@ -78,15 +81,18 @@ pitloom/
 │       │   │   ├── _document_files.py       # File-element assembly
 │       │   │   ├── _document_lfs.py         # One WARNING per kind of Git LFS pointer in a document
 │       │   │   ├── _document_locked_deps.py  # Locked-dependency dedup, conflict detection, exact-version pins
+│       │   │   ├── _document_main_package.py # Creation objects and the main package of a project SBOM
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_envelope.py  # SpdxDocument envelope of a merge output
 │       │   │   ├── _fragments_equal.py  # Two JSON texts that say the same, in any spelling (bounded, exact)
+│       │   │   ├── _fragments_evidence.py # A not_measured provenance entry that a merge made untrue
 │       │   │   ├── _fragments_hashes.py     # Hash conflict test, same-name-different-hash warning
 │       │   │   ├── _fragments_generated.py  # A fragment value replaces a value generated from the model file
 │       │   │   ├── _fragments_ids.py        # rename_id_clash: new id for a type or digest clash
 │       │   │   ├── _fragments_licenses.py  # Licence unification for a fragment merge
 │       │   │   ├── _fragments_model_names.py  # Base-document AI model name that fragments re-declare
 │       │   │   ├── _fragments_props.py      # Property compare and merge helpers
+│       │   │   ├── _fragments_read.py       # Read one SPDX 3 JSON-LD fragment file into an object set
 │       │   │   ├── _fragments_refs.py  # Referential-integrity check of a merged graph
 │       │   │   ├── _fragments_unify.py      # Fragment entity unification and deduplication
 │       │   │   ├── _license_elements.py  # The one place a licence value becomes a licence element
@@ -128,8 +134,8 @@ pitloom/
 │       │   │   ├── model.py        # loom model
 │       │   │   ├── project.py      # loom project
 │       │   │   ├── utils.py        # cli_error_handler decorator, wheel-glob path resolution
-│       │   │   └── validate_wheel.py  # loom validate-wheel
-│       │   │   └── verify_wheel.py  # loom verify-wheel
+│       │   │   ├── validate_wheel.py  # loom validate-wheel
+│       │   │   ├── verify_wheel.py    # loom verify-wheel
 │       │   │   └── wheel.py        # loom wheel
 │       │   ├── _id_entity.py  # Key and SHA-256 that id generate -e NAME:TYPE stores
 │       │   ├── _id_target.py  # Where id generate/import write the registry; config hint
@@ -177,10 +183,13 @@ pitloom/
 │       │   ├── dataset_metadata.py # DatasetMetadata
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── enrich_config.py    # [tool.pitloom.enrich] / EnrichConfig
+│       │   ├── evidence.py  # Evidence levels of a recorded fact, and the one writer of their provenance segment
 │       │   ├── extra_gate.py  # The extras a requirement marker requires, read from its text
 │       │   ├── file_hash.py        # One chunked reader: SHA-256 and SHA-512 of a file, from one pass
 │       │   ├── file_identity.py  # Whether two paths are one file, by identity not spelling
 │       │   ├── file_names.py       # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
+│       │   ├── frontmatter.py  # YAML frontmatter of a model or dataset card: the one delimiter rule
+│       │   ├── internal_error.py  # InternalError: a broken internal contract
 │       │   ├── iri.py  # Human name to IRI segment for an SPDX 3 identifier
 │       │   ├── lfs_pointer.py   # Git LFS pointer grammar, bounded read, prefix capture, run summary warning
 │       │   ├── inert_options.py    # INERT: options a target kind can't act on; forward_options()
@@ -188,7 +197,9 @@ pitloom/
 │       │   ├── model_extract_limit.py  # Validation of max-model-extract-bytes and max-dataset-hash-bytes
 │       │   ├── model_originators.py  # A model's originators: the names a source states
 │       │   ├── model_parameters.py  # A model's parameter count: derived from shapes or stated
+│       │   ├── model_usage.py  # How a Python file uses an AI model file (UsageAccess)
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
+│       │   ├── optional_libraries.py  # Optional libraries per step, their extras, the library-missing error
 │       │   ├── path_confine.py  # Confined open: a project's own files must lie inside it
 │       │   ├── path_probe.py  # Genuinely missing path vs present-but-inaccessible
 │       │   ├── pep440.py  # Every PEP 440 version and specifier Pitloom parses (number length bounded)
@@ -199,9 +210,12 @@ pitloom/
 │       │   ├── provenance.py       # ProvenanceConfig, provenance-string parser, builders and sanitiser
 │       │   ├── scalar_text.py  # The one spelling of a scalar as text
 │       │   ├── purl.py             # pkg:huggingface and pkg:generic package URLs
+│       │   ├── quote_source.py  # Quote a path or file name for a log or stderr message
 │       │   ├── untrusted_text.py  # Untrusted text shown to a reader, invisible controls made visible
 │       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   └── walk_rules.py  # Rules shared by every project file walk
+│       │   ├── url_masking.py  # Credentials in a URL and the temporary Git checkout in a text, masked
+│       │   ├── walk_rules.py  # Rules shared by every project file walk
+│       │   ├── warning_capture.py  # The one lock on Python's warning state; per-thread warning recorder
 │       │   └── wheel_dist_info.py  # resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused: a wheel's own .dist-info; header-only METADATA read
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
@@ -225,10 +239,14 @@ pitloom/
 │       │   ├── _extract_utils.py   # Shared extraction utilities
 │       │   ├── _file_headers.py    # SPDX-File* comment-header scanner
 │       │   ├── _license_classify.py  # Classify a licence value; provenance notes for a rewrite
-│       │   ├── _license.py         # License normalization and resolution facade
+│       │   ├── _license.py         # Licence facade of the project readers (uses licenseid)
 │       │   ├── _reader_log.py  # Capture of the log records an AI model reader emits
 │       │   ├── _scanner_messages.py  # Text helpers for AI model scanner messages
-│       │   ├── _license_detect.py  # License text detection and file scanning
+│       │   ├── _license_detect.py  # License file and metadata scanning of a project
+│       │   ├── _license_names.py   # When two classified licence values name one licence
+│       │   ├── _license_resolve.py # A declared licence value read through licenseid.resolve
+│       │   ├── _license_text_match.py # Licence text detection with licenseid's detector
+│       │   ├── _licenseid_relay.py # What licenseid says while Pitloom asks it, relayed as tagged records
 │       │   ├── authors.py  # The one reading of a free-text author field, on every surface
 │       │   ├── copyright_notices.py  # Copyright notices in a package's own licence files
 │       │   ├── dependency_authors.py  # A dependency's originators from its author/maintainer fields
@@ -239,6 +257,7 @@ pitloom/
 │       │   ├── scanner_project.py  # Project-directory producer for the AI model scanner
 │       │   ├── scanner_wheel.py  # Built-wheel producer for the AI model scanner
 │       │   ├── stderr_capture.py  # Per-thread capture of what third-party code writes to sys.stderr
+│       │   ├── _usage_ast.py, _usage_attach.py, _usage_match.py, _usage_parse.py, _usage_table.py  # AI model usage scan of Python files
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
@@ -255,13 +274,16 @@ pitloom/
 │       │   ├── keys.py  # Loom ID registry keys: the one place every surface computes them
 │       │   ├── _types.py            # Registry dataclasses, element keys, file traversal
 │       │   └── resolve.py           # resolve_registry(id_registry, configured, base_dir)
+│       ├── messages/               # Message catalogue: one module per family, emit() and the codes
 │       ├── plugins/                # Build-system integrations
+│       │   ├── _hatch_config.py    # Validation of the [tool.hatch.build.hooks.pitloom] table
 │       │   └── hatch.py            # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py            # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py             # Thin entry point only: logging setup + args.func dispatch
 │       ├── _embed_build_sbom.py    # embed-wheel Build SBOM: project rescan + wheel files, EmbedFileCache
 │       ├── _embed_generate.py      # Embed SBOM JSON: registry peek, batch option settling, standalone/project branch
+│       ├── _embed_stale.py         # Which earlier SBOMs a wheel embed replaces
 │       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
 │       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
 │       ├── _loom_active_run.py     # Active-run state machine
@@ -296,6 +318,7 @@ pitloom/
 │   │   └── scanner/                # AI model scanner
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── id_registry/                # Loom ID registry tests, with shared helpers
+│   ├── messages/                   # Message catalogue, drift guards, per-family tests
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   │   └── action/
 │   ├── test_*_surfaces.py          # One behaviour checked on every surface (CLI, library, hook, embed)
@@ -307,12 +330,16 @@ pitloom/
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
 ├── scripts/
 │   ├── action/                     # GitHub Action helpers (install, Python probe/resolver)
+│   ├── ci/                         # CI helpers (skip_duplicate_push.py)
 │   ├── check_sbom_license.py       # Release check: root package declares and concludes the licence
 │   ├── check_version_consistency.py  # CI version check; --print-version also used by the action
 │   ├── compare_allow_build.py      # Manual --allow-build parity check
 │   ├── extract_wheel_sbom.py       # Release check: extract the SBOM the build hook embedded in a wheel
+│   ├── generate_message_reference.py # Generate docs/message-codes.md and the skills' messages.md
 │   ├── g7_coverage_report.py       # Checker coverage report and expected tables (--standard g7ai|cisa2026|fsct3)
+│   ├── licence_adoption_sweep.py   # Sweep licenseid's parity corpus through the declared-licence path
 │   ├── manual_cli_checks/          # Unattended manual CLI checks: _checks_*.py, CLI matrix, command sequences
+│   ├── message_inventory/          # Message emission-site inventory and ratchet baseline (--check)
 │   ├── refresh_spdx_model_snapshot.py # Refresh tests/fixtures/spdx-model/ from spdx.org
 │   └── retry_network.py            # Run a command, retrying only on a network failure (CI)
 ├── .gitattributes                  # LF for *.sh and action.yml

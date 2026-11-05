@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 
 ## Code health and continuous refactoring
 
-- **Reuse/dedup is a defensiveness strategy, not just an efficiency one**: with this many usage surfaces, backends, and file formats (see "Usage surfaces" below), two independent implementations of the same operation (a hash, a type check, a message string, a cascade rule) don't just cost extra lines -- they're two places that can silently disagree the next time either one is touched. Reuse a shared helper even when the duplicate is small/cheap and the duplication itself wastes nothing measurable; the point is to make drift structurally impossible, not to save a few lines.
+- **Reuse/dedup is a defensiveness strategy, not just an efficiency one**: with this many usage surfaces, backends, and file formats (see "Usage surfaces" above), two independent implementations of the same operation (a hash, a type check, a message string, a cascade rule) don't just cost extra lines -- they're two places that can silently disagree the next time either one is touched. Reuse a shared helper even when the duplicate is small/cheap and the duplication itself wastes nothing measurable; the point is to make drift structurally impossible, not to save a few lines.
 
 ## Python
 

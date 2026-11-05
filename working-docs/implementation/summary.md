@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      extract metadata from `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      a `setup()` keyword overrides the same `setup.cfg` option, as setuptools does
+   - `project/flit.py`, `project/pdm.py` -- Flit and PDM dynamic-field
+     resolution within the `[project]` path
    - Domain-specific extractors are grouped into subpackages: `project/`
      (build backends), `lock/` (lock files), `ai_model/` (model formats),
      `dataset/` (datasets), `remote/` (remote registries/hubs), alongside
@@ -254,7 +256,7 @@ package for the CLI surface and a `tests/` tree that mirrors
 
 ### 2. Extensible design
 
-- Easy to add new extractors (PDM, Flit, etc.)
+- Easy to add new extractors (as Poetry, setuptools, PDM and Flit were)
 - Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
   the same `DocumentModel` -- no changes to extractors needed
 - Clean separation of concerns: extractors -> `DocumentModel` -> serializers
