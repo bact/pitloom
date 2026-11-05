@@ -11,7 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See [design/model-metadata-extraction.md](../design/model-metadata-extraction.md)
 for planned-but-unbuilt format support and the AI dataset metadata
 extraction gap. Mapping parity and what each file records:
-[model-format-mapping-parity.md](model-format-mapping-parity.md). The user-facing format list lives at
+[model-format-mapping-parity.md](model-format-mapping-parity.md). The
+user-facing format list lives at
 [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
 
 An AI BOM generator can utilise existing model exchange standards, such as
@@ -28,17 +29,18 @@ All extractors live in `pitloom.extract.ai_model` and expose a
 Format detection is handled by
 `pitloom.extract.ai_model.detect_ai_model_format()` and `read_ai_model()`.
 
-| Format | Extension(s) | Module | Optional dependency | Extraction method |
-| :----- | :----------- | :----- | :------------------ | :----------------- |
-| fastText | `.ftz`, `.bin` | `fasttext.py` | `pip install fasttext-community` | `model.f.getArgs()` via C++ binding; `model.get_labels()` for supervised class list |
-| GGUF | `.gguf` | `gguf.py` | `pip install gguf` | `GGUFReader` to extract typed key-value pairs from the binary header |
-| HDF5 / Keras v1-v2 | `.h5`, `.hdf5` | `hdf5.py` | `pip install h5py` | `h5py.File.attrs` for root attributes; JSON-encoded `model_config` and `training_config` |
+| Format | Extension(s) | Module | Optional dependency (extra) | Extraction method |
+| :----- | :----------- | :----- | :-------------------------- | :----------------- |
+| CRFsuite | `.crfsuite`, `.model` | `crfsuite.py` | (stdlib only) | Header and label strings read by Pitloom's own reader (`formats/crfsuite.py`); see [crfsuite-support.md](crfsuite-support.md) |
+| fastText | `.ftz`, `.bin` | `fasttext.py` | `fasttext-community` (`pitloom[fasttext]`) | `model.f.getArgs()` via C++ binding; `model.get_labels()` for supervised class list |
+| GGUF | `.gguf` | `gguf.py` | `gguf` (`pitloom[gguf]`) | `GGUFReader` to extract typed key-value pairs from the binary header |
+| HDF5 / Keras v1-v2 | `.h5`, `.hdf5` | `hdf5.py` | `h5py` (`pitloom[hdf5]`) | `h5py.File.attrs` for root attributes; JSON-encoded `model_config` and `training_config` |
 | Keras v3 | `.keras` | `keras.py` | (stdlib only) | Inspect `config.json` inside the `.keras` ZIP archive; no model execution required |
-| NumPy | `.npy`, `.npz` | `numpy.py` | `pip install numpy` | Memory-map header to read shape and dtype without loading tensor data |
-| ONNX | `.onnx` | `onnx.py` | `pip install onnx` | `onnx.load()` to access graph properties and `metadata_props` dictionary |
-| PyTorch classic | `.pt`, `.pth` | `pytorch.py` | `pip install fickling` (safe pickle inspection) | ZIP archive structure inspection; `fickling` for safe pickle AST inspection (never calls `pickle.load`) |
+| NumPy | `.npy`, `.npz` | `numpy.py` | `numpy` (`pitloom[numpy]`) | Memory-map header to read shape and dtype without loading tensor data |
+| ONNX | `.onnx` | `onnx.py` | `onnx` (`pitloom[onnx]`) | `onnx.load()` to access graph properties and `metadata_props` dictionary |
+| PyTorch classic | `.pt`, `.pth` | `pytorch.py` | `fickling` (`pitloom[pytorch]`) | ZIP archive structure inspection; `fickling` for safe pickle AST inspection (never calls `pickle.load`) |
 | PyTorch PT2 / ExecuTorch | `.pt2` | `pytorch_pt2.py` | (stdlib only) | ZIP archive structure; `extra/` metadata files; `models/model.json` signature user inputs/outputs |
-| Safetensors | `.safetensors` | `safetensors.py` | `pip install safetensors` | `safe_open()` reads the JSON header without loading multi-gigabyte weight tensors |
+| Safetensors | `.safetensors` | `safetensors.py` | `safetensors` (`pitloom[safetensors]`) | `safe_open()` reads the JSON header without loading multi-gigabyte weight tensors |
 
 ## Format reference tools and prior art
 
