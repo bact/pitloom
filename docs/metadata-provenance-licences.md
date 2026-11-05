@@ -24,18 +24,18 @@ that's already a bare SPDX id is used as-is; anything else (typically a
 `LICENSE` file's full text) is matched against known SPDX licences via
 `licenseid` (`method: licenseid_detection`). The text is matched as
 written and without its copyright notice lines; the better-scoring of
-the two decides. When two licences match almost equally (a modified variant scores
-just above the licence it modifies), the one the project states wins; with
-none stated, there is no detection. A GPL-family `-only`/`-or-later` pair,
-which the text cannot tell apart, is not such a tie, nor is a licence the
-text fits measurably worse: matched less closely, or of which the text
-holds less (MIT's text is a quarter of `FSL-1.1-MIT`). Either way counts as
-Pitloom's own independent-detection procedure. Both sides are normalised
-before comparison -- not just casing (a declared `"mit"` and a detected
-`"MIT"` are recognised as the same licence), but also equivalent compound
-expressions written differently (`"MIT AND MIT"` and plain `"MIT"`;
-`"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalise to the same
-value) -- so none of these are misreported as a conflict.
+the two decides. When two licences match almost equally (a modified variant
+scores just above the licence it modifies), the one the project states wins;
+with none stated, there is no detection. A GPL-family `-only`/`-or-later` pair,
+which the text cannot tell apart, is not such a tie, nor is a licence the text
+fits measurably worse: matched less closely, or of which the text holds less
+(MIT's text is a quarter of `FSL-1.1-MIT`). Either way counts as Pitloom's own
+independent-detection procedure. Both sides are normalised before comparison --
+not just casing (a declared `"mit"` and a detected `"MIT"` are recognised as the
+same licence), but also equivalent compound expressions written differently
+(`"MIT AND MIT"` and plain `"MIT"`; `"MIT OR Apache-2.0"` and `"Apache-2.0 OR
+MIT"` all normalise to the same value) -- so none of these are misreported as a
+conflict.
 
 - If the project states no licence, the directory's value is recorded as
   `hasDeclaredLicense`: a `CITATION.cff`, `codemeta.json` or `LICENSE` file
