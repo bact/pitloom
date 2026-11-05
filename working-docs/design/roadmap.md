@@ -64,8 +64,8 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
 - [ ] **Git URL ingestion, open follow-ups**: DNS rebinding, imperative
   `setup.py` reader, CLI clone cap, commit and URL in the SBOM. See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
-- [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
-  selection** for wheels. See
+- [ ] **`License-File:` selection** for wheels (the unknown-id warning in an
+  SPDX-only field is built, #357). See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
 - [ ] **Metadata-only AI model readers**: bounded pure-Python header readers
   replacing library reads, parity-tested; HDF5 last. See
@@ -155,28 +155,20 @@ order and counts are in
 - [ ] **Licence provenance mapping**
   ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
   revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
-  main into the branch, then implement (design on #384).
-  **Decided 2026-11-05:** provenance annotations are not added to the SBOM
-  output by default (they make it huge, and the taxonomy is not settled); a
-  flag turns them on (name to settle, `--provenance` proposed; with the
-  `--no-` form, a `[tool.pitloom]` key, an Action input and an API parameter).
-  Today they are on by default (`format = "both"`, `detail = "minimal"`).
-  The test suite, the manual checks and the sweeps run with it on, through
-  one shared test default; the default-off behaviour is asserted on each
-  surface (CLI, library, hook, Action) in its own tests.
-  The verbatim source metadata (`preserve-source-metadata`) is another kind of
-  data and gets its own flag, independent of the provenance flag
-  (`--preserve-source-metadata auto|always|never`, beside the existing
-  `--max-source-metadata-bytes`); its default becomes `never` (decided
-  2026-11-05; today `auto`).
-  Scheduled as the flags item below.
-- [ ] **Provenance and source-metadata flags** (decided 2026-11-05, in the
-  licence provenance item above): `--provenance`/`--no-provenance`, default
-  off (today on); `--preserve-source-metadata auto|always|never`, default
-  `never` (today `auto`). Each needs `[tool.pitloom]` keys, Action inputs, API
-  parameters, the Hatchling hook, skills, a `_matrix_plan.py` entry and a
-  CHANGELOG "Changed" note; tests, manual checks and sweeps run with
-  provenance on (one shared test default), default-off asserted per surface.
+  main into the branch, then implement (design on #384). Scheduled with the
+  flags item below.
+- [ ] **Provenance and source-metadata flags** (decided 2026-11-05):
+  provenance annotations are off by default (they make the SBOM huge, and the
+  taxonomy is not settled); `--provenance`/`--no-provenance` turns them on
+  (name to settle). Today they are on (`format = "both"`, `detail =
+  "minimal"`). The verbatim source metadata (`preserve-source-metadata`) gets
+  its own flag, `--preserve-source-metadata auto|always|never`, beside
+  `--max-source-metadata-bytes`; default `never` (today `auto`). Each flag
+  needs a `[tool.pitloom]` key, an Action input, an API parameter, the
+  Hatchling hook, skills, a `_matrix_plan.py` entry and a CHANGELOG "Changed"
+  note. Tests, manual checks and sweeps run with provenance on (one shared
+  test default); default-off is asserted on each surface (CLI, library, hook,
+  Action).
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
@@ -264,10 +256,6 @@ Highest priority first.
 - [ ] **ML framework and `transformers` use from the code** (#66, #68, #65):
   `--scan-model-usage` walks the AST for discovered local model files only, not
   remote Hub ids. See [ml-framework-from-code.md](ml-framework-from-code.md).
-- [x] **Model usage scan reads the code, not the text** (#413): replaced the
-  file-name substring match with an AST scan; `hasDataFile` edges carry the
-  access (read, write, unknown) in the comment. See
-  [model-usage-ast-scan.md](model-usage-ast-scan.md).
 - [ ] **Split `license-resolution-categories.md`** (37 KB, over the hard limit).
 - Background research: [metadata-sources.md](metadata-sources.md) (how other
   tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),
@@ -292,9 +280,10 @@ unless the linked doc says so.
   version and project fields each hand-build a `ConflictCandidate` list.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
-- [ ] **Licence resolution categories** (`Apache2` to `Apache-2.0` via
-  `licenseid` 0.6.0): partly built in #359; operands, Q4 and Q5 open. Which
-  changes to trust, log and record. See
+- [ ] **Licence resolution categories** (which changes to trust, log and
+  record): built on `licenseid` 0.7's `Resolution` (#437, #440). Open:
+  per-operand provenance (T14, [#384](https://github.com/bact/pitloom/pull/384),
+  0.24.0), Q4 (a cross-field indicator) and Q5 (the list version). See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
   (decided 2026-10-29): design done (#379); skill size cap built (#385);
@@ -306,9 +295,6 @@ unless the linked doc says so.
 - [ ] **Evidence levels for recorded facts** (proposed 2026-10-29): caps bound
   reading, never reporting. Built: unit fix #382, merge drop #386, sizes under
   a cap #387. See [evidence-levels.md](evidence-levels.md).
-- [ ] **Adopt `licenseid` 0.7.0** (compounds, prose and trove names; delete
-  about 250 lines of Pitloom's own parsing; Pitloom 0.23.0). Data and plan:
-  [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
   taxonomy; parked draft). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),

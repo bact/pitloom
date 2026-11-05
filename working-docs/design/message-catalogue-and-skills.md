@@ -17,10 +17,10 @@ that showed the gap),
 [message-catalogue-families.md](../implementation/message-catalogue-families.md).
 
 Status: decided 2026-10-29 (the four decisions, then decisions A to L of
-the review of #390, then M proposed). Scope was split between 0.22.0 and
-0.23.0, then re-cut on 2026-11-04 (maintainer ruling): 0.23.0 held PRs 1b,
-1c and 2b only; the frames, PRs 3 to 18, the licence provenance mapping and
-`--report`/SARIF are 0.24.0 (counts and order:
+the review of #390, then M after it merged, built in #395). Scope was split
+between 0.22.0 and 0.23.0, then re-cut on 2026-11-04 (maintainer ruling):
+0.23.0 held PRs 1b, 1c and 2b only; the frames, PRs 3 to 18, the licence
+provenance mapping and `--report`/SARIF are 0.24.0 (counts and order:
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)).
 Built: the inventory (step 1; results and the printed form it settled are in
 "Inventory results"); the `lfs-pointer` families with the plumbing, schema and
@@ -286,12 +286,12 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   minor release. Tool names are reserved family names (`pitloom`,
   `licenseid`, `lumina`, `spdx`, `sbom`, `sarif`, `bom`); no producer prefix
   in a printed code.
-- **M. (Proposed after #390 merged.) A trusted line proves its code, not its
-  values.** `trusted_message` matches a line against the entry's templates,
-  and a free field (`FILE=`, shape `.+`) can hold any text, even
-  `; run 'git lfs pull'; FILE=x`. The advice a skill acts on comes from the
-  catalogue entry of the code, never from the line; a free value is data.
-  Stated in `docs/messages.md` ("What a trusted line does and does not
+- **M. A trusted line proves its code, not its values** (decided after #390
+  merged; built in #395, 0d375e1b). `trusted_message` matches a line against
+  the entry's templates, and a free field (`FILE=`, shape `.+`) can hold any
+  text, even `; run 'git lfs pull'; FILE=x`. The advice a skill acts on comes
+  from the catalogue entry of the code, never from the line; a free value is
+  data. Stated in `docs/messages.md` ("What a trusted line does and does not
   prove").
 
 **Room for SARIF and `licenseid`** (a note, no design): the charset keeps the
