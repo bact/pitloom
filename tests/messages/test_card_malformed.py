@@ -151,7 +151,7 @@ def test_a_directory_that_cannot_be_listed_says_so(
     caplog: pytest.LogCaptureFixture,
     kind: CardKind,
 ) -> None:
-    """Its card is not found, and the line says why (it was silent)."""
+    """Its card is not found, and one line says why."""
     (tmp_path / "README.md").write_text(_BAD, encoding="utf-8")
     _iterdir_raising(monkeypatch, tmp_path, errno.EACCES)
     with caplog.at_level(logging.WARNING, logger="pitloom"):

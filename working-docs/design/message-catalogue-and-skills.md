@@ -455,9 +455,9 @@ Decided 2026-11-04 for #444 (PR 2b; the maintainer took the plan's
 answers H1 to H9):
 
 1. **Three new codes**, all `since="0.23.0"`, condition `malformed`:
-   `text-malformed` (effect `weaker`; its helper `warn_lone_surrogates`
-   moved from `logging_config.py` into `pitloom.messages`, which writes the
-   name raw: a caller's own `loggable()` is idempotent),
+   `text-malformed` (effect `weaker`; helper
+   `pitloom.messages.warn_lone_surrogates`, which takes the name raw and
+   escapes it),
    `card-malformed` (named by document, with a closed `card` field, the
    kinds of `CARD_KINDS`) and `json-malformed` (named by format, R4;
    `ERROR` only, effect `not-written`).
@@ -475,7 +475,7 @@ answers H1 to H9):
    coded texts.
 4. **Card lines drop `| Field(s) affected` (H8)**: the entry's `did` says
    what each kind loses. A frontmatter that is valid YAML but no mapping
-   stays quiet (H9). An absent card is quiet now, as an absent file is
+   stays quiet (H9), and so does an absent card, as an absent file does
    everywhere (2a ruling 2).
 5. `path_confine` raises `SymlinkLoopError`, the errno's own text: the
    resolver's text named the path.

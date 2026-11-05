@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -364,8 +364,8 @@ counts the levels on the decoded text before `json.loads`
 parser accepts), so a file is read or refused the same on every Python:
 `json`'s own depth limit differs by release (3.11 fails at 2000 levels, 3.14
 parses 100000), and the old test, which accepted either outcome, was skipped.
-Over the cap is `ValueError: Croissant source 'f' is larger than the 64-level
-Croissant-nesting cap` (a file the caller named is refused, not warned of).
+Over the cap raises `'f': larger than the 64-level Croissant-nesting cap; not
+read` (`over-cap`): a file the caller named is refused, not warned of.
 `_data_type_values` stays an explicit stack. Tested at the cap, over it and
 far over it (`tests/core/test_loom_dataset_sources_rules.py`), on 3.11 and
 3.14 as well.
