@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # SARIF output
 
-See also: [roadmap.md](roadmap.md) (Adoption surfaces -- "SARIF
-output").
+See also: [roadmap.md](roadmap.md) (0.24.0 and Backlog: "SARIF output"),
+[message-catalogue-and-skills.md](message-catalogue-and-skills.md) (`--report`).
 
 Replaces an earlier `::warning::`/`::error::` GitHub Actions
 workflow-command annotation idea. Emit a SARIF file as a build
@@ -32,7 +32,7 @@ Medium-term); the two don't overlap or compete.
   [metadata-provenance.md](../implementation/provenance/metadata-provenance.md))
   -- already done for AI-agent Skills, see
   [agent-skill.md](../implementation/agent-skill.md#relaying-warningerror-stderr-to-the-user).
-- OSV.dev vulnerability lookup (roadmap Near-term / Metadata quality,
+- OSV.dev vulnerability lookup (roadmap Backlog,
   once built -- see [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md))
   -- one SARIF `result` per CVE (`ruleId=CVE-xxxx`, `level=`severity,
   location = the dependency's declaration line in `pyproject.toml`).

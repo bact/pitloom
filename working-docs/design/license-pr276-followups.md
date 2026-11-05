@@ -23,7 +23,8 @@ resolution) and may change direction there. Group C is housekeeping.
 - **A wheel runs no in-package licence detection.** A directory, the
   library, the Hatchling hook and (since the sdist licence-detection PR) an
   sdist read the project's `LICENSE`; `loom wheel` records the METADATA
-  `License:` text only. Needs `License-File:` selection (not built; carried over from 0.21.0).
+  `License:` text only. Needs `License-File:` selection (not built; carried
+  over from 0.21.0).
 - **A licence text in `PKG-INFO` stays text.** For `license = {file =
   "LICENSE"}` (a centred Apache header, checked live with a Hatchling
   sdist) the directory and the hook declare `Apache-2.0` (`licenseid`

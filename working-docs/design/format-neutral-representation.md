@@ -95,9 +95,9 @@ To add a CycloneDX serialiser, for example:
 ## Protobom evaluation
 
 Protobom was evaluated as a candidate for the format-neutral layer
-(see [protobom-evaluation.md](../archive/protobom-evaluation.md)). While it provides a
-Protocol Buffers–based universal SBOM representation with good support for
-SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
+(see [protobom-evaluation.md](../archive/protobom-evaluation.md)). While it
+provides a Protocol Buffers–based universal SBOM representation with good
+support for SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
 AI/Dataset/Build profiles that are central to Pitloom's use cases. Adopting
 Protobom would introduce a significant dependency while leaving key fields
 unmapped. The lightweight `DocumentModel` approach is preferred for the

@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model id stability
 
-See also: [roadmap.md](roadmap.md) (Near-term -- "AI model id
-stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
+See also: [roadmap.md](roadmap.md) (To design: "AI model id stability",
+follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
 [id-registry-v3.md](../implementation/id-registry-v3.md) (decides the first question below),
 [id-registry-followups.md](id-registry-followups.md).
 
@@ -78,7 +78,7 @@ Closed by path keys: each model file is keyed by its own path, so two models
 with one stem have two keys and two ids; the text below is the v2 problem
 statement and the stem-era behaviour, kept as rationale.
 
-With a `pitloom id generate`-populated registry, `_lookup_ai_model_entity`'s
+With a `loom id generate`-populated registry, `_lookup_ai_model_entity`'s
 filename-stem candidate is the *only* usable key for a model with no
 `ai_model.name`/`physical_path` -- and that stem alone isn't unique
 across a project. Two models at `a/weights.npy` and `b/weights.npy`

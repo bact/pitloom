@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-31
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +17,8 @@ used below) and, for what exists today,
 
 Status: built 2026-10-31 (`core/model_usage.py`, `extract/_usage_table.py`,
 `extract/_usage_match.py`, `extract/_usage_ast.py`, `extract/_usage_attach.py`,
-`messages/_usage_unparseable.py`).
+`messages/_usage_unparseable.py`). The sections below are the design as
+decided; "Problem" describes the substring scan it replaced.
 
 ## Problem
 

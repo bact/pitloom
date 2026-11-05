@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Non-Hatchling file discovery (feature parity)
 
-See also: [roadmap.md](roadmap.md) (Near-term -- "Non-Hatchling file
-discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
+See also: [roadmap.md](roadmap.md) (Open follow-ups by area:
+"File discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
 (the mechanism and why this stays a static-config read for every backend,
 never a build), [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
 (real-world validation method and results so far),

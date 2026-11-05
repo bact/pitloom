@@ -24,10 +24,10 @@ Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
 | `type_of_model` | `ai_typeOfModel` |
 | `hyperparameters` | `ai_hyperparameter` (list of `DictionaryEntry`) |
 | `inputs` / `outputs` | `ai_informationAboutApplication` (JSON string) |
-| `format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
-| `framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
-| `framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
-| `properties` | not yet mapped (stored in `AiModelMetadata.properties`, not emitted to SPDX) |
+| `format_info.format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
+| `format_info.framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
+| `format_info.framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
+| `properties`, `raw_metadata` | no SPDX field; preserved verbatim in the artifact-metadata `Annotation` (`preserve-source-metadata`) |
 | `provenance` | `comment` |
 
 `ai_AIPackage` elements are linked to the main Python package via an SPDX
@@ -90,7 +90,7 @@ such as OpenSSF Scorecard and package registries.
 | Source | What it provides | Network required | Default | Status |
 | :----- | :--------------- | :--------------- | :------ | :----- |
 | Repository README / model card | License, dataset references (YAML frontmatter only -- not prose; see below) | No (local file) | **Disabled** (opt-in) | **Shipped** (`enrich/readme.py`) |
-| Hugging Face Hub metadata | Architecture, tags, licence, dataset links, paper references | Yes | User opt-in | Not started |
+| Hugging Face Hub metadata | Architecture, tags, licence, dataset links, paper references | Yes | User opt-in | Shipped as a model source (`loom model <hub-id>`, `extract/remote/huggingface*.py`); not an `enrich` pass |
 | OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | User opt-in | Not started |
 | Parlay package enrichment | Package ecosystem metadata (description, homepage, licence) | Yes | User opt-in | Not started |
 | PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in | Not started |

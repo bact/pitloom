@@ -86,7 +86,7 @@ the original Phase 1/4 plan turned out to already be built.
   regression, but worth a dedicated `try/except FragmentMergeError` with
   a clean message if it turns out to bite users in practice.
 - [ ] **`KEY=VALUE` CLI output has no quoting/escaping for values
-  containing spaces** -- `pitloom fragment list`'s one-line-per-fragment
+  containing spaces** -- `loom fragment list`'s one-line-per-fragment
   output (`PATH=... ROLE=... REQUIRED=...`) space-separates its fields,
   so a fragment `path` containing a space (legal on all three supported
   platforms) breaks naive whitespace-based field splitting downstream

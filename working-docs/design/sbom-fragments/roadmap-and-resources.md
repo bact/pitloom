@@ -24,6 +24,9 @@ shared across the whole cluster.
 The work is ordered by user-impact priority. No item depends on completing
 all earlier items; each can be delivered independently.
 
+Built (2026-11-05): Phase 1 items 1 to 3 and Phase 4 item 2. Everything else
+is open; see [open-items.md](open-items.md).
+
 ### Phase 1: Structural improvements (high impact, low effort)
 
 1. **`FragmentConfig` data class** -- replace `list[str]` in `PitloomConfig`.
