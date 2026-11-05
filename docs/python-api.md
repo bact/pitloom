@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -475,7 +475,7 @@ As on every other surface, `loom.run`/`loom.Run` uses a registry only when
 one is declared (`id_registry=`, or `id-registry` in `pitloom_config=`
 below): with none, no registry is used -- nothing is searched for or
 auto-discovered. A declared registry that's missing, unreadable or invalid
-(a format version 2 file included) raises `ValueError` when the `with
+(a format version 3 or 2 file included) raises `ValueError` when the `with
 loom.run(...)` block (or the decorated call) begins, before any fragment
 work happens.
 

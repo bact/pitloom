@@ -47,8 +47,13 @@ User manual: <https://bact.github.io/pitloom/>
 
 ```bash
 pip install pitloom
+licenseid update --source packaged   # once: enables LICENSE-file matching
 loom project .     # SBOM for the Python project in the current dir
 ```
+
+Without the `licenseid` database, a declared licence is still read, but a
+`LICENSE` file is not matched (`INFO:` or `WARNING:`, depending on whether a
+licence is declared).
 
 Extras enable more metadata extraction (see [CONTRIBUTING.md](CONTRIBUTING.md)
 for the dev install):

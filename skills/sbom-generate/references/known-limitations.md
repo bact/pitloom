@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -314,6 +314,14 @@ Report the line and the command. When the project declares a licence and the
 file is only missing, the line is `INFO: licenseid database not found: <path>
 -- license text detection skipped; run 'licenseid update --source packaged'`:
 only the `LICENSE` file is not matched.
+
+`WARNING: licenseid database cannot be used: database: not found: no home
+directory; pass --db -- license text detection skipped` (always a `WARNING:`,
+declared licence or not): the account has no home directory (`HOME`, or
+`USERPROFILE` on Windows, is blank, or unset with no account entry), so
+`licenseid` cannot find its database, and `licenseid update` fails the same
+way. `loom` has no `--db` option: tell the
+user to run it with a home directory set. A declared licence is still read.
 
 `WARNING: licenseid: <subject>: <condition>...` is a warning of `licenseid`
 itself, relayed once per run. `WARNING: licenseid: database: build v2 outdated:
