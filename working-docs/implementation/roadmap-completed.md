@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -498,3 +498,27 @@ re-run of the 0.22.0 release checks. Open items:
 - [x] **CI and tests** (#415, #416, #421, #428): skip the push run after a
   merge that repeats a green PR tree; the manual CLI checks split under the
   complexity ceilings; loopback test servers no longer stall on a macOS runner.
+
+## Shipped in 0.23.0 (PRs #434-#446)
+
+Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
+[roadmap.md](../design/roadmap.md#0230-g7-sbom-for-ai-field-coverage) and its
+0.24.0 section.
+
+- [x] **`licenseid` 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
+  declared licence value is read by `licenseid` alone, from its packaged SPDX
+  License List, with no licence database (the Hatchling hook's isolated build
+  included); `py-spdx-license` dropped; `licenseid` warnings relayed as one
+  line; rewrites cite `Tool: licenseid==V`. See
+  [licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md).
+- [x] **Message catalogue PR 2b** (#444): `card-malformed`, `json-malformed`,
+  `text-malformed`; an unlistable card directory warns `dir-unlistable`.
+- [x] **Message catalogue PRs 1b and 1c** (#446): `model-field-unreadable`,
+  `model-field-conflict`, `field-not-recordable`, `library-unusable` (a
+  `magika` that fails to import types files by extension). The ratchet fell
+  from 498 to 469. See
+  [message-catalogue-families.md](message-catalogue-families.md).
+- [x] **Packaging** (#435): no `AGENTS.md`, `CLAUDE.md` or `GEMINI.md` in the
+  sdist or wheel.
+- [x] **Docs and tests** (#434, #436, #442): the 0.22.1 PyPI verification;
+  live Git tests retry a transient 5xx answer; the catalogue plan refresh.

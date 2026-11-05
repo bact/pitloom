@@ -24,10 +24,10 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.22.1 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+shipped up to 0.23.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#350 and 0.21.1 #364-#366 on 2026-10-28,
-0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03), including
-their release-plan items.
+0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#446
+on 2026-11-05), including their release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
@@ -83,7 +83,8 @@ catalogued messages end in a `[code]` (Git LFS pointers, size caps, why a model
 was not read, unreadable files and directories); **breaking:** ID registry
 format 4 keys a package by name and version (format 3 is refused); fixes for a
 non-UTF-8 file name, a `:` in provenance text and direct-URL dependencies. Keeps
-`licenseid>=0.6.0,<0.7`.
+`licenseid>=0.6.0,<0.7`. Built in 0.22.0 (#374-#408). See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-410).
 
 ### 0.22.1
 
@@ -105,22 +106,24 @@ in [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 free-text "producer" to a `Person`/`Organization`) stays with the `sbom-enrich`
 Skill.
 
-**The 0.23.0 cut (maintainer ruling 2026-11-04, replacing the list of
-2026-10-30):** 0.23.0 is cut early. Built: the `licenseid` 0.7.0 adoption
-(`match()` becomes `detect()`, `resolve()` keeps its name; stage A, the pin,
-port and warning relay, #437; stage B, the `_license.py` split, #438; stage D,
-docs and skills, #439; stage C, declared values read by `licenseid` alone, #440;
-see [licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)). Shipping in 0.23.0:
-the adoption's final gate (stage E), the catalogue plan refresh, catalogue PR 2b
-(cards, `fetch_json`, lone surrogate) and PRs 1b and 1c (model fields read in
-part, `library-unusable`); the ratchet falls from 498 to 469. The generated
-message reference is then over the size limit: splitting it comes before the
-next catalogue PR. Moved
-to 0.24.0: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18 and
-the licence provenance mapping
-([#384](https://github.com/bact/pitloom/pull/384), T14), `--report` and SARIF.
-See [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
+**Released 2026-11-05** (v0.23.0), cut early (maintainer ruling 2026-11-04).
+See [CHANGELOG.md](../../CHANGELOG.md) and
+[release-checklist.md](../implementation/release-checklist.md). Highlights:
+declared licence values read by `licenseid` 0.7 with no licence database
+(#437-#440, floor 0.7.1 #445; see
+[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)); message codes for
+cards, Croissant and lone surrogates (catalogue PR 2b, #444) and for model
+fields read in part and unusable libraries (PRs 1b and 1c, #446); no agent
+files in the sdist or wheel (#435). Requires `licenseid>=0.7.1,<0.8`. The
+ratchet fell from 498 to 469. The generated message reference is over the
+size limit: splitting it comes before the next catalogue PR. Moved to 0.24.0:
+the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18, the licence
+provenance mapping ([#384](https://github.com/bact/pitloom/pull/384), T14),
+`--report` and SARIF. See
+[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
 and [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
+Built in 0.23.0 (#434-#446). See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0230-prs-434-446).
 Evidence-level work continues where it pairs with a catalogue family (over-cap,
 unreadable file, Hub failure).
 
@@ -128,7 +131,7 @@ unreadable file, Hub failure).
 review before each release tag. See
 [testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
 
-Open:
+Not built in 0.23.0 (open):
 
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See the [`loom` SDK](#loom-sdk-code-model-dataset-annotation) section and
@@ -142,9 +145,6 @@ Open:
   beyond keeping it working. See [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
   item below.
-
-Built in 0.22.0 (#374-#408). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-410).
 
 ### 0.24.0: message catalogue and licence provenance
 
