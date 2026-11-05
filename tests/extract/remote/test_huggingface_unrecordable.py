@@ -19,12 +19,15 @@ from typing import Any
 
 import pytest
 
-from pitloom.extract.ai_model.unrecordable import NOTICE_LEVEL, NOTICE_TEXT
+from pitloom.extract.ai_model.unrecordable import NOTICE_LEVEL
 from pitloom.extract.remote.huggingface import read_huggingface
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _MISTRAL_CONFIG,
     _patch_hf_calls,
 )
+
+#: The text after the ``FORMAT=``/``FILE=`` prefix (``field-not-recordable``).
+NOTICE_TEXT = "no SPDX 3.0.1 property"
 
 _NO_ARCHITECTURE = {k: v for k, v in _MISTRAL_CONFIG.items() if k != "architectures"}
 

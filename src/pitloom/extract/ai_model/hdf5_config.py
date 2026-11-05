@@ -11,14 +11,14 @@ name that is not a string) is one problem per attribute: parsing stops there,
 what was read before it is kept, and :class:`ConfigProblem` names what was
 lost. Absent parts are not problems.
 
-See also: :mod:`pitloom.extract.ai_model.hdf5`, which reads the attributes and
-logs the problems.
+See also: :mod:`pitloom.extract.ai_model.hdf5`, which reads the attributes,
+and :mod:`pitloom.extract.ai_model._hdf5_warnings`, which says the problems.
 """
 
 from __future__ import annotations
 
 import json
-import logging
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
@@ -26,9 +26,7 @@ from pitloom.core.ai_metadata import record_scalar_property
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._extract_utils import record_dict_field_provenance
-from pitloom.logging_config import field_loss_suffix, one_line
-
-log = logging.getLogger(__name__)
+from pitloom.logging_config import one_line
 
 #: Characters of an unparsed ``model_config`` kept in
 #: ``properties["model_config_raw"]``.
@@ -46,8 +44,8 @@ _TRAINING_CONFIG_FIELDS = (
     "properties.loss",
     "properties.metrics",
 )
-# The fields each root attribute sets, named when it cannot be read.
-_ATTRIBUTE_FIELDS = {
+#: The fields each root attribute sets, named when it cannot be read.
+ATTRIBUTE_FIELDS = {
     "keras_version": ("framework_version", "format_version"),
     "backend": ("properties.backend",),
     "model_config": _MODEL_CONFIG_FIELDS,
@@ -55,20 +53,48 @@ _ATTRIBUTE_FIELDS = {
 }
 
 
+class ConfigShapeError(ValueError):
+    """A config *part* (``model_config.config``) that is not what Keras
+    writes, and what is wrong with it, *reason*; its text is both."""
+
+    def __init__(self, part: str, reason: str) -> None:
+        super().__init__(f"{part} {reason}")
+        #: The key path of the part.
+        self.part: str = part
+        #: What is wrong with it (``is not an object``).
+        self.reason: str = reason
+
+    def __reduce__(self) -> tuple[type[ConfigShapeError], tuple[str, str]]:
+        return (type(self), (self.part, self.reason))
+
+
 class ConfigProblem(NamedTuple):
     """Why an attribute could not be read whole.
 
     Attributes:
-        text: The reason, on one line.
-        lost: The fields that stay unset because of it.
+        part: The first part not as Keras writes it.
+        error: What is wrong with it, then each later problem's own text,
+            ``; ``-joined, on one line.
+        lost: The fields that stay unset because of them.
     """
 
-    text: str
+    part: str
+    error: str
     lost: tuple[str, ...]
 
+    @property
+    def text(self) -> str:
+        """The reason, as a warning says it."""
+        return f"{self.part} {self.error}"
 
-class ConfigShapeError(ValueError):
-    """A config part that is not what Keras writes."""
+    @classmethod
+    def of(
+        cls, errors: Sequence[ConfigShapeError], lost: Iterable[str]
+    ) -> ConfigProblem:
+        """The problem of *errors*, at least one, in the order found."""
+        first, *rest = errors
+        error = "; ".join([one_line(first.reason), *(one_line(e) for e in rest)])
+        return cls(first.part, error, tuple(lost))
 
 
 def _object(value: Any, what: str) -> dict[str, Any]:
@@ -78,7 +104,7 @@ def _object(value: Any, what: str) -> dict[str, Any]:
         ConfigShapeError: *value* is not an object (``null`` included).
     """
     if not isinstance(value, dict):
-        raise ConfigShapeError(f"{what} is not an object")
+        raise ConfigShapeError(what, "is not an object")
     return value
 
 
@@ -98,7 +124,7 @@ def member_text(parent: dict[str, Any], key: str, what: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        raise ConfigShapeError(f"{what} is not a string")
+        raise ConfigShapeError(what, "is not a string")
     return value or None
 
 
@@ -113,13 +139,13 @@ def _json_object(raw: str, what: str) -> dict[str, Any]:
     try:
         parsed = json.loads(raw)
     except RecursionError as exc:
-        raise ConfigShapeError(f"{what} is not valid JSON (nested too deeply)") from exc
+        raise ConfigShapeError(what, "is not valid JSON (nested too deeply)") from exc
     except ValueError as exc:  # JSONDecodeError, or an over-long integer
-        raise ConfigShapeError(f"{what} is not valid JSON ({exc})") from exc
+        raise ConfigShapeError(what, f"is not valid JSON ({exc})") from exc
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
-        raise ConfigShapeError(f"{what} is not a JSON object")
+        raise ConfigShapeError(what, "is not a JSON object")
     return parsed
 
 
@@ -243,7 +269,7 @@ def _read_layers(config: dict[str, Any], done: _Progress) -> None:
     """
     layers = config.get("layers")
     if layers is not None and not isinstance(layers, list):
-        raise ConfigShapeError("model_config.config.layers is not a list")
+        raise ConfigShapeError("model_config.config.layers", "is not a list")
     done.lost.remove("properties.layer_count")
     if layers is not None:
         _extract_layers_info(layers, done)
@@ -319,14 +345,11 @@ def parse_model_config(
     done = _Progress(source, hyperparameters, inputs, properties, provenance)
     if natives is not None:
         done.natives = natives
-    problem: str | None = None
     try:
         _read_model_config(_json_object(raw, "model_config"), done)
     except ConfigShapeError as exc:
-        problem = one_line(exc)
-    if problem is None:
-        return done.type_of_model, done.name, None
-    return done.type_of_model, done.name, ConfigProblem(problem, tuple(done.lost))
+        return done.type_of_model, done.name, ConfigProblem.of([exc], done.lost)
+    return done.type_of_model, done.name, None
 
 
 def _read_optimizer(
@@ -376,7 +399,7 @@ def _record_json_value(
             properties[key] = canonical_json(value)
         except RecursionError as exc:
             raise ConfigShapeError(
-                f"training_config.{key} is nested too deeply"
+                f"training_config.{key}", "is nested too deeply"
             ) from exc
         natives[key] = value
     else:
@@ -421,7 +444,7 @@ def parse_training_config(
     try:
         training_config = _json_object(raw, "training_config")
     except ConfigShapeError as exc:
-        return ConfigProblem(one_line(exc), tuple(lost))
+        return ConfigProblem.of([exc], lost)
     # Optimizer first, as SBOM output has always ordered the properties; a bad
     # optimizer must not lose the loss and metrics.
     optimizer_error: ConfigShapeError | None = None
@@ -446,59 +469,5 @@ def parse_training_config(
         lost.remove(f"properties.{key}")
 
     if errors:
-        return ConfigProblem("; ".join(one_line(e) for e in errors), tuple(lost))
+        return ConfigProblem.of(errors, lost)
     return None
-
-
-def log_model_config_problem(
-    problem: ConfigProblem | None, raw: str, kept_raw: bool
-) -> None:
-    """Say, in one ``WARNING:``, what became of a ``model_config`` that could
-    not be read whole: *problem* (``None`` for a valid object without a class
-    or name), whether the raw text is *kept_raw* in
-    ``properties.model_config_raw`` (cut to :data:`RAW_CONFIG_CHARS`), or the
-    fields read before it are kept and the rest skipped."""
-    cut = kept_raw and len(raw) > RAW_CONFIG_CHARS
-    if problem is None and not cut:
-        return
-    cut_note = f", the first {RAW_CONFIG_CHARS} of {len(raw)} characters" if cut else ""
-    if problem is None:
-        log.warning(
-            "Unparsed model_config of %d characters; the first %d are kept%s",
-            len(raw),
-            RAW_CONFIG_CHARS,
-            field_loss_suffix("degraded", "properties.model_config_raw"),
-        )
-    elif kept_raw:
-        log.warning(
-            "%s; kept as properties.model_config_raw%s%s",
-            problem.text,
-            cut_note,
-            field_loss_suffix("skipped", *problem.lost),
-        )
-    else:
-        log.warning(
-            "%s; the fields read before it are kept%s",
-            problem.text,
-            field_loss_suffix("skipped", *problem.lost),
-        )
-
-
-def log_attribute_problem(name: str, exc: BaseException) -> None:
-    """Say, in one ``WARNING:``, that root attribute *name* cannot be read."""
-    log.warning(
-        "%s attribute cannot be read; %s%s",
-        name,
-        one_line(exc),
-        field_loss_suffix("skipped", *_ATTRIBUTE_FIELDS[name]),
-    )
-
-
-def log_training_config_problem(problem: ConfigProblem | None) -> None:
-    """Say, in one ``WARNING:``, that a ``training_config`` was not read whole."""
-    if problem is not None:
-        log.warning(
-            "%s; reading stopped there%s",
-            problem.text,
-            field_loss_suffix("skipped", *problem.lost),
-        )

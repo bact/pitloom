@@ -20,15 +20,12 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from pitloom.core.ai_metadata import AiModelMetadata
-from pitloom.logging_config import loggable
+from pitloom.messages import FIELD_NOT_RECORDABLE, emit
 
 _log = logging.getLogger(__name__)
 
 #: The level of every notice line.
 NOTICE_LEVEL = logging.INFO
-
-#: The shared text after the ``FORMAT=``/``FILE=`` prefix.
-NOTICE_TEXT = "no SPDX 3.0.1 property"
 
 
 @dataclass(frozen=True)
@@ -64,17 +61,18 @@ UNRECORDABLE: tuple[Unrecordable, ...] = (
 
 
 def log_unrecordable(fmt: str, where: str, read: Iterable[Unrecordable]) -> None:
-    """The one notice line for *read*, sorted by element, naming the model
-    (``FORMAT=<fmt> FILE=<where>``); nothing when *read* is empty."""
-    labels = [entry.label() for entry in sorted(read, key=lambda e: e.element)]
+    """The one ``field-not-recordable`` line for *read*, sorted by element,
+    naming the model (``FORMAT=<fmt> FILE=<where>``); nothing when *read* is
+    empty."""
+    labels = tuple(entry.label() for entry in sorted(read, key=lambda e: e.element))
     if labels:
-        _log.log(
+        emit(
+            _log,
+            FIELD_NOT_RECORDABLE,
             NOTICE_LEVEL,
-            "FORMAT=%s FILE=%s: %s: %s",
-            fmt,
-            loggable(where),
-            NOTICE_TEXT,
-            ", ".join(labels),
+            format=fmt,
+            file=where,
+            elements=labels,
         )
 
 

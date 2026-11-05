@@ -67,11 +67,13 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_type
-from pitloom.extract.ai_model.hdf5_config import (
-    RAW_CONFIG_CHARS,
+from pitloom.extract.ai_model._hdf5_warnings import (
     log_attribute_problem,
     log_model_config_problem,
     log_training_config_problem,
+)
+from pitloom.extract.ai_model.hdf5_config import (
+    RAW_CONFIG_CHARS,
     parse_model_config,
     parse_training_config,
 )
@@ -279,7 +281,9 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 provenance["properties.model_config_raw"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
                 )
-            log_model_config_problem(problem, model_config_raw, kept_raw)
+            log_model_config_problem(
+                problem, model_config_raw, kept_raw, str(model_path)
+            )
 
         if training_config_raw:
             log_training_config_problem(
