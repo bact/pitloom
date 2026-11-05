@@ -51,8 +51,8 @@ and this project adheres to
 - Model fields a reader could not read, keys a model states twice and fields
   SPDX 3.0.1 cannot record end in `[model-field-unreadable]`,
   `[model-field-conflict]` or `[field-not-recordable]` ([#446])
-- The unparsed Keras `model_config` cut to 500 characters is an `[over-cap]`
-  line naming the model ([#446])
+- A Keras `model_config` that parses but names no class or name, cut to 500
+  characters, is an `[over-cap]` line naming the model ([#446])
 - A library that is installed but fails to import says so,
   `[library-unusable]`, not `[library-missing]` ([#446])
 
@@ -70,9 +70,8 @@ and this project adheres to
   path twice ([#444])
 - A tag value such as `MIT/Apache-2.0` or `MIT, ISC` no longer detects as its
   first id (`MIT`) ([#445])
-- With `--content-type` (method `auto`), a `magika` that fails to import keeps
-  every file, typed by its extension, with one `[library-unusable]` warning,
-  not one `[file-unreadable]` per file ([#446])
+- `--content-type` with a `magika` that fails to import keeps every file,
+  typed by extension, with one `[library-unusable]` warning ([#446])
 
 [#435]: https://github.com/bact/pitloom/pull/435
 [#437]: https://github.com/bact/pitloom/pull/437

@@ -126,6 +126,11 @@ entries stay in the last section for history.
   as `[over-cap]`. A second line would break the one-warning-per-attribute
   rule the HDF5 tests hold (#446 review, left as is).
   *Found 2026-11-05, review of #446.*
+- [ ] **A library whose package directory is gone says `library-missing`
+  (S).** With its `.dist-info` still installed but the package removed, the
+  import raises `ModuleNotFoundError` naming the module, so the line says
+  "not installed; install" where a reinstall is the fix. Edge case; left.
+  *Found 2026-11-05, second review of #446.*
 
 ## Fixed
 

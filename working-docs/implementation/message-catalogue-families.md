@@ -216,9 +216,11 @@ answers M1 to M10):
    `RELAY_FRAME` names the model. New fields `entry`, `fields`, `part`,
    `number` and `elements`. A Keras or HDF5 problem is `ConfigProblem(part,
    error, lost)`: a template may not start with a free field.
-3. **The raw `model_config` cut is `over-cap` (M8)**: the 500-character
-   `raw-model-config` cap, said by the HDF5 reader and again by the scan as
-   the model's.
+3. **The raw `model_config` cut is `over-cap` (M8)** when the config
+   parses but names no class or name: the 500-character `raw-model-config`
+   cap, said by the HDF5 reader and again by the scan as the model's. A
+   config that does not parse says its cut inside its
+   `model-field-unreadable` line (ledger).
 4. **Uncoded still**: fickling's own stderr (M5); the scan's usage hint is
    PR 3's (M9).
 5. **`library-unusable`, a family of its own** (M1 as ruled on review: the

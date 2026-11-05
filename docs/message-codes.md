@@ -379,8 +379,8 @@ A line may start with one prefix before its text:
   hashes only (a format-only entry, named after its file), without its metadata.
   For any other step, did not run it: no SBOM of a Hugging Face model, no
   validation, no SBOM with magika content types (method magika); with method
-  auto, every file's content type from its extension, said once a run. Installed
-  nothing.
+  auto, every file's content type from its extension, said once per process.
+  Installed nothing.
 - **Tell the user**: which models or which step went without the library, what
   the import reported and which extra reinstalls it, as the line names it. They
   reinstall it where Pitloom runs (with uvx or pipx, in the --from or --spec

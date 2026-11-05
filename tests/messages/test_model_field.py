@@ -31,6 +31,7 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import _hdf5_warnings, fasttext, onnx, pytorch
 from pitloom.extract.ai_model import pytorch_pt2 as pt2
+from pitloom.extract.ai_model.hdf5 import read_hdf5
 from pitloom.extract.ai_model.hdf5_config import (
     ConfigProblem,
     ConfigShapeError,
@@ -308,13 +309,28 @@ def test_an_error_without_text_is_named_by_its_class(
     ]
 
 
+@pytest.mark.parametrize(
+    ("keras_version", "fmt"), [(None, "hdf5"), ("2.15.0", "keras")], ids=str
+)
 def test_the_raw_config_cap_names_the_model_as_its_siblings_do(
+    keras_version: str | None,
+    fmt: str,
+    tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Read on its own, not through a scan, the cut names format and file."""
+    """Read on its own, not through a scan, the cut names the format the
+    reader found (Keras when the file states a Keras version) and the file."""
+    h5py = pytest.importorskip("h5py")
+    path = tmp_path / "m.h5"
+    config = '{"pad": "' + "x" * 600 + '"}'
+    with h5py.File(path, "w") as hf:
+        hf.attrs["model_config"] = config
+        if keras_version is not None:
+            hf.attrs["keras_version"] = keras_version
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        _hdf5_warnings.log_model_config_problem(None, "x" * 501, True, _H5, "m.h5")
+        read_hdf5(path)
     assert [r.getMessage() for r in caplog.records] == [
-        "FORMAT=hdf5 FILE=m.h5: larger than the 500-character raw-model-config "
-        "cap; the first 500 of 501 characters kept in properties.model_config_raw"
+        f"FORMAT={fmt} FILE={path}: larger than the 500-character "
+        f"raw-model-config cap; the first 500 of {len(config)} characters kept "
+        "in properties.model_config_raw"
     ]
