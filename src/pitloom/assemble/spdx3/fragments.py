@@ -314,7 +314,7 @@ def fragment_files(fragments_dir: Path) -> list[str]:
 
 def _missing_fragment_message(fragment_path: Path, *, required: bool) -> str:
     """Wording for a configured fragment file that doesn't exist on disk --
-    shared by the real merge and ``pitloom fragment list``'s diagnostic
+    shared by the real merge and ``loom fragment list``'s diagnostic
     pass, so the same condition reads identically on both surfaces."""
     if required:
         return (
