@@ -147,4 +147,5 @@ The plan's own count of 511 to about 497 was off by one from the built
   project metadata, fastText and PT2 `Failed to read`) are listed in the
   plan as deferred to later catalogue PRs; each still logs `{exc}`. How
   many of them hold a path is not measured.
-- PR 2b (cards, `fetch_json`, `text-malformed`) was planned, not built, when this was written; built in #444 (0.23.0).
+- PR 2b (cards, `fetch_json`, `text-malformed`) was planned, not built, when
+  this was written; built in #444 (0.23.0).

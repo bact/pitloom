@@ -22,8 +22,8 @@ section 6.1),
 
 **Status when written: #407 in review** (branch
 `registry-package-version-key`, head eb3fed66, 2026-10-30); merged for
-0.22.0. Everything below about its code is read from that branch; the remote-entry plan
-(section 6) is a recommendation, not built.
+0.22.0. Everything below about its code is read from that branch; the
+remote-entry plan (section 6) is a recommendation, not built.
 
 ## 1. The finding: a registry made two releases less distinct than none
 

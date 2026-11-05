@@ -227,9 +227,10 @@ relationships.
 ### `licenseid` dependency
 
 Text-based licence detection (`detect_license_from_text()` in
-`_license_text_match.py`, re-exported by `_license.py`) uses the `licenseid` package, which is a mandatory
-pitloom dependency. The database must be built before detection is
-possible (offline, from the SPDX License List the `licenseid` wheel ships):
+`_license_text_match.py`, re-exported by `_license.py`) uses the `licenseid`
+package, which is a mandatory pitloom dependency. The database must be built
+before detection is possible (offline, from the SPDX License List the
+`licenseid` wheel ships):
 
 ```shell
 licenseid update --source packaged
@@ -243,8 +244,8 @@ The database is stored at
 `~/.local/share/licenseid/licenses.db`. Pitloom accepts the top detection
 when its score meets a threshold of 0.85 (`detect_license_from_text()`).
 
-**Declared values: `resolve()`** (`licenseid` 0.7.1 or later). `classify_license()`
-asks `licenseid.resolve()` (`_license_resolve.py`, through
+**Declared values: `resolve()`** (`licenseid` 0.7.1 or later).
+`classify_license()` asks `licenseid.resolve()` (`_license_resolve.py`, through
 `_license_classify._expression_or_text()`) about every single-line value of at
 most 200 characters, in any field, on the SPDX License List packaged with
 `licenseid` (`source="packaged"`: no database is needed). An answer with an

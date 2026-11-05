@@ -20,8 +20,8 @@ formats, license expressions, `pyproject.toml`/`setup.cfg` parsing,
 wheel/zip archive contents). Fuzzing all of them would be the most
 thorough option, but harness-writing and triage time scale with target
 count, and this is a SUGGESTED (not MUST) criterion for a
-single-maintainer project. Scoped to the highest-value, lowest-harness-complexity
-targets:
+single-maintainer project. Scoped to the targets with the highest value and
+the lowest harness complexity:
 
 - **License expression normalisation**
   (`pitloom.extract._license.classify_license`, which replaced

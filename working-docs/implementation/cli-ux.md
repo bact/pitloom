@@ -18,7 +18,9 @@ the redesign, not the current command surface itself.
 > notes below came from there) — kept as one file since the two had
 > near-total content overlap.
 
-This document details the evolution of Pitloom's CLI subcommands, from stage-centric names (`source`, `analyze`, `deployed`) to an **input-centric surface** that follows the CISA SBOM types.
+This document details the evolution of Pitloom's CLI subcommands, from
+stage-centric names (`source`, `analyze`, `deployed`) to an **input-centric
+surface** that follows the CISA SBOM types.
 
 ## Specification references
 
