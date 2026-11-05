@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,8 +17,8 @@ the release-cutting process itself, run once per version bump.
 CI already covers most of this list on the release PR -- check the green
 run before repeating it locally. Job-name map (`gh pr checks` shows job
 names, not workflow names): pytest = `Test on Python ...`; mypy/pyright/
-pyrefly = `Type checking`; ruff, **pylint and flake8** = one job, `Ruff
-(Lint & Format)`; plugin validation = `claude plugin validate`; version
+pyrefly = `Type checking (mypy, pyright, pyrefly)`; ruff and flake8 = `Ruff
+(Lint & Format)`; pylint = `Pylint`; plugin validation = `claude plugin validate`; version
 fields = `Check version fields agree`; `python -m build --wheel` + PEP 770
 embed + `verify-wheel`/`validate-wheel` on Pitloom's own wheel =
 `Python X on <os>` (`build.yml`, ubuntu/windows/macos); the hook against
@@ -32,8 +32,7 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       examples/ src/ tests/` -- clean.
 - [ ] `pylint examples/ src/ tests/ tests/*/` -- 10.00/10 (`tests/*/`:
       pylint does not descend into `tests/` subfolders on its own;
-      `--ignore-paths` any stray local `.venv` under `examples/` -- see
-      [summary.md](summary.md) for why one can exist untracked).
+      `--ignore-paths` any stray local `.venv` under `examples/`).
 - [ ] `scripts/` is not linted by CI: run ruff, mypy, pylint, flake8,
       `shellcheck -x scripts/action/*.sh` and `actionlint` on it by hand
       when it changed since the last tag.
@@ -80,12 +79,12 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       used in the new section is defined and every one defined is used;
       move the `[Unreleased]` entries under the new version heading, sorted
       per section by lowest PR number, add the `[X.Y.Z]:` compare link, and
-      leave the archive alone). Include the version-bump PR itself when it carries more than version strings
-      (0.18.1's bump PR also lowered a dependency floor and changed the
+      leave the archive alone). Include the version-bump PR itself when it
+      carries more than version strings (0.18.1's bump PR also lowered a dependency floor and changed the
       skills, and had no entry until this check caught it).
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds
       `<name>-<version>.dist-info/sboms/<name>-<version>.spdx3.json` (PEP 770).
-- [ ] Run the `Fuzz` workflow (`workflow_dispatch`, both targets) for a
+- [ ] Run the `Fuzz` workflow (`workflow_dispatch`, all three targets) for a
       major release; skim the run for crash artefacts before proceeding.
       See [fuzzing.md](fuzzing.md) for why this is manual/pre-release
       rather than continuous or RC-tag-triggered.

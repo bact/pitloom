@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,7 +163,7 @@ Hatchling hook scans its project directory, never a wheel.
   the scanner (`loom model`) escapes the member names it quotes itself, with
   the shared `logging_config.loggable()`. Reader text goes through
   `one_line()`, which collapses whitespace and then applies `loggable()`, so
-  a multi-line exception cannot spill untagged lines; `_detail()` never
+  a multi-line exception cannot spill untagged lines; `detail()` (`_scanner_messages.py`) never
   prints an empty detail (an exception without a message gives its class
   name). Capture is per thread: one dispatcher handler, installed on the
   first capture and removed by the last (a lock and a count, so blocks of

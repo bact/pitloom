@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-18
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,13 +20,13 @@ formats, license expressions, `pyproject.toml`/`setup.cfg` parsing,
 wheel/zip archive contents). Fuzzing all of them would be the most
 thorough option, but harness-writing and triage time scale with target
 count, and this is a SUGGESTED (not MUST) criterion for a
-single-maintainer project. Scoped to the two highest-value, lowest-harness-complexity
+single-maintainer project. Scoped to the highest-value, lowest-harness-complexity
 targets:
 
 - **License expression normalization**
   (`pitloom.extract._license.classify_license`, which replaced
-  `normalize_license_expression`) -- pure
-  string in, string out, no filesystem/network. By its own contract it
+  `normalize_license_expression`) -- pure string in, string out, no
+  filesystem/network. By its own contract it
   never raises for any input, so the harness needs no expected-exception
   allowlist at all -- the simplest possible target.
 - **GGUF header parsing** (`pitloom.extract.ai_model.gguf.read_gguf`) --
@@ -37,7 +37,6 @@ targets:
   interesting code (`GGUFReader` takes a bare file path, no wrapping
   container format to construct first, unlike e.g. Safetensors' header
   framing or a wheel's ZIP structure).
-
 - **CRFsuite header and labels**
   (`pitloom.extract.ai_model.formats.crfsuite.read_crfsuite`) -- added
   with CRFsuite support because, unlike GGUF, the parser is Pitloom's own

@@ -51,12 +51,13 @@ the time `initialize()` runs, Hatchling has already:
   package's `pkg:pypi/<name>@<version>` PURL and each dependency's PURL are
   likewise built through one shared `build_pypi_purl()` helper (same
   module), which canonicalizes via `packaging.utils.canonicalize_name()`.
-- When `[project]` is missing fields (`authors`, `keywords`, `urls`, ...),
-  `metadata_from_hatchling()` reads the same `pyproject.toml` a second time
-  and reuses `_try_read_poetry()` (from `pitloom.extract.project.pyproject`) plus
-  the shared `merge_project_metadata()` (`pitloom.core.project`) to fill
-  the gaps from `[tool.poetry]`, mirroring what `read_pyproject()` already
-  does for the CLI path via the same shared merge helper.
+- `[tool.poetry]` fills a gap in `[project]` only when the build backend
+  reads it (a Poetry backend, or none declared). `metadata_from_hatchling()`
+  reads `pyproject.toml` a second time and calls
+  `fill_from_poetry()` (`pitloom.extract.project.pyproject`), the one
+  gap-fill the CLI path (`read_pyproject()`) uses too. For a Hatchling
+  backend a `[tool.poetry]` key that would fill a gap is reported with one
+  `WARNING:` and ignored.
 
 The build hook maps this object into Pitloom's format-neutral
 `ProjectMetadata` via
@@ -113,10 +114,11 @@ enabled = true    # set to false to skip SBOM generation; the only field
 Everything else -- basename, fragments, creator/tool metadata -- is
 configured once under `[tool.pitloom]` / `[[tool.pitloom.creator]]` /
 `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]`, the same
-settings the CLI reads via `read_pitloom_config()`. `_validate_config()`
-rejects `sbom-basename`, `creator-name`, `creator-email`, `creator-type`,
-`creation-tool`, or `fragments` under the hook section (naming the correct
-location), and rejects any other unrecognised key.
+settings the CLI reads via `read_pitloom_config()`. `validate_config()`
+(`plugins/_hatch_config.py`) rejects `sbom-basename`, `creator-name`,
+`creator-email`, `creator-type`, `creation-tool`, or `fragments` under the
+hook section (naming the correct location), and rejects any other
+unrecognised key.
 
 ```toml
 [tool.pitloom]
@@ -156,7 +158,7 @@ module for the authoritative, current source (`PitloomBuildHook.initialize`
 and `finalize`, plus the module-level `_build_document_model` helper). At a
 high level, `initialize()`:
 
-1. Validates `[tool.hatch.build.hooks.pitloom]` config (`_validate_config`);
+1. Validates `[tool.hatch.build.hooks.pitloom]` config (`validate_config`);
    invalid values, or any of the moved keys (`sbom-basename`,
    `creator-name`, `creator-email`, `creator-type`, `creation-tool`,
    `fragments`), raise `ValueError` before any file I/O.
@@ -340,10 +342,11 @@ Output:
 
 ```text
 src/pitloom/
-├── extract/
+├── extract/project/
 │   └── hatchling.py               # metadata_from_hatchling()
 └── plugins/
     ├── __init__.py
+    ├── _hatch_config.py           # validate_config()
     └── hatch.py                   # PitloomBuildHook + hatch_register_build_hook()
 tests/
 ├── fixtures/
@@ -358,8 +361,8 @@ tests/
 │           │   ├── __about__.py
 │           │   └── __init__.py
 │           └── README.md
-├── test_hatch_hook.py
-└── test_wheel_integration.py
+├── extract/project/test_hatch_hook_*.py   # hook, config, metadata, parity tests
+└── assemble/test_wheel_integration.py
 ```
 
 ### Changes to Pitloom's `pyproject.toml`
@@ -392,6 +395,9 @@ past break.
 
 ## Test plan
 
+Hook and config tests live in `tests/extract/project/test_hatch_hook_*.py`;
+`test_wheel_integration.py` is in `tests/assemble/`.
+
 | Test | Description |
 | :--- | :--- |
 | `test_validate_config_defaults_pass` | Empty config (all defaults) must not raise. |
@@ -420,9 +426,9 @@ past break.
 | `test_metadata_from_hatchling_maps_*` | Unit tests for `metadata_from_hatchling`: version, dependencies, urls, authors, license (direct and fallback-detected). |
 | `test_metadata_from_hatchling_canonicalises_dependency_markers` | Dependency specifiers with source-quoted markers normalize to `packaging`'s canonical form via the shared helper. |
 | `test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name` | Regression guard: hook and CLI paths agree on name, dependencies, and doc UUID for a project with an uppercase/underscore/dotted name and dependencies (the gap the `raw_name`-only fix didn't fully close). |
-| `test_metadata_from_hatchling_tolerates_none_authors_data` | `authors_data=None` must not crash `metadata_from_hatchling`. |
+| `test_metadata_from_hatchling_tolerates_none_authors` | `authors_data=None` must not crash `metadata_from_hatchling`. |
 | `test_metadata_from_hatchling_tolerates_missing_readme_file` / `test_metadata_from_hatchling_tolerates_missing_license_file` | A declared but missing readme/license file must degrade gracefully (`OSError` caught), not crash the build. |
-| `test_metadata_from_hatchling_fills_gaps_from_poetry` | `[tool.poetry]` fills `authors`/`keywords` missing from `[project]`, mirroring `read_pyproject()`'s CLI-path fallback. |
+| `test_metadata_from_hatchling_does_not_fill_gaps_from_poetry` | Under a Hatchling backend `[tool.poetry]` `authors`/`keywords` fill no gap in `[project]`, with one `WARNING:`, on the hook and the CLI alike. |
 | `test_hook_uses_hatchling_resolved_dynamic_version` | Runs `initialize()` on the `sampleproject-hatchling-dynver` fixture (a `[tool.hatch.version] source = "code"` computed version); asserts the resolved, code-evaluated version -- not a naive text scrape -- appears in the SBOM. |
 | `test_hook_skips_non_wheel_target` | Sets `target_name = "sdist"`; asserts no staging and no `sbom_files` entry. |
 | `test_hook_invalid_config_raises_before_io` | Passes bad config; asserts `ValueError` is raised before any filesystem access. |

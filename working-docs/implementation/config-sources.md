@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,7 +67,8 @@ only a project directory's own `pyproject.toml` was reachable.
   a parameter neither the callee accepts nor `INERT` declares is a
   wiring bug (`ValueError`), not a silent drop.
 - **A whole-batch warning fires once, not once per wheel**:
-  `embed-wheel`'s `_settle_batch_options()` settles every option before
+  `embed-wheel`'s `settle_batch_options()`
+  (`cli/commands/_embed_wheel_batch.py`) settles every option before
   the per-wheel loop starts, as `EmbedFileCache.settle()` does for the
   build flags. `_generate_embed_sbom_json()`'s own `_settle_embed_options()`
   uses `EmbedFileCache.once()` too when a cache is given, keyed on the
