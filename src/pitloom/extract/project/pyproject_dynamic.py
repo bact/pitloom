@@ -13,7 +13,7 @@ build backend uses. Tries each backend's own resolution logic first
 ``[tool.setuptools.dynamic]``), falling back to a generic
 ``__about__.py``/``__version__.py``-file heuristic
 (:func:`_extract_dynamic_version`) for ``version`` when the backend
-isn't recognized or its own resolution comes up empty.
+isn't recognised or its own resolution comes up empty.
 
 Called by :func:`pitloom.extract.project.pyproject.read_pyproject` via
 :func:`prepare_dynamic_version`.
@@ -68,7 +68,7 @@ def prepare_dynamic_version(
     module-level ``__version__``/docstring; PDM: an explicit ``source``
     directive) the generic ``__about__.py``/``__version__.py``-file
     heuristic below can't see. Falls back to that generic heuristic for
-    ``version`` when the backend isn't recognized or its own resolution
+    ``version`` when the backend isn't recognised or its own resolution
     comes up empty.
 
     ``quiet`` suppresses the Flit/PDM resolvers' own ``WARNING:`` lines

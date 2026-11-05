@@ -5,11 +5,11 @@
 
 """Read what Python code does with a model file, from its syntax tree.
 
-The usage scan used to look for the model's file name in the text of a file.
-This reads the tree instead: a string that is path-shaped and names a model is
-followed to where it is used, and that use says the access: a call that opens
-or loads it reads, one that saves or dumps it writes, one that only prints it
-(or logs it, or puts it in an exception message) is no use at all. Comments
+This reads the syntax tree, not the text: a string that is path-shaped and
+names a model is followed to where it is used, and that use says the access:
+a call that opens or loads it reads, one that saves or dumps it writes, one
+that only prints it (or logs it, or puts it in an exception message) is no
+use at all. Comments
 and docstrings are not in the tree. Nothing is run or imported.
 
 Paths are followed within one file: a name assigned once, ``Path(...) / "x"``,

@@ -237,7 +237,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         # bug, not a real absence of a prior result). Without this,
         # every remaining rank's override-guard below would silently
         # never fire, letting even the lowest-priority format overwrite
-        # an unrecognized-but-real prior result with no warning at all.
+        # an unrecognised-but-real prior result with no warning at all.
         log.warning(
             "%s: previously-resolved locked_dependencies source %r doesn't "
             "match any known lock source -- can't rank it, so any "

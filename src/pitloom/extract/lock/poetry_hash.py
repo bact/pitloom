@@ -60,7 +60,7 @@ __all__ = [
 
 
 def normalize_distribution_name(name: str) -> str:
-    """Normalize a package distribution name per PEP 427 / PEP 625:
+    """Normalise a package distribution name per PEP 427 / PEP 625:
     canonicalize per PEP 503 (lowercasing, runs of ``[-_.]+`` replaced with
     a single hyphen), then replace all hyphens with underscores -- the form
     a wheel or sdist filename carries."""
@@ -68,7 +68,7 @@ def normalize_distribution_name(name: str) -> str:
 
 
 def normalize_distribution_version(version: str) -> str:
-    """Normalize a version string for artifact filenames per PEP 427 / PEP 625:
+    """Normalise a version string for artifact filenames per PEP 427 / PEP 625:
     replace local version ``+`` with ``_``."""
     return version.replace("+", "_")
 
@@ -101,7 +101,7 @@ def _parse_sdist(filename: str) -> Version | None:
 def _parse_artifact_version(filename: str, expected_version: str) -> Version | None:
     """Attempt to parse a wheel or sdist version from *filename*, supporting
     historical sdist extensions (.tar.bz2, etc.) and PEP 427/625 local version
-    '+' to '_' normalization."""
+    '+' to '_' normalisation."""
     if ver := _parse_wheel(filename):
         return ver
     if ver := _parse_sdist(filename):
@@ -145,13 +145,13 @@ def _filename_matches_version(
             return parsed_ver == target_ver
     # Fallback: plain substring match for non-PEP-440 or unparseable
     # filenames. When canon_name is available, anchor after the
-    # normalized package name prefix to avoid matching version-like
+    # normalised package name prefix to avoid matching version-like
     # substrings inside the package name itself.
     lower_expected = expected_version.lower()
     lower_normalized = normalize_distribution_version(lower_expected)
     lower_fn = filename.lower()
     if canon_name is not None:
-        # PEP 427/625 filenames use the normalized (underscored) name;
+        # PEP 427/625 filenames use the normalised (underscored) name;
         # pre-PEP 625 sdists often use the canonical name with hyphens
         # (e.g. pytest-cov-2.8.1.tar.gz) or dots.
         norm_name = normalize_distribution_name(canon_name)

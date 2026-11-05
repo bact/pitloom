@@ -291,7 +291,7 @@ def _build_poetry_provenance(
 
 
 def _parse_poetry_readme(readme_raw: str | list[str] | None) -> str | None:
-    """Normalize ``[tool.poetry].readme``, which may be a bare string or a
+    """Normalise ``[tool.poetry].readme``, which may be a bare string or a
     list of strings (multiple readme files -- only the first is used)."""
     if isinstance(readme_raw, list):
         return readme_raw[0].strip() if readme_raw else None

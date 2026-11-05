@@ -81,7 +81,7 @@ def resolve_pdm_dynamic_version(
 
     Returns ``(version, provenance_source)``, or ``(None, None)`` when
     ``"version"`` isn't dynamic, no ``[tool.pdm.version]`` table is
-    present, the declared ``source`` is ``"call"`` or unrecognized, or
+    present, the declared ``source`` is ``"call"`` or unrecognised, or
     resolution otherwise fails (logged as a ``WARNING:``, never raised --
     the caller falls back to its own generic dynamic-version heuristic).
 
@@ -138,14 +138,12 @@ def resolve_pdm_dynamic_version(
         # dist_dir, so pointing it at project_dir (already on disk, never
         # written to) keeps this a pure declarative read.
         #
-        # build_dir, unlike dist_dir, is never read here either (only
-        # written to by resolve_version_from_scm's write_to option,
-        # which is stripped below) -- pointed at a path guaranteed never
-        # to exist on disk, not project_dir / ".pdm-build" itself, so a
-        # future pdm-backend change that starts *reading* build_dir
-        # (e.g. caching) can't pick up stale content from a real build
-        # the same way the sibling _models_wheel_pdm.py discovery
-        # module's build_dir is already guarded against.
+        # build_dir is not read here either (only written by
+        # resolve_version_from_scm's write_to option, stripped below). It
+        # points at a path that never exists, not project_dir /
+        # ".pdm-build", so a pdm-backend that starts *reading* build_dir
+        # (e.g. caching) cannot pick up stale content from a real build,
+        # the same guard as _models_wheel_pdm.py's build_dir.
         context = Context(
             build_dir=Path(tempfile.gettempdir())
             / f"pitloom-unused-{uuid.uuid4().hex}",
