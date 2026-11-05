@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-22
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -124,7 +124,7 @@ one that looks like it points at a tagged release** (e.g.
 `.../archive/refs/tags/v2.31.0.zip`). This was an explicit design
 question, not an oversight: PEP 508 defines a URL requirement as a
 *direct reference*, a wholly separate concept from a PEP 440 version
-specifier -- neither spec defines how to derive a normalized version
+specifier -- neither spec defines how to derive a normalised version
 from a URL. A git tag or filename that merely looks version-shaped is
 an arbitrary string the maintainer chose, with no guarantee it
 round-trips to a real PEP 440 version (capitalization, a leading `v`,
@@ -161,7 +161,7 @@ similar in spirit:
   pairs, or `(name, operator, version)` triples where the specifier can
   carry `==` or `===` (`pipfile.py`, `requirements.py`), to
   `pitloom.extract.lock.common.resolve_pinned_dependencies()`, which
-  groups them by *canonicalized* name (`Flask`/`flask` count as the same
+  groups them by *canonicalised* name (`Flask`/`flask` count as the same
   package) with `group_by_canonical_name()`.
   Every one of these groupings compares versions with
   `pitloom.extract.lock.common.is_same_version()` (PEP 440 equality,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-16
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -226,7 +226,7 @@ released during it -- instead of scanning the whole table per harvested
 element. Without it, harvesting is O(harvested elements * registry
 size); with it, each release is O(keys actually sharing that id).
 
-### Entity keys, PEP 503 canonicalization, and registry version 2
+### Entity keys, PEP 503 canonicalisation, and registry version 2
 
 `IdRegistry.entities` is keyed by `(type, name)`, not `name` alone -- a
 harvested directory and a same-named package (or any two
@@ -236,7 +236,7 @@ a `PACKAGE_ENTITY_TYPE` entity's name is PEP 503-canonicalized
 (`packaging.utils.canonicalize_name`), used by `register_entity()`,
 `lookup_entity()`, and harvest alike -- a caller like
 `_resolve_deployed_package_hits()` passes a dependency's declared name
-straight through uncanonicalized and lets the registry canonicalize
+straight through uncanonicalised and lets the registry canonicalise
 it, so a purely-cosmetic mismatch (declared `"PyYAML"` vs pipdeptree's
 lowercased `"pyyaml"`) no longer leaves a harvested entry permanently
 unreachable.
@@ -393,7 +393,7 @@ is no longer assumed by these two commands. The INFO "add to
 ### Duplicate-spdxId safety net
 
 `Spdx3JsonExporter.to_json()` runs `_check_no_duplicate_spdx_ids()` on
-the serialized `@graph`, *after* both `_deduplicate_creation_infos()`
+the serialised `@graph`, *after* both `_deduplicate_creation_infos()`
 and `_deduplicate_named_elements()` have run, and raises `RuntimeError`
 naming the id and both elements' type/name. Byte-for-byte identical
 copies sharing an id (e.g. `pitloom.loom`'s `set_model("m")` called
@@ -405,7 +405,7 @@ differ in content. Now that every surface that resolves a registry hit
 (`build()`, `build_deployed()`, and `pitloom.loom`'s `_ActiveRun`) routes
 it through first-claimant-wins, that branch should never actually be
 reached in practice -- this check is an internal-invariant guard against
-a future surface skipping that routing, not the primary defense against
+a future surface skipping that routing, not the primary defence against
 a real collision. A last-resort safety net, not a substitute for the
 reservation fixes above.
 
@@ -438,7 +438,7 @@ cancelling out) -- the latter would otherwise misleadingly read as
   minted or reserved -- the merge step looks elements up by id
   (`find_by_id`) and unifies on a match, so that id can merge by
   coincidence into an unrelated, independently-minted element from the
-  main document instead of being recognized as foreign. Same behaviour
+  main document instead of being recognised as foreign. Same behaviour
   as HEAD; not investigated further here.
 
 ## Open follow-ups
@@ -446,6 +446,6 @@ cancelling out) -- the latter would otherwise misleadingly read as
 - [AI model id stability](../design/ai-model-id-stability.md) -- the
   excluded `ai_AIPackage`/`dataset_DatasetPackage` case above; no
   implementation direction chosen yet.
-- [Sort-order canonicalization](sort-order-canonicalization.md) -- a
+- [Sort-order canonicalisation](sort-order-canonicalization.md) -- a
   related audit of whether registry/hash construction depends on
   non-canonical sort order anywhere in the id-registry path.

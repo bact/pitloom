@@ -89,7 +89,7 @@ that this caller throws away -- real, avoidable I/O for large projects.
   `not skip_merkle_root`, this would make `get_wheel_files(...,
   skip_merkle_root=True)` return `(None, [])` unconditionally --
   discarding every discovered file on every call, the opposite of the
-  intended optimization. Caught during plan review, before
+  intended optimisation. Caught during plan review, before
   implementation; fixed by checking `project_files` instead (the two
   lists are populated 1:1 in the same loop body regardless of the
   flag).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -119,9 +119,9 @@ shape described, not just the module where each was first found.
 - **Compare domain identifiers the way the ecosystem/spec does, not as
   raw strings.** A raw `==`/dict-key comparison silently fails to match
   values that a spec treats as equivalent (e.g. PEP 503 package-name
-  canonicalization: case-fold, `-`/`_`/`.` treated as interchangeable).
+  canonicalisation: case-fold, `-`/`_`/`.` treated as interchangeable).
   Whenever two identifiers of the same kind are compared or one is used
-  as a dict key, canonicalize both sides first per the format/spec that
+  as a dict key, canonicalise both sides first per the format/spec that
   defines them, rather than assuming byte-for-byte equality is enough.
   - **Version equality is PEP 440, never SemVer, and the two must not be
     conflated in an explanation or a docstring.** Pitloom's own
@@ -180,7 +180,7 @@ shape described, not just the module where each was first found.
   Y" rules in CLAUDE.md -- the same failure mode recurs in any doc
   describing a cascade, fallback, or precedence order: re-read the
   current implementation before repeating or extending a prior
-  description of its behavior, rather than assuming an existing doc
+  description of its behaviour, rather than assuming an existing doc
   still matches it).
 - **Picking one candidate from an unordered collection needs an explicit,
   stable tie-break whenever the result must be deterministic** (see "SBOM
@@ -191,7 +191,7 @@ shape described, not just the module where each was first found.
   key (filename, name, version) before picking one; never rely on
   insertion/iteration order as the tie-break.
 - **Reusing a helper outside the contract it was actually built for
-  silently narrows behavior.** A helper written for one caller's specific
+  silently narrows behaviour.** A helper written for one caller's specific
   shape (`single_exact_pin()`: a lock file's `version` field, which is
   always *exactly one* PEP 440 specifier clause) can look like a
   reasonable fit for a superficially similar but looser case (a general
@@ -207,7 +207,7 @@ shape described, not just the module where each was first found.
   (now correctly deduplicated) and "everything else, passed through
   unfiltered" can silently reintroduce the exact double-emission bug it
   was meant to fix, via the passthrough bucket, the moment the same
-  identity (e.g. a canonicalized package name) can appear in *both*
+  identity (e.g. a canonicalised package name) can appear in *both*
   buckets. After adding conflict-exclusion logic for one shape of
   duplicate, ask whether the same identity could also reach the output
   through an entirely different, unfiltered code path.
@@ -291,7 +291,7 @@ shape described, not just the module where each was first found.
   `skip_merkle_root` option (PR #213): the full read was replaced with
   a cheap access probe (`with source.open("rb"): pass`) that still
   triggers the same failure path without paying for the read. When an
-  optimization removes a read/computation, check whether anything
+  optimisation removes a read/computation, check whether anything
   downstream (an outer `except`, a caller's fail-loud contract) was
   implicitly relying on that operation's failure mode, not just its
   return value.
@@ -315,7 +315,7 @@ shape described, not just the module where each was first found.
   for the regression test.
 - **A log message inside a function with multiple exit branches must
   describe what that branch actually did, not the function's typical
-  behavior.** `_discover_with_no_static_module()` (PR #215)
+  behaviour.** `_discover_with_no_static_module()` (PR #215)
   unconditionally logged `"...using Hatchling-based heuristic, file
   list may be inaccurate"` even on the branch that returns `[]` without
   ever invoking Hatchling (no `[project]` table present) -- true only of

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-09-01
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ SPDX-License-Identifier: CC0-1.0
 > **Goal**: move six facts (N1-N6) that previously lived only in a free-text comment or Annotation into their proper native SPDX 3 constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`, relationships, etc.), then trim each corresponding Annotation down to just the residual that still has no native home.
 >
 > **Full design record**: [`annotation-provenance-full-plan.md`](annotation-provenance-full-plan.md)
-> has the entire original Phase 1 plan (boundary principle, use-case catalog
+> has the entire original Phase 1 plan (boundary principle, use-case catalogue
 > G1-G4/A1/A2/E1/E2/P1, the N1-N6 table with rationale, config/schema design)
 > archived in-repo. This handover is a status/next-steps summary; read the
 > full plan if you need the *why* behind any N-item or Annotation shape.
@@ -225,8 +225,8 @@ respectively).
   narrow-focus Sonnet review agents (parallel, read-only, each required
   to produce a concrete repro) → triage findings → fix → re-verify.
   Two rounds of this caught 5 real issues (delimiter injection, JSON
-  NaN/Infinity validity, non-deterministic set serialization) in Phase 1.
-- Determinism requirement: `sort_keys=True` in all JSON serialization,
+  NaN/Infinity validity, non-deterministic set serialisation) in Phase 1.
+- Determinism requirement: `sort_keys=True` in all JSON serialisation,
   sorted lists/sets before emission — Pitloom SBOMs must be byte-stable
   across runs.
 - Comments in code: concise, describe *current* state only — don't

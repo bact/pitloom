@@ -94,7 +94,7 @@ other two.
   2.1.114) rejects it as an unrecognized key at the schema root, contrary
   to an earlier version of this note claiming it was "ignored at load
   time" (it validated fine against an older CLI build; the strict-schema
-  behavior changed). `plugin.json` likewise has no `displayName` field in
+  behaviour changed). `plugin.json` likewise has no `displayName` field in
   the currently-validated schema -- `name` + `description` already cover
   that. Re-verify against the installed `claude` CLI version with
   `claude plugin validate .claude-plugin/plugin.json` /

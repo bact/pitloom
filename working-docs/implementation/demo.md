@@ -142,7 +142,7 @@ def run():
 
 The prototype's 177 tests covered:
 
-- SPDX model serialization via official models
+- SPDX model serialisation via official models
 - Metadata extraction
 - Relative path call-stack tracing in trackers
 - SBOM fragment merging & end-to-end integration

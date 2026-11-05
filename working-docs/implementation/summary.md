@@ -23,7 +23,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 1. **SPDX 3.0 data models** (`spdx-python-model`)
    - Fully migrated to the official `spdx-python-model` library
-   - Proper JSON-LD serialization and validation
+   - Proper JSON-LD serialisation and validation
    - Deterministic UUIDv5 SPDX document IDs (`compute_doc_uuid`) keyed on
      project name, version, normalized dependencies,
      and SHA-256 Merkle root of wheel files
@@ -154,7 +154,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 1. **Model & provenance tests**
    - SPDX ID generation
-   - CreationMetadata serialization and provenance tracking
+   - CreationMetadata serialisation and provenance tracking
    - `spdx-python-model` validation
 
 2. **Metadata extraction tests**
@@ -259,7 +259,7 @@ package for the CLI surface and a `tests/` tree that mirrors
 - Easy to add new extractors (as Poetry, setuptools, PDM and Flit were)
 - Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
   the same `DocumentModel` -- no changes to extractors needed
-- Clean separation of concerns: extractors -> `DocumentModel` -> serializers
+- Clean separation of concerns: extractors -> `DocumentModel` -> serialisers
 
 ### 3. Best practices
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-10-10
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -134,7 +134,7 @@ Any exception (not a Poetry project, malformed config) is caught and
 logged as a `WARNING:`, returning `None` so the caller falls back
 accordingly -- identical error-handling shape to the Hatchling module.
 
-Two poetry-core behaviors worth knowing before extending this:
+Two poetry-core behaviours worth knowing before extending this:
 
 - **A bare `include`/`exclude` string entry defaults to `format =
   ["sdist"]` only.** To apply to wheel builds too (what `discover()`

@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ extraction gap. Mapping parity and what each file records:
 [model-format-mapping-parity.md](model-format-mapping-parity.md). The user-facing format list lives at
 [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
 
-An AI BOM generator can utilize existing model exchange standards, such as
+An AI BOM generator can utilise existing model exchange standards, such as
 ONNX and Safetensors, as a machine-readable source of truth
 for model architecture, hyperparameters, and other model-specific metadata.
 

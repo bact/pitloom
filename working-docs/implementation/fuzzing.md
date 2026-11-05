@@ -23,7 +23,7 @@ count, and this is a SUGGESTED (not MUST) criterion for a
 single-maintainer project. Scoped to the highest-value, lowest-harness-complexity
 targets:
 
-- **License expression normalization**
+- **License expression normalisation**
   (`pitloom.extract._license.classify_license`, which replaced
   `normalize_license_expression`) -- pure string in, string out, no
   filesystem/network. By its own contract it

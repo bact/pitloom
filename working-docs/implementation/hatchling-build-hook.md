@@ -33,24 +33,24 @@ the time `initialize()` runs, Hatchling has already:
   raises `OSError` from these lazily-evaluated properties;
   `metadata_from_hatchling()` catches it and degrades gracefully, mirroring
   `read_pyproject()`'s own tolerance for the same case.
-- Normalized the project `name` per PEP 503 (`_` and `.` collapsed to `-`,
+- Normalised the project `name` per PEP 503 (`_` and `.` collapsed to `-`,
   lowercased) as `core.name`, while retaining the original, un-normalized
   spelling as `core.raw_name`. `metadata_from_hatchling()` uses `raw_name`,
   matching the literal spelling `read_pyproject()` reports for the same
   `[project] name` in `pyproject.toml`, so the CLI and the build hook agree
   on the project's displayed name (and therefore on the deterministic
   document UUID, which is derived from it).
-- Normalizes each dependency specifier's name the same PEP 503 way, via one
+- Normalises each dependency specifier's name the same PEP 503 way, via one
   shared `normalize_dependency_specifier()` helper
   (`pitloom.core.models`) that wraps
   `hatchling.metadata.utils.normalize_requirement()`. Both
   `metadata_from_hatchling()` and `read_pyproject()` call this same
-  function -- Hatchling's own `core.dependencies` is already canonicalized,
+  function -- Hatchling's own `core.dependencies` is already canonicalised,
   so the call is idempotent there, but routing both paths through one
   function means they cannot independently drift again. The main
   package's `pkg:pypi/<name>@<version>` PURL and each dependency's PURL are
   likewise built through one shared `build_pypi_purl()` helper (same
-  module), which canonicalizes via `packaging.utils.canonicalize_name()`.
+  module), which canonicalises via `packaging.utils.canonicalize_name()`.
 - `[tool.poetry]` fills a gap in `[project]` only when the build backend
   reads it (a Poetry backend, or none declared). `metadata_from_hatchling()`
   reads `pyproject.toml` a second time and calls
@@ -170,15 +170,15 @@ high level, `initialize()`:
    document via `_build_document_model`, which calls
    `metadata_from_hatchling(self.metadata, project_dir)` for project
    metadata (including the Poetry-fallback gap-fill and dependency/name
-   canonicalization described above), then `get_wheel_files(project_dir)`
+   canonicalisation described above), then `get_wheel_files(project_dir)`
    for the packaged file set (SHA-256 digests + Merkle root) and
    `scan_project_for_ai_models` for embedded AI/ML metadata.
 4. Assembles the SPDX 3 document via `assemble_spdx3` (the shared
    `pitloom.assemble.spdx3.document.build()` used by the CLI), then merges
    `[tool.pitloom.fragment]`.
-5. Serializes with `exporter.to_json(pretty=False)` -- **always** compact,
+5. Serialises with `exporter.to_json(pretty=False)` -- **always** compact,
    RFC 8785 (JCS) canonical, regardless of any `[tool.pitloom] pretty = true`
-   setting or CLI `--pretty` flag. Canonicalization is required by the SPDX
+   setting or CLI `--pretty` flag. Canonicalisation is required by the SPDX
    JSON Serialization Scheme for embedded SBOMs.
 6. Writes the JSON to a `tempfile.TemporaryDirectory` that outlives
    `initialize()` and is cleaned up in `finalize()`, and appends its path to
@@ -274,7 +274,7 @@ standalone -- includes:
   project package, mirroring the PURL already generated for dependencies,
   whenever a real (non-`"unknown"`) version is known. Both PURLs are built
   through the same shared `build_pypi_purl()` helper (see above), so a
-  dotted or underscored name (e.g. `zope.interface`) canonicalizes
+  dotted or underscored name (e.g. `zope.interface`) canonicalises
   identically on the main package and on dependencies.
 
 ## Fragment merging and `[tool.pitloom]` configuration
@@ -424,7 +424,7 @@ Hook and config tests live in `tests/extract/project/test_hatch_hook_*.py`;
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
 | `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatchling` fixture; asserts package name appears in SBOM. |
 | `test_metadata_from_hatchling_maps_*` | Unit tests for `metadata_from_hatchling`: version, dependencies, urls, authors, license (direct and fallback-detected). |
-| `test_metadata_from_hatchling_canonicalises_dependency_markers` | Dependency specifiers with source-quoted markers normalize to `packaging`'s canonical form via the shared helper. |
+| `test_metadata_from_hatchling_canonicalises_dependency_markers` | Dependency specifiers with source-quoted markers normalise to `packaging`'s canonical form via the shared helper. |
 | `test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name` | Regression guard: hook and CLI paths agree on name, dependencies, and doc UUID for a project with an uppercase/underscore/dotted name and dependencies (the gap the `raw_name`-only fix didn't fully close). |
 | `test_metadata_from_hatchling_tolerates_none_authors` | `authors_data=None` must not crash `metadata_from_hatchling`. |
 | `test_metadata_from_hatchling_tolerates_missing_readme_file` / `test_metadata_from_hatchling_tolerates_missing_license_file` | A declared but missing readme/license file must degrade gracefully (`OSError` caught), not crash the build. |

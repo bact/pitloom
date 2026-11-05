@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -292,7 +292,7 @@ target project directory (`_chdir`, run under `_models_wheel.py`'s
 `_DiscoveryLock` in exclusive write mode -- a multi-reader/single-writer
 lock, not a plain `threading.Lock`, so this setuptools call is kept from
 overlapping any other backend's concurrent `discover()` call, including
-Hatchling's, without needlessly serializing two Hatchling-only calls
+Hatchling's, without needlessly serialising two Hatchling-only calls
 against each other): `[tool.setuptools.dynamic]`/`attr:`
 resolution can import the target project's own modules, and running
 that import from the wrong cwd risks resolving it against an

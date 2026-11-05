@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,8 +25,8 @@ systematic:
 | [annotation-provenance-acceptance.md](annotation-provenance-acceptance.md) | §8-10 of the same plan: out of scope / follow-ups, acceptance criteria, security/robustness hardening. |
 | [annotation-mechanism.md](annotation-mechanism.md) | When/how to use the `Annotation` mechanism at all: boundary principle, extrinsic-assertion test, high-signal test, config, statement-envelope convention. |
 | [role-vocabulary.md](role-vocabulary.md) | The `role` vocabulary (`declared`/`detected`/`externalReported`/`inferred`/`sbomAuthorSupplied`): definitions, decision rule, source-recording convention, role-to-native mapping. |
-| [use-case-catalog.md](use-case-catalog.md) | Why an Annotation earns its place: the G1-G4/A1-A2/E1-E2/P1 use-case catalog, and the Phase 2 N1-N6 backfill checklist. |
-| [multi-source-conflict.md](multi-source-conflict.md) | G2 (multi-source disagreement) implementation depth: license-conflict schema, normalization logic, what's built, real-world validation, future candidate sources. |
+| [use-case-catalog.md](use-case-catalog.md) | Why an Annotation earns its place: the G1-G4/A1-A2/E1-E2/P1 use-case catalogue, and the Phase 2 N1-N6 backfill checklist. |
+| [multi-source-conflict.md](multi-source-conflict.md) | G2 (multi-source disagreement) implementation depth: license-conflict schema, normalisation logic, what's built, real-world validation, future candidate sources. |
 | [metadata-provenance.md](metadata-provenance.md) | Implementation detail behind `docs/metadata-provenance.md`: the Core/Annotation mechanism, comment-attribute back-compat, the `Source: X \| Field: Y` format spec, tracked-field list. |
 | [annotation-provenance-full-plan.md](annotation-provenance-full-plan.md) | Archived, fuller original Phase 1 plan -- historical reference, not a live task list. |
 | [phase2-native-backfill-handover.md](phase2-native-backfill-handover.md) | Status/next-steps summary for the N1-N6 native-first backfill (now complete). |
