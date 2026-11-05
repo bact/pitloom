@@ -261,3 +261,23 @@ def test_a_config_shape_error_keeps_its_part_through_a_pickle() -> None:
         "is not an object",
         "layers[0] is not an object",
     )
+
+
+@pytest.mark.parametrize(
+    ("raw", "kept"),
+    [
+        ("x" * 501, ", the first 500 of 501 characters"),
+        ("x" * 500, ""),
+    ],
+    ids=["cut", "whole"],
+)
+def test_a_kept_raw_config_says_whether_it_was_cut(
+    raw: str, kept: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        _hdf5_warnings.log_model_config_problem(_PROBLEM, raw, True, "")
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "model_config.config is not an object; kept as "
+        f"properties.model_config_raw{kept} | Field(s) affected (skipped): name"
+    )
