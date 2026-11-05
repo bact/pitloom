@@ -171,7 +171,8 @@ order and counts are in
   The verbatim source metadata (`preserve-source-metadata`) is another kind of
   data and gets its own flag, independent of the provenance flag
   (`--preserve-source-metadata auto|always|never`, beside the existing
-  `--max-source-metadata-bytes`); its default is to be settled.
+  `--max-source-metadata-bytes`); its default becomes `never` (decided
+  2026-11-05; today `auto`).
 - [ ] **`--report` (JSON Lines), then SARIF 2.1.0**, once most families have
   codes. See [sarif-output.md](sarif-output.md).
 
