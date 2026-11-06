@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [known-bugs.md](../known-bugs.md) (index, severity scale,
 rules for adding an entry), [roadmap.md](../roadmap.md),
 [extras-parity.md](../../implementation/extras-parity.md#open-questions),
-[non-hatchling-file-discovery.md](../non-hatchling-file-discovery.md),
+[non-hatchling-file-discovery.md](../../implementation/non-hatchling-file-discovery.md),
 [canonical-output-followups.md](../canonical-output-followups.md).
 
 Reading project, environment, lock-file and installed-package metadata;

@@ -84,8 +84,9 @@ is not kept in sync with post-ship changes.
   [wheel-verification-commands.md](wheel-verification-commands.md).
 - [x] **Backend-agnostic file discovery** (2026-09-15): static rescans for
   setuptools, Poetry, PDM-backend, Flit-core; `--allow-build` for the rest.
-  See [non-hatchling-file-discovery.md](../design/non-hatchling-file-discovery.md),
-  [docs/allow-build.md](../../docs/allow-build.md).
+  See [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md),
+  [docs/allow-build.md](../../docs/allow-build.md); open follow-ups:
+  [non-hatchling-file-discovery-followups.md](../design/non-hatchling-file-discovery-followups.md).
 - [x] **Dataset-to-model relationships** (`trainedOn`/`testedOn`) and
   **Croissant dataset size**. See [ai-dataset-linking.md](ai-dataset-linking.md).
 - [x] **Sort-order audit** of the assemble/id-registry path. See

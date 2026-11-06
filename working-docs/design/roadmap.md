@@ -398,7 +398,7 @@ Recorded findings; each is fixable on its own.
 - **File discovery**: setuptools gives an absolute `physical_path` for a
   differently cased project dir (#257); four #215 follow-ups; scikit-build-core
   ([#61](https://github.com/bact/pitloom/issues/61)). See
-  [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
+  [non-hatchling-file-discovery-followups.md](non-hatchling-file-discovery-followups.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
   [build-backend-improvements.md](build-backend-improvements.md).
 - **`--allow-build`**: what the #226 reviews left. See
   [allow-build-followups.md](allow-build-followups.md),

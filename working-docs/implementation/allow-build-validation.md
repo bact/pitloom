@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ for the static-discovery validation rounds this one builds on (same
 `scripts/compare_allow_build.py` method, same fixture conventions) --
 split out into its own file once this file's own two rounds pushed the
 shared document past its size limit;
-[../design/non-hatchling-file-discovery.md](../design/non-hatchling-file-discovery.md)
+[non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)
 for the build-and-read design (Track A/B split, roadmap item #4).
 
 ## `--allow-build` build-and-read: with vs. without (2026-09-15)
@@ -67,7 +67,7 @@ static discovery module at all.
   a real static `_models_wheel_uv_build.py` parser for
   `[tool.uv.build-backend]` (a genuine new Track A module, out of
   scope for this round -- see
-  [../design/non-hatchling-file-discovery.md](../design/non-hatchling-file-discovery.md)).
+  [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)).
   The fallback's failure direction here (over-inclusion, zero
   omissions) is the safer one for an SBOM's completeness guarantee even
   though it's imprecise.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-21
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # `--allow-build` timeout: implementation record
 
-See also: [non-hatchling-file-discovery.md](../design/non-hatchling-file-discovery.md)
+See also: [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)
 (the build-and-read mechanism this bounds, and the roadmap item this
 closes), [allow-build-termination.md](allow-build-termination.md)
 (SIGTERM/SIGHUP/SIGBREAK handling around the build and its result),
