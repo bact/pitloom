@@ -203,8 +203,9 @@ should use the same subprocess approach, not in-process `ProjectBuilder`.
 
 ## Recommended metadata source priority for pitloom
 
-**Correction (see `working-docs/implementation/installed-dist-info-source.md`):**
-"installed `.dist-info`/`.egg-info`" is not one source ranked strictly
+**Correction (see
+`working-docs/implementation/installed-dist-info-source.md`):** "installed
+`.dist-info`/`.egg-info`" is not one source ranked strictly
 above `pyproject.toml`/`setup.cfg`/`setup.py` -- it splits into two
 genuinely different things with two different priority rules:
 
