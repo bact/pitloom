@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-31
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,17 +8,21 @@ SPDX-License-Identifier: CC0-1.0
 
 # Model usage scan: read what the code does with the file
 
-See also: [roadmap.md](roadmap.md) (the summary bullet),
-[ml-framework-from-code.md](ml-framework-from-code.md) (the sibling idea:
-which framework loads a model),
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the codes
-used below) and, for what exists today,
-`src/pitloom/extract/scanner.py` (`attach_usage_references`).
+See also: [roadmap-completed.md](roadmap-completed.md#shipped-in-0221-prs-413-433)
+(the shipped item), [ai-model-scanning.md](ai-model-scanning.md) (the
+scanner modules), [roadmap.md](../design/roadmap.md),
+[ml-framework-from-code.md](../design/ml-framework-from-code.md) (the sibling
+idea: which framework loads a model),
+[message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
+(the codes used below) and `src/pitloom/extract/scanner.py`
+(`attach_usage_references`).
 
-Status: built 2026-10-31 (`core/model_usage.py`, `extract/_usage_table.py`,
-`extract/_usage_match.py`, `extract/_usage_ast.py`, `extract/_usage_attach.py`,
-`messages/_usage_unparseable.py`). The sections below are the design as
-decided; "Problem" describes the substring scan it replaced.
+Status: built 2026-10-31, shipped in 0.22.1 (#413; limits #432):
+`core/model_usage.py`, `extract/_usage_table.py`, `extract/_usage_match.py`,
+`extract/_usage_ast.py`, `extract/_usage_attach.py`,
+`messages/_usage_unparseable.py`. The sections below are the design as
+decided; "Problem" describes the substring scan it replaced; "Open points"
+are follow-ups.
 
 ## Problem
 
@@ -289,7 +293,7 @@ messages go through `loggable()` / the catalogue's fields.
   means. A later step could prefer them to the AST guess for a model declared
   with `path=`. Not in this change.
 - Notebooks (`.ipynb`) stay out; revisit with
-  [ml-framework-from-code.md](ml-framework-from-code.md).
+  [ml-framework-from-code.md](../design/ml-framework-from-code.md).
 - The first table is a seed. Extend from a corpus, not from memory: list the
   callables that take a model path in the repositories of
   `working-docs/design/ai-model-corpus.md`.

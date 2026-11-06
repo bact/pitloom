@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`) both use it.
   intra-file constant matching, and call/mode classification into
   `UsageAccess` (`read access`, `write access`, `read and write access`,
   `unknown access`); see
-  [model-usage-ast-scan.md](../design/model-usage-ast-scan.md).
+  [model-usage-ast-scan.md](model-usage-ast-scan.md).
 - `extract/scanner_project.py` -- the project-directory producer:
   `project_candidates()`, `project_sources()`, `scan_project_for_ai_models()`.
 - `extract/scanner_wheel.py` -- the built-wheel producer:

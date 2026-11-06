@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -482,7 +482,7 @@ section.
 - [x] **`--scan-model-usage` reads ASTs** (#413): `comment` is read, write,
   read and write, or unknown access; mentions skipped; new codes
   `usage-unparseable`, `usage-unparseable/mention`, `usage-unusable` (since
-  0.22.1).
+  0.22.1). See [model-usage-ast-scan.md](model-usage-ast-scan.md).
 - [x] **Prefetch, document module and lint** (#418): the PyPI prefetch uses
   the versions the dependency groups resolved (#429: once per package, never
   for a private one named by URL); `document.py` split under the size limit.

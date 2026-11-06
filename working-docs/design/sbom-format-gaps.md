@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -299,7 +299,7 @@ declined or fixed entry with its outcome.
   a free-text `comment`
 - Proposal: an access-mode qualifier on file relationships, or distinct
   read/write data-file relationship types that do not imply lifecycle stage
-- Evidence: [model-usage-ast-scan.md](model-usage-ast-scan.md),
+- Evidence: [model-usage-ast-scan.md](../implementation/model-usage-ast-scan.md),
   `tests/core/generator/test_generator_model.py`
 - Status: noted
 - Date: 2026-10-31
