@@ -358,7 +358,7 @@ The G7 and conformance work; full breakdown in
 - [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read
   by `dataset.py`; G7 B1) and its three readers
   (Croissant via `loom.run`, a local dataset card, a Hub model's dataset
-  cards): [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+  cards): [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
   G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
   packages (G7 B2; [g7-conformance-tests.md](g7-conformance-tests.md)).
@@ -400,7 +400,7 @@ The G7 and conformance work; full breakdown in
 - [x] **Dataset readers' edge cases** (2026-10-19): Croissant nesting cap,
   placeholder and non-URL values, card warnings without a cache path, one
   reference per dataset, a `datasets:` cap, YAML 1.1 and generated-input
-  tests. See [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+  tests. See [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **One dataset, one package, one relationship per role** (PR #311, #314):
   first reference wins, later ones fill unset fields, a conflict warns once
   per field; `loom.Run` folds spellings the same way (`Org/Data` is

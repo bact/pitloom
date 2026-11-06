@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -71,7 +71,7 @@ Model version, Model description, Model external references
   `dataset.py` writes it as `hasDeclaredLicense` (or concluded). Fed by
   three readers since 2026-10-18 (Croissant via `loom.run`, a local dataset
   card, the Hub dataset card of a Hub model's datasets); see
-  [dataset-licence-readers.md](dataset-licence-readers.md).
+  [dataset-licence-readers.md](../implementation/dataset-licence-readers.md).
 - ~~**`ai_AIPackage.verifiedUsing`** (model file hash)~~ -- done 2026-10-16
   (#3 part 1): the model file's SHA-256 (and, since 2026-10-18, its
   SHA-512), in fresh `Hash` elements, on every route that hashes the file
@@ -132,7 +132,8 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
   keys). **Part 2 done 2026-10-17** (B1): `DatasetMetadata.license` -> a
   `hasDeclaredLicense` Relationship; an expression, a URL and free text are
   kept as the model's are. The three readers of
-  [dataset-licence-readers.md](dataset-licence-readers.md) feed it.
+  [dataset-licence-readers.md](../implementation/dataset-licence-readers.md)
+  feed it.
 - **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
   agent/Skill from re-asking users about fields core already covers.
   **Done 2026-09-20.** Re-verified against code and a fresh run: besides
