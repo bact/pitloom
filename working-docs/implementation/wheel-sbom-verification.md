@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,83 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artefact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.23.0 (2026-11-06)
+
+Same method as v0.22.1 below, against
+`https://pypi.org/pypi/pitloom/0.23.0/json` (wheel uploaded 2026-11-06
+00:29:28 UTC, sdist 00:29:30 UTC, neither file yanked). The GitHub Release
+(not a prerelease) was published at 00:23:06 UTC; the tag `v0.23.0` is
+lightweight and points at `0424016c` (the merge of #449).
+
+| File | Bytes | SHA-256 |
+| - | -: | - |
+| `pitloom-0.23.0-py3-none-any.whl` | 1,130,893 | `cd765611b8c45cbc71f2746839dbc11e2ad91595f50f1f616b8f583e854da89d` |
+| `pitloom-0.23.0.tar.gz` | 10,461,578 | `4ca584bac5dc15ba4a0f56db2e4913c570740705d8fa09611d0358fc846f4e4a` |
+| `pitloom-0.23.0.spdx3.json` (Release asset) | 1,045,622 | `ffd7e4f5d52bf3ce015c45e2f0f0476312d69a6d7013ec65972917bcd0ee7d92` |
+
+### Method
+
+- As for v0.22.1: downloads against the API digests and the six Release
+  assets, `RECORD` and the wheel's payload against `git archive v0.23.0`, the
+  sdist against `git ls-tree -r v0.23.0`, `verify-wheel`, `validate-wheel`,
+  `loom fragment validate` and `spdx3-validate` 0.0.7 on the standalone SBOM,
+  `scripts/check_sbom_license.py` at the tag, `gh attestation verify`, `python
+  -m sigstore verify github` (sigstore 4.5.1, with `--sha` and `--trigger
+  release`) and PyPI's integrity API.
+- Installs of `pitloom==0.23.0` in fresh venvs on Python 3.10.20 and 3.14.6,
+  `HOME` in a scratch directory. Smoke tests on fixtures from `git archive`
+  of the tag: `loom project` on `sampleproject-hatchling` twice with
+  `--creation-datetime`, `loom model` on `stories260K.gguf`, a version 3
+  registry, an `onnx` package on `PYTHONPATH` whose import raises `OSError`,
+  `license = "Apache2"` before any licence database, then `licenseid update
+  --source packaged` and a project with only a `LICENSE` file.
+- The Action: `action.yml` and `scripts/action/pitloom-install.sh` read at the
+  tag; the install script run with a stub `python -m pip`.
+
+### Findings
+
+- The downloads match the PyPI digests; the wheel and the sdist are
+  byte-identical to the Release assets, and the standalone SBOM to the
+  wheel's member. Six assets: three files, each with a `.sigstore.json`.
+- `requires_dist` has `licenseid<0.8,>=0.7.1` and no `py-spdx-license`
+  (`licenseid` 0.7.1 still pulls `py-spdx-license` 0.0.1); `provides_extra`
+  unchanged; `requires_python` `>=3.10`; `License-Expression: Apache-2.0`;
+  entry points `loom`, `pitloom` and the `hatch` plugin.
+- Wheel: 352 members, one SBOM; `RECORD`: 352 rows, 0 bad, none missing,
+  none extra; the 346 payload files equal `src/` of the tag.
+- sdist: 1,422 files, the tag's 1,883 minus the 462 excluded, plus
+  `PKG-INFO` (equal to `METADATA`); no byte differences. Neither the sdist
+  nor the wheel has `AGENTS.md`, `CLAUDE.md` or `GEMINI.md` (#435).
+- Embedded SBOM: SPDX 3.0.1, 1,595 graph elements, `Apache-2.0` declared and
+  concluded; 364 `software_File` (346 payload plus 18 directories), 0 hash
+  mismatches. `Tool` `Pitloom 0.23.0`; `licenseid` 0.7.1 listed as a package,
+  and licence provenance names `licenseid==0.7.1`. All validators pass.
+- `gh attestation verify` passes for the three files (one SLSA v1
+  attestation, source digest `0424016c`) and fails with `--source-ref
+  refs/tags/v0.22.1`; `sigstore verify github` passes for the three, and
+  fails on a wrong bundle or identity. PEP 740: publisher `bact/pitloom`,
+  `pypi-publish.yml`, no environment; one attestation per file.
+- Installs succeed, `pip check` is clean, `licenseid` 0.7.1 resolved.
+  Smoke tests on both Pythons: the two `loom project` SBOMs are
+  byte-identical; the version 3 registry gets the documented `ERROR`, exit
+  1, no SBOM, file unchanged; the broken `onnx` gives `WARNING:
+  FORMAT=onnx FILE=...: required library failed to import: fake broken
+  onnx; reinstall pitloom[onnx] [library-unusable]`; `Apache2` reads as
+  `Apache-2.0` with no database; after the update a `LICENSE` file gives
+  `Apache-2.0` (`licenseid_detection`).
+- The Action with an empty `pitloom-version` runs `pip install
+  pitloom==0.23.0`, the version `check_version_consistency.py` reads at the
+  tag.
+
+### Not run or noted
+
+- `pip download --no-binary pitloom` fails ("already being built") since the
+  build requires `pitloom` itself; the same holds for 0.22.1. The sdist was
+  fetched by URL.
+- The SBOM's `created` (00:23:29 UTC) is the build's clock: the publish
+  workflow sets no `SOURCE_DATE_EPOCH`, as for 0.22.1. No rebuild compared.
+- No workflow run of the Action; no Merkle root recomputation.
 
 ## Verification of v0.22.1 (2026-11-03)
 
