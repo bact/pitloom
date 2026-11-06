@@ -302,7 +302,7 @@ def resolve_project_with_lockfile(
     # include_installed_metadata stays True on the peek: with
     # use-lockfile false, peeked_metadata is the returned metadata, so
     # disabling it would suppress installed-metadata reconciliation too
-    # (see working-docs/design/installed-dist-info-source.md).
+    # (see working-docs/implementation/installed-dist-info-source.md).
     peeked_metadata, peeked_config, peeked_path = read_project(
         project_path, include_locked_dependencies=False
     )

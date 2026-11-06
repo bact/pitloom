@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,17 +55,17 @@ file-size guidance -- moved verbatim, no content changed.
   source** -- an editable-install byproduct left next to
   `pyproject.toml` gap-fills undeclared fields; static source stays
   authoritative on conflict (recorded, never silently substituted).
-  See [installed-dist-info-source.md](installed-dist-info-source.md).
+  See [installed-dist-info-source.md](../implementation/installed-dist-info-source.md).
 - [x] **Unify `extract/project/installed.py`'s RFC 822 Core-Metadata
   parser with `extract/wheel.py`'s** -- closed (2026-09-15, PR #215):
   widened to all four sites with the same duplicated `Project-URL`
   -splitting shape, consolidated into one parametrised
   `extract/_core_metadata.py::parse_project_urls()`. See
-  [installed-dist-info-source.md](installed-dist-info-source.md#relationship-to-extractwheelpys-parser).
+  [installed-dist-info-source.md](../implementation/installed-dist-info-source.md#relationship-to-extractwheelpys-parser).
 - [ ] **Real installed `.dist-info` (site-packages) as a metadata
   source** -- the deferred, backend-agnostic phase: a user-supplied
   venv/site-packages path, cross-checked via `direct_url.json`.
-  See ["Deferred: real installed dist-info (site-packages)"](installed-dist-info-source.md#deferred-real-installed-dist-info-site-packages).
+  See ["Deferred: real installed dist-info (site-packages)"](installed-dist-info-site-packages.md#deferred-real-installed-dist-info-site-packages).
 - [x] **Split `extract/project/installed.py`** -- closed (2026-09-15,
   PR #215): discovery+parsing stayed in `installed.py` (now ~340 lines);
   reconciliation moved to the sibling `_installed_reconcile.py`, exactly

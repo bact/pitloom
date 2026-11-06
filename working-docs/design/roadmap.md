@@ -245,7 +245,9 @@ Highest priority first.
   [lock-files.md](lock-files.md),
   [docs/dependency-sources.md](../../docs/dependency-sources.md).
 - [ ] **Installed `.dist-info` as a project source**: see
-  [installed-dist-info-source.md](installed-dist-info-source.md).
+  [installed-dist-info-site-packages.md](installed-dist-info-site-packages.md)
+  (the in-tree slice is built:
+  [installed-dist-info-source.md](../implementation/installed-dist-info-source.md)).
 - [ ] **SARIF output** for CI findings; a missing-element report at generation
   would ride on it ([#77](https://github.com/bact/pitloom/issues/77)). See
   [sarif-output.md](sarif-output.md).

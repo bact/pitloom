@@ -10,7 +10,7 @@ genuine disagreement (recorded, never silently substituted); installed
 only fills gaps the static source left undeclared.
 
 See :mod:`pitloom.extract.project.installed` for discovery and parsing;
-see ``working-docs/design/installed-dist-info-source.md`` for the full
+see ``working-docs/implementation/installed-dist-info-source.md`` for the full
 design.
 """
 
@@ -168,7 +168,7 @@ def reconcile_installed_metadata(
     # both `merged.provenance[key] = ...` and
     # `merged.field_conflicts` (via add_conflict) below and neither write may
     # leak back into the caller's own *static* object (see
-    # working-docs/design/installed-dist-info-source.md).
+    # working-docs/implementation/installed-dist-info-source.md).
     merged = static.replace_with_fresh_containers()
     warn_subject = f"{project_dir}: installed metadata ({installed_label})"
     for f in dataclasses.fields(ProjectMetadata):
