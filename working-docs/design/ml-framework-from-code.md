@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,10 @@ loads, from the code instead of from a model file on disk?
 - Infer the framework from the dependencies or the imports.
 - Infer a Hub model from `from_pretrained("org/name")`.
 
-Today `--scan-model-usage` matches model file names only (see
-`extract/scanner.py`); a `from_pretrained()` call in code is not read.
+Today `--scan-model-usage` walks the Python AST for discovered local model
+files only (see
+[model-usage-ast-scan.md](../implementation/model-usage-ast-scan.md)); a Hub id
+in a `from_pretrained()` call is not read.
 
 ## Issues
 
