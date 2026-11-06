@@ -48,14 +48,14 @@ issue.
 
 ## LicenseID 0.7.0 and 0.7.1: findings from the Pitloom adoption
 
-Pitloom 0.23.0 adopts `licenseid>=0.7.0,<0.8` (Pitloom PRs #437, #440). The
-points below were found on 0.7.0 and **all still reproduce on 0.7.1** (PyPI
+Pitloom 0.23.0 requires `licenseid>=0.7.1,<0.8` (Pitloom PRs #437, #440, #445).
+The points below were found on 0.7.0 and **all still reproduce on 0.7.1** (PyPI
 wheel, CPython 3.10.20): the reproducers give the same output on both, apart
 from `resolver.version`; 0.7.1 changes no database, warning or components code
 and ships the same packaged List (3.29.0, byte-identical
-`spdx-bundle.json.gz`). Item 10 is new in 0.7.1. Each reproducer was run with `HOME`
-set to a scratch directory and a database built by `licenseid update` (SPDX
-License List 3.29.0), unless a step says otherwise. Common setup:
+`spdx-bundle.json.gz`). Item 10 is new in 0.7.1. Each reproducer was run with
+`HOME` set to a scratch directory and a database built by `licenseid update`
+(SPDX License List 3.29.0), unless a step says otherwise. Common setup:
 
 ```python
 import licenseid
@@ -79,14 +79,16 @@ det.is_spdx(text="Foo"), det.is_osi(text="Foo")
 ### 2. `\v`, `\r` and U+2028 are read as white space (F15, remainder)
 
 ```python
-for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT OR ISC", "MIT\x1fOR ISC"]:
+for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
     r = resolve(v, source="packaged")
-    print(repr(v), r["expression"], r["category"], r["reason"])
+    print(repr(v), r["expression"], r["category"], r["reason"],
+          [s["kind"] for s in r["steps"]])
 ```
 
-- Actual: the first three give `ISC OR MIT`, `lexical`, steps `whitespace,
-  reorder`; `\x1f` is refused (`control or format character: U+001F`), as
-  0.7.0 refuses U+001C to U+001F.
+- Actual: the first three give `ISC OR MIT`, `lexical`, `reason` `None`,
+  steps `['whitespace', 'reorder']`; `\x1f` is refused (`None`,
+  `unresolved`, `control or format character: U+001F`, no steps), as 0.7.0
+  refuses U+001C to U+001F.
 - Expected: one rule for a line or paragraph break inside a value. A vertical
   tab, a lone CR and U+2028/U+2029 are line breaks (`str.splitlines` splits on
   them), so a value holding one is two lines, as with `\n`. Refuse them like
@@ -257,4 +259,7 @@ current text adds finding 10 and the 0.7.1 version references.
 
 ---
 
-Reproducers 1-3 re-run 2026-11-06 on LicenseID 0.7.1: same output.
+Reproducers 1-3 re-run 2026-11-06 on LicenseID 0.7.1 (CPython 3.10.20,
+fresh `HOME`, `licenseid update --source packaged`): findings 1 and 3 give
+the output above; finding 2's `reason` is `None` for the three accepted
+values, so its reproducer now prints the step kinds as well.
