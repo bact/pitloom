@@ -8,11 +8,14 @@ SPDX-License-Identifier: CC0-1.0
 
 # Handoff to `licenseid`: what Pitloom needs upstream
 
-Status: historical. A prompt to give a session working in the `licenseid`
-repository (Pitloom never edits it), written 2026-10-08 after the #294
-reviews against `licenseid` 0.4.3. Pitloom has since adopted `licenseid` 0.7.1
-([licenseid-0-7-adoption-plan.md](../implementation/licenseid-0-7-adoption-plan.md));
-the version and the tables below describe 0.4.3.
+Status: open; no ask below is answered upstream yet. A prompt to give a
+session working in the `licenseid` repository (Pitloom never edits it),
+written 2026-10-08 after the #294 reviews against `licenseid` 0.4.3. Pitloom
+has since adopted `licenseid` 0.7.1
+([licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
+the version and the tables below describe 0.4.3. The asks found on 0.7 are
+listed with reproducers in
+[licenseid/upstream-issues.md](../implementation/licenseid/upstream-issues.md).
 
 See also: [canonical-output-followups.md](canonical-output-followups.md)
 (C11 to C21, the questions behind this),

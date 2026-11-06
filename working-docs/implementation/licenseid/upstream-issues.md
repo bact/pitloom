@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # LicenseID upstream issues
 
-See also: [licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md)
+See also: [adoption-built.md](adoption-built.md)
 (how Pitloom adopted LicenseID 0.7).
 
 Findings from the Pitloom adoption of LicenseID 0.7, kept so they are not

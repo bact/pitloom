@@ -105,7 +105,7 @@ See [CHANGELOG.md](../../CHANGELOG.md) and
 [release-checklist.md](../implementation/release-checklist.md). Highlights:
 declared licence values read by `licenseid` 0.7 with no licence database
 (#437-#440, floor 0.7.1 #445; see
-[licenseid-0-7-adoption-plan.md](../implementation/licenseid-0-7-adoption-plan.md));
+[licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
 message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
 #444) and for model fields read in part and unusable libraries (PRs 1b and
 1c, #446); no agent files in the sdist or wheel (#435). Requires

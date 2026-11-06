@@ -13,7 +13,7 @@ rules for adding an entry), [roadmap.md](../roadmap.md),
 [license-pr276-followups.md](../license-pr276-followups.md),
 [license-rules.md](../license-rules.md),
 [license-resolution-categories.md](../license-resolution-categories.md),
-[licenseid-0-7-adoption-plan.md](../../implementation/licenseid-0-7-adoption-plan.md).
+[licenseid/adoption-plan.md](../../implementation/licenseid/adoption-plan.md).
 
 Licence detection, declared and concluded licences, the `licenseid` resolver
 and database, licence elements and their provenance. Entries are ranked by

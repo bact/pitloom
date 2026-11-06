@@ -10,7 +10,7 @@ plan expects in ``expected_0_7_0``), classifies every value with the installed
 Pitloom, and prints how the installed answer, the recorded 0.21.1 answer and the
 expected one relate. Run it before and after adopting a licenseid release; every
 row listed as moved needs a reason in the adoption plan
-(``working-docs/implementation/licenseid-0-7-adoption-plan.md``).
+(``working-docs/implementation/licenseid/adoption-plan.md``).
 
 Needs no licenseid database: a declared value is read on the SPDX License
 List packaged with licenseid. Usage:

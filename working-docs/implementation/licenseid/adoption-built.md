@@ -8,11 +8,11 @@ SPDX-License-Identifier: CC0-1.0
 
 # licenseid 0.7.0 adoption: what was built (0.23.0)
 
-See also: [licenseid-0-7-adoption-plan.md](licenseid-0-7-adoption-plan.md)
+See also: [adoption-plan.md](adoption-plan.md)
 (the plan, its rulings and measurements),
-[roadmap-completed.md](roadmap-completed.md#shipped-in-0230-prs-434-446),
-[license-pipeline.md](license-pipeline.md),
-[licences-and-licenseid.md](../design/known-bugs/licences-and-licenseid.md)
+[roadmap-completed.md](../roadmap-completed.md#shipped-in-0230-prs-434-446),
+[license-pipeline.md](../license-pipeline.md),
+[licences-and-licenseid.md](../../design/known-bugs/licences-and-licenseid.md)
 (open entries).
 
 Pitloom requires `licenseid>=0.7.1,<0.8` (0.7.0: 2026-11-03). A declared
@@ -99,7 +99,7 @@ warnings on (the `License` path) and checked as an SPDX-only field
   the no-operands entry (operands are built; Q5,
   `simplelicensing_licenseListVersion`, is not), the warning-block overlap,
   the header-tag reader, `trust: none`, the lone CR and the 14 List names
-  ([licences-and-licenseid.md](../design/known-bugs/licences-and-licenseid.md)).
+  ([licences-and-licenseid.md](../../design/known-bugs/licences-and-licenseid.md)).
 - Upstream: a short word detected as a licence, `\v`/`\r`/U+2028 read as
   space, `coverage` above 1, a library message naming `--db` and the network
   `licenseid update`, the undocumented once-per-process warning rule,

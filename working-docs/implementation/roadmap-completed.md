@@ -516,8 +516,8 @@ section.
   License List, with no licence database (the Hatchling hook's isolated build
   included); `py-spdx-license` dropped; `licenseid` warnings relayed as one
   line; rewrites cite `Tool: licenseid==V`. See
-  [licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md) and the
-  plan, [licenseid-0-7-adoption-plan.md](licenseid-0-7-adoption-plan.md).
+  [licenseid/adoption-built.md](licenseid/adoption-built.md) and the
+  plan, [licenseid/adoption-plan.md](licenseid/adoption-plan.md).
 - [x] **Message catalogue PR 2b** (#444): `card-malformed`, `json-malformed`,
   `text-malformed`; an unlistable card directory warns `dir-unlistable`.
 - [x] **Message catalogue PRs 1b and 1c** (#446): `model-field-unreadable`,
