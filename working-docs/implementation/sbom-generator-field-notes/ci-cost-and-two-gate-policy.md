@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -117,7 +117,7 @@ waiting. The 55-minute figure is for reasoning about the queue, and the
 ## 4. The decision: two gates per PR (#406)
 
 Adopted by the maintainer on 2026-10-30 for 0.22.0, adapted from the sister
-project `licenseid` (its PR #137, the pre-release review of 0.7.0).
+project LicenseID (its PR #137, the pre-release review of 0.7.0).
 
 - **Gate A, once before the first push:** full suite (`-n 4`), every CI
   linter, each new regression test failing on the base tree, branch

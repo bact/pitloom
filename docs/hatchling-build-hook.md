@@ -47,7 +47,7 @@ No separate `pip install` step is needed beyond that -- the build
 front-end (`pip`, `build`, `hatch`) installs `pitloom` as a build-time
 dependency automatically, the same way it installs Hatchling itself.
 
-To match `LICENSE` files, the build machine also needs the `licenseid`
+To match `LICENSE` files, the build machine also needs the LicenseID
 database: run `licenseid update --source packaged` once (needs `licenseid`
 installed, as it is with `pip install pitloom`; no network). Without it the
 hook logs a `WARNING:` ("licenseid database cannot be used ... license text

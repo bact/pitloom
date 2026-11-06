@@ -272,7 +272,7 @@ def test_build_license_elements_two_candidates_with_individuals(
 def test_a_list_name_is_its_id_only_through_the_reading(
     declared: str, concluded: str
 ) -> None:
-    """``licenseid`` reads the SPDX List name as its id: one licence, no
+    """LicenseID reads the SPDX List name as its id: one licence, no
     conflict. With no reading (no packaged list) the name stays text and no
     second list makes them one: the conflict is recorded."""
     (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
@@ -298,7 +298,7 @@ def test_a_list_name_is_its_id_only_through_the_reading(
 def test_a_deprecated_id_and_its_list_name_are_no_conflict(
     name: str, license_id: str
 ) -> None:
-    """The name stays text (``licenseid`` reads no id in it) yet names the
+    """The name stays text (LicenseID reads no id in it) yet names the
     declared id: two elements, no conflict."""
     for declared, concluded in ((name, license_id), (license_id, name)):
         (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)

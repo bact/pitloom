@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -114,7 +114,7 @@ plans; the lesson holds without the code.
   `Normalized-From: <raw> | Normalizer: py-spdx-license==<v>` (#121).
   Do: compare licences only after canonical parsing, and record the raw
   value and the normaliser version.
-- **A licence text matcher's top hit is not the licence.** `licenseid`
+- **A licence text matcher's top hit is not the licence.** LicenseID
   0.3.7 scored `Pixar` 0.9963 over `Apache-2.0` 0.9921 on requests'
   verbatim Apache `LICENSE`, `JSON` 0.935 over `MIT` 0.929 on wcwidth's,
   and gave `Xnet` 0.902 for PyYAML's MIT (MIT scores 1.013 with the two

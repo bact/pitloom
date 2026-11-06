@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -179,7 +179,7 @@ record separator, so empty arguments and embedded newlines survive `$(...)`.
 action whose `__about__.py` carries a fixed published version (`0.22.0`, older
 than latest, so ignoring the pin cannot pass; override `0.22.1`), on ubuntu,
 macOS and Windows. Both cap `licenseid` below 0.7; an older release takes
-`licenseid` 0.7 and fails to import.
+LicenseID 0.7 and fails to import.
 `tests/scripts/` covers the probe, version reader, resolver, install script and
 the Generate step's `run:` block against stub programs (POSIX only). PR #224's
 runs confirmed the Windows and macOS legs.

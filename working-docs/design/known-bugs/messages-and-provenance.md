@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,7 +65,7 @@ entries stay in the last section for history.
   `cli/options.py` 3, `_sbom_io.py` 2; PR 4), `id_registry/import_keys.py` (6),
   `setuptools_cfg.py` (12), `archive_member_names.py` (16) and
   `_loom_active_run.py` (17). Each goes with its family in the migration plan;
-  none is fixed alone. The relay of `licenseid` warnings
+  none is fixed alone. The relay of LicenseID warnings
   (`extract/_licenseid_relay.py`, `say`) is the same shape, left out of the
   ratchet by its `%s` template. Target: 1b and 2b in 0.23.0, the rest in
   0.24.0.

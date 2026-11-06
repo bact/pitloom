@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,7 @@ lessons doc, section 2, are not repeated.
   #289, round 1 found the false database warning for two input shapes (a
   long id, a long `SPDX-License-Identifier:` tag). Round 2 was asked which
   other inputs reach the same failure on a healthy database and probed
-  `licenseid` 0.4.2 on a copy: three more shapes (a `License:` field, a
+  LicenseID 0.4.2 on a copy: three more shapes (a `License:` field, a
   URL-form tag, a JSON `"license"` field), plus the inputs that do not
   trigger it and why (quoted FTS terms, chunked `IN` lists, `=` lookups). The known-bugs entry, the
   `xfail` table and the upstream handoff were widened to match.
@@ -281,7 +281,7 @@ file group; the rules file (46 KB) was compacted by hand.
 
 ## 0.21.1: sub-agents and plan mode (2026-10-28)
 
-- **Sub-agents inherit plan mode.** Four agents launched for the licenseid 0.7.0
+- **Sub-agents inherit plan mode.** Four agents launched for the LicenseID 0.7.0
   groundwork each returned a written plan and no change, because the session was
   in plan mode: they could read, not write, run or commit. The two Opus reviews
   of Pitloom's diff could not run mutation checks for the same reason, and said

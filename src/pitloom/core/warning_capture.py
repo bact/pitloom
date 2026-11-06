@@ -12,7 +12,7 @@ Python 3.14 with context-aware warnings the filters are per context, but
 restore them, in overlapping order, can leave the state of the one that
 entered second in force for good: a recording ``showwarning`` then takes
 every later warning of the process into a list nobody reads. Every block of
-Pitloom that changes that state (the ``licenseid`` relay, the setuptools
+Pitloom that changes that state (the LicenseID relay, the setuptools
 relay, the usage scan's parse) holds :data:`WARNINGS_LOCK` for the whole
 block, so no two of them overlap. Code outside Pitloom (the host, another
 library) does not take it.

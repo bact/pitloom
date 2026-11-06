@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# licenseid 0.7.0 adoption: what was built (0.23.0)
+# LicenseID 0.7.0 adoption: what was built (0.23.0)
 
 See also: [adoption-plan.md](adoption-plan.md)
 (the plan, its rulings and measurements),
@@ -19,7 +19,7 @@ Pitloom requires `licenseid>=0.7.1,<0.8` (0.7.0: 2026-11-03). A declared
 licence value is read by `licenseid.resolve(value, source="packaged")`, on
 the SPDX License List the `licenseid` wheel ships, with no database; only
 licence-text detection (`LicenseDetector().detect()`) needs one. Pitloom no
-longer imports `py-spdx-license` (`licenseid` still requires it).
+longer imports `py-spdx-license` (LicenseID still requires it).
 
 ## Stages
 
@@ -28,7 +28,7 @@ longer imports `py-spdx-license` (`licenseid` still requires it).
 | #437 | A | Pin; `resolve(..., source="packaged")` with no database gate; `detect()` for texts; `relay_licenseid_warnings()` says each `LicenseIdWarning` once as `WARNING: licenseid: ...` (`INFO:` for `variant not stated`); `canonicalize_license_id` deleted; CI builds the database with `licenseid update --source packaged` |
 | #438 | B | Licence-text detection split out of `_license.py` into `_license_text_match.py` (moves only) |
 | #439 | D | Docs and skills: preflight `licenseid update --source packaged`, detection only; new `WARNING: licenseid:` lines |
-| #440 | C | `licenseid` is the only reader of a declared value: Pitloom's own parser is gone, `assumed_only` and the other categories are accepted, rewrites cite `Tool: licenseid==V` (`+` also `Expansion-1`), not `Normalizer`; the 14 deprecated List names kept in `extract/_license_names.py` |
+| #440 | C | LicenseID is the only reader of a declared value: Pitloom's own parser is gone, `assumed_only` and the other categories are accepted, rewrites cite `Tool: licenseid==V` (`+` also `Expansion-1`), not `Normalizer`; the 14 deprecated List names kept in `extract/_license_names.py` |
 | #443 | E | Final gate (this record) and the ledger ticks |
 
 ## Final gate on `main` 54f79c57
@@ -39,7 +39,7 @@ longer imports `py-spdx-license` (`licenseid` still requires it).
   `py-spdx-license`. In a fresh venv: `pip check` clean, `loom --version`,
   `verify-wheel` ok, `validate-wheel` valid, `spdx3-validate` exit 0.
 - With `import py_spdx_license` blocked for Pitloom's modules (a
-  `sitecustomize` shim; `licenseid` may still import it): 21 fixture
+  `sitecustomize` shim; LicenseID may still import it): 21 fixture
   projects, 20 generate (the 21st is the invalid-version fixture, which fails
   the same way without the shim); the SBOMs are byte-identical with and
   without a licence database.
@@ -56,10 +56,10 @@ longer imports `py-spdx-license` (`licenseid` still requires it).
 
 ## Sweep: 0.22.1 against 0.23.0
 
-Before: tag v0.22.1 with `licenseid` 0.6.0 and a 0.6-built database. After:
+Before: tag v0.22.1 with LicenseID 0.6.0 and a 0.6-built database. After:
 `main` 54f79c57 with 0.7.0 (answers identical with and without a database).
 Inputs: 671 distinct values (the curated 366 and the 462 PyPI values of
-`licenseid`'s `pypi_values_2026-10.tsv`, overlapping; "projects" counts the
+LicenseID's `pypi_values_2026-10.tsv`, overlapping; "projects" counts the
 PyPI projects that declare the value). Each value was classified with
 warnings on (the `License` path) and checked as an SPDX-only field
 (`License-Expression`).

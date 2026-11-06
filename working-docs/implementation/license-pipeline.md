@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,7 +111,7 @@ Spdx3JsonExporter.to_json()
 after `pyproject.toml` is parsed, in priority order:
 
 1. `project.license` in `pyproject.toml` (PEP 639 SPDX expression or
-   legacy text/file pointer). Text that `licenseid` identifies gives the
+   legacy text/file pointer). Text that LicenseID identifies gives the
    id (`Method: licenseid_detection`); other text is kept as written.
 2. A `License ::` classifier, when `project.license` is absent, blank or
    `UNKNOWN`/`NOASSERTION` (`license_or_classifier`, the wheel/sdist rule).
@@ -119,7 +119,7 @@ after `pyproject.toml` is parsed, in priority order:
    (`apply_in_package_license()` in `_license.py`): `license:` in
    `CITATION.cff`, then `codemeta.json` (URL values reduced to their SPDX
    ID segment), then the text of `LICENSE`, `LICENCE`, `COPYING` or
-   `COPYRIGHT` (with common suffixes) via `licenseid` (≥ 0.85 confidence).
+   `COPYRIGHT` (with common suffixes) via LicenseID (≥ 0.85 confidence).
    When the manifest states a licence (not blank), they are the G2
    concluded second opinion instead.
 
@@ -175,7 +175,7 @@ through the directory's rule (`license_from_project_table()`); a
   (`pitloom.messages.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
   the wording the usage scan shares). Once per file and process:
   one run reads a project twice when a lock-file re-read follows the peek.
-  Real licence texts are a few KiB to some tens of KiB, and `licenseid` is
+  Real licence texts are a few KiB to some tens of KiB, and LicenseID is
   slow on large text.
 - **Text** (core): UTF-8 with replacement and universal newlines, as
   `Path.read_text()` gave it; an empty or whitespace-only file gives no
@@ -209,7 +209,7 @@ relationships.
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
    `unlicensed`; `unknown` is handled below), it is recorded as stated (white
-   space stripped), with or without the `licenseid` database; the classification
+   space stripped), with or without the LicenseID database; the classification
    that follows folds the case of a known id. The result is stored in
    `AiModelMetadata.license`.
 2. **File detection** -- when the card YAML value is absent or vague,
@@ -217,7 +217,7 @@ relationships.
    the repository (`LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, and
    suffixed variants) in priority order. Each file is downloaded via
    `hf_hub_download` and its text is passed to `detect_license_from_text()`
-   from the `licenseid` library. The first match above the 0.85 confidence
+   from the LicenseID library. The first match above the 0.85 confidence
    threshold is accepted. The original vague card value is preserved in
    `extra_data["hf.license_raw"]` for auditability. A card value of
    `unknown` (any case) that file detection cannot improve is returned as
@@ -244,14 +244,14 @@ The database is stored at
 `~/.local/share/licenseid/licenses.db`. Pitloom accepts the top detection
 when its score meets a threshold of 0.85 (`detect_license_from_text()`).
 
-**Declared values: `resolve()`** (`licenseid` 0.7.1 or later).
+**Declared values: `resolve()`** (LicenseID 0.7.1 or later).
 `classify_license()` asks `licenseid.resolve()` (`_license_resolve.py`, through
 `_license_classify._expression_or_text()`) about every single-line value of at
 most 200 characters, in any field, on the SPDX License List packaged with
-`licenseid` (`source="packaged"`: no database is needed). An answer with an
+LicenseID (`source="packaged"`: no database is needed). An answer with an
 expression is recorded as that expression, a compound whose operands are all
 read (`Apache2 OR MIT`) included; a value it names nothing in stays text, with
-`licenseid`'s `reason`. A bare deprecated id (`assumed_only`) and a split one
+LicenseID's `reason`. A bare deprecated id (`assumed_only`) and a split one
 (`deprecated_ambiguous`) stay as written. A reading that decided something
 (not case, spacing or `+`) is one `INFO:` per value; provenance adds
 `Method: licenseid_resolution`, `Resolution-1`, `Expansion-1` and `Tool`
@@ -415,11 +415,11 @@ file, so the surviving header path is proven untouched.
   embed a machine-readable licence field. Licence data for those models must
   come from an external source such as HuggingFace Hub or a user-supplied
   fragment.
-- `licenseid` text detection is probabilistic (threshold 0.85). Unusual
+- LicenseID text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
 - A `License ::` classifier such as `OSI Approved :: MIT License` is read as
-  `MIT` by `licenseid` (#359), alone or among several classifiers; one naming
+  `MIT` by LicenseID (#359), alone or among several classifiers; one naming
   several licences (`BSD License`) stays text (see license-typing.md).
 - An unknown id in a field that holds an SPDX expression only (PEP 639
   `license`, `License-Expression`, PyPI `license_expression`,
@@ -432,7 +432,7 @@ file, so the surviving header path is proven untouched.
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `stated_license()`, `license_from_candidates()`, `apply_in_package_license()` (the one stated/silent rule), `detect_license_for_project()`; re-exports the licence helpers |
-| `src/pitloom/extract/_license_text_match.py` | `detect_license_from_text()`: licence text detection with `licenseid`'s detector |
+| `src/pitloom/extract/_license_text_match.py` | `detect_license_from_text()`: licence text detection with LicenseID's detector |
 | `src/pitloom/extract/_license_resolve.py` | `resolve_declared_value()`: the one reader of a declared value (`licenseid.resolve`), answers cached per value |
 | `src/pitloom/extract/_license_names.py` | `same_licence()`: when two classified values name one licence |
 | `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes core, directory adapter, case rule, size cap |

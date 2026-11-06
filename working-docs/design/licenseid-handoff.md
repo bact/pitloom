@@ -6,12 +6,12 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Handoff to `licenseid`: what Pitloom needs upstream
+# Handoff to LicenseID: what Pitloom needs upstream
 
 Status: open; no ask below is answered upstream yet. A prompt to give a
-session working in the `licenseid` repository (Pitloom never edits it),
-written 2026-10-08 after the #294 reviews against `licenseid` 0.4.3. Pitloom
-has since adopted `licenseid` 0.7.1
+session working in the LicenseID repository (Pitloom never edits it),
+written 2026-10-08 after the #294 reviews against LicenseID 0.4.3. Pitloom
+has since adopted LicenseID 0.7.1
 ([licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
 the version and the tables below describe 0.4.3. The asks found on 0.7 are
 listed with reproducers in
@@ -22,12 +22,12 @@ See also: [canonical-output-followups.md](canonical-output-followups.md)
 [license-layers.md](license-layers.md) (what belongs upstream),
 [license-rules.md](license-rules.md).
 
-Decision (user, 2026-10-08): Pitloom waits for `licenseid` for C12 (name to
+Decision (user, 2026-10-08): Pitloom waits for LicenseID for C12 (name to
 id) and C18 (URL to id); it does not map them itself.
 
 ## Prompt
 
-You work in the `licenseid` repository (version 0.4.3 at the time of
+You work in the LicenseID repository (version 0.4.3 at the time of
 writing; Pitloom requires `licenseid>=0.4.3`). Pitloom, an SBOM generator,
 asks it three kinds of question and today gets no useful answer for some of
 them. Verify every claim below against the repository before acting; fix
@@ -90,7 +90,7 @@ public API of what Pitloom already calls without keeping it working:
    deprecated) and document the grammar it accepts (`+`, `AdditionRef-`,
    `DocumentRef-...:AdditionRef-`, `NOT`).
 7. **Stability of output across versions** (Pitloom C21). Pitloom records
-   `licenseid`'s answers in SBOMs and needs the same input to give the same
+   LicenseID's answers in SBOMs and needs the same input to give the same
    id for the same database. Offer: a documented determinism guarantee
    (what may change between versions: database content, thresholds); the
    database/List version in a field Pitloom can record (`get_metadata`
@@ -103,7 +103,7 @@ public API of what Pitloom already calls without keeping it working:
 - A near-variant can outrank the verbatim licence (`Pixar` over
   `Apache-2.0`, `JSON` over `MIT`).
 Reproduce on the Pitloom side with its fixtures or give a minimal text
-sample in a licenseid test.
+sample in a LicenseID test.
 
 ### Deliver
 

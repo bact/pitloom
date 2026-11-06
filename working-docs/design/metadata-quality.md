@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,7 +56,7 @@ file-size guidance -- moved verbatim, no content changed.
 Recorded, not built. Context:
 [license-typing.md](../implementation/license-typing.md).
 
-- [x] **Move licence content (`classify_license`) to licenseid; Pitloom
+- [x] **Move licence content (`classify_license`) to LicenseID; Pitloom
   keeps an adapter.** Done in #440: `licenseid.resolve` is the only reader.
   See [license-layers.md](license-layers.md).
 - [ ] **No G2 second opinion for a wheel.** Its SBOM records the
@@ -64,7 +64,7 @@ Recorded, not built. Context:
   directory's detection; a wheel needs `License-File:` selection to pick
   its `.dist-info/licenses/` members (0.21.0).
 - [ ] **A detected licence text differs by surface.** A `license.file`
-  whose text `licenseid` identifies (e.g. an Apache `LICENSE` with centring
+  whose text LicenseID identifies (e.g. an Apache `LICENSE` with centring
   spaces) is the id on a directory and the hook, the text from an sdist,
   wheel or installed metadata. Detection on those readers, or none on the
   directory, would align them; a content decision.

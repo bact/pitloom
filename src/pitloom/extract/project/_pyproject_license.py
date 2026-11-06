@@ -97,7 +97,7 @@ def stated_pyproject_license(
     ``[project]`` table states.
 
     ``project.license`` first (*license_obj*: a PEP 639 string, or a
-    ``text``/``file`` table whose text ``licenseid`` may identify), then,
+    ``text``/``file`` table whose text LicenseID may identify), then,
     when that states no licence or only ``UNKNOWN``/``NOASSERTION``, a
     ``License ::`` classifier
     (:func:`~pitloom.extract._core_metadata.license_or_classifier`, the rule
@@ -130,7 +130,7 @@ def _license_from_field(
     license_obj: Any, project_dir: Path | None
 ) -> tuple[str | None, str | None]:
     """``(license_id, provenance_override)`` from a stated ``project.license``;
-    a method is recorded only when ``licenseid`` identified its text."""
+    a method is recorded only when LicenseID identified its text."""
     hint, base_prov, fallback = _resolve_license_hint(license_obj, project_dir)
     if hint is None:
         return fallback

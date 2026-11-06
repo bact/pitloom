@@ -1,14 +1,14 @@
 ---
 Created: 2026-10-26
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Licence resolution categories: what Pitloom needs to know from `licenseid`
+# Licence resolution categories: what Pitloom needs to know from LicenseID
 
-Status: partly built. `licenseid` 0.7.0 ships `resolve()` (declared-value
+Status: partly built. LicenseID 0.7.0 ships `resolve()` (declared-value
 resolution, `Apache2` to `Apache-2.0`), which reads the SPDX License List
 packaged with it: Pitloom calls it with `source="packaged"`, so a declared
 value needs no database (#437). Pitloom reads a single-line value
@@ -53,7 +53,7 @@ GGUF `general.license`), where an unknown id is text with one `WARNING:`
 (#357). Free-text fields: Q1. Licence text
 detection (`licenseid_detection`) is out of scope.
 
-## 2. Evidence: `licenseid` 0.5.0 on 220-odd declared values
+## 2. Evidence: LicenseID 0.5.0 on 220-odd declared values
 
 Database: SPDX License List 3.29.0, `normalization_version` 2, 740 rows (32
 deprecated). Each value was read four ways: `normalize_identifier(v, db)`;
@@ -207,14 +207,14 @@ because authors used it for both. Indicators, in the order of their weight:
 
 | Indicator | Gives | Who can see it |
 | - | - | - |
-| Words in the same value: "only", "or later", "or any later version", `+` | the qualifier stated | licenseid (`stated_qualifier`) |
+| Words in the same value: "only", "or later", "or any later version", `+` | the qualifier stated | LicenseID (`stated_qualifier`) |
 | A `License ::` classifier on the same package naming "or later" (`GNU General Public License v2 or later (GPLv2+)`) | `-or-later` | Pitloom (several fields) |
 | The classifier without it (`GNU General Public License v2 (GPLv2)`) | nothing: the classifier list has no "only" form | - |
 | A source header with the FSF notice "either version 2 of the License, or (at your option) any later version", or a tag `GPL-2.0-only`/`-or-later` | that qualifier | Pitloom (files) |
 | The `LICENSE`/`COPYING` text | nothing: both share the text | - |
 
 Cross-field indicators belong to Pitloom and would make a *concluded*
-licence (Q4); licenseid sees one value and reports `assumed_only` as an
+licence (Q4); LicenseID sees one value and reports `assumed_only` as an
 offer with both candidates.
 
 ## 6. Fuzzy: never in an SPDX-only field
@@ -269,7 +269,7 @@ keys unchanged):
 | `Resolution-<n>` | New. Operand `n` (1-based, in input order) as written, its result and B steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`; `alias` adds its source. |
 | `Expansion-<n>` | New. Operand `n`'s C step, kept apart: `GPL-2.0+ -> GPL-2.0-or-later (plus_to_or_later)`. |
 | `Tool` | `licenseid==0.5.1` (exists for detection). |
-| `License-List-Version`, `Resolver-Data` | New. The List version and licenseid's data version (section 9, R11). |
+| `License-List-Version`, `Resolver-Data` | New. The List version and LicenseID's data version (section 9, R11). |
 | `Deprecated-License-Id` | Exists; also names the successor a `deprecated_equal_successor` and `deprecated_ambiguous` offer gives. |
 
 One `Method` per value, as the key is single-valued; per-category `Method`
@@ -303,7 +303,7 @@ fact: FG-6, FG-7.
   folds a card value (`canonicalize_license_id`, deleted in #437).
 - **Conflicts.** A resolved `Apache2` agrees with a detected `Apache-2.0`.
 - **Determinism.** The result is a function of the input, the field kind,
-  the licenseid version and its data version; record `Tool`,
+  the LicenseID version and its data version; record `Tool`,
   `License-List-Version` and `Resolver-Data`. Two databases built at
   different times from one List must answer byte-identically.
 - **Offline / no database.**
@@ -311,18 +311,18 @@ fact: FG-6, FG-7.
 | Needs | Categories |
 | - | - |
 | `py-spdx-license`'s bundled List only | `exact`, `lexical`, `plus_to_or_later` (today) |
-| List ids, names, URLs (licenseid's packaged snapshot) | `separator`, `version_spelling`, `listed_name`, `listed_url`, `stated_qualifier`, `deprecated_equal_successor` and `deprecated_ambiguous` |
+| List ids, names, URLs (LicenseID's packaged snapshot) | `separator`, `version_spelling`, `listed_name`, `listed_url`, `stated_qualifier`, `deprecated_equal_successor` and `deprecated_ambiguous` |
 | Curated tables (to ship in the wheel) | `alias` |
 | A built database | `fuzzy` and text detection only |
 
   Built (#437): resolution reads the packaged List and needs no built
   database. Only when the `licenseid` install has no packaged list is
-  nothing read; the value stays text and `licenseid`'s error is said once.
+  nothing read; the value stays text and LicenseID's error is said once.
 - **Idempotence.** Resolving an output again gives `exact`; reclassifying it
   gives the same expression and no `Normalized-From`. (0.5.0:
   `normalize_identifier` was idempotent on all 209 corpus outputs.)
 
-## 9. What Pitloom needs from `licenseid` 0.5.1
+## 9. What Pitloom needs from LicenseID 0.5.1
 
 R1. `resolve(value, *, field_kind="spdx", allow_fuzzy=False)`, never raising
 on content (an unresolvable value is a category), returning: `input`;
@@ -350,7 +350,7 @@ database file, or the packaged snapshot, actually read). Each step, alias
 and candidate names the list that supported it (`list`: an `id` above), so a
 result says which list made which decision, not only which lists were loaded.
 `provides` is a closed vocabulary (decided 2026-10-26: `ids`, `names`, `urls`, `deprecation`,
-`aliases`, `texts`), owned by the licenseid spec and extended with a release;
+`aliases`, `texts`), owned by the LicenseID spec and extended with a release;
 a consumer ignores a value it does not know, and a step that cites a list
 for a kind it does not provide is a bug in the resolver (each step kind needs
 one: `listed_name` `names`, `listed_url` `urls`, `deprecated_*` `deprecation`,
@@ -360,7 +360,7 @@ provenance cites list ids.
 
 R1b. Alias review. An alias is a claim that a string means exactly one
 licence, so a wrong one writes a wrong licence into SBOMs. (1) A list's own
-data is its owner's to review. (2) An entry licenseid adds itself comes by
+data is its owner's to review. (2) An entry LicenseID adds itself comes by
 pull request with its evidence (the source list entry, or real usage in
 package metadata), an automated uniqueness check (one id; no clash with any
 id, name or other alias), a corpus regression test and a second reviewer. (3)
@@ -409,7 +409,7 @@ matched name in `detail`; never `exact`.
 R8. `exact` means input equals output; `lexical` means A steps only.
 R9. Per-operand results for expressions; never drop an operand (D3).
 R10. Declared-value resolution from the packaged data, no built database.
-R11. `versions`: licenseid version, List version, and a `data_version` hash
+R11. `versions`: LicenseID version, List version, and a `data_version` hash
 of the List snapshot, normalisation version and tables; no network, no
 clock, no randomness; same input and versions give the same bytes.
 R12. Idempotent: `resolve(r["expression"])["category"] == "exact"`.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ pre-release review runs before),
 
 How much of the test and review machinery runs, and when, for one PR and
 for a release. Adopted by the maintainer on 2026-10-30, for 0.22.0. The
-idea is adapted from the sister project `licenseid` (its PR #137, the
+idea is adapted from the sister project LicenseID (its PR #137, the
 pre-release review of its 0.7.0); Pitloom has more surfaces to cover (CLI,
 Hatchling hook, library, GitHub Action, skills, Claude Code plugin), a
 byte-level determinism rule and slower checks of its own.
@@ -67,7 +67,7 @@ medians in seconds, step times at 1 s resolution):
 | Ubuntu 3.14, coverage | 350 | 321 | about 15 |
 
 - pytest is 89-91 % of each job; xdist runs 4 workers (3 on macOS) over
-  about 17,900 tests. The licenseid database comes from a cache (0-2 s).
+  about 17,900 tests. The LicenseID database comes from a cache (0-2 s).
 - The PR's time to green is the Windows leg, about 6.7 minutes; the
   other workflows run beside it and finish sooner (Pylint 124 s, type
   checks 76 s, `build.yml` 86-112 s a leg, Action self-test 112-130 s).

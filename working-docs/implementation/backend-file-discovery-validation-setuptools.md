@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -230,7 +230,7 @@ own packaging doesn't use PEP 751 for itself.
     even a plausible near-miss.
   - Why: `"MIT License (MIT)"` is a short *label* (18 characters), not
     real license *text*. `detect_license_from_text()`
-    (`_license.py`) ran `licenseid`'s similarity matcher on it anyway,
+    (`_license.py`) ran LicenseID's similarity matcher on it anyway,
     with no minimum-length guard, and a short string can spuriously
     score above the 0.85 threshold against an equally short reference
     text in the database.

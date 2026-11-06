@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -81,7 +81,7 @@ Detail (war stories, PRs, code shapes) is in
 - **A guard for one direction of a symmetric hazard leaves the mirror open** (write-write vs write-read deadlock): enumerate both; reproduce a concurrency claim with a timeout-bounded run, never reason it through.
 - **A context manager whose `__exit__` can be interrupted resets shared state in `__enter__`** (fresh container, identity check, no lock).
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape (`len(Cls.__parameters__)`) plus a `TYPE_CHECKING` branch.
-- **Read a linter's messages and exit code, not its score** (pylint printed `10.00/10` beside an R0902); run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.5.0 or later, which fetches the list from a host the sandbox allows); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline, not counts.
+- **Read a linter's messages and exit code, not its score** (pylint printed `10.00/10` beside an R0902); run CI's exact command. Build the licence database first (`licenseid update`, LicenseID 0.5.0 or later, which fetches the list from a host the sandbox allows); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline, not counts.
 - **A fixture/mock of an external system is broadened with what production inspects.**
 - **A byte-identity test must not let the writer stamp the clock**: `ZipFile.writestr("name", ...)` writes `time.time()` (green locally, red once on CI, #306); use `ZipInfo` (fixed 1980 date), run on a clock that moves every call. A rerun cannot prove a flake gone: perturb the variance source. Grep fixture builders for `writestr(<str>`, mtime, `uuid4`.
 - **A test helper that normalises what it captures hides the bug class** (`subprocess.run(text=True)` turns CRLF into LF): decode bytes yourself; mutation-test shell/CI changes.

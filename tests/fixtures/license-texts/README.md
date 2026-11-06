@@ -13,7 +13,7 @@ See also: [../real-world-projects/README.md](../real-world-projects/README.md)
 for the test that reads them.
 
 Real `LICENSE` files, byte for byte as installed (`.dist-info/licenses/`),
-each one a case `licenseid` alone ranks wrong or misses (a near-variant
+each one a case LicenseID alone ranks wrong or misses (a near-variant
 licence scored above the verbatim one, a licence hidden behind its
 copyright notice), or a near-tie the rules must not drop (a GPL text
 scores `-only` and `-or-later` alike). Each file is the package's own
@@ -29,9 +29,9 @@ the `*-LICENSE` files `-text`, so a Windows checkout keeps the bytes, and
 | `license` | The licence the package states |
 | `stated` | `detect_license_from_text(text, stated=license)` |
 | `unstated` | `detect_license_from_text(text)`: the licence (or its `-only`/`-or-later` sibling: a GPL text cannot tell), or `null` for a near-tie |
-| `note` | What `licenseid` gives on its own |
+| `note` | What LicenseID gives on its own |
 
-The expectations and notes hold for `licenseid` 0.4.1 and 0.4.2 and
+The expectations and notes hold for LicenseID 0.4.1 and 0.4.2 and
 their SPDX License List 3.29.0 database (0.4 caps a score at 1).
-A newer `licenseid` may score them differently: a changed `unstated` from
+A newer LicenseID may score them differently: a changed `unstated` from
 `null` to the licence is an improvement; any other licence is a regression.

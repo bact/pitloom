@@ -175,7 +175,7 @@ def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
     one licence name as written; several, their ``AND``
     (:func:`~pitloom.extract.license_refs.classifier_expression`), in sorted
     classifier order so a build tool's reordering changes nothing. A name
-    ``licenseid`` reads as one id is that id, as a lone name is."""
+    LicenseID reads as one id is that id, as a lone name is."""
     names = _classifier_names(_licence_classifiers(classifiers))
     if not names:
         return None

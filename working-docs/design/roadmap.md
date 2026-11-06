@@ -98,12 +98,12 @@ Keras, fastText, GGUF, Safetensors and ONNX readers (#426, #427, #433);
 Built in 0.22.1 (#413-#433). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0221-prs-413-433).
 
-### 0.23.0: licenseid 0.7 and message catalogue
+### 0.23.0: LicenseID 0.7 and message catalogue
 
 **Released 2026-11-05** (v0.23.0), cut early (maintainer ruling 2026-11-04).
 See [CHANGELOG.md](../../CHANGELOG.md) and
 [release-checklist.md](../implementation/release-checklist.md). Highlights:
-declared licence values read by `licenseid` 0.7 with no licence database
+declared licence values read by LicenseID 0.7 with no licence database
 (#437-#440, floor 0.7.1 #445; see
 [licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
 message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
@@ -155,7 +155,7 @@ order and counts are in
   build, fragments and wheels, miscellany, licence.
 - [ ] **Licence provenance mapping**
   ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
-  revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
+  revise the design against the shipped LicenseID 0.7.0 `Resolution`, merge
   main into the branch, then implement (design on #384). Scheduled with the
   flags item below.
 - [ ] **Provenance and source-metadata flags** (decided 2026-11-05):
@@ -170,7 +170,7 @@ order and counts are in
   note. Tests, manual checks and sweeps run with provenance on (one shared
   test default); default-off is asserted on each surface (CLI, library, hook,
   Action).
-- [ ] **Action builds the `licenseid` database** (to decide): the Action
+- [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run
   `licenseid update --source packaged` (offline, seconds); CHANGELOG
@@ -289,7 +289,7 @@ unless the linked doc says so.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Licence resolution categories** (which changes to trust, log and
-  record): built on `licenseid` 0.7's `Resolution` (#437, #440). Open:
+  record): built on LicenseID 0.7's `Resolution` (#437, #440). Open:
   per-operand provenance (T14, [#384](https://github.com/bact/pitloom/pull/384),
   0.24.0), Q4 (a cross-field indicator) and Q5 (the list version). See
   [license-resolution-categories.md](license-resolution-categories.md).

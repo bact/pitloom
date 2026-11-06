@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A project that declares a licence, built with no licenseid database, says
+"""A project that declares a licence, built with no LicenseID database, says
 so once at ``INFO:`` on every surface (library, CLI, Hatchling hook) and
 writes no ``WARNING:``.
 
@@ -122,8 +122,8 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
 
 # pylint: disable-next=too-few-public-methods
 class _OutdatedDetector:
-    """A detector on a database an older licenseid built: it warns as
-    licenseid 0.7 does, through :mod:`warnings`, and detects nothing."""
+    """A detector on a database an older LicenseID built: it warns as
+    LicenseID 0.7 does, through :mod:`warnings`, and detects nothing."""
 
     def __init__(self) -> None:
         warnings.warn(

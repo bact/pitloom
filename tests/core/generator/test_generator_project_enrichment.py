@@ -194,7 +194,7 @@ def test_generate_project_sbom_license_conflict_flags_declared_normalization() -
     """Declared "mit" (valid but non-canonically cased) + a genuinely
     conflicting detected Apache-2.0: the conflict Annotation's declared
     candidate ``source`` is flagged with the raw value classify_license()
-    rewrote it from, plus the licenseid version that did it; the
+    rewrote it from, plus the LicenseID version that did it; the
     case-only-agreement path never reaches the conflict branch."""
     pyproject_content = """
 [project]

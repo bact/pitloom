@@ -6,19 +6,19 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Adopting licenseid 0.7.0 (Pitloom 0.23.0)
+# Adopting LicenseID 0.7.0 (Pitloom 0.23.0)
 
 See also: [adoption-built.md](adoption-built.md)
 (what was built),
 [roadmap-completed.md](../roadmap-completed.md#shipped-in-0230-prs-434-446),
 [license-pipeline.md](../license-pipeline.md),
 [license-resolution-categories.md](../../design/license-resolution-categories.md),
-[roadmap.md](../../design/roadmap.md), licenseid
+[roadmap.md](../../design/roadmap.md), LicenseID
 `working-docs/design/resolver-0-7-plan.md` (T13 is this work; T14, the
 provenance mapping, is open), [known-bugs.md](../../design/known-bugs.md)
 ("Per-operand licence provenance is not built").
 
-Status: shipped in Pitloom 0.23.0 (2026-11-05), on licenseid 0.7.1 (stages A
+Status: shipped in Pitloom 0.23.0 (2026-11-05), on LicenseID 0.7.1 (stages A
 to E, #437 to #440 and #443). Sections 1 to 7 are the pre-release plan, kept
 for its rulings and sweep data; sections 1, 5 and 7 are history. What was
 built, the final gate and the 0.22.1 to 0.23.0 sweep are in
@@ -45,7 +45,7 @@ text.
 
 ## 1. What existed when planned
 
-On licenseid `main` then: `ListLookup` (`listlookup.py`) and the shared list
+On LicenseID `main` then: `ListLookup` (`listlookup.py`) and the shared list
 rules (`listrules.py`), both no-behaviour-change groundwork. Not there yet:
 compounds in `resolve()`, `operands`, `components`, `reason`, the
 packaged-list fallback, newer-list-wins, prose forms, trove names. Pitloom
@@ -54,7 +54,7 @@ prepare (section 5).
 
 ## 2. Data: the parity corpus through Pitloom
 
-licenseid's `tests/fixtures/resolver_parity.tsv` holds 139 values (real
+LicenseID's `tests/fixtures/resolver_parity.tsv` holds 139 values (real
 distribution metadata, Pitloom's test projects, the plan's synthetic shapes),
 Pitloom 0.21.1's answer (`pitloom_0_21_1`) and the answer the plan expects
 (`expected_0_7_0`). `scripts/licence_adoption_sweep.py` classifies each value with
@@ -77,11 +77,11 @@ The three moved expressions:
   operand order of py-spdx-license (`(ISC OR MIT) AND GPL-2.0-only WITH ...`);
   the plan's own order puts `GPL-2.0-only WITH ...` first. **Any project that
   declares a nested mixed expression gets different SBOM bytes.** Accept and
-  announce, or ask licenseid to keep py-spdx-license's order for it (open).
+  announce, or ask LicenseID to keep py-spdx-license's order for it (open).
 
 The one undecided row Pitloom reads today: `MIT WITH AdditionRef-x`.
 py-spdx-license cannot parse `AdditionRef-`; Pitloom reads it with its own gap
-reader. If licenseid 0.7.0 drops it, Pitloom loses the reading. Ask licenseid
+reader. If LicenseID 0.7.0 drops it, Pitloom loses the reading. Ask LicenseID
 to decide it explicitly (plan finding F2 and upstream issue 1).
 
 The 10 values that stay text include `Apache Software License`, `BSD`,
@@ -95,7 +95,7 @@ names, no id, or deferred assumed readings).
 | `pyproject.toml` | `licenseid>=0.7.1,<0.8`; move `py-spdx-license` from dependencies to the test group |
 | `extract/_license_classify.py` (479 lines) | `_classify` = early exits (surrogates, `NOASSERTION`, `NONE`, `UNKNOWN`, several lines, over 200 characters) then `resolve()`. Delete about 250 lines: `_strict_parse`, `_canonical_string`, `_gap_term`, `_gap_expression`, `_GAP_*`, `_successor_id`, `with_successor_ids`, `_replace_deprecated`, `_DEPRECATED_SUCCESSORS`, `_looks_like_expression`, `_parse_locally`, `_ambiguous_deprecated_ids`, the py-spdx-license imports |
 | `is_listed_name`, `same_licence`, `tag_deprecated_license_ids` | use the `listed_name` category and `operands[*].candidates`, not `get_spdx_license` |
-| `extract/_license_resolve.py` (151) | accept `prose_form`, `trove_name`, `assumed_only`, `deprecated_ambiguous`; drop `expression`; delete `_FOLDABLE` (licenseid refuses the dropped-character cases itself); notes from `operands`/`reason` |
+| `extract/_license_resolve.py` (151) | accept `prose_form`, `trove_name`, `assumed_only`, `deprecated_ambiguous`; drop `expression`; delete `_FOLDABLE` (LicenseID refuses the dropped-character cases itself); notes from `operands`/`reason` |
 | `extract/_license.py` | `resolve_declared_value` needs no matcher; cache key adds `lists[0].source` and its version; text detection still needs the database (the `INFO:` of 0.21.1 stays) |
 | Provenance | `Normalizer: py-spdx-license==X` becomes `Tool: licenseid==X` plus `Tool: py-spdx-license==Y` from `components`; later (T14) one `Resolution-n` per operand and the list version |
 | `fuzz/fuzz_license_expression.py` | target `resolve()` through `classify_license`; the docstring no longer blames the library |
@@ -108,14 +108,14 @@ the library. Its mypy override stays for the tests.
 ## 4. Behaviour changes announced in 0.23.0
 
 `StandardML-NJ` becomes `SMLNJ`; compounds with a respelt operand resolve, in
-licenseid's canonical order; prose and trove names become ids (18 of 139 corpus
+LicenseID's canonical order; prose and trove names become ids (18 of 139 corpus
 values); `LGPLv3` and the `GNU ... (GPLv2)` classifier names are recorded as
 `assumed_only`, as written; a declared value no longer needs a database; the
-SBOM depends on the `licenseid` and list versions, not on `licenseid update`.
+SBOM depends on the LicenseID and list versions, not on `licenseid update`.
 
 ## 5. Preparation before the pin
 
-1. Keep the sweep script and run it against each licenseid change that lands
+1. Keep the sweep script and run it against each LicenseID change that lands
    (`HOME=$(mktemp -d) licenseid update --source packaged`, then
    `python scripts/licence_adoption_sweep.py <licenseid>/tests/fixtures/resolver_parity.tsv`).
 2. Write the drift-guard test (every accepted answer parses with py-spdx-license)
@@ -124,7 +124,7 @@ SBOM depends on the `licenseid` and list versions, not on `licenseid update`.
    weak and listed-name helpers) and the parts that go with the deleted code.
 4. Draft the CHANGELOG entry and the docs edits as a branch, not merged.
 
-## 6. Open questions for licenseid
+## 6. Open questions for LicenseID
 
 - Order of a nested mixed expression (section 2), and whether it should follow
   py-spdx-license for byte stability.

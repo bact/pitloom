@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -139,7 +139,7 @@ follow-ups in #395), whose decisions are in
   always or never; `test_every_body_pointer_says_when_to_read` requires the
   same sentence to say when to read the reference.
 - **Prepare before the first run, not after the warning (#392).** Without
-  the `licenseid` database a run is thinner (`licenseid` has nothing to
+  the LicenseID database a run is thinner (LicenseID has nothing to
   match licences against); the agent
   fixed it after a `WARNING:` and so ran twice. The skill now runs
   `licenseid update --source packaged` first. Probed: it needs no network,

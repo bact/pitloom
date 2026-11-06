@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,7 +30,7 @@ Size: S under half a day, M about a day.
   coverage-snapshot diffs and the `scripts/` lint; fix what they find. Re-run
   2026-11-02: see
   [Release checks re-run](known-bugs/process-tooling-and-release-checks.md#release-checks-re-run-2026-11-02).
-- 0.23.0 (released 2026-11-05, #434-#446): the `licenseid` 0.7.0 adoption
+- 0.23.0 (released 2026-11-05, #434-#446): the LicenseID 0.7.0 adoption
   (#437 to #440, the final gate #443), the catalogue plan refresh (#442) and
   catalogue PRs 2b, 1b and 1c.
 - 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
@@ -47,7 +47,7 @@ lists its open entries first, ranked as described under
 | Part | P0 | P1 | P2 | P3 | Found | Leads | Open | Fixed |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
 | [AI model readers and metadata](known-bugs/ai-models-readers-and-metadata.md) | - | - | - | 33 | 5 | - | 38 | 10 |
-| [Licences and `licenseid`](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
+| [Licences and LicenseID](known-bugs/licences-and-licenseid.md) | - | - | 2 | 3 | 9 | - | 14 | 14 |
 | [ID registry and identity](known-bugs/id-registry-and-identity.md) | - | 3 | - | - | 10 | 1 | 14 | 11 |
 | [Messages, catalogue and provenance](known-bugs/messages-and-provenance.md) | - | - | - | 2 | 18 | - | 20 | 15 |
 | [Remote sources, Git LFS and datasets](known-bugs/remote-sources-lfs-and-datasets.md) | - | - | - | - | 12 | - | 12 | 7 |
@@ -66,8 +66,8 @@ Fixed = the `- [x]` entries. The P and Found columns count `- [ ]` entries only.
   (GGUF, ONNX, PyTorch PT2, Keras and HDF5, Safetensors, fastText, CRFsuite,
   NumPy): what each reader records, what the SBOM shows of it, and how
   metadata is escaped, capped and spelt across formats.
-- [Licences and `licenseid`](known-bugs/licences-and-licenseid.md): Licence
-  detection, declared and concluded licences, the `licenseid` resolver and
+- [Licences and LicenseID](known-bugs/licences-and-licenseid.md): Licence
+  detection, declared and concluded licences, the LicenseID resolver and
   database, licence elements and their provenance.
 - [ID registry and identity](known-bugs/id-registry-and-identity.md): Stable
   ids: ID registry keys, harvest and lookup, document and entity identity,

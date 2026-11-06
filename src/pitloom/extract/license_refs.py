@@ -5,7 +5,7 @@
 
 """Several ``License ::`` classifiers as one licence expression:
 ``LicenseRef-pitloom-classifier-<name> AND ...``, one term per licence name
-as the classifier gives it, except a name ``licenseid`` reads as one id
+as the classifier gives it, except a name LicenseID reads as one id
 (``MIT License``), whose term is that id. Each ``LicenseRef-`` encodes its
 name reversibly, so the element builder recovers the names from the
 expression alone, identically on every surface.

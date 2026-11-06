@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-09
-Last-Modified: 2026-10-09
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -60,7 +60,7 @@ wall is about a quarter with 4 workers):
   x2.9-3.2. The baseline is the runner and interpreter, not a few tests.
 - Share of Windows test-seconds (566 s with `TEMP` on `D:`):
   spdx3-validate tests about 135 s (24 %), licence-corpus tests about 70 s
-  (12 %; `licenseid` matching takes 0.7-1.4 s per file locally, warm or
+  (12 %; LicenseID matching takes 0.7-1.4 s per file locally, warm or
   cold), the rest spread at about 2x macOS.
 
 ## Decisions

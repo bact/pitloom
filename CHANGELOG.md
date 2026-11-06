@@ -32,15 +32,15 @@ and this project adheres to
 - Read as ids now: `MIT License (MIT)`-style names, trove paths, compounds
   (`Apache2 OR MIT`), `licenseref-foo` (`LicenseRef-foo`), `MIT or later`
   (`MIT+`) ([#437])
-- Kept as text now, as `licenseid` refuses them: `-MIT`, `.GPL-3.0-only`,
+- Kept as text now, as LicenseID refuses them: `-MIT`, `.GPL-3.0-only`,
   `1. MIT`, `iv. MIT`, `REM MIT`, `MIT -`, `MIT...`, `GPLv3 +` ([#437])
-- A `licenseid` warning is one `WARNING: licenseid: ...` line (`INFO:` for
+- A LicenseID warning is one `WARNING: licenseid: ...` line (`INFO:` for
   `variant not stated`), not Python's warning output ([#437])
 - Now read as ids: re-spelt deprecated ids as written (`GPLv3` is `GPL-3.0`),
   prose and classifier names, quoted values, `MIT;` ([#440])
-- Canonical order follows `licenseid` (`Apache-2.0+ OR MIT`, ids before
+- Canonical order follows LicenseID (`Apache-2.0+ OR MIT`, ids before
   `LicenseRef-`); `StandardML-NJ` becomes `SMLNJ` ([#440])
-- `licenseid` reads every declared value: rewrites cite `Tool: licenseid==V`
+- LicenseID reads every declared value: rewrites cite `Tool: licenseid==V`
   (`+` also `Expansion-1`), not `Normalizer`; warnings give its reason ([#440])
 - `AGPL-1.0+`, `AGPL-3.0+` and `GFDL-1.1+` to `GFDL-1.3+`, `WITH` forms too,
   become their `-or-later` ids, as `GPL-2.0+` does ([#440])
@@ -243,7 +243,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ### Fixed
 
-- Requires `licenseid>=0.6.0,<0.7`: licenseid 0.7.0 renames the API Pitloom
+- Requires `licenseid>=0.6.0,<0.7`: LicenseID 0.7.0 renames the API Pitloom
   0.21 imports (`AggregatedLicenseMatcher`, `resolve`, `LicenseMatch`)
   ([#400])
 
@@ -253,7 +253,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ### Changed
 
-- A missing `licenseid` database is said once at `INFO:`, not `WARNING:`, when
+- A missing LicenseID database is said once at `INFO:`, not `WARNING:`, when
   the declared licence is an SPDX expression: only the `LICENSE` check is lost
   ([#364])
 
@@ -357,7 +357,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
   attribute ([#325])
 - `licenseid>=0.6.0` is required: its database is built from a host the
   Claude Code sandbox allows, and it has `resolve()` ([#333], [#359])
-- A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
+- A licence value LicenseID reads as one id (`Apache2`, `MIT License`) is
   recorded as that id, the value as written kept in the provenance ([#359])
 
 ### Fixed

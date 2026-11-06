@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What Pitloom relies on in ``licenseid`` 0.7's public API: a failure here
+"""What Pitloom relies on in LicenseID 0.7's public API: a failure here
 is an upgrade to read before anything else.
 
-A ``licenseid`` without its packaged SPDX License List would leave every
+A LicenseID without its packaged SPDX License List would leave every
 declared value as written, silently in the SBOM, so the first test is that
 the list is there.
 

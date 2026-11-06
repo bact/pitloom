@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -117,7 +117,7 @@ rides only in `comment`), `sbom-enrichment.md:145-169`.
 
 - **G2 — Multi-source disagreement / selection — NECESSARY on conflict, else useful.**
   The same field can come from several sources with priority resolution (setuptools
-  primary/secondary merge; license from `project.license` OR detected LICENSE OR licenseid).
+  primary/secondary merge; license from `project.license` OR detected LICENSE OR LicenseID).
   SPDX records only the winning value — not that alternatives existed, which won, or whether
   they agreed. A declared-vs-detected license *disagreement* is a compliance red flag with
   no native representation.

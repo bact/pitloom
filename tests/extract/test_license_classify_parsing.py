@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests of how :func:`pitloom.extract._license_classify.classify_license`
-reads an expression through ``licenseid``: one canonical value per licence,
+reads an expression through LicenseID: one canonical value per licence,
 what is never read (long and multi-line text), and the warning for a value
 that looks like a broken expression.
 
@@ -29,7 +29,7 @@ from pitloom.extract._license_classify import classify_license
 def test_an_expression_as_written_is_not_said(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Only a value ``licenseid`` re-spells is said, ``DEBUG:`` included."""
+    """Only a value LicenseID re-spells is said, ``DEBUG:`` included."""
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract._license_resolve"):
         classify_license("MIT")
         classify_license("GPL-2.0")
@@ -145,7 +145,7 @@ def test_a_precedence_changing_parenthesis_is_another_value() -> None:
     ["LicenseRef-pitloom-gap-000 OR Apache-2.0+", "MIT+ OR LicenseRef-x OR MIT+"],
 )
 def test_a_reference_beside_an_id_is_kept_whatever_the_order(raw: str) -> None:
-    """The order of a reference beside an id is ``licenseid``'s to choose;
+    """The order of a reference beside an id is LicenseID's to choose;
     each term is kept, and the value reads back as itself."""
     got = classify_license(raw, warn=False)
     assert got is not None and got.kind == "expression"

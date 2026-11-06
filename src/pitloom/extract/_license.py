@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The licence facade of the project readers, using the licenseid library.
+"""The licence facade of the project readers, using the LicenseID library.
 
 Gives a project its licence from the manifest's stated value and from its
 own licence files (:func:`apply_in_package_license_files`), and re-exports
@@ -12,10 +12,10 @@ the shared ``licenseid.resolve`` reading of a declared value
 detection (:func:`~pitloom.extract._license_text_match.\
 detect_license_from_text`) requires a populated database; the reading of
 a declared value (``Apache2`` -> ``Apache-2.0``) uses the SPDX License List
-packaged with ``licenseid`` and needs none, as other sources
+packaged with LicenseID and needs none, as other sources
 (``CITATION.cff``, ``codemeta.json``) do not.
 
-Every ``licenseid`` call runs inside
+Every LicenseID call runs inside
 :func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
 
 See Also:
@@ -87,7 +87,7 @@ __all__ = [
 
 
 def _with_tool_tag(provenance: str) -> str:
-    """Append the ``licenseid`` library version to a detection provenance string."""
+    """Append the LicenseID library version to a detection provenance string."""
     if _LICENSEID_VERSION is None:
         return provenance
     return provenance_segment(provenance, "Tool", f"licenseid=={_LICENSEID_VERSION}")
@@ -98,7 +98,7 @@ def license_from_candidates(
 ) -> tuple[str, str] | None:
     """``(id, provenance)`` from the first of *candidates* (see
     :func:`~pitloom.extract._license_detect.license_candidates_from_members`)
-    that states an id or expression, or whose text ``licenseid`` identifies
+    that states an id or expression, or whose text LicenseID identifies
     (the manifest's *stated* licence winning a near-tie, see
     :func:`detect_license_from_text`); ``None`` when none does."""
     for value, source in candidates:
@@ -183,7 +183,7 @@ def detect_license_for_project(
     """Detect an SPDX license ID for a project, returning ``(id, provenance)``.
 
     A stated *license_hint* is the manifest's own licence: an id or an
-    expression is returned stripped; text that ``licenseid`` identifies gives
+    expression is returned stripped; text that LicenseID identifies gives
     the id, with *hint_source* and the method in the provenance; other text
     is returned as written, with no provenance (no detection happened). The
     project directory is read only when no hint is stated: against a stated
@@ -199,7 +199,7 @@ def stated_license(
     license_hint: str | None, hint_source: str = ""
 ) -> tuple[str | None, str | None]:
     """``(id, provenance)`` for the licence a manifest states, *license_hint*:
-    an id or an expression stripped; text that ``licenseid`` identifies, the
+    an id or an expression stripped; text that LicenseID identifies, the
     id, with *hint_source* and the method in the provenance; other text as
     written, with no provenance. ``(None, None)`` when blank, or when the
     whole hint is a Git LFS pointer (a licence file not pulled, read by a

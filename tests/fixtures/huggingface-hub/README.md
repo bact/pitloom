@@ -227,7 +227,7 @@ The `hf.language` extractor passes non-standard values through unchanged
 ### 8. License handling: sources, the stated value, vague values, and no-license patterns
 
 pitloom's role is to **find license information** from available sources.
-A card id is recorded as stated; `licenseid` only identifies licence-file text.
+A card id is recorded as stated; LicenseID only identifies licence-file text.
 
 #### License sources (priority order)
 
@@ -235,13 +235,13 @@ A card id is recorded as stated; `licenseid` only identifies licence-file text.
    identifier string supplied by the model author.
 2. **License files** (`LICENSE`, `COPYING`, etc.) — full license text;
    used when the card value is vague (see below).  Detection performed by
-   `_detect_license_from_hf_files()` via `licenseid`.
+   `_detect_license_from_hf_files()` via LicenseID.
 
 #### The card value is recorded as stated
 
 HF Hub stores license identifiers in **lowercase** (e.g. `apache-2.0`,
 `bsd-3-clause`). The extractor records the card value as written (leading
-and trailing white space stripped), with or without the `licenseid`
+and trailing white space stripped), with or without the LicenseID
 database: the output must not depend on whether a database is present. The
 classification that follows (`classify_license`) folds the case of a known
 SPDX License ID, and records a deprecated bare id such as `gpl-3.0` as the
@@ -276,7 +276,7 @@ When the card YAML `license` field matches one of these, the extractor:
 
 1. Saves the raw value in `extra_data["hf.license_raw"]`
 2. Calls `_detect_license_from_hf_files()` — downloads license files and uses
-   `licenseid` text detection to identify the SPDX License ID
+   LicenseID text detection to identify the SPDX License ID
 
 When the `license` field is absent entirely, `meta.license` is `None` and
 `hf.license_raw` is not set (distinct from the vague-value path).
@@ -528,7 +528,7 @@ Examples: `CohereLabs/aya-vision-8b`, `CohereLabs/aya-23-8B`,
 
 **Vague license → file detection** (`"other"`, `"custom"`, …)
 The raw card value is preserved in `extra_data["hf.license_raw"]`;
-`_detect_license_from_hf_files` downloads license files and runs `licenseid`
+`_detect_license_from_hf_files` downloads license files and runs LicenseID
 detection.  In tests, file detection is mocked to `(None, None)` by default
 and overridden per-test when the detection path is being exercised.
 Examples: `openthaigpt/openthaigpt-r1-32b-instruct`, `moonshotai/Kimi-K2.6`,
@@ -721,7 +721,7 @@ come from `config.json`.
 | `airesearch/WangchanX-Legal-ThaiCCL-Retriever` | Base_model finetune, MIT, dataset ref | Fine-tuned from BAAI/bge-m3; xlm-roberta arch; Thai legal |
 | `jinaai/jina-embeddings-v4` | visual-document-retrieval domain, no license | 131 072 token context; `language=["multilingual"]` keyword preserved; `license=None` |
 | `HuggingFaceFW/fineweb-edu-classifier` | text-classification, base_model finetune | Fine-tuned from Snowflake arctic-embed; educational quality 0–5 |
-| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` verbatim | `openrail++` ∉ `VAGUE_LICENSE_VALUES`; not recognized by licenseid → recorded verbatim; 20 value categories |
+| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` verbatim | `openrail++` ∉ `VAGUE_LICENSE_VALUES`; not recognized by LicenseID → recorded verbatim; 20 value categories |
 | `nlp-chula/aspect-finnlp-th` | text-classification, Thai financial, no license | CamemBERT-based; fine-tuned from wangchanberta; `license=None` |
 | `openai/privacy-filter` | token-classification, 128 K context | `hf.tokenizer_max_length=128000` captured; custom arch |
 | `line-corporation/line-distilbert-base-japanese` | fill-mask, DistilBERT (6 layers) | Japanese BERT distilled to 6 layers; `DistilBertForMaskedLM`; Apache-2.0 |

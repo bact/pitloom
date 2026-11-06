@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-04
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,7 +33,7 @@ behind `classify_license(raw) -> ClassifiedLicense`, and since #440
 `licenseid.resolve(value, source="packaged")` is its only reader (grammar,
 canonical form, deprecated ids, names and classifiers to ids); Pitloom no
 longer parses an expression itself and no longer depends on
-`py-spdx-license` (`licenseid` does). Deferred: `WITH
+`py-spdx-license` (LicenseID does). Deferred: `WITH
 DocumentRef-d:AdditionRef-x`, a family classifier name (`BSD License`) to
 an id. Detail: [license-layers.md](../design/license-layers.md).
 
@@ -51,12 +51,12 @@ Hugging Face), per-file `SPDX-License-Identifier` -- reaches it through
 | :--- | :--- | :--- |
 | `noassertion` | `NOASSERTION` or `UNKNOWN`, any case | none; individual `NoAssertionLicense` |
 | `none` | `NONE`, any case | none; individual `NoneLicense` |
-| `expression` | `licenseid` reads an expression in it (any category with one: `exact` to `assumed_only`), `Apache-2.0+` and `WITH AdditionRef-x` included | `simplelicensing_LicenseExpression`, `licenseid`'s canonical form |
-| `text` | everything else (`malformed`, `unresolved`: `licenseid`'s `reason` is the warning's); newline or over 200 characters is text without parsing; kept as written (stripped only to classify) | `simplelicensing_SimpleLicensingText` |
+| `expression` | LicenseID reads an expression in it (any category with one: `exact` to `assumed_only`), `Apache-2.0+` and `WITH AdditionRef-x` included | `simplelicensing_LicenseExpression`, LicenseID's canonical form |
+| `text` | everything else (`malformed`, `unresolved`: LicenseID's `reason` is the warning's); newline or over 200 characters is text without parsing; kept as written (stripped only to classify) | `simplelicensing_SimpleLicensingText` |
 
 Details that were decided, not obvious:
 
-- **Canonical form.** `licenseid`'s: listed id case, operators upper-case,
+- **Canonical form.** LicenseID's: listed id case, operators upper-case,
   terms sorted, repeats collapsed (`mit and apache-2.0` is `Apache-2.0 AND
   MIT`; ids before references, `Apache-2.0+ OR MIT`). The raw value is kept
   in provenance, never lost. Until #440 Pitloom's own parser over
@@ -84,20 +84,20 @@ Details that were decided, not obvious:
   (`CanonicalizationError`); each lone surrogate becomes U+FFFD with one
   `WARNING:` per value.
 - **Deprecated ids.** A deprecated id ending `+` becomes `X-or-later`
-  (`licenseid`'s `plus_to_or_later`). A bare deprecated `GPL-2.0` stays as
+  (LicenseID's `plus_to_or_later`). A bare deprecated `GPL-2.0` stays as
   written (the holder's intent, `-only` or `-or-later`, is unknown), and so
   does the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `assumed_only`),
-  with a `Deprecated-License-Id` note naming `licenseid`'s candidates.
+  with a `Deprecated-License-Id` note naming LicenseID's candidates.
 - **Warning rule.** Text with an operator or parenthesis and an id as
-  written (`licenseid` reads the word as one id, not a re-spelling:
+  written (LicenseID reads the word as one id, not a re-spelling:
   `is_licence_id`) looks like a broken expression: text plus one `WARNING:`
   per value per process (`warn_once`; any-case operators). The reason is
-  `licenseid`'s, through `loggable()`. Licences joined by `;` name no
+  LicenseID's, through `loggable()`. Licences joined by `;` name no
   operator: text, warned only in an SPDX-only field. A pure comparison passes `warn=False`
   (installed-metadata reconcile), because comparing is not recording.
 - **Unknown id alone** (`Acme-Terms`) is text: silent in a free-text field, one
   `WARNING:` in a field that holds an SPDX expression only (next section). A
-  value `licenseid` reads as one licence (`Apache2`, `MIT License`) is its id
+  value LicenseID reads as one licence (`Apache2`, `MIT License`) is its id
   (#359), among several classifiers too (`license_from_classifiers`).
 
 ## Unknown id in an SPDX-only field
@@ -127,10 +127,10 @@ license expression (<reason>); recorded as license text`.
   line naming the field. A value read by more than one reader of a run (a
   directory and its installed metadata) is said once.
 - **"not read as", not "not valid".** A value over 200 characters is not
-  read, and an id newer than the List packaged with `licenseid` is valid
+  read, and an id newer than the List packaged with LicenseID is valid
   SPDX it does not know; the reason in brackets says which.
-- **The licenseid database does not decide.** Known ids come from the List
-  packaged with `licenseid`, so a missing database makes no id unknown and
+- **The LicenseID database does not decide.** Known ids come from the List
+  packaged with LicenseID, so a missing database makes no id unknown and
   adds no line.
 - **Quiet fields.** Core Metadata `License`, `project.license.text`/`file`,
   `[tool.poetry] license` (Poetry accepts any text), a Hugging Face card's
@@ -188,7 +188,7 @@ transitional `WARNING:`.
 
 Several licence classifiers are one `LicenseExpression`: the AND of terms,
 sorted by classifier and without repeats, so Hatchling sorting them and the
-source not doing so give one value. A name `licenseid` reads as one id
+source not doing so give one value. A name LicenseID reads as one id
 (`MIT License`, #359) is that id; any other is a
 `LicenseRef-pitloom-classifier-<name>` term (no `Resolution-1` note: the
 `INFO:` line and the `WARNING:` name them). `customIdToUri` maps each such
@@ -244,7 +244,7 @@ the directory's and inner indentation is kept.
 Parity, as checked live on hatchling and setuptools projects: the
 directory (CLI and library), its sdist, its wheel and the build hook record
 the same declared licence, except a `license.file`/`license.text` that
-`licenseid` identifies: the directory and the hook record the id, an sdist,
+LicenseID identifies: the directory and the hook record the id, an sdist,
 a wheel or installed metadata the text, since their readers run no text
 detection (content, predates #276;
 [metadata-quality.md](../design/metadata-quality.md)). The project's own
@@ -276,12 +276,12 @@ Two-candidate mode is unchanged: when the manifest states a licence it
 stays declared, and the directory's detection is the concluded second
 opinion. So `detect_license_for_project` no longer replaces a stated
 licence text it cannot identify with a directory value; it returns the
-text as written. A `Method` is recorded only when `licenseid` identified
+text as written. A `Method` is recorded only when LicenseID identified
 the text: `license = {text = "MIT License\n"}` once gained a false
 `Method: licenseid_detection` (and so a concluded relationship) because the
 stripped fallback differed from the hint.
 
-Rejected: a `Method` making a value concluded (the old rule) -- `licenseid`
+Rejected: a `Method` making a value concluded (the old rule) -- LicenseID
 reading the package's own `LICENSE` file does not make it Pitloom's opinion;
 and a per-call-site flag -- the label already says whose record it is, and
 one rule keeps every surface in step. The Hugging Face repository's
@@ -292,11 +292,11 @@ model's package), and a model card's licence enrichment records
 A library caller's `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense`: the caller named the slot.
 
-## Known deviation: names `licenseid` cannot pin stay text
+## Known deviation: names LicenseID cannot pin stay text
 
 A licence name that names several licences or none (a classifier's
 `BSD License`) is recorded as `SimpleLicensingText`, though the spec reserves
-it for a licence not on the SPDX List. A name `licenseid` reads as one id
+it for a licence not on the SPDX List. A name LicenseID reads as one id
 (`MIT License`, `Apache 2.0`) is that id since #359.
 
 ## Dependency cascade: NoAssertion is weak

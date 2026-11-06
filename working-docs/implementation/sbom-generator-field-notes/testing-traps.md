@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-03
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -113,12 +113,12 @@ Ways a test passes, fails or floods the log for the wrong reason.
   Do: build the real object (`importlib.metadata.PathDistribution` over a
   `.dist-info` written in `tmp_path`) and patch only the lookup.
 - **A narrowed `except` is untested until the dependency really fails.**
-  #289 caught only `DatabaseNotReadyError` from `licenseid` 0.4.2; CI was
+  #289 caught only `DatabaseNotReadyError` from LicenseID 0.4.2; CI was
   green, but only mocks raised it. The new tests copy the real database
   into `tmp_path` and damage it after the matcher is built (delete,
   truncate, zero the 4 KiB header, drop one table): one `WARNING:`, no
   licence, a working lookup once the file is restored, and a deleted file
-  never re-created. On `licenseid` 0.4.1 all four fail, so they also
+  never re-created. On LicenseID 0.4.1 all four fail, so they also
   enforce the version floor. A table of hostile inputs on a healthy
   database (FTS operators, NUL, a lone surrogate, SQL injection, 100,000
   characters) must neither warn nor rebuild the matcher; it found the

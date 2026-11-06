@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,9 +48,9 @@ file-size guidance -- moved verbatim, no content changed.
   that call it are about 24 % of Windows test time and reach the network
   on every call. Fix belongs in spdx3-validate (offline validation); then
   pin it in the `test` group. Same remedy as the network-retry item below.
-- [ ] **`licenseid` matching speed** -- 0.7-1.4 s per licence file
+- [ ] **LicenseID matching speed** -- 0.7-1.4 s per licence file
   locally, about 12 % of Windows test time (licence-corpus tests).
-  Upstream, in `licenseid`.
+  Upstream, in LicenseID.
 - [ ] **macOS straggler (low)** -- the two 20 s build-timeout tests start
   late on 3 workers; scheduling them first would save about 10 s there
   (not the critical path).

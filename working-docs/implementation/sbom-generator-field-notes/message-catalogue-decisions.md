@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -210,7 +210,7 @@ repository.
   -841, 58226bda to 23c1dcab), against about 4,900 lines added by the
   PR's first two commits. The
   maintainer took the recommendations in one sentence ("go with your
-  recommendations") and kept SARIF and `licenseid` codes to room only.
+  recommendations") and kept SARIF and LicenseID codes to room only.
 - **The applying agent.** *Session record:* one agent applied the review
   with 408 tool calls in about 2.5 hours. The branch's commits run from
   414d89a7 (19:25 UTC, 2026-10-29) to 23c1dcab (21:56), which agrees.

@@ -5,7 +5,7 @@
 
 """Classify a licence value as an SPDX expression, licence text,
 ``NOASSERTION`` or ``NONE``, in canonical form, with the provenance notes
-that record a rewrite. ``licenseid`` reads every expression; this module
+that record a rewrite. LicenseID reads every expression; this module
 keeps Pitloom's own rules around it: the named individuals, the values too
 long or on several lines to read, the warnings.
 
@@ -97,7 +97,7 @@ def _replace_surrogates(raw: str, warn: bool) -> str:
 
 def _looks_like_expression(stripped: str) -> bool:
     """Whether *stripped* has an operator (any case) or parenthesis and a
-    word ``licenseid`` reads as a licence id (:func:`~pitloom.extract.\
+    word LicenseID reads as a licence id (:func:`~pitloom.extract.\
 _license_resolve.is_licence_id`; a ``+`` after it left out)."""
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
     if not ("(" in cased or ")" in cased or _EXPRESSION_OPERATOR_RE.search(cased)):
@@ -127,7 +127,7 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
 
     The words ``UNKNOWN``, ``NOASSERTION`` and ``NONE`` match in any case. A
     single-line value of at most :data:`_MAX_EXPRESSION_LENGTH` characters
-    in which ``licenseid`` reads an expression is recorded as that
+    in which LicenseID reads an expression is recorded as that
     expression, in its canonical form (``mit and apache-2.0`` ->
     ``Apache-2.0 AND MIT``, ``LGPL-2.0+`` -> ``LGPL-2.0-or-later``,
     ``Apache2`` -> ``Apache-2.0``, ``MIT License`` -> ``MIT``; see
@@ -145,7 +145,7 @@ def _classify(
     raw: str | None, warn: bool, field: str | None = None
 ) -> tuple[ClassifiedLicense | None, str]:
     """:func:`classify_license` and, for text, why it is not an expression
-    (one line); ``""`` for any other kind. A value ``licenseid`` re-spells
+    (one line); ``""`` for any other kind. A value LicenseID re-spells
     is said once (:func:`~pitloom.extract._license_resolve.say_resolved`)
     when it is recorded: *warn*, or the *field* it was read from is given."""
     if raw and _SURROGATE_RE.search(raw):
@@ -172,7 +172,7 @@ def _expression_or_text(
     stripped: str, raw: str, warn: bool, field: str | None
 ) -> tuple[ClassifiedLicense, str]:
     """The reading of the single-line *stripped* value: the expression
-    ``licenseid`` reads in it (said once when it differs from *stripped* and
+    LicenseID reads in it (said once when it differs from *stripped* and
     the value is recorded: *warn*, or a *field* is given), else text with
     why it is not one."""
     resolved = resolve_value(stripped)
@@ -248,7 +248,7 @@ def tag_license_normalization(
 def tag_deprecated_license_ids(provenance: str, expression: str) -> str:
     """Append a note to *provenance* for each deprecated id of *expression*
     whose successors are ambiguous (``GPL-2.0 (GPL-2.0-only or
-    GPL-2.0-or-later)``, as ``licenseid`` names them). The id itself is kept
+    GPL-2.0-or-later)``, as LicenseID names them). The id itself is kept
     as written."""
     resolved = resolve_value(expression)
     if resolved is None or not resolved.deprecated:

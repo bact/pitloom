@@ -307,7 +307,7 @@ Pitloom reads it.
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
 skipped` (once per run; the reason ends `run 'licenseid update'` when the file
-is missing or empty): the `licenseid` SPDX database is missing or empty, so the
+is missing or empty): the LicenseID SPDX database is missing or empty, so the
 preflight was skipped or failed. No `LICENSE` text is matched to an id, so the
 SBOM is thinner; a declared value is still read (`Apache2` as `Apache-2.0`,
 from the SPDX License List the `licenseid` wheel ships, 0.23.0 and later).
@@ -320,16 +320,16 @@ only the `LICENSE` file is not matched.
 directory; pass --db -- license text detection skipped` (always a `WARNING:`,
 declared licence or not): the account has no home directory (`HOME`, or
 `USERPROFILE` on Windows, is blank, or unset with no account entry), so
-`licenseid` cannot find its database, and `licenseid update` fails the same
+LicenseID cannot find its database, and `licenseid update` fails the same
 way. `loom` has no `--db` option: tell the
 user to run it with a home directory set. A declared licence is still read.
 
-`WARNING: licenseid: <subject>: <condition>...` is a warning of `licenseid`
+`WARNING: licenseid: <subject>: <condition>...` is a warning of LicenseID
 itself, relayed once per run. `WARNING: licenseid: database: build v2 outdated:
 current v3; run 'licenseid update'`: the database was built by an older
-`licenseid`; detection still runs. Rebuild it with the preflight command and
+LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
-GPL-2.0-only` is a guess `licenseid` made while detecting a licence file's
+GPL-2.0-only` is a guess LicenseID made while detecting a licence file's
 text (a bare deprecated id in an `SPDX-License-Identifier` tag): report it
 with the licence it concerns.
 
@@ -356,7 +356,7 @@ WARNING: LICENSE='MIT OR': not a valid SPDX license expression (parse failed: Un
 
 Fix the source value to get a `LicenseExpression`.
 
-A single-line value `licenseid` (`resolve`) reads as one licence (`Apache2`,
+A single-line value LicenseID (`resolve`) reads as one licence (`Apache2`,
 `MIT License`, `GPLv2+`, a `License ::` classifier's name), or as several
 joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`), is recorded as that id
 (`Apache-2.0`, `MIT`, `GPL-2.0-or-later`, `Apache-2.0 OR MIT`), with one
@@ -367,7 +367,7 @@ licence element's provenance `comment`: `Normalized-From: <value as written>`,
 later": `MIT or later` is `MIT+`), and `Tool: licenseid==<version>`. A change
 of case or `+` alone (`mit`, `GPL-2.0+`) has no `Method` or `Resolution-1`
 and no `INFO:` (`Normalized-From` and `Tool`, a `+` also `Expansion-1`). A
-value `licenseid` refuses stays text, with no `INFO:`: a stray mark
+value LicenseID refuses stays text, with no `INFO:`: a stray mark
 (`-MIT`, `MIT -`, `MIT...`), a list number (`1. MIT`), a comment word
 (`REM MIT`) or a plus after a space (`GPLv3 +`). Report the line; the result
 is the resolver's reading, not the author's words:
@@ -377,7 +377,7 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 INFO: LICENSE='MIT License': read as MIT (listed_name)
 ```
 
-`licenseid` is the only reader of a declared value, so every rewrite names
+LicenseID is the only reader of a declared value, so every rewrite names
 it (`Tool: licenseid==<version>`), a change of case too. A deprecated id the
 author re-spelt (`GPLv3`, `LGPL v3`) is read as that id (`GPL-3.0`), never
 as `-only` or `-or-later`; a bare one (`GPL-2.0`) stays as written. Both get
@@ -389,7 +389,7 @@ that holds an SPDX expression only (`operator not stated: ;`).
 
 A field that holds an SPDX expression only (`project.license` string,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
-GGUF `general.license`) whose value is not one and `licenseid` reads as none
+GGUF `general.license`) whose value is not one and LicenseID reads as none
 (`Acme-Terms`, `MIT OR Foo`, `BSD`) is kept as text, with one line
 per value naming the field:
 

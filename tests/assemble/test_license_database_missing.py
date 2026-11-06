@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A missing licenseid database costs a stated licence only the licence-file
+"""A missing LicenseID database costs a stated licence only the licence-file
 check: said once at ``INFO:``. Any other case still warns.
 
 See also: :mod:`tests.assemble.test_license_database` (a database that

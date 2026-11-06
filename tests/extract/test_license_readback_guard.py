@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Guard: every expression Pitloom records is one ``licenseid`` reads back as
+"""Guard: every expression Pitloom records is one LicenseID reads back as
 itself, as written, with nothing decided: a recorded value is canonical, so a
 second reading (a merge, an enrichment fragment, a later run on the SBOM)
 cannot change it or credit a resolver with it.
 
-``licenseid`` is the only reader of a declared value; this test holds its
+LicenseID is the only reader of a declared value; this test holds its
 answers to the one property Pitloom relies on, with no second parser.
 
 See also: tests/extract/license_classify_cases.py.

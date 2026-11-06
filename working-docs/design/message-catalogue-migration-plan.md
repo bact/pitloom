@@ -14,7 +14,7 @@ See also: [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
 [licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md).
 
 Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
-`licenseid` 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
+LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
 `over-cap` (#396), the model-stub causes (#404, PR 1a), unreadable files and
 directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
 and 1c (#446). Left: PR 4 onward and T14, all 0.24.0. This file is the
@@ -38,7 +38,7 @@ The grammar ratchet keeps new uncoded messages out
 
 0.22.1 shipped on 2026-11-03 (#413 to #433). 0.23.0 is cut early:
 
-- **0.23.0**: the `licenseid` 0.7.0 adoption (built, #437 to #440), the
+- **0.23.0**: the LicenseID 0.7.0 adoption (built, #437 to #440), the
   adoption's final gate (stage E), this plan's refresh, PR 2b and PRs 1b and
   1c. The ratchet falls from 498 to 469 (2b: 10, #444; 1b: 19, #446).
 - **0.24.0**: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to
@@ -117,7 +117,7 @@ Differences from the plan, by measurement:
   4 11, 6 1, 12 1, 16 1, 17 1). The warning relay of the adoption
   (`extract/_licenseid_relay.py:81`, `say`) is a passthrough site too, but
   the scope rule leaves out a template that is only `%s`, so it adds no count.
-  It says `licenseid`'s own message after the sub-prefix `licenseid:`; PR 18
+  It says LicenseID's own message after the sub-prefix `licenseid:`; PR 18
   decides whether that line carries a code.
 - 2b moves the lone-surrogate helper into `pitloom.messages` (decision K): its
   six callers then count as coded, while `logging_config.py` is out of scope,
@@ -189,7 +189,7 @@ entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
   (#402); a direct-URL dependency was looked up on PyPI by name (#405); a
   package key without a version gave every release one id (#407); an
   unreadable project file was logged with the raw exception (#408).
-- 0.23.0 (with the `licenseid` adoption, merged as #437 to #440): the
+- 0.23.0 (with the LicenseID adoption, merged as #437 to #440): the
   Hatchling hook finds no licence database in an isolated build. Fixed in
   #437: a declared value needs none.
 - To re-check against the merged adoption (stage E sweep, else T14 in 0.24.0):

@@ -3,9 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A ``licenseid`` warning given as when Pitloom calls ``licenseid``.
+"""A LicenseID warning given as when Pitloom calls LicenseID.
 
-``licenseid`` attributes its warning to the module of the code that called
+LicenseID attributes its warning to the module of the code that called
 it, skipping its own frames, and the relay's filter takes only a warning of
 a ``pitloom`` module (:mod:`pitloom.extract._licenseid_relay`). A test
 module is neither, so a function of the test runs here as the code of

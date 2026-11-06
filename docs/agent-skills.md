@@ -50,7 +50,7 @@ The three Skills refer to each other, so install all three together.
 (pip, `uvx` or `pipx`). The Skills follow the development version, whose
 commands and messages can be newer than the last release; the licence
 readings and message codes they quote are those of 0.23.0. Before the first
-run that reads licences, `sbom-generate` builds the `licenseid` 0.7 database
+run that reads licences, `sbom-generate` builds the LicenseID 0.7 database
 (`licenseid update --source packaged`, no network). Network access is needed
 to install `pitloom` and, at run time, for PyPI and Hugging Face lookups. AI
 model files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and

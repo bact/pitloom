@@ -217,7 +217,7 @@ All fixed; most change SBOM output.
   so `config.tools` stays empty. Found while adding the unknown-key
   warning.
 - [x] **Licence detection picks a near-variant or misses MIT (S).** Fixed by
-  #286. `licenseid` alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
+  #286. LicenseID alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
   requests' verbatim `LICENSE`, `Xnet` over `MIT` on PyYAML's (two notice
   lines first), `JSON` over `MIT` on wcwidth's. Now: the text is also read
   without its copyright notices, a stated licence wins a near-tie (0.01),
@@ -311,7 +311,7 @@ generated, #350 the Spaces note). PR #346 holds the version bump, CHANGELOG,
 coverage snapshots and the release review (CHANGELOG against the code, user
 docs and skills, working-docs and comments). Before the tag: merge #346, tag
 v0.21.0, publish to PyPI. After it: Lumina pins `pitloom==0.21.0` (it takes
-`licenseid` 0.6.0 through Pitloom's floor), then adds its non-GitHub examples.
+LicenseID 0.6.0 through Pitloom's floor), then adds its non-GitHub examples.
 See [release-checklist.md](release-checklist.md). Released 2026-10-28
 (v0.21.0); v0.21.1 (#364-#366) followed the same day.
 
@@ -465,7 +465,7 @@ section.
   end in a `[code]`: Git LFS pointers, size caps, why a model was not read,
   unreadable files and directories. See
   [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md).
-- [x] **`licenseid` cap** (#401): `>=0.6.0,<0.7` until the 0.7 adoption.
+- [x] **LicenseID cap** (#401): `>=0.6.0,<0.7` until the 0.7 adoption.
 - [x] **Serious bugs** (#402, #405, #407): a non-UTF-8 name no longer stops
   generation, a `:` in provenance text is a note, a direct-URL dependency is not
   looked up on PyPI by name.
@@ -511,10 +511,10 @@ Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
 its [0.24.0](../design/roadmap.md#0240-message-catalogue-and-licence-provenance)
 section.
 
-- [x] **`licenseid` 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
-  declared licence value is read by `licenseid` alone, from its packaged SPDX
+- [x] **LicenseID 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
+  declared licence value is read by LicenseID alone, from its packaged SPDX
   License List, with no licence database (the Hatchling hook's isolated build
-  included); `py-spdx-license` dropped; `licenseid` warnings relayed as one
+  included); `py-spdx-license` dropped; LicenseID warnings relayed as one
   line; rewrites cite `Tool: licenseid==V`. See
   [licenseid/adoption-built.md](licenseid/adoption-built.md) and the
   plan, [licenseid/adoption-plan.md](licenseid/adoption-plan.md).

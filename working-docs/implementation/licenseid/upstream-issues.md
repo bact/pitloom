@@ -46,7 +46,7 @@ a hook; **edge** = unusual input.
 The text below is ready to paste. Headings are one level lower than in the
 issue.
 
-## licenseid 0.7.0 and 0.7.1: findings from the Pitloom adoption
+## LicenseID 0.7.0 and 0.7.1: findings from the Pitloom adoption
 
 Pitloom 0.23.0 adopts `licenseid>=0.7.0,<0.8` (Pitloom PRs #437, #440). The
 points below were found on 0.7.0 and **all still reproduce on 0.7.1** (PyPI
@@ -128,7 +128,7 @@ LicenseDetector("/nonexistent/licenses.db")
   CLI flag `--db`. The action `run 'licenseid update'` fetches from the
   network (`compact` source); the offline fix is `licenseid update --source
   packaged`, which is what a caller with no network needs. Pitloom's own line
-  says `--source packaged` next to licenseid's `run 'licenseid update'`, so a
+  says `--source packaged` next to LicenseID's `run 'licenseid update'`, so a
   user sees two different commands for one problem. Suggest naming the
   offline command, or both.
 
@@ -202,7 +202,7 @@ for v in ["GPL-3.0", "GPLv3", "MIT"]:
   the same for `GPLv3`; `MIT exact identity []`.
 - Observation: an `assumed_only` answer has an expression but `trust: none`.
   A caller must special-case the category to learn that the expression is the
-  author's deprecated id and not a reading licenseid stands behind. A short
+  author's deprecated id and not a reading LicenseID stands behind. A short
   section in the README on what to do with each `trust` value (record,
   record with a note, do not record) would remove the guesswork; or a
   boolean such as `decided` on the Resolution.
@@ -216,7 +216,7 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
 
 - Actual: `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also `MIT License`, `Apache2`,
   `GPLv3`); one entry, `py-spdx-license 0.0.1`, for `MIT OR Apache2`.
-  `licenseid` 0.7.0 and 0.7.1 require `py-spdx-license<0.1,>=0.0.1`.
+  LicenseID 0.7.0 and 0.7.1 require `py-spdx-license<0.1,>=0.0.1`.
 - Expected: either the components that took part in every answer, or a
   documented rule for when the list is filled. A caller that cites the tools
   behind a reading (Pitloom writes `Tool: licenseid==0.7.1`) cannot cite the

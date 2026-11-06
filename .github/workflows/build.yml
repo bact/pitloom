@@ -183,7 +183,7 @@ jobs:
 
       - name: Check SBOM licence
         # Same gate as pypi-publish.yml, which fails a release on it. Like
-        # that job, this one has no licenseid database, so the concluded
+        # that job, this one has no LicenseID database, so the concluded
         # licence must come from CITATION.cff/codemeta.json, not LICENSE
         # text detection -- a PR that drops it fails here, not at release.
         id: license

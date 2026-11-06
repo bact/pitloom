@@ -8,7 +8,7 @@ reader: every answer with an expression is recorded (``Apache2`` is
 ``Apache-2.0``, ``GPLv3`` is ``GPL-3.0``), how it is said (``INFO:`` once,
 the provenance keys), and what stays text (several licences, a compound
 with an unreadable part, a character the resolver drops). The reading uses
-the SPDX License List packaged with ``licenseid``: no database.
+the SPDX License List packaged with LicenseID: no database.
 
 See also: tests/extract/test_license_spdx_only_fields.py (the warning for a
 value nothing reads) and docs/metadata-provenance-licences.md.
@@ -148,7 +148,7 @@ def test_a_plus_after_a_respelling_is_an_expansion_apart_from_it() -> None:
 def test_a_change_of_form_names_licenseid_and_no_decision(
     raw: str, normalized: str, expansion: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``licenseid`` did the rewrite, so ``Tool`` names it; it decided nothing
+    """LicenseID did the rewrite, so ``Tool`` names it; it decided nothing
     beyond form and ``+``, so there is no ``Method`` or ``Resolution-1``, and
     nothing is said above ``DEBUG:``."""
     tool = f"licenseid=={licenseid_resolve('MIT')['resolver']['version']}"
@@ -186,7 +186,7 @@ def test_a_respelling_beside_a_change_of_form_is_still_a_decision(
 
 
 def _answer(category: str, operand: str = "MIT") -> Any:
-    """A ``licenseid`` answer of *category*, with one applied step and one
+    """A LicenseID answer of *category*, with one applied step and one
     that was declined, read from one *operand* of that category."""
     steps = [
         {"kind": "trim", "applied": False},
@@ -247,7 +247,7 @@ def test_only_a_decision_beyond_form_is_said_at_info_and_noted(
 
 
 def test_the_answer_is_recorded_as_licenseid_gives_it() -> None:
-    """No second parser checks the answer: ``licenseid`` is the only reader."""
+    """No second parser checks the answer: LicenseID is the only reader."""
     answer = _answer("separator") | {"expression": "Not-A-Listed-Id"}
     with patch("pitloom.extract._license_resolve.resolve", return_value=answer):
         got = classify_license("Apache 2.0+", warn=False)

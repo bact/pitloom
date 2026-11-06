@@ -47,7 +47,7 @@ def _requires_python_equal(a: str, b: str) -> bool:
 
 def _license_equal(a: str, b: str) -> bool:
     """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
-    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``: ``licenseid`` reads each
+    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``: LicenseID reads each
     as its id; a deprecated id's List name is that id too:
     :func:`pitloom.extract._license_names.same_licence`, the rule the
     declared vs concluded check uses).

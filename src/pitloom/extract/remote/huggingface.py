@@ -24,7 +24,7 @@ Sources used (all optional - missing files are silently skipped):
 Standard fields populated:
 
 * ``name``, ``description``, ``license`` - from model ID, model card, and
-  license-file detection via the ``licenseid`` library
+  license-file detection via the LicenseID library
 * ``originators``, ``supplier`` - the repository owner (``model_info()``
   ``author``)
 * ``parameter_count`` - ``safetensors.total``, else ``gguf.total``
@@ -50,7 +50,7 @@ Extension slots populated:
   (``hf.tags``), arXiv paper IDs (``hf.arxiv``)
 
 Requires ``huggingface_hub`` (``pip install pitloom[huggingface_hub]``).
-License detection uses ``licenseid`` (a core dependency) with an up-to-date
+License detection uses LicenseID (a core dependency) with an up-to-date
 database (``licenseid update --source packaged``).
 
 See also: this module is a thin facade. Fetching raw Hugging Face Hub data

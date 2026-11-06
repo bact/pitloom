@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -231,7 +231,7 @@ now name checker `151460c`.
 
 ## Database-less builds
 
-`licenseid` canonicalises licence IDs when its database exists (CI builds it)
+LicenseID canonicalises licence IDs when its database exists (CI builds it)
 and changes the SBOM text. The scenarios build as if it were absent
 (`g7ai_shared.without_licence_database`), so the table is the same on a
 laptop and in CI.
