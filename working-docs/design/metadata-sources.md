@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-21
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -203,8 +203,9 @@ should use the same subprocess approach, not in-process `ProjectBuilder`.
 
 ## Recommended metadata source priority for pitloom
 
-**Correction (see `working-docs/design/installed-dist-info-source.md`):**
-"installed `.dist-info`/`.egg-info`" is not one source ranked strictly
+**Correction (see
+`working-docs/implementation/installed-dist-info-source.md`):** "installed
+`.dist-info`/`.egg-info`" is not one source ranked strictly
 above `pyproject.toml`/`setup.cfg`/`setup.py` -- it splits into two
 genuinely different things with two different priority rules:
 
@@ -218,12 +219,12 @@ genuinely different things with two different priority rules:
   resolved) -- on a genuine disagreement, the static source stays
   authoritative and the disagreement is recorded as an SPDX G2 conflict
   Annotation, never silently substituted. See
-  `working-docs/design/installed-dist-info-source.md`.
+  `working-docs/implementation/installed-dist-info-source.md`.
 - **Real installed dist-info** (a venv's `site-packages/<name>-<version>.dist-info/`,
   the record any `pip install` -- editable or not, any backend -- actually
   produces) -- **deferred**, not yet built. See "Deferred: real installed
   dist-info (site-packages)" in
-  `working-docs/design/installed-dist-info-source.md`.
+  `working-docs/design/installed-dist-info-site-packages.md`.
 
 Priority order for project metadata resolution:
 

@@ -11,7 +11,7 @@ field-agreement check and the declared vs concluded check share.
 It reads no expression in the List name of 14 deprecated ids
 (``GNU Free Documentation License v1.3`` for ``GFDL-1.3``), and its public
 API gives no List name for an id: those names are kept here, as the SPDX
-License List packaged with ``licenseid`` spells them.
+License List packaged with LicenseID spells them.
 ``tests/extract/test_license_names.py`` fails when that list or the
 resolver's reading of a name changes.
 
@@ -27,7 +27,7 @@ from types import MappingProxyType
 from typing import Final
 
 #: The List name, case folded, of each deprecated id whose name
-#: ``licenseid.resolve`` reads no expression in (``licenseid`` 0.7.0 to 0.7.1,
+#: ``licenseid.resolve`` reads no expression in (LicenseID 0.7.0 to 0.7.1,
 #: SPDX License List 3.29.0), to that id.
 UNREAD_LISTED_NAMES: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -75,7 +75,7 @@ UNREAD_LISTED_NAMES: Final[Mapping[str, str]] = MappingProxyType(
 
 def _is_unread_listed_name(name: str, license_id: str) -> bool:
     """Whether *name* is the List name of the deprecated id *license_id*
-    that ``licenseid`` does not read, in any case."""
+    that LicenseID does not read, in any case."""
     return UNREAD_LISTED_NAMES.get(name.strip().casefold()) == license_id
 
 

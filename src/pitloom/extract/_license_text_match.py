@@ -3,17 +3,17 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Licence text detection with ``licenseid``'s detector.
+"""Licence text detection with LicenseID's detector.
 
 :func:`detect_license_from_text` names the SPDX licence a text is, from the
-licenseid database: built once per process (:func:`_get_detector`), warned
+LicenseID database: built once per process (:func:`_get_detector`), warned
 about once when it cannot be used (:func:`_database_unusable`), and read
 with the stated licence winning a near-tie. Build the database before first
 use::
 
     licenseid update --source packaged
 
-Every ``licenseid`` call runs inside
+Every LicenseID call runs inside
 :func:`pitloom.extract._licenseid_relay.relay_licenseid_warnings`.
 
 See also: :mod:`pitloom.extract._license` (licence files and a stated
@@ -51,7 +51,7 @@ def _get_detector() -> LicenseDetector:
     """Return a process-wide shared detector instead of one per lookup --
     each construction opens a sqlite3 connection, wasteful at project scale.
     A failed construction raises and is not cached: :func:`_detector` retries
-    it on the next lookup. What ``licenseid`` warns while building it (a
+    it on the next lookup. What LicenseID warns while building it (a
     database built by an older release) is relayed."""
     with relay_licenseid_warnings():
         return LicenseDetector()
@@ -76,7 +76,7 @@ def _database_missing(exc: BaseException) -> bool:
 
 
 def _missing_database_path(exc: BaseException) -> str:
-    """The path licenseid says it looked for (the detail of its ``not
+    """The path LicenseID says it looked for (the detail of its ``not
     found``), so a missing database names where Pitloom looked."""
     detail = exc.detail if isinstance(exc, DatabaseNotReadyError) else None
     return detail or ""
@@ -126,7 +126,7 @@ def _detector(*, declared: bool = False) -> LicenseDetector | None:
 _MIN_LICENSE_TEXT_LENGTH = 100
 """Below this length, *text* is a short label (e.g. ``"MIT License
 (MIT)"``, seen in real-world ``[project.license].text`` values), not an
-actual licence body -- similarity-matching it against ``licenseid``'s
+actual licence body -- similarity-matching it against LicenseID's
 database is unreliable at this length and can score a coincidental
 false positive above the match threshold. Every real SPDX license
 text is well over this length (0BSD, the shortest, is ~500 characters),
@@ -134,14 +134,14 @@ so this only ever excludes non-license-body input, never a genuine
 short license."""
 
 
-#: Two matches this close are a tie. ``licenseid`` ranks a near-variant of
+#: Two matches this close are a tie. LicenseID ranks a near-variant of
 #: a listed licence (``Pixar``, a modified Apache 2.0; ``JSON``, MIT plus one
 #: sentence) a few thousandths above the licence itself for its verbatim
 #: text; a different licence scores far lower. A *stated* licence wins a
 #: tie; with none stated, a tie is no detection.
 _STATED_TIE_MARGIN = 0.01
 
-#: The highest score ``licenseid`` (0.4 and later) gives: a capped score no
+#: The highest score LicenseID (0.4 and later) gives: a capped score no
 #: longer tells how far above the licence a near-variant scores.
 _SCORE_CAP = 1.0
 
@@ -151,7 +151,7 @@ _EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
 
 
 def _stated_ids(stated: str | None) -> frozenset[str]:
-    """The licence ids *stated* names, case-folded, as ``licenseid`` reads
+    """The licence ids *stated* names, case-folded, as LicenseID reads
     them (``MIT OR GPL-2.0+`` names ``MIT`` and ``GPL-2.0-or-later``), as
     written when it reads none; none for a licence text or name."""
     value = (stated or "").strip()
@@ -199,7 +199,7 @@ def _family(license_id: str) -> str:
 
 
 def _measured(value: object) -> float | None:
-    """*value* as a number; ``None`` where ``licenseid`` measured nothing
+    """*value* as a number; ``None`` where LicenseID measured nothing
     (0.4 gives ``None``, 0.3 always a number)."""
     return float(value) if isinstance(value, (int, float)) else None
 
@@ -218,7 +218,7 @@ def _fits_worse(runner_up: Detection, top: Detection) -> bool:
     """Whether *runner_up* fits the input measurably worse than *top*
     (:func:`_fit`): its similarity, or the share of its licence the input
     holds, more than :data:`_STATED_TIE_MARGIN` below *top*'s. A score alone
-    cannot tell: ``licenseid`` caps it to 1, where ``MIT`` verbatim and
+    cannot tell: LicenseID caps it to 1, where ``MIT`` verbatim and
     ``FSL-1.1-MIT``, which holds the MIT text as a quarter of its own, both
     score 1. Unmeasured, it does not."""
     return any(
@@ -232,7 +232,7 @@ def _decisive(results: Sequence[Detection], threshold: float) -> str | None:
     licence family scores within :data:`_STATED_TIE_MARGIN` of it (a
     runner-up below *threshold* counts) without fitting the input
     measurably worse (:func:`_fits_worse`). Equal scores keep
-    ``licenseid``'s own ranking order."""
+    LicenseID's own ranking order."""
     if not results:
         return None
     ranked = sorted(results, key=lambda r: -float(r["score"]))
@@ -253,7 +253,7 @@ def _decisive(results: Sequence[Detection], threshold: float) -> str | None:
 def _readings(detector: LicenseDetector, text: str) -> list[list[Detection]]:
     """*detector*'s ranked matches for *text* as written and, when it has
     copyright notice lines (:data:`COPYRIGHT_NOTICE_LINE_RE`, templates
-    too), without them: ``licenseid`` uses a notice to place the licence in
+    too), without them: LicenseID uses a notice to place the licence in
     mixed content, yet misses some licences behind one (PyYAML's two notice
     lines give ``Xnet``, not ``MIT``)."""
     with relay_licenseid_warnings():
@@ -295,7 +295,7 @@ def _best_reading_decides(
 def detect_license_from_text(
     text: str, threshold: float = 0.85, *, stated: str | None = None
 ) -> str | None:
-    """Detect SPDX License ID from *text* using the licenseid library.
+    """Detect SPDX License ID from *text* using the LicenseID library.
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database cannot be used, *text* is too short to be a
@@ -324,7 +324,7 @@ def detect_license_from_text(
                 return chosen
         return _best_reading_decides(readings, threshold)
     # The database failed after the detector was built (deleted, truncated,
-    # corrupted): licenseid raises this for any failed read.
+    # corrupted): LicenseID raises this for any failed read.
     except DatabaseNotReadyError as exc:
         _database_unusable(exc, declared=declared)
         return None

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,12 +8,18 @@ SPDX-License-Identifier: CC0-1.0
 
 # Non-Hatchling file discovery (feature parity)
 
-See also: [roadmap.md](roadmap.md) (Open follow-ups by area:
-"File discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
+Status: built 2026-09-15 (static rescans for setuptools, Poetry, PDM-backend
+and Flit-core; `--allow-build` for the rest), shipped in 0.18.0. The open
+follow-ups moved to
+[non-hatchling-file-discovery-followups.md](../design/non-hatchling-file-discovery-followups.md).
+
+See also: [roadmap-completed.md](roadmap-completed.md) ("Backend-agnostic
+file discovery"), [roadmap.md](../design/roadmap.md) (Open follow-ups by
+area: "File discovery"), [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)
 (the mechanism and why this stays a static-config read for every backend,
-never a build), [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
+never a build), [backend-file-discovery-validation.md](backend-file-discovery-validation.md)
 (real-world validation method and results so far),
-[allow-build-timeout.md](../implementation/allow-build-timeout.md) (why
+[allow-build-timeout.md](allow-build-timeout.md) (why
 the build-and-read mechanism below runs as a killable subprocess tree
 with a `--build-timeout`, not an in-process, unbounded build).
 
@@ -60,7 +66,7 @@ Confirmed by direct testing before the fix:
   the SBOM. `loom embed-wheel --project-dir` is safer -- its
   `_merge_file_extras` step already keeps the real wheel's file
   list/hashes as truth (see the Merkle root item in
-  [roadmap.md](roadmap.md)'s Build backend improvements section), so
+  [roadmap.md](../design/roadmap.md)'s Build backend improvements section), so
   only `--content-type`/`--extract-file-header` enrichment silently
   fails to attach per mismatched file, degrading gracefully rather
   than corrupting the SBOM.
@@ -79,7 +85,7 @@ heuristics.
 one and Hatchling's) is checked against at least 10 diverse real
 PyPI packages -- not just synthetic fixtures -- before being
 considered production-ready; see
-[backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
+[backend-file-discovery-validation.md](backend-file-discovery-validation.md)
 for the method and the setuptools/Hatchling results so far. Apply the
 same bar to each backend below as it's implemented.
 
@@ -190,9 +196,9 @@ projects, implementation size, and reuse leverage across backends:
 
 | # | Backend | Track | Why this order |
 | :-- | :--- | :--- | :--- |
-| 1 | setuptools | A | **Done (2026-08-27).** Was the single most-installed backend with no dedicated support; now resolved via `setuptools.config.pyprojecttoml`/`setupcfg` + `build_py` introspection (`src/pitloom/core/_models_wheel_setuptools.py`). See [setuptools-support.md](../implementation/setuptools-support.md). |
+| 1 | setuptools | A | **Done (2026-08-27).** Was the single most-installed backend with no dedicated support; now resolved via `setuptools.config.pyprojecttoml`/`setupcfg` + `build_py` introspection (`src/pitloom/core/_models_wheel_setuptools.py`). See [setuptools-support.md](setuptools-support.md). |
 | 2 | Poetry | A | **Done (2026-08-31).** Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model -- resolved by delegating to poetry-core's own `WheelBuilder.find_files_to_add()` (`src/pitloom/core/_models_wheel_poetry.py`), the same delegate-to-the-real-library pattern as Hatchling's module (poetry-core is fully declarative, unlike setuptools). Also gained `poetry.lock`-resolved transitive dependencies (source-stage only) as an additional parity item beyond the original file-discovery scope. |
-| 3 | PDM-backend, Flit-core | A | **Done (2026-09-02).** Both PEP 621-native and declarative -- resolved via `Builder.get_files()`/`WheelBuilder._collect_files()` for PDM-backend (`src/pitloom/core/_models_wheel_pdm.py`) and `flit_core.common.Module.iter_files()` for Flit-core (`src/pitloom/core/_models_wheel_flit.py`), the same delegate-to-the-real-library pattern as Poetry's module. Also closed the paired "PDM / Flit extractors" metadata item from Medium-term in the same pass (`pitloom.extract.project.pdm`/`flit`, dynamic `version`/`description` resolution). See [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md)'s Flit-core/PDM-backend round. |
+| 3 | PDM-backend, Flit-core | A | **Done (2026-09-02).** Both PEP 621-native and declarative -- resolved via `Builder.get_files()`/`WheelBuilder._collect_files()` for PDM-backend (`src/pitloom/core/_models_wheel_pdm.py`) and `flit_core.common.Module.iter_files()` for Flit-core (`src/pitloom/core/_models_wheel_flit.py`), the same delegate-to-the-real-library pattern as Poetry's module. Also closed the paired "PDM / Flit extractors" metadata item from Medium-term in the same pass (`pitloom.extract.project.pdm`/`flit`, dynamic `version`/`description` resolution). See [backend-file-discovery-validation-flit-pdm.md](backend-file-discovery-validation-flit-pdm.md)'s Flit-core/PDM-backend round. |
 | 4 | Build-and-read fallback | (mechanism) | **Done (2026-09-15).** Generic, backend-agnostic (`_models_wheel_build_and_read.py`), gated behind `--allow-build`; needs no per-backend name to dispatch on. Landed together with step 5, since `uv_build`'s only viable path was this mechanism. |
 | 5 | `uv_build` | A (via build-and-read) | **Done (2026-09-15).** `uv_build` (PyPI package `uv_build`) is a thin PEP 517 shim that shells out to a compiled `uv-build` binary via subprocess, with no in-process introspection API comparable to Hatchling's `WheelBuilder`. No existing logic to adapt for a hand-rolled rescan, so it resolves via the build-and-read mechanism (step 4) rather than a Track A rescan, despite files existing pre-build in principle. `uv_build` itself is never a Pitloom dependency (mandatory or optional) -- only `build` (PyPA), as the new optional `pitloom[build]` extra, is added; the isolated build environment installs `uv_build` from the *target* project's own `[build-system] requires`. |
 | 6 | `maturin`, `scikit-build-core` | B | Automatically covered by step 4's mechanism once each backend's own toolchain is available -- no further Pitloom code needed; not separately implemented in this pass. Tied -- both are surging in the AI/ML stack specifically (Rust-based tooling via PyO3 for `maturin`; CUDA/C++/Fortran extensions for `scikit-build-core`), and neither is meaningfully cheaper or more valuable than the other. |
@@ -223,95 +229,7 @@ relative to the process cwd, not the `Builder`'s `location`). `uv_build`
 (item #5) still needs the build-and-read mechanism (item #4) rather
 than this pattern.
 
-## Open follow-up tech debt (from PR #215's `--allow-build` review)
+## Open follow-ups
 
-The priority table above is closed for every backend, but the PR #215
-review that landed the build-and-read mechanism (item #4/#5) surfaced
-five smaller, independently-fixable follow-ups. None block the closed
-work above; each is its own reviewed change. The first, the blanket-except
-`WARNING:` duplicated across every backend discoverer, is done: all five
-(Hatchling included) call `warn_discovery_failed()` in
-`_models_wheel_types.py`, which also collapses a multi-line exception to
-one line. Four remain:
-
-- **Factor out the hand-rolled `tool` -> `tool.X` -> nested-table walk
-  repeated across 6+ modules** -- `has_uv_build_backend_overrides()`
-  (`_models_wheel_types.py`) reimplements the same isinstance-guarded
-  chain `_load_pitloom_tool_section()` and every `extract/project/*.py`
-  metadata producer (`poetry.py`, `pdm.py`, `setuptools_cfg.py`,
-  `pyproject.py`, `pyproject_dynamic.py`) already does independently --
-  the "pattern hand-copied across 3+ call sites drifts" class AGENTS.md
-  calls out by name. A shared `get_tool_table(data, *keys)`-style helper
-  would touch several stable, already-tested producer modules.
-- **`scripts/compare_allow_build.py` duplicates sdist extraction already
-  in `tests/fixtures/real_world.py`** -- `_extract_archive()`
-  reimplements `extract_sdist()`'s tar/zip-open, `filter="data"`,
-  single-top-level-dir logic, generalised to accept any archive path.
-  Dev-only script, not shipped code, no user-facing risk -- low priority.
-- **`--allow-build`-sourced files never match a `loom id
-  generate`-pinned registry entry** -- `IdRegistry.generate()` (`id_registry/_registry.py`)
-  keys every entry by physical, project-root-relative path; a
-  build-and-read-sourced `ProjectFile.physical_path` is an ephemeral
-  temp path instead, so neither of `_document_files.py`'s two lookup
-  attempts (`physical_path`, then `distribution_path`) can ever match a
-  pre-pinned entry for such a file -- a new spdxId is silently minted
-  instead. Harvest-to-harvest id stability (a normal `loom project` run
-  finding ids a *previous* `loom project` run wrote) is unaffected --
-  both write and read sides key by `distribution_path` there. Real fix
-  needs `_document_files.py`'s registry lookup to gain a third candidate
-  (`project_dir`-relative `distribution_path`, checked for existence),
-  which needs threading `project_dir` into a currently filesystem-free
-  assembly function -- a real design change, not a quick patch.
-  **Partially addressed** (2026-09-15, a later PR #215 review round): a
-  *separate* AI-model registry lookup, `_ai_package.py`'s
-  `_lookup_ai_model_entity`, was found with the identical hazard but no
-  guard at all -- it offered the raw ephemeral `physical_path` as its
-  only path-based candidate, guaranteed to never match anything, unlike
-  `_document_files.py`'s two-attempt (still-insufficient) lookup above.
-  Fixed by adding a `file_path_relative` fallback via the new shared
-  `pitloom.core.project.project_relative_or_fallback()` helper (also now
-  used by `_document_files.py`'s determinism fix and
-  `enrich._resolve_model_search_dir`, consolidating what had been three
-  independent inline implementations of the same "prefer a
-  project-relative stand-in over an absolute physical_path" check -- see
-  AGENTS.md's "Recurring bug patterns" section). This closes the
-  guaranteed-never-match case for AI models but does **not** fully solve
-  the general problem above: `file_path_relative` still won't match an
-  entry `loom id generate` pinned under the *original*
-  project-relative `physical_path` for a `src/`-layout project, so the
-  real fix (a third, existence-checked candidate) described above still
-  applies equally here.
-- **Real static `uv_build` discoverer for `[tool.uv.build-backend]`** --
-  validated empirically (2026-09-15, see
-  [allow-build-validation.md](../implementation/allow-build-validation.md#--allow-build-build-and-read-with-vs-without-2026-09-15))
-  that the Hatchling-heuristic fallback over-includes files a project's
-  own `wheel-exclude`/`wheel-include`/`module-name` directives in
-  `[tool.uv.build-backend]` would drop (15 extra files for the
-  rendercv-2.8 fixture, all correctly excluded by `--allow-build`'s real
-  build). `--allow-build` already closes this gap exactly, so this is a
-  precision improvement for the *default* (no-flag) path only --
-  parsing `[tool.uv.build-backend]` statically, the same shape of work
-  as the existing setuptools/Poetry/PDM/Flit modules. **Partially
-  addressed** (2026-09-15): the fallback's `WARNING:` now names this
-  specific divergence risk and points at `--allow-build` when
-  `wheel-exclude`/`wheel-include` is actually present
-  (`has_uv_build_backend_overrides()` in `_models_wheel_types.py`).
-  **Wider sweep** (2026-09-15, 9 more real packages, see
-  [allow-build-validation.md](../implementation/allow-build-validation.md#--allow-build-wider-sweep-9-more-real-uv_build-packages-2026-09-15))
-  found a second, more severe failure shape: a `module-name` that
-  doesn't match Hatchling's zero-config guess (django-model-import)
-  makes the fallback fail outright with zero files, not just
-  over-include -- already loudly `WARNING:`-logged, and a future real
-  discoverer would need to handle two distinct config schemas, not one:
-  `[tool.uv.build-backend]` (current) and an older flat
-  `[tool.uv_build]` (found on ffmpeg-normalize, currently invisible to
-  `has_uv_build_backend_overrides()` too, though no practical divergence
-  was observed for it).
-
-Also open:
-
-- setuptools gives an absolute `physical_path` for a project directory named
-  in another letter case (macOS, Windows; #257, in
-  [known-bugs.md](known-bugs/extraction-and-fragments.md#p3-after-0200)).
-- scikit-build-core is checked only through `--allow-build`
-  ([#61](https://github.com/bact/pitloom/issues/61)).
+The follow-ups the PR #215 review left open, and the other open items, are in
+[non-hatchling-file-discovery-followups.md](../design/non-hatchling-file-discovery-followups.md).

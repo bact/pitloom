@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,13 +8,15 @@ SPDX-License-Identifier: CC0-1.0
 
 # Readers that feed a dataset licence
 
-See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
-[g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md),
-[roadmap.md](roadmap.md),
-[g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
+See also: [roadmap-completed.md](roadmap-completed.md#g7-conformance-and-sha-512)
+(the shipped items), [g7-conformance-tests.md](g7-conformance-tests.md),
+[ai-dataset-linking.md](ai-dataset-linking.md),
+[g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md) (G7 DP-010),
+[g7-honesty-and-non-recordable.md](../design/g7-honesty-and-non-recordable.md),
+[roadmap.md](../design/roadmap.md).
 
-Status (2026-10-19): all three readers and the shared mapping are built (see
-[Built: readers 1 and 2](#built-readers-1-and-2) and
+Status: built 2026-10-19, shipped in 0.21.0 (#309): all three readers and the
+shared mapping (see [Built: readers 1 and 2](#built-readers-1-and-2) and
 [Built: reader 3](#built-reader-3)); licence lists and non-prose card
 descriptions ruled on and built (see
 [Built: licence lists and card descriptions](#built-licence-lists-and-card-descriptions)).
@@ -307,7 +309,7 @@ build hook never reads a Hub model.
 
 **Tables.** `hub`: G7 `DP-010`, CISA `COMP-006`/`COMP-008`, FSCT `COMP-002`,
 BSI `COMP-003` to `present` (see the increment note in
-[g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
+[g7-conformance-tests.md](g7-conformance-tests.md)).
 
 **Tests.** `tests/extract/remote/test_huggingface_dataset.py` (licence
 outcomes, every field, unstated fields, tag fallback, plain names and repeats,

@@ -29,7 +29,7 @@ Standalone SBOM artefact:
 Set up Python first: the action uses the Python on `PATH`. See
 [Python selection](#python-selection).
 
-To match `LICENSE` files, build the `licenseid` database before the action
+To match `LICENSE` files, build the LicenseID database before the action
 (the action installs only Pitloom; no network needed):
 
 ```yaml

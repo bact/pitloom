@@ -6,7 +6,7 @@
 """In-tree ``.egg-info``/``.dist-info`` as a supplementary project-metadata
 source (in-tree only: a build backend's editable-install byproduct left next
 to ``pyproject.toml``, not the installed record in a venv's
-``site-packages``; see ``working-docs/design/installed-dist-info-source.md``).
+``site-packages``; see ``working-docs/implementation/installed-dist-info-source.md``).
 
 Three concerns:
 
@@ -164,7 +164,7 @@ def _discover_candidate(
     dist-info-vs-egg-info tie-break ever runs, not after -- so a
     wrong-name ``.dist-info`` can never out-rank a correct-name
     ``.egg-info`` on format alone (see "Name/identity safety gate" in
-    ``working-docs/design/installed-dist-info-source.md``).
+    ``working-docs/implementation/installed-dist-info-source.md``).
 
     Silent when nothing was found at all in the initial glob (the normal,
     common case). Every candidate that *was* found but rejected (missing
@@ -248,7 +248,8 @@ def _parse_installed_metadata(
     that fails to parse (e.g. no comma) has no value worth gap-filling
     or comparing -- see :func:`_parse_installed_urls`'s own docstring.
 
-    Not extracted in V1 (see ``working-docs/design/installed-dist-info-source.md``):
+    Not extracted in V1 (see
+    ``working-docs/implementation/installed-dist-info-source.md``):
     ``License-File`` (no :class:`ProjectMetadata` field to fill: an SBOM
     does not list a distribution's own ``.dist-info`` files), ``authors``
     (collapsing PEP 621's structured ``project.authors`` list down to one

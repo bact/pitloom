@@ -7,7 +7,7 @@
 (:mod:`pitloom.core.warning_capture`), with blocks of two threads in each
 order.
 
-See also: tests/extract/test_licenseid_relay.py (the ``licenseid`` relay in
+See also: tests/extract/test_licenseid_relay.py (the LicenseID relay in
 one thread).
 """
 
@@ -105,7 +105,7 @@ def test_an_overlapping_foreign_block_takes_the_lookup_warnings_but_leaks_nothin
 ) -> None:
     """The limit the relay states: a ``catch_warnings(record=True)`` of
     other code, in another thread, entered while a lookup runs and left
-    after it, takes what ``licenseid`` warns meanwhile; once both are left,
+    after it, takes what LicenseID warns meanwhile; once both are left,
     a warning is shown again, not taken into a list nobody reads."""
     entered, lookup_left = threading.Event(), threading.Event()
     foreign: list[warnings.WarningMessage] = []
@@ -170,7 +170,7 @@ def test_a_lookup_waits_for_the_setuptools_relay(
 ) -> None:
     """A lookup begun inside the setuptools relay's block would put its
     filter into the filters that block throws away on exit: the host's
-    ``ignore`` would then drop what ``licenseid`` says."""
+    ``ignore`` would then drop what LicenseID says."""
     inside, tried, release, left = (threading.Event() for _ in range(4))
     monkeypatch.setattr(_licenseid_relay, "WARNINGS_LOCK", _SpyLock(tried))
 
@@ -199,7 +199,7 @@ def test_the_usage_parse_waits_for_a_lookup(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The usage scan's parse ignores every warning in its block; begun
-    while a lookup runs, it would drop what ``licenseid`` says meanwhile."""
+    while a lookup runs, it would drop what LicenseID says meanwhile."""
     tried, release = threading.Event(), threading.Event()
     monkeypatch.setattr(_usage_parse, "WARNINGS_LOCK", _SpyLock(tried))
 

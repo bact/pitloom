@@ -64,7 +64,7 @@ jobs:
             --sbom-filename "${SBOM_NAME}"
 
       - name: Check SBOM declares and concludes Apache-2.0
-        # This job has no licenseid database: if CITATION.cff and
+        # This job has no LicenseID database: if CITATION.cff and
         # codemeta.json lost their licence, the concluded licence would
         # fall back to licence-text detection and silently disappear.
         # Checks both the wheel's embedded copy and the extracted one

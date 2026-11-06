@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -84,8 +84,9 @@ is not kept in sync with post-ship changes.
   [wheel-verification-commands.md](wheel-verification-commands.md).
 - [x] **Backend-agnostic file discovery** (2026-09-15): static rescans for
   setuptools, Poetry, PDM-backend, Flit-core; `--allow-build` for the rest.
-  See [non-hatchling-file-discovery.md](../design/non-hatchling-file-discovery.md),
-  [docs/allow-build.md](../../docs/allow-build.md).
+  See [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md),
+  [docs/allow-build.md](../../docs/allow-build.md); open follow-ups:
+  [non-hatchling-file-discovery-followups.md](../design/non-hatchling-file-discovery-followups.md).
 - [x] **Dataset-to-model relationships** (`trainedOn`/`testedOn`) and
   **Croissant dataset size**. See [ai-dataset-linking.md](ai-dataset-linking.md).
 - [x] **Sort-order audit** of the assemble/id-registry path. See
@@ -216,7 +217,7 @@ All fixed; most change SBOM output.
   so `config.tools` stays empty. Found while adding the unknown-key
   warning.
 - [x] **Licence detection picks a near-variant or misses MIT (S).** Fixed by
-  #286. `licenseid` alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
+  #286. LicenseID alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
   requests' verbatim `LICENSE`, `Xnet` over `MIT` on PyYAML's (two notice
   lines first), `JSON` over `MIT` on wcwidth's. Now: the text is also read
   without its copyright notices, a stated licence wins a near-tie (0.01),
@@ -310,7 +311,7 @@ generated, #350 the Spaces note). PR #346 holds the version bump, CHANGELOG,
 coverage snapshots and the release review (CHANGELOG against the code, user
 docs and skills, working-docs and comments). Before the tag: merge #346, tag
 v0.21.0, publish to PyPI. After it: Lumina pins `pitloom==0.21.0` (it takes
-`licenseid` 0.6.0 through Pitloom's floor), then adds its non-GitHub examples.
+LicenseID 0.6.0 through Pitloom's floor), then adds its non-GitHub examples.
 See [release-checklist.md](release-checklist.md). Released 2026-10-28
 (v0.21.0); v0.21.1 (#364-#366) followed the same day.
 
@@ -358,7 +359,7 @@ The G7 and conformance work; full breakdown in
 - [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read
   by `dataset.py`; G7 B1) and its three readers
   (Croissant via `loom.run`, a local dataset card, a Hub model's dataset
-  cards): [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+  cards): [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
   G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
   packages (G7 B2; [g7-conformance-tests.md](g7-conformance-tests.md)).
@@ -400,7 +401,7 @@ The G7 and conformance work; full breakdown in
 - [x] **Dataset readers' edge cases** (2026-10-19): Croissant nesting cap,
   placeholder and non-URL values, card warnings without a cache path, one
   reference per dataset, a `datasets:` cap, YAML 1.1 and generated-input
-  tests. See [dataset-licence-readers.md](../design/dataset-licence-readers.md).
+  tests. See [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **One dataset, one package, one relationship per role** (PR #311, #314):
   first reference wins, later ones fill unset fields, a conflict warns once
   per field; `loom.Run` folds spellings the same way (`Org/Data` is
@@ -464,7 +465,7 @@ section.
   end in a `[code]`: Git LFS pointers, size caps, why a model was not read,
   unreadable files and directories. See
   [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md).
-- [x] **`licenseid` cap** (#401): `>=0.6.0,<0.7` until the 0.7 adoption.
+- [x] **LicenseID cap** (#401): `>=0.6.0,<0.7` until the 0.7 adoption.
 - [x] **Serious bugs** (#402, #405, #407): a non-UTF-8 name no longer stops
   generation, a `:` in provenance text is a note, a direct-URL dependency is not
   looked up on PyPI by name.
@@ -482,7 +483,7 @@ section.
 - [x] **`--scan-model-usage` reads ASTs** (#413): `comment` is read, write,
   read and write, or unknown access; mentions skipped; new codes
   `usage-unparseable`, `usage-unparseable/mention`, `usage-unusable` (since
-  0.22.1).
+  0.22.1). See [model-usage-ast-scan.md](model-usage-ast-scan.md).
 - [x] **Prefetch, document module and lint** (#418): the PyPI prefetch uses
   the versions the dependency groups resolved (#429: once per package, never
   for a private one named by URL); `document.py` split under the size limit.
@@ -510,12 +511,13 @@ Released 2026-11-05, cut early (maintainer ruling 2026-11-04). Open items:
 its [0.24.0](../design/roadmap.md#0240-message-catalogue-and-licence-provenance)
 section.
 
-- [x] **`licenseid` 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
-  declared licence value is read by `licenseid` alone, from its packaged SPDX
+- [x] **LicenseID 0.7 adoption** (#437 to #440, #443; floor 0.7.1, #445): a
+  declared licence value is read by LicenseID alone, from its packaged SPDX
   License List, with no licence database (the Hatchling hook's isolated build
-  included); `py-spdx-license` dropped; `licenseid` warnings relayed as one
+  included); `py-spdx-license` dropped; LicenseID warnings relayed as one
   line; rewrites cite `Tool: licenseid==V`. See
-  [licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md).
+  [licenseid/adoption-built.md](licenseid/adoption-built.md) and the
+  plan, [licenseid/adoption-plan.md](licenseid/adoption-plan.md).
 - [x] **Message catalogue PR 2b** (#444): `card-malformed`, `json-malformed`,
   `text-malformed`; an unlistable card directory warns `dir-unlistable`.
 - [x] **Message catalogue PRs 1b and 1c** (#446): `model-field-unreadable`,

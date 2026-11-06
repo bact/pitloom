@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -184,7 +184,7 @@ matrix").
 
 - **An SBOM stored inside the artefact cannot hash everything in it.** The
   embed rewrites `RECORD`, and a file cannot hold its own hash. Pitloom 0.19.0
-  listed both with hashes taken before the embed: in `licenseid` 0.3.7, 30 of
+  listed both with hashes taken before the embed: in LicenseID 0.3.7, 30 of
   32 listed hashes matched the wheel and 2 did not. `spdx3-validate` passed:
   schema and SHACL checks do not recompute hashes, so nothing flagged it. The
   same wheel built by the Hatchling hook (SBOM made before the wheel exists)

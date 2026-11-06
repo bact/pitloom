@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ Measured 2026-10-29 on the Git LFS branch (#378):
    `LEVEL: [SUBJECT=value: ]CONDITION[ (detail)][; ACTION] [code]`. Advice is a
    catalogue field, not parsed from the line (see the results). A grammar test
    fails any new message that breaks it; existing outliers sit in an allow-list
-   that only shrinks (as licenseid's `check_diagnostic_grammar` does), fed by
+   that only shrinks (as LicenseID's `check_diagnostic_grammar` does), fed by
    the lines the tests actually produce.
 3. **One helper per family** wherever a pattern is hand-copied at three or more
    sites (extends the over-cap helper).
@@ -129,7 +129,7 @@ into the repo with the first catalogue PR.)
   ==` assertions and all 46 matched skill quotes still pass; about 47 full-line
   stderr tests can break, one family at a time. Rejected: a `CODE=` pair after
   the subject (155 of 545 templates name a path with no KEY subject) and a
-  leading condition word (rewrites every line; licenseid can use it because its
+  leading condition word (rewrites every line; LicenseID can use it because its
   subjects are a closed set of words).
 - **Advice is a catalogue field.** 211 templates contain `; `, and another
   tool's own `; ACTION` can sit inside a detail, so the advice cannot be parsed
@@ -143,7 +143,7 @@ into the repo with the first catalogue PR.)
   comes from spdx3-validate, so the drift test needs an allow-list for external
   tools. About 94 of the 109 bare-tag quotes could cite a code.
 - **Licence families** (8 classification sites plus 3 DEBUG) wait for the
-  licenseid 0.7.0 adoption; 5 licence-file-read sites probably survive it.
+  LicenseID 0.7.0 adoption; 5 licence-file-read sites probably survive it.
 
 **Migration order** (cost against benefit; one family per PR, code first,
 wording later; revised by the #390 review, family names after decisions B
@@ -169,7 +169,7 @@ and C):
 7. The registry file codes, then `input-not-found` (a helper first).
 8. `lock-file-*`, then `lock-entry-*`; then `config-*`; then `timeout` and
    `network-failed`.
-9. The licence families, after the `licenseid` 0.7.0 adoption.
+9. The licence families, after the LicenseID 0.7.0 adoption.
 
 **Ratchet.** A runtime check on every captured stderr line (one tag, one line,
 no trailing period, no "Please", a `[code]` must be in the catalogue) plus a
@@ -180,7 +180,7 @@ the wrapper wording need a decision before they become rules.
 ## Scope by release
 
 **0.22.0** (shipped 2026-10-30): correct reporting on the existing
-infrastructure, and better message language and pattern. The `licenseid` 0.7.0
+infrastructure, and better message language and pattern. The LicenseID 0.7.0
 adoption shipped in 0.23.0.
 
 - Steps 1 to 4 below: inventory, grammar and ratchet test, catalogue in code
@@ -191,13 +191,13 @@ adoption shipped in 0.23.0.
   (`resolve()` replaces Pitloom's own classifier and its messages), so fix
   those families after it lands, not before.
 
-**0.23.0** (shipped 2026-11-05): the `licenseid` adoption (#437 to #440) and
+**0.23.0** (shipped 2026-11-05): the LicenseID adoption (#437 to #440) and
 PRs 2b, 1b and 1c.
 
 **0.24.0** (moved from 0.23.0 by the ruling of 2026-11-04):
 `--report FILE` (JSON Lines, SARIF-compatible field names), the
 SARIF 2.1.0 export, and the licence resolver's result nested in a record
-(`licenseid`'s `Resolution` as it is, not re-modelled). Deferred so that the
+(LicenseID's `Resolution` as it is, not re-modelled). Deferred so that the
 nested shape is real, not guessed.
 
 ## Order
@@ -238,7 +238,7 @@ resolver JSON deferred to 0.23.0, then to 0.24.0):
    test checks that every message a skill quotes matches an entry.
 
 Decided 2026-10-29 by the maintainer on the #390 review ("go with your
-recommendations"; SARIF and `licenseid` codes get room only, no scheme):
+recommendations"; SARIF and LicenseID codes get room only, no scheme):
 
 - **A. Variant separator `/`.** A code is a family or `family/variant`; each
   part kebab ASCII, `[a-z][a-z0-9]*(-[a-z0-9]+)*`; at most one `/`; at most 40
@@ -294,12 +294,12 @@ recommendations"; SARIF and `licenseid` codes get room only, no scheme):
   data. Stated in `docs/messages.md` ("What a trusted line does and does not
   prove").
 
-**Room for SARIF and `licenseid`** (a note, no design): the charset keeps the
+**Room for SARIF and LicenseID** (a note, no design): the charset keeps the
 door open; a `/` variant maps to a SARIF hierarchical `ruleId`
 (`CA5350/md5`); a family is a `rule.id`, a code a `result.ruleId`, the
 reference's section of a code a `helpUri`; `Message` is keyword-only, so
 `rule_id` or `tags` can be added. Lumina's SARIF ingest refuses a rule id
-that does not start `BOM-`: Pitloom and `licenseid` diagnostics reach it
+that does not start `BOM-`: Pitloom and LicenseID diagnostics reach it
 through its Notification path instead.
 
 ## The families built

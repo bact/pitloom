@@ -29,7 +29,7 @@ Every other backend discovery module deliberately avoids this (Flit's
 AST-only version scan, PDM's ``WheelBuilder``/``Context``-not-``.build()``
 avoidance).
 
-See also: ``working-docs/design/non-hatchling-file-discovery.md``
+See also: ``working-docs/implementation/non-hatchling-file-discovery.md``
 (Track A/B split, the build-and-read mechanism) and
 ``working-docs/implementation/allow-build-timeout.md`` (subprocess
 design, traps, rejected paths).

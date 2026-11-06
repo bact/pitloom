@@ -283,7 +283,7 @@ def teststated_pyproject_license_hint_none_returns_fallback() -> None:
 @pytest.mark.parametrize(
     ("license_obj", "detected", "expected"),
     [
-        # licenseid identified the text: its provenance, method included.
+        # LicenseID identified the text: its provenance, method included.
         pytest.param(
             "Some custom license text",
             ("Apache-2.0", "Source: x | Method: licenseid_detection"),

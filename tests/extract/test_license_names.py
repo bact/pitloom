@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for :mod:`pitloom.extract._license_names`: a deprecated id's List
-name that ``licenseid`` does not read is that id, and the table of those
-names is held to the SPDX License List packaged with ``licenseid``.
+name that LicenseID does not read is that id, and the table of those
+names is held to the SPDX License List packaged with LicenseID.
 
 See also: tests/extract/project/test_field_agreement.py and
 tests/assemble/test_deps_license.py (the two callers).
@@ -63,7 +63,7 @@ def test_a_name_of_another_licence_is_not_the_same(one: str, other: str) -> None
 
 
 def test_the_table_is_every_listed_name_licenseid_does_not_read() -> None:
-    """Drift guard: a name ``licenseid`` starts reading leaves the table, a
+    """Drift guard: a name LicenseID starts reading leaves the table, a
     new one it does not read joins it, and each is a deprecated id's name as
     the packaged List spells it."""
     unread = {}

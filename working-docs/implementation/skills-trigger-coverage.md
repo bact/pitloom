@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -355,7 +355,7 @@ minimum-elements steps, not in step 7 only.
 
 ### Licence database preflight (2026-10-29)
 
-`sbom-generate` prepares the `licenseid` database before the first run
+`sbom-generate` prepares the LicenseID database before the first run
 (`licenseid update --source packaged`), not after a `WARNING:`: a run without
 it is thinner, and the agent that fixed it afterwards ran twice. Probed:
 packaged update needs no network, creates a missing database, prints

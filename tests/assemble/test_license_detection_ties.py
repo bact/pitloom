@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""When ``licenseid``'s matches decide a licence: a stated licence wins a
+"""When LicenseID's matches decide a licence: a stated licence wins a
 near-tie; with none stated, a near-tie with another licence family is no
 detection, unless the runner-up fits the input measurably worse.
 
@@ -72,7 +72,7 @@ def test_a_near_tie_with_another_licence_family_is_no_detection(
     assert _decisive(results, 0.85) == expected  # type: ignore[arg-type]
 
 
-#: (id, score, similarity, coverage) as licenseid 0.4 gives them: a score
+#: (id, score, similarity, coverage) as LicenseID 0.4 gives them: a score
 #: capped to 1, the fit measured.
 _FitRow = tuple[str, float, "float | None", "float | None"]
 
@@ -107,7 +107,7 @@ def test_a_runner_up_that_fits_measurably_worse_is_no_tie(
 
 
 def _fit_rows(rows: list[_FitRow]) -> list[Detection]:
-    """*rows* as ``licenseid`` 0.4 matches (the fields read here only)."""
+    """*rows* as LicenseID 0.4 matches (the fields read here only)."""
     return cast(
         "list[Detection]",
         [

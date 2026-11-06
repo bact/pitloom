@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -338,8 +338,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 
 ### C12. Licence or classifier name to SPDX id
 
-- **Decided (user, 2026-10-08):** wait for upstream `licenseid`; Pitloom
-  does not map names or URLs to ids itself. Revisit when `licenseid` ships
+- **Decided (user, 2026-10-08):** wait for upstream LicenseID; Pitloom
+  does not map names or URLs to ids itself. Revisit when LicenseID ships
   the mapping. What to ask upstream:
   [licenseid-handoff.md](licenseid-handoff.md).
 - **Question:** rewrite an SPDX License List name (`MIT License`, any case)
@@ -348,10 +348,10 @@ origin; KB is [known-bugs.md](known-bugs.md).
   `mit` are two elements; names differing only in case give two
   `LicenseRef-pitloom-classifier-` terms.
 - **Options:** map a List name at classification, raw in `Normalized-From`
-  (`licenseid` `get_license_by_name()`); keep text, equal only when
-  compared (today); classifier names need new `licenseid` data
+  (LicenseID `get_license_by_name()`); keep text, equal only when
+  compared (today); classifier names need new LicenseID data
   ([license-layers.md](license-layers.md)).
-- **Current behaviour:** since `licenseid` 0.7 (#437, #440),
+- **Current behaviour:** since LicenseID 0.7 (#437, #440),
   `licenseid.resolve` reads a List name (`MIT License`) and a
   `License :: ...` path as its id. A bare classifier name
   (`Apache Software License`) stays text, as a known deviation
@@ -368,7 +368,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   without case, and by string or by what they map to?
 - **Why it matters:** SPDX matches licence ids without case, but
   `LicenseRef-Foo` and `LicenseRef-foo` are two elements; `licenseref-foo`
-  was text until `licenseid` 0.7 (#437); it is now `LicenseRef-foo`. A merge
+  was text until LicenseID 0.7 (#437); it is now `LicenseRef-foo`. A merge
   unifies a user's `LicenseRef-x` by string: two fragments mapping it to
   different `customIdToUri` texts keep the first.
 - **Options:** as written (state it); canonical prefix case, idstring as
@@ -385,10 +385,10 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Question:** one canonical spelling for every expression, including
   nested mixed AND/OR and grammar gaps, and whose canonicaliser?
 - **Why it matters:** two equivalent nested spellings can stay two
-  elements; the form also depends on the `licenseid` version (recorded as
-  `Tool:`; `licenseid` is the only reader since #440).
+  elements; the form also depends on the LicenseID version (recorded as
+  `Tool:`; LicenseID is the only reader since #440).
 - **Options:** state the limit (today); a Pitloom normal form (sorted,
-  absorbed DNF); `licenseid` `normalize_identifier()` behind the adapter (a
+  absorbed DNF); LicenseID `normalize_identifier()` behind the adapter (a
   content decision not taken in #276); upstream fixes.
 - **Current behaviour:** canonical for a flat one-operator list; a nested
   mixed AND/OR may keep several spellings (absorption not confluent);
@@ -405,7 +405,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   `OR` (dual licensing); text plus one `WARNING:`; `NOASSERTION`. A rewrite
   records `Normalized-From`.
 - **Current behaviour:** text as written (checked 2026-10-08, and on
-  `licenseid` 0.7.1).
+  LicenseID 0.7.1).
 - **Owner:** licence rules. Found in the #294 reviews; was in KB.
 
 ### C16. `other` and vague licence values across formats
@@ -437,8 +437,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 
 ### C18. Licence URL to id
 
-- **Decided (user, 2026-10-08):** wait for upstream `licenseid`; Pitloom
-  does not map names or URLs to ids itself. Revisit when `licenseid` ships
+- **Decided (user, 2026-10-08):** wait for upstream LicenseID; Pitloom
+  does not map names or URLs to ids itself. Revisit when LicenseID ships
   the mapping. What to ask upstream:
   [licenseid-handoff.md](licenseid-handoff.md).
 - **Question:** map a value that is only a URL to an SPDX id?
@@ -448,7 +448,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Evidence:** the SPDX License List
   ([licenses.json](https://spdx.org/licenses/licenses.json)) gives each id
   a `reference` (`https://spdx.org/licenses/<id>.html`, one id) and
-  `seeAlso` URLs; the List packaged with `licenseid` has both, so no
+  `seeAlso` URLs; the List packaged with LicenseID has both, so no
   network and a result fixed by the list version. On it (729 licences,
   2026-10-07): 891 `seeAlso` URLs after folding scheme, `www.` and a
   trailing `/`; 43 map to several ids, all same-text families (GPL-2.0
@@ -458,7 +458,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   ambiguous URL stays text or becomes `NOASSERTION` (never a guessed
   `-only`); deprecated ids as candidates or not; the provenance tag (as
   `tag_license_normalization`); Pitloom or upstream, with C12.
-- **Current behaviour:** text as written (also on `licenseid` 0.7.1). KB:
+- **Current behaviour:** text as written (also on LicenseID 0.7.1). KB:
   "A model licence that is a name or URL becomes licence text".
 - **Owner:** licence layers. Was license-rules question 17.
 
@@ -492,14 +492,14 @@ origin; KB is [known-bugs.md](known-bugs.md).
 
 ### C21. Licence detection output across tool versions
 
-- **Question:** is the id `licenseid` detects canonical, or stable only per
-  `licenseid` (and bundled SPDX List) version?
+- **Question:** is the id LicenseID detects canonical, or stable only per
+  LicenseID (and bundled SPDX List) version?
 - **Why it matters:** the concluded licence can change with an upgrade and
-  no input change: `licenseid` 0.4 capped scores to 1, so MIT tied
+  no input change: LicenseID 0.4 capped scores to 1, so MIT tied
   `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins
   `licenseid>=0.7.1,<0.8` (a floor and the next minor);
   Python version effects on scores are not measured.
-- **Options:** state determinism per (Pitloom, `licenseid`) versions, as
+- **Options:** state determinism per (Pitloom, LicenseID) versions, as
   provenance records (`Tool: licenseid==<v>`); run the corpus
   (`tests/fixtures/license-texts/`) on the floor and latest versions in CI;
   an upper pin on a patch release (stricter than the current `<0.8`).

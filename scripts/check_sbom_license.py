@@ -7,7 +7,7 @@
 The release workflow (``pypi-publish.yml``) runs this on Pitloom's own
 release SBOM, both the copy embedded in the wheel and the standalone one,
 so a release never ships an SBOM that lost either licence. Its ``build``
-job has no licenseid database: if ``codemeta.json`` lost its licence, the
+job has no LicenseID database: if ``codemeta.json`` lost its licence, the
 concluded licence would fall back to licence-text detection and silently
 disappear.
 

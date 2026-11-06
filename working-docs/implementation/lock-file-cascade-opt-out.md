@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,7 @@ Resolving the setting before the real metadata read requires a cheap
 "peek" call (`read_project(..., include_locked_dependencies=False)`,
 which does no lock-file I/O -- but does still do in-tree installed-
 metadata discovery/parsing, per
-[installed-dist-info-source.md](../design/installed-dist-info-source.md);
+[installed-dist-info-source.md](installed-dist-info-source.md);
 that I/O is paid twice, once per `read_project` call, in the on-cascade
 case below, the same accepted-cost umbrella as the double metadata parse
 itself) purely to read `[tool.pitloom] use-lockfile` when no explicit CLI

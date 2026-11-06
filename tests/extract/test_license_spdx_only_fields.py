@@ -313,9 +313,9 @@ def test_end_to_end_the_value_is_text_with_one_warning(
 def test_the_licenseid_database_does_not_decide(
     value: str, warns: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """With no usable licenseid database a known id is still known and a
+    """With no usable LicenseID database a known id is still known and a
     respelt one (``Apache2``) still read: the reading uses the SPDX License
-    List packaged with ``licenseid``. Only a value nothing names warns."""
+    List packaged with LicenseID. Only a value nothing names warns."""
     root = _project(tmp_path / "p", value)
     (root / "LICENSE").write_text("Some licence text.\n" * 20, encoding="utf-8")
     with (

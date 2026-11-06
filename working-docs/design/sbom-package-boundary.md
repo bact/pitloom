@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ question open.
 
 See also: [format-neutral-representation.md](format-neutral-representation.md)
 (the same idea on the output side: SBOM spec independent of the internal
-model), [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md),
+model), [non-hatchling-file-discovery.md](../implementation/non-hatchling-file-discovery.md),
 [wheel-embedding.md](../implementation/wheel-embedding.md) (what #271
 decided for wheels).
 

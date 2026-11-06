@@ -2,18 +2,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Sweep licenseid's 0.7.0 parity corpus through Pitloom's declared-licence path.
+"""Sweep LicenseID's 0.7.0 parity corpus through Pitloom's declared-licence path.
 
-Reads ``tests/fixtures/resolver_parity.tsv`` of the licenseid repository (the
+Reads ``tests/fixtures/resolver_parity.tsv`` of the LicenseID repository (the
 values, Pitloom 0.21.1's answer in ``pitloom_0_21_1`` and the answer the 0.7.0
 plan expects in ``expected_0_7_0``), classifies every value with the installed
 Pitloom, and prints how the installed answer, the recorded 0.21.1 answer and the
-expected one relate. Run it before and after adopting a licenseid release; every
+expected one relate. Run it before and after adopting a LicenseID release; every
 row listed as moved needs a reason in the adoption plan
-(``working-docs/design/licenseid-0-7-adoption.md``).
+(``working-docs/implementation/licenseid/adoption-plan.md``).
 
-Needs no licenseid database: a declared value is read on the SPDX License
-List packaged with licenseid. Usage:
+Needs no LicenseID database: a declared value is read on the SPDX License
+List packaged with LicenseID. Usage:
 ``python scripts/licence_adoption_sweep.py PARITY.tsv``.
 """
 

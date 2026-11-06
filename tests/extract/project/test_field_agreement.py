@@ -47,7 +47,7 @@ def test_values_agree(field: str, a: str | None, b: str | None, agree: bool) -> 
     ids=[license_id for _, license_id in sorted(UNREAD_LISTED_NAMES.items())],
 )
 def test_a_deprecated_id_agrees_with_its_list_name(name: str, license_id: str) -> None:
-    """``licenseid`` reads no id in the name: the List still makes them one."""
+    """LicenseID reads no id in the name: the List still makes them one."""
     assert values_agree("license_name", name, license_id)
     assert values_agree("license_name", license_id.lower(), name.upper())
     assert not values_agree("license_name", name, "MIT")

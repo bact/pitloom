@@ -5,7 +5,7 @@
 
 """Tests for :func:`pitloom.extract._license_classify.classify_license`: the
 early exits (no licence, ``NOASSERTION``, ``NONE``), an expression as
-``licenseid`` reads it, text, a lone surrogate.
+LicenseID reads it, text, a lone surrogate.
 
 See also: tests/extract/test_license_classify_parsing.py (expressions and
 the broken-expression warning), tests/extract/license_classify_cases.py (the

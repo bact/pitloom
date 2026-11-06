@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,17 +98,18 @@ Keras, fastText, GGUF, Safetensors and ONNX readers (#426, #427, #433);
 Built in 0.22.1 (#413-#433). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0221-prs-413-433).
 
-### 0.23.0: licenseid 0.7 and message catalogue
+### 0.23.0: LicenseID 0.7 and message catalogue
 
 **Released 2026-11-05** (v0.23.0), cut early (maintainer ruling 2026-11-04).
 See [CHANGELOG.md](../../CHANGELOG.md) and
 [release-checklist.md](../implementation/release-checklist.md). Highlights:
-declared licence values read by `licenseid` 0.7 with no licence database
+declared licence values read by LicenseID 0.7 with no licence database
 (#437-#440, floor 0.7.1 #445; see
-[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)); message codes for
-cards, Croissant and lone surrogates (catalogue PR 2b, #444) and for model
-fields read in part and unusable libraries (PRs 1b and 1c, #446); no agent
-files in the sdist or wheel (#435). Requires `licenseid>=0.7.1,<0.8`. The
+[licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
+message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
+#444) and for model fields read in part and unusable libraries (PRs 1b and
+1c, #446); no agent files in the sdist or wheel (#435). Requires
+`licenseid>=0.7.1,<0.8`. The
 ratchet fell from 498 to 469. The generated message reference is over the
 size limit: splitting it comes before the next catalogue PR. Moved to 0.24.0:
 the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18, the licence
@@ -154,7 +155,7 @@ order and counts are in
   build, fragments and wheels, miscellany, licence.
 - [ ] **Licence provenance mapping**
   ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
-  revise the design against the shipped `licenseid` 0.7.0 `Resolution`, merge
+  revise the design against the shipped LicenseID 0.7.0 `Resolution`, merge
   main into the branch, then implement (design on #384). Scheduled with the
   flags item below.
 - [ ] **Provenance and source-metadata flags** (decided 2026-11-05):
@@ -169,7 +170,7 @@ order and counts are in
   note. Tests, manual checks and sweeps run with provenance on (one shared
   test default); default-off is asserted on each surface (CLI, library, hook,
   Action).
-- [ ] **Action builds the `licenseid` database** (to decide): the Action
+- [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run
   `licenseid update --source packaged` (offline, seconds); CHANGELOG
@@ -245,7 +246,9 @@ Highest priority first.
   [lock-files.md](lock-files.md),
   [docs/dependency-sources.md](../../docs/dependency-sources.md).
 - [ ] **Installed `.dist-info` as a project source**: see
-  [installed-dist-info-source.md](installed-dist-info-source.md).
+  [installed-dist-info-site-packages.md](installed-dist-info-site-packages.md)
+  (the in-tree slice is built:
+  [installed-dist-info-source.md](../implementation/installed-dist-info-source.md)).
 - [ ] **SARIF output** for CI findings; a missing-element report at generation
   would ride on it ([#77](https://github.com/bact/pitloom/issues/77)). See
   [sarif-output.md](sarif-output.md).
@@ -286,7 +289,7 @@ unless the linked doc says so.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Licence resolution categories** (which changes to trust, log and
-  record): built on `licenseid` 0.7's `Resolution` (#437, #440). Open:
+  record): built on LicenseID 0.7's `Resolution` (#437, #440). Open:
   per-operand provenance (T14, [#384](https://github.com/bact/pitloom/pull/384),
   0.24.0), Q4 (a cross-field indicator) and Q5 (the list version). See
   [license-resolution-categories.md](license-resolution-categories.md).
@@ -398,7 +401,7 @@ Recorded findings; each is fixable on its own.
 - **File discovery**: setuptools gives an absolute `physical_path` for a
   differently cased project dir (#257); four #215 follow-ups; scikit-build-core
   ([#61](https://github.com/bact/pitloom/issues/61)). See
-  [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
+  [non-hatchling-file-discovery-followups.md](non-hatchling-file-discovery-followups.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
   [build-backend-improvements.md](build-backend-improvements.md).
 - **`--allow-build`**: what the #226 reviews left. See
   [allow-build-followups.md](allow-build-followups.md),

@@ -243,7 +243,7 @@ def test_an_unusable_database_warns_once_and_degrades(
 def test_detect_license_from_text_db_not_populated(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Returns None gracefully when the licenseid database is missing."""
+    """Returns None gracefully when the LicenseID database is missing."""
     with patch(
         "pitloom.extract._license_text_match.LicenseDetector",
         functools.partial(LicenseDetector, db_path=str(tmp_path / "x.db")),
@@ -378,7 +378,7 @@ def test_apply_in_package_license_is_one_rule_for_every_reader(
 
 
 # ---------------------------------------------------------------------------
-# What licenseid misses: a near-variant ranked first, a licence behind a
+# What LicenseID misses: a near-variant ranked first, a licence behind a
 # copyright notice (what a notice line is: tests/extract/test_copyright_notices.py)
 # ---------------------------------------------------------------------------
 

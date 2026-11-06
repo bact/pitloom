@@ -82,7 +82,7 @@ def is_license_concluded(entry: dict[str, str]) -> bool:
     """Whether a licence from the parsed provenance *entry* is concluded,
     not declared: its source is a third-party record
     (:data:`THIRD_PARTY_SOURCES`) or unknown. How the value was read (a
-    ``Method``, such as ``licenseid`` detection of a ``LICENSE`` file) does
+    ``Method``, such as LicenseID detection of a ``LICENSE`` file) does
     not change whose statement it is.
     """
     source = _source_name(entry)

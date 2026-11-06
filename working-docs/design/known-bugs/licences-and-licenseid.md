@@ -1,21 +1,21 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Known bugs: licences and `licenseid`
+# Known bugs: licences and LicenseID
 
 See also: [known-bugs.md](../known-bugs.md) (index, severity scale,
 rules for adding an entry), [roadmap.md](../roadmap.md),
 [license-pr276-followups.md](../license-pr276-followups.md),
 [license-rules.md](../license-rules.md),
 [license-resolution-categories.md](../license-resolution-categories.md),
-[licenseid-0-7-adoption.md](../licenseid-0-7-adoption.md).
+[licenseid/adoption-plan.md](../../implementation/licenseid/adoption-plan.md).
 
-Licence detection, declared and concluded licences, the `licenseid` resolver
+Licence detection, declared and concluded licences, the LicenseID resolver
 and database, licence elements and their provenance. Entries are ranked by
 priority tier, then by size tag; see the severity scale in the index. Open
 entries come first; fixed entries stay in the last section for history.
@@ -55,7 +55,7 @@ entries come first; fixed entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **Per-operand licence provenance is not built (S).** With `licenseid`
+- [ ] **Per-operand licence provenance is not built (S).** With LicenseID
   0.6.0, `resolve()` answered for a whole value, so a compound with one
   respelt part (`Apache2 OR MIT`) stayed text. Since 0.7 (#437, #440) it is
   read as an expression; the design's per-operand results (`Resolution-n`,
@@ -76,16 +76,16 @@ entries come first; fixed entries stay in the last section for history.
 - [ ] **Catalogue 18, the licence families, is later (S), decided
   2026-10-30.** It follows the adoption, so 0.24.0 (the plan, re-cut
   2026-11-04).
-  *Found 2026-10-30, `licenseid`.*
-- [ ] **A foreign warnings block overlapping a lookup takes its `licenseid`
+  *Found 2026-10-30, LicenseID.*
+- [ ] **A foreign warnings block overlapping a lookup takes its LicenseID
   lines (S).** Pitloom's three warning blocks share one lock
   (`pitloom.core.warning_capture`), and the relay records only its own
   thread, so nothing is left taken or dropped after both blocks. But a
   `warnings.catch_warnings(record=True)` of the host or a library, in
   another thread, entered while a lookup runs, replaces `showwarning` for
-  the process (on Python 3.14 too): what `licenseid` warns meanwhile goes
+  the process (on Python 3.14 too): what LicenseID warns meanwhile goes
   into that block's list and is not said. Tested as the stated limit in
-  `tests/core/test_warning_capture.py`. A fix needs a hook in `licenseid`
+  `tests/core/test_warning_capture.py`. A fix needs a hook in LicenseID
   (a callback for its warnings) rather than `warnings`.
   *Found 2026-11-03, review of #437.*
 - [ ] **A file-level SPDX tag is read by `resolve()`, not `detect()`
@@ -95,7 +95,7 @@ entries come first; fixed entries stay in the last section for history.
   text reads `GPL-2.0-only`; the package level may differ. Pre-existing;
   decide which reader a header tag belongs to. *Found 2026-11-03, review of
   #437.*
-- [ ] **`licenseid` reads no id in 14 deprecated ids' List names, and gives
+- [ ] **LicenseID reads no id in 14 deprecated ids' List names, and gives
   no List name for an id (S, upstream).** `resolve()` answers `not found` for
   `GNU Free Documentation License v1.3` (`GFDL-1.3`), `GNU Affero General
   Public License v3.0` (`AGPL-3.0`), `wxWindows Library License` and 11 more
@@ -104,21 +104,21 @@ entries come first; fixed entries stay in the last section for history.
   differ with and without one). #440 keeps the 14 names in
   `extract/_license_names.py` (`same_licence`, used by `values_agree` and the
   declared vs concluded check), held to the packaged List by
-  `tests/extract/test_license_names.py`. Delete the table once `licenseid`
+  `tests/extract/test_license_names.py`. Delete the table once LicenseID
   answers. Suggested issue text: "`resolve()` reads a List name as its id
   (`MIT License` is `MIT`) but not the name of a deprecated id
   (`GNU Free Documentation License v1.3` is `not found`): read it as the
   deprecated id, category `assumed_only` with its candidates, as `GFDL-1.3`
   is; or expose the packaged List's names (`id -> name`) publicly."
   *Found 2026-11-04, review of #440.*
-- [ ] **`licenseid`'s `trust: none` is not recorded (S, accepted).** An
+- [ ] **LicenseID's `trust: none` is not recorded (S, accepted).** An
   `assumed_only` answer (`GPL-3.0` kept, `-only` or `-or-later` unknown) has
   `trust: none`; the SBOM says it only through the `Deprecated-License-Id`
   note. Acceptable until the licence provenance mapping (#384) has a key
   for it. *Found 2026-11-04, review of #440.*
 - [ ] **`_ambiguous` can write a note with no licence (S, no trigger).**
   An operand with `candidates` but no `expression` would give
-  `Deprecated-License-Id:  (A or B)`; `licenseid` 0.7.0 gives candidates only
+  `Deprecated-License-Id:  (A or B)`; LicenseID 0.7.0 gives candidates only
   with an expression (the review found no trigger). Skip such an operand
   if a release changes that. *Found 2026-11-04, review of #440.*
 - [ ] **A lone CR inside a declared value makes it text (S, decide).**
@@ -142,15 +142,15 @@ release ships.
   phrase included, and `_fits_worse` checks runner-ups only. Decide a
   coverage floor for the top match and whether notice stripping keeps a
   trailing "All rights reserved" (`license-rules.md` §4).
-  Fixed by #437: `licenseid` 0.7.0 detects the filled BSD-1-Clause text
+  Fixed by #437: LicenseID 0.7.0 detects the filled BSD-1-Clause text
   (`BSD-1-Clause`, score 1.0; 0.22.1 concluded `BSD-2-Clause`). No coverage
   floor is built.
 - [x] **A licence classifier becomes text, not an SPDX id (S).** Deferred
-  by #276 (needs a newer `licenseid`; "Known deviation" in
+  by #276 (needs a newer LicenseID; "Known deviation" in
   `license-typing.md`).
   `License :: OSI Approved :: MIT License` (PyPI, and installed metadata
   after #276) yields the text "MIT License". Map trove classifiers to
-  SPDX ids (licenseid or a small table), keeping the raw value in
+  SPDX ids (LicenseID or a small table), keeping the raw value in
   provenance.
   Fixed by #437: the classifier path and the name are read with no
   database (`License :: OSI Approved :: MIT License` is `MIT`).
@@ -161,7 +161,7 @@ release ships.
   [license-typing.md](../../implementation/license-typing.md#unknown-id-in-an-spdx-only-field).
   Legacy `License:` stays silent.
 - [x] **A Hugging Face `license: gpl-3.0` was rewritten to `GPL-3.0-only`
-  only when the `licenseid` database was present (S).** Fixed in #357:
+  only when the LicenseID database was present (S).** Fixed in #357:
   the Hugging Face route records the card value as stated, so the deprecated
   bare id stays the id written (`GPL-3.0` after classification, never
   `GPL-3.0-only`) with or without the database. `canonicalize_license_id`
@@ -173,22 +173,22 @@ release ships.
   legacy wheel with `License: UNKNOWN` and an MIT classifier gets
   `NoAssertionLicense` in its own SBOM, while the same package as a
   dependency gets the classifier's licence (#276 cascade).
-- [x] **A licenseid database that breaks after the matcher is cached
+- [x] **A LicenseID database that breaks after the matcher is cached
   fails silently (S).** Fixed by #287: a database error from `match()`
   warns once (as an unusable database does) and drops the cached matcher;
-  `InvalidInputError` (a normal input) stays at debug. Since licenseid
+  `InvalidInputError` (a normal input) stays at debug. Since LicenseID
   0.4.2 (#289) that error is always `DatabaseNotReadyError`, and a lookup
   no longer re-creates a deleted database as an empty file.
 - [x] **A licence id over 50,000 characters ending in `+` reads as a broken
-  licenseid database (S, upstream).** Fixed in licenseid 0.4.3; #292 raised
+  LicenseID database (S, upstream).** Fixed in LicenseID 0.4.3; #292 raised
   the floor and made the test a plain one. Found in the #289 review: in a
   text it can sit in an `SPDX-License-Identifier:` tag, a `License:` field
-  or a JSON `"license"` field. licenseid 0.4.2 builds a SQL `LIKE` pattern from the
-  id, SQLite refuses one over 50,000 bytes, and licenseid raises
+  or a JSON `"license"` field. LicenseID 0.4.2 builds a SQL `LIKE` pattern from the
+  id, SQLite refuses one over 50,000 bytes, and LicenseID raises
   `DatabaseNotReadyError`: one false `WARNING:`, which as `warn_once` also
   hides a later real failure. #289 skips lookups of an id over 200
   characters (`canonicalize_license_id`); a licence text holding such an id
-  still warned. Fix belonged in licenseid (an input error).
+  still warned. Fix belonged in LicenseID (an input error).
 - [x] **`license = {text = "MIT License"}` plus an Apache LICENSE file
   gives declared `Apache-2.0` (S).** The `project.license.text` value goes
   through licence-file detection (seen in the #276 sweep). Fixed by #276:
@@ -201,17 +201,17 @@ release ships.
 ### Fixed, Found in review rounds, not yet prioritised
 
 - [x] **Two spellings of one deprecated id give two expressions (S).**
-  `StandardML NJ` is read as `SMLNJ` (`licenseid` renames), while the listed
+  `StandardML NJ` is read as `SMLNJ` (LicenseID renames), while the listed
   `StandardML-NJ` parses locally and stays as written, so one licence has two
   records. Fixed by letting `resolve()` answer for the whole value (Q7); see
-  `licenseid`'s expression-resolution design. Found in the #359 review.
+  LicenseID's expression-resolution design. Found in the #359 review.
   Fixed by #440: both spellings are `SMLNJ`.
   *Found 2026-10-27, combined review of #352 to #357.*
 - [x] **The resolver's reading depends on the database (S).** Fixed by
-  #437: the reading uses the list packaged with `licenseid` 0.7.0, the same
+  #437: the reading uses the list packaged with LicenseID 0.7.0, the same
   with or without a database. A comparison
   (`values_agree`, the fragment-merge key of `_license_elements`) treats
-  `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and
+  `Apache2` and `Apache-2.0` as one licence with the LicenseID database and
   as two without it, so whether a conflict is recorded differs. Provenance of
   a value Pitloom parses itself does not (#359).
   *Found 2026-10-27, combined review of #352 to #357.*
@@ -225,20 +225,20 @@ release ships.
   is not affected. Reported by a reviewer upgrading a project to 0.21.0.
   Options: (a) `licenseid 0.7.0` makes `resolve()` work with no database from
   the packaged bundle that the PyPI wheel already ships (design:
-  `licenseid` `working-docs/design/expression-resolution.md`, "No database");
+  LicenseID `working-docs/design/expression-resolution.md`, "No database");
   (b) until then the hook builds a database from the packaged bundle
   (`licenseid update --source packaged`, offline) into a location of its own,
   not the user's cache, or keeps the single warning and says why. Today the
   same value gives different SBOM bytes with and without a database.
   Mitigated in 0.21.1 (#364): a missing database is `INFO:` when a licence is
   declared (the warning stays when none is declared or for a value that needed
-  licenseid's reading). Fixed for good when Pitloom 0.22.0 reads declared
-  values through `licenseid` 0.7.0 (plan: #368).
-  Fixed by #437 (option (a), released as `licenseid` 0.7.0).
+  LicenseID's reading). Fixed for good when Pitloom 0.22.0 reads declared
+  values through LicenseID 0.7.0 (plan: #368).
+  Fixed by #437 (option (a), released as LicenseID 0.7.0).
   *Found 2026-10-28, 0.21.0 release review.*
 - [x] **The 0.7.0 adoption waits for the release (S).** PyPI's latest was 0.6.0
   at 15:14 UTC on 2026-10-30. Released 2026-11-03; adopted by #437.
-  *Found 2026-10-30, `licenseid`.*
+  *Found 2026-10-30, LicenseID.*
 - [x] **A `license = {file = "LICENSE"}` that is a Git LFS pointer is recorded
   as the licence text `LICENSE` (S-M).** Fixed by #422 (CLI, library and
   hook) and #429 (a wheel, an sdist's `PKG-INFO` and an installed

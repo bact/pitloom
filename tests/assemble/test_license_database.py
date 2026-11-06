@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A ``licenseid`` database that fails after the detector is built: one
+"""A LicenseID database that fails after the detector is built: one
 ``WARNING:``, text detection degrades, the next lookup builds the detector
 again; a declared value is read all the while (it needs no database).
 
@@ -37,7 +37,7 @@ _REAL_MIT = (_TEXTS / "RapidFuzz-3.14.5-LICENSE").read_text(encoding="utf-8")
 
 
 def _declared(value: str) -> str | None:
-    """The expression ``licenseid`` reads in the declared *value*."""
+    """The expression LicenseID reads in the declared *value*."""
     found = resolve_declared_value(value)
     return None if found is None else found["expression"]
 
@@ -50,7 +50,7 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     ("error", "warned"),
     [
         (DatabaseNotReadyError("database: unreadable: x.db: no such table"), True),
-        # an input licenseid rejects is no database failure
+        # an input LicenseID rejects is no database failure
         (InvalidInputError("option: invalid: license_id: MIT OR X"), False),
     ],
     ids=["not-ready", "invalid-input"],
@@ -100,7 +100,7 @@ def test_a_real_database_broken_mid_run_warns_and_recovers(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``licenseid`` checks its database when the detector is built; a file
+    """LicenseID checks its database when the detector is built; a file
     damaged afterwards fails the lookup with ``DatabaseNotReadyError``: one
     ``WARNING:``, no licence detected, a declared value still read, and once
     the file is restored the next lookup works again (the cached detector
@@ -115,7 +115,7 @@ def test_a_real_database_broken_mid_run_warns_and_recovers(
             assert detect_license_from_text(_REAL_MIT) is None
             assert detect_license_from_text(_MIT_TEXT) is None
             assert _declared("apache2") == "Apache-2.0"
-        # a lookup never creates the database file (licenseid >= 0.4.2)
+        # a lookup never creates the database file (LicenseID >= 0.4.2)
         assert db.exists() is (damage != "delete")
         shutil.copyfile(licenseid_db_path, db)
         assert detect_license_from_text(_REAL_MIT) == "MIT"
@@ -124,7 +124,7 @@ def test_a_real_database_broken_mid_run_warns_and_recovers(
     assert "licenseid database cannot be used" in message
 
 
-#: Inputs that reach licenseid's SQL and full-text search: none is a
+#: Inputs that reach LicenseID's SQL and full-text search: none is a
 #: database failure.
 _HOSTILE_TEXTS = [
     'NEAR(MIT AND OR NOT * ^ : "quoted" -term column:x {a b}',

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""What ``licenseid`` warns, relayed as tagged ``pitloom`` records
+"""What LicenseID warns, relayed as tagged ``pitloom`` records
 (:mod:`pitloom.extract._licenseid_relay`).
 
 See also: tests/test_licence_db_missing_surfaces.py (the relay on the CLI,
@@ -38,7 +38,7 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
 
 
 def _outdated() -> None:
-    """Warn as licenseid does, through its one emitter, for Pitloom."""
+    """Warn as LicenseID does, through its one emitter, for Pitloom."""
     warn_from_pitloom(
         "database", "build v2 outdated", "current v3", "run 'licenseid update'"
     )
@@ -48,7 +48,7 @@ def test_a_warning_is_one_line_said_once_and_never_raised(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The suite turns warnings into errors (``filterwarnings``): relayed, a
-    licenseid warning neither raises nor reaches Python's own output."""
+    LicenseID warning neither raises nor reaches Python's own output."""
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
         for _ in range(2):
             with relay.relay_licenseid_warnings():
@@ -110,7 +110,7 @@ def test_the_relay_says_only_the_licenseid_warnings_handed_to_it(
     first: Warning | str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Any other warning in the list is skipped, not said or read as one of
-    ``licenseid``'s: the block records only ``licenseid``'s, so this is the
+    LicenseID's: the block records only LicenseID's, so this is the
     relay's own guard."""
     caught = [
         warnings.WarningMessage(first, UserWarning, __file__, 1),
@@ -173,7 +173,7 @@ def test_a_warning_of_another_thread_is_not_taken(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Only this thread's warnings are recorded; another thread's goes on to
-    Python when given, and a ``licenseid`` one of it is not said."""
+    Python when given, and a LicenseID one of it is not said."""
 
     def other() -> None:
         _outdated()
@@ -206,7 +206,7 @@ def test_resolving_on_the_packaged_list_warns_nothing(
 def test_a_real_guess_of_the_detector_is_said_at_info(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A bare ``GPL-2.0`` tag: licenseid reads ``GPL-2.0-only`` and says so."""
+    """A bare ``GPL-2.0`` tag: LicenseID reads ``GPL-2.0-only`` and says so."""
     db = Path(get_default_db_path())
     if not db.exists():
         pytest.skip("licenseid database not built -- run 'licenseid update'")
@@ -248,7 +248,7 @@ def test_detection_relays_the_warning_of_building_the_detector(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Detector construction is inside the relay too (a database an older
-    licenseid built warns there)."""
+    LicenseID built warns there)."""
 
     # pylint: disable-next=too-few-public-methods
     class _Outdated:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,7 +50,7 @@ Checked against the code.
 | Say what a parameter count means | A file gives stored tensor elements; the Hub gives its own total | `ai_hyperparameter` `parameters`, with a package comment that it is a count of elements, not a hyperparameter |
 | Give a model file a version, producer or time | A bare file often carries none | Left out; the checker reports the rule `missing` |
 | Hash a Hub model | Needs a request per file, and a repository has many files | `verifiedUsing` is written only for a local file |
-| Detect licence text without the `licenseid` database | The database is built separately | Text detection is skipped with one warning per process. A declared licence value needs no database since 0.23.0 |
+| Detect licence text without the LicenseID database | The database is built separately | Text detection is skipped with one warning per process. A declared licence value needs no database since 0.23.0 |
 | Record a dataset's record count | `dataset_datasetSize` is bytes; Croissant has no standard count key (`totalItems` is not Croissant); SPDX 3.0.1 has no property (FG-12) | Not recorded; `DP-007` is met only by a size in bytes (a library caller's `byte_size`) or known biases |
 | Separate a system from its model | A model SBOM's one root is the AI package | The checker reads the System rules from that package (`systemJudgedByModel`); a project's own package is its system |
 

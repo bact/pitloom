@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,7 @@ say).
   ([git-lfs-pointers.md](../git-lfs-pointers.md)).
   Do: name the event first, then decide how many lines it deserves.
 - **A once-only warning turns one false alarm into a hidden failure.**
-  `licenseid` 0.4.2 reports every SQLite error on a read as
+  LicenseID 0.4.2 reports every SQLite error on a read as
   `DatabaseNotReadyError`, including SQLite refusing a `LIKE` pattern
   over 50,000 bytes that it built from the input: a licence id of 50,001
   characters ending in `+`, given as an id or found in a text's
@@ -84,7 +84,7 @@ say).
   Pitloom warns once per process and drops its cached matcher, so that
   input spends the one warning and a later real database failure goes
   unreported. Pitloom now skips lookups of ids over 200 characters,
-  counted after stripping as `licenseid` strips (a first guard counted
+  counted after stripping as LicenseID strips (a first guard counted
   padding, and `" " * 300 + "mit"` lost its `MIT`); the text path waits
   for an upstream fix (#289).
   Do: classify a dependency's error by its cause, not by the layer that

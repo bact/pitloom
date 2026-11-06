@@ -5,8 +5,8 @@
 
 """The value table of :func:`pitloom.extract._license_classify.classify_license`
 tests: the early exits Pitloom keeps (no licence, ``NOASSERTION``, ``NONE``,
-long and multi-line text) and the mainstream answers of ``licenseid``, which
-reads every expression. Edge answers ``licenseid`` may still move (the order
+long and multi-line text) and the mainstream answers of LicenseID, which
+reads every expression. Edge answers LicenseID may still move (the order
 of a reference beside an id, quotes, end marks) are not pinned here.
 
 See also: tests/extract/test_license_classify.py,
@@ -162,7 +162,7 @@ CASES = [
         "Apache-2.0 WITH AdditionRef-x AND Foo",
         True,
     ),
-    # re-spelt by licenseid (said at INFO, not WARNING)
+    # re-spelt by LicenseID (said at INFO, not WARNING)
     ("Apache2", "expression", "Apache-2.0", False),
     ("MIT License", "expression", "MIT", False),
     ("Apache2 OR MIT", "expression", "Apache-2.0 OR MIT", False),

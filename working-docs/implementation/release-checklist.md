@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,7 +111,7 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 - [ ] The same workflow's `scripts/check_sbom_license.py` step fails
       unless the release SBOM, embedded and extracted, declares *and*
       concludes `Apache-2.0` on the `pitloom` package. The `build` job has
-      no licenseid database, so the concluded licence comes from
+      no LicenseID database, so the concluded licence comes from
       `CITATION.cff`'s `license`, else `codemeta.json`'s: keep it there.
       `build.yml` runs the same check on every push and PR, on the
       hook-embedded and `loom project` SBOMs, so a change there fails

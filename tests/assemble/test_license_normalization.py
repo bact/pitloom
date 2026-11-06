@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Integration tests against the real licenseid database, plus tests for
+"""Integration tests against the real LicenseID database, plus tests for
 G2 licence detection (``detect_independent_license``) and its provenance
 tagging; expression normalisation is in ``tests/extract/test_license_classify.py``.
 
@@ -30,7 +30,7 @@ from pitloom.extract._license_text_match import detect_license_from_text
 _VERSION = version("licenseid")
 
 # ---------------------------------------------------------------------------
-# Integration tests -- require real licenseid database
+# Integration tests -- require real LicenseID database
 # ---------------------------------------------------------------------------
 
 # Canonical MIT licence text (no copyright header, matches SPDX template closely)
@@ -115,7 +115,7 @@ def test_detect_independent_license_no_sources_returns_none() -> None:
 
 
 def test_detect_independent_license_bare_id_no_detection_method() -> None:
-    """A bare SPDX id found via CITATION.cff needs no licenseid detection --
+    """A bare SPDX id found via CITATION.cff needs no LicenseID detection --
     no Tool: tag on a value that was just read, not determined."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
@@ -129,7 +129,7 @@ def test_detect_independent_license_bare_id_no_detection_method() -> None:
 def test_detect_independent_license_tags_licenseid_tool_version() -> None:
     """A licenseid_detection result carries the library version it ran under
     (G2's detected-role source-recording enhancement) -- reproducible against
-    the exact detector version, not just "licenseid was involved somewhere"."""
+    the exact detector version, not just "LicenseID was involved somewhere"."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
@@ -212,7 +212,7 @@ def test_tag_license_normalization_noop_when_unchanged() -> None:
 
 def test_tag_license_normalization_flags_casing_change() -> None:
     """A casing-only rewrite ("mit" -> "MIT") is flagged with the raw value
-    and the licenseid version that did the rewrite, no decision."""
+    and the LicenseID version that did the rewrite, no decision."""
     prov = "Source: pyproject.toml | Field: project.license"
     tagged = tag_license_normalization(prov, "mit", "MIT")
     assert tagged == f"{prov} | Normalized-From: mit | Tool: licenseid=={_VERSION}"

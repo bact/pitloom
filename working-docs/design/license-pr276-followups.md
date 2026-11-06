@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,7 +27,7 @@ resolution) and may change direction there. Group C is housekeeping.
   over from 0.21.0).
 - **A licence text in `PKG-INFO` stays text.** For `license = {file =
   "LICENSE"}` (a centred Apache header, checked live with a Hatchling
-  sdist) the directory and the hook declare `Apache-2.0` (`licenseid`
+  sdist) the directory and the hook declare `Apache-2.0` (LicenseID
   identifies `license.text`); the sdist declares the `License:` text. The
   concluded value agrees now. Running `stated_license()` on `PKG-INFO`'s
   `License:` would align them, but a setuptools directory keeps a

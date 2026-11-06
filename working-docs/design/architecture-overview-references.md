@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,7 +45,7 @@ components.
   generated bindings for the SPDX 3 ontology, offering full coverage of spec
   classes like AIPackage (SPDX Group 2026).
 - **license-expression (Validation):** Proposed for normalising licence
-  expressions according to PEP 639 (NexB 2025). Pitloom uses `licenseid`
+  expressions according to PEP 639 (NexB 2025). Pitloom uses LicenseID
   (0.7.1 or later) instead.
 
 ### Analysis and enrichment tools

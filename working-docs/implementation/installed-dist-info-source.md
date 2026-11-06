@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,10 +8,15 @@ SPDX-License-Identifier: CC0-1.0
 
 # Installed `.dist-info`/`.egg-info` as a metadata source
 
-See also: [metadata-sources.md](metadata-sources.md) (the overall
-priority-order design this corrects and splits), `roadmap.md` (summary
-bullets, this doc's detail moved out of there per this repo's
-roadmap-hygiene rule).
+Status: built (V1, the in-tree editable-install byproduct), shipped in
+0.18.0. The site-packages phase is not built:
+[installed-dist-info-site-packages.md](../design/installed-dist-info-site-packages.md).
+
+See also: [metadata-sources.md](../design/metadata-sources.md) (the overall
+priority-order design this corrects and splits),
+[build-backend-improvements.md](../design/build-backend-improvements.md),
+[roadmap.md](../design/roadmap.md) (summary bullets, this doc's detail moved
+out of there per this repo's roadmap-hygiene rule).
 
 ## Two different things are both called "installed `.dist-info`"
 
@@ -157,47 +162,5 @@ duplicate.
 
 ## Deferred: real installed dist-info (site-packages)
 
-Not yet built. Real installed metadata lives at
-`<venv>/lib/pythonX.Y/site-packages/<name>-<version>.dist-info/` (POSIX)
-or `<venv>\Lib\site-packages\<name>-<version>.dist-info\` (Windows) -- a
-different, tool-unknowable location, not the project directory.
-
-**Why it can't be auto-discovered** the way the in-tree search above is:
-`loom` has no reliable way to know *which* venv corresponds to the
-project being scanned (unlike `loom env`, which by design describes
-whichever interpreter is running it -- it has no static source to
-conflict with in the first place, so it is not touched by this feature
-at all). This phase needs an explicit, user-supplied path -- a new
-`--installed-metadata-dir`/`[tool.pitloom]` setting pointing at a
-site-packages directory -- not implicit `sys.path`/
-`importlib.metadata.distribution()` lookup against Pitloom's own
-interpreter. That pattern already exists for *dependency* enrichment
-(`assemble/spdx3/deps_installed.py`'s `_enrich_from_installed`/
-`_resolve_version`), but is explicitly documented there as a last-resort
-fallback for third-party packages, version-gated before trusting it;
-reusing it unguarded for the *primary* project's own identity would risk
-exactly the "wrong environment" collision the in-tree gate above (name +
-location, both physically tied to the project directory) was designed to
-avoid entirely by construction.
-
-**Cross-check plan**: once a `--installed-metadata-dir` exists,
-`direct_url.json`'s `dir_info.url` (a `file://` path to the source a
-local/editable install came from, per
-[PEP 610](https://peps.python.org/pep-0610/)) is the cross-check
-mechanism -- before trusting a `site-packages/*.dist-info` candidate,
-compare its `direct_url.json`'s path against the project directory being
-scanned, the same way the in-tree name-canonicalisation gate rejects a
-wrong-package candidate. `direct_url.json` is **not guaranteed present**
-(PEP 610 doesn't require it outside VCS/direct-URL/editable installs), so
-a non-editable ordinary `pip install <name>` candidate has no path to
-cross-check at all -- this phase's design must decide what "trust without
-a cross-check" means for that case, not silently assume one exists.
-
-**Reuse plan**: as noted above, `_parse_installed_metadata()` and
-`reconcile_installed_metadata()` need no changes for this phase -- only a
-new, site-packages-aware discovery function.
-
-**Natural follow-on consumer**: `loom env` (`extract/env.py`) could move
-off its `pipdeptree` subprocess onto direct `.dist-info` parsing over the
-running interpreter's own `site-packages`, once this phase exists -- a
-possible future follow-up, not committed to.
+Not built. The design of that phase is in
+[installed-dist-info-site-packages.md](../design/installed-dist-info-site-packages.md).

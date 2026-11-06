@@ -266,6 +266,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 - British English for docs, comments and text. American spelling only for code identifiers and for field, key, type or file-format names a specification fixes exactly.
 - IETF verbal forms (RFC 2119/8174) for internet/web/semantic-web projects; ISO verbal forms for SPDX docs.
 - Code comments are direct, concise and about the current implementation; no history. Legitimate current behaviour vs an alternative design is fine.
+- **Product name**: write LicenseID, never licenseid, for the product in prose; lowercase `licenseid` only for the package, command, import, requirement or an identifier.
 - **PR text defaults** (an explicit limit overrides): title <= 60 chars, no markdown; summary <= 280 chars, concise bullets, markdown allowed; description <= 600 chars, structured, with a short rationale. Count characters; use code blocks.
 
 ## Boundaries

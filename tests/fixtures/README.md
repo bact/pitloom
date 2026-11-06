@@ -31,7 +31,7 @@ SPDX-License-Identifier: CC0-1.0
       testing
     - [Details](./pipdeptree/README.md)
 8. Licence text fixtures (`license-texts/`)
-    - Real `LICENSE` files that `licenseid` alone ranks wrong or misses,
+    - Real `LICENSE` files that LicenseID alone ranks wrong or misses,
       for licence-detection regression testing
     - [Details](./license-texts/README.md)
 9. Real-world extras fixtures (`real-world-extras/`)

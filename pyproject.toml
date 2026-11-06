@@ -109,7 +109,7 @@ ai = [
 # (pitloom.core._models_wheel_build_and_read). Optional -- the mechanism
 # executes third-party build-time code, and is a categorically heavier,
 # opt-in mechanism, unlike the mandatory Track A backend libs above. See
-# working-docs/design/non-hatchling-file-discovery.md's "Dependency
+# working-docs/implementation/non-hatchling-file-discovery.md's "Dependency
 # packaging strategy". pyproject_hooks comes in transitively via build.
 build = ["build>=1.2.2"]
 content-type = ["magika>=1.0.3"]

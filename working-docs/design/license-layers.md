@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,12 +43,12 @@ Pitloom does today:
   is recorded; the `INFO:` line and the `Method`, `Resolution-1`,
   `Expansion-1`, `Tool` and `Deprecated-License-Id` notes come from it.
 - `extract/_license_text_match.py`: text to id (`detect_license_from_text`
-  over `licenseid`, #438); `extract/_license.py` is the facade
+  over LicenseID, #438); `extract/_license.py` is the facade
   (`canonicalize_license_id` was deleted in #437: no caller).
 - `extract/_license_detect.py`: `_looks_like_spdx_license_id` for
   `CITATION.cff`/`codemeta.json` values.
 
-The rule between the two `licenseid` calls: `resolve()` reads a declared
+The rule between the two LicenseID calls: `resolve()` reads a declared
 value (package metadata) and returns the canonical expression; `detect()`
 reads licence text. Only `detect()` needs the database.
 
@@ -57,7 +57,7 @@ reads licence text. Only `detect()` needs the database.
 canonical form, rejects `+`, `AdditionRef-` and `NOT`, raises `TypeError`
 sorting a flat chain with a repeated term, and maps no name to an id.
 
-`licenseid` 0.3.7 (checked interactively, 2026-10-04) offers more than
+LicenseID 0.3.7 (checked interactively, 2026-10-04) offers more than
 text to id: `licenseid.identifiers.normalize_identifier(expr, db)`
 canonicalises case, operators, sort order and repeats and replaces a
 deprecated id (`mit or apache-2.0` is `Apache-2.0 OR MIT`, `GPL-2.0+` is
@@ -69,22 +69,22 @@ does not map a classifier's own name: `Apache Software License` and
 `BSD License` give `None`.
 
 The table and the issue list below are the plan of 2026-10-04, written on
-`licenseid` 0.3.7. Since #437 and #440, `licenseid` 0.7 reads the canonical
+LicenseID 0.3.7. Since #437 and #440, LicenseID 0.7 reads the canonical
 form, the grammar, the successors and the List names (see above).
 
 | Item | Target home |
 | --- | --- |
-| Canonical form, sorting, repeats | licenseid (already: `normalize_identifier`); py-spdx-license for the repeated-term sort fix |
+| Canonical form, sorting, repeats | LicenseID (already: `normalize_identifier`); py-spdx-license for the repeated-term sort fix |
 | `+`, `AdditionRef-`, `DocumentRef-` grammar | py-spdx-license |
-| Deprecated id successors | licenseid (already: `get_deprecated_mappings`) |
+| Deprecated id successors | LicenseID (already: `get_deprecated_mappings`) |
 | "Looks like an expression" diagnosis | py-spdx-license |
-| SPDX List name to id (`is_listed_name`) | licenseid (already: `get_license_by_name`) |
-| Classifier name to id | licenseid (the real gap) |
-| Licence text to id | licenseid (already) |
+| SPDX List name to id (`is_listed_name`) | LicenseID (already: `get_license_by_name`) |
+| Classifier name to id | LicenseID (the real gap) |
+| Licence text to id | LicenseID (already) |
 
 Upstream issues to file: py-spdx-license grammar (`+`, `AdditionRef-`,
 `DocumentRef-...:AdditionRef-`, `NOT`) and the sort `TypeError`;
-licenseid classifier-name to id; licenseid text matching (#286, scores
+LicenseID classifier-name to id; LicenseID text matching (#286, scores
 in [license-rules.md](license-rules.md#4-declared-or-concluded)): a leading
 copyright notice hides MIT (PyYAML gives `Xnet`), and a near-variant
 outranks the verbatim licence (`Pixar` over `Apache-2.0`, `JSON` over
@@ -104,13 +104,13 @@ Deferred until upstream (no Pitloom feature meanwhile):
   AND of `LicenseRef-pitloom-classifier-` terms (layer 3).
 - An unknown-id `WARNING:` in a field that must hold an SPDX expression.
 - Names differing only in case give two `LicenseRef-` terms (SPDX matches
-  them case-insensitively): needs classifier-to-id knowledge (licenseid).
+  them case-insensitively): needs classifier-to-id knowledge (LicenseID).
   The open normalisation questions (names, case, URLs, canonical form):
   C12 to C14, C18 in
   [canonical-output-followups.md](canonical-output-followups.md).
   The one category classifier, `License :: OSI Approved`, is dropped
   already (`license-typing.md`).
-- A licence text `licenseid` identifies is the id on a directory and the
+- A licence text LicenseID identifies is the id on a directory and the
   hook but text from an sdist, wheel or installed metadata, whose readers
   run no detection (`metadata-quality.md`).
 
@@ -161,7 +161,7 @@ Pitloom changes only the adapter.
 
 ## Migration
 
-- Upstream fix lands in py-spdx-license or licenseid.
+- Upstream fix lands in py-spdx-license or LicenseID.
 - Pitloom raises its floor and drops the matching workaround.
 - `classify_license` shrinks to a call and a mapping to `ClassifiedLicense`;
   its tests stay as the contract.

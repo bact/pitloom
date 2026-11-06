@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,10 +36,10 @@ method category):
 - `detected` — Pitloom's own independent-verification *procedure*'s
   determination, whatever the input's origin (locality of the *input*
   never matters; locality of the *determination* does — Pitloom fetching a
-  remote file and running its own `licenseid` match on it is still
+  remote file and running its own LicenseID match on it is still
   `detected`). "Procedure," not "algorithm ran": the license implementation
   (`detect_independent_license`) is a multi-step search — `CITATION.cff`,
-  then `codemeta.json`, then license files, applying `licenseid` text
+  then `codemeta.json`, then license files, applying LicenseID text
   matching only where a value isn't already a bare SPDX id — and a step
   that resolves via a direct bare-id read still counts as `detected`,
   because it was Pitloom's own independently-consulted secondary source,

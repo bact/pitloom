@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -417,7 +417,7 @@ Field-note version, with the measured context:
   (`one_line(exc)`); in a container whose `HOME` differs, nothing said where
   Pitloom looked. Keep the fact; change the tag.
 - **A message prefix is a classifier only while no sibling shares it.** The
-  missing-database test matched `database: not found:`; licenseid's `no home
+  missing-database test matched `database: not found:`; LicenseID's `no home
   directory; pass --db` has the same prefix and is a setup problem. List the
   sibling conditions of a prefix before keying on it, and test each.
 - **Sibling lines share one literal prefix and one separator.** The `INFO:` and

@@ -95,7 +95,7 @@ uv sync --group dev
 
 ### 2. Testing
 
-Build the `licenseid` licence database once (the licence-text detection
+Build the LicenseID licence database once (the licence-text detection
 tests skip or fail without it; a declared licence value is read without
 it), then run the test suite with `pytest`:
 

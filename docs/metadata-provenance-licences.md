@@ -22,7 +22,7 @@ then a `LICENSE`/`LICENSE.*` file -- checked regardless of whether a
 declared value was already found. A `CITATION.cff`/`codemeta.json` value
 that's already a bare SPDX id is used as-is; anything else (typically a
 `LICENSE` file's full text) is matched against known SPDX licences via
-`licenseid` (`method: licenseid_detection`). The text is matched as
+LicenseID (`method: licenseid_detection`). The text is matched as
 written and without its copyright notice lines; the better-scoring of
 the two decides. When two licences match almost equally (a modified variant
 scores just above the licence it modifies), the one the project states wins;
@@ -42,7 +42,7 @@ conflict.
   in the project is the project's own statement, however it was read.
 - If both exist and **agree**, both `hasDeclaredLicense` and
   `hasConcludedLicense` are recorded, pointing at the same licence. A
-  licence name `licenseid` reads as the other value's id (a classifier's
+  licence name LicenseID reads as the other value's id (a classifier's
   `MIT License` and a detected `MIT`, both `MIT`) agrees too: one element, no
   conflict.
 - If both exist and **disagree**, both are still recorded -- pointing at
@@ -102,14 +102,14 @@ came from:
 | Value | Recorded as |
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
-| A single-line value [`licenseid`](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`), or several of them joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
+| A single-line value [LicenseID](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`), or several of them joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
 | Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by `licenseid`, the one reader of a declared
+Every expression is read by LicenseID, the one reader of a declared
 value. A deprecated id ending `+` becomes its `-or-later` successor
 (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
@@ -120,9 +120,9 @@ Both note the successors they could mean. A licence's prose name (`BSD
 no operator, so no expression: text, as written. Text that has an operator
 or parenthesis and an id as written, so looks like a broken expression
 (`MIT OR`), is kept as text with one `WARNING:` per value; the reason in it
-is `licenseid`'s (`parse failed: Unexpected 'OR'`).
+is LicenseID's (`parse failed: Unexpected 'OR'`).
 
-A value that is not an SPDX expression is read by `licenseid` (`resolve`),
+A value that is not an SPDX expression is read by LicenseID (`resolve`),
 in any field. It is accepted when it names exactly one licence, or several
 joined by an operator (`Apache2 OR MIT`): another spelling of an id
 (`Apache2`, `CC BY 4.0`, `GPLv3+`, `licenseref-foo` as `LicenseRef-foo`), the
@@ -130,7 +130,7 @@ licence's List name (`MIT License`), a stated qualifier (`GPL 3.0 or later`,
 `MIT or later` as `MIT+`) or a renamed id. It is never a guess: a bare
 `GPL-3.0` stays as written. A value naming several licences with no operator
 (`BSD`) or none stays text. So does a value with a character the reading
-would drop (`Apache 2.0?`), one of several lines, and one `licenseid` refuses
+would drop (`Apache 2.0?`), one of several lines, and one LicenseID refuses
 because a licence is not all it holds: a stray mark (`-MIT`, `.GPL-3.0-only`,
 `MIT -`, `MIT...`), a list number (`1. MIT`, `iv. MIT`), a comment word
 (`REM MIT`) or a plus after a space (`GPLv3 +`). A reading that changed more
@@ -142,12 +142,12 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 ```
 
 The reading uses the SPDX License List the `licenseid` wheel ships, not the
-`licenseid` database: the same value gives the same reading with or without
+LicenseID database: the same value gives the same reading with or without
 one. Only licence-text detection needs the database (`licenseid update
 --source packaged`); without it `licenseid database cannot be used` is
 warned once, or, when the project declares a licence and the database is
 only missing, `licenseid database not found` is said once at `INFO:`: only
-the `LICENSE`-file check is skipped. A warning of `licenseid` itself is
+the `LICENSE`-file check is skipped. A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
 outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection).
@@ -173,7 +173,7 @@ The value shows on one line, control characters escaped, cut after 120
 characters. A field that may hold free text (`License`,
 `project.license.text`, `[tool.poetry] license`, a Hugging Face card's
 `license`) gets no such warning. Whether an id is known comes from the SPDX
-License List packaged with `licenseid`, so a missing database turns no id
+License List packaged with LicenseID, so a missing database turns no id
 unknown. Hatchling refuses an unknown id in `project.license` itself; the
 hook warns only for an id newer than that packaged list.
 
@@ -183,10 +183,10 @@ These provenance keys record what changed, in the entry's `license` field:
 | --- | --- |
 | `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
-| `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
+| `Method` | `licenseid_resolution` when LicenseID respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
 | `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |
 | `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`, `MIT or later`). |
-| `Tool` | The `licenseid` version that read it. |
+| `Tool` | The LicenseID version that read it. |
 
 These notes are kept at the default `detail = "minimal"`. They land on the
 licence element when this source created it. When the element already
@@ -218,7 +218,7 @@ and `setup.cfg` both state a licence, see
 A multi-line licence text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several licence classifiers
 are one `LicenseExpression`, the AND of terms sorted by classifier: the id for
-a name `licenseid` reads as one licence (`MIT License` is `MIT`), else a
+a name LicenseID reads as one licence (`MIT License` is `MIT`), else a
 `LicenseRef-pitloom-classifier-<name>` whose `customIdToUri` target is a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
 `WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-27
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -106,7 +106,7 @@ network-access costs above still apply, which is exactly why it stays
 opt-in rather than a transparent upgrade to the static path. See
 [`docs/allow-build.md`](../../docs/allow-build.md)
 for the flag itself and
-[`non-hatchling-file-discovery.md`](../design/non-hatchling-file-discovery.md)
+[`non-hatchling-file-discovery.md`](non-hatchling-file-discovery.md)
 for the full design/history.
 
 ## Why `setup.py` execution is out of scope (not just "not done yet")

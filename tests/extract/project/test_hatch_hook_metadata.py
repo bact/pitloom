@@ -207,7 +207,7 @@ def test_metadata_from_hatchling_license_expression_used_directly() -> None:
 
 
 def test_metadata_from_hatchling_identified_license_text_names_the_method() -> None:
-    """A ``license`` text ``licenseid`` identifies: the id, its provenance
+    """A ``license`` text LicenseID identifies: the id, its provenance
     naming the method (not the plain field)."""
     detected = ("MIT", "Source: x | Method: licenseid_detection")
     hatch_meta = _fake_hatch_metadata(core={"license": "MIT License text"})

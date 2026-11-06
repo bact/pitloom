@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,7 @@ session, which I could not check in Git. Items with a source name it.
   and the maintainer open issues and PRs meanwhile.
 - Do: write no number until it exists. Use a token that a grep finds (for
   example `PR-TBD`), and fix it in one commit after the PR is opened, or ask the
-  caller for the number. `licenseid`'s `AGENTS.md` already says to link the PR
+  caller for the number. LicenseID's `AGENTS.md` already says to link the PR
   "once it has a number (never guess one)"; Pitloom's does not.
 - Open: a test or check that fails a PR when its text names a number that is an
   issue, or that is not the PR's own. Not built.
@@ -115,4 +115,4 @@ in it; a relaunched one starts from the brief and the committed branch.
 - Whether a hand-back should be an object the caller can deduplicate (an
   identifier in the first line), so a second copy is recognisable at a glance.
 - Whether the placeholder rule belongs in Pitloom's `AGENTS.md` as it does in
-  `licenseid`'s.
+  LicenseID's.

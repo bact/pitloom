@@ -52,7 +52,7 @@ OUTCOMES = ("present", "missing", "not-applicable", "out-of-scope")
 
 @contextmanager
 def without_licence_database() -> Iterator[None]:
-    """Build as if the ``licenseid`` database were absent.
+    """Build as if the LicenseID database were absent.
 
     CI builds it and a laptop may not; with it, licence text is detected and
     the SBOM text changes. The table describes the database-less state (a

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -286,8 +286,8 @@ together. Still open: a skill body still quotes some wording, an agent may
 key on either, and nothing measures whether an agent behaves the same after
 a wording change, or after a new variant appears.
 
-*Open:* a shared contract across Pitloom, `licenseid` and the conformance
-checker that Lumina runs. `licenseid` words its diagnostics
+*Open:* a shared contract across Pitloom, LicenseID and the conformance
+checker that Lumina runs. LicenseID words its diagnostics
 `LEVEL: SUBJECT: CONDITION[: DETAIL][; ACTION]` with its own closed set of
 conditions (`not found`, `download failed`) and no code; the checker's
 notification ids are dotted (`spdx.parsing-error`); Pitloom's codes are
@@ -297,7 +297,7 @@ families so a namespace stays possible. Lumina's SARIF ingest reads only
 Whether the three share one condition vocabulary, and how a code is
 namespaced when one tool's diagnostic reaches the user through another, is
 not designed; *session record:* the maintainer has the
-`licenseid` 0.8.0 release in mind for it.
+LicenseID 0.8.0 release in mind for it.
 
 *Open:* does an agent that reads a `[code]` and the generated reference
 behave better than one reading free text? Static tests hold the code, the

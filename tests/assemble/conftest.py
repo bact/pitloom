@@ -364,7 +364,7 @@ def _make_sdist(
 
 @pytest.fixture(name="licenseid_db_path")
 def licenseid_db_path_fixture() -> Path:
-    """Skip if the licenseid database has not been built yet.
+    """Skip if the LicenseID database has not been built yet.
 
     Build with: ``licenseid update``. Only a missing file skips: a database
     that exists but cannot be opened must fail the tests, not hide.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,7 +45,7 @@ involved.
 | `method` | Meaning |
 | --- | --- |
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
-| `licenseid_detection` | Licence text matched against a known SPDX licence using the [`licenseid`](https://pypi.org/project/licenseid/) library. Says how the value was read; the package's own `LICENSE` file is still declared unless the manifest states a licence. |
+| `licenseid_detection` | Licence text matched against a known SPDX licence using the [LicenseID](https://pypi.org/project/licenseid/) library. Says how the value was read; the package's own `LICENSE` file is still declared unless the manifest states a licence. |
 | `inferred_from_authors` | Derived from the `authors` list (e.g. a copyright statement), not read verbatim from any single field. |
 | `parsed_author_list` | Extracted multiple individual entities by splitting a single, comma-separated author string. |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |

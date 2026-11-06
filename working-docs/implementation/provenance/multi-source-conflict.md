@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,7 +57,7 @@ both candidate values are parsed, deduplicated, and canonically reordered
 before both the comparison and the license-element lookup/creation. A
 value that does not parse is text, compared as written less its leading
 blank space and final line breaks. Two values are the same licence when
-their classified values are equal (`licenseid` reads a classifier's `MIT
+their classified values are equal (LicenseID reads a classifier's `MIT
 License` as `MIT`; `is_listed_name` did until #440). A
 `NoAssertionLicense` candidate never conflicts; `NONE`
 against a real licence does (detail:

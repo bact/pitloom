@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ Status: input for a later redesign of licence conflict resolution and
 cascading. Sections 1 to 8 record the behaviour shipped in PR #276
 (element typing), #283 (sdist licence detection) and #284 (fragment
 merge), checked against `src/pitloom` on 2026-10-05. Since #437 and #440,
-`licenseid` 0.7 reads every declared value (`extract/_license_resolve.py`);
+LicenseID 0.7 reads every declared value (`extract/_license_resolve.py`);
 re-check the spelling rules of sections 2, 6 and 7 before relying on them.
 [Open questions](#open-questions) records what is not settled, with the
 evidence and the user's leanings. A leaning is input, not a decision.
@@ -65,7 +65,7 @@ class (section 4):
   classifier from `license`.
 - **In-package files.** `license:` in `CITATION.cff`, then
   `codemeta.json`, then the text of `LICENSE`/`LICENCE`/`COPYING`/
-  `COPYRIGHT` (with `""`/`.txt`/`.rst`/`.md`) identified by `licenseid`
+  `COPYRIGHT` (with `""`/`.txt`/`.rst`/`.md`) identified by LicenseID
   (threshold 0.85, file cap 256 KiB). One rule:
   `apply_in_package_license()` over `license_from_candidates()`. Read on
   a directory, by the hook and in an sdist; not in a wheel or installed
@@ -85,7 +85,7 @@ class (section 4):
 - **Model card, local.** `license:` in a local README/model card front
   matter, by `ReadmeEnricher`, only with `[tool.pitloom] enrich` on.
 - **Hugging Face Hub.** Card YAML `license:`, then the repository's
-  licence files through `licenseid`. Label `Hugging Face Hub`.
+  licence files through LicenseID. Label `Hugging Face Hub`.
 - **Per-file tag.** A source file's `SPDX-License-Identifier:` (first
   one only). Not a cascade: a stated value is emitted at once.
 - **Library caller.** `ProjectMetadata(license_name=...,
@@ -143,7 +143,7 @@ field list followed by the classifiers;
 (`License-Expression`, `License`, `Classifier`, each unfolded).
 
 - **Directory, `pyproject.toml`** (`loom project`, library, sdist without
-  `PKG-INFO`): `project.license` (a `text`/`file` table that `licenseid`
+  `PKG-INFO`): `project.license` (a `text`/`file` table that LicenseID
   identifies gives the id) -> `project.classifiers` -> in-package files.
   Poetry: `license` -> in-package files.
 - **Directory, `setup.cfg`/`setup.py`**: `setup(license=)` -> `setup.cfg`
@@ -175,7 +175,7 @@ field list followed by the classifiers;
   (`WeakLicense`, `emit_weak_license`). The held state is per dependency.
 - **AI model in a project or `loom model`**: the model file's licence;
   with enrichment on, a local model card fills it only when empty.
-- **Hugging Face model**: card value (canonicalised by `licenseid` id
+- **Hugging Face model**: card value (canonicalised by LicenseID id
   lookup) unless vague -> repository licence files -> card `unknown`.
 - **Per-file tag**: no cascade.
 
@@ -208,17 +208,17 @@ slot).
 
 Text to id (`detect_license_from_text`, `extract/_license_text_match.py`,
 #286), on
-top of `licenseid` (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
+top of LicenseID (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
   matching guidelines omit the notice); only the reading whose top score
   is higher counts, both when their top scores are equal, as when both
-  reach the 1.0 cap (#287). A notice hides MIT from `licenseid` (PyYAML
+  reach the 1.0 cap (#287). A notice hides MIT from LicenseID (PyYAML
   gives `Xnet`) but anchors licence placement in mixed content
   (ast_serialize).
 - A stated licence (the manifest's value; any id an expression names)
   wins when it scores within 0.01 of the top in that reading:
-  `licenseid` ranks near-variants above the verbatim text (`Pixar` over
+  LicenseID ranks near-variants above the verbatim text (`Pixar` over
   `Apache-2.0`, `JSON` over `MIT`). Against a top match at the 1.0 cap
   the score no longer tells how close they are, so the stated licence
   must also not fit measurably worse (`_fits_worse`, #287): `JSON`,
@@ -241,10 +241,10 @@ top of `licenseid` (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
 - A runner-up that fits the input measurably worse is no tie (#287): its
   `similarity`, or the share of its licence the text holds (`coverage` up
   to 1; above 1 the text only has extra words), more than 0.01 below the
-  top's (`_fits_worse`). Needed since `licenseid` 0.4 caps `score` to 1:
+  top's (`_fits_worse`). Needed since LicenseID 0.4 caps `score` to 1:
   MIT's 1.0157 against `JSON` 0.9926 became 1.0 against 0.9926, and
   `FSL-1.1-MIT` (similarity 1.0, coverage 0.25: MIT's text is a quarter
-  of it) ties MIT at 1.0. The list order is `licenseid`'s ranking, kept
+  of it) ties MIT at 1.0. The list order is LicenseID's ranking, kept
   for equal scores. Same result on the corpus with 0.3.7 and 0.4; an
   unmeasured field (a mock, a non-text match) never breaks a tie.
 - Consequence: the concluded value now leans on the declared one in a
@@ -297,7 +297,7 @@ Today's model is two candidates at most, for the main package only.
   first-seen text less leading blank lines/spaces/tabs and final line
   breaks (`_without_blank_ends`). Inner text, CRLF included, is kept and
   compared as written.
-- **Name vs id**: equality of the classified values; `licenseid` reads an
+- **Name vs id**: equality of the classified values; LicenseID reads an
   SPDX List name as its id (`MIT License` is `MIT`), so the name-vs-id
   stop-gap (`same_licence`, `is_listed_name`) went in #440.
 - **Kind**: an expression and a text of the same string are two
@@ -358,7 +358,7 @@ elsewhere:
 - After R10, no further licence-content questions in #276; the findings
   below were recorded instead.
 - An unstated verbatim GPL-family text concludes the `-only` id
-  `licenseid` ranks first, as 0.19.0 did, not none (user, 2026-10-05, PR
+  LicenseID ranks first, as 0.19.0 did, not none (user, 2026-10-05, PR
   #286: the conservative choice; the text cannot tell `-or-later`).
 
 ## Open questions
@@ -423,7 +423,7 @@ leaning (2026-10-04).
    ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)).
 10. **Text equivalence.** Moved to canonical output [C11][c11].
 11. **Classifier or licence name to id.** Moved to canonical output [C12][c12].
-12. **Detected text by surface.** A `license.file` text `licenseid`
+12. **Detected text by surface.** A `license.file` text LicenseID
     identifies is the id on a directory and the hook, the text from an
     sdist, wheel or installed metadata (`stated_license()` is not run on
     `PKG-INFO`). A content decision

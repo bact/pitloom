@@ -100,7 +100,7 @@ fixtures.
 Small, hand-crafted (not real-`pip`-installed) fixtures exercising
 `pitloom.extract.project.installed` -- an in-tree `.egg-info`/`.dist-info`
 byproduct next to `pyproject.toml`, reconciled into the static metadata
-(see `working-docs/design/installed-dist-info-source.md`). Each pairs a
+(see `working-docs/implementation/installed-dist-info-source.md`). Each pairs a
 minimal `pyproject.toml` with one or more marker files
 (`<name>.egg-info/PKG-INFO`, `<name>-<ver>.dist-info/METADATA`):
 

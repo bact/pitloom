@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,7 +42,7 @@ show. Status is as of 14:40 UTC on 2026-11-02.
 
 ## 2. The 0.23.0 scope
 
-**Decided 2026-10-30 (`roadmap.md`, "The 0.23.0 list"):** the `licenseid` 0.7.0
+**Decided 2026-10-30 (`roadmap.md`, "The 0.23.0 list"):** the LicenseID 0.7.0
 adoption (`match` becomes `detect`, `resolve` becomes `match`), the licence
 provenance mapping (#384), the remaining catalogue families (1b, 2b and 3 to 18,
 the licence families included), and `--report` and SARIF.

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Licence detection on real licence files: each one ``licenseid`` alone
+"""Licence detection on real licence files: each one LicenseID alone
 gets wrong or misses (a near-variant ranked first, a licence behind a
 copyright notice), with and without the licence the package states.
 
@@ -70,7 +70,7 @@ def test_a_tag_value_is_read_whole_or_not_at_all(
     "fixture", ["setuptools/pyyaml-6.0.3", "setuptools/requests-2.34.2"]
 )
 def test_an_sdist_concludes_its_own_licence(fixture: str) -> None:
-    """PyYAML's MIT ``LICENSE`` starts with two notice lines (``licenseid``
+    """PyYAML's MIT ``LICENSE`` starts with two notice lines (LicenseID
     gives ``Xnet``); requests' verbatim Apache 2.0 scores just under
     ``Pixar``. Both conclude the licence the project states."""
     project = REAL_WORLD_ROOT / fixture

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -166,7 +166,7 @@ values `derived_from_format`, `generated_from_labels`, `flit_dynamic_metadata`,
 | `method` value | Meaning | Emission site(s) |
 | --- | --- | --- |
 | `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/project/pyproject.py:342`, `:363` |
-| `licenseid_detection` | Licence matched against a known SPDX id via the `licenseid` library -- how it was read; own `LICENSE` stays declared unless the manifest states one | `src/pitloom/extract/remote/huggingface_fetch.py:255`, `:319`; `src/pitloom/extract/_license.py:112`, `:215` (`detect_license_from_text` itself is in `extract/_license_text_match.py`); `src/pitloom/assemble/spdx3/deps_license.py:491` (default for a library `license_concluded`) |
+| `licenseid_detection` | Licence matched against a known SPDX id via the LicenseID library -- how it was read; own `LICENSE` stays declared unless the manifest states one | `src/pitloom/extract/remote/huggingface_fetch.py:255`, `:319`; `src/pitloom/extract/_license.py:112`, `:215` (`detect_license_from_text` itself is in `extract/_license_text_match.py`); `src/pitloom/assemble/spdx3/deps_license.py:491` (default for a library `license_concluded`) |
 | `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/project/setuptools_cfg.py:285`, `setuptools_py.py:214`; `src/pitloom/extract/project/poetry.py:169`; `src/pitloom/extract/project/hatchling.py:143`; `src/pitloom/extract/project/pyproject.py:202` |
 | `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_originator.py:347` |
 | `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/project/pyproject_dynamic.py` |
