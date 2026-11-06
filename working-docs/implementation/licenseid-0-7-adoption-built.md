@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-04
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,9 @@ SPDX-License-Identifier: CC0-1.0
 
 # licenseid 0.7.0 adoption: what was built (0.23.0)
 
-See also: [licenseid-0-7-adoption.md](../design/licenseid-0-7-adoption.md)
-(the plan and its rulings),
+See also: [licenseid-0-7-adoption-plan.md](licenseid-0-7-adoption-plan.md)
+(the plan, its rulings and measurements),
+[roadmap-completed.md](roadmap-completed.md#shipped-in-0230-prs-434-446),
 [license-pipeline.md](license-pipeline.md),
 [licences-and-licenseid.md](../design/known-bugs/licences-and-licenseid.md)
 (open entries).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -105,8 +105,8 @@ See [CHANGELOG.md](../../CHANGELOG.md) and
 [release-checklist.md](../implementation/release-checklist.md). Highlights:
 declared licence values read by `licenseid` 0.7 with no licence database
 (#437-#440, floor 0.7.1 #445; see
-[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md)); message codes for
-cards, Croissant and lone surrogates (catalogue PR 2b, #444) and for model
+[licenseid-0-7-adoption-plan.md](../implementation/licenseid-0-7-adoption-plan.md));
+message codes for cards, Croissant and lone surrogates (catalogue PR 2b, #444) and for model
 fields read in part and unusable libraries (PRs 1b and 1c, #446); no agent
 files in the sdist or wheel (#435). Requires `licenseid>=0.7.1,<0.8`. The
 ratchet fell from 498 to 469. The generated message reference is over the

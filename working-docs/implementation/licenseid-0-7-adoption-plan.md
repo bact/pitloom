@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,11 +8,21 @@ SPDX-License-Identifier: CC0-1.0
 
 # Adopting licenseid 0.7.0 (Pitloom 0.23.0)
 
+See also: [licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md)
+(what was built),
+[roadmap-completed.md](roadmap-completed.md#shipped-in-0230-prs-434-446),
+[license-pipeline.md](license-pipeline.md),
+[license-resolution-categories.md](../design/license-resolution-categories.md),
+[roadmap.md](../design/roadmap.md), licenseid
+`working-docs/design/resolver-0-7-plan.md` (T13 is this work; T14, the
+provenance mapping, is open), [known-bugs.md](../design/known-bugs.md)
+("Per-operand licence provenance is not built").
+
 Status: shipped in Pitloom 0.23.0 (2026-11-05), on licenseid 0.7.1 (stages A
 to E, #437 to #440 and #443). Sections 1 to 7 are the pre-release plan, kept
 for its rulings and sweep data; sections 1, 5 and 7 are history. What was
 built, the final gate and the 0.22.1 to 0.23.0 sweep are in
-[licenseid-0-7-adoption-built.md](../implementation/licenseid-0-7-adoption-built.md).
+[licenseid-0-7-adoption-built.md](licenseid-0-7-adoption-built.md).
 
 Stage A (#437, 2026-11-03, on the released 0.7.0): Pitloom requires
 `licenseid>=0.7.1,<0.8`. Text detection uses `LicenseDetector().detect()`
@@ -32,11 +42,6 @@ gained (33 projects), 0 lost; byte-identical with and without a database.
 The rule for the two calls: `resolve()` reads a declared value (package
 metadata) and returns the canonical expression; `detect()` reads licence
 text.
-
-See also: [license-resolution-categories.md](license-resolution-categories.md),
-[roadmap.md](roadmap.md), licenseid `working-docs/design/resolver-0-7-plan.md`
-(T13 is this work; T14, the provenance mapping, is open),
-[known-bugs.md](known-bugs.md) ("Per-operand licence provenance is not built").
 
 ## 1. What existed when planned
 

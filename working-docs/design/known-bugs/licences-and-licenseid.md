@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,7 @@ rules for adding an entry), [roadmap.md](../roadmap.md),
 [license-pr276-followups.md](../license-pr276-followups.md),
 [license-rules.md](../license-rules.md),
 [license-resolution-categories.md](../license-resolution-categories.md),
-[licenseid-0-7-adoption.md](../licenseid-0-7-adoption.md).
+[licenseid-0-7-adoption-plan.md](../../implementation/licenseid-0-7-adoption-plan.md).
 
 Licence detection, declared and concluded licences, the `licenseid` resolver
 and database, licence elements and their provenance. Entries are ranked by

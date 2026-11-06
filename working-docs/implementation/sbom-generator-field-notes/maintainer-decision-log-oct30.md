@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,7 +53,7 @@ are marked.
   maintainer's later decision to move them to a later release, and to wait
   for `licenseid` 0.7.0 before adopting it, is from the session and is not
   yet written in the plan: **the repository and this log disagree until
-  the plan is updated.** The adoption page (`licenseid-0-7-adoption.md`)
+  the plan is updated.** The adoption page (`licenseid-0-7-adoption-plan.md`)
   says the adoption waits on the release.
 - **`licenseid` 0.7.0 was not on PyPI.** The maintainer's check at about
   13:05 UTC on 2026-10-30 found no 0.7.0 (session record). I looked at

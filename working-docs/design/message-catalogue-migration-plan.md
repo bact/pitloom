@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
 (the design and decisions A to M), [roadmap.md](roadmap.md) (0.23.0 and
 0.24.0 scope), [known-bugs.md](known-bugs.md),
-[licenseid-0-7-adoption.md](licenseid-0-7-adoption.md).
+[licenseid-0-7-adoption-plan.md](../implementation/licenseid-0-7-adoption-plan.md).
 
 Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 `licenseid` 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
