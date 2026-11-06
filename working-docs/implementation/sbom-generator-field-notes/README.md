@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-02
+Last-Modified: 2026-11-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-11-02).
+the day it was added (2026-10-02 to 2026-11-06).
 
 ## Files
 
@@ -123,6 +123,13 @@ the day it was added (2026-10-02 to 2026-11-02).
 - [maintainer-decision-log-nov02.md](maintainer-decision-log-nov02.md): a
   dated table of the 0.22.1 round (release order, the 0.22.1 and 0.23.0
   scopes, the CI experiment, the ledger split).
+- [model-usage-ast-scan-lessons.md](model-usage-ast-scan-lessons.md): how code
+  uses a model file, read from the syntax tree: a rendered path is not the path,
+  data positions, `str.format` digits as CPython reads them, caps that fail
+  closed, what binds a name, mutation testing finding a bug, `.PY` said not
+  dropped, a `since` default one release early (#413); a text cap that does not
+  bound parser recursion, a process-wide stack size, squared cost, a constant
+  only in a message (#432).
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
