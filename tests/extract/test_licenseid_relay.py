@@ -26,6 +26,7 @@ from pitloom.extract import _license, _license_resolve
 from pitloom.extract import _licenseid_relay as relay
 from pitloom.extract._license import resolve_declared_value
 from pitloom.extract._license_text_match import detect_license_from_text
+from pitloom.logging_config import configure_logging
 from tests._licenseid_warn import as_licenseid, warn_from_pitloom
 
 _LOGGER = relay.__name__
@@ -70,6 +71,10 @@ def test_a_warning_is_one_line_said_once_and_never_raised(
             ),
         ),
         (
+            ("input", "too few words for text", "not found: x y", None),
+            (logging.DEBUG, "licenseid: input: too few words for text: not found: x y"),
+        ),
+        (
             ("database", "unreadable", "a\nWARNING: forged", None),
             (logging.WARNING, "licenseid: database: unreadable: a WARNING: forged"),
         ),
@@ -79,7 +84,7 @@ def test_a_warning_is_one_line_said_once_and_never_raised(
             (logging.WARNING, "licenseid: 'input: binary file: \\x1b[31m'"),
         ),
     ],
-    ids=["guess-info", "newline", "control"],
+    ids=["guess-info", "too-few-words-debug", "newline", "control"],
 )
 def test_the_level_and_the_escaping(
     parts: tuple[str, str, str, str | None],
@@ -294,3 +299,31 @@ def test_detection_relays_what_detect_itself_warns(
             "licenseid: input: variant not stated: GPL-2.0; using GPL-2.0-only",
         )
     ]
+
+
+def test_no_licence_in_a_short_text_is_quiet(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """LicenseID (0.7.2 on) says a text too short to match has no licence
+    in it: absent data, so nothing on stderr and ``DEBUG`` on every
+    lookup, never raised to ``WARNING`` (a stub, so any LicenseID)."""
+    short = "version https://git-lfs.github.com/spec/v1 " + "x" * 200
+
+    # pylint: disable-next=too-few-public-methods
+    class _TooShort:
+        def detect(self, text: str) -> list[object]:
+            warn_from_pitloom("input", "too few words for text", f"not found: {text}")
+            return []
+
+    monkeypatch.setattr(
+        "pitloom.extract._license_text_match.LicenseDetector", _TooShort
+    )
+    configure_logging(debug=False)
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        for _ in range(2):
+            assert detect_license_from_text(short) is None
+    assert capsys.readouterr().err == ""
+    line = f"licenseid: input: too few words for text: not found: {short}"
+    assert _said(caplog) == [(logging.DEBUG, line)] * 2

@@ -16,7 +16,8 @@ Every LicenseID call Pitloom makes (building the detector, detecting,
 resolving) runs inside :func:`relay_licenseid_warnings`, which records
 each such warning and says it once per text as ``WARNING: licenseid:
 <its text>``; ``variant not stated`` (a guess LicenseID records on the
-detection) is ``INFO:``.
+detection) is ``INFO:``, and ``too few words for text`` (no licence found
+in a short text) is ``DEBUG`` (:data:`_LEVELS`).
 
 LicenseID attributes its warning to the code that called it, a
 ``pitloom`` module. One filter, ``always`` for a
@@ -62,9 +63,15 @@ log = logging.getLogger(__name__)
 #: The sub-prefix of every line said for LicenseID.
 PREFIX = "licenseid: "
 
-#: Conditions that are a guess recorded on the result, not a fallback: the
-#: detection itself says what was read, so the line is ``INFO:``.
-_INFO_CONDITIONS = frozenset({"variant not stated"})
+#: The level of a condition said below ``WARNING``; any other is a fallback
+#: or failure, said at ``WARNING``. ``variant not stated`` is a guess
+#: recorded on the result (the detection says what was read): ``INFO:``.
+#: ``too few words for text`` only says a text is too short to match, so
+#: no licence was found in it: absent data, quiet at ``DEBUG``.
+_LEVELS: dict[str, int] = {
+    "variant not stated": logging.INFO,
+    "too few words for text": logging.DEBUG,
+}
 
 #: The modules whose LicenseID warnings the relay's filter takes: a
 #: warning is attributed to the module that called LicenseID.
@@ -90,8 +97,7 @@ def _relay(caught: list[warnings.WarningMessage]) -> None:
     for warning in caught:
         message = warning.message
         if isinstance(message, LicenseIdWarning):
-            info = message.condition in _INFO_CONDITIONS
-            say(str(message), logging.INFO if info else logging.WARNING)
+            say(str(message), _LEVELS.get(message.condition, logging.WARNING))
 
 
 def _keep_filter_first() -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -331,7 +331,8 @@ LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
 GPL-2.0-only` is a guess LicenseID made while detecting a licence file's
 text (a bare deprecated id in an `SPDX-License-Identifier` tag): report it
-with the licence it concerns.
+with the licence it concerns. LicenseID 0.7.2's `input: too few words for
+text` (a licence file too short to match) is not shown: nothing to report.
 
 If the preflight failed, generate anyway and report the line. Do not run a
 network `licenseid update` or regenerate unasked: ask; non-interactive: report

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,19 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.23.0...HEAD>
 
 ## [Unreleased]
+
+### Changed
+
+- With LicenseID 0.7.2, licence titles and aliases (`New BSD`,
+  `CC0 1.0 Universal`, `Mulan PSL v2`) are read as ids, with one `INFO:` line
+  ([#455])
+
+### Fixed
+
+- With LicenseID 0.7.2, a licence text too short to match no longer gives a
+  `WARNING: licenseid: input: too few words for text` line ([#455])
+
+[#455]: https://github.com/bact/pitloom/pull/455
 
 ## [0.23.0] - 2026-11-05
 
