@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A missing LicenseID database costs a stated licence only the licence-file
-check: said once at ``INFO:``. Any other case still warns.
+check: said once at ``INFO:``. A text too short to be a licence body never
+looks the database up. Any other case still warns.
 
 See also: :mod:`tests.assemble.test_license_database` (a database that
 fails after the detector is built).
@@ -15,14 +16,17 @@ import functools
 import logging
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from licenseid import DatabaseNotReadyError, LicenseDetector
 
 from pitloom.extract import _license_text_match
-from pitloom.extract._license import resolve_declared_value
-from pitloom.extract._license_text_match import detect_license_from_text
+from pitloom.extract._license import resolve_declared_value, stated_license
+from pitloom.extract._license_text_match import (
+    _get_detector,
+    detect_license_from_text,
+)
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 _INFO = "licenseid database not found: "
@@ -148,3 +152,59 @@ def test_the_info_and_warning_lines_share_one_grammar(
     for _, line in levels_and_lines:
         assert line.startswith("licenseid database ")
         assert line.count(" -- ") == 1
+
+
+@pytest.fixture(name="spy")
+def _spy() -> Iterator[MagicMock]:
+    """Records every lookup of the shared detector."""
+    with patch.object(_license_text_match, "_get_detector", wraps=_get_detector) as spy:
+        yield spy
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["New BSD", "CC0 1.0 Universal", "Some in-house licence, see the website"],
+    ids=["alias", "title", "label"],
+)
+@pytest.mark.usefixtures("missing")
+def test_a_short_value_never_looks_the_database_up(
+    value: str, spy: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A declared value under a licence body's length is no text to detect:
+    a missing database is not looked up, nor said."""
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        assert detect_license_from_text(value) is None
+        assert stated_license(value, "Source: x") == (value, None)
+
+    assert spy.call_count == 0
+    assert not [line for line in _lines(caplog) if "licenseid database" in line[1]]
+    assert not [line for line in _lines(caplog) if line[0] >= logging.WARNING]
+
+
+@pytest.mark.usefixtures("missing")
+def test_a_long_text_with_no_database_warns_once(
+    spy: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Detection needs the database and nothing is declared: one warning,
+    though asked twice."""
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert detect_license_from_text(_TEXT) is None
+        assert detect_license_from_text(_TEXT) is None
+
+    assert spy.call_count == 2
+    warned = [line for line in _lines(caplog) if line[0] >= logging.WARNING]
+    assert len(warned) == 1
+    assert "licenseid database cannot be used" in warned[0][1]
+
+
+@pytest.mark.usefixtures("missing")
+def test_a_declared_long_text_with_no_database_is_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The declared licence is a text: recorded as written, and the database
+    its detection needs said missing at ``INFO:``, not warned about."""
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert stated_license(_TEXT, "Source: x") == (_TEXT, None)
+
+    assert [level for level, line in _lines(caplog) if _INFO in line] == [logging.INFO]
+    assert not [line for line in _lines(caplog) if line[0] >= logging.WARNING]

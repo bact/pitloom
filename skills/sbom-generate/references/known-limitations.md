@@ -314,7 +314,8 @@ from the SPDX License List the `licenseid` wheel ships, 0.23.0 and later).
 Report the line and the command. When the project declares a licence and the
 file is only missing, the line is `INFO: licenseid database not found: <path>
 -- license text detection skipped; run 'licenseid update --source packaged'`:
-only the `LICENSE` file is not matched.
+only the `LICENSE` file is not matched. A declared name with no `LICENSE`
+file (`New BSD`) needs no database and gives neither line.
 
 `WARNING: licenseid database cannot be used: database: not found: no home
 directory; pass --db -- license text detection skipped` (always a `WARNING:`,

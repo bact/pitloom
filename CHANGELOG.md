@@ -22,6 +22,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- With no LicenseID database, a declared licence name (`New BSD`) no longer
+  warns, and a declared licence text says so at `INFO:` ([#458])
+
+[#458]: https://github.com/bact/pitloom/pull/458
+
 ## [0.23.1] - 2026-11-07
 
 ### Changed

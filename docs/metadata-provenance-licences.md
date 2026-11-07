@@ -144,8 +144,9 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 The reading uses the SPDX License List the `licenseid` wheel ships, not the
 LicenseID database: the same value gives the same reading with or without
 one. Only licence-text detection needs the database (`licenseid update
---source packaged`); without it `licenseid database cannot be used` is
-warned once, or, when the project declares a licence and the database is
+--source packaged`), and only for a text long enough to be a licence: a
+name such as `New BSD` never looks it up. Without it `licenseid database
+cannot be used` is warned once, or, when the project declares a licence and the database is
 only missing, `licenseid database not found` is said once at `INFO:`: only
 the `LICENSE`-file check is skipped. A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2

@@ -80,13 +80,14 @@ def test_a_declared_licence_and_no_database_is_info_on_every_surface(
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
-def _write_project(project: Path, licence: str) -> None:
+def _write_project(project: Path, licence: str, *, licence_file: bool = True) -> None:
     """A project whose ``project.license`` is the TOML value *licence*."""
     project.mkdir()
     (project / "pyproject.toml").write_text(
         _PYPROJECT.replace('"Apache-2.0"', licence), encoding="utf-8"
     )
-    (project / "LICENSE").write_text("Apache License\n" * 20, encoding="utf-8")
+    if licence_file:
+        (project / "LICENSE").write_text("Apache License\n" * 20, encoding="utf-8")
     (project / "demo").mkdir()
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
 
@@ -117,6 +118,46 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
     assert [r.message.rpartition(": ")[2] for r in read] == [
         "read as Apache-2.0 (separator, version_spelling)"
     ]
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+_LONG = "Apache License\\n" * 20  # a TOML escape: one text of 300 characters
+
+
+@pytest.mark.parametrize(
+    ("value", "said"),
+    [("New BSD", "BSD-3-Clause"), ("CC0 1.0 Universal", "CC0-1.0"), (_LONG, None)],
+    ids=["alias", "title", "long"],
+)
+@pytest.mark.parametrize("surface", [_library, _cli, _hook], ids=lambda f: f.__name__)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_declared_text_and_no_database_never_warns_on_every_surface(
+    surface: Callable[[Path], None],
+    value: str,
+    said: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A declared value that is no id, and no licence file: a short one is
+    read from the packaged List without the database; a long one is said
+    once at ``INFO:``, as the database its detection needs is missing."""
+    project = tmp_path / "proj"
+    _write_project(project, f'{{ text = "{value}" }}', licence_file=False)
+    monkeypatch.setattr(sys, "argv", sys.argv)
+    monkeypatch.setattr(
+        _license_text_match,
+        "LicenseDetector",
+        functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db")),
+    )
+
+    with caplog.at_level(logging.INFO):
+        surface(project)
+
+    missing = [r.levelno for r in caplog.records if _INFO in r.getMessage()]
+    assert missing == ([] if said else [logging.INFO])
+    if said:
+        assert [r for r in caplog.records if f"read as {said} (" in r.getMessage()]
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 

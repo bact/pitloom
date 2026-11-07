@@ -114,7 +114,8 @@ lightweight and points at `7c555774` (the merge of #456).
 
 - With no licence database, the `New BSD` project, which has no `LICENSE`
   file, also prints `WARNING: licenseid database cannot be used: ...
-  license text detection skipped`; the `Apache2` project does not.
+  license text detection skipped`; the `Apache2` project does not. Fixed
+  in #458: a declared name never looks the database up.
 - `loom model` on the GGUF file warns `[library-missing]`: the install has
   no `gguf` extra.
 - The SBOM's `created` (14:52:21 UTC) is the build's clock: the publish
