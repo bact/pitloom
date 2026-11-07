@@ -26,8 +26,8 @@ Pitloom has three kinds of remote target and will get more:
 - a Git URL (repository or page of GitLab, GitHub, Gitea/Forgejo, Bitbucket,
   SourceHut), built;
 - a Hugging Face model id or URL, built;
-- a PyPI package (`loom pypi <name>[==version]`, designed in
-  [remote-source-ingestion.md](remote-source-ingestion.md)), and possibly
+- a PyPI package (`loom wheel <pypi-url>` and `loom project <pypi-url>`,
+  designed in [pypi-url-targets.md](pypi-url-targets.md)), and possibly
   conda packages and MLflow models.
 
 Each is a string the user pastes. A [Package-URL](https://github.com/package-url/purl-spec)

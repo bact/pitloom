@@ -17,7 +17,13 @@ used below), and [evidence-levels.md](evidence-levels.md) (how the download is
 recorded).
 
 Status: design, 2026-11-07. Nothing built. The first iteration is deliberately
-small: **no new flags and no prompts**.
+small: **no new flags and no prompts**. Hand-tested on one small package
+(2026-10-20): `loom project <sdist>` and `loom wheel <wheel>` each wrote an SBOM
+that `sbomcheck` read, so the work is the fetch, pick and verify steps, not the
+readers.
+
+First consumer: Lumina's *Generate & check* page (a PyPI URL beside a Git or
+Hugging Face one), which would call this resolver rather than carry its own.
 
 ## Decision
 
@@ -147,6 +153,13 @@ The file is untrusted data.
 - `--embed` (wheel) is **not** offered for a downloaded wheel: it would write
   into a temporary file. It is refused with a message, not ignored.
 
+## Dependencies the SBOM lists
+
+The SBOM states the release's **declared** requirements (`requires_dist`, as the
+local reader already reads them from the file's own metadata), not a resolved
+environment, and says so. Extras follow the local reader's rule for a wheel or
+sdist (an extra edge is `hasOptionalDependency` with no scope).
+
 ## Surfaces
 
 One resolver (`pitloom.extract.remote`, next to the Git and Hugging Face
@@ -191,9 +204,10 @@ code), used by every surface (AGENTS.md "usage surfaces"):
 - `name==version` and bare-name targets; `files.pythonhosted.org` file links;
   other indexes and credentials (shares the token rules in
   [remote-source-ingestion.md](remote-source-ingestion.md)); a download cache.
-- Declared requirements (`requires_dist`) of a release the SBOM did not
-  download: the local reader already reads the file's own metadata, so this is
-  only needed for a no-download mode, which is not planned.
+- A private index with credentials (the token rules in
+  [remote-source-ingestion.md](remote-source-ingestion.md)).
+- A no-download mode reading `requires_dist` from the JSON API alone: not
+  planned, since the file's own metadata is the better source.
 
 ## Decisions on the first open questions (2026-11-07)
 
@@ -209,4 +223,7 @@ code), used by every surface (AGENTS.md "usage surfaces"):
 
 ## Open questions
 
-None left for iteration 1.
+None left for iteration 1. For later iterations: whether extras are on or off by
+default for a downloaded release, and whether a download cache is per user
+(`~/.cache/pitloom/remote/<hash>`) or ephemeral (the same question as in
+[remote-source-ingestion.md](remote-source-ingestion.md)).
