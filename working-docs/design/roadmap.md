@@ -24,16 +24,18 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.23.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+shipped up to 0.23.1 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
-0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#446
-on 2026-11-05), including their release-plan items.
+0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
+on 2026-11-05, 0.23.1 #450-#455 on 2026-11-07), including their release-plan
+items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
-1.0. No date for 1.0 until 0.24.0 lands.
+1.0. No date for 1.0 until 0.24.0 lands. 0.23.1, a patch for LicenseID 0.7.2,
+came between 0.23.0 and 0.24.0.
 
 ### 0.21.0
 
@@ -140,6 +142,14 @@ Not built in 0.23.0 (open):
   beyond keeping it working. See [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
   item below.
+
+### 0.23.1: LicenseID 0.7.2
+
+**Released 2026-11-07** (v0.23.1), a patch release. With LicenseID 0.7.2, its
+short-text notice (`too few words for text`) is said at `DEBUG`, not
+`WARNING:`, and licence titles and aliases are read as ids (#455). Still
+requires `licenseid>=0.7.1,<0.8`; the skills keep `pitloom>=0.23.0`. See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0231-prs-450-455).
 
 ### 0.24.0: message catalogue and licence provenance
 
