@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,7 +59,8 @@ entries come first; fixed entries stay in the last section for history.
   0.6.0, `resolve()` answered for a whole value, so a compound with one
   respelt part (`Apache2 OR MIT`) stayed text. Since 0.7 (#437, #440) it is
   read as an expression; the design's per-operand results (`Resolution-n`,
-  `Expansion-n`) wait for the licence provenance mapping (#384, T14, 0.24.0).
+  `Expansion-n`) wait for the licence provenance mapping (T14, 0.24.0;
+  [licence-resolution-provenance.md](../licence-resolution-provenance.md)).
   Decision Q5 (the licence list version into
   `simplelicensing_licenseListVersion`) is not built either: the version is in
   `Resolution["lists"][0]["version"]` but not yet used. The
@@ -114,8 +115,9 @@ entries come first; fixed entries stay in the last section for history.
 - [ ] **LicenseID's `trust: none` is not recorded (S, accepted).** An
   `assumed_only` answer (`GPL-3.0` kept, `-only` or `-or-later` unknown) has
   `trust: none`; the SBOM says it only through the `Deprecated-License-Id`
-  note. Acceptable until the licence provenance mapping (#384) has a key
-  for it. *Found 2026-11-04, review of #440.*
+  note. Acceptable until the licence provenance mapping has a key for it
+  ([licence-resolution-provenance.md](../licence-resolution-provenance.md)).
+  *Found 2026-11-04, review of #440.*
 - [ ] **`_ambiguous` can write a note with no licence (S, no trigger).**
   An operand with `candidates` but no `expression` would give
   `Deprecated-License-Id:  (A or B)`; LicenseID 0.7.0 gives candidates only
