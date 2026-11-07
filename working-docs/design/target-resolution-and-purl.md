@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,8 +26,8 @@ Pitloom has three kinds of remote target and will get more:
 - a Git URL (repository or page of GitLab, GitHub, Gitea/Forgejo, Bitbucket,
   SourceHut), built;
 - a Hugging Face model id or URL, built;
-- a PyPI package (`loom pypi <name>[==version]`, designed in
-  [remote-source-ingestion.md](remote-source-ingestion.md)), and possibly
+- a PyPI package (`loom wheel <pypi-url>` and `loom project <pypi-url>`,
+  designed in [pypi-url-targets.md](pypi-url-targets.md)), and possibly
   conda packages and MLflow models.
 
 Each is a string the user pastes. A [Package-URL](https://github.com/package-url/purl-spec)
@@ -138,9 +138,13 @@ refactor: ask before starting it.
   of the same table.
 - A new source (PyPI first) is then one fetcher plus a table row: fetch the
   archive, hand it to the sdist or wheel reader that already exists.
-- Subcommands keep their natural inputs (`project`, `model`, `wheel`); URLs and
-  PURLs go through `loom generate` and the library. No `loom pypi`, `loom conda`
-  unless asked.
+- `loom generate` and the library take any URL or PURL and pick the artefact
+  kind. A subcommand that names a kind also takes the remote form of its own
+  input: `loom project` a Git URL or a PyPI URL (the sdist), `loom wheel` a
+  PyPI URL (the wheel), `loom model` a Hugging Face id or URL. The subcommand
+  decides which file a PyPI URL fetches, never a silent fallback to the other
+  kind (see [pypi-url-targets.md](pypi-url-targets.md)). No `loom pypi`,
+  `loom conda` unless asked.
 
 ## Open questions
 

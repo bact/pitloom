@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,7 +29,8 @@ without cloning it by hand. The remote targets still open, for symmetry:
 
 - **Private repositories and other transports**: a token for a private
   repository, `ssh://` and scp-style addresses (`git@github.com:owner/repo.git`).
-- **Remote packages/wheels**: `loom wheel <pypi-url>` or a package URL (below).
+- **Remote packages/wheels**: `loom wheel <pypi-url>` and `loom project <pypi-url>`
+  (designed in [pypi-url-targets.md](pypi-url-targets.md)).
 - **Remote datasets**: `loom dataset <croissant-or-hub-url>`.
 
 ---
@@ -95,47 +96,6 @@ credentials in a URL are stripped from messages. Not built:
    `GH_TOKEN`, `GITLAB_TOKEN`, `NETRC`); `--token` or `[tool.pitloom.remote]`.
    Today `git`'s own credential helpers apply and nothing is prompted.
 2. **Moving URL credentials to Authorization headers.**
-
----
-
-## PyPI package ingestion (`loom pypi <name>[==version]`)
-
-Not built. A PyPI project page or `name==version` becomes an SBOM of that
-release, so a consumer (the Lumina web service, an agent, CI) can drop a
-PyPI URL and get one without downloading the files itself. Hand-tested on one
-small package (2026-10-20): `loom project <sdist>` and `loom wheel <wheel>` each
-wrote an SBOM that `sbomcheck` read.
-
-1. **Target**: `https://pypi.org/project/<name>[/<version>]/`, `name`,
-   `name==version`. An index URL other than pypi.org is an option, not a default.
-2. **Resolve** with the JSON API (`/pypi/<name>[/<version>]/json`). No version
-   means the latest release; the chosen version is logged, never silent.
-3. **Choose a file**: the sdist (a Source SBOM, `loom project` path); else a
-   pure-Python wheel (`py3-none-any`, an Analyzed SBOM, `loom wheel` path); else
-   the first wheel for the running platform, said in a `WARNING:`. An option
-   picks `sdist` or `wheel`.
-4. **Download safely**: only `files.pythonhosted.org` (or the index's file
-   host), a size cap and a timeout, chunked reads, the archive limits of the
-   sdist and wheel readers, nothing executed (`--allow-build` never applies).
-5. **Verify**: the JSON API lists each file's SHA-256; a mismatch is an error,
-   a match is recorded on the file element with its source.
-6. **What the SBOM says**: the release's declared requirements (`requires_dist`,
-   extras as optional), not a resolved environment; the SBOM states so.
-7. **Surfaces**: CLI, `generate_project_sbom`/wheel API, skill hand-off; the
-   same resolver for all (AGENTS.md "usage surfaces").
-8. **Open**: extras on or off by default; a private index with credentials
-   (same token rules as the section above); offline cache of the resolved file.
-
-First consumer: Lumina's *Generate & check* page (a PyPI URL beside a Git or
-Hugging Face one), which would call this resolver rather than carry its own.
-
----
-
-## Usage surfaces (PyPI target)
-
-CLI (`loom pypi`), the library (`generate_project_sbom`/wheel API) and the
-agent skills, through one resolver. The Git URL surfaces are built (see the
-status box above).
 
 ---
 
