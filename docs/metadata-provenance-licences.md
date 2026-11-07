@@ -55,7 +55,7 @@ conflict.
   {
     "candidates": [
       {"ref": "...#License-1", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
-      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.7.1", "value": "Apache-2.0"}
+      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.7.2", "value": "Apache-2.0"}
     ],
     "field": "license",
     "kind": "conflict",

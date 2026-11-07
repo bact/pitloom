@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,10 +46,11 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.0 or later
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.1 or later
 (pip, `uvx` or `pipx`). The Skills follow the development version, whose
 commands and messages can be newer than the last release; the licence
-readings and message codes they quote are those of 0.23.0. Before the first
+readings and message codes they quote are those of 0.23.1 (0.23.0 relays
+LicenseID 0.7.2's short-text notice as a spurious warning). Before the first
 run that reads licences, `sbom-generate` builds the LicenseID 0.7 database
 (`licenseid update --source packaged`, no network). Network access is needed
 to install `pitloom` and, at run time, for PyPI and Hugging Face lookups. AI

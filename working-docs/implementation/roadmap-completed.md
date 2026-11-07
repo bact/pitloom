@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -531,3 +531,23 @@ section.
   live Git tests retry a transient 5xx answer; the catalogue plan refresh.
 - [x] **Release PR** (#448): the skills require `pitloom>=0.23.0`; the action
   install self-test uses releases that cap `licenseid` below 0.7.
+- [x] **Docs, skills and comments sweep** (#449, merged before the tag): the
+  `loom merge`, `project` and `enrich` help text; the `pitloom` logger reset
+  around every test; the action self-test fails without a licence database.
+
+## Shipped in 0.23.1 (PRs #450-#455)
+
+Released 2026-11-07, a patch release for LicenseID 0.7.2. Open items:
+[roadmap.md](../design/roadmap.md#0240-message-catalogue-and-licence-provenance).
+
+- [x] **LicenseID 0.7.2** (#455): its `too few words for text` notice (no
+  licence in a short text) is relayed at `DEBUG`, not `WARNING:`; its
+  `text_title` and `alias_name` readings (`New BSD`, `CC0 1.0 Universal`) are
+  decided ids, said at `INFO:`. A test fails on a LicenseID category Pitloom
+  has not decided on.
+- [x] **Docs** (#450 to #454): the post-release verification of v0.23.0;
+  housekeeping; field notes on the model usage scan; the licence provenance
+  design refreshed for LicenseID 0.7.2; the PyPI URL targets design.
+- [x] **Release PR** (#456): requires `licenseid>=0.7.2,<0.8`; the skills
+  require `pitloom>=0.23.1`, since 0.23.0 relays LicenseID 0.7.2's short-text
+  notice as a spurious `WARNING:`.

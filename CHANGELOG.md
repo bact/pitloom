@@ -18,15 +18,19 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.23.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.23.1...HEAD>
 
 ## [Unreleased]
+
+## [0.23.1] - 2026-11-07
 
 ### Changed
 
 - With LicenseID 0.7.2, licence titles and aliases (`New BSD`,
   `CC0 1.0 Universal`, `Mulan PSL v2`) are read as ids, with one `INFO:` line
   ([#455])
+- Requires `licenseid>=0.7.2,<0.8`; the skills require `pitloom>=0.23.1`
+  ([#456])
 
 ### Fixed
 
@@ -34,6 +38,7 @@ and this project adheres to
   `WARNING: licenseid: input: too few words for text` line ([#455])
 
 [#455]: https://github.com/bact/pitloom/pull/455
+[#456]: https://github.com/bact/pitloom/pull/456
 
 ## [0.23.0] - 2026-11-05
 
@@ -918,6 +923,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.23.1]: https://github.com/bact/pitloom/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/bact/pitloom/compare/v0.22.1...v0.23.0
 [0.22.1]: https://github.com/bact/pitloom/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/bact/pitloom/compare/v0.21.2...v0.22.0
