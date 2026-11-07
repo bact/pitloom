@@ -27,23 +27,35 @@ Hugging Face one), which would call this resolver rather than carry its own.
 
 ## Decision
 
-Pitloom takes a PyPI URL through the subcommands that already name the
-artefact kind, not through a new `loom pypi` subcommand:
+**Three commands accept a PyPI URL. The subcommand, not the URL, decides which
+file is fetched.** The same URL gives a different file and a different SBOM
+kind depending on the command:
 
-| Command | Target | Fetches | SBOM |
-| :------ | :----- | :------ | :--- |
-| `loom wheel <pypi-url>` | wheel | the one wheel that matches the running environment | Analyzed SBOM (payload only, as for a local wheel) |
-| `loom project <pypi-url>` | sdist | the release's sdist | Source SBOM (as for a local sdist) |
-| `loom generate <pypi-url>` | -- | the dispatcher routes to `wheel` | as `wheel` |
+| Command | Fetches | SBOM kind | If the release lacks that file |
+| :------ | :------ | :-------- | :----------------------------- |
+| `loom wheel <pypi-url>` | the one wheel that matches the running environment | Analyzed SBOM (payload only, as for a local wheel) | `ERROR:`, names `loom project <pypi-url>` |
+| `loom project <pypi-url>` | the release's sdist | Source SBOM (as for a local sdist) | `ERROR:`, names `loom wheel <pypi-url>` |
+| `loom generate <pypi-url>` | the same wheel as `loom wheel` (it routes to that path) | Analyzed SBOM | as `loom wheel`; an `INFO:` says `loom project <pypi-url>` gives the sdist |
+
+Rules that follow from the table:
+
+- There is **no fallback between kinds**. `loom wheel` never takes the sdist
+  and `loom project` never takes a wheel, because the SBOM kind would change
+  silently.
+- `loom generate` has no way to ask for the sdist in iteration 1. Use
+  `loom project <pypi-url>`.
+- `loom wheel` and `loom generate` depend on the running environment for the
+  wheel pick; `loom project` does not (a release has one sdist).
+- The URL is the same in all three commands; only the command differs.
 
 Why not `loom pypi` (the earlier sketch) or `loom source`: `wheel` and
 `project` already mean "a built wheel" and "a project, directory or sdist". The
 download is only a new way to obtain the file; after it the existing readers run
 unchanged. A third name would split one job in two and need its own skill
-trigger, docs page and `_matrix_plan.py` entry.
+trigger, docs page and `_matrix_plan.py` entry. This follows the Git URL
+target, which `loom project` and `loom generate` both accept.
 
-`loom generate` takes a PyPI URL to the wheel path because a wheel is what a
-user installs. Asking for the sdist is `loom project <pypi-url>`.
+`loom generate` takes the wheel path because a wheel is what a user installs.
 
 ## Accepted URLs (iteration 1)
 
