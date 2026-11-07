@@ -24,8 +24,9 @@ and this project adheres to
 
 ### Fixed
 
-- With no LicenseID database, a declared licence name (`New BSD`) no longer
-  warns, and a declared licence text says so at `INFO:` ([#458])
+- With no LicenseID database, a declared licence name (`New BSD`,
+  `CC0 1.0 Universal`) no longer warns that the database cannot be used
+  ([#458])
 
 [#458]: https://github.com/bact/pitloom/pull/458
 

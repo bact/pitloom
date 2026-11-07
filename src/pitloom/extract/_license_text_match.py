@@ -88,7 +88,10 @@ def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
 
     With *declared* (a licence is stated, so only the licence-file second
     opinion needs the database) a missing database is said once at INFO: the
-    stated value is recorded as it is. Any other condition still warns."""
+    stated value is recorded as it is. A declared licence text, which only
+    the database can read, is no *declared* lookup: it warns, as does an
+    empty, invalid or unreadable database. A declared name too short to be
+    a licence text never gets here (:data:`_MIN_LICENSE_TEXT_LENGTH`)."""
     _get_detector.cache_clear()
     if declared and _database_missing(exc):
         log_once(
