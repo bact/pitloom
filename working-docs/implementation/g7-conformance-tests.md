@@ -256,7 +256,7 @@ BOM ontology 0.2.0 ids) on 2026-10-28: regenerating the `g7ai`, `cisa2026`,
 their `82a63b9` header as the record of the 0.21.0 reports. The four `0.22.0`
 files (2026-10-30) are made with the pin `2355afc`: every scenario equals its
 `0.21.0` one, only the header's `checker` and `pitloom` differ. The four
-`0.22.1` (2026-11-03), `0.23.0` (2026-11-05) and `0.23.1` (2026-11-07)
-files, same pin, equal the `0.22.0` ones except the header's `pitloom`. The
-`pitloom` header is the installed version, so make a report with the
-release's version installed.
+`0.22.1` (2026-11-03), `0.23.0` (2026-11-05), `0.23.1` and `0.23.2`
+(2026-11-07) files, same pin, equal the `0.22.0` ones except the header's
+`pitloom`. The `pitloom` header is the installed version, so make a report
+with the release's version installed.
