@@ -122,26 +122,27 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
 
 
 _LONG = "Apache License\\n" * 20  # a TOML escape: one text of 300 characters
+_WARNING = "licenseid database cannot be used: "
 
 
 @pytest.mark.parametrize(
-    ("value", "said"),
+    ("value", "read"),
     [("New BSD", "BSD-3-Clause"), ("CC0 1.0 Universal", "CC0-1.0"), (_LONG, None)],
     ids=["alias", "title", "long"],
 )
 @pytest.mark.parametrize("surface", [_library, _cli, _hook], ids=lambda f: f.__name__)
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def test_a_declared_text_and_no_database_never_warns_on_every_surface(
+def test_a_declared_text_and_no_database_on_every_surface(
     surface: Callable[[Path], None],
     value: str,
-    said: str | None,
+    read: str | None,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A declared value that is no id, and no licence file: a short one is
-    read from the packaged List without the database; a long one is said
-    once at ``INFO:``, as the database its detection needs is missing."""
+    """A declared value that is no id, and no licence file: a short name is
+    read from the packaged List and says nothing of the database; a long
+    text, which only the database can read, warns once."""
     project = tmp_path / "proj"
     _write_project(project, f'{{ text = "{value}" }}', licence_file=False)
     monkeypatch.setattr(sys, "argv", sys.argv)
@@ -154,11 +155,16 @@ def test_a_declared_text_and_no_database_never_warns_on_every_surface(
     with caplog.at_level(logging.INFO):
         surface(project)
 
-    missing = [r.levelno for r in caplog.records if _INFO in r.getMessage()]
-    assert missing == ([] if said else [logging.INFO])
-    if said:
-        assert [r for r in caplog.records if f"read as {said} (" in r.getMessage()]
-    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    database = [
+        r.levelno for r in caplog.records if "licenseid database" in r.getMessage()
+    ]
+    warned = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    if read:
+        assert [r for r in caplog.records if f"read as {read} (" in r.getMessage()]
+        assert (database, warned) == ([], [])
+    else:
+        assert database == [logging.WARNING]
+        assert [line.startswith(_WARNING) for line in warned] == [True]
 
 
 # pylint: disable-next=too-few-public-methods

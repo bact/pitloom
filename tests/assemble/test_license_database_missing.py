@@ -198,13 +198,15 @@ def test_a_long_text_with_no_database_warns_once(
 
 
 @pytest.mark.usefixtures("missing")
-def test_a_declared_long_text_with_no_database_is_info(
+def test_a_declared_long_text_with_no_database_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The declared licence is a text: recorded as written, and the database
-    its detection needs said missing at ``INFO:``, not warned about."""
+    """The declared licence is a text only the database can read: kept as
+    written, and the database it could not use warned about."""
     with caplog.at_level(logging.INFO, logger="pitloom"):
         assert stated_license(_TEXT, "Source: x") == (_TEXT, None)
 
-    assert [level for level, line in _lines(caplog) if _INFO in line] == [logging.INFO]
-    assert not [line for line in _lines(caplog) if line[0] >= logging.WARNING]
+    (level, message) = _lines(caplog)[0]
+    assert level == logging.WARNING
+    assert message.startswith("licenseid database cannot be used: ")
+    assert not [line for line in _lines(caplog) if _INFO in line[1]]

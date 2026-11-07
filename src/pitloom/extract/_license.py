@@ -210,9 +210,7 @@ def stated_license(
         return None, None
     if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
         return hint, None
-    # The hint is the declared licence: a database it needs and cannot use
-    # is said at INFO, and the hint is recorded as written.
-    detected = detect_license_from_text(hint, stated=hint)
+    detected = detect_license_from_text(hint)
     if detected:
         method = "Method: licenseid_detection"
         return detected, _with_tool_tag(
