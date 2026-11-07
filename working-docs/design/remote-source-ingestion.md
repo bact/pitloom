@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -99,6 +99,11 @@ credentials in a URL are stripped from messages. Not built:
 ---
 
 ## PyPI package ingestion (`loom pypi <name>[==version]`)
+
+> **Superseded (2026-11-07):** the target is now `loom wheel <pypi-url>` and
+> `loom project <pypi-url>`, not a `loom pypi` subcommand. See
+> [pypi-url-targets.md](pypi-url-targets.md). The sketch below is kept for its
+> verification and download rules.
 
 Not built. A PyPI project page or `name==version` becomes an SBOM of that
 release, so a consumer (the Lumina web service, an agent, CI) can drop a
