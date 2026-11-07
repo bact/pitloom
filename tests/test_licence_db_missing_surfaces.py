@@ -80,13 +80,14 @@ def test_a_declared_licence_and_no_database_is_info_on_every_surface(
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
-def _write_project(project: Path, licence: str) -> None:
+def _write_project(project: Path, licence: str, *, licence_file: bool = True) -> None:
     """A project whose ``project.license`` is the TOML value *licence*."""
     project.mkdir()
     (project / "pyproject.toml").write_text(
         _PYPROJECT.replace('"Apache-2.0"', licence), encoding="utf-8"
     )
-    (project / "LICENSE").write_text("Apache License\n" * 20, encoding="utf-8")
+    if licence_file:
+        (project / "LICENSE").write_text("Apache License\n" * 20, encoding="utf-8")
     (project / "demo").mkdir()
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
 
@@ -118,6 +119,52 @@ def test_a_respelt_licence_is_read_with_no_database_on_every_surface(
         "read as Apache-2.0 (separator, version_spelling)"
     ]
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+_LONG = "Apache License\\n" * 20  # a TOML escape: one text of 300 characters
+_WARNING = "licenseid database cannot be used: "
+
+
+@pytest.mark.parametrize(
+    ("value", "read"),
+    [("New BSD", "BSD-3-Clause"), ("CC0 1.0 Universal", "CC0-1.0"), (_LONG, None)],
+    ids=["alias", "title", "long"],
+)
+@pytest.mark.parametrize("surface", [_library, _cli, _hook], ids=lambda f: f.__name__)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_declared_text_and_no_database_on_every_surface(
+    surface: Callable[[Path], None],
+    value: str,
+    read: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A declared value that is no id, and no licence file: a short name is
+    read from the packaged List and says nothing of the database; a long
+    text, which only the database can read, warns once."""
+    project = tmp_path / "proj"
+    _write_project(project, f'{{ text = "{value}" }}', licence_file=False)
+    monkeypatch.setattr(sys, "argv", sys.argv)
+    monkeypatch.setattr(
+        _license_text_match,
+        "LicenseDetector",
+        functools.partial(LicenseDetector, db_path=str(tmp_path / "none.db")),
+    )
+
+    with caplog.at_level(logging.INFO):
+        surface(project)
+
+    database = [
+        r.levelno for r in caplog.records if "licenseid database" in r.getMessage()
+    ]
+    warned = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    if read:
+        assert [r for r in caplog.records if f"read as {read} (" in r.getMessage()]
+        assert (database, warned) == ([], [])
+    else:
+        assert database == [logging.WARNING]
+        assert [line.startswith(_WARNING) for line in warned] == [True]
 
 
 # pylint: disable-next=too-few-public-methods

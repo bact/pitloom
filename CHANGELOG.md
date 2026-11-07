@@ -22,6 +22,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- With no LicenseID database, a declared licence name (`New BSD`,
+  `CC0 1.0 Universal`) no longer warns that the database cannot be used
+  ([#458])
+
+[#458]: https://github.com/bact/pitloom/pull/458
+
 ## [0.23.1] - 2026-11-07
 
 ### Changed

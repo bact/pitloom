@@ -243,12 +243,14 @@ def test_an_unusable_database_warns_once_and_degrades(
 def test_detect_license_from_text_db_not_populated(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Returns None gracefully when the LicenseID database is missing."""
+    """Returns None gracefully when the LicenseID database is missing (a
+    text long enough to need it: a shorter one never looks it up)."""
+    text = "MIT License\n\n" + "Permission is hereby granted, free of charge. " * 3
     with patch(
         "pitloom.extract._license_text_match.LicenseDetector",
         functools.partial(LicenseDetector, db_path=str(tmp_path / "x.db")),
     ):
-        result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
+        result = detect_license_from_text(text)
         assert result is None
     assert "licenseid database cannot be used" in caplog.text
 

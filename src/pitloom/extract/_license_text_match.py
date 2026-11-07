@@ -88,7 +88,10 @@ def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
 
     With *declared* (a licence is stated, so only the licence-file second
     opinion needs the database) a missing database is said once at INFO: the
-    stated value is recorded as it is. Any other condition still warns."""
+    stated value is recorded as it is. A declared licence text, which only
+    the database can read, is no *declared* lookup: it warns, as does an
+    empty, invalid or unreadable database. A declared name too short to be
+    a licence text never gets here (:data:`_MIN_LICENSE_TEXT_LENGTH`)."""
     _get_detector.cache_clear()
     if declared and _database_missing(exc):
         log_once(
@@ -297,24 +300,29 @@ def detect_license_from_text(
 ) -> str | None:
     """Detect SPDX License ID from *text* using the LicenseID library.
 
-    Returns the top-ranked SPDX License ID when its score meets *threshold*, or
-    ``None`` when the database cannot be used, *text* is too short to be a
-    real licence body, or no match exceeds the threshold. *text* is read as
-    written and without its copyright notice lines (:func:`_readings`); the
-    better-scoring reading counts (:func:`_best_readings`). A licence
-    *stated* (the manifest's own id or expression) that it matches at
-    *threshold* nearly as well as its top match, and fits the input as
-    well, wins (:data:`_STATED_TIE_MARGIN`); else that reading decides
-    (:func:`_best_reading_decides`),
-    ``None`` when its top match is a near-tie with another licence family.
+    Returns the top-ranked SPDX License ID when its score meets *threshold*,
+    or ``None`` when *text* is too short to be a real licence body (decided
+    before the database is looked up, so nothing is said about it), the
+    database cannot be used, or no match exceeds the threshold. *text* is
+    read as written and without its copyright notice lines
+    (:func:`_readings`); the better-scoring reading counts
+    (:func:`_best_readings`). A licence *stated* (the manifest's declared
+    licence) makes a missing database an ``INFO:`` line
+    (:func:`_database_unusable`). An id or expression it names that *text*
+    matches at *threshold* nearly as well as its top match, and fits the
+    input as well, wins (:data:`_STATED_TIE_MARGIN`); else that reading
+    decides (:func:`_best_reading_decides`), ``None`` when its top match is
+    a near-tie with another licence family.
     """
+    # A text too short to be a licence body is no detection: decided before
+    # the database is looked up, so a short label never reports one missing.
+    if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
+        return None
     declared = bool(stated and stated.strip())
     detector = _detector(declared=declared)
     if detector is None:
         return None
     try:
-        if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
-            return None
         readings = _readings(detector, text)
         wanted = _stated_ids(stated)
         for results in _best_readings(readings):
