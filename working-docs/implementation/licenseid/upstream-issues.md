@@ -280,7 +280,7 @@ each finding.
 finding: it says why a short text gets no match. Pitloom relays it as a
 `WARNING:` line for a licence text of under ten words, which fails seven
 Pitloom tests on 0.7.2; the relay level is Pitloom's to settle. Settled in
-#454: no licence in a short text is absent data, relayed at `DEBUG`.
+#455: no licence in a short text is absent data, relayed at `DEBUG`.
 
 ---
 

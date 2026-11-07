@@ -26,14 +26,14 @@ and this project adheres to
 
 - With LicenseID 0.7.2, licence titles and aliases (`New BSD`,
   `CC0 1.0 Universal`, `Mulan PSL v2`) are read as ids, with one `INFO:` line
-  ([#454])
+  ([#455])
 
 ### Fixed
 
 - With LicenseID 0.7.2, a licence text too short to match no longer gives a
-  `WARNING: licenseid: input: too few words for text` line ([#454])
+  `WARNING: licenseid: input: too few words for text` line ([#455])
 
-[#454]: https://github.com/bact/pitloom/pull/454
+[#455]: https://github.com/bact/pitloom/pull/455
 
 ## [0.23.0] - 2026-11-05
 
