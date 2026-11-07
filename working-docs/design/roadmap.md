@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -153,11 +153,10 @@ order and counts are in
   last): caller actor and input errors, the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and
   build, fragments and wheels, miscellany, licence.
-- [ ] **Licence provenance mapping**
-  ([#384](https://github.com/bact/pitloom/pull/384), T14), after PR 18:
-  revise the design against the shipped LicenseID 0.7.0 `Resolution`, merge
-  main into the branch, then implement (design on #384). Scheduled with the
-  flags item below.
+- [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
+  `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
+  for the flags item below and the provenance taxonomy. See
+  [licence-resolution-provenance.md](licence-resolution-provenance.md).
 - [ ] **Provenance and source-metadata flags** (decided 2026-11-05):
   provenance annotations are off by default (they make the SBOM huge, and the
   taxonomy is not settled); `--provenance`/`--no-provenance` turns them on
@@ -254,6 +253,9 @@ Highest priority first.
   [sarif-output.md](sarif-output.md).
 - [ ] **Docker container action** (`using: docker`) for hermetic or
   self-hosted runners. See [adoption-surfaces.md](adoption-surfaces.md).
+- [ ] **Record the SPDX License List version on licence elements
+  (`licenseListVersion`)**: small, not blocked by the provenance flags. See
+  [licence-resolution-provenance.md](licence-resolution-provenance.md#7-licenselistversion-ships-independently).
 - [ ] **SBOM format gaps ledger**: every mismatch or gap that makes a fact
   impossible to record precisely is noted in
   [sbom-format-gaps.md](sbom-format-gaps.md), for change proposals to SPDX (and
@@ -290,8 +292,9 @@ unless the linked doc says so.
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Licence resolution categories** (which changes to trust, log and
   record): built on LicenseID 0.7's `Resolution` (#437, #440). Open:
-  per-operand provenance (T14, [#384](https://github.com/bact/pitloom/pull/384),
-  0.24.0), Q4 (a cross-field indicator) and Q5 (the list version). See
+  per-operand provenance (T14, 0.24.0) and Q5 (the list version), both in
+  [licence-resolution-provenance.md](licence-resolution-provenance.md), and
+  Q4 (a cross-field indicator). See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Message catalogue as the contract between Pitloom and the skills**
   (decided 2026-10-29): design done (#379); skill size cap built (#385);

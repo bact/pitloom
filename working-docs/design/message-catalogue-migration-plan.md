@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,8 +42,9 @@ The grammar ratchet keeps new uncoded messages out
   adoption's final gate (stage E), this plan's refresh, PR 2b and PRs 1b and
   1c. The ratchet falls from 498 to 469 (2b: 10, #444; 1b: 19, #446).
 - **0.24.0**: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to
-  18 (the licence families last), the licence provenance mapping (#384, T14)
-  and `--report` with SARIF.
+  18 (the licence families last), the licence provenance mapping (T14,
+  [licence-resolution-provenance.md](licence-resolution-provenance.md)) and
+  `--report` with SARIF.
 
 The earlier decision of 2026-10-30 (everything in 0.23.0) is superseded.
 
@@ -67,7 +68,7 @@ Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh, 2b, 1b
 and 1c, **the 0.23.0 cut** (these four done), then 4 (frames), 3, 5 to 7
 (with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
-adoption is done), and T14 (#384). Precondition of the next catalogue PR: split the
+adoption is done), and T14. Precondition of the next catalogue PR: split the
 generated references (`docs/message-codes.md` and the skills' copies, over
 the ~30 KB limit after #446) per family or per actor.
 
@@ -96,7 +97,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 16 | 0.24.0 | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
 | 17 | 0.24.0 | author-split 6; escaped-text 5 (plan: 6); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
 | 18 | 0.24.0 | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1); the `licenseid database` lines | `expression-malformed` (redesigns the ported broken-expression warning, adoption D7), `licence-not-recordable`, `licence-ambiguous`, `licence-db-missing`? ("licence" is a domain, not a condition) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
-| T14 | 0.24.0 | none (PR #384, the licence provenance mapping; not a catalogue PR) | none | none | 0 | after PR 18 |
+| T14 | 0.24.0 | none (the licence provenance mapping, [licence-resolution-provenance.md](licence-resolution-provenance.md); not a catalogue PR) | none | none | 0 | after PR 18 |
 
 Sum of the rows: 498 (the plan's 501 counted three `raise _over_cap()` sites
 of `core/model_parameters.py` that the tool treats as a reader's detail,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,8 +19,9 @@ lost.
 - **Who files:** the maintainer.
 - **Pitloom dependency:** Pitloom 0.23.0 requires `licenseid>=0.7.1,<0.8`.
 - **Drafts:** an earlier draft covered 0.7.0 only (nine findings). The text
-  below is the current one for 0.7.0 and 0.7.1 (ten findings); the earlier
-  draft is superseded and has no finding the current one lacks.
+  below is the current one for 0.7.0 to 0.7.2 (ten findings; 0.7.2 fixes
+  finding 1); the earlier draft is superseded and has no finding the current
+  one lacks.
 
 ## Index of findings
 
@@ -28,32 +29,35 @@ Severity: **contract** = behaviour a caller cannot rely on or that
 contradicts the documented meaning; **process** = missing documentation or
 a hook; **edge** = unusual input.
 
-| # | Finding | Severity | Pitloom workaround |
-| - | - | - | - |
-| 1 | Short word detected as a licence | contract | none |
-| 2 | `\v`, `\r`, U+2028 read as white space | edge | none |
-| 3 | `coverage` above 1 | contract | Pitloom clamps it |
-| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` |
-| 5 | When a database warning is said once | process | none |
-| 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` |
-| 7 | `trust: none` answers are hard to use | process | special-cases the category |
-| 8 | `components` empty for most answers | contract | none |
-| 9 | Database is a black box | process | none |
-| 10 | Non-ASCII space before "or later" has no step | contract | none |
+| # | Finding | Severity | Pitloom workaround | 0.7.2 |
+| - | - | - | - | - |
+| 1 | Short word detected as a licence | contract | none | fixed |
+| 2 | `\v`, `\r`, U+2028 read as white space | edge | none | reproduces |
+| 3 | `coverage` above 1 | contract | Pitloom clamps it | reproduces |
+| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces |
+| 5 | When a database warning is said once | process | none | reproduces |
+| 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` | reproduces |
+| 7 | `trust: none` answers are hard to use | process | special-cases the category | reproduces |
+| 8 | `components` empty for most answers | contract | none | reproduces |
+| 9 | Database is a black box | process | none | reproduces |
+| 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces |
 
 ## Issue text
 
 The text below is ready to paste. Headings are one level lower than in the
 issue.
 
-## LicenseID 0.7.0 and 0.7.1: findings from the Pitloom adoption
+## LicenseID 0.7.0 to 0.7.2: findings from the Pitloom adoption
 
 Pitloom 0.23.0 requires `licenseid>=0.7.1,<0.8` (Pitloom PRs #437, #440, #445).
 The points below were found on 0.7.0 and **all still reproduce on 0.7.1** (PyPI
 wheel, CPython 3.10.20): the reproducers give the same output on both, apart
 from `resolver.version`; 0.7.1 changes no database, warning or components code
 and ships the same packaged List (3.29.0, byte-identical
-`spdx-bundle.json.gz`). Item 10 is new in 0.7.1. Each reproducer was run with
+`spdx-bundle.json.gz`). Item 10 is new in 0.7.1. **0.7.2 fixes item 1**
+(#161); items 2 to 10 give the same output on 0.7.2, which keeps the
+database build (v3), the normalisation (v2) and the packaged List
+(byte-identical). Each reproducer was run with
 `HOME` set to a scratch directory and a database built by `licenseid update`
 (SPDX License List 3.29.0), unless a step says otherwise. Common setup:
 
@@ -70,11 +74,14 @@ det = LicenseDetector()
 det.is_spdx(text="Foo"), det.is_osi(text="Foo")
 ```
 
-- Actual: `[('3D-Slicer-1.0', 'text', 1.0, 0.0006), ('PHP-3.0', 'text', 1.0,
-  0.0022)]`; `is_spdx` `True`, `is_osi` `False`.
+- Actual (0.7.1): `[('3D-Slicer-1.0', 'text', 1.0, 0.0006), ('PHP-3.0',
+  'text', 1.0, 0.0022)]`; `is_spdx` `True`, `is_osi` `False`.
 - Expected: no detection (or a score far below 1) for a text that covers 0.06%
   of the licence; `is_spdx`/`is_osi` `None` (no licence found), not
   `True`/`False`.
+- Fixed in 0.7.2 (#161): `[]`; `is_spdx` and `is_osi` `None`. Each call
+  warns `input: too few words for text: not found: Foo`. Drop this item
+  from the issue.
 
 ### 2. `\v`, `\r` and U+2028 are read as white space (F15, remainder)
 
@@ -93,6 +100,7 @@ for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
   tab, a lone CR and U+2028/U+2029 are line breaks (`str.splitlines` splits on
   them), so a value holding one is two lines, as with `\n`. Refuse them like
   U+001C to U+001F, or document that they are read as a space.
+- Still reproduces on 0.7.2 (same output).
 
 ### 3. `coverage` above 1 (F16)
 
@@ -112,6 +120,7 @@ top["expression"], top["score"], top["coverage"]
 - Actual: `('BSD-1-Clause', 1.0, 1.0062)`.
 - Expected: `coverage` at most 1 (it is documented as a share of the licence
   text), or a documented meaning for a value above 1. Pitloom clamps it.
+- Still reproduces on 0.7.2: `('BSD-1-Clause', 1.0, 1.0062)`.
 
 ### 4. Messages name a CLI flag and a networked command (F17)
 
@@ -133,6 +142,7 @@ LicenseDetector("/nonexistent/licenses.db")
   says `--source packaged` next to LicenseID's `run 'licenseid update'`, so a
   user sees two different commands for one problem. Suggest naming the
   offline command, or both.
+- Still reproduces on 0.7.2 (same messages, also with a 0.6.0 database).
 
 ### 5. When a database warning is said once is undocumented (F18)
 
@@ -159,6 +169,8 @@ rec(lambda: LicenseDetector())    # 1 warning, every construction
   where), and make `reset_once()` (or an equivalent) a documented test hook. A
   caller that records warnings per call cannot tell "no problem" from "said
   earlier".
+- Still reproduces on 0.7.2 (same warnings; `reset_once()` still not in
+  `__all__`).
 
 ### 6. Deprecated ids' List names resolve to nothing
 
@@ -191,6 +203,7 @@ for name in ["GNU Free Documentation License v1.3",
   `LicenseDatabase.get_license_by_name()`, which needs a database and is not
   documented, so an answer would differ with and without a database. Pitloom
   keeps the 14 names in a table until then.
+- Still reproduces on 0.7.2: all 14 names give `None`, `unresolved`.
 
 ### 7. `trust: none` answers are hard to use
 
@@ -208,6 +221,7 @@ for v in ["GPL-3.0", "GPLv3", "MIT"]:
   section in the README on what to do with each `trust` value (record,
   record with a note, do not record) would remove the guesswork; or a
   boolean such as `decided` on the Resolution.
+- Still reproduces on 0.7.2 (same output).
 
 ### 8. `components` is empty for most answers
 
@@ -218,11 +232,12 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
 
 - Actual: `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also `MIT License`, `Apache2`,
   `GPLv3`); one entry, `py-spdx-license 0.0.1`, for `MIT OR Apache2`.
-  LicenseID 0.7.0 and 0.7.1 require `py-spdx-license<0.1,>=0.0.1`.
+  LicenseID 0.7.0 to 0.7.2 require `py-spdx-license<0.1,>=0.0.1`.
 - Expected: either the components that took part in every answer, or a
   documented rule for when the list is filled. A caller that cites the tools
   behind a reading (Pitloom writes `Tool: licenseid==0.7.1`) cannot cite the
   parser version consistently.
+- Still reproduces on 0.7.2 (same output).
 
 ### 9. A `Detection` names its List, the database stays a black box (F9, remainder)
 
@@ -234,6 +249,8 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
   are stable. A documented read of the database's List (version, ids, names)
   without a query would let a caller record what it detected against, and
   answer item 6 for the database case.
+- Still open in 0.7.2: `__all__` and the `LicenseDatabase` methods are
+  unchanged.
 
 ### 10. A non-ASCII space before "or later" is read with no step (new in 0.7.1)
 
@@ -250,16 +267,23 @@ for v in ["GPL-2.0 or later", "MIT OR ISC"]:
   `whitespace` step (`from` with U+00A0, `to` with a space). With no step
   a caller that records how a value was re-spelt (Pitloom writes
   `Resolution-N` lines from `steps`) cannot say a character was changed.
+- Still reproduces on 0.7.2 (same output).
 
 
 ## Not in the issue
 
-Nothing. The earlier draft's nine findings are findings 1 to 9 above; the
-current text adds finding 10 and the 0.7.1 version references.
+The earlier draft's nine findings are findings 1 to 9 above; the current
+text adds finding 10, the 0.7.1 version references and the 0.7.2 status of
+each finding.
+
+0.7.2's new warning `input: too few words for text: <reason>` (#161) is no
+finding: it says why a short text gets no match. Pitloom relays it as a
+`WARNING:` line for a licence text of under ten words, which fails seven
+Pitloom tests on 0.7.2; the relay level is Pitloom's to settle.
 
 ---
 
-Reproducers 1-3 re-run 2026-11-06 on LicenseID 0.7.1 (CPython 3.10.20,
-fresh `HOME`, `licenseid update --source packaged`): findings 1 and 3 give
-the output above; finding 2's `reason` is `None` for the three accepted
-values, so its reproducer now prints the step kinds as well.
+Reproducers 1 to 10 re-run 2026-11-07 on LicenseID 0.7.1 and 0.7.2 (PyPI
+wheels, CPython 3.10.20, fresh `HOME`, `licenseid update --source
+packaged`; 4 and 5 also with a database built by 0.6.0): the output above,
+and on 0.7.2 the line each finding gives for it.
