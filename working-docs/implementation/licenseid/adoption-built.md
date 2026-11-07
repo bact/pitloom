@@ -15,8 +15,8 @@ See also: [adoption-plan.md](adoption-plan.md)
 [licences-and-licenseid.md](../../design/known-bugs/licences-and-licenseid.md)
 (open entries).
 
-Pitloom requires `licenseid>=0.7.2,<0.8` (0.23.1; 0.23.0 required
-`licenseid>=0.7.1,<0.8`; 0.7.0: 2026-11-03). A declared
+Pitloom requires `licenseid>=0.7.3,<0.8` (0.23.2; 0.23.1 required
+`>=0.7.2`, 0.23.0 `>=0.7.1`; 0.7.0: 2026-11-03). A declared
 licence value is read by `licenseid.resolve(value, source="packaged")`, on
 the SPDX License List the `licenseid` wheel ships, with no database; only
 licence-text detection (`LicenseDetector().detect()`) needs one. Pitloom no

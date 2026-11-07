@@ -24,7 +24,7 @@ description: >-
   off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.1 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.2 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -58,11 +58,12 @@ plugin; `$sbom-enrich` in Codex). For a worked example, read
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.23.1** (0.23.0 relays LicenseID 0.7.2's
-short-text notice as a spurious WARNING; the message codes and licence
-readings below are those of 0.23.1): `pip install "pitloom>=0.23.1"`; an AI
-model file needs `"pitloom[ai]>=0.23.1"`, the post-merge check
-`"pitloom[validate]>=0.23.1"`. Ephemeral runs: `sbom-generate`'s "Run
+Python >= 3.10 and **pitloom >= 0.23.2** (it requires LicenseID 0.7.3, which
+reads `Apache Software License 2.0` and similar names as `Apache-2.0`, and
+does not warn about a missing licence database for a declared licence name;
+the message codes and licence readings below are those of 0.23.2): `pip install "pitloom>=0.23.2"`; an AI
+model file needs `"pitloom[ai]>=0.23.2"`, the post-merge check
+`"pitloom[validate]>=0.23.2"`. Ephemeral runs: `sbom-generate`'s "Run
 without installing anything persistent".
 Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
 PowerShell equivalents (5.1 has no `&&`).
@@ -201,7 +202,7 @@ Steps:
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
     `<merged-sbom-file>` -- a valid fragment can still miss a required property
     or use the wrong relationship type, which only shape/SHACL validation
-    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.1"` then
+    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.2"` then
     `loom fragment validate <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), inferred from
     prose (step 6) and supplied by the SBOM author (step 4), and call out any

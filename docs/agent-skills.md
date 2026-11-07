@@ -46,11 +46,13 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.1 or later
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.2 or later
 (pip, `uvx` or `pipx`). The Skills follow the development version, whose
 commands and messages can be newer than the last release; the licence
-readings and message codes they quote are those of 0.23.1 (0.23.0 relays
-LicenseID 0.7.2's short-text notice as a spurious warning). Before the first
+readings and message codes they quote are those of 0.23.2 (it requires
+LicenseID 0.7.3, which reads `Apache Software License 2.0` and similar names
+as `Apache-2.0`, and does not warn about a missing licence database for a
+declared licence name). Before the first
 run that reads licences, `sbom-generate` builds the LicenseID 0.7 database
 (`licenseid update --source packaged`, no network). Network access is needed
 to install `pitloom` and, at run time, for PyPI and Hugging Face lookups. AI

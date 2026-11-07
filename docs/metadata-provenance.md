@@ -57,7 +57,7 @@ author-declared):
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"fields\":{\"license\":{\"method\":\"licenseid_detection\",\"source\":\"LICENSE\",\"tool\":\"licenseid==0.7.2\"}},\"kind\":\"fields\",\"schema\":\"https://pitloom.dev/provenance/fields/1\"}"
+  "statement": "{\"fields\":{\"license\":{\"method\":\"licenseid_detection\",\"source\":\"LICENSE\",\"tool\":\"licenseid==0.7.3\"}},\"kind\":\"fields\",\"schema\":\"https://pitloom.dev/provenance/fields/1\"}"
 }
 ```
 
