@@ -317,7 +317,9 @@ file is only missing, the line is `INFO: licenseid database not found: <path>
 only the `LICENSE` file is not matched. A declared full licence text (`license
 = {file = "LICENSE"}`) is a `WARNING:` even then: it stays as written, not
 read as an id. A declared name with no `LICENSE` file (`New BSD`) needs no
-database and gives neither line. An empty or unreadable database always warns.
+database and gives neither line. An empty or unreadable database warns
+whenever a lookup is needed (a `LICENSE` file, a long text, or no declared
+licence).
 
 `WARNING: licenseid database cannot be used: database: not found: no home
 directory; pass --db -- license text detection skipped` (always a `WARNING:`,

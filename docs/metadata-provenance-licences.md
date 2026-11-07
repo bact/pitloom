@@ -151,7 +151,8 @@ the project declares a licence and the database is only missing,
 `LICENSE`-file check is skipped. A declared full licence text warns
 `licenseid database cannot be used` once, as it is kept as written, and so
 does a `LICENSE` file with no declared licence. An empty, invalid or
-unreadable database always warns. A warning of LicenseID itself is
+unreadable database warns whenever a lookup is needed (a `LICENSE` file,
+a long text, or no declared licence). A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
 outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`

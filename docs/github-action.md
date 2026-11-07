@@ -41,7 +41,8 @@ file is not matched, and the step logs `INFO: licenseid database not found:
 ... license text detection skipped` (a licence declared) or `WARNING:
 licenseid database cannot be used: ... license text detection skipped` (none
 declared, or a declared full licence text, which only the database can
-read). A declared name with no `LICENSE` file logs nothing.
+read; with a `LICENSE` file too, both lines). A declared name with no
+`LICENSE` file logs nothing.
 
 Generate and embed PEP 770 SBOM into built wheels:
 
