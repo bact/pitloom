@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,9 @@ See also: [adoption-built.md](adoption-built.md)
 [license-resolution-categories.md](../../design/license-resolution-categories.md),
 [roadmap.md](../../design/roadmap.md), LicenseID
 `working-docs/design/resolver-0-7-plan.md` (T13 is this work; T14, the
-provenance mapping, is open), [known-bugs.md](../../design/known-bugs.md)
+provenance mapping, is open:
+[licence-resolution-provenance.md](../../design/licence-resolution-provenance.md)),
+[known-bugs.md](../../design/known-bugs.md)
 ("Per-operand licence provenance is not built").
 
 Status: shipped in Pitloom 0.23.0 (2026-11-05), on LicenseID 0.7.1 (stages A

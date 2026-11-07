@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,7 +34,8 @@ Size: S under half a day, M about a day.
   (#437 to #440, the final gate #443), the catalogue plan refresh (#442) and
   catalogue PRs 2b, 1b and 1c.
 - 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
-  (licence included), the licence provenance mapping (#384) and
+  (licence included), the licence provenance mapping
+  ([licence-resolution-provenance.md](licence-resolution-provenance.md)) and
   `--report`/SARIF. See
   [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 

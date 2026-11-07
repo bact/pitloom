@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -149,7 +149,7 @@ declined or fixed entry with its outcome.
   `simplelicensing_LicenseExpression`
 - Fact to record: the author wrote `Apache2`; the SBOM's `Apache-2.0` is a
   resolver's reading of it, not the author's spelling
-- Pitloom today (design): the expression, with the value as written in the
+- Pitloom today: the expression, with the value as written in the
   provenance `comment` and `Annotation` (`Normalized-From`)
 - Why imprecise: no property; declared-as-text plus concluded-as-expression
   would stretch "concluded" and lose the declared id
@@ -167,8 +167,10 @@ declined or fixed entry with its outcome.
 - Fact to record: the method (exact, alias, name, text detection), the tool
   and data version, and whether an `-or-later`/`-only` qualifier was stated
   or inferred
-- Pitloom today (design): `Method: licenseid_resolution`, `Resolution-n`,
-  `Expansion-n`, `Tool` in the provenance `comment` and `Annotation`
+- Pitloom today: `Method: licenseid_resolution`, `Resolution-1` and
+  `Expansion-1` (the whole value; per operand in
+  [licence-resolution-provenance.md](licence-resolution-provenance.md)),
+  `Tool` in the provenance `comment` and `Annotation`
 - Why imprecise: no property; the List version alone does not say how
 - Proposal: identification method and confidence on the licence
   relationship, from a small vocabulary
