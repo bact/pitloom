@@ -17,7 +17,8 @@ lost.
 - **Status:** drafted, not yet filed upstream.
 - **Where to file:** the LicenseID repository, as one issue.
 - **Who files:** the maintainer.
-- **Pitloom dependency:** Pitloom 0.23.0 requires `licenseid>=0.7.1,<0.8`.
+- **Pitloom dependency:** Pitloom 0.23.1 requires `licenseid>=0.7.2,<0.8`
+  (0.23.0: `>=0.7.1`).
 - **Drafts:** an earlier draft covered 0.7.0 only (nine findings). The text
   below is the current one for 0.7.0 to 0.7.2 (ten findings; 0.7.2 fixes
   finding 1); the earlier draft is superseded and has no finding the current

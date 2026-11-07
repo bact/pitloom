@@ -292,7 +292,7 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.7.1,<0.8" licenseid update --source packaged`). It uses the copy
+"licenseid>=0.7.2,<0.8" licenseid update --source packaged`). It uses the copy
 in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`

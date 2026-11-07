@@ -544,7 +544,10 @@ Released 2026-11-07, a patch release for LicenseID 0.7.2. Open items:
   licence in a short text) is relayed at `DEBUG`, not `WARNING:`; its
   `text_title` and `alias_name` readings (`New BSD`, `CC0 1.0 Universal`) are
   decided ids, said at `INFO:`. A test fails on a LicenseID category Pitloom
-  has not decided on. Still `licenseid>=0.7.1,<0.8`.
+  has not decided on.
 - [x] **Docs** (#450 to #454): the post-release verification of v0.23.0;
   housekeeping; field notes on the model usage scan; the licence provenance
   design refreshed for LicenseID 0.7.2; the PyPI URL targets design.
+- [x] **Release PR** (#456): requires `licenseid>=0.7.2,<0.8`; the skills
+  require `pitloom>=0.23.1`, since 0.23.0 relays LicenseID 0.7.2's short-text
+  notice as a spurious `WARNING:`.

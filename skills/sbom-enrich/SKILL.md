@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-05
+# Last-Modified: 2026-11-07
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.0 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.1 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -58,10 +58,11 @@ plugin; `$sbom-enrich` in Codex). For a worked example, read
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.23.0** (the message codes and licence
-readings below are those of 0.23.0): `pip install "pitloom>=0.23.0"`; an AI
-model file needs `"pitloom[ai]>=0.23.0"`, the post-merge check
-`"pitloom[validate]>=0.23.0"`. Ephemeral runs: `sbom-generate`'s "Run
+Python >= 3.10 and **pitloom >= 0.23.1** (0.23.0 relays LicenseID 0.7.2's
+short-text notice as a spurious WARNING; the message codes and licence
+readings below are those of 0.23.1): `pip install "pitloom>=0.23.1"`; an AI
+model file needs `"pitloom[ai]>=0.23.1"`, the post-merge check
+`"pitloom[validate]>=0.23.1"`. Ephemeral runs: `sbom-generate`'s "Run
 without installing anything persistent".
 Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
 PowerShell equivalents (5.1 has no `&&`).
@@ -200,7 +201,7 @@ Steps:
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
     `<merged-sbom-file>` -- a valid fragment can still miss a required property
     or use the wrong relationship type, which only shape/SHACL validation
-    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.0"` then
+    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.1"` then
     `loom fragment validate <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), inferred from
     prose (step 6) and supplied by the SBOM author (step 4), and call out any

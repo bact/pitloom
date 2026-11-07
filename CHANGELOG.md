@@ -29,6 +29,8 @@ and this project adheres to
 - With LicenseID 0.7.2, licence titles and aliases (`New BSD`,
   `CC0 1.0 Universal`, `Mulan PSL v2`) are read as ids, with one `INFO:` line
   ([#455])
+- Requires `licenseid>=0.7.2,<0.8`; the skills require `pitloom>=0.23.1`
+  ([#456])
 
 ### Fixed
 
@@ -36,6 +38,7 @@ and this project adheres to
   `WARNING: licenseid: input: too few words for text` line ([#455])
 
 [#455]: https://github.com/bact/pitloom/pull/455
+[#456]: https://github.com/bact/pitloom/pull/456
 
 ## [0.23.0] - 2026-11-05
 

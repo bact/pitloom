@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-05
+# Last-Modified: 2026-11-07
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -25,7 +25,7 @@ description: >-
   sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.0 (pip, uvx or pipx).
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.1 (pip, uvx or pipx).
   AI model targets need pitloom[ai] (or a format extra such as
   pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
   pitloom[content-type]. Needs network access to install pitloom and for
@@ -65,10 +65,11 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.23.0** (the licence readings, message
-  codes and LicenseID 0.7 preflight below are those of 0.23.0):
-  `pip install "pitloom>=0.23.0"`, or run ephemeral via `uvx`/`pipx`. Extras
-  take the floor after the extra: `"pitloom[ai]>=0.23.0"`.
+- Python >= 3.10 and **pitloom >= 0.23.1** (0.23.0 relays LicenseID 0.7.2's
+  short-text notice as a spurious WARNING; the licence readings, message
+  codes and LicenseID 0.7 preflight below are those of 0.23.1):
+  `pip install "pitloom>=0.23.1"`, or run ephemeral via `uvx`/`pipx`. Extras
+  take the floor after the extra: `"pitloom[ai]>=0.23.1"`.
 - AI model targets, and any project or wheel that ships model files, need
   the `ai` extra (`pitloom[ai]`) or a format-specific one
   (`pitloom[gguf]`, `pitloom[huggingface_hub]`, ...; see
@@ -78,7 +79,7 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 - **Prepare the licence database before the first `loom` run** of a session
   that reads licences (project, wheel, sdist, model, Git URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
-  "licenseid>=0.7.1,<0.8" licenseid update --source packaged`; one command
+  "licenseid>=0.7.2,<0.8" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do
   not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).
@@ -95,14 +96,14 @@ are POSIX shell; on Windows use `python` or `py` for `python3` and PowerShell
 equivalents (PowerShell 5.1 has no `&&`: one command per line):
 
 ```bash
-uvx --from "pitloom>=0.23.0" loom generate <target> -o sbom.spdx3.json
-pipx run --spec "pitloom>=0.23.0" loom generate <target> -o sbom.spdx3.json
+uvx --from "pitloom>=0.23.1" loom generate <target> -o sbom.spdx3.json
+pipx run --spec "pitloom>=0.23.1" loom generate <target> -o sbom.spdx3.json
 ```
 
 Install normally only if neither `uv` nor `pipx` is available:
 
 ```bash
-pip install "pitloom>=0.23.0"
+pip install "pitloom>=0.23.1"
 loom generate <target> -o sbom.spdx3.json
 ```
 

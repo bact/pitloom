@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -497,7 +497,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Why it matters:** the concluded licence can change with an upgrade and
   no input change: LicenseID 0.4 capped scores to 1, so MIT tied
   `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins
-  `licenseid>=0.7.1,<0.8` (a floor and the next minor);
+  `licenseid>=0.7.2,<0.8` (a floor and the next minor);
   Python version effects on scores are not measured.
 - **Options:** state determinism per (Pitloom, LicenseID) versions, as
   provenance records (`Tool: licenseid==<v>`); run the corpus

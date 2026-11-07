@@ -147,8 +147,8 @@ Not built in 0.23.0 (open):
 
 **Released 2026-11-07** (v0.23.1), a patch release. With LicenseID 0.7.2, its
 short-text notice (`too few words for text`) is said at `DEBUG`, not
-`WARNING:`, and licence titles and aliases are read as ids (#455). Still
-requires `licenseid>=0.7.1,<0.8`; the skills keep `pitloom>=0.23.0`. See
+`WARNING:`, and licence titles and aliases are read as ids (#455). Requires
+`licenseid>=0.7.2,<0.8`; the skills require `pitloom>=0.23.1` (#456). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0231-prs-450-455).
 
 ### 0.24.0: message catalogue and licence provenance

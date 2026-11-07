@@ -306,7 +306,7 @@ def test_no_licence_in_a_short_text_is_quiet(
     capsys: pytest.CaptureFixture[str],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """LicenseID (0.7.2 on) says a text too short to match has no licence
+    """LicenseID says a text too short to match has no licence
     in it: absent data, so nothing on stderr and ``DEBUG`` on every
     lookup, never raised to ``WARNING`` (a stub, so any LicenseID)."""
     short = "version https://git-lfs.github.com/spec/v1 " + "x" * 200

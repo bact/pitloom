@@ -213,8 +213,8 @@ def _answer(category: str, operand: str = "MIT") -> Any:
         ("plus_to_or_later", "MIT", False),
         ("separator", "MIT", True),
         ("deprecated_equal_successor", "MIT", True),
-        ("text_title", "MIT", True),  # LicenseID 0.7.2 on
-        ("alias_name", "MIT", True),  # LicenseID 0.7.2 on
+        ("text_title", "MIT", True),
+        ("alias_name", "MIT", True),
         # a deprecated id kept as written, in any case, is the author's
         ("assumed_only", "mit", False),
         ("deprecated_ambiguous", "MIT", False),
@@ -475,8 +475,8 @@ def test_every_category_of_the_installed_licenseid_is_decided_on() -> None:
         assert (None if resolved is None else resolved.decided) is decided, category
 
 
-#: Values LicenseID 0.7.2 reads by a title or alias (``text_title``,
-#: ``alias_name``) and 0.7.1 does not read at all.
+#: Values LicenseID reads by a title or alias (``text_title``,
+#: ``alias_name``).
 _TITLES_AND_ALIASES = [
     ("New BSD", "BSD-3-Clause", "alias_name"),
     ("CC0 1.0 Universal", "CC0-1.0", "text_title"),
@@ -489,27 +489,22 @@ _TITLES_AND_ALIASES = [
     _TITLES_AND_ALIASES,
     ids=["new-bsd", "cc0", "mulan"],
 )
-def test_a_title_or_alias_is_a_decided_expression_where_licenseid_reads_it(
+def test_a_title_or_alias_is_a_decided_expression(
     raw: str, expression: str, category: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """With a LicenseID that has the category, the value is its expression,
-    said at ``INFO:`` and noted; with one that has not, it stays text and
-    nothing is said above ``DEBUG:``. Never a licence id as written."""
-    reads = category in get_args(Category)
+    """The value is its expression, said at ``INFO:`` and noted; never a
+    licence id as written."""
+    assert category in get_args(Category)
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
         got = classify_license(raw)
     assert got is not None
     note = _license_resolve.resolution_notes(raw, expression)
     assert not _license_resolve.is_licence_id(raw)
-    if reads:
-        assert (got.kind, got.value) == ("expression", expression)
-        assert _said(caplog, logging.INFO) == [
-            f"LICENSE={raw!r}: read as {expression} ({category})"
-        ]
-        assert f"Resolution-1: {raw} -> {expression} ({category})" in note
-    else:
-        assert (got.kind, got.value) == ("text", raw)
-        assert not _said(caplog, logging.INFO) and note == ""
+    assert (got.kind, got.value) == ("expression", expression)
+    assert _said(caplog, logging.INFO) == [
+        f"LICENSE={raw!r}: read as {expression} ({category})"
+    ]
+    assert f"Resolution-1: {raw} -> {expression} ({category})" in note
 
 
 @pytest.mark.parametrize("category", ["malformed", "unresolved"])
