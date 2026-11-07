@@ -20,7 +20,7 @@ lost.
 - **Pitloom dependency:** Pitloom 0.23.1 requires `licenseid>=0.7.2,<0.8`
   (0.23.0: `>=0.7.1`).
 - **Drafts:** an earlier draft covered 0.7.0 only (nine findings). The text
-  below is the current one for 0.7.0 to 0.7.2 (ten findings; 0.7.2 fixes
+  below is the current one for 0.7.0 to 0.7.2 (eleven findings; 0.7.2 fixes
   finding 1); the earlier draft is superseded and has no finding the current
   one lacks.
 
@@ -42,6 +42,7 @@ a hook; **edge** = unusual input.
 | 8 | `components` empty for most answers | contract | none | reproduces |
 | 9 | Database is a black box | process | none | reproduces |
 | 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces |
+| 11 | Apache name variants read inconsistently | edge | none: kept as text | reproduces |
 
 ## Issue text
 
@@ -270,12 +271,35 @@ for v in ["GPL-2.0 or later", "MIT OR ISC"]:
   `Resolution-N` lines from `steps`) cannot say a character was changed.
 - Still reproduces on 0.7.2 (same output).
 
+### 11. Apache name variants are read inconsistently (found on 0.7.2)
+
+```python
+for v in ["Apache 2", "Apache v2", "Apache License Version 2.0",
+          "Apache Version 2.0", "Apache, Version 2.0",
+          "Apache Software License, Version 2.0",
+          "Apache Software License 2.0", "Apache License (2.0)", "ASL 2.0"]:
+    r = resolve(v, source="packaged")
+    print(repr(v), r["expression"], r["category"])
+```
+
+- Actual (0.7.2): `Apache 2` and `Apache v2` give `Apache-2.0`
+  (`version_spelling`); `Apache License Version 2.0` gives `Apache-2.0`
+  (`prose_form`). The other six give `None` (`unresolved`, reason
+  `not found`).
+- Expected: one rule for the name followed by a version. If `Apache 2` and
+  `Apache v2` are `Apache-2.0`, so are `Apache Version 2.0` and
+  `Apache, Version 2.0`. `Apache Software License` is the trove classifier's
+  name for the licence, common in PyPI metadata, so the name with a version
+  could be read too. A version in brackets and `ASL 2.0` are less clear; a
+  documented refusal is fine for them.
+- Pitloom keeps each refused value as licence text, with no SPDX id.
+
 
 ## Not in the issue
 
 The earlier draft's nine findings are findings 1 to 9 above; the current
 text adds finding 10, the 0.7.1 version references and the 0.7.2 status of
-each finding.
+each finding, and finding 11 (found on 0.7.2).
 
 0.7.2's new warning `input: too few words for text: <reason>` (#161) is no
 finding: it says why a short text gets no match. Pitloom relays it as a
@@ -285,7 +309,7 @@ Pitloom tests on 0.7.2; the relay level is Pitloom's to settle. Settled in
 
 ---
 
-Reproducers 1 to 10 re-run 2026-11-07 on LicenseID 0.7.1 and 0.7.2 (PyPI
+Reproducers 1 to 11 re-run 2026-11-07 on LicenseID 0.7.1 and 0.7.2 (PyPI
 wheels, CPython 3.10.20, fresh `HOME`, `licenseid update --source
 packaged`; 4 and 5 also with a database built by 0.6.0): the output above,
 and on 0.7.2 the line each finding gives for it.
