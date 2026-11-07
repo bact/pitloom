@@ -23,11 +23,11 @@ import logging
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 from unittest.mock import patch
 
 import pytest
-from licenseid import DatabaseNotReadyError
+from licenseid import Category, DatabaseNotReadyError
 from licenseid import resolve as licenseid_resolve
 
 from pitloom.__main__ import main
@@ -213,6 +213,8 @@ def _answer(category: str, operand: str = "MIT") -> Any:
         ("plus_to_or_later", "MIT", False),
         ("separator", "MIT", True),
         ("deprecated_equal_successor", "MIT", True),
+        ("text_title", "MIT", True),  # LicenseID 0.7.2 on
+        ("alias_name", "MIT", True),  # LicenseID 0.7.2 on
         # a deprecated id kept as written, in any case, is the author's
         ("assumed_only", "mit", False),
         ("deprecated_ambiguous", "MIT", False),
@@ -424,7 +426,7 @@ def test_no_reading_when_the_resolver_cannot_answer(
 @pytest.mark.parametrize(
     "category",
     ["prose_form", "trove_name", "assumed_only", "deprecated_ambiguous",
-     "stated_qualifier", "version_spelling"],
+     "stated_qualifier", "version_spelling", "text_title", "alias_name"],
 )  # fmt: skip
 def test_every_answer_with_an_expression_is_accepted(category: str) -> None:
     with patch(
@@ -432,6 +434,82 @@ def test_every_answer_with_an_expression_is_accepted(category: str) -> None:
     ):
         got = classify_license("Acme2", warn=False)
     assert got is not None and (got.kind, got.value) == ("expression", "MIT")
+
+
+#: Every category of LicenseID: whether Pitloom says an answer of it was
+#: decided (``INFO:``, ``Resolution-1``), or ``None`` for no expression.
+_DECIDED_BY_CATEGORY: dict[str, bool | None] = {
+    "exact": False,
+    "lexical": False,
+    "plus_to_or_later": False,
+    "assumed_only": False,  # as written; decided only when re-spelt
+    "deprecated_ambiguous": False,  # as written; decided only when re-spelt
+    "stated_qualifier": True,
+    "separator": True,
+    "version_spelling": True,
+    "listed_name": True,
+    "deprecated_equal_successor": True,
+    "prose_form": True,
+    "text_title": True,
+    "alias_name": True,
+    "trove_name": True,
+    "malformed": None,
+    "unresolved": None,
+}
+
+
+def test_every_category_of_the_installed_licenseid_is_decided_on() -> None:
+    """A category a later LicenseID adds is not left to a default branch:
+    it must be added to the table above, and Pitloom's reading of it is
+    checked against the table."""
+    categories = set(get_args(Category))
+    assert categories <= set(_DECIDED_BY_CATEGORY), "decide the new categories"
+    for category in sorted(categories):
+        decided = _DECIDED_BY_CATEGORY[category]
+        answer = _answer(category)
+        if decided is None:
+            answer = answer | {"expression": None, "reason": "not found: x"}
+        clear_resolution_cache()
+        with patch("pitloom.extract._license_resolve.resolve", return_value=answer):
+            resolved = _license_resolve.resolve_value("x")
+        assert (None if resolved is None else resolved.decided) is decided, category
+
+
+#: Values LicenseID 0.7.2 reads by a title or alias (``text_title``,
+#: ``alias_name``) and 0.7.1 does not read at all.
+_TITLES_AND_ALIASES = [
+    ("New BSD", "BSD-3-Clause", "alias_name"),
+    ("CC0 1.0 Universal", "CC0-1.0", "text_title"),
+    ("Mulan PSL v2", "MulanPSL-2.0", "text_title"),
+]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expression", "category"),
+    _TITLES_AND_ALIASES,
+    ids=["new-bsd", "cc0", "mulan"],
+)
+def test_a_title_or_alias_is_a_decided_expression_where_licenseid_reads_it(
+    raw: str, expression: str, category: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """With a LicenseID that has the category, the value is its expression,
+    said at ``INFO:`` and noted; with one that has not, it stays text and
+    nothing is said above ``DEBUG:``. Never a licence id as written."""
+    reads = category in get_args(Category)
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        got = classify_license(raw)
+    assert got is not None
+    note = _license_resolve.resolution_notes(raw, expression)
+    assert not _license_resolve.is_licence_id(raw)
+    if reads:
+        assert (got.kind, got.value) == ("expression", expression)
+        assert _said(caplog, logging.INFO) == [
+            f"LICENSE={raw!r}: read as {expression} ({category})"
+        ]
+        assert f"Resolution-1: {raw} -> {expression} ({category})" in note
+    else:
+        assert (got.kind, got.value) == ("text", raw)
+        assert not _said(caplog, logging.INFO) and note == ""
 
 
 @pytest.mark.parametrize("category", ["malformed", "unresolved"])

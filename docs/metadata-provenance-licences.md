@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -150,7 +150,9 @@ only missing, `licenseid database not found` is said once at `INFO:`: only
 the `LICENSE`-file check is skipped. A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
 outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
-stated`, a guess it records on a detection).
+stated`, a guess it records on a detection). `too few words for text`
+(LicenseID 0.7.2 on: a text too short to match has no licence) is
+`DEBUG` only.
 
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded
