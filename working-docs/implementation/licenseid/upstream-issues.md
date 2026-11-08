@@ -16,7 +16,7 @@ Findings from the Pitloom adoption of LicenseID, kept so they are not lost.
 - **Status:** drafted, not yet filed upstream.
 - **Where to file:** the LicenseID repository, as one issue.
 - **Who files:** the maintainer.
-- **Pitloom dependency:** Pitloom 0.23.3 requires `licenseid>=0.8.1,<0.9`.
+- **Pitloom dependency:** Pitloom 0.23.4 requires `licenseid>=0.8.2,<0.9`.
 
 ## Index of findings
 
@@ -27,21 +27,22 @@ a hook; **edge** = unusual input.
 | # | Finding | Severity | Pitloom workaround | Status |
 | - | - | - | - | - |
 | 1 | Short word detected as a licence | contract | none | fixed in LicenseID 0.7.2 |
-| 2 | Which characters are white space | edge/doc | none | reproduces on 0.8.1 |
-| 3 | `coverage` above 1 | contract | Pitloom clamps it | reproduces on 0.8.1 |
-| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces on 0.8.1 |
-| 5 | When a database warning is said once | process | none | reproduces on 0.8.1 |
-| 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` | reproduces on 0.8.1 |
-| 7 | `trust: none` answers are hard to use | process | special-cases the category | reproduces on 0.8.1 |
-| 8 | `components` empty for most answers | contract | none | reproduces on 0.8.1 |
-| 9 | Database is a black box | process | none | still open on 0.8.1 |
-| 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces on 0.8.1 |
+| 2 | Which characters are white space | edge/doc | none | reproduces on 0.8.2 |
+| 3 | `coverage` above 1 | contract | Pitloom clamps it | reproduces on 0.8.2 |
+| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces on 0.8.2 |
+| 5 | When a database warning is said once | process | none | reproduces on 0.8.2 |
+| 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` | reproduces on 0.8.2 |
+| 7 | `trust: none` answers are hard to use | process | special-cases the category | reproduces on 0.8.2 |
+| 8 | `components` empty for most answers | contract | none | reproduces on 0.8.2 |
+| 9 | Database is a black box | process | none | still open on 0.8.2 |
+| 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces on 0.8.2 |
 | 11 | Apache name variants read inconsistently | edge | none needed | fixed in LicenseID 0.7.3 |
 
-The reproducers were re-run on LicenseID 0.8.1 (PyPI wheel, fresh `HOME`,
-`licenseid update --source packaged`) on 2026-11-08; item 5 used a database
-built by LicenseID 0.6.0. Item 9 is open: `LicenseDatabase` is public, in
-`__all__`, has 15 public methods, and its stability is undocumented.
+The reproducers were re-run on LicenseID 0.8.2 (PyPI wheel, fresh `HOME`,
+`licenseid update --source packaged`) on 2026-11-08, with the same results as
+on 0.8.1; item 5 used a database built by LicenseID 0.6.0. Item 9 is open:
+`LicenseDatabase` is public, in `__all__`, has 15 public methods, and its
+stability is undocumented.
 
 ## Issue text
 
@@ -102,7 +103,7 @@ top = det.detect(BSD1)[0]
 top["expression"], top["score"], top["coverage"]
 ```
 
-- Actual (reproduces on 0.8.1): `('BSD-1-Clause', 1.0, 1.0062)`.
+- Actual (reproduces on 0.8.2): `('BSD-1-Clause', 1.0, 1.0062)`.
 - Expected: `coverage` at most 1 (it is documented as a share of the licence
   text), or a documented meaning for a value above 1. Pitloom clamps it.
 
@@ -117,7 +118,7 @@ LicenseDetector("/nonexistent/licenses.db")
 
 - Actual: `database: not found: no home directory; pass --db` and
   `database: not found: /nonexistent/licenses.db; run 'licenseid update'`
-  (both reproduce on 0.8.1). With a database of an older build,
+  (both reproduce on 0.8.2). With a database of an older build,
   `LicenseDetector()` warns
   `database: build v2 outdated: current v4; run 'licenseid update'`.
 - Expected: a library error names the library parameter (`db_path`), not the
@@ -145,12 +146,12 @@ rec(lambda: detect("MIT License"))  # none
 rec(lambda: LicenseDetector())    # 1 warning, every construction
 ```
 
-- Actual (0.6.0-built database, on 0.8.1): `resolve("MIT")` warns once,
+- Actual (0.6.0-built database, on 0.8.2): `resolve("MIT")` warns once,
   `database: build v2 outdated: current v4; run 'licenseid update'`;
   `resolve("Apache2")` and `detect("MIT License")` give none; each
-  `LicenseDetector()` warns again. A fresh 0.8.1 database gives no warning.
-  Inside `resolve()`/`detect()` a database warning is given once per
-  process (`licenseid.warning.once()`, a module-level set); each
+  `LicenseDetector()` warns again. A database built by 0.8.1 or 0.8.2 gives
+  no warning. Inside `resolve()`/`detect()` a database warning is given once
+  per process (`licenseid.warning.once()`, a module-level set); each
   `LicenseDetector()` gives it again. `licenseid.warning.reset_once()` clears
   the set; it is still not in `__all__` and not in the README.
 - Expected: document the rule (which warnings are once per process, and
@@ -198,7 +199,7 @@ for v in ["GPL-3.0", "GPLv3", "MIT"]:
     print(v, r["expression"], r["category"], r["trust"], r["candidates"])
 ```
 
-- Actual (reproduces on 0.8.1): `GPL-3.0 assumed_only none ['GPL-3.0-only',
+- Actual (reproduces on 0.8.2): `GPL-3.0 assumed_only none ['GPL-3.0-only',
   'GPL-3.0-or-later']`, the same for `GPLv3`; `MIT exact identity []`. The
   result has no `decided` key.
 - Observation: an `assumed_only` answer has an expression but `trust: none`.
@@ -215,7 +216,7 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
     print(v, resolve(v, source="packaged")["components"])
 ```
 
-- Actual (reproduces on 0.8.1): `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also
+- Actual (reproduces on 0.8.2): `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also
   `MIT License`, `Apache2`, `GPLv3`); one entry, `py-spdx-license 0.0.1`, for
   `MIT OR Apache2`.
   LicenseID requires `py-spdx-license<0.1,>=0.0.1`.
@@ -227,7 +228,7 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
 ### 9. A `Detection` names its List, the database stays a black box (F9, remainder)
 
 - `Detection.lists` names the List and its version (`source: database`).
-- Open on 0.8.1: `LicenseDatabase` is public and in `__all__`, with 15
+- Open on 0.8.2: `LicenseDatabase` is public and in `__all__`, with 15
   public methods
   (`get_all_names_and_ids`, `get_deprecated_mappings`,
   `get_license_by_name`, `get_metadata`, ...) and no documentation of which

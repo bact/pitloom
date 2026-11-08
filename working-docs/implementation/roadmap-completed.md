@@ -578,3 +578,13 @@ Released 2026-11-09, a patch release for LicenseID 0.8.1. Open items:
   warns `build v3 outdated` until `licenseid update`. The skills require
   `pitloom>=0.23.3`. Python 3.15 is not tested: some `ai` extra wheels
   (such as `onnx`) have no 3.15 build yet.
+
+## Shipped in 0.23.4 (PR #462)
+
+Released 2026-11-08, a patch release for LicenseID 0.8.2. Open items:
+[roadmap.md](../design/roadmap.md#0240-message-catalogue-and-licence-provenance).
+
+- [x] **Release PR** (#462): requires `licenseid>=0.8.2,<0.9`. Pitloom reads
+  every declared value, licence text and route as with 0.8.1: no licence
+  reading, warning, category or database build changed (a database built by
+  0.8.1 stays current). The skills require `pitloom>=0.23.4`.
