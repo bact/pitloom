@@ -116,11 +116,18 @@ written, because whether `-only` or `-or-later` was meant is unknown; so does
 the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `LGPL v3` is `LGPL-3.0`).
 Both note the successors they could mean. A licence's prose name (`BSD
 3-Clause License`) and a classifier's name (`GNU General Public License v3
-(GPLv3)`) read as their id. Licences joined by `;` (`MIT; Apache-2.0`) name
-no operator, so no expression: text, as written. Text that has an operator
-or parenthesis and an id as written, so looks like a broken expression
-(`MIT OR`), is kept as text with one `WARNING:` per value; the reason in it
-is LicenseID's (`parse failed: Unexpected 'OR'`).
+(GPLv3)`) read as their id. A licence URL (LicenseID 0.8.1 or later) reads as
+its id too: `https://opensource.org/licenses/MIT` as `MIT`,
+`https://www.apache.org/licenses/LICENSE-2.0` as `Apache-2.0`,
+`https://spdx.org/licenses/MIT.html` as `MIT`; the page of a deprecated id
+(`https://www.gnu.org/licenses/gpl-3.0.html`) as that id, `GPL-3.0`, with the
+note on its successors. A control or format character at either end of a
+value (a zero-width space after `MIT`) is dropped; the provenance keeps the
+value as written, the character escaped (`\u200b`). Licences joined by `;`
+(`MIT; Apache-2.0`) name no operator, so no expression: text, as written.
+Text that has an operator or parenthesis and an id as written, so looks like
+a broken expression (`MIT OR`), is kept as text with one `WARNING:` per value;
+the reason in it is LicenseID's (`parse failed: Unexpected 'OR'`).
 
 A value that is not an SPDX expression is read by LicenseID (`resolve`),
 in any field. It is accepted when it names exactly one licence, or several
@@ -139,6 +146,7 @@ and kept in the provenance:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
+INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url)
 ```
 
 The reading uses the SPDX License List the `licenseid` wheel ships, not the

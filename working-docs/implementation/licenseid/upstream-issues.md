@@ -30,7 +30,7 @@ Severity: **contract** = behaviour a caller cannot rely on or that
 contradicts the documented meaning; **process** = missing documentation or
 a hook; **edge** = unusual input.
 
-| # | Finding | Severity | Pitloom workaround | 0.7.3 |
+| # | Finding | Severity | Pitloom workaround | 0.8.1 |
 | - | - | - | - | - |
 | 1 | Short word detected as a licence | contract | none | fixed (0.7.2) |
 | 2 | `\v`, `\r`, U+2028 read as white space | edge | none | reproduces |
@@ -43,6 +43,10 @@ a hook; **edge** = unusual input.
 | 9 | Database is a black box | process | none | reproduces |
 | 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces |
 | 11 | Apache name variants read inconsistently | edge | none needed | fixed |
+
+The `0.8.1` column: findings 2, 6 and 10 were re-run on LicenseID 0.8.1
+(2026-11-08) and still reproduce; 1 and 11 stay fixed; the others carry their
+0.7.3 result and were not re-run.
 
 ## Issue text
 
