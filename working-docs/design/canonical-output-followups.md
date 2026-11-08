@@ -403,8 +403,9 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Options:** `AND` (as several classifiers and the G7 #3 dataset list);
   `OR` (dual licensing); text plus one `WARNING:`; `NOASSERTION`. A rewrite
   records `Normalized-From`.
-- **Current behaviour:** text as written (checked 2026-10-08, and on
-  LicenseID 0.7.1).
+- **Current behaviour:** text as written (checked 2026-10-08; on LicenseID
+  0.8.1, 2026-11-08, `resolve("apache-2.0,mit")` is `unresolved`, `not an
+  SPDX operator: ,`, so Pitloom still keeps the text).
 - **Owner:** licence rules. Found in the #294 reviews; was in KB.
 
 ### C16. `other` and vague licence values across formats
@@ -426,9 +427,12 @@ origin; KB is [known-bugs.md](known-bugs.md).
 
 - **Question:** strip zero-width and other format characters (U+200B,
   U+2060, U+FEFF) at the edges before classifying?
-- **Why it matters:** `str.strip()` keeps them, so `MIT` plus U+200B is the
+- **Why it matters:** `str.strip()` keeps them, so `MIT` plus U+200B was the
   text `MIT​`, not the `MIT` expression (checked 2026-10-08); the
   display escape (C2, C6) makes it visible, not equal.
+- **Shipped (0.23.3, #461):** LicenseID 0.8.1 trims a control or format
+  character at either end (`trim` step); `resolve("MIT\u200b")` is `MIT`,
+  category `separator`. Pitloom records the step. Checked 2026-11-08.
 - **Options:** strip edge `Cf` characters for classification, raw in
   `Normalized-From`; keep plus one `WARNING:`; keep.
 - **Recommendation:** decide with C6 (every text source has the same edge).
@@ -437,8 +441,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 ### C18. Licence URL to id
 
 - **Decided (user, 2026-10-08):** wait for upstream LicenseID; Pitloom
-  does not map names or URLs to ids itself. Revisit when LicenseID ships
-  the mapping. What to ask upstream:
+  does not map names or URLs to ids itself. LicenseID 0.8.1 ships the
+  mapping (below). What to ask upstream:
   [licenseid-handoff.md](licenseid-handoff.md).
 - **Question:** map a value that is only a URL to an SPDX id?
 - **Why it matters:** it stays text; ONNX allows one for `model_license`
@@ -457,8 +461,16 @@ origin; KB is [known-bugs.md](known-bugs.md).
   ambiguous URL stays text or becomes `NOASSERTION` (never a guessed
   `-only`); deprecated ids as candidates or not; the provenance tag (as
   `tag_license_normalization`); Pitloom or upstream, with C12.
-- **Current behaviour:** text as written (also on LicenseID 0.7.1). KB:
-  "A model licence that is a name or URL becomes licence text".
+- **Shipped (0.23.3, #461):** LicenseID 0.8.1 reads a known licence URL
+  (`https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`, category
+  `license_url`, trust `resolver_rule`). Checked 2026-11-08 with
+  `resolve(v, source="packaged")`: the same for `http://` and the
+  `spdx.org/licenses/MIT.html` and `opensource.org/licenses/MIT` pages; an
+  unknown URL (`https://www.gnu.org/licenses/gpl-2.0.html`) stays
+  `unresolved`, so it is text.
+- **Current behaviour:** a known URL is its id; an unknown one is text. KB:
+  "A model licence that is a name or URL becomes licence text" (names
+  too: `listed_name`, `alias_name`, `text_title`).
 - **Owner:** licence layers. Was license-rules question 17.
 
 ### C19. Licence tie-breaks as written rules

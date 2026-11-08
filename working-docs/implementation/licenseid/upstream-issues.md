@@ -27,21 +27,21 @@ a hook; **edge** = unusual input.
 | # | Finding | Severity | Pitloom workaround | Status |
 | - | - | - | - | - |
 | 1 | Short word detected as a licence | contract | none | fixed in LicenseID 0.7.2 |
-| 2 | `\v`, `\r`, U+2028 read as white space | edge | none | reproduces on 0.8.1 |
+| 2 | Which characters are white space | edge/doc | none | reproduces on 0.8.1 |
 | 3 | `coverage` above 1 | contract | Pitloom clamps it | reproduces on 0.8.1 |
 | 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces on 0.8.1 |
 | 5 | When a database warning is said once | process | none | reproduces on 0.8.1 |
 | 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` | reproduces on 0.8.1 |
 | 7 | `trust: none` answers are hard to use | process | special-cases the category | reproduces on 0.8.1 |
 | 8 | `components` empty for most answers | contract | none | reproduces on 0.8.1 |
-| 9 | Database is a black box | process | none | reproduces on 0.8.1 |
+| 9 | Database is a black box | process | none | still open on 0.8.1 |
 | 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces on 0.8.1 |
 | 11 | Apache name variants read inconsistently | edge | none needed | fixed in LicenseID 0.7.3 |
 
-The reproducers were re-run on LicenseID 0.8.1 (PyPI wheel, CPython 3.10,
-fresh `HOME`, `licenseid update --source packaged`); items 5 and 9 were
-checked by API shape (`reset_once` not in `__all__`, the same
-`LicenseDatabase` methods).
+The reproducers were re-run on LicenseID 0.8.1 (PyPI wheel, fresh `HOME`,
+`licenseid update --source packaged`) on 2026-11-08; item 5 used a database
+built by LicenseID 0.6.0. Item 9 is open: `LicenseDatabase` is public, in
+`__all__`, has 15 public methods, and its stability is undocumented.
 
 ## Issue text
 
@@ -51,7 +51,7 @@ issue.
 ## LicenseID: findings from the Pitloom adoption
 
 Each reproducer reads the packaged SPDX License List (3.29.0). Items 1 and 11
-are fixed and are not part of the issue. Common setup:Common setup:
+are fixed and are not part of the issue. Common setup:
 
 ```python
 import licenseid
@@ -68,7 +68,7 @@ det.is_spdx(text="Foo"), det.is_osi(text="Foo")
 
 - Fixed in LicenseID 0.7.2 (#161). Drop this item from the issue.
 
-### 2. `\v`, `\r` and U+2028 are read as white space (F15, remainder)
+### 2. Which characters count as white space (F15, remainder)
 
 ```python
 for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
@@ -81,10 +81,11 @@ for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
   steps `['whitespace', 'reorder']`; `\x1f` is refused (`None`,
   `unresolved`, `control or format character: U+001F`, no steps), as U+001C to
   U+001F are.
-- Expected: one rule for a line or paragraph break inside a value. A vertical
-  tab, a lone CR and U+2028/U+2029 are line breaks (`str.splitlines` splits on
-  them), so a value holding one is two lines, as with `\n`. Refuse them like
-  U+001C to U+001F, or document that they are read as a space.
+- Question, not a defect: the maintainer says this is probably intentional
+  (a lenient reading of a wrapped value, recorded as `whitespace` steps;
+  0.8.1 also normalises invisible spaces and trims control characters). Is
+  this deliberate? Please document which characters count as white space;
+  `\x1f` is refused while the others are read.
 
 ### 3. `coverage` above 1 (F16)
 
@@ -101,7 +102,7 @@ top = det.detect(BSD1)[0]
 top["expression"], top["score"], top["coverage"]
 ```
 
-- Actual: `('BSD-1-Clause', 1.0, 1.0062)`.
+- Actual (reproduces on 0.8.1): `('BSD-1-Clause', 1.0, 1.0062)`.
 - Expected: `coverage` at most 1 (it is documented as a share of the licence
   text), or a documented meaning for a value above 1. Pitloom clamps it.
 
@@ -115,9 +116,10 @@ LicenseDetector("/nonexistent/licenses.db")
 ```
 
 - Actual: `database: not found: no home directory; pass --db` and
-  `database: not found: /nonexistent/licenses.db; run 'licenseid update'`.
-  With a database of an older build, `LicenseDetector()` warns
-  `database: build v2 outdated: current v3; run 'licenseid update'`.
+  `database: not found: /nonexistent/licenses.db; run 'licenseid update'`
+  (both reproduce on 0.8.1). With a database of an older build,
+  `LicenseDetector()` warns
+  `database: build v2 outdated: current v4; run 'licenseid update'`.
 - Expected: a library error names the library parameter (`db_path`), not the
   CLI flag `--db`. The action `run 'licenseid update'` fetches from the
   network (`compact` source); the offline fix is `licenseid update --source
@@ -143,10 +145,14 @@ rec(lambda: detect("MIT License"))  # none
 rec(lambda: LicenseDetector())    # 1 warning, every construction
 ```
 
-- Actual: inside `resolve()`/`detect()` a database warning is given once per
+- Actual (0.6.0-built database, on 0.8.1): `resolve("MIT")` warns once,
+  `database: build v2 outdated: current v4; run 'licenseid update'`;
+  `resolve("Apache2")` and `detect("MIT License")` give none; each
+  `LicenseDetector()` warns again. A fresh 0.8.1 database gives no warning.
+  Inside `resolve()`/`detect()` a database warning is given once per
   process (`licenseid.warning.once()`, a module-level set); each
   `LicenseDetector()` gives it again. `licenseid.warning.reset_once()` clears
-  the set; it is not in `__all__` and not in the README.
+  the set; it is still not in `__all__` and not in the README.
 - Expected: document the rule (which warnings are once per process, and
   where), and make `reset_once()` (or an equivalent) a documented test hook. A
   caller that records warnings per call cannot tell "no problem" from "said
@@ -192,8 +198,9 @@ for v in ["GPL-3.0", "GPLv3", "MIT"]:
     print(v, r["expression"], r["category"], r["trust"], r["candidates"])
 ```
 
-- Actual: `GPL-3.0 assumed_only none ['GPL-3.0-only', 'GPL-3.0-or-later']`,
-  the same for `GPLv3`; `MIT exact identity []`.
+- Actual (reproduces on 0.8.1): `GPL-3.0 assumed_only none ['GPL-3.0-only',
+  'GPL-3.0-or-later']`, the same for `GPLv3`; `MIT exact identity []`. The
+  result has no `decided` key.
 - Observation: an `assumed_only` answer has an expression but `trust: none`.
   A caller must special-case the category to learn that the expression is the
   author's deprecated id and not a reading LicenseID stands behind. A short
@@ -208,8 +215,9 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
     print(v, resolve(v, source="packaged")["components"])
 ```
 
-- Actual: `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also `MIT License`, `Apache2`,
-  `GPLv3`); one entry, `py-spdx-license 0.0.1`, for `MIT OR Apache2`.
+- Actual (reproduces on 0.8.1): `[]` for `MIT`, `GPL-2.0+`, `(MIT)` (also
+  `MIT License`, `Apache2`, `GPLv3`); one entry, `py-spdx-license 0.0.1`, for
+  `MIT OR Apache2`.
   LicenseID requires `py-spdx-license<0.1,>=0.0.1`.
 - Expected: either the components that took part in every answer, or a
   documented rule for when the list is filled. A caller that cites the tools
@@ -219,9 +227,10 @@ for v in ["MIT", "GPL-2.0+", "(MIT)", "MIT OR Apache2"]:
 ### 9. A `Detection` names its List, the database stays a black box (F9, remainder)
 
 - `Detection.lists` names the List and its version (`source: database`).
-- Open: `LicenseDatabase` has many public methods
+- Open on 0.8.1: `LicenseDatabase` is public and in `__all__`, with 15
+  public methods
   (`get_all_names_and_ids`, `get_deprecated_mappings`,
-  `get_license_by_name`, `get_metadata`, ...) with no documentation of which
+  `get_license_by_name`, `get_metadata`, ...) and no documentation of which
   are stable. A documented read of the database's List (version, ids, names)
   without a query would let a caller record what it detected against, and
   answer item 6 for the database case.
