@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -351,9 +351,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
   (LicenseID `get_license_by_name()`); keep text, equal only when
   compared (today); classifier names need new LicenseID data
   ([license-layers.md](license-layers.md)).
-- **Current behaviour:** since LicenseID 0.7 (#437, #440),
-  `licenseid.resolve` reads a List name (`MIT License`) and a
-  `License :: ...` path as its id. A bare classifier name
+- **Current behaviour:** `licenseid.resolve` reads a List name
+  (`MIT License`) and a `License :: ...` path as its id. A bare classifier name
   (`Apache Software License`) stays text, as a known deviation
   ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text)),
   and the names of 14 deprecated ids are read by `same_licence()`
@@ -368,7 +367,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   without case, and by string or by what they map to?
 - **Why it matters:** SPDX matches licence ids without case, but
   `LicenseRef-Foo` and `LicenseRef-foo` are two elements; `licenseref-foo`
-  was text until LicenseID 0.7 (#437); it is now `LicenseRef-foo`. A merge
+  is read as `LicenseRef-foo`. A merge
   unifies a user's `LicenseRef-x` by string: two fragments mapping it to
   different `customIdToUri` texts keep the first.
 - **Options:** as written (state it); canonical prefix case, idstring as
@@ -404,8 +403,9 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Options:** `AND` (as several classifiers and the G7 #3 dataset list);
   `OR` (dual licensing); text plus one `WARNING:`; `NOASSERTION`. A rewrite
   records `Normalized-From`.
-- **Current behaviour:** text as written (checked 2026-10-08, and on
-  LicenseID 0.7.1).
+- **Current behaviour:** text as written (checked 2026-10-08; on LicenseID
+  0.8.1, 2026-11-08, `resolve("apache-2.0,mit")` is `unresolved`, `not an
+  SPDX operator: ,`, so Pitloom still keeps the text).
 - **Owner:** licence rules. Found in the #294 reviews; was in KB.
 
 ### C16. `other` and vague licence values across formats
@@ -427,9 +427,12 @@ origin; KB is [known-bugs.md](known-bugs.md).
 
 - **Question:** strip zero-width and other format characters (U+200B,
   U+2060, U+FEFF) at the edges before classifying?
-- **Why it matters:** `str.strip()` keeps them, so `MIT` plus U+200B is the
+- **Why it matters:** `str.strip()` keeps them, so `MIT` plus U+200B was the
   text `MIT​`, not the `MIT` expression (checked 2026-10-08); the
   display escape (C2, C6) makes it visible, not equal.
+- **Shipped (0.23.3, #461):** LicenseID 0.8.1 trims a control or format
+  character at either end (`trim` step); `resolve("MIT\u200b")` is `MIT`,
+  category `separator`. Pitloom records the step. Checked 2026-11-08.
 - **Options:** strip edge `Cf` characters for classification, raw in
   `Normalized-From`; keep plus one `WARNING:`; keep.
 - **Recommendation:** decide with C6 (every text source has the same edge).
@@ -438,8 +441,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
 ### C18. Licence URL to id
 
 - **Decided (user, 2026-10-08):** wait for upstream LicenseID; Pitloom
-  does not map names or URLs to ids itself. Revisit when LicenseID ships
-  the mapping. What to ask upstream:
+  does not map names or URLs to ids itself. LicenseID 0.8.1 ships the
+  mapping (below). What to ask upstream:
   [licenseid-handoff.md](licenseid-handoff.md).
 - **Question:** map a value that is only a URL to an SPDX id?
 - **Why it matters:** it stays text; ONNX allows one for `model_license`
@@ -458,8 +461,16 @@ origin; KB is [known-bugs.md](known-bugs.md).
   ambiguous URL stays text or becomes `NOASSERTION` (never a guessed
   `-only`); deprecated ids as candidates or not; the provenance tag (as
   `tag_license_normalization`); Pitloom or upstream, with C12.
-- **Current behaviour:** text as written (also on LicenseID 0.7.1). KB:
-  "A model licence that is a name or URL becomes licence text".
+- **Shipped (0.23.3, #461):** LicenseID 0.8.1 reads a known licence URL
+  (`https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`, category
+  `license_url`, trust `resolver_rule`). Checked 2026-11-08 with
+  `resolve(v, source="packaged")`: the same for `http://` and the
+  `spdx.org/licenses/MIT.html` and `opensource.org/licenses/MIT` pages; an
+  unknown URL (`https://www.gnu.org/licenses/gpl-2.0.html`) stays
+  `unresolved`, so it is text.
+- **Current behaviour:** a known URL is its id; an unknown one is text. KB:
+  "A model licence that is a name or URL becomes licence text" (names
+  too: `listed_name`, `alias_name`, `text_title`).
 - **Owner:** licence layers. Was license-rules question 17.
 
 ### C19. Licence tie-breaks as written rules
@@ -497,12 +508,12 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Why it matters:** the concluded licence can change with an upgrade and
   no input change: LicenseID 0.4 capped scores to 1, so MIT tied
   `FSL-1.1-MIT` until #287 added `_fits_worse`. Pitloom pins
-  `licenseid>=0.7.3,<0.8` (a floor and the next minor);
+  `licenseid>=0.8.1,<0.9` (a floor and the next minor);
   Python version effects on scores are not measured.
 - **Options:** state determinism per (Pitloom, LicenseID) versions, as
   provenance records (`Tool: licenseid==<v>`); run the corpus
   (`tests/fixtures/license-texts/`) on the floor and latest versions in CI;
-  an upper pin on a patch release (stricter than the current `<0.8`).
+  an upper pin on a patch release (stricter than the current `<0.9`).
 - **Current behaviour:** same corpus results on 0.3.7 and 0.4
   ([license-rules.md](license-rules.md#4-declared-or-concluded)); not run
   per version in CI.

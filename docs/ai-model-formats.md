@@ -413,7 +413,7 @@ case-insensitive, so `O/D` is `o/d`) is one dataset, and a card lists at most
 
 | Dataset field | From | Provenance `Field:` |
 | :------------ | :--- | :------------------ |
-| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown`, `N/A`, `NOASSERTION` or an `other` with no real name or link give none; a list of several gives one `hasDeclaredLicense` each, in order, and a package comment that the card does not say whether they combine as AND or OR | `dataset card license` |
+| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first, as `name (link)`; a name that reads as an SPDX licence is used alone unless the link reads as a different one, so `apache-2.0` with the Apache link gives `Apache-2.0`; with no name, the link; a name that does not read, such as `Modified MIT License`, keeps its link); `unknown`, `N/A`, `NOASSERTION` or an `other` with no real name or link give none; a list of several gives one `hasDeclaredLicense` each, in order, and a package comment that the card does not say whether they combine as AND or OR | `dataset card license` |
 | description | the card's first prose paragraph; a table of contents, key lines (`**Paper:** [...]`), badges, HTML, tables and code blocks are passed over | `dataset card` |
 | keywords (not written: SPDX 3.0.1 has no dataset keyword property) | the card's `tags` | `dataset card tags` |
 | version | the repository's commit hash | `dataset_info sha` |

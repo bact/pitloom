@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-26
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,18 +8,21 @@ SPDX-License-Identifier: CC0-1.0
 
 # Licence resolution categories: what Pitloom needs to know from LicenseID
 
-Status: partly built. LicenseID 0.7.0 ships `resolve()` (declared-value
+Status: partly built. LicenseID ships `resolve()` (declared-value
 resolution, `Apache2` to `Apache-2.0`), which reads the SPDX License List
 packaged with it: Pitloom calls it with `source="packaged"`, so a declared
 value needs no database (#437). Pitloom reads a single-line value
 through it, quiet at `DEBUG:` for form changes and one `INFO:` per decision,
 with `Method`, `Resolution-1`, `Expansion-1` and `Tool` in the provenance (see
 [license-pipeline.md](../implementation/license-pipeline.md)). Not built:
-reading a compound operand by operand (0.7.0 gives `operands`; Pitloom
+reading a compound operand by operand (LicenseID gives `operands`; Pitloom
 reads a compound only as one answer), the licence
 list version (Q5, in `Resolution["lists"]` but not used), a cross-field
-indicator for a concluded licence (Q4) and the `alias`/`listed_url` categories
-(0.7.0 has neither). Decided 2026-11-05: provenance annotations are off by
+indicator for a concluded licence (Q4). LicenseID 0.8.1 has `alias_name`,
+`text_title` and `license_url` (this page's `alias` and `listed_url`, plus
+titles); the list is in the note after section 4's table and Pitloom's
+decision per category is in `tests/extract/test_license_resolve.py`
+(`_DECIDED_BY_CATEGORY`). Decided 2026-11-05: provenance annotations are off by
 default and a flag turns them on (0.24.0); the provenance notes below are
 written when it is on.
 
@@ -191,6 +194,20 @@ A value's category is its weakest operand's, in this order: `exact`,
 refused ones. Acceptance is all or nothing: `Apache2 OR Foo` stays text, as
 emitting `Apache-2.0 OR LicenseRef-...` would invent a reference. An accepted
 result is checked again by Pitloom's strict parse before it is recorded.
+
+**LicenseID 0.8.1's own categories** (`licenseid.resolvertypes.Category`, in
+`CATEGORY_ORDER`): `exact`, `lexical`, `plus_to_or_later`,
+`stated_qualifier`, `separator`, `version_spelling`, `listed_name`,
+`deprecated_equal_successor`, `prose_form`, `text_title`, `alias_name`,
+`license_url`, `trove_name`, `deprecated_ambiguous`, `assumed_only`,
+`malformed`, `unresolved`. This page's `alias` is `alias_name` (also
+`text_title`, `prose_form`, `trove_name`) and `listed_url` is `license_url`
+(trust `resolver_rule`, not `list_data`); `expression_repair`, `fuzzy` and
+`ambiguous` are not categories there. Pitloom reads `stated_qualifier`,
+`separator`, `version_spelling`, `listed_name`, `deprecated_equal_successor`,
+`prose_form`, `license_url`, `text_title`, `alias_name` and `trove_name` as
+decided, and `exact`, `lexical`, `plus_to_or_later`, `assumed_only` and
+`deprecated_ambiguous` as not decided (`_DECIDED_BY_CATEGORY`).
 
 ## 5. The two expansions
 

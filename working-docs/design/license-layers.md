@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,7 +69,7 @@ does not map a classifier's own name: `Apache Software License` and
 `BSD License` give `None`.
 
 The table and the issue list below are the plan of 2026-10-04, written on
-LicenseID 0.3.7. Since #437 and #440, LicenseID 0.7 reads the canonical
+LicenseID 0.3.7. LicenseID now reads the canonical
 form, the grammar, the successors and the List names (see above).
 
 | Item | Target home |

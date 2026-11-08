@@ -450,6 +450,7 @@ _DECIDED_BY_CATEGORY: dict[str, bool | None] = {
     "listed_name": True,
     "deprecated_equal_successor": True,
     "prose_form": True,
+    "license_url": True,
     "text_title": True,
     "alias_name": True,
     "trove_name": True,
@@ -463,6 +464,10 @@ def test_every_category_of_the_installed_licenseid_is_decided_on() -> None:
     it must be added to the table above, and Pitloom's reading of it is
     checked against the table."""
     categories = set(get_args(Category))
+    assert {c for c, d in _DECIDED_BY_CATEGORY.items() if d is None} == {
+        "malformed",
+        "unresolved",
+    }, "only a category with no expression is None"
     assert categories <= set(_DECIDED_BY_CATEGORY), "decide the new categories"
     for category in sorted(categories):
         decided = _DECIDED_BY_CATEGORY[category]
@@ -520,7 +525,7 @@ def test_a_title_or_alias_is_a_decided_expression(
 def test_an_apache_name_with_a_version_is_read_as_its_id(
     raw: str, expression: str | None, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """LicenseID 0.7.3, the floor, reads a name and a version by one rule."""
+    """LicenseID reads a name and a version by one rule."""
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
         got = classify_license(raw)
     assert got is not None

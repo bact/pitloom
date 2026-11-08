@@ -170,7 +170,7 @@ def test_a_declared_text_and_no_database_on_every_surface(
 # pylint: disable-next=too-few-public-methods
 class _OutdatedDetector:
     """A detector on a database an older LicenseID built: it warns as
-    LicenseID 0.7 does, through :mod:`warnings`, and detects nothing."""
+    LicenseID does, through :mod:`warnings`, and detects nothing."""
 
     def __init__(self) -> None:
         warnings.warn(

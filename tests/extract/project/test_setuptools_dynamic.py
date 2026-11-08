@@ -37,7 +37,7 @@ _BACKEND = '[build-system]\nbuild-backend = "setuptools.build_meta"\n'
         ("", [], []),
         ("# c\n\n  a\n  # x\nb  # why\nu#frag\n", ["a", "b", "u#frag"], []),
         ("a\r\nb\r\n", ["a", "b"], []),
-        ("﻿a\n", ["﻿a"], []),
+        ("\ufeffa\n", ["\ufeffa"], []),
         ("x; python_version < '3.11'\n", ["x; python_version < '3.11'"], []),
         ("not a req !!\n", ["not a req !!"], []),
         ("-r o\n-e .\n--index-url=https://u@h\nc", ["c"], ["-r", "-e", "--index-url"]),

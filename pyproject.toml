@@ -63,14 +63,9 @@ dependencies = [
     "auditwheel>=6.8.2; sys_platform == 'linux'",
     "flit_core>=3.9",
     "hatchling>=1.29.0",
-    # 0.7: LicenseDetector/detect, and resolve() on the packaged SPDX
-    # License List, which reads a declared value with no database.
-    # 0.7.1: dash and no-break-space "or later" grants; a compound tag
-    # value (`MIT/Apache-2.0`) is not read as one of its parts.
-    # 0.7.2: licence titles and aliases read as ids; the short-text notice.
-    # 0.7.3: Apache name-and-version spellings (`Apache, Version 2.0`,
-    # `Apache Software License 2.0`) read as Apache-2.0.
-    "licenseid>=0.7.3,<0.8",
+    # 0.8.1: licence URLs read as ids, control and format characters at the
+    # ends of a value trimmed, database build v4.
+    "licenseid>=0.8.1,<0.9",
     # 25.0 floor: `packaging.markers.Marker` only accepts the PEP 751
     # `extras`/`dependency_groups` pseudo-environment variable names
     # starting at this release (24.x raises InvalidMarker for them) --

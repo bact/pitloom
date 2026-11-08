@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,18 +24,18 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.23.2 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+shipped up to 0.23.3 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
 0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
-on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07),
-including their release-plan items.
+on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3
+#461 on 2026-11-09), including their release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
-1.0. No date for 1.0 until 0.24.0 lands. 0.23.1 and 0.23.2, patches for
-LicenseID 0.7.2 and 0.7.3, came between 0.23.0 and 0.24.0.
+1.0. No date for 1.0 until 0.24.0 lands. 0.23.1, 0.23.2 and 0.23.3, patches
+for LicenseID 0.7.2, 0.7.3 and 0.8.1, came between 0.23.0 and 0.24.0.
 
 ### 0.21.0
 
@@ -159,6 +159,15 @@ Apache names with a version (`Apache, Version 2.0`, `Apache Software License
 name no longer warns (#458). Requires `licenseid>=0.7.3,<0.8`; the skills
 require `pitloom>=0.23.2` (#459). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0232-prs-457-459).
+
+### 0.23.3: LicenseID 0.8.1
+
+**Released 2026-11-09** (v0.23.3), a patch release. With LicenseID 0.8.1, a
+licence URL is read as its ID (`https://www.apache.org/licenses/LICENSE-2.0`
+is `Apache-2.0`) and a control or format character at either end of a value is
+dropped. Requires `licenseid>=0.8.1,<0.9`; the skills require
+`pitloom>=0.23.3` (#461). See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0233-pr-461).
 
 ### 0.24.0: message catalogue and licence provenance
 

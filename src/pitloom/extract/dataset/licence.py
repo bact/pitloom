@@ -13,7 +13,16 @@ dataset card), so the weak-value list and the wording cannot drift.
   licence; a placeholder is not a claim.
 - ``other`` (any case): the source's ``license_name`` and ``license_link``,
   name first, as one text, each left out when it is a placeholder (a name
-  of ``other`` too); none left: no licence.
+  of ``other`` too); none left: no licence. With only a link, the link. With
+  a name that reads as an SPDX expression
+  (:func:`~pitloom.extract._license_classify.classify_license`, the
+  writer's own reading), the name alone is the text, unless the link reads
+  as a different expression (a conflict). A link of the same licence is
+  named in the provenance with the name; an unknown link or a path is
+  ignored and left out of it (no provenance segment fits an ignored
+  field), so the provenance names only the fields used. A name that does not read
+  (``Modified MIT License``) stays with its link as ``name (link)``,
+  whatever the link: the link is often the licence it derives from.
 - A list of several: each text by the rules above, in order, once each
   (letter case ignored); an ``other`` among them states nothing of its own
   and is left out. Two or more kept are the first licence and
@@ -29,7 +38,8 @@ from dataclasses import dataclass
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.extract._license_classify import is_weak_licence
+from pitloom.extract._license_classify import classify_license, is_weak_licence
+from pitloom.extract._license_names import same_licence
 from pitloom.extract.dataset.values import (
     NOT_TEXT_WARNING,
     is_placeholder,
@@ -87,6 +97,27 @@ def apply_dataset_licence(
     meta.provenance[LICENSE_FIELD] = licence.provenance
 
 
+def _expression_of(text: str) -> str | None:
+    """The canonical SPDX expression *text* reads as, else ``None``."""
+    found = classify_license(text, warn=False)
+    return found.value if found and found.kind == "expression" else None
+
+
+def _name_decides(name: str, link: str) -> list[str] | None:
+    """The fields the licence is read from when *name* reads as an SPDX
+    expression and *link* does not contradict it, else ``None``: both when
+    the link reads as the same licence, the name alone otherwise."""
+    from_name = _expression_of(name)
+    if not from_name:
+        return None
+    from_link = _expression_of(link)
+    if not from_link:
+        return [LICENSE_NAME_FIELD]
+    if same_licence(from_name, from_link):
+        return [LICENSE_NAME_FIELD, LICENSE_LINK_FIELD]
+    return None
+
+
 def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]:
     """The text of an ``other`` licence, its name then its link, and the
     fields it came from; ``("", [])`` when the source gives neither."""
@@ -96,6 +127,9 @@ def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]
         if text and not _is_weak(text) and text.lower() != _OTHER:
             parts.append((field, text))
     if len(parts) == 2:
+        used = _name_decides(parts[0][1], parts[1][1])
+        if used:
+            return parts[0][1], used
         return f"{parts[0][1]} ({parts[1][1]})", [f for f, _ in parts]
     return (parts[0][1], [parts[0][0]]) if parts else ("", [])
 

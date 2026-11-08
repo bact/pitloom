@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,11 +10,10 @@ SPDX-License-Identifier: CC0-1.0
 
 Status: open; no ask below is answered upstream yet. A prompt to give a
 session working in the LicenseID repository (Pitloom never edits it),
-written 2026-10-08 after the #294 reviews against LicenseID 0.4.3. Pitloom
-has since adopted LicenseID 0.7.1
-([licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
-the version and the tables below describe 0.4.3. The asks found on 0.7 are
-listed with reproducers in
+written 2026-10-08 after the #294 reviews against LicenseID 0.4.3. The
+version and the tables below describe 0.4.3; Pitloom has since adopted LicenseID
+([licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md)).
+The current asks are listed with reproducers in
 [licenseid/upstream-issues.md](../implementation/licenseid/upstream-issues.md).
 
 See also: [canonical-output-followups.md](canonical-output-followups.md)

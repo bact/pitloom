@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -244,7 +244,7 @@ The database is stored at
 `~/.local/share/licenseid/licenses.db`. Pitloom accepts the top detection
 when its score meets a threshold of 0.85 (`detect_license_from_text()`).
 
-**Declared values: `resolve()`** (LicenseID 0.7.1 or later).
+**Declared values: `resolve()`.**
 `classify_license()` asks `licenseid.resolve()` (`_license_resolve.py`, through
 `_license_classify._expression_or_text()`) about every single-line value of at
 most 200 characters, in any field, on the SPDX License List packaged with

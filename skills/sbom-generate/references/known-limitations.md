@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -292,7 +292,7 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.7.3,<0.8" licenseid update --source packaged`). It uses the copy
+"licenseid>=0.8.1,<0.9" licenseid update --source packaged`). It uses the copy
 in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`
@@ -330,13 +330,13 @@ way. `loom` has no `--db` option: tell the
 user to run it with a home directory set. A declared licence is still read.
 
 `WARNING: licenseid: <subject>: <condition>...` is a warning of LicenseID
-itself, relayed once per run. `WARNING: licenseid: database: build v2 outdated:
-current v3; run 'licenseid update'`: the database was built by an older
+itself, relayed once per run. `WARNING: licenseid: database: build v3 outdated:
+current v4; run 'licenseid update'`: the database was built by an older
 LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
 GPL-2.0-only` is a guess LicenseID made while detecting a licence file's
 text (a bare deprecated id in an `SPDX-License-Identifier` tag): report it
-with the licence it concerns. LicenseID 0.7.2's `input: too few words for
+with the licence it concerns. LicenseID's `input: too few words for
 text` (a licence file too short to match) is not shown: nothing to report.
 
 If the preflight failed, generate anyway and report the line. Do not run a
@@ -381,6 +381,7 @@ is the resolver's reading, not the author's words:
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
 INFO: LICENSE='MIT License': read as MIT (listed_name)
+INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url)
 ```
 
 LicenseID is the only reader of a declared value, so every rewrite names
@@ -389,9 +390,14 @@ author re-spelt (`GPLv3`, `LGPL v3`) is read as that id (`GPL-3.0`), never
 as `-only` or `-or-later`; a bare one (`GPL-2.0`) stays as written. Both get
 `Deprecated-License-Id: <id> (<id>-only or <id>-or-later)`. A licence's prose
 name (`BSD 3-Clause License`) and a classifier's name (`GNU General Public
-License v3 (GPLv3)`) are read as their id too. Licences joined by `;`
-(`MIT; Apache-2.0`) name no operator: they stay text, warned only in a field
-that holds an SPDX expression only (`operator not stated: ;`).
+License v3 (GPLv3)`) are read as their id too, and so is a licence URL:
+`https://opensource.org/licenses/MIT` as `MIT`,
+`https://www.apache.org/licenses/LICENSE-2.0` as `Apache-2.0`, the page of a
+deprecated id (`https://www.gnu.org/licenses/gpl-3.0.html`) as `GPL-3.0` with
+a `Deprecated-License-Id` note. A control or format character at either end of
+a value is dropped; the provenance keeps the original, escaped. Licences
+joined by `;` (`MIT; Apache-2.0`) name no operator: they stay text, warned
+only in a field that holds an SPDX expression only (`operator not stated: ;`).
 
 A field that holds an SPDX expression only (`project.license` string,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,

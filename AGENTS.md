@@ -123,7 +123,7 @@ Code shape:
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
 - **`# type: ignore` against a library that changed its types** is unused on one version and needed on another: an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
-- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update --source packaged`, `licenseid` 0.7.3 or later; rebuild it after upgrading `licenseid`); without it, or with a stale one, tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
+- **Read a linter's messages and exit code, not its score**; run CI's exact command. Build the licence database first (`licenseid update --source packaged`, `licenseid` 0.8.1 or later; rebuild it after upgrading `licenseid`); without it, or with a stale one, tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline.
 
 Tests, platform and CI:
 
@@ -266,6 +266,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 - British English for docs, comments and text. American spelling only for code identifiers and for field, key, type or file-format names a specification fixes exactly.
 - IETF verbal forms (RFC 2119/8174) for internet/web/semantic-web projects; ISO verbal forms for SPDX docs.
 - Code comments are direct, concise and about the current implementation; no history. Legitimate current behaviour vs an alternative design is fine.
+- **No invisible or uncommon characters in source**: never type a zero-width, no-break or other invisible space, a BOM, a bidirectional mark or a control character into code, tests or scripts; write the escape (`\u200b`, `\ufeff`, `\x1b`) so it is visible in review and pylint (`invalid-character-*`) stays clean. No em dash, en dash, curly quote, ellipsis character or arrow in code comments and docstrings either (use `--`, `-`, straight quotes, `...`, `->`): they defeat grep. Non-ASCII only in human-language messages and diagrams.
 - **Product name**: write LicenseID, never licenseid, for the product in prose; lowercase `licenseid` only for the package, command, import, requirement or an identifier.
 - **PR text defaults** (an explicit limit overrides): title <= 60 chars, no markdown; summary <= 280 chars, concise bullets, markdown allowed; description <= 600 chars, structured, with a short rationale. Count characters; use code blocks.
 

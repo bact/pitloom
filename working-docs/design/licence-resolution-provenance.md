@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Licence resolution provenance: one entry, a segment per operand
 
 See also: [implementation/licenseid/](../implementation/licenseid/README.md)
-(the LicenseID 0.7 adoption, built, and its upstream findings),
+(the LicenseID adoption, built, and its upstream findings),
 [license-resolution-categories.md](license-resolution-categories.md)
 (categories, `Resolution-n`, Q1 to Q7),
 [evidence-levels.md](evidence-levels.md),
@@ -18,10 +18,8 @@ See also: [implementation/licenseid/](../implementation/licenseid/README.md)
 (the `Method`/`Role` taxonomy), [sbom-format-gaps.md](sbom-format-gaps.md)
 (FG-6 to FG-8) and [roadmap.md](roadmap.md).
 
-Status: design, refreshed 2026-11-07 against LicenseID 0.7.2 and Pitloom
-0.23.0 (main 629b0471); supersedes PR #384 (2026-10-29, written against
-LicenseID 0.6.0 and its 0.7 plan). Facts were read in the code and probed
-with LicenseID 0.7.2 (SPDX License List 3.29.0, packaged).
+Status: design; supersedes PR #384. Facts were read in the code and probed
+with LicenseID (SPDX License List 3.29.0, packaged).
 
 Two pieces, on two schedules:
 
@@ -35,7 +33,7 @@ Two pieces, on two schedules:
 ## 1. What `resolve()` gives
 
 `licenseid.resolve(value, db=None, *, source="auto"|"database"|"packaged")`
-returns a `Resolution` (typed dict, `schema` 2), the same in 0.7.1 and 0.7.2:
+returns a `Resolution` (typed dict, `schema` 2):
 
 | Field | Content |
 | - | - |
@@ -66,8 +64,8 @@ returns a `Resolution` (typed dict, `schema` 2), the same in 0.7.1 and 0.7.2:
   `deprecated_equal_successor`, `plus_to_or_later`, `stated_qualifier`,
   `separator`, `version_spelling`, `prose_form`, `text_title`, `alias_name`,
   `trove_name`, `deprecated_ambiguous`, `assumed_only`, `malformed`,
-  `unresolved`. 0.7.2 added `text_title` and `alias_name` (trust
-  `resolver_rule`). Trust: `identity`, `list_data`, `author_words`,
+  `unresolved`. `text_title` and `alias_name` have trust
+  `resolver_rule`. Trust: `identity`, `list_data`, `author_words`,
   `resolver_rule`, `none`.
 - **Lexical step kinds** (`LEXICAL_KINDS`, form only): `brackets`,
   `dedupe`, `id_case`, `operator_case`, `reorder`, `trailing_name`, `trim`,
@@ -216,7 +214,8 @@ Rules:
 
 Worked cases with `--provenance`; `S` = `Source: pyproject.toml | Field:
 project.license`, `N` = `Normalized-From: <value>`, `M` = `Method:
-licenseid_resolution`, `T` = `Tool: licenseid==0.7.2, py-spdx-license==0.0.1`
+licenseid_resolution`, `T` = `Tool: licenseid==<version>,
+py-spdx-license==0.0.1`
 (`py-spdx-license` only when `components` names it), `L` = `License-List:
 spdx-license-list==3.29.0 (packaged)`:
 
@@ -271,7 +270,7 @@ the position in the sorted names. The shared-element first-wins bug
 
 Origin: categories section 7 (operand `n` as written, its result and decided
 steps; `Expansion-n` its qualifier step). Built for `n = 1` as the whole
-value, a 0.6.0 limit (no operands) that 0.7 lifted. Final names:
+value; operands are now available. Final names:
 `Resolution-<n>`, `Expansion-<n>`, `Tool`, `License-List`, `Reason`.
 `License-List-Version` and `Resolver-Data`
 ([license-resolution-categories.md](license-resolution-categories.md),

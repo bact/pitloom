@@ -59,6 +59,8 @@ jobs:
       run:
         shell: bash
     strategy:
+      # 3.15: not run, since the `ai` extra's wheels (such as onnx) are
+      # not available for 3.15 yet; the core code is expected to work.
       matrix:
         include:
           - os: ubuntu-latest
