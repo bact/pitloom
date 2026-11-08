@@ -64,7 +64,7 @@ def test_a_url_of_a_deprecated_id_is_decided_and_noted(
     )
 
 
-@pytest.mark.parametrize("raw", ["MIT​", "\x1bMIT"], ids=["zwsp", "esc"])
+@pytest.mark.parametrize("raw", ["MIT\u200b", "\x1bMIT"], ids=["zwsp", "esc"])
 def test_a_control_or_format_character_at_an_end_is_dropped(
     raw: str, caplog: pytest.LogCaptureFixture
 ) -> None:
