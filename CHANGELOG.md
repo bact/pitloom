@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,18 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.23.2...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.23.3...HEAD>
+
+## [0.23.3] - 2026-11-08
+
+### Changed
+
+- With LicenseID 0.8.0, license URLs are read license IDs
+  `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0` ([#461])
+- Requires `licenseid>=0.8.0,<0.9`; the skills require `pitloom>=0.23.3`
+  ([#461])
+
+[#461]: https://github.com/bact/pitloom/pull/461
 
 ## [0.23.2] - 2026-11-08
 
@@ -940,6 +951,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.23.3]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.3
 [0.23.2]: https://github.com/bact/pitloom/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/bact/pitloom/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/bact/pitloom/compare/v0.22.1...v0.23.0

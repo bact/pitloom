@@ -25,7 +25,7 @@ only), as compact canonical JSON. The name and version are escaped as for
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.23.2"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.23.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]

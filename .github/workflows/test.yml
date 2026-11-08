@@ -66,6 +66,8 @@ jobs:
             python-version: "3.13"
           - os: ubuntu-latest
             python-version: "3.14"
+          - os: ubuntu-latest
+            python-version: "3.15"
             # Single source of truth for "which combo collects coverage" --
             # consumed by both the "Run tests" step's bash conditional and
             # the "Upload coverage reports to Codecov" step's `if:`, so the

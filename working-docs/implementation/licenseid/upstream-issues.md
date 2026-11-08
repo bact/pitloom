@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-06
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,8 +17,8 @@ lost.
 - **Status:** drafted, not yet filed upstream.
 - **Where to file:** the LicenseID repository, as one issue.
 - **Who files:** the maintainer.
-- **Pitloom dependency:** Pitloom 0.23.2 requires `licenseid>=0.7.3,<0.8`
-  (0.23.1: `>=0.7.2`; 0.23.0: `>=0.7.1`).
+- **Pitloom dependency:** Pitloom 0.23.3 requires `licenseid>=0.8.0,<0.9`
+  (0.23.2: `>=0.7.3`, 0.23.1: `>=0.7.2`; 0.23.0: `>=0.7.1`).
 - **Drafts:** an earlier draft covered 0.7.0 only (nine findings). The text
   below is the current one for 0.7.0 to 0.7.3 (eleven findings; 0.7.2 fixes
   finding 1, 0.7.3 fixes finding 11); the earlier draft is superseded and
@@ -303,7 +303,6 @@ for v in ["Apache 2", "Apache v2", "Apache License Version 2.0",
   stays `None` (`unresolved`, `not found: ASL 2.0`), a refusal 0.7.3's
   CHANGELOG documents, as the expected result allows. Drop this item from
   the issue.
-
 
 ## Not in the issue
 

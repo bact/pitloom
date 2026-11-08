@@ -20,14 +20,16 @@ The same scenarios are checked against CISA 2026 (`cisa2026`) and FSCT 2024
 ## What runs
 
 - `tests/conformance/` builds one SBOM per scenario (`gguf`, `safetensors`,
-  `onnx`, `numpy`, `fasttext` from the fixture models; `hub`, a mocked Hugging Face model with a
-  dataset; `library`, a model with a licensed dataset that has a type and a size,
+  `onnx`, `numpy`, `fasttext` from the fixture models; `hub`,
+  a mocked Hugging Face model with a dataset;
+  `library`, a model with a licensed dataset that has a type and a size,
   built through the assembler, since a dataset's statistics reach a model SBOM
   only through the library), validates it offline, and runs the checker
   in-process.
 - `tests/fixtures/conformance/g7ai-expected.tsv` holds the expected outcome of
-  all 81 rules per scenario. The test fails on any changed cell: a `present` that is no longer
-  `present` is reported as a regression, a cell that became `present` as an
+  all 81 rules per scenario.
+  The test fails on any changed cell: a `present` that is no longer `present`
+  is reported as a regression, a cell that became `present` as an
   improvement (update the table in the same commit). `--write-expected`
   refuses to rewrite the table when a `present` cell would be lost, unless
   `--allow-regression` is given.
@@ -63,7 +65,8 @@ the distribution would not ship). A project that ships a model has
 a root of its own, so the checker reads its System-level properties (`SLP`)
 from that root: only an SBOM whose one root is a single model is judged by the
 model (`systemJudgedByModel`, in the report as the model's name; narrowed on
-2026-10-18, after first judging a project by the model it ships). The model of a bare Safetensors file has
+2026-10-18, after first judging a project by the model it ships).
+The model of a bare Safetensors file has
 no producer, version or time, so those cells stay `missing` even though the
 project names an author: Pitloom does not copy the project's author onto the
 model, and the checker does not either.
@@ -81,8 +84,8 @@ it).
 
 The `conformance` dependency group pins the checker (not on PyPI with `g7ai`)
 and the `spdx3-validate` build with `model_dir` (PR JPEWdev/spdx3-validate#13)
-by commit. The `spdx3-validate` build still reports 0.0.7, a version on PyPI, so pip
-keeps an old install; `test_conformance_pins.py` compares the installed
+by commit. The `spdx3-validate` build still reports 0.0.7, a version on PyPI,
+so pip keeps an old install; `test_conformance_pins.py` compares the installed
 commits with the pins. The checker commit is also pinned in `lumina`
 (`backend/requirements.txt`); keep the two equal.
 
@@ -250,9 +253,10 @@ Each history file's header names the checker commit it was made with: the
 four reports were made on 2026-10-23 for the 0.21.0 release. Against the
 earlier `0.20.3-dev` files (checker `151460c`, the same checker re-authored as
 `82a63b9`) the `scenarios` were equal and only the header's `checker` differed,
-so the `0.21.0` files replace them. The pin moved to `2355afc` (the checker's `spec-not-covered`, with the
-BOM ontology 0.2.0 ids) on 2026-10-28: regenerating the `g7ai`, `cisa2026`,
-`fsct3` and `bsi` expected tables changed nothing, so the files above keep
+so the `0.21.0` files replace them. The pin moved to `2355afc`
+(the checker's `spec-not-covered`, with the BOM ontology 0.2.0 ids)
+on 2026-10-28: regenerating the `g7ai`, `cisa2026`, `fsct3` and `bsi`
+expected tables changed nothing, so the files above keep
 their `82a63b9` header as the record of the 0.21.0 reports. The four `0.22.0`
 files (2026-10-30) are made with the pin `2355afc`: every scenario equals its
 `0.21.0` one, only the header's `checker` and `pitloom` differ. The four
