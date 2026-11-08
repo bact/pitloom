@@ -450,6 +450,7 @@ _DECIDED_BY_CATEGORY: dict[str, bool | None] = {
     "listed_name": True,
     "deprecated_equal_successor": True,
     "prose_form": True,
+    "license_url": True,
     "text_title": True,
     "alias_name": True,
     "trove_name": True,
