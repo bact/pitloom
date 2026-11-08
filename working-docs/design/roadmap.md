@@ -27,8 +27,8 @@ lines plus a link; detail lives in the linked doc.
 shipped up to 0.23.3 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
 0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
-on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3 #461 on
-2026-11-09), including their release-plan items.
+on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3
+#461 on 2026-11-09), including their release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
