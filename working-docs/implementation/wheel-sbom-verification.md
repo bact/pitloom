@@ -64,7 +64,7 @@ published 06:56 UTC the same day) has no entry here.
   `HOME` in a scratch directory, and dry-run installs with `licenseid==0.8.0`
   and `0.9.0`. The v0.23.1 smoke tests, plus the 0.23.3 changes (#461):
   `license = "https://www.apache.org/licenses/LICENSE-2.0"`, `license =
-  "MIT​"` (a trailing zero-width space), a directory dataset with a card
+  "MIT\u200b"` (a trailing zero-width space), a directory dataset with a card
   (`loom.add_dataset`) holding `license: other`, `license_name: apache-2.0`
   and the Apache link, and the same card without the name. Then each
   project, plus one with only a `LICENSE` file and one with `license =
@@ -111,7 +111,7 @@ published 06:56 UTC the same day) has no entry here.
 - The 0.23.3 changes: the URL gives `Apache-2.0` with `INFO:
   FIELD=project.license LICENSE='https://www.apache.org/licenses/LICENSE-2.0':
   read as Apache-2.0 (license_url)`; the zero-width space gives `MIT` with
-  `INFO: ... LICENSE='MIT​': read as MIT (trim)`; the card gives
+  `INFO: ... LICENSE='MIT\u200b': read as MIT (trim)`; the card gives
   `Apache-2.0` as a licence expression, and the card with only the link
   gives `Apache-2.0` too (`license_url`).
 - With the LicenseID 0.7.3 database, only the `LICENSE`-only project prints
