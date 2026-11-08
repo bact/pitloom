@@ -76,11 +76,22 @@ def _zip(members: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def _zip_unextractable() -> bytes:
+    """A ``.keras`` whose ``config.json`` names a compression method that does
+    not exist, so reading the member fails (invalid JSON no longer does: the
+    reader warns and reads the other members)."""
+    data = bytearray(_zip({"config.json": b"{}"}))
+    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
+        at = data.find(signature) + offset
+        data[at : at + 2] = (99).to_bytes(2, "little")
+    return bytes(data)
+
+
 # Content each reader gets as far as its generic failure handler with.
 _CONTENT = {
     ".safetensors": safetensors_bytes()[:-2],  # tensor data cut short
     ".npy": _BAD,
-    ".keras": _zip({"config.json": b"{not json", "metadata.json": b"{}"}),
+    ".keras": _zip_unextractable(),
     ".gguf": _BAD,
 }
 

@@ -3,11 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The warnings of a Keras or HDF5 model's root attributes: one per
-attribute not read whole (``model-field-unreadable``), and the raw
-``model_config`` cut to its cap (``over-cap``).
+"""The warnings of a Keras or HDF5 model's configs: one per HDF5 root
+attribute, ``.keras`` archive member or config not read whole
+(``model-field-unreadable``), and the raw ``model_config`` cut to its cap
+(``over-cap``).
 
-See also: :mod:`pitloom.extract.ai_model.hdf5_config` (the parsing that finds
+See also: :mod:`pitloom.extract.ai_model.hdf5_config` and
+:mod:`pitloom.extract.ai_model.keras_training_config` (the parsing that finds
 the problems).
 """
 
@@ -34,6 +36,7 @@ from pitloom.messages import (
     emit,
     warn_over_cap,
 )
+from pitloom.messages._model_field import KERAS_MEMBER_LINE
 
 log = logging.getLogger(__name__)
 
@@ -110,3 +113,9 @@ def log_training_config_problem(problem: ConfigProblem | None) -> None:
     """Say, in one ``WARNING:``, that a ``training_config`` was not read whole."""
     if problem is not None:
         _warn(TRAINING_CONFIG_LINE, problem)
+
+
+def log_member_problem(problem: ConfigProblem) -> None:
+    """Say, in one ``WARNING:``, that a ``.keras`` archive member could not
+    be parsed and the other members are read."""
+    _warn(KERAS_MEMBER_LINE, problem)

@@ -41,7 +41,8 @@ For plain HDF5 files without any of these attributes the extractor returns a
 minimal :class:`~pitloom.core.ai_metadata.AiModelMetadata` with only
 ``format_info`` set.
 
-The JSON attributes are parsed by :mod:`pitloom.extract.ai_model.hdf5_config`.
+The JSON attributes are parsed by :mod:`pitloom.extract.ai_model.hdf5_config`
+and :mod:`pitloom.extract.ai_model.keras_training_config`.
 
 Native Keras v3 models use the ``.keras`` format (ZIP archive) and are
 handled by the separate :mod:`pitloom.extract.ai_model.keras` extractor.
@@ -76,8 +77,8 @@ from pitloom.extract.ai_model.hdf5_config import (
     RAW_CONFIG_CHARS,
     RAW_CONFIG_KEY,
     parse_model_config,
-    parse_training_config,
 )
+from pitloom.extract.ai_model.keras_training_config import parse_training_config
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
 

@@ -32,11 +32,9 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import _hdf5_warnings, fasttext, onnx, pytorch
 from pitloom.extract.ai_model import pytorch_pt2 as pt2
 from pitloom.extract.ai_model.hdf5 import read_hdf5
-from pitloom.extract.ai_model.hdf5_config import (
-    ConfigProblem,
-    ConfigShapeError,
-    parse_training_config,
-)
+from pitloom.extract.ai_model.hdf5_config import ConfigProblem, ConfigShapeError
+from pitloom.extract.ai_model.keras import read_keras
+from pitloom.extract.ai_model.keras_training_config import parse_training_config
 from pitloom.extract.ai_model.unrecordable import UNRECORDABLE, log_unrecordable
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
@@ -157,6 +155,12 @@ def _gguf(tmp_path: Path) -> None:
     read_gguf(path)
 
 
+def _keras_member(tmp_path: Path) -> None:
+    path = tmp_path / "m.keras"
+    path.write_bytes(dated_zip({"metadata.json": b"{", "config.json": b"{}"}))
+    read_keras(path)
+
+
 _H5 = AiModelFormat.HDF5
 _PROBLEM = ConfigProblem("model_config.config", "is not an object", ("name",))
 
@@ -203,6 +207,7 @@ _SITES: dict[str, tuple[Callable[[Path], object], str]] = {
         ),
         "u",
     ),
+    "keras-member": (_keras_member, "u"),
     "raw-config-cap": (
         lambda _: _hdf5_warnings.log_model_config_problem(
             None, "x" * 501, True, _H5, "m"
@@ -250,7 +255,9 @@ def test_a_config_problem_names_its_first_part_then_every_reason(
     def too_deep(_: object) -> str:
         raise RecursionError
 
-    monkeypatch.setattr("pitloom.extract.ai_model.hdf5_config.canonical_json", too_deep)
+    monkeypatch.setattr(
+        "pitloom.extract.ai_model.keras_training_config.canonical_json", too_deep
+    )
     raw = '{"optimizer": 1, "loss": ["x"]}'
     problem = parse_training_config(raw, "", {}, {})
     assert problem is not None

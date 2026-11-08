@@ -11,10 +11,8 @@
 
 from __future__ import annotations
 
-import io
 import json
 import logging
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +20,7 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model.keras import read_keras
+from tests.extract.ai_model.zip_builders import dated_zip
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -34,14 +33,13 @@ def _make_keras_zip(
     metadata: dict[str, Any] | None = None,
     config: dict[str, Any] | None = None,
 ) -> bytes:
-    """Build a minimal in-memory .keras ZIP archive."""
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        if metadata is not None:
-            zf.writestr("metadata.json", json.dumps(metadata))
-        if config is not None:
-            zf.writestr("config.json", json.dumps(config))
-    return buf.getvalue()
+    """Build a minimal in-memory .keras ZIP archive (no clock read)."""
+    files = {}
+    if metadata is not None:
+        files["metadata.json"] = json.dumps(metadata).encode()
+    if config is not None:
+        files["config.json"] = json.dumps(config).encode()
+    return dated_zip(files)
 
 
 # ---------------------------------------------------------------------------
@@ -154,19 +152,25 @@ def test_read_keras_no_inputs_when_no_build_config(tmp_path: Path) -> None:
 
 
 def test_read_keras_missing_class_name_and_non_dict_config_sections(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """No 'class_name' key leaves type_of_model as None (no provenance
-    entry); a 'config' section that isn't a dict is skipped entirely (no
-    name/hyperparameters extracted); a 'build_config' section that isn't a
-    dict is likewise skipped (no inputs extracted)."""
+    entry); a 'config' section that isn't a dict stops the model config
+    there, as in an HDF5 model: one warning names what is not read (no
+    name, hyperparameters or inputs)."""
     f = tmp_path / "model.keras"
     f.write_bytes(
         _make_keras_zip(
             config={"config": "not-a-dict", "build_config": ["not-a-dict-either"]}
         )
     )
-    meta = read_keras(f)
+    with caplog.at_level(logging.WARNING):
+        meta = read_keras(f)
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert message.startswith("config.config is not an object;")
+    assert message.endswith(
+        "(skipped): name, hyperparameters, inputs, properties.layer_count"
+    )
     assert meta.type_of_model is None
     assert "type_of_model" not in meta.provenance
     assert meta.name is None
@@ -252,17 +256,19 @@ def test_read_keras_bad_zip_raises_value_error(tmp_path: Path) -> None:
         read_keras(f)
 
 
-def test_read_keras_malformed_metadata_json_logs_and_raises(
+def test_read_keras_member_that_cannot_be_extracted_logs_and_raises(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A valid ZIP whose metadata.json is not valid JSON hits the generic
-    except (distinct from the zipfile.BadZipFile branch above): the failure
-    is logged and a ValueError is raised."""
+    """A valid ZIP whose member cannot be extracted (a compression method
+    ``zipfile`` does not support) is a read failure, not data absent: the
+    failure is logged at DEBUG and a ValueError is raised. (A member that
+    is extracted but is not JSON is a warning: test_keras_config.py.)"""
+    data = bytearray(dated_zip({"config.json": b"{}"}))
+    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
+        at = data.find(signature) + offset
+        data[at : at + 2] = (99).to_bytes(2, "little")  # compression method
     f = tmp_path / "model.keras"
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("metadata.json", "{not valid json")
-    f.write_bytes(buf.getvalue())
+    f.write_bytes(bytes(data))
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.keras"):
         with pytest.raises(ValueError, match="Failed to read Keras file"):
@@ -341,3 +347,30 @@ def test_keras_fixture_provenance_has_framework_version(fixture_keras: Any) -> N
 
 def test_keras_fixture_provenance_has_name(fixture_keras: Any) -> None:
     assert "name" in fixture_keras.provenance
+
+
+def test_keras_fixture_layers_and_input_layer(fixture_keras: Any) -> None:
+    """The three layers (the InputLayer counted, as in HDF5) and the input
+    shape the InputLayer states."""
+    assert fixture_keras.properties["layer_count"] == "3"
+    assert fixture_keras.raw_metadata_types["layer_count"] == "integer"
+    assert fixture_keras.provenance["inputs"] == (
+        "Source: example-model.keras | Field: "
+        "config.config.layers[InputLayer].config.batch_shape"
+    )
+
+
+def test_keras_fixture_archive_structure(fixture_keras: Any) -> None:
+    assert fixture_keras.properties["archive_contents"] == (
+        "metadata.json, config.json, model.weights.h5"
+    )
+    assert fixture_keras.properties["archive_member_count"] == "3"
+
+
+def test_keras_fixture_states_no_compile_settings(fixture_keras: Any) -> None:
+    """``compile_config`` is ``{}``; the top-level ``metadata`` object is
+    no Keras field: neither gives a value."""
+    for key in ("optimizer", "loss", "metrics", "description", "license"):
+        assert key not in fixture_keras.properties
+    assert (fixture_keras.description, fixture_keras.license) == (None, None)
+    assert fixture_keras.version is None
