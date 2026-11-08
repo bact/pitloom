@@ -110,8 +110,8 @@ came from:
 | Absent or blank | nothing: no licence relationship at all |
 
 Every expression is read by LicenseID (`licenseid>=0.8.1,<0.9`), the one
-reader of a declared value. A deprecated id ending `+` becomes its `-or-later` successor
-(`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
+reader of a declared value. A deprecated id ending `+` becomes its
+`-or-later` successor (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
 the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `LGPL v3` is `LGPL-3.0`).
 Both note the successors they could mean. A licence's prose name (`BSD
@@ -161,8 +161,8 @@ the project declares a licence and the database is only missing,
 does a `LICENSE` file with no declared licence. An empty, invalid or
 unreadable database warns whenever a lookup is needed (a `LICENSE` file,
 a long text, or no declared licence). A warning of LicenseID itself is
-said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
-outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
+said once, after `licenseid: ` (`WARNING: licenseid: database: build v3
+outdated: current v4; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`
 (a text too short to match has no licence) is `DEBUG` only.
 

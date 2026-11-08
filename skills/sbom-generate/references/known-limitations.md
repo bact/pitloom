@@ -330,8 +330,8 @@ way. `loom` has no `--db` option: tell the
 user to run it with a home directory set. A declared licence is still read.
 
 `WARNING: licenseid: <subject>: <condition>...` is a warning of LicenseID
-itself, relayed once per run. `WARNING: licenseid: database: build v2 outdated:
-current v3; run 'licenseid update'`: the database was built by an older
+itself, relayed once per run. `WARNING: licenseid: database: build v3 outdated:
+current v4; run 'licenseid update'`: the database was built by an older
 LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
 GPL-2.0-only` is a guess LicenseID made while detecting a licence file's

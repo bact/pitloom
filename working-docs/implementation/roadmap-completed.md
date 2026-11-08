@@ -576,5 +576,5 @@ Released 2026-11-09, a patch release for LicenseID 0.8.1. Open items:
   `Apache-2.0`, category `license_url`) and drops a control or format
   character at either end of a value; a database built by LicenseID 0.7.x
   warns `build v3 outdated` until `licenseid update`. The skills require
-  `pitloom>=0.23.3`. Python 3.15 is not tested: the `ai` extra has no 3.15
-  wheels yet.
+  `pitloom>=0.23.3`. Python 3.15 is not tested: some `ai` extra wheels
+  (such as `onnx`) have no 3.15 build yet.

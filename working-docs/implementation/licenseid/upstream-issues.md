@@ -81,7 +81,7 @@ for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
   steps `['whitespace', 'reorder']`; `\x1f` is refused (`None`,
   `unresolved`, `control or format character: U+001F`, no steps), as U+001C to
   U+001F are.
-- Question, not a defect: the maintainer says this is probably intentional
+- Question, not a defect: probably intentional (to confirm)
   (a lenient reading of a wrapped value, recorded as `whitespace` steps;
   0.8.1 also normalises invisible spaces and trims control characters). Is
   this deliberate? Please document which characters count as white space;

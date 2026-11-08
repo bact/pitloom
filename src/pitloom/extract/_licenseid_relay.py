@@ -8,7 +8,7 @@
 
 LicenseID gives each fallback it takes or guess it makes as a
 :class:`licenseid.LicenseIdWarning` through Python's :mod:`warnings`
-(``database: build v2 outdated: current v3; run 'licenseid update'``).
+(``database: build v3 outdated: current v4; run 'licenseid update'``).
 Unrelayed, Python prints it in its own format (``<file>:<line>:
 LicenseIdWarning: ...`` plus a source line), and a ``-W error`` (or
 pytest's ``filterwarnings = ["error"]``) raises it out of the call.

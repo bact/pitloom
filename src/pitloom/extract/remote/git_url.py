@@ -247,7 +247,7 @@ def _query_page(
     parts: SplitResult, raw: list[str], plain: str, url: str
 ) -> GitPage | None:
     """The page of a host that puts the ref in the query string, or ``None``
-    for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
+    for any other URL: Azure DevOps (``_git/<repo>?path=...&version=GB<ref>``)
     and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``). The query
     wins: a cgit folder may be called ``src`` or ``tree``. A GitLab or Gitea
     marker in the path means the query is stray."""
