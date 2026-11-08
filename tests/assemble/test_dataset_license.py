@@ -26,6 +26,7 @@ from pitloom.core.dataset_metadata import (
     DatasetReference,
     FurtherLicences,
 )
+from pitloom.extract.dataset import read_dataset_card
 from tests._author_routes import CREATED
 from tests._spdx3_validate import assert_spdx3_valid
 
@@ -165,3 +166,17 @@ def test_several_licences_sbom_is_valid_and_identical(tmp_path: Path) -> None:
     path = tmp_path / "sbom.json"
     path.write_text(outputs[0], encoding="utf-8")
     assert_spdx3_valid(path)
+
+
+def test_card_other_name_and_link_reads_as_one_licence(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "---\nlicense: other\nlicense_name: apache-2.0\n"
+        "license_link: https://www.apache.org/licenses/LICENSE-2.0\n---\n# x\n",
+        encoding="utf-8",
+    )
+    meta = read_dataset_card(tmp_path)
+    assert meta is not None
+    graph = _graph(meta.license, provenance=meta.provenance)
+    assert _licence_links(graph) == [
+        ("dataset_DatasetPackage", "hasDeclaredLicense", "Apache-2.0")
+    ]
