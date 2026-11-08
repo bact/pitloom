@@ -50,7 +50,7 @@ The three Skills refer to each other, so install all three together.
 (pip, `uvx` or `pipx`). The Skills follow the development version, whose
 commands and messages can be newer than the last release; the licence
 readings and message codes they quote are those of 0.23.3 (it requires
-LicenseID 0.8.0, which reads `Apache Software License 2.0` and similar names
+LicenseID 0.8.1, which reads `Apache Software License 2.0` and similar names
 as `Apache-2.0`, and does not warn about a missing licence database for a
 declared licence name). Before the first
 run that reads licences, `sbom-generate` builds the LicenseID 0.7 database

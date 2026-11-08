@@ -69,7 +69,7 @@ matched to an id and one `WARNING: licenseid database cannot be used: ...` (or
 
 ```bash
 licenseid update --source packaged   # from an install of pitloom
-uvx --from "licenseid>=0.8.0,<0.9" licenseid update --source packaged  # no install
+uvx --from "licenseid>=0.8.1,<0.9" licenseid update --source packaged  # no install
 loom project . -o sbom.spdx3.json    # then generate
 ```
 

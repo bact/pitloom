@@ -80,10 +80,8 @@ def _licence_links(graph: Graph) -> list[tuple[str, str, str]]:
         ("https://creativecommons.org/licenses/by/4.0/",
          "CC-BY-4.0"),
         ("Custom terms 2026", "Custom terms 2026"),
-        ("CC BY 4.0", "CC-BY-4.0"),  # We should try to fix this.
-        # Invisible and bidi controls are written escaped.
-        # We should try to trim these later.
-        ("MIT\u202e", "MIT\\u202e"),
+        ("CC BY 4.0", "CC-BY-4.0"),
+        ("MIT\u202e", "MIT"),  # Bidi control character at the end is removed
     ],
     ids=["id", "expression", "url", "free-text", "respelled", "bidi"],
 )  # fmt: skip

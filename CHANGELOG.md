@@ -20,13 +20,13 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.23.3...HEAD>
 
-## [0.23.3] - 2026-11-08
+## [0.23.3] - 2026-11-09
 
 ### Changed
 
-- With LicenseID 0.8.0, license URLs are read license IDs
+- With LicenseID 0.8.1, license URLs are read license IDs
   `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0` ([#461])
-- Requires `licenseid>=0.8.0,<0.9`; the skills require `pitloom>=0.23.3`
+- Requires `licenseid>=0.8.1,<0.9`; the skills require `pitloom>=0.23.3`
   ([#461])
 
 [#461]: https://github.com/bact/pitloom/pull/461
