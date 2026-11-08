@@ -166,6 +166,62 @@ _PAGES = [
         ("main", "item", "x"),
         False,
     ),
+    (
+        "github-raw",
+        "https://github.com/O/R/raw/main/m.keras",
+        "https://github.com/O/R",
+        ("main", "m.keras"),
+        True,
+    ),
+    (
+        "github-raw-nested",
+        "https://github.com/O/R/raw/main/sub/dir/m.keras",
+        "https://github.com/O/R",
+        ("main", "sub", "dir", "m.keras"),
+        True,
+    ),
+    (
+        "gitlab-raw",
+        "https://gitlab.com/g/p/-/raw/main/m.keras?ref_type=heads",
+        "https://gitlab.com/g/p",
+        ("main", "m.keras"),
+        True,
+    ),
+    (
+        "gitea-raw-branch",
+        "https://codeberg.org/o/r/raw/branch/main/sub/m.onnx",
+        "https://codeberg.org/o/r",
+        ("main", "sub", "m.onnx"),
+        True,
+    ),
+    (
+        "gitea-raw-tag",
+        "https://codeberg.org/o/r/raw/tag/v1/m.onnx",
+        "https://codeberg.org/o/r",
+        ("v1", "m.onnx"),
+        True,
+    ),
+    (
+        "gitea-raw-commit",
+        f"https://codeberg.org/o/r/raw/commit/{'a' * 40}/m.onnx",
+        "https://codeberg.org/o/r",
+        ("a" * 40, "m.onnx"),
+        True,
+    ),
+    (
+        "bitbucket-raw",
+        "https://bitbucket.org/o/r/raw/main/m",
+        "https://bitbucket.org/o/r",
+        ("main", "m"),
+        True,
+    ),
+    (
+        "gitea-raw-stray-query",
+        "https://codeberg.org/o/r/raw/branch/main/m.onnx?h=x",
+        "https://codeberg.org/o/r",
+        ("main", "m.onnx"),
+        True,
+    ),
 ]
 
 
@@ -199,6 +255,8 @@ def test_a_page_url_names_its_repository(
         ("https://gitlab.com/src/p/x", "https://gitlab.com/src/p/x", False),
         # A marker with nothing after it is part of the path.
         ("https://github.com/o/r/tree", "https://github.com/o/r/tree", False),
+        # A repository called ``raw`` is not a raw-file page.
+        ("https://github.com/raw/repo", "https://github.com/raw/repo", False),
     ],
 )
 def test_a_plain_repository_url_has_no_branch_or_folder(
@@ -214,6 +272,15 @@ def test_a_path_that_leaves_the_checkout_is_refused(path: str) -> None:
     """``..``, ``.`` and a backslash after the marker are invalid."""
     with pytest.raises(RemoteSourceError) as excinfo:
         parse_git_page("https://github.com/o/r/tree/main/" + path)
+    assert excinfo.value.code == "git.url-invalid"
+
+
+@pytest.mark.parametrize("path", ["a/../b", "a%5Cb"])
+@pytest.mark.parametrize("marker", ["raw", "-/raw", "raw/branch"])
+def test_a_raw_path_that_leaves_the_checkout_is_refused(marker: str, path: str) -> None:
+    """A raw-file page is checked like a ``blob`` one."""
+    with pytest.raises(RemoteSourceError) as excinfo:
+        parse_git_page(f"https://h.example/o/r/{marker}/main/{path}")
     assert excinfo.value.code == "git.url-invalid"
 
 

@@ -55,12 +55,17 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 _MARKERS: tuple[tuple[tuple[str, ...], str | None, bool], ...] = (
     (("-", "tree"), None, False),  # GitLab
     (("-", "blob"), None, True),
+    (("-", "raw"), None, True),
     (("-", "commits"), None, False),
     (("src", "branch"), "branch", False),  # Gitea, Forgejo, Codeberg
     (("src", "tag"), "tag", False),
     (("src", "commit"), "commit", False),
+    (("raw", "branch"), "branch", True),  # Gitea raw file
+    (("raw", "tag"), "tag", True),
+    (("raw", "commit"), "commit", True),
     (("tree",), None, False),  # GitHub, SourceHut
     (("blob",), None, True),
+    (("raw",), None, True),  # GitHub, Bitbucket Cloud raw file
     (("src",), None, False),  # Bitbucket Cloud
     (("commits", "branch"), "branch", False),
     (("commits", "tag"), "tag", False),
@@ -285,10 +290,10 @@ def _query_page(
 
 def _is_forge_path(raw: list[str]) -> bool:
     """Whether the path carries a forge's own unambiguous page marker (GitLab's
-    ``-``, Gitea's ``src/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
+    ``-``, Gitea's ``src|raw/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
     is a stray query, not cgit's."""
     return any(
-        entry[0][0] in {"-", "src"}
+        entry[0][0] in {"-", "src", "raw"}
         and len(entry[0]) == 2
         and _find_marker(raw, (entry,)) is not None
         for entry in _MARKERS
