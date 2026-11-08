@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also:
 [wheel-sbom-verification-history.md](wheel-sbom-verification-history.md)
-(the verifications of v0.9.0 to v0.20.2).
+(the verifications of v0.9.0 to v0.22.0).
 
 ## Why this exists
 
@@ -35,6 +35,105 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artefact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.23.3 (2026-11-08)
+
+Same method as v0.23.1 below, against
+`https://pypi.org/pypi/pitloom/0.23.3/json` (wheel uploaded 2026-11-08
+19:47:42 UTC, sdist 19:47:44 UTC, neither file yanked). The GitHub Release
+(not a prerelease) was published at 19:45:43 UTC; the tag `v0.23.3` is
+lightweight and points at `3b993e16` (the merge of #461). v0.23.2 (#460,
+published 06:56 UTC the same day) has no entry here.
+
+| File | Bytes | SHA-256 |
+| - | -: | - |
+| `pitloom-0.23.3-py3-none-any.whl` | 1,131,583 | `681ba5b74cf65bf0396fd01801a07b76856ec20e5432a9670487b12e5b1f369b` |
+| `pitloom-0.23.3.tar.gz` | 10,467,363 | `d9d002dd8c8d8f8bcbc3c2b0415e5fb687e521baa728b6881e985dd8bb5ec81a` |
+| `pitloom-0.23.3.spdx3.json` (Release asset) | 1,045,622 | `8d19acd0fccf0df06f6f5da2121c7d9f3da7c707a5764f427b73a9f2ce5e14b5` |
+
+### Method
+
+- As for v0.23.1: downloads against the API digests and the six Release
+  assets, `RECORD` and the wheel's payload against `git archive v0.23.3`, the
+  sdist against the same archive, `verify-wheel`, `validate-wheel`, `loom
+  fragment validate` and `spdx3-validate` 0.0.7 on the standalone SBOM,
+  `scripts/check_sbom_license.py` at the tag, `gh attestation verify`, `python
+  -m sigstore verify github` (sigstore 4.5.1, with `--sha` and `--trigger
+  release`) and PyPI's integrity API.
+- Installs of `pitloom==0.23.3` in fresh venvs on Python 3.10.20 and 3.14.6,
+  `HOME` in a scratch directory, and dry-run installs with `licenseid==0.8.0`
+  and `0.9.0`. The v0.23.1 smoke tests, plus the 0.23.3 changes (#461):
+  `license = "https://www.apache.org/licenses/LICENSE-2.0"`, `license =
+  "MIT\u200b"` (a trailing zero-width space), a directory dataset with a card
+  (`loom.add_dataset`) holding `license: other`, `license_name: apache-2.0`
+  and the Apache link, and the same card without the name. Then each
+  project, plus one with only a `LICENSE` file and one with `license =
+  "MIT"`, against a database built by `licenseid update --source packaged` of
+  LicenseID 0.7.3 (build v3), a fresh copy per run.
+- The Action: `action.yml` and `scripts/action/pitloom-install.sh` read at the
+  tag; the install script run with a stub `python -m pip`.
+
+### Findings
+
+- The downloads match the PyPI digests; the wheel and the sdist are
+  byte-identical to the Release assets, and the standalone SBOM to the
+  wheel's member. Six assets: three files, each with a `.sigstore.json`.
+  The notes list #461 only, which is the only PR since v0.23.2.
+- `requires_dist` has `licenseid<0.9,>=0.8.1`; the dry runs fail with
+  `ResolutionImpossible` (0.8.0) and no matching distribution (0.9.0).
+  `provides_extra` unchanged; `requires_python` `>=3.10`;
+  `License-Expression: Apache-2.0`; entry points `loom`, `pitloom` and the
+  `hatch` plugin.
+- Wheel: 352 members, one SBOM; `RECORD`: 352 rows, 0 bad, none missing,
+  none extra; the 346 payload files equal `src/` of the tag.
+- sdist: 1,423 files, the tag's 1,904 minus the 482 excluded, plus
+  `PKG-INFO` (equal to `METADATA`); no byte differences. Neither the sdist
+  nor the wheel has `AGENTS.md`, `CLAUDE.md` or `GEMINI.md`.
+- Embedded SBOM: SPDX 3.0.1, 1,595 graph elements, `Apache-2.0` declared and
+  concluded; 364 `software_File` (346 payload plus 18 directories), 0 hash
+  mismatches. `Tool` `Pitloom` (`pkg:pypi/pitloom@0.23.3`); `licenseid`
+  0.8.1 listed as a package, and licence provenance names `licenseid==0.8.1`
+  only. All validators pass.
+- `gh attestation verify` passes for the three files (one SLSA v1
+  attestation, source digest `3b993e16`) and fails with `--source-ref
+  refs/tags/v0.23.1`; `sigstore verify github` passes for the three, and
+  fails on a wrong bundle or identity. PEP 740: publisher `bact/pitloom`,
+  `pypi-publish.yml`, no environment; one attestation per file.
+- Installs succeed, `pip check` is clean, `licenseid` 0.8.1 resolved.
+  Smoke tests give the same results on both Pythons, and the SBOMs compared
+  across them are byte-identical: `sampleproject-hatchling` twice, the
+  version 3 registry (`ERROR`, exit 1, no SBOM, file unchanged), the broken
+  `onnx` (`[library-unusable]`), `Apache2` read as `Apache-2.0`.
+- The 0.23.1 fixes hold: `MIT licensed.` prints no `too few words` line
+  (with or without `-v`, with or without a 0.8.1 database) and records no
+  licence; `New BSD` reads as `BSD-3-Clause` (`alias_name`), and with no
+  database no longer prints the `cannot be used` warning (#458).
+- The 0.23.3 changes: the URL gives `Apache-2.0` with `INFO:
+  FIELD=project.license LICENSE='https://www.apache.org/licenses/LICENSE-2.0':
+  read as Apache-2.0 (license_url)`; the zero-width space gives `MIT` with
+  `INFO: ... LICENSE='MIT\u200b': read as MIT (trim)`; the card gives
+  `Apache-2.0` as a licence expression, and the card with only the link
+  gives `Apache-2.0` too (`license_url`).
+- With the LicenseID 0.7.3 database, only the `LICENSE`-only project prints
+  `WARNING: licenseid: database: build v3 outdated: current v4; run
+  'licenseid update'`, and still records `Apache-2.0`
+  (`licenseid_detection`); the URL, zero-width space and `MIT` projects
+  print no warning. The database file is left unchanged. After `licenseid
+  update` of 0.8.1 the warning is gone and the SBOM is byte-identical.
+- The Action with an empty `pitloom-version` runs `pip install
+  pitloom==0.23.3`, the version `check_version_consistency.py` reads at the
+  tag; a bare version and a specifier pass through as before.
+
+### Not run or noted
+
+- The release was published while the `Unit tests` run on the merge commit
+  was still going (it passed at 19:51 UTC); the publish workflow's own
+  network-dependent test job passed before the upload.
+- `loom model` on the GGUF file warns `[library-missing]`: the install has
+  no `gguf` extra.
+- The SBOM's `created` (19:46:03 UTC) is the build's clock: the publish
+  workflow sets no `SOURCE_DATE_EPOCH`, as for 0.23.1. No rebuild compared.
+- No workflow run of the Action; no Merkle root recomputation.
 
 ## Verification of v0.23.1 (2026-11-07)
 
@@ -201,8 +300,9 @@ lightweight and points at `0424016c` (the merge of #449).
 
 ## Verification of v0.22.1 (2026-11-03)
 
-Same method as v0.22.0 below, against
-`https://pypi.org/pypi/pitloom/0.22.1/json` (wheel uploaded 2026-11-03
+Same method as
+[v0.22.0](wheel-sbom-verification-history.md#verification-of-v0220-2026-11-02),
+against `https://pypi.org/pypi/pitloom/0.22.1/json` (wheel uploaded 2026-11-03
 12:01:20 UTC, sdist 12:01:22 UTC, neither file yanked). The tag `v0.22.1` is
 lightweight and points at `6b9fbf1f` (the merge of #431). The release gate ran
 twice: its first run failed on an upstream HTTP 500 from Savannah in a
@@ -302,92 +402,6 @@ of the GitHub Action.
   checks](../design/known-bugs/process-tooling-and-release-checks.md)).
 - Merkle root recomputation was not run; the GitHub Action was checked by
   reading `action.yml` at the tag only.
-
-## Verification of v0.22.0 (2026-11-02)
-
-Same method as
-[v0.20.0](wheel-sbom-verification-history.md#verification-of-v0200-2026-10-05),
-against `https://pypi.org/pypi/pitloom/0.22.0/json` (uploaded 2026-10-30
-17:05 UTC, neither file yanked). Run on 2026-11-02 from the PyPI files only:
-the GitHub Release assets, attestations and the GitHub Action check were not
-part of this pass.
-
-### Method
-
-- Wheel and sdist downloaded with `curl` from the API's URLs into an empty
-  directory; `sha256sum` against the API digests.
-- `RECORD` checked by a small script run with `python -I`: every row's
-  hash and size against the member's bytes, and rows against members both
-  ways. The embedded SBOM's `software_File` hashes recomputed from the
-  wheel's bytes and compared with the SBOM and with `RECORD`.
-- Fresh Python 3.13 venv, `pip install
-  "pitloom[ai,content-type,validate]==0.22.0"`; `loom --version`,
-  `loom verify-wheel <whl> --sbom-filename
-  pitloom-0.22.0.spdx3.json --fail-on-mismatch`, `loom validate-wheel
-  <whl>`, `spdx3-validate --json` 0.0.7 on the extracted SBOM and
-  `scripts/check_sbom_license.py --license Apache-2.0` on the SBOM and
-  on the wheel.
-- Smoke tests with the installed release on tiny temporary projects (one
-  dependency, a Git LFS pointer as `LICENSE`, an ID registry of version 3);
-  `licenseid update --source packaged` with `HOME` and `XDG_DATA_HOME` in a
-  scratch directory.
-- The sdist's file list against `git ls-tree -r v0.22.0`.
-
-### Findings
-
-- PyPI SHA-256: wheel `72bdadb8...14766265` (1,082,575 bytes), sdist
-  `b35d1544...f9e9e55` (10,351,449 bytes); the downloads match.
-  `requires_dist` has `licenseid<0.7,>=0.6.0`; `provides_extra` is `ai`,
-  `build`, `content-type`, `fasttext`, `gguf`, `hdf5`, `huggingface-hub`,
-  `numpy`, `onnx`, `pytorch`, `safetensors`, `validate`; `requires_python`
-  `>=3.10`.
-- The wheel has 331 members; the one SBOM is
-  `pitloom-0.22.0.dist-info/sboms/pitloom-0.22.0.spdx3.json` (`016dd633...
-  f4b40024`). `RECORD`: 331 rows, 0 bad hashes or sizes, none missing, none
-  extra. `METADATA`: `Version: 0.22.0`, `License-Expression: Apache-2.0`.
-- `verify-wheel` OK, `validate-wheel` valid; `spdx3-validate` schema and
-  SHACL pass; `check_sbom_license.py` passes on the extracted SBOM
-  (declared and concluded `Apache-2.0`).
-- 343 `software_File`: the 325 payload files plus 18 directories (the 18
-  without a hash); no `.dist-info` member listed. 0 hash mismatches against
-  the bytes, 0 against `RECORD`.
-- Main package `pkg:pypi/pitloom@0.22.0`, version `0.22.0`; spec 3.0.1;
-  1,516 graph elements.
-- A fresh venv reports `Pitloom 0.22.0`; `licenseid` 0.6.0 was resolved.
-- `loom project` on the tiny project exits 0 and its SBOM passes
-  `spdx3-validate`. A file `tiny/weights.bin` that is a Git LFS pointer
-  gives one `WARNING: FILE=tiny/weights.bin: Git LFS pointer, content not
-  read; run 'git lfs pull' for the content [lfs-pointer]` and is listed by
-  the pointer's `oid` with the size in the hash comment. `loom generate` of
-  a pointer `.gguf` gives the documented `ERROR: ... header is a Git LFS
-  pointer, content not pulled (oid sha256:..., size 11357 bytes); run 'git
-  lfs pull' [lfs-pointer]`.
-- A registry of version 3 with `--id-registry`, with and without
-  `--update-id-registry`: exit 1, `ERROR: SBOM generation failed: ID
-  registry file '...': version 3, expected 4 (no migration support --
-  delete it and re-run ...)`, with the two `loom id` commands named; no
-  SBOM written and the registry's SHA-256 unchanged.
-- `licenseid update --source packaged` works offline (SPDX list 3.29.0, 740
-  licences); its one `WARNING: popularity.csv: missing` is expected without
-  the ranking data. `licenseid` has no `--version` option.
-
-### Not run or noted
-
-- The sdist holds the 1,366 files of the tag that `pyproject.toml` does
-  not exclude plus `PKG-INFO`; the 434 tag files left out are
-  `working-docs/`, `.github/`, `.claude-plugin/`, large test fixtures and
-  tooling dotfiles. No `.env` or key material; `docs/pitloom-etsi-2026.key`
-  is a Keynote archive (a ZIP), not a private key. The sdist is 10 MB mainly
-  because `docs/` ships two posters (7 MB) and that Keynote file (0.7 MB).
-- A project whose `license = {file = "LICENSE"}` names a Git LFS pointer
-  records a `simplelicensing_SimpleLicensingText` whose text is the
-  file name `LICENSE` (an unpulled pointer); a real licence file gives its
-  text. Whether a file name should stand as licence text is for the
-  maintainer to decide.
-- Merkle root recomputation, the GitHub Release assets, attestations and
-  Sigstore bundles, and the GitHub Action check were not run.
-- The `WARNING: Hatchling file discovery failed ...` line for a project
-  whose name matches no package directory has no `[code]` (not catalogued).
 
 ## Conclusion
 
