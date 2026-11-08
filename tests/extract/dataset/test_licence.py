@@ -21,6 +21,8 @@ from pitloom.extract.dataset.licence import dataset_licence
 
 _SRC = "card.md"
 _LINK = "https://example.org/terms"
+_APACHE = "https://www.apache.org/licenses/LICENSE-2.0"
+_MIT = "https://opensource.org/license/mit"
 
 
 @pytest.mark.parametrize(
@@ -195,4 +197,42 @@ def test_dataset_licence_list_non_text_kept_rest(
     assert found.further.comment == (
         "The source lists several licences; it does not say whether they "
         "combine as AND or OR."
+    )
+
+
+_ALL3 = "license, license_name, license_link"
+
+
+@pytest.mark.parametrize(
+    ("name", "link", "text"),
+    [
+        ("apache-2.0", _APACHE, "apache-2.0"),
+        ("Apache License 2.0", _APACHE, "Apache License 2.0"),
+        ("Apache-2.0", _MIT, f"Apache-2.0 ({_MIT})"),
+        ("mit", _APACHE, f"mit ({_APACHE})"),
+        ("Foo Terms", _APACHE, _APACHE),
+        ("Foo Terms", _LINK, f"Foo Terms ({_LINK})"),
+        ("Llama 3 Community License", _LINK, f"Llama 3 Community License ({_LINK})"),
+        ("apache-2.0", _LINK, "apache-2.0"),
+    ],
+    ids=[
+        "name-and-link-agree",
+        "prose-name-and-link",
+        "link-reads-as-other-licence",
+        "name-and-link-differ",
+        "custom-name-known-link",
+        "custom-name-unknown-link",
+        "custom-licence",
+        "known-name-unknown-link",
+    ],
+)
+def test_other_name_and_link(name: str, link: str, text: str) -> None:
+    """Of ``other``'s name and link, the one that reads as a licence is the
+    text; different licences or none read stay as ``name (link)``. All
+    three fields are in the provenance."""
+    found = dataset_licence("other", source=_SRC, name=name, link=link)
+    assert found is not None
+    assert (found.text, found.provenance) == (
+        text,
+        f"Source: {_SRC} | Field: {_ALL3}",
     )

@@ -32,6 +32,11 @@ and this project adheres to
   `build v3 outdated`: run `licenseid update` ([#461])
 - The skills require `pitloom>=0.23.3` ([#461])
 
+### Fixed
+
+- A Hugging Face card with `license: other`, a licence name and a link is read
+  from whichever of the two is a known licence ([#461])
+
 [#461]: https://github.com/bact/pitloom/pull/461
 
 ## [0.23.2] - 2026-11-08

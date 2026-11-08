@@ -13,7 +13,14 @@ dataset card), so the weak-value list and the wording cannot drift.
   licence; a placeholder is not a claim.
 - ``other`` (any case): the source's ``license_name`` and ``license_link``,
   name first, as one text, each left out when it is a placeholder (a name
-  of ``other`` too); none left: no licence.
+  of ``other`` too); none left: no licence. When both remain and exactly
+  one reads as an SPDX expression
+  (:func:`~pitloom.extract._license_classify.classify_license`, the
+  writer's own reading), or both read as the same one, that one alone is
+  the text (the name wins a tie; a custom name gives way to a link that
+  reads) and all three fields stay in the provenance. A name and a link
+  that read as different expressions, or neither reading, stay together
+  as ``name (link)``.
 - A list of several: each text by the rules above, in order, once each
   (letter case ignored); an ``other`` among them states nothing of its own
   and is left out. Two or more kept are the first licence and
@@ -29,7 +36,7 @@ from dataclasses import dataclass
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.extract._license_classify import is_weak_licence
+from pitloom.extract._license_classify import classify_license, is_weak_licence
 from pitloom.extract.dataset.values import (
     NOT_TEXT_WARNING,
     is_placeholder,
@@ -87,6 +94,22 @@ def apply_dataset_licence(
     meta.provenance[LICENSE_FIELD] = licence.provenance
 
 
+def _expression_of(text: str) -> str | None:
+    """The canonical SPDX expression *text* reads as, else ``None``."""
+    found = classify_license(text, warn=False)
+    return found.value if found and found.kind == "expression" else None
+
+
+def _read_one(name: str, link: str) -> str | None:
+    """Of an ``other`` licence's *name* and *link*, the one that reads as
+    an SPDX expression (the name when both read the same), else ``None``;
+    also ``None`` when they read as different expressions."""
+    from_name, from_link = _expression_of(name), _expression_of(link)
+    if from_name and from_link:
+        return name if from_name == from_link else None
+    return name if from_name else link if from_link else None
+
+
 def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]:
     """The text of an ``other`` licence, its name then its link, and the
     fields it came from; ``("", [])`` when the source gives neither."""
@@ -96,6 +119,9 @@ def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]
         if text and not _is_weak(text) and text.lower() != _OTHER:
             parts.append((field, text))
     if len(parts) == 2:
+        read = _read_one(parts[0][1], parts[1][1])
+        if read:
+            return read, [LICENSE_NAME_FIELD, LICENSE_LINK_FIELD]
         return f"{parts[0][1]} ({parts[1][1]})", [f for f, _ in parts]
     return (parts[0][1], [parts[0][0]]) if parts else ("", [])
 
