@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -565,3 +565,16 @@ Released 2026-11-07, a patch release for LicenseID 0.7.3. Open items:
   Apache names with a version (`Apache, Version 2.0`, `Apache Software
   License 2.0`, `Apache License (2.0)`) as `Apache-2.0` (upstream finding
   11); the skills require `pitloom>=0.23.2`.
+
+## Shipped in 0.23.3 (PR #461)
+
+Released 2026-11-09, a patch release for LicenseID 0.8.1. Open items:
+[roadmap.md](../design/roadmap.md#0240-message-catalogue-and-licence-provenance).
+
+- [x] **Release PR** (#461): requires `licenseid>=0.8.1,<0.9`, which reads a
+  licence URL as its ID (`https://www.apache.org/licenses/LICENSE-2.0` is
+  `Apache-2.0`, category `license_url`) and drops a control or format
+  character at either end of a value; a database built by LicenseID 0.7.x
+  warns `build v3 outdated` until `licenseid update`. The skills require
+  `pitloom>=0.23.3`. Python 3.15 is not tested: the `ai` extra has no 3.15
+  wheels yet.

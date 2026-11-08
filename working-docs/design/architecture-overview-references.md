@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ components.
   classes like AIPackage (SPDX Group 2026).
 - **license-expression (Validation):** Proposed for normalising licence
   expressions according to PEP 639 (NexB 2025). Pitloom uses LicenseID
-  (0.7.3 or later) instead.
+  (0.8.1 or later) instead.
 
 ### Analysis and enrichment tools
 

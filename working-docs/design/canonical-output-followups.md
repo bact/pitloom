@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -502,7 +502,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Options:** state determinism per (Pitloom, LicenseID) versions, as
   provenance records (`Tool: licenseid==<v>`); run the corpus
   (`tests/fixtures/license-texts/`) on the floor and latest versions in CI;
-  an upper pin on a patch release (stricter than the current `<0.8`).
+  an upper pin on a patch release (stricter than the current `<0.9`).
 - **Current behaviour:** same corpus results on 0.3.7 and 0.4
   ([license-rules.md](license-rules.md#4-declared-or-concluded)); not run
   per version in CI.
