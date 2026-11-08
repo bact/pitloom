@@ -43,13 +43,16 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
 | [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
+| [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files (or too many files a model could be to look at), and no file was named: one SBOM describes one model. | 0.24.0 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
+| [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
+| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | An AI model file read from a Git URL is in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
@@ -305,6 +308,7 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: Git LFS pointer, content not read<count>; run 'git lfs pull' for the content [lfs-pointer]
   WARNING: FILE=<file>: Git LFS pointer, content not read<count>; clone with git lfs, then run on the directory [lfs-pointer]
   ERROR: '<path>': header is a Git LFS pointer, content not pulled (oid sha256:<oid>, size <size>); run 'git lfs pull' [lfs-pointer]
+  ERROR: '<path>': header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file [lfs-pointer]
   ```
 
 ### `lfs-pointer-malformed`
@@ -400,6 +404,27 @@ A line may start with one prefix before its text:
   WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
   ```
 
+### `model-ambiguous`
+
+- **Level**: ERROR, INFO. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A folder named for an AI model SBOM holds several AI model files
+  (or too many files a model could be to look at), and no file was named: one
+  SBOM describes one model.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. One INFO line per model file found names it,
+  in sorted order, before the error.
+- **Tell the user**: which model files the folder holds, as the INFO lines name
+  them. They name the one they want (its path, or for a Git URL the link to the
+  file's page) and generate again, once per model. Do not pick a file and
+  generate for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: FILE=<file>: one of several AI model files [model-ambiguous]
+  ERROR: '<path>': several AI model files<count>; name one file [model-ambiguous]
+  ```
+
 ### `model-field-conflict`
 
 - **Level**: WARNING.
@@ -450,6 +475,7 @@ A line may start with one prefix before its text:
   WARNING: <part> <error>; kept as properties.model_config_raw, the first <limit> of <number> characters | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; the fields read before it are kept | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; reading stopped there | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: <part> <error>; the other archive members are read | Field(s) affected (skipped): <fields> [model-field-unreadable]
   ```
 
 ### `model-unreadable`
@@ -550,6 +576,26 @@ A line may start with one prefix before its text:
   WARNING: FORMAT=<format> FILE=<file>: stated parameter count is not a non-negative integer; parameter count not recorded [parameter-count-invalid]
   ```
 
+### `project-or-model-not-found`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A folder named for an SBOM holds neither a Python project
+  (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file
+  of a supported format.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. Subfolders are not searched for a model file.
+- **Tell the user**: the folder has no project and no model file Pitloom reads.
+  They name the project's folder, or the model file itself (its path, or for a
+  Git URL the link to the file's page), and generate again. Do not guess a file
+  or folder and generate for them; ask first, and with nobody to ask, report it
+  only.
+- **Lines**:
+
+  ```text
+  ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file [project-or-model-not-found]
+  ```
+
 ### `reader-unsafe`
 
 - **Level**: INFO.
@@ -571,6 +617,27 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]
+  ```
+
+### `reader-unsafe/remote`
+
+- **Level**: INFO.
+- **Means**: An AI model file read from a Git URL is in a format whose reader
+  Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch
+  .pt and .pth): a hostile file could crash or hang it, or exhaust its memory.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Listed the model by its file, format and hashes only (a
+  format-only entry, named after its file), without its metadata, its reader not
+  run.
+- **Tell the user**: the model from the Git URL was not read, and why. If they
+  trust the file, they clone the repository (with Git LFS when it stores the
+  model there) and run Pitloom on the local file, which is read in full. Do not
+  clone the repository or run Pitloom on the file for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; clone the repository and run on the file you trust [reader-unsafe/remote]
   ```
 
 ### `text-malformed`

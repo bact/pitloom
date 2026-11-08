@@ -11,14 +11,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from pitloom.core.project_markers import PROJECT_MARKERS
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
 
 __all__ = ["PROJECT_MARKERS", "checkout_folder", "subproject_hint"]
-
-#: Files that make a directory a Python project.
-PROJECT_MARKERS = ("pyproject.toml", "setup.cfg", "setup.py")
 
 #: Directories never searched for sub-projects, and how deep to look.
 _SKIPPED_DIRS = frozenset(

@@ -39,6 +39,7 @@ from pitloom.messages import (
     NOT_A_MODEL_LINE,
     PARAMETER_COUNT_INVALID,
     READER_UNSAFE,
+    READER_UNSAFE_REMOTE,
     CodedImportError,
     CodedValueError,
     Line,
@@ -56,7 +57,7 @@ _LOG = logging.getLogger(f"{TEST_LOGGER_PREFIX}model_stub")
 _ENTRIES = {m.code: m for m in _model_stub.ENTRIES}
 
 
-def test_the_family_has_its_seven_codes() -> None:
+def test_the_family_has_its_eight_codes() -> None:
     assert sorted(_ENTRIES) == [
         "hyperparameter-conflict",
         "library-missing",
@@ -65,9 +66,11 @@ def test_the_family_has_its_seven_codes() -> None:
         "model-wrong-format",
         "parameter-count-invalid",
         "reader-unsafe",
+        "reader-unsafe/remote",
     ]
     assert {c: m.since for c, m in _ENTRIES.items() if m.since != "0.22.0"} == {
-        "library-unusable": "0.23.0"
+        "library-unusable": "0.23.0",
+        "reader-unsafe/remote": "0.24.0",
     }
     assert HYPERPARAMETER_CONFLICT.actor == HYPERPARAMETER_CONFLICT.effect == "none"
     assert all(m.actor == "user" for m in _ENTRIES.values() if m.effect != "none")
@@ -91,6 +94,13 @@ def test_the_family_has_its_seven_codes() -> None:
             "INFO: AI models in a wheel in these formats are listed without "
             "metadata, their reader not being run on a wheel's files: gguf, onnx. "
             "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]",
+        ),
+        (
+            READER_UNSAFE_REMOTE,
+            "INFO: AI models from a Git URL in these formats are listed without "
+            "metadata, their reader not being run on a downloaded file: gguf, "
+            "hdf5; clone the repository and run on the file you trust "
+            "[reader-unsafe/remote]",
         ),
         (
             MODEL_UNREADABLE,
@@ -165,6 +175,10 @@ def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> 
         "INFO: AI models in a wheel in these formats are listed without "
         "metadata, their reader not being run on a wheel's files: GGUF;onnx. "
         "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]",
+        # the wheel's line under the Git URL's code
+        "INFO: AI models in a wheel in these formats are listed without "
+        "metadata, their reader not being run on a wheel's files: gguf. "
+        "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe/remote]",
         # another level, another code
         "INFO: FORMAT=gguf FILE=t.gguf: header is not gguf; not listed as an AI "
         "model [model-wrong-format]",
@@ -177,6 +191,7 @@ def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> 
         "bare-package",
         "forged-action",
         "formats",
+        "variant",
         "level",
         "code",
     ],
@@ -279,8 +294,10 @@ def test_a_coded_import_error_without_its_line_is_refused() -> None:
 def test_the_gate_line_names_the_flag_and_every_gated_format() -> None:
     (line,) = READER_UNSAFE.lines
     assert f" Pass {PARAM_TO_FLAG['trust_wheel_model']} for " in line.template
-    summary = READER_UNSAFE.summary.lower()
-    assert all(str(fmt) in summary for fmt in WHEEL_GATED_FORMATS)
+    for message in (READER_UNSAFE, READER_UNSAFE_REMOTE):
+        summary = message.summary.lower()
+        assert all(str(fmt) in summary for fmt in WHEEL_GATED_FORMATS)
+    assert READER_UNSAFE_REMOTE.family == READER_UNSAFE.code
 
 
 def test_the_conflict_line_names_the_counts_key() -> None:

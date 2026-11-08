@@ -72,6 +72,7 @@ MODEL_OUTCOMES: Final = {
     "over-cap": "a stub, or read with the cut the line names",
     "parameter-count-invalid": "read, with no parameter count",
     "reader-unsafe": "a stub (a wheel's gated formats)",
+    "reader-unsafe/remote": "a stub (a Git URL's gated formats)",
 }
 WIDTH: Final = 80
 

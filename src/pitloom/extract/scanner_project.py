@@ -20,7 +20,12 @@ from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
-from pitloom.extract.scanner import ModelCandidate, UsageSource, scan_ai_models
+from pitloom.extract.scanner import (
+    ModelCandidate,
+    ReaderGate,
+    UsageSource,
+    scan_ai_models,
+)
 
 
 def _stable_path(pf: ProjectFile) -> str:
@@ -59,19 +64,25 @@ def _opener(path: Path) -> Callable[[], AbstractContextManager[IO[bytes]]]:
     return _open
 
 
-def local_model_candidate(path: Path) -> ModelCandidate:
+def local_model_candidate(
+    path: Path, *, shown: str | None = None, gate: ReaderGate | None = None
+) -> ModelCandidate:
     """A single local model file as a :class:`ModelCandidate`, for the
-    surfaces that name one file (``loom model``, ``loom enrich``): the one
-    read rule of a scan, with *path* as given for the physical path, its name as
-    the distribution path, and no gate. The scan's suffix filter
+    surfaces that name one file (``loom model``, ``loom enrich``) and a
+    folder's files (:mod:`pitloom.extract.model_target`): the one read rule
+    of a scan, with *shown* (default: *path* as given) for the physical
+    path, its name as the distribution path, and *gate* (none: every
+    format read). The scan's suffix filter
     (:func:`~pitloom.extract.scanner.is_model_candidate_name`) is not applied:
     a file named explicitly is read by its content."""
     return ModelCandidate(
         distribution_path=path.name,
-        physical_path=str(path),
+        physical_path=str(path) if shown is None else shown,
         sniff=_sniffer(path),
         materialize=_materializer(path),
         read_path=path,
+        gate=gate,
+        pointer=_pointer_reader(path),
     )
 
 

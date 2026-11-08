@@ -29,6 +29,7 @@ from pitloom.messages import (
     CONFIG_KEPT_LINE,
     CONFIG_RAW_CUT_LINE,
     CONFIG_RAW_LINE,
+    KERAS_MEMBER_LINE,
     MODEL_FIELD_UNREADABLE,
     TRAINING_CONFIG_LINE,
     Cap,
@@ -36,7 +37,6 @@ from pitloom.messages import (
     emit,
     warn_over_cap,
 )
-from pitloom.messages._model_field import KERAS_MEMBER_LINE
 
 log = logging.getLogger(__name__)
 

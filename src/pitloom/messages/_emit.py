@@ -126,7 +126,8 @@ def _restored(cls: type[_CodedError], text: str, code: str) -> _CodedError:
 
 class CodedValueError(_CodedError, ValueError):
     """A :class:`ValueError` that says a catalogued *message*
-    (``CodedValueError(LFS_POINTER, path=..., oid=..., size=...)``).
+    (``CodedValueError(LFS_POINTER_MALFORMED, path=...)``; with
+    ``line=`` when several ``ERROR`` lines name the same values).
 
     Raises:
         ValueError: (a plain one) No ``ERROR`` line of *message* names

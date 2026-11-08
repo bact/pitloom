@@ -40,10 +40,12 @@ from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
+    LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
     CodedValueError,
     emit,
@@ -57,6 +59,7 @@ __all__ = [
     "LfsPointer",
     "PrefixCapture",
     "UnreadPointers",
+    "in_remote_clone",
     "is_pointer_text",
     "log_pointer_not_read",
     "opens_lfs_pointer",
@@ -127,6 +130,12 @@ def reading_remote_clone() -> Iterator[None]:
         _REMOTE_CLONE.reset(token)
 
 
+def in_remote_clone() -> bool:
+    """Whether the run is within :func:`reading_remote_clone`: it reads a
+    temporary clone of a remote repository, whose files were downloaded."""
+    return _REMOTE_CLONE.get()
+
+
 @dataclass(frozen=True)
 class LfsPointer:
     """What a Git LFS pointer states about the content it stands in for."""
@@ -186,13 +195,19 @@ def read_lfs_pointer(path: str | os.PathLike[str]) -> LfsPointer | None:
 
 
 def refuse_named_pointer(
-    path: str | os.PathLike[str], cause: BaseException | None = None
+    path: str | os.PathLike[str],
+    cause: BaseException | None = None,
+    *,
+    shown: str | None = None,
 ) -> None:
     """Refuse a file named on its own (``loom model``, ``read_ai_model()``)
     whose header is a Git LFS pointer's opening line, in the catalogue's
     words: ``lfs-pointer``, with the ``oid`` and size it states, when the
-    whole file is a pointer, else ``lfs-pointer-malformed``. Returns when the
-    file cannot be read again, so the caller's own reason stands.
+    whole file is a pointer (within :func:`reading_remote_clone`, the
+    advice is to clone with Git LFS instead of to pull), else
+    ``lfs-pointer-malformed``. The error names the file *shown* (default:
+    *path*). Returns when the file cannot be read again, so the caller's own
+    reason stands.
 
     Raises:
         pitloom.messages.CodedValueError: It opens like a pointer (*cause*
@@ -202,10 +217,12 @@ def refuse_named_pointer(
         pointer = read_lfs_pointer(path)
     except OSError:
         return
+    named = path if shown is None else shown
     if pointer is None:
-        raise CodedValueError(LFS_POINTER_MALFORMED, path=path) from cause
+        raise CodedValueError(LFS_POINTER_MALFORMED, path=named) from cause
+    line = LFS_CLONE_ERROR_LINE if in_remote_clone() else LFS_PULL_ERROR_LINE
     raise CodedValueError(
-        LFS_POINTER, path=path, oid=pointer.oid, size=pointer.size
+        LFS_POINTER, line=line, path=named, oid=pointer.oid, size=pointer.size
     ) from cause
 
 
@@ -268,7 +285,7 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     if archive:
         emit(_log, LFS_POINTER_SHIPPED, logging.WARNING, file=first, count=count)
     else:
-        line = LFS_CLONE_LINE if _REMOTE_CLONE.get() else LFS_PULL_LINE
+        line = LFS_CLONE_LINE if in_remote_clone() else LFS_PULL_LINE
         emit(_log, LFS_POINTER, logging.WARNING, line=line, file=first, count=count)
 
 

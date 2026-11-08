@@ -34,7 +34,7 @@ from collections.abc import Callable, Iterable, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import IO
+from typing import IO, TypeVar
 
 from pitloom.core.ai_metadata import (
     AiModelFormat,
@@ -75,6 +75,7 @@ from pitloom.messages import (
     RELAY_FRAME,
     USAGE_UNUSABLE,
     Cap,
+    Message,
     emit,
     over_cap_of,
     relay_extra,
@@ -83,6 +84,7 @@ from pitloom.messages import (
 )
 
 log = logging.getLogger(__name__)
+_T = TypeVar("_T")
 
 # The usage hint. The setting is spelt per producer: a project reads its own
 # config; a wheel reads none implicitly, so its setting needs a named one.
@@ -126,18 +128,21 @@ class ReaderGate:
             that format; returns whether to name it in the ``INFO:`` line. The
             producer makes it claim a once-per-run slot for the format.
         met: The gated formats met so far.
+        message: The ``reader-unsafe`` entry :meth:`report` says: a
+            wheel's (the default) or a Git URL's (``reader-unsafe/remote``).
     """
 
     formats: frozenset[AiModelFormat]
     announce: Callable[[AiModelFormat], bool]
     met: set[AiModelFormat] = field(default_factory=set)
+    message: Message = READER_UNSAFE
 
     def report(self) -> None:
-        """Log one ``reader-unsafe`` line naming the gated formats met
+        """Log one :attr:`message` line naming the gated formats met
         (sorted) that *announce* allows; nothing when it allows none."""
         named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
         if named:
-            emit(log, READER_UNSAFE, logging.INFO, formats=named)
+            emit(log, self.message, logging.INFO, formats=named)
 
 
 @dataclass(frozen=True)
@@ -267,7 +272,7 @@ def _read_materialized(
     return meta
 
 
-def _sniff_format(candidate: ModelCandidate) -> AiModelFormat:
+def sniff_model_format(candidate: ModelCandidate) -> AiModelFormat:
     """The candidate's format from its header.
 
     Raises:
@@ -299,7 +304,7 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
         NotAModel: The header does not confirm a model format.
         OSError: The header cannot be read, so the format is not known.
     """
-    fmt = _sniff_format(candidate)
+    fmt = sniff_model_format(candidate)
     where = loggable(candidate.physical_path)
     if candidate.gate is not None and fmt in candidate.gate.formats:
         candidate.gate.met.add(fmt)
@@ -332,15 +337,17 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
     return _stub(fmt, candidate)
 
 
-def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
-    """:func:`read_model_candidate` for a scan: ``None`` for a file that is
-    not a model, a candidate whose suffix could not be one is not even read.
-    The warning for an unreadable header or a header contradicting a model
-    suffix is said here, in the scan's words."""
-    if not is_model_candidate_name(candidate.distribution_path):
-        return None
+def scan_step(
+    candidate: ModelCandidate,
+    step: Callable[[ModelCandidate], _T],
+    pointers: list[str] | None = None,
+) -> _T | None:
+    """*step* (:func:`read_model_candidate`, :func:`sniff_model_format`) on
+    a scan's candidate, else ``None``, said in the scan's words: an
+    unreadable header, a header contradicting a model suffix; a whole Git
+    LFS pointer only with ``--debug``, its path added to *pointers*."""
     try:
-        return read_model_candidate(candidate)
+        return step(candidate)
     except OSError as e:
         if not is_missing_errno(e):  # gone since it was found: absent
             warn_file_unreadable(
@@ -352,9 +359,18 @@ def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
                 ),
             )
     except NotAModel as e:
-        if e.reason is not None:
-            say_not_a_model(log, e, candidate)
+        whole = e.reason is not None and say_not_a_model(log, e, candidate)
+        if whole and pointers is not None:
+            pointers.append(candidate.physical_path)
     return None
+
+
+def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
+    """:func:`read_model_candidate` for a scan (:func:`scan_step`); a
+    candidate whose suffix could not be a model is not even read."""
+    if not is_model_candidate_name(candidate.distribution_path):
+        return None
+    return scan_step(candidate, read_model_candidate)
 
 
 def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMetadata]:

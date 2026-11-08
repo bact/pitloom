@@ -22,6 +22,7 @@ from pitloom.messages import (
     _model_field,
     _model_stub,
     _over_cap,
+    _sbom_target,
     _text_malformed,
     _usage_unparseable,
     _usage_unusable,
@@ -63,5 +64,6 @@ MESSAGES: Final = _by_code(
         *_text_malformed.ENTRIES,
         *_card_malformed.ENTRIES,
         *_json_malformed.ENTRIES,
+        *_sbom_target.ENTRIES,
     )
 )

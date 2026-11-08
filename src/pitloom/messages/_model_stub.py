@@ -5,10 +5,10 @@
 
 """Why a model file is listed without its metadata (a format-only entry, a
 "stub") or not listed as a model, and why its parameter count is missing or
-replaced: ``library-missing``, ``library-unusable``, ``reader-unsafe``,
-``model-unreadable``, ``model-wrong-format``, ``parameter-count-invalid`` and
-``hyperparameter-conflict``. An input over a cap is ``over-cap``; a Git LFS
-pointer is ``lfs-pointer``.
+replaced: ``library-missing``, ``library-unusable``, ``reader-unsafe`` (and
+its Git URL variant), ``model-unreadable``, ``model-wrong-format``,
+``parameter-count-invalid`` and ``hyperparameter-conflict``. An input over
+a cap is ``over-cap``; a Git LFS pointer is ``lfs-pointer``.
 
 See also: :mod:`pitloom.extract.scanner` (the one read rule every surface
 applies), :mod:`pitloom.messages._model_limits` (the bound-check reasons) and
@@ -135,6 +135,35 @@ READER_UNSAFE: Final = Message(
     "True in the library; the trust-wheel-model input of the GitHub Action, "
     "with embed-wheel and an empty project-path) and generate again; no config "
     f"file can set it. Do not add the flag or generate again for them; {_ASK}",
+)
+
+#: The formats whose reader is not run on a model file of a Git URL's
+#: temporary clone: one line per read.
+READER_UNSAFE_REMOTE: Final = Message(
+    code="reader-unsafe/remote",
+    condition="unsafe",
+    lines=(
+        Line(
+            level="INFO",
+            template="AI models from a Git URL in these formats are listed "
+            "without metadata, their reader not being run on a downloaded "
+            "file: %(formats)s; clone the repository and run on the file you "
+            "trust",
+        ),
+    ),
+    summary="An AI model file read from a Git URL is in a format whose reader "
+    "Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, "
+    "PyTorch .pt and .pth): a hostile file could crash or hang it, or "
+    "exhaust its memory.",
+    did=f"{_STUB}, its reader not run.",
+    effect="thinner",
+    actor="user",
+    advice="Tell the user the model from the Git URL was not read, and why. If "
+    "they trust the file, they clone the repository (with Git LFS when it "
+    "stores the model there) and run Pitloom on the local file, which is "
+    "read in full. Do not clone the repository or run Pitloom on the file "
+    f"for them; {_ASK}",
+    since="0.24.0",
 )
 
 #: A reader that failed on a file whose header is a model format's.
@@ -269,6 +298,7 @@ ENTRIES: Final = (
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
     READER_UNSAFE,
+    READER_UNSAFE_REMOTE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,
     PARAMETER_COUNT_INVALID,

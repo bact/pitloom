@@ -62,10 +62,12 @@ from pitloom.messages._json_malformed import (
     NOT_OBJECT_LINE,
 )
 from pitloom.messages._lfs_pointer import (
+    LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
+    LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
 )
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
@@ -80,6 +82,7 @@ from pitloom.messages._model_field import (
     FICKLING_WALK_LINE,
     FIELD_NOT_RECORDABLE,
     GGUF_LENGTH_LINE,
+    KERAS_MEMBER_LINE,
     MODEL_FIELD_CONFLICT,
     MODEL_FIELD_UNREADABLE,
     ONNX_REPEATED_LINE,
@@ -113,6 +116,7 @@ from pitloom.messages._model_stub import (
     PARAMETER_COUNT_INVALID,
     PARAMETER_COUNT_SKIPPED,
     READER_UNSAFE,
+    READER_UNSAFE_REMOTE,
     STATED_COUNT_REASON,
 )
 from pitloom.messages._over_cap import (
@@ -128,6 +132,7 @@ from pitloom.messages._over_cap_warning import (
     warn_archive_member_over_cap,
     warn_over_cap,
 )
+from pitloom.messages._sbom_target import MODEL_AMBIGUOUS, NO_SBOM_TARGET
 from pitloom.messages._text_malformed import TEXT_MALFORMED
 from pitloom.messages._text_malformed_warning import warn_lone_surrogates
 from pitloom.messages._types import (
@@ -159,6 +164,7 @@ __all__ = [
     "CODE_GRAMMAR",
     "CONDITIONS",
     "CONFIG_KEPT_LINE",
+    "KERAS_MEMBER_LINE",
     "CONFIG_MEMBER_LINE",
     "CONFIG_RAW_CUT_LINE",
     "CONFIG_RAW_LINE",
@@ -188,10 +194,12 @@ __all__ = [
     "HYPERPARAMETER_CONFLICT",
     "JSON_MALFORMED",
     "LEVELS",
+    "LFS_CLONE_ERROR_LINE",
     "LFS_CLONE_LINE",
     "LFS_POINTER",
     "LFS_POINTER_MALFORMED",
     "LFS_POINTER_SHIPPED",
+    "LFS_PULL_ERROR_LINE",
     "LFS_PULL_LINE",
     "LIBRARY_MISSING",
     "LIBRARY_UNUSABLE",
@@ -208,12 +216,14 @@ __all__ = [
     "Line",
     "MESSAGES",
     "MODEL_FIELD_CONFLICT",
+    "MODEL_AMBIGUOUS",
     "MODEL_FIELD_UNREADABLE",
     "MODEL_LIMIT_REASONS",
     "MODEL_UNREADABLE",
     "MODEL_WRONG_FORMAT",
     "Message",
     "NOT_A_MODEL_LINE",
+    "NO_SBOM_TARGET",
     "NOT_JSON_LINE",
     "NOT_OBJECT_LINE",
     "ONNX_REPEATED_LINE",
@@ -227,6 +237,7 @@ __all__ = [
     "PT2_TAGS_LINE",
     "PT2_VERSION_LINE",
     "READER_UNSAFE",
+    "READER_UNSAFE_REMOTE",
     "READ_USES",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
