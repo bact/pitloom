@@ -18,9 +18,19 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.23.1...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.23.2...HEAD>
 
 ## [Unreleased]
+
+## [0.23.2] - 2026-11-07
+
+### Changed
+
+- With LicenseID 0.7.3, Apache names with a version (`Apache, Version 2.0`,
+  `Apache Software License 2.0`, `Apache License (2.0)`) are read as
+  `Apache-2.0` ([#459])
+- Requires `licenseid>=0.7.3,<0.8`; the skills require `pitloom>=0.23.2`
+  ([#459])
 
 ### Fixed
 
@@ -29,6 +39,7 @@ and this project adheres to
   ([#458])
 
 [#458]: https://github.com/bact/pitloom/pull/458
+[#459]: https://github.com/bact/pitloom/pull/459
 
 ## [0.23.1] - 2026-11-07
 
@@ -931,6 +942,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.23.2]: https://github.com/bact/pitloom/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/bact/pitloom/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/bact/pitloom/compare/v0.22.1...v0.23.0
 [0.22.1]: https://github.com/bact/pitloom/compare/v0.22.0...v0.22.1

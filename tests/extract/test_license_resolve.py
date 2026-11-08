@@ -507,6 +507,33 @@ def test_a_title_or_alias_is_a_decided_expression(
     assert f"Resolution-1: {raw} -> {expression} ({category})" in note
 
 
+@pytest.mark.parametrize(
+    ("raw", "expression"),
+    [
+        ("Apache, Version 2.0", "Apache-2.0"),
+        ("Apache Software License 2.0", "Apache-2.0"),
+        ("Apache License (2.0)", "Apache-2.0"),
+        ("ASL 2.0", None),  # a documented refusal: kept as text
+    ],
+    ids=["comma-version", "trove-name", "brackets", "asl"],
+)
+def test_an_apache_name_with_a_version_is_read_as_its_id(
+    raw: str, expression: str | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """LicenseID 0.7.3, the floor, reads a name and a version by one rule."""
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        got = classify_license(raw)
+    assert got is not None
+    if expression is None:
+        assert (got.kind, got.value) == ("text", raw)
+        assert not _said(caplog, logging.INFO)
+        return
+    assert (got.kind, got.value) == ("expression", expression)
+    said = _said(caplog, logging.INFO)
+    assert len(said) == 1
+    assert said[0].startswith(f"LICENSE={raw!r}: read as {expression} (")
+
+
 @pytest.mark.parametrize("category", ["malformed", "unresolved"])
 def test_an_answer_without_an_expression_is_text_with_its_reason(
     category: str,

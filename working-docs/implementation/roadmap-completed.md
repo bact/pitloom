@@ -551,3 +551,17 @@ Released 2026-11-07, a patch release for LicenseID 0.7.2. Open items:
 - [x] **Release PR** (#456): requires `licenseid>=0.7.2,<0.8`; the skills
   require `pitloom>=0.23.1`, since 0.23.0 relays LicenseID 0.7.2's short-text
   notice as a spurious `WARNING:`.
+
+## Shipped in 0.23.2 (PRs #457-#459)
+
+Released 2026-11-07, a patch release for LicenseID 0.7.3. Open items:
+[roadmap.md](../design/roadmap.md#0240-message-catalogue-and-licence-provenance).
+
+- [x] **Missing licence database** (#458): with no LicenseID database, a
+  declared licence name (`New BSD`) says nothing; a declared licence text or
+  a `LICENSE` file with no declared licence still warns.
+- [x] **Docs** (#457): the post-release verification of v0.23.1.
+- [x] **Release PR** (#459): requires `licenseid>=0.7.3,<0.8`, which reads
+  Apache names with a version (`Apache, Version 2.0`, `Apache Software
+  License 2.0`, `Apache License (2.0)`) as `Apache-2.0` (upstream finding
+  11); the skills require `pitloom>=0.23.2`.

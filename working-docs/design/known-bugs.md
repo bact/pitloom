@@ -35,6 +35,8 @@ Size: S under half a day, M about a day.
   catalogue PRs 2b, 1b and 1c.
 - 0.23.1 (released 2026-11-07, #450-#455): LicenseID 0.7.2's short-text notice
   at `DEBUG`; its licence titles and aliases read as ids (#455).
+- 0.23.2 (released 2026-11-07, #457-#459): a declared licence name quiet with
+  no LicenseID database (#458); LicenseID 0.7.3's Apache name readings (#459).
 - 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
   (licence included), the licence provenance mapping
   ([licence-resolution-provenance.md](licence-resolution-provenance.md)) and
