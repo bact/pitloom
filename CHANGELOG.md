@@ -34,8 +34,9 @@ and this project adheres to
 
 ### Fixed
 
-- A Hugging Face card with `license: other`, a licence name and a link is read
-  from whichever of the two is a known licence ([#461])
+- A dataset card with `license: other`, a licence name and a link keeps the
+  name when it is a known licence and uses the link when no name is given
+  ([#461])
 
 [#461]: https://github.com/bact/pitloom/pull/461
 

@@ -201,38 +201,64 @@ def test_dataset_licence_list_non_text_kept_rest(
 
 
 _ALL3 = "license, license_name, license_link"
+_NAME = "license, license_name"
+_ACME = "https://acme.example/terms"
 
 
 @pytest.mark.parametrize(
-    ("name", "link", "text"),
+    ("name", "link", "text", "fields"),
     [
-        ("apache-2.0", _APACHE, "apache-2.0"),
-        ("Apache License 2.0", _APACHE, "Apache License 2.0"),
-        ("Apache-2.0", _MIT, f"Apache-2.0 ({_MIT})"),
-        ("mit", _APACHE, f"mit ({_APACHE})"),
-        ("Foo Terms", _APACHE, _APACHE),
-        ("Foo Terms", _LINK, f"Foo Terms ({_LINK})"),
-        ("Llama 3 Community License", _LINK, f"Llama 3 Community License ({_LINK})"),
-        ("apache-2.0", _LINK, "apache-2.0"),
+        ("apache-2.0", _APACHE, "apache-2.0", _ALL3),
+        ("Apache License 2.0", _APACHE, "Apache License 2.0", _ALL3),
+        ("Apache License 2.0", _MIT, f"Apache License 2.0 ({_MIT})", _ALL3),
+        ("mit", _APACHE, f"mit ({_APACHE})", _ALL3),
+        ("mit", _ACME, "mit", _NAME),
+        ("mit", "LICENSE", "mit", _NAME),
+        ("Foo Terms", _APACHE, f"Foo Terms ({_APACHE})", _ALL3),
+        ("Apache 2.0 with Commons Clause", _APACHE, None, _ALL3),
+        ("Modified MIT License", _MIT, None, _ALL3),
+        ("Llama 2 Community License", _APACHE, None, _ALL3),
+        ("Foo Terms", _LINK, f"Foo Terms ({_LINK})", _ALL3),
     ],
     ids=[
         "name-and-link-agree",
         "prose-name-and-link",
-        "link-reads-as-other-licence",
+        "name-and-link-differ-prose",
         "name-and-link-differ",
+        "name-unknown-link",
+        "name-path-link",
         "custom-name-known-link",
+        "commons-clause",
+        "modified-mit",
+        "llama-2",
         "custom-name-unknown-link",
-        "custom-licence",
-        "known-name-unknown-link",
     ],
 )
-def test_other_name_and_link(name: str, link: str, text: str) -> None:
-    """Of ``other``'s name and link, the one that reads as a licence is the
-    text; different licences or none read stay as ``name (link)``. All
-    three fields are in the provenance."""
-    found = dataset_licence("other", source=_SRC, name=name, link=link)
+def test_other_name_and_link(
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    name: str,
+    link: str,
+    text: str | None,
+    fields: str,
+) -> None:
+    """A name that reads as a licence decides (the link only agrees, is
+    ignored when unknown, or conflicts and both stay); a name that does not
+    read stays with its link. The provenance names the fields used; nothing
+    is logged or printed."""
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        found = dataset_licence("other", source=_SRC, name=name, link=link)
     assert found is not None
     assert (found.text, found.provenance) == (
-        text,
-        f"Source: {_SRC} | Field: {_ALL3}",
+        text or f"{name} ({link})",
+        f"Source: {_SRC} | Field: {fields}",
     )
+    assert not caplog.records
+    assert capsys.readouterr().err == ""
+
+
+def test_other_link_alone_still_used() -> None:
+    found = dataset_licence("other", source=_SRC, link=_APACHE)
+    assert found is not None
+    assert found.text == _APACHE
+    assert found.provenance == f"Source: {_SRC} | Field: license, license_link"

@@ -383,8 +383,10 @@ bare `other`), and a source's `NOASSERTION`, is no licence, written as nothing
 and logged as nothing, so the next source may state one. A `declared_license=`
 that is not a string raises `TypeError`. `other` with a `license_name` and/or
 `license_link` (a Hugging Face card's fields) is written as that name followed
-by the link, unless only one of them reads as an SPDX licence (or both read as
-the same one): that one alone is written. Each field a source gave is named in the package's provenance
+by the link, unless the name reads as an SPDX licence and the link does not
+read as a different one: then the name alone is written. This is the rule for
+dataset cards; a model card keeps `license_name` only as extra data. Each
+field the licence was read from is named in the package's provenance
 (`license: Source: data/corpus/README.md | Field: license`). A list of several
 licences gives each its own `hasDeclaredLicense`, in order and once each (letter
 case ignored), by the rules above (a bare `other` among them gives none), and
