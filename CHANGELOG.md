@@ -24,10 +24,13 @@ and this project adheres to
 
 ### Changed
 
-- With LicenseID 0.8.1, license URLs are read license IDs
-  `https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0` ([#461])
-- Requires `licenseid>=0.8.1,<0.9`; the skills require `pitloom>=0.23.3`
-  ([#461])
+- With LicenseID 0.8.1, a licence URL is read as its ID
+  (`https://www.apache.org/licenses/LICENSE-2.0` -> `Apache-2.0`) ([#461])
+- With LicenseID 0.8.1, a control or format character at either end of a
+  licence value is dropped ([#461])
+- Requires `licenseid>=0.8.1,<0.9`; a database built by LicenseID 0.7.x warns
+  `build v3 outdated`: run `licenseid update` ([#461])
+- The skills require `pitloom>=0.23.3` ([#461])
 
 [#461]: https://github.com/bact/pitloom/pull/461
 
@@ -951,7 +954,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
-[0.23.3]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.3
+[0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/bact/pitloom/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/bact/pitloom/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/bact/pitloom/compare/v0.22.1...v0.23.0
