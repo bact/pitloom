@@ -8,18 +8,18 @@ SPDX-License-Identifier: CC0-1.0
 
 # Licence resolution categories: what Pitloom needs to know from LicenseID
 
-Status: partly built. LicenseID 0.7.0 ships `resolve()` (declared-value
+Status: partly built. LicenseID ships `resolve()` (declared-value
 resolution, `Apache2` to `Apache-2.0`), which reads the SPDX License List
 packaged with it: Pitloom calls it with `source="packaged"`, so a declared
 value needs no database (#437). Pitloom reads a single-line value
 through it, quiet at `DEBUG:` for form changes and one `INFO:` per decision,
 with `Method`, `Resolution-1`, `Expansion-1` and `Tool` in the provenance (see
 [license-pipeline.md](../implementation/license-pipeline.md)). Not built:
-reading a compound operand by operand (0.7.0 gives `operands`; Pitloom
+reading a compound operand by operand (LicenseID gives `operands`; Pitloom
 reads a compound only as one answer), the licence
 list version (Q5, in `Resolution["lists"]` but not used), a cross-field
 indicator for a concluded licence (Q4) and the `alias`/`listed_url` categories
-(0.7.0 has neither). Decided 2026-11-05: provenance annotations are off by
+(LicenseID has neither). Decided 2026-11-05: provenance annotations are off by
 default and a flag turns them on (0.24.0); the provenance notes below are
 written when it is on.
 

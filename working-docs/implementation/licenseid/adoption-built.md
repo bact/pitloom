@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# LicenseID 0.7.0 adoption: what was built (0.23.0)
+# LicenseID adoption: what was built (0.23.0)
 
 See also: [adoption-plan.md](adoption-plan.md)
 (the plan, its rulings and measurements),
@@ -15,12 +15,11 @@ See also: [adoption-plan.md](adoption-plan.md)
 [licences-and-licenseid.md](../../design/known-bugs/licences-and-licenseid.md)
 (open entries).
 
-Pitloom requires `licenseid>=0.8.1,<0.9` (0.23.3; 0.23.1 required
-`>=0.7.2`, 0.23.0 `>=0.7.1`; 0.7.0: 2026-11-03). A declared
+Pitloom requires `licenseid>=0.8.1,<0.9`. A declared
 licence value is read by `licenseid.resolve(value, source="packaged")`, on
 the SPDX License List the `licenseid` wheel ships, with no database; only
-licence-text detection (`LicenseDetector().detect()`) needs one. Pitloom no
-longer imports `py-spdx-license` (LicenseID still requires it).
+licence-text detection (`LicenseDetector().detect()`) needs one. Pitloom
+does not import `py-spdx-license` (LicenseID still requires it).
 
 ## Stages
 
@@ -35,25 +34,19 @@ longer imports `py-spdx-license` (LicenseID still requires it).
 ## Final gate on `main` 54f79c57
 
 - Full manual CLI checks: 551 pass, 0 fail, 22 known, 37 skipped.
-- Wheel and sdist built with Hatchling (`--no-isolation`): no `AGENTS.md`,
-  `CLAUDE.md` or `GEMINI.md`; `Requires-Dist: licenseid<0.8,>=0.7.0`, no
-  `py-spdx-license`. In a fresh venv: `pip check` clean, `loom --version`,
-  `verify-wheel` ok, `validate-wheel` valid, `spdx3-validate` exit 0.
-- With `import py_spdx_license` blocked for Pitloom's modules (a
-  `sitecustomize` shim; LicenseID may still import it): 21 fixture
+- Wheel and sdist: no `AGENTS.md`, `CLAUDE.md` or `GEMINI.md`, no
+  `py-spdx-license` requirement; fresh venv: `pip check` clean, `verify-wheel`
+  ok, `validate-wheel` valid, `spdx3-validate` exit 0.
+- With `import py_spdx_license` blocked for Pitloom's modules: 21 fixture
   projects, 20 generate (the 21st is the invalid-version fixture, which fails
   the same way without the shim); the SBOMs are byte-identical with and
   without a licence database.
 - Self-SBOM: byte-identical across three builds (`PYTHONHASHSEED` unset, 0
-  and 4242); `licenseid` 0.7.0 is a runtime `dependsOn`; no
-  `py-spdx-license` package.
-- Surfaces: an isolated Hatchling build (offline wheelhouse holding this
-  wheel, no database) reads `license = {text = "Apache2"}` as `Apache-2.0`;
-  the Action install script installs the wheel; the library and the CLI give
-  the documented `INFO:`/`WARNING:` lines for a missing database and the
-  relayed `build v2 outdated` for a database built by 0.6.0. The real output
-  of `licenseid update --source packaged` (fresh, current, 0.6-built) matches
-  the skills' text.
+  and 4242); `licenseid` is a runtime `dependsOn`; no `py-spdx-license`.
+- Surfaces: an isolated Hatchling build (no database) reads
+  `license = {text = "Apache2"}` as `Apache-2.0`; the Action install script
+  installs the wheel; the library and the CLI give the documented
+  `INFO:`/`WARNING:` lines for a missing or outdated database.
 
 ## Sweep: 0.22.1 against 0.23.0
 

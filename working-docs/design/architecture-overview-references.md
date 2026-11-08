@@ -46,7 +46,7 @@ components.
   classes like AIPackage (SPDX Group 2026).
 - **license-expression (Validation):** Proposed for normalising licence
   expressions according to PEP 639 (NexB 2025). Pitloom uses LicenseID
-  (0.8.1 or later) instead.
+  instead.
 
 ### Analysis and enrichment tools
 

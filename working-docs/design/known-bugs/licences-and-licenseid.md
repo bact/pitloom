@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,10 +55,9 @@ entries come first; fixed entries stay in the last section for history.
 
 ### Found in review rounds, not yet prioritised
 
-- [ ] **Per-operand licence provenance is not built (S).** With LicenseID
-  0.6.0, `resolve()` answered for a whole value, so a compound with one
-  respelt part (`Apache2 OR MIT`) stayed text. Since 0.7 (#437, #440) it is
-  read as an expression; the design's per-operand results (`Resolution-n`,
+- [ ] **Per-operand licence provenance is not built (S).** A compound with one
+  respelt part (`Apache2 OR MIT`) is read as an expression (#437, #440); the
+  design's per-operand results (`Resolution-n`,
   `Expansion-n`) wait for the licence provenance mapping (T14, 0.24.0;
   [licence-resolution-provenance.md](../licence-resolution-provenance.md)).
   Decision Q5 (the licence list version into

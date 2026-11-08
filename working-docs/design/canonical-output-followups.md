@@ -351,9 +351,8 @@ origin; KB is [known-bugs.md](known-bugs.md).
   (LicenseID `get_license_by_name()`); keep text, equal only when
   compared (today); classifier names need new LicenseID data
   ([license-layers.md](license-layers.md)).
-- **Current behaviour:** since LicenseID 0.7 (#437, #440),
-  `licenseid.resolve` reads a List name (`MIT License`) and a
-  `License :: ...` path as its id. A bare classifier name
+- **Current behaviour:** `licenseid.resolve` reads a List name
+  (`MIT License`) and a `License :: ...` path as its id. A bare classifier name
   (`Apache Software License`) stays text, as a known deviation
   ([license-typing.md](../implementation/license-typing.md#known-deviation-names-licenseid-cannot-pin-stay-text)),
   and the names of 14 deprecated ids are read by `same_licence()`
@@ -368,7 +367,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   without case, and by string or by what they map to?
 - **Why it matters:** SPDX matches licence ids without case, but
   `LicenseRef-Foo` and `LicenseRef-foo` are two elements; `licenseref-foo`
-  was text until LicenseID 0.7 (#437); it is now `LicenseRef-foo`. A merge
+  is read as `LicenseRef-foo`. A merge
   unifies a user's `LicenseRef-x` by string: two fragments mapping it to
   different `customIdToUri` texts keep the first.
 - **Options:** as written (state it); canonical prefix case, idstring as

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A licence URL and a value with a control or format character at an end,
-read by the unpatched ``licenseid.resolve`` (LicenseID 0.8.1, the floor):
+read by the unpatched ``licenseid.resolve`` (the floor, 0.8.1):
 the URL is its licence id, the character is dropped; both are decisions,
 said at ``INFO:`` once and noted in the provenance.
 
