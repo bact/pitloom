@@ -109,14 +109,14 @@ came from:
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by LicenseID, the one reader of a declared
-value. A deprecated id ending `+` becomes its `-or-later` successor
+Every expression is read by LicenseID (`licenseid>=0.8.1,<0.9`), the one
+reader of a declared value. A deprecated id ending `+` becomes its `-or-later` successor
 (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
 the id of a re-spelt one (`GPLv3` is `GPL-3.0`, `LGPL v3` is `LGPL-3.0`).
 Both note the successors they could mean. A licence's prose name (`BSD
 3-Clause License`) and a classifier's name (`GNU General Public License v3
-(GPLv3)`) read as their id. A licence URL (LicenseID 0.8.1 or later) reads as
+(GPLv3)`) read as their id. A licence URL reads as
 its id too: `https://opensource.org/licenses/MIT` as `MIT`,
 `https://www.apache.org/licenses/LICENSE-2.0` as `Apache-2.0`,
 `https://spdx.org/licenses/MIT.html` as `MIT`; the page of a deprecated id
@@ -164,8 +164,7 @@ a long text, or no declared licence). A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v2
 outdated: current v3; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`
-(LicenseID 0.7.2 on: a text too short to match has no licence) is
-`DEBUG` only.
+(a text too short to match has no licence) is `DEBUG` only.
 
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded

@@ -336,7 +336,7 @@ LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
 GPL-2.0-only` is a guess LicenseID made while detecting a licence file's
 text (a bare deprecated id in an `SPDX-License-Identifier` tag): report it
-with the licence it concerns. LicenseID 0.7.2's `input: too few words for
+with the licence it concerns. LicenseID's `input: too few words for
 text` (a licence file too short to match) is not shown: nothing to report.
 
 If the preflight failed, generate anyway and report the line. Do not run a
@@ -390,8 +390,8 @@ author re-spelt (`GPLv3`, `LGPL v3`) is read as that id (`GPL-3.0`), never
 as `-only` or `-or-later`; a bare one (`GPL-2.0`) stays as written. Both get
 `Deprecated-License-Id: <id> (<id>-only or <id>-or-later)`. A licence's prose
 name (`BSD 3-Clause License`) and a classifier's name (`GNU General Public
-License v3 (GPLv3)`) are read as their id too, and so is a licence URL
-(LicenseID 0.8.1 or later): `https://opensource.org/licenses/MIT` as `MIT`,
+License v3 (GPLv3)`) are read as their id too, and so is a licence URL:
+`https://opensource.org/licenses/MIT` as `MIT`,
 `https://www.apache.org/licenses/LICENSE-2.0` as `Apache-2.0`, the page of a
 deprecated id (`https://www.gnu.org/licenses/gpl-3.0.html`) as `GPL-3.0` with
 a `Deprecated-License-Id` note. A control or format character at either end of
