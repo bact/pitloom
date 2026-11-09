@@ -33,7 +33,7 @@ To match `LICENSE` files, build the LicenseID database before the action
 (the action installs only Pitloom; no network needed):
 
 ```yaml
-- run: pip install 'licenseid>=0.8.2,<0.9' && licenseid update --source packaged
+- run: pip install 'licenseid>=0.8.3,<0.9' && licenseid update --source packaged
 ```
 
 Without it a declared licence name or id is still read, but a `LICENSE`

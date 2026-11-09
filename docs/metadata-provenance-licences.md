@@ -109,7 +109,7 @@ came from:
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by LicenseID (`licenseid>=0.8.2,<0.9`), the one
+Every expression is read by LicenseID (`licenseid>=0.8.3,<0.9`), the one
 reader of a declared value. A deprecated id ending `+` becomes its
 `-or-later` successor (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does

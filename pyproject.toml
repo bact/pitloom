@@ -66,7 +66,8 @@ dependencies = [
     # 0.8.1: licence URLs read as ids, control and format characters at the
     # ends of a value trimmed, database build v4. 0.8.2: a short text with a
     # "+" that is no operator (`MIT++`) is not matched as a licence text.
-    "licenseid>=0.8.2,<0.9",
+    # 0.8.3: `licenses.nuget.org` expression URLs are read as expressions.
+    "licenseid>=0.8.3,<0.9",
     # 25.0 floor: `packaging.markers.Marker` only accepts the PEP 751
     # `extras`/`dependency_groups` pseudo-environment variable names
     # starting at this release (24.x raises InvalidMarker for them) --
