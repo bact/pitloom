@@ -34,9 +34,9 @@ and this project adheres to
 
 ### Changed
 
-- Requires `licenseid>=0.8.3,<0.9`, which reads a `licenses.nuget.org`
-  expression URL as its expression; the skills require `pitloom>=0.23.4`
-  ([#462], [#465])
+- Requires `licenseid>=0.8.4,<0.9`, which reads a `licenses.nuget.org`
+  expression URL and `MIT/Apache-2.0` as expressions; the skills require
+  `pitloom>=0.23.4` ([#462], [#464], [#465])
 - A model or project SBOM from a Git URL lists a fastText, GGUF, HDF5, ONNX or
   PyTorch model by name, format and hash only, with one `INFO:` ([#464])
 - A directory with neither a project nor a model raises

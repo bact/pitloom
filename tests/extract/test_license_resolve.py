@@ -293,7 +293,6 @@ def test_the_reading_is_the_same_with_and_without_a_database(
         "BSD",  # several licences
         "GPL",
         "Acme-Terms",  # none
-        "MIT/Apache-2.0",  # not an SPDX operator
         "GPL-2.0-only+",  # malformed
         "Apache2\nLicense",  # more than one line
         "Apache\r2.0",  # a line break that is not \n
@@ -316,6 +315,15 @@ def test_a_value_naming_no_single_licence_stays_text(raw: str) -> None:
     assert got is not None and got.kind == "text"
     # a lone surrogate is replaced by U+FFFD on the way in
     assert got.value == re.sub("[\ud800-\udfff]", "\ufffd", raw.strip())
+
+
+@pytest.mark.parametrize("raw", ["MIT/Apache-2.0", "MIT / Apache-2.0"])
+def test_a_slash_between_two_licences_is_read_as_or(raw: str) -> None:
+    """LicenseID 0.8.4 reads the slash; the written value is kept as ``raw``."""
+    got = classify_license(raw, warn=False)
+    assert got is not None
+    assert (got.kind, got.value) == ("expression", "Apache-2.0 OR MIT")
+    assert got.raw == raw
 
 
 @pytest.mark.parametrize("raw", ["GPL-3.0", "GPL-2.0", "LGPL-2.1"])

@@ -239,6 +239,7 @@ def test_the_clones_setup_cfg_is_finished_as_setuptools_finishes_it(
     )
     assert dist.metadata.license_files == ["LICENSE"]
     assert str(dist.metadata.python_requires) == ">=3.9"
+    # pylint: disable-next=no-member  # not in every setuptools' type information
     assert "x" in dist.metadata.provides_extras
 
 
