@@ -53,6 +53,7 @@ from pitloom.extract.remote.git_url import (
     split_ref,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import code_of
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +87,8 @@ class GitCheckout:
 
     ``folder`` is the directory Pitloom reads: the checkout, or the folder
     the URL named; ``whole_repository`` says which. ``commit`` is the commit
-    checked out.
+    checked out. ``file`` is the file the URL named, relative to ``folder``;
+    empty for a folder URL.
     """
 
     folder: str
@@ -95,6 +97,7 @@ class GitCheckout:
     commit: str
     subdir: str
     whole_repository: bool
+    file: str = ""
 
     @contextmanager
     def explaining_failures(self) -> Iterator[None]:
@@ -106,7 +109,12 @@ class GitCheckout:
         except RemoteSourceError:
             raise
         except Exception as exc:
-            hint = subproject_hint(self.folder, self.whole_repository)
+            # A catalogued refusal (a model file's) says its own condition.
+            hint = (
+                ""
+                if code_of(exc)
+                else subproject_hint(self.folder, self.whole_repository)
+            )
             if not hint:
                 raise
             raise RemoteSourceError("git.no-project", f"{exc}{hint}") from exc
@@ -178,7 +186,7 @@ def _prepare(
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
     _drop_outside_links(work_dir)
-    folder = _folder(work_dir, target)
+    folder, file = _folder(work_dir, target)
     commit = _head(runner, work_dir, shown)
     subdir = os.path.relpath(os.path.realpath(folder), os.path.realpath(work_dir))
     return GitCheckout(
@@ -188,6 +196,7 @@ def _prepare(
         commit=commit,
         subdir="" if subdir == "." else subdir.replace(os.sep, "/"),
         whole_repository=subdir == ".",
+        file=file,
     )
 
 
@@ -387,25 +396,27 @@ def _drop_outside_links(work_dir: str) -> None:
         )
 
 
-def _folder(work_dir: str, target: GitTarget) -> str:
-    """The folder of the checkout to read. A file page that names a folder
-    reads that folder, and a folder page that names a file (Bitbucket and
-    SourceHut write both alike) reads the folder holding it; each says so."""
+def _folder(work_dir: str, target: GitTarget) -> tuple[str, str]:
+    """The folder of the checkout to read and the file of it the URL named
+    (``""``: none). A file page that names a folder reads that folder, and a
+    folder page that names a file (Bitbucket and SourceHut write both alike)
+    names that file of the folder holding it; each says so."""
     try:
         folder = checkout_folder(work_dir, target.subdir)
     except RemoteSourceError:
-        parent = target.subdir.rpartition("/")[0]
+        parent, _slash, leaf = target.subdir.rpartition("/")
         if target.file or not checkout_has_file(work_dir, target.subdir):
             raise
         log.info(
             "Git source: %s is a file, not a folder; reading the folder holding it",
             loggable(target.subdir),
         )
-        return checkout_folder(work_dir, parent)
+        return checkout_folder(work_dir, parent), leaf
     if target.file and Path(folder, target.file).is_dir():
         log.info(
             "Git source: %s is a folder, not a file; reading it",
             loggable(f"{target.subdir}/{target.file}".lstrip("/")),
         )
-        return checkout_folder(work_dir, f"{target.subdir}/{target.file}".lstrip("/"))
-    return folder
+        named = f"{target.subdir}/{target.file}".lstrip("/")
+        return checkout_folder(work_dir, named), ""
+    return folder, target.file

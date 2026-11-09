@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import generate, target_is_git_url, target_resolves_to_project
-from pitloom.cli.commands.project import generate_project_from_args, run_remote_project
+from pitloom.cli.commands._remote import run_remote
+from pitloom.cli.commands.project import generate_project_from_args
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -34,6 +35,7 @@ from pitloom.cli.options_config import (
 )
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
+from pitloom.extract.model_target import AUTO
 from pitloom.logging_config import print_error
 
 
@@ -62,9 +64,11 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         return 1
 
     if target_is_git_url(args.target):
-        # A Git URL: exactly what `loom project <url>` does.
-        run_remote_project(args, str(args.target).strip())
-        return 0
+        # A Git URL: its project, or the model file it names or its folder
+        # holds, as `loom project <url>` and `loom model <url>` read them.
+        return run_remote(
+            args, str(args.target).strip(), AUTO, build_options_from_args(args)
+        )
 
     if target_resolves_to_project(args.target):
         # A project directory or sdist archive: exactly what `loom project`
@@ -114,8 +118,9 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         type=str,
         nargs="?",
         default=".",
-        help="Target path, sdist archive, .whl, model file, HF URL, Git "
-        "repository URL, or 'env'.",
+        help="Target path, sdist archive, .whl, model file, a folder holding "
+        "one model file, HF URL, Git URL (of a project, or of a model file "
+        "or folder), or 'env'.",
     )
     add_offline_argument(
         gen_parser,

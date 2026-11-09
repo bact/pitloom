@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.cli.commands import project as mod_project
+from pitloom.cli.commands import _remote
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from tests.kv_helpers import sbom_output_path
@@ -53,7 +53,7 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
             raise RemoteSourceError("git.offline", f"no network for {url}")
         yield GitCheckout(str(folder), url, "main", "c0ffee", "svc", False)
 
-    monkeypatch.setattr(mod_project, "fetch_git_project", fetch)
+    monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     asked["folder"] = folder
     return asked
 
@@ -202,7 +202,7 @@ def test_a_failure_to_read_the_fetched_project_names_the_projects_below(
         _ = offline
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
-    monkeypatch.setattr(mod_project, "fetch_git_project", fetch)
+    monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     assert (
         _run(monkeypatch, tmp_path, "project", _URL, "-o", str(tmp_path / "o.json"))
         == 1

@@ -41,7 +41,7 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     scheme_allowed,
 )
-from pitloom.messages import OVER_CAP
+from pitloom.messages import MODEL_AMBIGUOUS, OVER_CAP, CodedValueError
 from tests._message_drift import raised_as
 
 posix_only = pytest.mark.skipif(
@@ -193,6 +193,11 @@ def test_a_failure_of_the_project_is_explained_only_when_there_is_a_hint(
         raise ValueError("no project")
     assert excinfo.value.code == "git.no-project"
     assert "no project" in str(excinfo.value) and "sub" in str(excinfo.value)
+    # A catalogued refusal (several model files) states its own condition.
+    coded = CodedValueError(MODEL_AMBIGUOUS, path="here", count=2)
+    with pytest.raises(CodedValueError) as info, plain.explaining_failures():
+        raise coded
+    assert info.value is coded
 
 
 def test_the_hint_looks_a_few_folders_deep_only(tmp_path: Path) -> None:
@@ -361,14 +366,37 @@ def test_a_folder_page_that_names_a_file_reads_the_folder_holding_it(
     target: GitTarget,
     folder: str,
 ) -> None:
-    """Bitbucket and SourceHut write a file page like a folder page."""
+    """Bitbucket and SourceHut write a file page like a folder page: the
+    folder holding the file is read, the file named in it."""
     (tmp_path / "dir").mkdir()
     (tmp_path / "dir" / "app.toml").write_bytes(b"")
     (tmp_path / "app.toml").write_bytes(b"")
     with caplog.at_level(logging.INFO):
-        result = _folder(str(tmp_path), target)
+        result, file = _folder(str(tmp_path), target)
     assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
+    assert file == "app.toml"
     assert "is a file, not a folder" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("target", "folder", "file"),
+    [
+        (GitTarget(ref="main", subdir="dir", file="app.toml"), "dir", "app.toml"),
+        (GitTarget(ref="main", subdir="", file="dir"), "dir", ""),
+        (GitTarget(ref="main", subdir="dir", file="gone.bin"), "dir", "gone.bin"),
+    ],
+    ids=["file-page", "file-page-that-is-a-folder", "missing-file-kept"],
+)
+def test_a_file_page_names_its_file_and_a_folder_none(
+    tmp_path: Path, target: GitTarget, folder: str, file: str
+) -> None:
+    """A file page's file is kept for the reader to check (a missing one
+    too); a file page that names a folder reads it, with no file."""
+    (tmp_path / "dir").mkdir()
+    (tmp_path / "dir" / "app.toml").write_bytes(b"")
+    result, named = _folder(str(tmp_path), target)
+    assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
+    assert named == file
 
 
 @pytest.mark.parametrize(

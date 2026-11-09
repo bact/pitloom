@@ -24,9 +24,11 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate, generate_git_project_sbom
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote import RemoteSourceError
 from tests._git_http_server import backend_available, make_repo, serve_git
+from tests._model_fixtures import fixture_path
 from tests._spdx3_validate import assert_spdx3_valid
 
 pytestmark = [
@@ -56,8 +58,9 @@ def _packages(sbom: str) -> list[str]:
 def _base(tmp_path: Path) -> Iterator[str]:
     """A GitLab-style server holding ``g/p`` (a project at its root, a
     monorepo folder ``svc/a`` and a branch ``feat/x`` with a second project),
-    ``g/mono`` (projects below a root with none) and ``g/hostile`` (a project
-    that sets its own ``[tool.pitloom]``)."""
+    ``g/mono`` (projects below a root with none), ``g/hostile`` (a project
+    that sets its own ``[tool.pitloom]``) and ``g/models`` (a Keras model in
+    ``models/``, no project)."""
     root = tmp_path / "srv"
     make_repo(
         root,
@@ -84,6 +87,12 @@ def _base(tmp_path: Path) -> Iterator[str]:
     )
     make_repo(root, "g/hostile", {"main": {"pyproject.toml": _DEMO + _PRETTY}})
     make_repo(root, "g/manifest", {"main": _MANIFEST_PROJECT})
+    keras = fixture_path(AiModelFormat.KERAS)
+    make_repo(
+        root,
+        "g/models",
+        {"main": {f"models/{keras.name}": keras.read_bytes(), "README.md": "r\n"}},
+    )
     with serve_git(root, gitlab_style=True) as base:
         yield base
 
@@ -334,3 +343,27 @@ def test_an_option_a_remote_repository_cannot_use_is_said_as_the_library_says_it
     assert warnings and not any("pitloom-git-" in ln for ln in warnings)
     assert f"Options: {base}/g/p: --trust-wheel-model has no effect" in done.stderr
     assert "--project-dir has no effect for a remote repository" in done.stderr
+
+
+def test_a_raw_model_file_url_gives_its_model_sbom(base: str, tmp_path: Path) -> None:
+    """The ``raw`` URL of a model file in a folder with no project:
+    ``generate()`` and ``loom model`` give one valid model SBOM, written in
+    the current directory and named after the file."""
+    url = base + "/g/models/-/raw/main/models/example-model.keras"
+    via_generate = generate(url, creation_metadata=_FIXED)
+    done = _loom("model", url, *_AT, cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    out = tmp_path / "example-model.keras.spdx3.json"
+    assert done.stdout.strip() == f"PITLOOM_SBOM_OUTPUT_PATH={out}"
+    assert_spdx3_valid(out)
+    texts: list[Any] = [json.loads(via_generate), json.loads(out.read_text("utf-8"))]
+    for text in texts:  # the CLI says it made the document; the library does not
+        for element in text["@graph"]:
+            if element.get("type") == "CreationInfo":
+                element.pop("comment", None)
+    assert texts[0] == texts[1]
+    names = [e["name"] for e in texts[0]["@graph"] if e.get("type") == "ai_AIPackage"]
+    assert names == ["Binary_Classifier_v1"]
+    # Named by its path in the repository, not as a file of the clone.
+    assert "pitloom-git-" not in done.stderr
+    assert not [ln for ln in done.stderr.splitlines() if "<checkout>/" in ln]

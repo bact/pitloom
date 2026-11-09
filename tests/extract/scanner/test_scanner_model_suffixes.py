@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.assemble import _MODEL_FILE_EXTENSIONS
 from pitloom.core.ai_metadata import (
     SHARED_MODEL_SUFFIXES,
     AiModelFormat,
@@ -42,9 +41,10 @@ _MINIMAL = (
 
 
 def test_both_consumers_derive_from_model_file_suffixes() -> None:
+    """``generate()`` reads a file by model_file_suffixes() itself
+    (pitloom.extract.model_target.is_model_file_target), the scanner adds
+    ``.zip``."""
     suffixes = model_file_suffixes()
-    assert set(_MODEL_FILE_EXTENSIONS) == suffixes
-    assert list(_MODEL_FILE_EXTENSIONS) == sorted(_MODEL_FILE_EXTENSIONS)
     # a zip is an sdist to ``loom generate``, a candidate only to the scanner
     assert _ALLOWED_EXTS == suffixes | {".zip"}
     assert ".zip" not in suffixes

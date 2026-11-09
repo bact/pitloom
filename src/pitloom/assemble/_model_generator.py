@@ -56,7 +56,7 @@ from pitloom.messages import warn_file_unreadable
 log = logging.getLogger(__name__)
 
 
-def _read_local_model(model_path: Path) -> AiModelMetadata:
+def _read_local_model(model_path: Path, shown: str | None = None) -> AiModelMetadata:
     """Read a local model file by the rule a project or wheel scan applies
     (:func:`~pitloom.extract.scanner.read_model_candidate`): a confirmed model
     whose read fails or is over a limit keeps a format-only entry and one
@@ -65,6 +65,8 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
     whatever its suffix (``x.dat`` with GGUF magic is a GGUF model); see
     :func:`~pitloom.extract.model_target.read_model_file`.
 
+    Messages name the file *shown* (default: *model_path*).
+
     Raises:
         FileNotFoundError: *model_path* does not exist.
         ValueError: The file is not a model of a supported format: see
@@ -72,8 +74,9 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         OSError: The header cannot be read.
     """
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
-    return read_model_file(model_path)
+        named = model_path if shown is None else shown
+        raise FileNotFoundError(f"Model file not found: {quote_source(named)}")
+    return read_model_file(model_path, shown=shown)
 
 
 def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
@@ -214,6 +217,7 @@ def generate_model_sbom(
     enrich: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
+    shown: str | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -227,6 +231,11 @@ def generate_model_sbom(
     a Hugging Face source (a local file never reaches the network), and
     *enrich*/*id_registry* for a local file; a local folder, its one model
     file (:func:`~pitloom.extract.model_target.model_path_of`).
+
+    *shown* is how messages name a local model file (default: as given): a
+    caller that copied it to a temporary directory names it as its user
+    knows it (its path in a Git repository). The SBOM names the file by its
+    own name alone either way.
     """
     configure_logging()
     source_str = str(source)
@@ -264,7 +273,7 @@ def generate_model_sbom(
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
-        model = _read_local_model(model_path)
+        model = _read_local_model(model_path, shown)
         digest = _model_file_digests(model_path)
         entity_spdx_id = _model_registry_id(
             resolved_registry,

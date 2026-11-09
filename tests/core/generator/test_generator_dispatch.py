@@ -37,10 +37,12 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from tests._model_fixtures import fixture_path
 
 from ..conftest import _make_wheel
 
@@ -168,10 +170,20 @@ def _model_file_target(tmp_path: Path) -> str:
     return str(model)
 
 
+def _model_folder_target(tmp_path: Path) -> str:
+    """A folder with no project and one model file (read by its header)."""
+    folder = tmp_path / "models"
+    folder.mkdir()
+    fixture = fixture_path(AiModelFormat.SAFETENSORS)
+    (folder / fixture.name).write_bytes(fixture.read_bytes())
+    return str(folder)
+
+
 # (target builder, delegate attribute, the real delegate, parameters that
 # generate() deliberately does not forward). generate() never pre-supplies
-# project_metadata; generate_project_sbom() reads it from the target. The
-# first positional parameter of each delegate is the target itself.
+# project_metadata; generate_project_sbom() reads it from the target, and
+# a model file is named in messages as given (no shown=). The first
+# positional parameter of each delegate is the target itself.
 _BRANCHES = [
     pytest.param(
         _project_target,
@@ -184,14 +196,21 @@ _BRANCHES = [
         _model_file_target,
         "generate_model_sbom",
         generate_model_sbom,
-        {"source"},
+        {"source", "shown"},
         id="model-file",
+    ),
+    pytest.param(
+        _model_folder_target,
+        "generate_model_sbom",
+        generate_model_sbom,
+        {"source", "shown"},
+        id="model-folder",
     ),
     pytest.param(
         lambda _tmp: "https://huggingface.co/example-org/example-model",
         "generate_model_sbom",
         generate_model_sbom,
-        {"source"},
+        {"source", "shown"},
         id="huggingface",
     ),
 ]
