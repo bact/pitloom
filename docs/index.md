@@ -106,7 +106,7 @@ please read our [Security policy][security].
 
 If you use Pitloom in your academic work, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.23.3) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.23.4) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -117,7 +117,7 @@ BibTeX:
     month = nov,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.23.3},
+    version = {0.23.4},
     year = {2026}
 }
 ```

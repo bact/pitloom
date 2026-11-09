@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-07
+# Last-Modified: 2026-11-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.3 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.4 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -58,13 +58,13 @@ plugin; `$sbom-enrich` in Codex). For a worked example, read
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.23.3** (it requires LicenseID 0.8.1, which
+Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.2, which
 reads `Apache Software License 2.0` and similar names as `Apache-2.0`, and
 does not warn about a missing licence database for a declared licence name;
-the message codes and licence readings below are those of 0.23.3):
-`pip install "pitloom>=0.23.3"`;
-an AI model file needs `"pitloom[ai]>=0.23.3"`,
-the post-merge check `"pitloom[validate]>=0.23.3"`.
+the message codes and licence readings below are those of 0.23.4):
+`pip install "pitloom>=0.23.4"`;
+an AI model file needs `"pitloom[ai]>=0.23.4"`,
+the post-merge check `"pitloom[validate]>=0.23.4"`.
 Ephemeral runs: `sbom-generate`'s "Run without installing anything persistent".
 Snippets are POSIX shell: on Windows use `python`/`py` for `python3` and
 PowerShell equivalents (5.1 has no `&&`).
@@ -203,7 +203,7 @@ Steps:
 10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
     `<merged-sbom-file>` -- a valid fragment can still miss a required property
     or use the wrong relationship type, which only shape/SHACL validation
-    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.3"` then
+    catches. Minimal fallback: `pip install "pitloom[validate]>=0.23.4"` then
     `loom fragment validate <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), inferred from
     prose (step 6) and supplied by the SBOM author (step 4), and call out any

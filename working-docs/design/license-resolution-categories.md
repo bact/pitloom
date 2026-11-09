@@ -18,7 +18,7 @@ with `Method`, `Resolution-1`, `Expansion-1` and `Tool` in the provenance (see
 reading a compound operand by operand (LicenseID gives `operands`; Pitloom
 reads a compound only as one answer), the licence
 list version (Q5, in `Resolution["lists"]` but not used), a cross-field
-indicator for a concluded licence (Q4). LicenseID 0.8.1 has `alias_name`,
+indicator for a concluded licence (Q4). LicenseID 0.8.2 has `alias_name`,
 `text_title` and `license_url` (this page's `alias` and `listed_url`, plus
 titles); the list is in the note after section 4's table and Pitloom's
 decision per category is in `tests/extract/test_license_resolve.py`
@@ -195,7 +195,7 @@ refused ones. Acceptance is all or nothing: `Apache2 OR Foo` stays text, as
 emitting `Apache-2.0 OR LicenseRef-...` would invent a reference. An accepted
 result is checked again by Pitloom's strict parse before it is recorded.
 
-**LicenseID 0.8.1's own categories** (`licenseid.resolvertypes.Category`, in
+**LicenseID 0.8.2's own categories** (`licenseid.resolvertypes.Category`, in
 `CATEGORY_ORDER`): `exact`, `lexical`, `plus_to_or_later`,
 `stated_qualifier`, `separator`, `version_spelling`, `listed_name`,
 `deprecated_equal_successor`, `prose_form`, `text_title`, `alias_name`,

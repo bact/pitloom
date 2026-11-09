@@ -18,7 +18,16 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.23.3...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.23.4...HEAD>
+
+## [0.23.4] - 2026-11-08
+
+### Changed
+
+- Requires `licenseid>=0.8.2,<0.9`; the skills require `pitloom>=0.23.4`
+  ([#462])
+
+[#462]: https://github.com/bact/pitloom/pull/462
 
 ## [Unreleased]
 
@@ -989,6 +998,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3
 [0.23.2]: https://github.com/bact/pitloom/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/bact/pitloom/compare/v0.23.0...v0.23.1
