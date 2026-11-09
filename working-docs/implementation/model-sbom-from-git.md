@@ -236,6 +236,16 @@ row: options a model cannot use warn once), `messages/_sbom_target.py`
 `ERROR:` line), `extract/ai_model/keras_config.py` and
 `keras_training_config.py` (the Keras v3 reader).
 
+- **Round 4 (#464), fixed.** A clone's `.git/config` loses the URL's user
+  information; setup.cfg `[global]` is not applied; `sys.path`/working
+  directory code execution is closed; folder links are dropped and file
+  discovery stops after 60 s (link-loop DoS); Poetry `from`, `packages`,
+  `include` and `exclude` are filtered; interleaved `fetch_git_project` blocks
+  keep their own confinement. Open: the time cap cannot stop a call blocked in
+  C and is lost if a library swallows `BaseException`; a licence file pointing
+  into `.git` now fails to read; `fetch_git_project(file:///C:/...)` is
+  untested on Windows (known-bugs).
+
 ## Risks and things not checked
 
 - **Windows:** the scrub test (no temporary path in the output) and the

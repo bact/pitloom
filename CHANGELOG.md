@@ -59,6 +59,8 @@ and this project adheres to
 - `fetch_git_project()` confines reads by default; a build file entry outside
   the clone is dropped before discovery, and `.git` is never listed or named in
   a URL ([#464])
+- A clone no longer keeps URL credentials, ignores `setup.cfg` `[global]`, runs
+  no repository code via `sys.path`, drops folder links and stops at 60 s ([#464])
 
 [#462]: https://github.com/bact/pitloom/pull/462
 [#464]: https://github.com/bact/pitloom/pull/464

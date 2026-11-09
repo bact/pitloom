@@ -203,10 +203,11 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   An encoded slash between plain names (`models%2Fm.keras`) is a path inside
   the folder (here `models/m.keras`). A URL segment that decodes (`%2F`) to a
   part `.` or `..`, an empty part, a backslash, a NUL or `.git` (any case,
-  trailing dots or spaces, `git~1`) is refused (`Invalid path in URL`,
+  trailing dots or spaces, `git~1`, an NTFS stream such as `.git::$DATA`) is refused (`Invalid path in URL`,
   `git.url-invalid`), and a name that does not match a file on disk letter for
   letter is "not found" on every operating system, also where the file system
-  ignores case. A link named in a
+  ignores case. `.gitmodules`, `.gitattributes`, `.gitignore`, `.github` and
+  `foo.git` stay valid names. A link named in a
   `blob` URL is not followed and has its own line under
   [`input-not-found`](message-codes.md#input-not-found). A named FIFO or other
   special file is refused, never opened.
@@ -250,13 +251,22 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - **A downloaded repository is untrusted.** Its own `[tool.pitloom]` settings are
   ignored (`INFO: Git source: the repository's own [tool.pitloom] settings are
   ignored (untrusted) ... [config-unsafe]`; `--config FILE` is yours and
-  applies), and `--allow-build` is reported as having no effect.
+  applies), and `--allow-build` is reported as having no effect. The URL's
+  user information is not kept: the clone's `.git/config` is rewritten without
+  it right after checkout. A discovery failure shows only the exception type
+  ("text not shown for a downloaded repository"), and a line of the
+  repository's requirements file is replaced by `<a line of the downloaded
+  repository, not shown>`.
 - **The repository's own build-time code is not run** while its files are
   listed. In a clone, these settings are ignored, with one `WARNING:` naming
   the file and the settings ([`config-unsafe/build-code`](message-codes.md#config-unsafebuild-code)):
   Hatchling metadata hooks (`pyproject.toml` and `hatch.toml`), setuptools
   `cmdclass` and an `attr:` version Pitloom cannot read statically, and PDM
-  hooks (`pdm_build.py`, `custom-hook`, `run-setuptools`). Hatchling build
+  hooks (`pdm_build.py`, `custom-hook`, `run-setuptools`). The `[global]`
+  section of `setup.cfg` is not applied either (`global` is named among the
+  settings). Discovery does not import repository code through the working
+  directory (`''`, relative and in-clone `sys.path` entries are removed while
+  it runs). Hatchling build
   hooks, a `version` of `source = "code"` alone, PDM `source = "call"`, a Flit
   dynamic version, `setup.py` (read as a syntax tree), a Poetry build script
   and in-tree backends do not run the repository's code either. A local
@@ -297,14 +307,18 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   dropped before the files are discovered, one `WARNING:` per entry as written
   ([`file-unreadable/outside-repository`](message-codes.md#file-unreadableoutside-repository)),
   and a file found outside after discovery is only counted, in one more line;
-  so a host file is never listed, hashed or read. The clone's own `.git`
-  directory is never listed. A local project is not changed.
+  so a host file is never listed, hashed or read. The same holds for a `file:`
+  directive, `license-files`, `packages`/`py_modules` and Poetry
+  `packages`/`include`/`exclude` naming a path outside the clone. Files under
+  the clone's own `.git` are never read or listed. A local project is not changed.
 - Not every build file list is checked before discovery: MANIFEST.in, PDM,
   Poetry and Flit entries are still walked, and a file outside the repository
   is dropped afterwards (and counted).
-- A symbolic link in the checkout that leads out of it is removed before the
-  project is read (an `INFO:` counts them), so a host file is never read or
-  hashed.
+- A symbolic link in the checkout that leads out of it or into its `.git`, and
+  every link to a folder, is removed before the project is read (an `INFO:`
+  counts them), so a host file is never read or hashed. File discovery in a
+  clone stops after 60 seconds (`over-cap` `WARNING:`, file list not read).
+  Blocks of `fetch_git_project` that overlap each keep their own confinement.
 - A relative `--id-registry` is relative to where you run `loom`, not to the
   checkout.
 - `--offline` forbids the fetch: it is an error, not a fallback, for `loom
@@ -336,10 +350,11 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
 | `INFO:` | `Git source: $ git …` | each `git` call, credentials masked |
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
-| `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository were not followed` | links to host files were removed |
+| `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder were not followed` | such links were removed |
 | `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
 | `WARNING:` | `FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]` | a cloned project's build settings would run the repository's own code (once per SBOM) |
 | `WARNING:` | `FILE=<entry>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a build file list entry, as written, names a path outside the repository (one line per entry) |
+| `WARNING:` | `DIR=<dir>: larger than the 60-second file-discovery cap; file list not read [over-cap]` | file discovery in a clone ran over its time cap |
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
 | `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |

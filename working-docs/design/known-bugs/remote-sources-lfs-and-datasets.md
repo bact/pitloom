@@ -131,6 +131,18 @@ entries stay in the last section for history.
   into the clone.
   *Found 2026-11-09, review of #464.*
 
+- [x] **FIXED (round 4 of #464): credentials, `[global]`, code execution,
+  link loops.** A clone's `.git/config` no longer holds the URL's user
+  information; setup.cfg `[global]` (`src_root`) is not applied; discovery no
+  longer imports repository code through `sys.path`/the working directory;
+  folder links are dropped and discovery stops after 60 s; Poetry `from` and
+  other path entries are filtered; interleaved `fetch_git_project` blocks keep
+  their own confinement.
+- [ ] **Residuals of round 4 (S).** The 60 s cap cannot stop a call blocked in
+  C and is lost if a library swallows `BaseException` (dropping folder links is
+  the main loop guard). A licence file pointing into `.git` now fails to read.
+  `fetch_git_project(file:///C:/...)` is untested on Windows.
+
 ## Fixed
 
 Kept for history, with the PR. A fixed entry moves to

@@ -106,7 +106,8 @@ a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Reads inside the block are confined to the
 checkout and the repository's build-time code is not run, as for
 `generate_git_sbom()`, with no further call (`with checkout.reading():` is
-optional and may be nested). Its *max_bytes*, and
+optional and may be nested); blocks that overlap in time each keep their own
+confinement. Its *max_bytes*, and
 `generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
 `git.too-large`, once the checkout takes more disk than that (no limit by
 default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
