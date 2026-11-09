@@ -27,14 +27,16 @@ from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import GIT_MODEL, forward_options
+from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.model_target import AUTO, MODEL, PROJECT
-from pitloom.extract.remote.git import CONFIG_IGNORED_INFO, fetch_git_project
+from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
+from pitloom.messages import CONFIG_UNSAFE, emit
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +109,8 @@ def generate_git_sbom(
     option a model SBOM cannot use warns once.
 
     Raises:
-        ValueError: *sbom_kind* is none of the three.
+        pitloom.core.internal_error.InternalError: *sbom_kind* is none of
+            the three (a :class:`ValueError`).
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, the named file is not in it
             (``git.path-not-found``), or ``git.no-project``.
@@ -117,7 +120,9 @@ def generate_git_sbom(
     """
     configure_logging()
     if sbom_kind not in _SBOM_KINDS:
-        raise ValueError(f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}")
+        raise InternalError(
+            f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}"
+        )
     build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     if isinstance(id_registry, (str, Path)):
         # A relative path means the caller's directory, not the checkout's.
@@ -153,7 +158,7 @@ def generate_git_sbom(
                     },
                 )
             if pitloom_config is None:
-                log.info(CONFIG_IGNORED_INFO)
+                emit(log, CONFIG_UNSAFE, logging.INFO)
             return generate_project_sbom(
                 checkout.folder,
                 output_path=output_path,

@@ -268,13 +268,13 @@ class _Progress:
     name: str | None = None
     lost: list[str] = field(default_factory=lambda: list(MODEL_CONFIG_FIELDS))
 
-    def path(self, under: str) -> str:
+    def key_at(self, under: str) -> str:
         """The key path of *under*, a path under the model config."""
         return f"{self.layout.where}.{under}"
 
     def field_at(self, under: str) -> str:
         """The provenance of a value at *under* in the model config."""
-        return provenance_segment(self.source, "Field", self.path(under))
+        return provenance_segment(self.source, "Field", self.key_at(under))
 
     def text_at(
         self, parent: dict[str, Any], key: str, under: str
@@ -287,7 +287,7 @@ class _Progress:
                 not skip such a name.
         """
         try:
-            return member_text(parent, key, self.path(under)), True
+            return member_text(parent, key, self.key_at(under)), True
         except ConfigShapeError as exc:
             if not self.layout.skip_bad_names:
                 raise
@@ -304,7 +304,7 @@ def _read_layers(config: dict[str, Any], done: _Progress) -> None:
     """
     layers = config.get("layers")
     if layers is not None and not isinstance(layers, list):
-        raise ConfigShapeError(done.path("config.layers"), "is not a list")
+        raise ConfigShapeError(done.key_at("config.layers"), "is not a list")
     done.lost.remove("properties.layer_count")
     if layers is None:
         return
@@ -330,7 +330,7 @@ def _read_hyperparameters(config: dict[str, Any], done: _Progress) -> None:
         "hyperparameters",
         done.hyperparameters,
         done.source,
-        location_prefix=done.path("config."),
+        location_prefix=done.key_at("config."),
     )
     done.lost.remove("hyperparameters")
 
@@ -350,7 +350,7 @@ def _read_names(model_config: dict[str, Any], done: _Progress) -> dict[str, Any]
             done.provenance["type_of_model"] = done.field_at("class_name")
         done.lost.remove("type_of_model")
 
-    config = member_object(model_config, "config", done.path("config"))
+    config = member_object(model_config, "config", done.key_at("config"))
     for key in ("name", "model_name"):
         name, kept = done.text_at(config, key, f"config.{key}")
         if not kept or name:
@@ -380,7 +380,7 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
 
     # Top-level build_config -- fallback if layers didn't give a shape.
     if not done.inputs:
-        build = member_object(model_config, "build_config", done.path("build_config"))
+        build = member_object(model_config, "build_config", done.key_at("build_config"))
         in_shape = build.get("input_shape")
         if in_shape is not None:
             done.inputs.append({"shape": in_shape})

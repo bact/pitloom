@@ -53,13 +53,12 @@ from pitloom.extract.remote.git_url import (
     split_ref,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import code_of
+from pitloom.messages import PROJECT_NOT_FOUND, code_of
 
 log = logging.getLogger(__name__)
 
 __all__ = [
     "BLOB_LIMIT",
-    "CONFIG_IGNORED_INFO",
     "RESOLVED_INFO",
     "GitCheckout",
     "fetch_git_project",
@@ -69,12 +68,6 @@ __all__ = [
 #: A server without partial clone ignores the filter; one that rejects it
 #: (HTTP 400) is asked again without it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
-
-#: ``log.info()`` for a repository's own settings, which are not used.
-CONFIG_IGNORED_INFO = (
-    "Git source: the repository's own [tool.pitloom] settings are ignored "
-    "(untrusted); --config or pitloom_config= applies"
-)
 
 #: ``log.info()`` format for a URL that names more than the clone URL.
 #: Arguments: the URL given, the repository cloned, what else it names.
@@ -109,10 +102,11 @@ class GitCheckout:
         except RemoteSourceError:
             raise
         except Exception as exc:
-            # A catalogued refusal (a model file's) says its own condition.
+            # A catalogued refusal (a model file's) says its own condition;
+            # a missing project's is the one the hint explains.
             hint = (
                 ""
-                if code_of(exc)
+                if code_of(exc) not in (None, PROJECT_NOT_FOUND.code)
                 else subproject_hint(self.folder, self.whole_repository)
             )
             if not hint:

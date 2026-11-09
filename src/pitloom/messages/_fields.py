@@ -216,6 +216,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "character",
             free=True,
         ),
+        "files": Field(
+            r".+",
+            free_text,
+            "<files>",
+            "file names, comma-separated, `and N more` after the last one "
+            "shown; a name in quotes, escaped, when it holds a control character",
+            free=True,
+        ),
         "format": Field(
             r"[a-z][a-z0-9_]*", str, "<format>", "the model format (`gguf`)"
         ),

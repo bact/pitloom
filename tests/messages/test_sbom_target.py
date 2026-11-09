@@ -3,9 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The SBOM-target entries (``project-or-model-not-found``,
-``model-ambiguous``): each line reads back as its entry, a value of the
-wrong shape is refused, and the error names the folder quoted.
+"""The SBOM-target entries (``target-ambiguous``,
+``project-or-model-not-found``, ``model-ambiguous``, ``project-not-found``
+and its ``/model-files`` variant): each line reads back as its entry, a
+value of the wrong shape is refused, and the error names the folder quoted.
 
 See also: tests/extract/test_model_target.py (the resolver that says them)
 and tests/messages/test_model_stub.py (a neighbouring family).
@@ -20,7 +21,14 @@ import pytest
 
 from pitloom.messages import (
     MODEL_AMBIGUOUS,
+    MODEL_FILES_LINE,
     NO_SBOM_TARGET,
+    ONE_MODEL_LINE,
+    PROJECT_NOT_FOUND,
+    PROJECT_NOT_FOUND_LINE,
+    PROJECT_NOT_FOUND_MODEL_FILES,
+    TARGET_AMBIGUOUS,
+    CodedFileNotFoundError,
     CodedValueError,
     Message,
     _sbom_target,
@@ -32,13 +40,18 @@ from tests._message_drift import TEST_LOGGER_PREFIX, raised_as
 _LOG = logging.getLogger(f"{TEST_LOGGER_PREFIX}sbom_target")
 
 
-def test_the_module_has_its_two_codes() -> None:
+def test_the_module_has_its_codes() -> None:
+    """Only the decision is said with no effect on the SBOM; every refusal
+    writes none."""
     assert [m.code for m in _sbom_target.ENTRIES] == [
+        "target-ambiguous",
         "project-or-model-not-found",
         "model-ambiguous",
+        "project-not-found",
+        "project-not-found/model-files",
     ]
     assert {m.since for m in _sbom_target.ENTRIES} == {"0.24.0"}
-    assert all(m.effect == "not-written" for m in _sbom_target.ENTRIES)
+    assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] + ["not-written"] * 4
 
 
 @pytest.mark.parametrize(
@@ -60,8 +73,29 @@ def test_the_module_has_its_two_codes() -> None:
             "ERROR: 'https://example.org/o/r/tree/main/m': several AI model files "
             "(2 files); name one file [model-ambiguous]",
         ),
+        (
+            TARGET_AMBIGUOUS,
+            "INFO: FILE=sub/README.md: not an AI model file; reading its folder "
+            "[target-ambiguous]",
+        ),
+        (
+            TARGET_AMBIGUOUS,
+            "INFO: FILE=m.gguf: the one AI model file; reading it [target-ambiguous]",
+        ),
+        (
+            PROJECT_NOT_FOUND,
+            "ERROR: SBOM generation failed: No pyproject.toml, setup.cfg, or "
+            "setup.py found in 'p' [project-not-found]",
+        ),
+        (
+            PROJECT_NOT_FOUND_MODEL_FILES,
+            "ERROR: No pyproject.toml, setup.cfg, or setup.py found in "
+            "'https://h/o/r'; it holds files that may be AI models (a.gguf and 5 "
+            "more): use 'loom model <url>' or 'loom generate <url>' "
+            "[project-not-found/model-files]",
+        ),
     ],
-    ids=["none", "candidate", "ambiguous"],
+    ids=["none", "candidate", "ambiguous", "named", "one", "project", "models"],
 )
 def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> None:
     assert trusted_message(line) is message
@@ -76,8 +110,12 @@ def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> 
         "folder or a model file [project-or-model-not-found]",
         "ERROR: 'm': several AI model files (1 files); name one file [model-ambiguous]",
         "WARNING: FILE=a.gguf: one of several AI model files [model-ambiguous]",
+        # the base line's code on the variant's line
+        "ERROR: No pyproject.toml, setup.cfg, or setup.py found in 'p'; it holds "
+        "files that may be AI models (a.gguf): use 'loom model <url>' or 'loom "
+        "generate <url>' [project-not-found]",
     ],
-    ids=["unquoted", "count", "level"],
+    ids=["unquoted", "count", "level", "variant"],
 )
 def test_a_line_out_of_its_shapes_is_not_trusted(line: str) -> None:
     assert trusted_message(line) is None
@@ -91,16 +129,38 @@ def test_the_errors_name_the_folder_quoted() -> None:
     several = CodedValueError(MODEL_AMBIGUOUS, path="m", count=3)
     assert str(several) == "'m': several AI model files (3 files); name one file"
     assert raised_as(several, MODEL_AMBIGUOUS)
+    absent = CodedFileNotFoundError(
+        PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path="m d"
+    )
+    assert isinstance(absent, FileNotFoundError) and raised_as(
+        absent, PROJECT_NOT_FOUND
+    )
+    assert str(absent) == "No pyproject.toml, setup.cfg, or setup.py found in 'm d'"
+    hint = MODEL_FILES_LINE.render({"path": "u", "files": "a\nb.gguf"})
+    assert "('a\\nb.gguf')" in hint and "\n" not in hint
 
 
 @pytest.mark.parametrize(
-    ("values"),
-    [{"file": None}, {"file": "a", "count": 2}],
-    ids=["file-none", "extra-count"],
+    ("message", "values"),
+    [
+        (MODEL_AMBIGUOUS, {"file": None}),
+        (MODEL_AMBIGUOUS, {"file": "a", "count": 2}),
+        (TARGET_AMBIGUOUS, {"file": "a"}),
+        (TARGET_AMBIGUOUS, {"file": "a", "line": MODEL_FILES_LINE}),
+    ],
+    ids=["file-none", "extra-count", "no-line", "other-line"],
 )
 def test_a_value_out_of_shape_is_refused_when_said(
-    values: dict[str, Any], caplog: pytest.LogCaptureFixture
+    message: Message, values: dict[str, Any], caplog: pytest.LogCaptureFixture
 ) -> None:
+    """A value of the wrong shape, or a line not named (three name
+    ``file``) or not the entry's, is refused before any record."""
     with pytest.raises(ValueError):
-        emit(_LOG, MODEL_AMBIGUOUS, logging.INFO, **values)
+        emit(_LOG, message, logging.INFO, **values)
     assert not caplog.records
+
+
+def test_a_chosen_line_is_said_with_its_code(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger=_LOG.name):
+        emit(_LOG, TARGET_AMBIGUOUS, logging.INFO, line=ONE_MODEL_LINE, file="a\nb")
+    assert caplog.messages == ["FILE='a\\nb': the one AI model file; reading it"]

@@ -17,10 +17,9 @@ pitloom._sbom_format 3
 pitloom._sbom_io 2
 pitloom._wheel_sbom_location 3
 pitloom.assemble._generators 1
-pitloom.assemble._generators_git 1
 pitloom.assemble._generators_merge 2
 pitloom.assemble._generators_shared 1
-pitloom.assemble._model_generator 3
+pitloom.assemble._model_generator 2
 pitloom.assemble.spdx3._ai_package 2
 pitloom.assemble.spdx3._dep_scope 2
 pitloom.assemble.spdx3._document_file_hits 1
@@ -45,8 +44,8 @@ pitloom.cli.commands.enrich 2
 pitloom.cli.commands.fragment 10
 pitloom.cli.commands.generate 1
 pitloom.cli.commands.merge 3
-pitloom.cli.commands.model 3
-pitloom.cli.commands.project 2
+pitloom.cli.commands.model 2
+pitloom.cli.commands.project 1
 pitloom.cli.commands.utils 6
 pitloom.cli.commands.validate_wheel 3
 pitloom.cli.commands.verify_wheel 6
@@ -92,7 +91,6 @@ pitloom.extract._license_classify 3
 pitloom.extract._license_resolve 1
 pitloom.extract._license_text_match 2
 pitloom.extract.ai_model.pytorch 1
-pitloom.extract.ai_model.reader 1
 pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
@@ -122,12 +120,11 @@ pitloom.extract.project.installed 5
 pitloom.extract.project.pdm 2
 pitloom.extract.project.poetry 3
 pitloom.extract.project.pyproject 7
-pitloom.extract.project.reader 3
+pitloom.extract.project.reader 2
 pitloom.extract.project.sdist 3
 pitloom.extract.project.setuptools 2
 pitloom.extract.project.setuptools_cfg 7
 pitloom.extract.project.setuptools_py 4
-pitloom.extract.remote._git_folder 1
 pitloom.extract.remote._git_redirect 5
 pitloom.extract.remote._git_run 5
 pitloom.extract.remote.git 11

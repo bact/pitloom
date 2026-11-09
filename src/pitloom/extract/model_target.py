@@ -36,9 +36,9 @@ from pitloom.core.lfs_pointer import (
     refuse_named_pointer,
     warn_pointers_not_read,
 )
+from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import is_sdist_archive
 from pitloom.core.project_markers import has_project_config
-from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.extract.ai_model import (
     LFS_POINTER_REASON,
@@ -56,15 +56,23 @@ from pitloom.extract.scanner import (
 )
 from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
-from pitloom.logging_config import loggable
 from pitloom.messages import (
+    INPUT_NOT_FOUND,
     MODEL_AMBIGUOUS,
+    MODEL_FILE_NOT_FOUND_LINE,
     MODEL_WRONG_FORMAT,
+    NAMED_NOT_A_MODEL_LINE,
+    NO_PROJECT_ONE_MODEL_LINE,
     NO_SBOM_TARGET,
     NOT_A_MODEL_LINE,
+    ONE_MODEL_LINE,
     READER_UNSAFE_REMOTE,
+    TARGET_AMBIGUOUS,
+    Cap,
+    CodedFileNotFoundError,
     CodedValueError,
     emit,
+    warn_over_cap,
 )
 
 __all__ = [
@@ -81,6 +89,7 @@ __all__ = [
     "read_model_file",
     "refuse_not_a_model",
     "remote_reader_gate",
+    "require_model_file",
     "resolve_model_file",
     "resolve_sbom_target",
 ]
@@ -95,7 +104,8 @@ MODEL: Final = "model"
 _MODES: Final = frozenset({AUTO, PROJECT, MODEL})
 
 #: Most files a folder may hold whose name could be a model's: each is
-#: sniffed (a bounded header read), so a folder of more is refused.
+#: sniffed (a bounded header read), so a folder of more is not read, said in
+#: one ``over-cap`` warning, and refused as several models are.
 MAX_FOLDER_CANDIDATES = 1000
 
 
@@ -165,6 +175,25 @@ def refuse_not_a_model(
     raise refusal_error(named, exc.model_format, str(exc)) from exc
 
 
+def require_model_file(path: Path, shown: str | os.PathLike[str]) -> None:
+    """Refuse the model file *path*, named on its own, when it does not
+    exist (a link is followed); the error names it *shown*. A path that is
+    there but cannot be looked at is no missing file: its error stands.
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: ``input-not-found``.
+        OSError: *path* cannot be looked at (permission denied).
+    """
+    try:
+        os.stat(path)
+    except OSError as exc:
+        if not is_missing_errno(exc):
+            raise
+        raise CodedFileNotFoundError(
+            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=shown
+        ) from None
+
+
 def read_model_file(path: Path, *, shown: str | None = None) -> AiModelMetadata:
     """Read the model file at *path*, named on its own, by the rule a scan
     applies (:func:`~pitloom.extract.scanner.read_model_candidate`), its
@@ -173,9 +202,12 @@ def read_model_file(path: Path, *, shown: str | None = None) -> AiModelMetadata:
     metadata, said in one ``INFO:`` after the read.
 
     Raises:
+        pitloom.messages.CodedFileNotFoundError: *path* does not exist
+            (:func:`require_model_file`).
         ValueError: The file is not a model (:func:`refuse_not_a_model`).
         OSError: The header cannot be read.
     """
+    require_model_file(path, path if shown is None else shown)
     gate = remote_reader_gate()
     candidate = local_model_candidate(path, shown=shown, gate=gate)
     try:
@@ -192,8 +224,7 @@ def _named(path: Path, shown: str, *, strict: bool) -> ModelFile | None:
     is plainly not a model unless *strict*, which refuses it. A Git LFS
     pointer, or a header that contradicts a model suffix, is refused
     either way."""
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Model file not found: {quote_source(shown)}")
+    require_model_file(path, shown)
     try:
         fmt = sniff_model_format(local_model_candidate(path, shown=shown))
     except NotAModel as exc:
@@ -210,7 +241,8 @@ def named_model_file(path: Path, shown: str) -> ModelFile | None:
     ``pyproject.toml``). Messages name it *shown*.
 
     Raises:
-        FileNotFoundError: *path* does not exist.
+        pitloom.messages.CodedFileNotFoundError: *path* does not exist
+            (``input-not-found``).
         ValueError: It is a Git LFS pointer, or its header contradicts its
             model suffix (an empty ``x.gguf`` is plainly not a model): see
             :func:`refuse_not_a_model`.
@@ -246,13 +278,16 @@ def model_files_in(
     Raises:
         pitloom.messages.CodedValueError: ``model-ambiguous`` naming
             *subject* (default: *folder*), when more than
-            :data:`MAX_FOLDER_CANDIDATES` names could be models;
-            ``lfs-pointer``, for pointers only.
+            :data:`MAX_FOLDER_CANDIDATES` names could be models (after one
+            ``over-cap`` warning: no file is read); ``lfs-pointer``, for
+            pointers only.
         OSError: *folder* cannot be listed.
     """
     names = _candidate_names(folder)
     if len(names) > MAX_FOLDER_CANDIDATES:
         where = str(folder) if subject is None else subject
+        cap = Cap(MAX_FOLDER_CANDIDATES, "entry", "model-candidate", "DIR")
+        warn_over_cap(log, cap, where, "no file read")
         raise CodedValueError(MODEL_AMBIGUOUS, path=where, count=len(names))
     found: list[ModelFile] = []
     pointers: list[str] = []
@@ -333,7 +368,8 @@ def resolve_sbom_target(
             (none, under :data:`AUTO`), ``model-wrong-format`` (none, or
             the named file not a model, under :data:`MODEL`), or a refusal of
             the named file (:func:`named_model_file`).
-        FileNotFoundError: The named file does not exist.
+        pitloom.messages.CodedFileNotFoundError: The named file does not
+            exist (``input-not-found``).
         OSError: The folder cannot be listed, or a named file's header
             cannot be read.
         pitloom.core.internal_error.InternalError: *mode* is unknown.
@@ -346,21 +382,16 @@ def resolve_sbom_target(
         model = _named(where / file, shown, strict=mode == MODEL)
         if model is not None:
             return SbomTarget(MODEL, where, model)
-        log.info("FILE=%s: not an AI model file; reading its folder", loggable(shown))
+        emit(
+            log, TARGET_AMBIGUOUS, logging.INFO, line=NAMED_NOT_A_MODEL_LINE, file=shown
+        )
     if mode == PROJECT or (mode == AUTO and has_project_config(where)):
         return SbomTarget(PROJECT, where)
     models = model_files_in(where, shown_prefix, subject=subject)
     if len(models) == 1:
         model = models[0]
-        if mode == AUTO:
-            log.info(
-                "FILE=%s: no Python project; reading this AI model file",
-                loggable(model.shown),
-            )
-        else:
-            log.info(
-                "FILE=%s: the one AI model file; reading it", loggable(model.shown)
-            )
+        line = NO_PROJECT_ONE_MODEL_LINE if mode == AUTO else ONE_MODEL_LINE
+        emit(log, TARGET_AMBIGUOUS, logging.INFO, line=line, file=model.shown)
         return SbomTarget(MODEL, where, model)
     if not models:
         _refuse_folder(subject, mode)

@@ -50,8 +50,11 @@ from pitloom.extract.ai_model.safetensors import (
 )
 from pitloom.messages import (
     EMPTY_LINE,
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
+    CodedFileNotFoundError,
     CodedValueError,
 )
 
@@ -426,7 +429,8 @@ def read_ai_model(
         AiModelMetadata populated with available fields.
 
     Raises:
-        FileNotFoundError: If the model file does not exist.
+        pitloom.messages.CodedFileNotFoundError: If the model file does not
+            exist (``input-not-found``).
         ValueError: The file cannot be parsed; a
             :class:`~pitloom.messages.CodedValueError` when it is no model of
             a supported format (``model-wrong-format``, the words ``loom
@@ -438,7 +442,9 @@ def read_ai_model(
             a bound.
     """
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
+        raise CodedFileNotFoundError(
+            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=model_path
+        )
     if not os.path.isfile(model_path):
         raise refusal_error(model_path, None, None)
 

@@ -29,7 +29,7 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
-from pitloom.cli.commands import project as mod_project
+from pitloom.cli.commands import _remote as mod_remote
 from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.messages import LFS_POINTER_MALFORMED, trusted_message
@@ -73,12 +73,19 @@ def _fetching(folder: Path) -> Callable[..., Any]:
     return fetch
 
 
-def _cli_git_url(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
+def _cli_git_url(
+    tree: dict[str, bytes], tmp_path: Path, mp: Any, command: str = "project"
+) -> str:
+    """``loom <command> <url>``: each command fetches through one route."""
     folder = write_project(tmp_path / "p", tree)
-    mp.setattr(mod_project, "fetch_git_project", _fetching(folder))
+    mp.setattr(mod_remote, "fetch_git_project", _fetching(folder))
     out = tmp_path / "out.spdx3.json"
-    run_cli(["project", _URL, "-o", str(out)], mp)
+    run_cli([command, _URL, "-o", str(out)], mp)
     return out.read_text(encoding="utf-8")
+
+
+def _cli_generate_git_url(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
+    return _cli_git_url(tree, tmp_path, mp, command="generate")
 
 
 def _lib_git_url(tree: dict[str, bytes], tmp_path: Path, mp: Any) -> str:
@@ -130,6 +137,7 @@ _SURFACES: dict[str, tuple[Callable[..., str], str, str]] = {
     "cli-project": (_cli_project, _CHECKOUT, "lfs-pointer"),
     "lib-project": (_lib_project, _CHECKOUT, "lfs-pointer"),
     "cli-git-url": (_cli_git_url, _CLONE, "lfs-pointer"),
+    "cli-generate-git-url": (_cli_generate_git_url, _CLONE, "lfs-pointer"),
     "lib-git-url": (_lib_git_url, _CLONE, "lfs-pointer"),
     "hook": (_hook, _SHIPPED, "lfs-pointer/shipped"),
     "cli-wheel": (_cli_wheel, _SHIPPED, "lfs-pointer/shipped"),

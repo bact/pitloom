@@ -28,6 +28,7 @@ from pitloom import __main__
 from pitloom.cli.commands import _remote
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
+from pitloom.messages import CONFIG_UNSAFE, trusted_message
 from tests.kv_helpers import sbom_output_path
 
 _URL = "https://gitlab.example.org/g/p/-/tree/main/svc"
@@ -84,7 +85,8 @@ def test_a_git_url_is_fetched_and_read_as_a_project(
     assert "demo" in {
         e.get("name") for e in json.loads(out.read_text(encoding="utf-8"))["@graph"]
     }
-    assert "the repository's own [tool.pitloom] settings are ignored" in captured.err
+    (said,) = [x for x in captured.err.splitlines() if "[tool.pitloom]" in x]
+    assert trusted_message(said) is CONFIG_UNSAFE
 
 
 def test_the_default_output_name_ignores_the_repositorys_basename(

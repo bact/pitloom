@@ -16,7 +16,9 @@ from typing import Final
 
 from pitloom.messages import (
     _card_malformed,
+    _config_unsafe,
     _file_unreadable,
+    _input_not_found,
     _json_malformed,
     _lfs_pointer,
     _model_field,
@@ -65,5 +67,7 @@ MESSAGES: Final = _by_code(
         *_card_malformed.ENTRIES,
         *_json_malformed.ENTRIES,
         *_sbom_target.ENTRIES,
+        *_input_not_found.ENTRIES,
+        *_config_unsafe.ENTRIES,
     )
 )

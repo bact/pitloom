@@ -32,8 +32,8 @@ from tests._message_inventory import REPO_ROOT, load
 #: Sites already coded: (file, emitter) of the Git LFS pointer families, of
 #: ``over-cap`` (the catalogue's helper, a wrapper of it, and the raises), of
 #: the model-stub causes (the scan's lines, the single-file refusal, the
-#: missing libraries, the parameter count) and of an unreadable file or an
-#: unlistable directory.
+#: missing libraries, the parameter count), of an unreadable file or an
+#: unlistable directory, and of what the SBOM of a path or a Git URL reads.
 CODED_SITES = [
     ("src/pitloom/core/lfs_pointer.py", "emit"),
     ("src/pitloom/core/lfs_pointer.py", "raise"),
@@ -45,7 +45,7 @@ CODED_SITES = [
     ("src/pitloom/extract/project/sdist.py", "raise"),
     ("src/pitloom/extract/remote/_git_run.py", "raise"),
     ("src/pitloom/extract/ai_model/reader.py", "raise"),
-    ("src/pitloom/assemble/_model_generator.py", "raise"),
+    ("src/pitloom/extract/model_target.py", "raise"),
     ("src/pitloom/extract/remote/huggingface.py", "raise"),
     ("src/pitloom/cli/commands/utils.py", "print_error"),
     ("src/pitloom/core/_models_wheel_build_subprocess.py", "raise"),
@@ -56,6 +56,10 @@ CODED_SITES = [
     ("src/pitloom/core/_models_wheel_unlistable.py", "warn_dir_unlistable"),
     ("src/pitloom/core/dataset_hash.py", "warn_dir_unlistable"),
     ("src/pitloom/extract/lock/_lock_io.py", "warn_file_unreadable"),
+    ("src/pitloom/extract/model_target.py", "emit"),
+    ("src/pitloom/extract/remote/git_target.py", "raise"),
+    ("src/pitloom/extract/project/reader.py", "raise"),
+    ("src/pitloom/cli/commands/_remote.py", "emit"),
 ]
 
 
@@ -99,6 +103,10 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
         "file-discovery",
         "dataset-dir",
         "lock-file",
+        "target-choice",
+        "git-target",
+        "project-not-found",
+        "config-unsafe",
     ],
 )
 def test_the_tool_sees_the_catalogued_sites_as_coded(

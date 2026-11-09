@@ -16,6 +16,7 @@ tests/core/test_project_markers.py (what makes a project).
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -24,6 +25,7 @@ import pytest
 from pitloom.assemble import generate_model_sbom
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.quote_source import quote_source
 from pitloom.extract import model_target
@@ -40,11 +42,18 @@ from pitloom.extract.model_target import (
     model_files_in,
     named_model_file,
     read_model_file,
+    require_model_file,
     resolve_sbom_target,
 )
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import LFS_CLONE_ERROR_LINE, LFS_PULL_ERROR_LINE, code_of
+from pitloom.messages import (
+    LFS_CLONE_ERROR_LINE,
+    LFS_PULL_ERROR_LINE,
+    Cap,
+    code_of,
+    over_cap_of,
+)
 from tests._lfs import lfs_pointer_bytes
 from tests._model_fixtures import FORMAT_FIXTURES, FORMATS, NEEDS_SUFFIX, fixture_path
 from tests._symlink import CAN_SYMLINK
@@ -108,6 +117,27 @@ def test_a_folder_s_one_model_is_the_target(
     assert record.getMessage() == (
         f"FILE={path.name}: no Python project; reading this AI model file"
     )
+    assert getattr(record, CODE_ATTR) == "target-ambiguous"
+
+
+@pytest.mark.parametrize(
+    ("mode", "said"),
+    [
+        (AUTO, "no Python project; reading this AI model file"),
+        (MODEL, "the one AI model file; reading it"),
+    ],
+    ids=["auto", "model"],
+)
+def test_the_choice_of_a_folder_s_one_model_is_said_by_mode(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, mode: str, said: str
+) -> None:
+    """One ``INFO:`` (``target-ambiguous``) naming the file as the messages
+    name it, whichever SBOM was asked for."""
+    path = _copy(AiModelFormat.SAFETENSORS, tmp_path)
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        resolve_sbom_target(tmp_path, subject="d", mode=mode, shown_prefix="s")
+    assert [r.getMessage() for r in caplog.records] == [f"FILE=s/{path.name}: {said}"]
+    assert _codes(caplog, logging.INFO) == ["target-ambiguous"]
 
 
 def _ambiguous(
@@ -243,11 +273,14 @@ def test_a_named_file_that_is_no_model_reads_the_folder_under_auto_only(
     assert target.model == ModelFile(path, f"s/{path.name}", AiModelFormat.GGUF)
     messages = [r.getMessage() for r in caplog.records]
     assert messages[0] == "FILE=s/README.md: not an AI model file; reading its folder"
+    assert _codes(caplog, logging.INFO) == ["target-ambiguous"] * 2
     with pytest.raises(ValueError) as caught:
         resolve_sbom_target(tmp_path, subject="d", file="README.md", mode=MODEL)
     assert code_of(caught.value) == "model-wrong-format"
-    with pytest.raises(FileNotFoundError):
-        resolve_sbom_target(tmp_path, subject="d", file="gone.gguf")
+    with pytest.raises(FileNotFoundError) as missing:
+        resolve_sbom_target(tmp_path, subject="d", file="gone.gguf", shown_prefix="s")
+    assert code_of(missing.value) == "input-not-found"
+    assert str(missing.value) == "Model file not found: 's/gone.gguf'"
 
 
 @pytest.mark.parametrize(
@@ -293,7 +326,44 @@ def test_a_folder_over_the_candidate_cap_is_refused_unread(
         model_files_in(tmp_path, subject="d")
     assert code_of(caught.value) == "model-ambiguous"
     assert str(caught.value) == "'d': several AI model files (3 files); name one file"
-    assert not caplog.records
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        "DIR=d: larger than the 2-entry model-candidate cap; no file read"
+    )
+    assert getattr(record, CODE_ATTR) == "over-cap"
+    assert over_cap_of(record) == (
+        Cap(2, "entry", "model-candidate", "DIR"),
+        "no file read",
+    )
+
+
+def test_an_unknown_mode_is_a_programming_error(tmp_path: Path) -> None:
+    with pytest.raises(InternalError, match="unknown SBOM target mode"):
+        resolve_sbom_target(tmp_path, subject="d", mode="dataset")
+
+
+def test_a_missing_model_file_is_said_by_the_catalogue(tmp_path: Path) -> None:
+    """Read on its own: ``input-not-found``, a FileNotFoundError naming the
+    file as given, quoted."""
+    gone = tmp_path / "gone.gguf"
+    with pytest.raises(FileNotFoundError) as caught:
+        read_model_file(gone)
+    assert code_of(caught.value) == "input-not-found"
+    assert str(caught.value) == f"Model file not found: {quote_source(gone)}"
+    with pytest.raises(FileNotFoundError) as shown:
+        read_model_file(gone, shown="repo/gone.gguf")
+    assert str(shown.value) == "Model file not found: 'repo/gone.gguf'"
+
+
+def test_a_path_that_cannot_be_looked_at_is_no_missing_file(tmp_path: Path) -> None:
+    """A name too long to look up is there or not: its own error stands,
+    not ``input-not-found``."""
+    if os.name == "nt":
+        pytest.skip("Windows reports a long name differently")
+    with pytest.raises(OSError) as caught:
+        require_model_file(tmp_path / ("a" * 300), "long")
+    assert not isinstance(caught.value, FileNotFoundError)
+    assert code_of(caught.value) is None
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a file symlink")
@@ -308,7 +378,7 @@ def test_a_link_in_a_git_url_s_folder_is_not_followed(tmp_path: Path) -> None:
 
 
 def test_the_cap_names_the_folder_by_default(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     monkeypatch.setattr(model_target, "MAX_FOLDER_CANDIDATES", 0)
     (tmp_path / "a.bin").write_bytes(b"x")
@@ -316,6 +386,9 @@ def test_the_cap_names_the_folder_by_default(
         model_files_in(tmp_path)
     where = quote_source(str(tmp_path))
     assert str(caught.value) == f"{where}: several AI model files; name one file"
+    assert caplog.messages == [
+        f"DIR={tmp_path}: larger than the 0-entry model-candidate cap; no file read"
+    ]
 
 
 def test_the_classifier_falls_back_to_the_suffix_on_a_read_error(

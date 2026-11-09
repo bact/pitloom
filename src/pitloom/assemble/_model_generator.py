@@ -68,14 +68,12 @@ def _read_local_model(model_path: Path, shown: str | None = None) -> AiModelMeta
     Messages name the file *shown* (default: *model_path*).
 
     Raises:
-        FileNotFoundError: *model_path* does not exist.
+        pitloom.messages.CodedFileNotFoundError: *model_path* does not exist
+            (``input-not-found``).
         ValueError: The file is not a model of a supported format: see
             :func:`~pitloom.extract.model_target.refuse_not_a_model`.
         OSError: The header cannot be read.
     """
-    if not model_path.exists():
-        named = model_path if shown is None else shown
-        raise FileNotFoundError(f"Model file not found: {quote_source(named)}")
     return read_model_file(model_path, shown=shown)
 
 

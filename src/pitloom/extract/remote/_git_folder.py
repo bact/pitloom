@@ -12,9 +12,9 @@ import os
 from pathlib import Path
 
 from pitloom.core.project_markers import PROJECT_MARKERS
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
+from pitloom.messages import GIT_FOLDER_NOT_FOUND_LINE, INPUT_NOT_FOUND
 
 __all__ = ["PROJECT_MARKERS", "checkout_folder", "subproject_hint"]
 
@@ -41,8 +41,9 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     for ``""``).
 
     Raises:
-        RemoteSourceError: ``git.path-not-found``, *subdir* is no folder of
-            the checkout, or a link leads out of it.
+        RemoteSourceError: ``git.path-not-found`` (its ``pitloom_code``
+            ``input-not-found``), *subdir* is no folder of the checkout, or a
+            link leads out of it.
     """
     if not subdir:
         return work_dir
@@ -51,7 +52,8 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     if not folder.startswith(root + os.sep) or not os.path.isdir(folder):
         raise RemoteSourceError(
             "git.path-not-found",
-            f"No folder {quote_source(subdir)} in the repository at that branch.",
+            GIT_FOLDER_NOT_FOUND_LINE.render({"path": subdir}),
+            pitloom_code=INPUT_NOT_FOUND.code,
         )
     return folder
 

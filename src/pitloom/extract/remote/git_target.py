@@ -20,7 +20,6 @@ import os
 from typing import Final
 
 from pitloom.core.project_markers import has_project_config
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import (
     PROJECT,
@@ -32,7 +31,15 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
 from pitloom.logging_config import loggable
-from pitloom.messages import NO_SBOM_TARGET, CodedValueError, code_of
+from pitloom.messages import (
+    GIT_FILE_NOT_FOUND_LINE,
+    INPUT_NOT_FOUND,
+    MODEL_FILES_LINE,
+    NO_SBOM_TARGET,
+    PROJECT_NOT_FOUND_MODEL_FILES,
+    CodedValueError,
+    code_of,
+)
 
 __all__ = ["resolve_git_target"]
 
@@ -45,7 +52,8 @@ def _named_file(checkout: GitCheckout) -> None:
     folder read (gone, a folder, or a link: a link is not followed).
 
     Raises:
-        RemoteSourceError: ``git.path-not-found``.
+        RemoteSourceError: ``git.path-not-found`` (its ``pitloom_code``
+            ``input-not-found``).
     """
     path = os.path.join(checkout.folder, checkout.file)
     if not os.path.islink(path) and checkout_has_file(checkout.folder, checkout.file):
@@ -53,7 +61,8 @@ def _named_file(checkout: GitCheckout) -> None:
     shown = f"{checkout.subdir}/{checkout.file}".lstrip("/")
     raise RemoteSourceError(
         "git.path-not-found",
-        f"No file {quote_source(shown)} in the repository at that branch.",
+        GIT_FILE_NOT_FOUND_LINE.render({"path": shown}),
+        pitloom_code=INPUT_NOT_FOUND.code,
     )
 
 
@@ -76,7 +85,8 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
     (:meth:`~pitloom.extract.remote.git.GitCheckout.explaining_failures`).
 
     Raises:
-        RemoteSourceError: ``git.no-project``.
+        RemoteSourceError: ``git.no-project`` (its ``pitloom_code``
+            ``project-not-found/model-files``).
     """
     if has_project_config(checkout.folder):
         return
@@ -89,9 +99,8 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
         shown += f" and {more} more"
     raise RemoteSourceError(
         "git.no-project",
-        "No pyproject.toml, setup.cfg, or setup.py found in "
-        f"{quote_source(subject)}; it holds files that may be AI models "
-        f"({shown}): use 'loom model <url>' or 'loom generate <url>'",
+        MODEL_FILES_LINE.render({"path": subject, "files": shown}),
+        pitloom_code=PROJECT_NOT_FOUND_MODEL_FILES.code,
     )
 
 
@@ -108,10 +117,12 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
 
     Raises:
         RemoteSourceError: ``git.path-not-found`` (the named file is no
-            file of the folder, unless *mode* is ``PROJECT``) or
-            ``git.no-project``: a project only, of a folder whose files may
-            be models; or neither a project nor a model, with projects in
-            folders below (its ``pitloom_code`` ``project-or-model-not-found``).
+            file of the folder, unless *mode* is ``PROJECT``;
+            ``input-not-found``) or ``git.no-project``: a project only, of a
+            folder whose files may be models
+            (``project-not-found/model-files``); or neither a project nor a
+            model, with projects in folders below (its ``pitloom_code``
+            ``project-or-model-not-found``).
         pitloom.messages.CodedValueError: as
             :func:`~pitloom.extract.model_target.resolve_sbom_target`.
         FileNotFoundError: The project read finds no project config.

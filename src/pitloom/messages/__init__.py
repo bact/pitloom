@@ -34,7 +34,9 @@ from __future__ import annotations
 
 from pitloom.messages._card_malformed import CARD_MALFORMED
 from pitloom.messages._catalogue import MESSAGES
+from pitloom.messages._config_unsafe import CONFIG_UNSAFE
 from pitloom.messages._emit import (
+    CodedFileNotFoundError,
     CodedImportError,
     CodedValueError,
     code_extra_of,
@@ -56,6 +58,12 @@ from pitloom.messages._file_unreadable_warning import (
     warn_file_unreadable,
 )
 from pitloom.messages._frames import FRAMES, HANDLER_FRAMES, RELAY_FRAME, Frame
+from pitloom.messages._input_not_found import (
+    GIT_FILE_NOT_FOUND_LINE,
+    GIT_FOLDER_NOT_FOUND_LINE,
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
+)
 from pitloom.messages._json_malformed import (
     JSON_MALFORMED,
     NOT_JSON_LINE,
@@ -132,7 +140,18 @@ from pitloom.messages._over_cap_warning import (
     warn_archive_member_over_cap,
     warn_over_cap,
 )
-from pitloom.messages._sbom_target import MODEL_AMBIGUOUS, NO_SBOM_TARGET
+from pitloom.messages._sbom_target import (
+    MODEL_AMBIGUOUS,
+    MODEL_FILES_LINE,
+    NAMED_NOT_A_MODEL_LINE,
+    NO_PROJECT_ONE_MODEL_LINE,
+    NO_SBOM_TARGET,
+    ONE_MODEL_LINE,
+    PROJECT_NOT_FOUND,
+    PROJECT_NOT_FOUND_LINE,
+    PROJECT_NOT_FOUND_MODEL_FILES,
+    TARGET_AMBIGUOUS,
+)
 from pitloom.messages._text_malformed import TEXT_MALFORMED
 from pitloom.messages._text_malformed_warning import warn_lone_surrogates
 from pitloom.messages._types import (
@@ -164,11 +183,13 @@ __all__ = [
     "CODE_GRAMMAR",
     "CONDITIONS",
     "CONFIG_KEPT_LINE",
+    "CONFIG_UNSAFE",
     "KERAS_MEMBER_LINE",
     "CONFIG_MEMBER_LINE",
     "CONFIG_RAW_CUT_LINE",
     "CONFIG_RAW_LINE",
     "Cap",
+    "CodedFileNotFoundError",
     "CodedImportError",
     "CodedValueError",
     "DIMENSION_REASON",
@@ -189,9 +210,12 @@ __all__ = [
     "Field",
     "Frame",
     "GGUF_LENGTH_LINE",
+    "GIT_FILE_NOT_FOUND_LINE",
+    "GIT_FOLDER_NOT_FOUND_LINE",
     "GIT_OUTPUT_LINE",
     "HANDLER_FRAMES",
     "HYPERPARAMETER_CONFLICT",
+    "INPUT_NOT_FOUND",
     "JSON_MALFORMED",
     "LEVELS",
     "LFS_CLONE_ERROR_LINE",
@@ -218,19 +242,27 @@ __all__ = [
     "MODEL_FIELD_CONFLICT",
     "MODEL_AMBIGUOUS",
     "MODEL_FIELD_UNREADABLE",
+    "MODEL_FILE_NOT_FOUND_LINE",
+    "MODEL_FILES_LINE",
     "MODEL_LIMIT_REASONS",
     "MODEL_UNREADABLE",
     "MODEL_WRONG_FORMAT",
     "Message",
+    "NAMED_NOT_A_MODEL_LINE",
     "NOT_A_MODEL_LINE",
+    "NO_PROJECT_ONE_MODEL_LINE",
     "NO_SBOM_TARGET",
     "NOT_JSON_LINE",
     "NOT_OBJECT_LINE",
+    "ONE_MODEL_LINE",
     "ONNX_REPEATED_LINE",
     "OVER_CAP",
     "PARAMETER_COUNT_INVALID",
     "PARAMETER_COUNT_SKIPPED",
     "PICKLE_MEMBER_LINE",
+    "PROJECT_NOT_FOUND",
+    "PROJECT_NOT_FOUND_LINE",
+    "PROJECT_NOT_FOUND_MODEL_FILES",
     "PT2_EXTRA_LINE",
     "PT2_GRAPH_LINE",
     "PT2_META_LINE",
@@ -243,6 +275,7 @@ __all__ = [
     "RESERVED_FAMILIES",
     "SOURCE_LINE",
     "STATED_COUNT_REASON",
+    "TARGET_AMBIGUOUS",
     "TEXT_MALFORMED",
     "TRAINING_CONFIG_LINE",
     "USAGE_UNPARSEABLE",

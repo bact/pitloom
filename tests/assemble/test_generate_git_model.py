@@ -31,6 +31,7 @@ from pitloom.assemble import (
 )
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote import RemoteSourceError
@@ -203,7 +204,7 @@ def test_an_unknown_sbom_kind_is_refused_before_the_fetch(
     monkeypatch.setattr(
         _generators_git, "configure_logging", lambda: calls.append("configure")
     )
-    with pytest.raises(ValueError, match="sbom_kind"):
+    with pytest.raises(InternalError, match="sbom_kind"):
         generate_git_sbom(_URL, sbom_kind="dataset")
     assert calls == ["configure"] and "url" not in fetched
 

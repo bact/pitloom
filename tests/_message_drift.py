@@ -52,6 +52,7 @@ SAMPLES: dict[str, object] = {
     "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
     "field": "project.readme",
     "file": "m/a.bin",
+    "files": "a.gguf, b.bin and 3 more",
     "format": "gguf",
     "formats": ["gguf", "onnx"],
     "key": "FIELD",
