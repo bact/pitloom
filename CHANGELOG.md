@@ -20,7 +20,7 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.23.4...HEAD>
 
-## [0.23.4] - 2026-11-08
+## [0.23.4] - 2026-11-09
 
 ### Added
 

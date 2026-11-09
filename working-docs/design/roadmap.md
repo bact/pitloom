@@ -28,7 +28,7 @@ shipped up to 0.23.4 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
 0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
 on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3
-#461 on 2026-11-09, 0.23.4 #462 on 2026-11-08), including their
+#461 on 2026-11-09, 0.23.4 #462, #464 and #465 on 2026-11-09), including their
 release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
@@ -36,7 +36,7 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
 1.0. No date for 1.0 until 0.24.0 lands. 0.23.1 to 0.23.4, patches for
-LicenseID 0.7.2, 0.7.3, 0.8.1 and 0.8.2, came between 0.23.0 and 0.24.0.
+LicenseID 0.7.2, 0.7.3, 0.8.1 and 0.8.4, came between 0.23.0 and 0.24.0.
 
 ### 0.21.0
 
@@ -175,11 +175,13 @@ dropped. Requires `licenseid>=0.8.1,<0.9`; the skills require
 `pitloom>=0.23.3` (#461). See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0233-pr-461).
 
-### 0.23.4: LicenseID 0.8.2
+### 0.23.4: LicenseID 0.8.4 and a model SBOM from a Git URL
 
-**Released 2026-11-08** (v0.23.4), a patch release. Requires
-`licenseid>=0.8.2,<0.9`; the skills require `pitloom>=0.23.4` (#462). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0234-pr-462).
+**Released 2026-11-09** (v0.23.4), a patch release. Requires
+`licenseid>=0.8.4,<0.9` (#462, #465); a model file or folder at a Git URL gives
+a model SBOM, and a Keras v3 model gives more fields (#464); the skills require
+`pitloom>=0.23.4`. See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0234-prs-462-464-465).
 
 ### 0.24.0: message catalogue and licence provenance
 

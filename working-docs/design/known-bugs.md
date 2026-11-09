@@ -39,7 +39,8 @@ Size: S under half a day, M about a day.
   no LicenseID database (#458); LicenseID 0.7.3's Apache name readings (#459).
 - 0.23.3 (released 2026-11-09, #461): LicenseID 0.8.1 reads a licence URL as
   its ID and drops a control or format character at either end of a value.
-- 0.23.4 (released 2026-11-08, #462): requires LicenseID 0.8.2.
+- 0.23.4 (released 2026-11-09, #462, #464, #465): requires LicenseID 0.8.4, which
+  reads `MIT/Apache-2.0` as `Apache-2.0 OR MIT`.
 - 0.24.0: the uniform `loom <command>:` frame, catalogue PRs 3 to 18
   (licence included), the licence provenance mapping
   ([licence-resolution-provenance.md](licence-resolution-provenance.md)) and
