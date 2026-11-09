@@ -28,7 +28,15 @@ from pitloom import __main__
 from pitloom.cli.commands import _remote
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
+from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.messages import CONFIG_UNSAFE, trusted_message
+from tests._model_fixtures import (
+    FORMATS,
+    fixture_path,
+    has_reader_library,
+    spy_readers,
+    write_model_project,
+)
 from tests.kv_helpers import sbom_output_path
 
 _URL = "https://gitlab.example.org/g/p/-/tree/main/svc"
@@ -298,3 +306,45 @@ def test_a_hugging_face_model_is_no_project(
     assert lines[0].startswith("ERROR: ")
     assert "is a Hugging Face model, not a project: use 'loom model'" in lines[0]
     assert "url" not in fetched
+
+
+@pytest.mark.parametrize(
+    ("command", "remote"),
+    [("project", True), ("generate", True), ("project", False)],
+    ids=["project-url", "generate-url", "project-dir"],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_gated_reader_runs_on_a_local_project_only(
+    command: str,
+    remote: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Git URL's project lists a model of a gated format (fastText, GGUF,
+    HDF5, ONNX, PyTorch) without running its reader, said in one
+    ``reader-unsafe/remote`` line; the same directory named locally is
+    read in full."""
+    folder = write_model_project(
+        tmp_path / "checkout", [fixture_path(f) for f in FORMATS]
+    )
+
+    @contextmanager
+    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
+        _ = offline
+        yield GitCheckout(str(folder), url, "main", "c", "svc", False)
+
+    monkeypatch.setattr(_remote, "fetch_git_project", fetch)
+    read = spy_readers(monkeypatch)
+    target = _URL if remote else str(folder)
+    out = str(tmp_path / "o.json")
+    assert _run(monkeypatch, tmp_path, command, target, "-o", out) == 0
+    gated = {fmt for fmt, _ in read} & WHEEL_GATED_FORMATS
+    notes = [x for x in capsys.readouterr().err.splitlines() if "[reader-unsafe/" in x]
+    if remote:
+        assert not gated
+        (note,) = notes
+        assert note.startswith("INFO: ") and note.endswith("[reader-unsafe/remote]")
+    else:
+        assert gated == {f for f in WHEEL_GATED_FORMATS if has_reader_library(f)}
+        assert not notes

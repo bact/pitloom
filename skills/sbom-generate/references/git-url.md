@@ -83,17 +83,17 @@ generate <url>`. Rules to state:
   file's URL (non-interactively, report the list). Neither a project nor a
   model: `ERROR: ... no Python project (pyproject.toml, setup.cfg or setup.py)
   and no AI model file of a supported format ...` (`[project-or-model-not-found]`).
-- In a model SBOM, fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth`
-  files are listed with name, format and hash only (`INFO: AI models from a
-  Git URL in these formats are listed without metadata ...
-  [reader-unsafe/remote]`): their readers (a C/C++ library, a pickle parser,
-  GGUF's parsing loop) are not run on a download. Keras, Safetensors (its
-  Rust library, on purpose), NumPy, CRFsuite and PT2 are read in full.
-  Offer, never do unasked, cloning the repository (with Git LFS) and running
-  `loom model <file>` on a file the user trusts. Not gated: a folder read as
-  a project (`loom project`, or `loom generate` on a folder with a project
-  config) has its build's model files read by every reader, as a local
-  project does; say so when the user's concern is an untrusted repository.
+- In a model SBOM, and in a project SBOM (`loom project`, or `loom generate`
+  on a folder with a project config) for the model files in its build file
+  list, fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` files are listed
+  with name, format and hash only (one `INFO: AI models from a Git URL in
+  these formats are listed without metadata ... [reader-unsafe/remote]` per
+  SBOM): their readers (a C/C++ library, a pickle parser, GGUF's parsing
+  loop) are not run on a download. Keras, Safetensors (its Rust library, on
+  purpose), NumPy, CRFsuite and PT2 are read in full. Offer, never do
+  unasked, cloning the repository (with Git LFS) and running
+  `loom model <file>` on a file, or `loom project <dir>` on a project, the
+  user trusts: a local directory is not gated.
 - The output goes to `-o`, or for `loom model` to the current directory as
   `<file name>.spdx3.json`; never into the clone. No temporary path is in it.
 - A Hugging Face model address is read through the Hub (card and

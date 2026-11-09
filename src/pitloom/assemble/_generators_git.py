@@ -102,13 +102,12 @@ def generate_git_sbom(
     - ``"project"``: the folder's project only;
     - ``"model"``: the named model file, else the folder's one model file.
 
-    A model file of a clone is read as a local one
-    (:func:`~pitloom.assemble.generate_model_sbom`), except that a format
-    whose reader a hostile file could crash or hang (fastText, GGUF, HDF5,
-    ONNX, PyTorch) is listed without metadata, said in one ``INFO:``. A
-    project's model files are read by every reader, as for a local
-    project. Its messages name it by its path in the repository; an
-    option a model SBOM cannot use warns once.
+    A model file of a clone, and each model file in its project's build
+    file list, is read as a local one, except that a format whose reader a
+    hostile file could crash or hang (fastText, GGUF, HDF5, ONNX, PyTorch)
+    is listed without metadata, said in one ``INFO:`` per SBOM. A model
+    file's messages name it by its path in the repository; an option a
+    model SBOM cannot use warns once.
 
     Raises:
         pitloom.core.internal_error.InternalError: *sbom_kind* is none of

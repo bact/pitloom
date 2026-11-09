@@ -8,8 +8,9 @@
 By default a fastText model in a wheel is listed without metadata (its native
 loader is never called) and one ``INFO:`` per run names the flag; with the
 flag (``trust_wheel_model=True``; for ``embed_wheel_sbom()`` the
-``ConfigOverrides`` field) the loader runs. A project scan is not gated, and
-the flag there warns once that it has no effect. There is no config key.
+``ConfigOverrides`` field) the loader runs. A local project scan is not
+gated (a Git URL's project is, whatever the flag), and the flag there warns
+once that it has no effect. There is no config key.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_gate_formats` (the
 gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind).

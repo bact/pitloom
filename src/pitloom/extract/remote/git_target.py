@@ -114,10 +114,10 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
     its path in the repository and the folder by *url* without credentials.
 
     Called within :meth:`~pitloom.extract.remote.git.GitCheckout.reading`, so
-    a link is not followed, a Git LFS pointer is said as in a clone and, for
-    a model target, a reader a hostile file could crash or hang (fastText,
-    GGUF, HDF5, ONNX, PyTorch) is not run. A project target is read by its
-    own route, whose model files every reader reads, ungated.
+    a link is not followed, a Git LFS pointer is said as in a clone and a
+    reader a hostile file could crash or hang (fastText, GGUF, HDF5, ONNX,
+    PyTorch) is not run, on a model target and on the model files of a
+    project target alike.
 
     Raises:
         RemoteSourceError: ``git.path-not-found`` (the named file is no

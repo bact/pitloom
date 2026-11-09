@@ -138,7 +138,8 @@ READER_UNSAFE: Final = Message(
 )
 
 #: The formats whose reader is not run on a model file of a Git URL's
-#: temporary clone: one line per read.
+#: temporary clone, named on its own or found in a project's build file
+#: list: one line per SBOM.
 READER_UNSAFE_REMOTE: Final = Message(
     code="reader-unsafe/remote",
     condition="unsafe",
@@ -151,18 +152,19 @@ READER_UNSAFE_REMOTE: Final = Message(
             "trust",
         ),
     ),
-    summary="An AI model file read from a Git URL is in a format whose reader "
-    "Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, "
-    "PyTorch .pt and .pth): a hostile file could crash or hang it, or "
-    "exhaust its memory.",
+    summary="A model file or a project's model files read from a Git URL are "
+    "in a format whose reader Pitloom does not run on a downloaded file "
+    "(fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could "
+    "crash or hang it, or exhaust its memory.",
     did=f"{_STUB}, its reader not run.",
     effect="thinner",
     actor="user",
-    advice="Tell the user the model from the Git URL was not read, and why. If "
-    "they trust the file, they clone the repository (with Git LFS when it "
-    "stores the model there) and run Pitloom on the local file, which is "
-    "read in full. Do not clone the repository or run Pitloom on the file "
-    f"for them; {_ASK}",
+    advice="Tell the user which models from the Git URL were not read, and "
+    "why. If they trust the files, they clone the repository (with Git LFS "
+    "when it stores the models there) and run Pitloom on the local copy, loom "
+    "model on the model file or loom project on the project folder, which "
+    "reads them in full. Do not clone the repository or run Pitloom for "
+    f"them; {_ASK}",
     since="0.24.0",
 )
 

@@ -13,12 +13,12 @@ module imports no producer.
 
 Invariant: one confirmed model file (its header agrees with a model format)
 gives exactly one entry, whatever its read outcome. A read that fails (a
-parse error, a bound, a missing library, a wheel gate) keeps a format-only
+parse error, a bound, a missing library, a gate) keeps a format-only
 entry and one catalogued line saying why (``model-unreadable``,
-``library-missing``, ``over-cap``; the wheel gate's ``reader-unsafe`` is one
-``INFO:`` per scan); it is never dropped, so the entry set does not depend
-on the order of the files, the budget or the installed libraries. A file
-that is not a confirmed model gives no entry
+``library-missing``, ``over-cap``; a gate's ``reader-unsafe``, of a wheel or
+a Git URL's clone, is one ``INFO:`` per scan); it is never dropped, so the
+entry set does not depend on the order of the files, the budget or the
+installed libraries. A file that is not a confirmed model gives no entry
 (:class:`~pitloom.extract.ai_model.NotAModel`).
 
 See also: :mod:`pitloom.extract.scanner_project`,

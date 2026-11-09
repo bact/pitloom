@@ -77,7 +77,9 @@ class MemberReadError(OSError):
 #: HDF5, ONNX), a pickle parser (PyTorch ``.pt``/``.pth``, through
 #: fickling) or a per-element Python loop (GGUF) that a hostile file can
 #: crash, hang or exhaust memory in. Add a
-#: format here to gate it; nothing else changes. Project scans are not gated.
+#: format here to gate it; nothing else changes. A project scan is gated
+#: in a Git URL's temporary clone only
+#: (:func:`pitloom.extract.scanner_project.remote_reader_gate`).
 WHEEL_GATED_FORMATS = frozenset(
     {
         AiModelFormat.FASTTEXT,

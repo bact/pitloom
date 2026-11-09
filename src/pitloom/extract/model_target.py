@@ -48,14 +48,15 @@ from pitloom.extract.ai_model import (
     refusal_error,
 )
 from pitloom.extract.scanner import (
-    ReaderGate,
     is_model_candidate_name,
     read_model_candidate,
     scan_step,
     sniff_model_format,
 )
-from pitloom.extract.scanner_project import local_model_candidate
-from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
+from pitloom.extract.scanner_project import (
+    local_model_candidate,
+    remote_reader_gate,
+)
 from pitloom.messages import (
     INPUT_NOT_FOUND,
     MODEL_AMBIGUOUS,
@@ -67,7 +68,6 @@ from pitloom.messages import (
     NO_SBOM_TARGET,
     NOT_A_MODEL_LINE,
     ONE_MODEL_LINE,
-    READER_UNSAFE_REMOTE,
     TARGET_AMBIGUOUS,
     Cap,
     CodedFileNotFoundError,
@@ -146,19 +146,6 @@ def _shown(prefix: str, name: str) -> str:
     return f"{prefix}/{name}" if prefix else name
 
 
-def remote_reader_gate() -> ReaderGate | None:
-    """The gate of a model file read from a Git URL's temporary clone
-    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`): the formats a
-    wheel scan does not read either are listed without metadata, and
-    :meth:`~pitloom.extract.scanner.ReaderGate.report` says
-    ``reader-unsafe/remote``; ``None`` (every format read) elsewhere."""
-    if not in_remote_clone():
-        return None
-    return ReaderGate(
-        WHEEL_GATED_FORMATS, lambda _fmt: True, message=READER_UNSAFE_REMOTE
-    )
-
-
 def refuse_not_a_model(
     path: Path, exc: NotAModel, *, shown: str | None = None
 ) -> NoReturn:
@@ -200,8 +187,9 @@ def read_model_file(path: Path, *, shown: str | None = None) -> AiModelMetadata:
     """Read the model file at *path*, named on its own, by the rule a scan
     applies (:func:`~pitloom.extract.scanner.read_model_candidate`), its
     messages naming it *shown* (default: *path*). In a Git URL's temporary
-    clone the formats of :func:`remote_reader_gate` are listed without
-    metadata, said in one ``INFO:`` after the read.
+    clone the formats of
+    :func:`~pitloom.extract.scanner_project.remote_reader_gate` are listed
+    without metadata, said in one ``INFO:`` after the read.
 
     Raises:
         pitloom.messages.CodedFileNotFoundError: *path* does not exist

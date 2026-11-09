@@ -130,10 +130,11 @@ file with a C/C++ library (fastText, HDF5, ONNX), parse a pickle (PyTorch) or
 run a parsing loop a crafted file can make very slow or very large (GGUF).
 Keras, Safetensors (its Rust library, read in full on purpose), NumPy,
 CRFsuite and PT2 files are read in full. Clone the repository and run `loom
-model <file>` on a file you trust to read the others. This applies to a model
-SBOM only: `loom generate` on a folder with a project reads the project, whose
-model files are read by every reader, as for a local project. A Git LFS
-pointer is an error. See [SBOM from a Git URL](git-urls.md#model-files).
+model <file>` on a file you trust to read the others. The same formats are
+gated in a project from a Git URL (`loom project <url>`, or `loom generate` on
+a folder with a project): each model file in its build file list is listed by
+the same rule, with one `INFO:` per SBOM; `loom project <dir>` on the clone
+reads them in full. A Git LFS pointer is an error. See [SBOM from a Git URL](git-urls.md#model-files).
 
 A model whose read fails (truncated, a bound exceeded, a missing extra) is
 still written as a format-only entry, with one `WARNING:` and exit 0, as a

@@ -8,7 +8,9 @@ loop per element), HDF5 (libhdf5 crashes and hangs on hostile files), ONNX
 (protobuf amplification) and PyTorch ``.pt``/``.pth`` (fickling
 amplification). Default wheel scan: format-only entry, reader never run, one
 ``INFO:`` listing the gated formats met that the caller's per-format claim
-accepts; ``--trust-wheel-model`` runs the readers.
+accepts; ``--trust-wheel-model`` runs the readers. A project scan is gated
+the same way in a Git URL's temporary clone only
+(``reader-unsafe/remote``).
 
 See also: :mod:`tests.assemble.test_trust_wheel_model` (every surface) and
 :mod:`tests.fixtures.aimodels` README (the hostile files).
@@ -29,12 +31,15 @@ from unittest import mock
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.project import ProjectFile
 from pitloom.extract import scanner, scanner_wheel
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner import ReaderGate
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import READER_UNSAFE_REMOTE
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 
 _FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels"
@@ -215,8 +220,11 @@ def test_a_hostile_hdf5_is_listed_not_opened(tmp_path: Path, fixture: str) -> No
     assert _TRUST in done.stderr
 
 
-def test_a_project_scan_is_not_gated(tmp_path: Path) -> None:
+def test_a_local_project_scan_is_not_gated(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     pytest.importorskip("fickling")
+    caplog.set_level(logging.INFO)
     (tmp_path / "m.pt").write_bytes(fixture_bytes("pytorch/example-model.pt"))
     # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = scan_project_for_ai_models(
@@ -226,6 +234,70 @@ def test_a_project_scan_is_not_gated(tmp_path: Path) -> None:
         usage_hint=lambda: False,
     )
     assert model.provenance  # read, not a stub
+    assert not remote_gate_infos(caplog)
+
+
+def _scan_project_in_a_clone(
+    tmp_path: Path, names: list[str], *, scan_usage: bool = False
+) -> list[AiModelMetadata]:
+    """Scan a project of *names* and a Safetensors file as in a Git URL's
+    temporary clone."""
+    files = []
+    for name in [*names, "t.safetensors"]:
+        data = (
+            fixture_bytes(name)
+            if name in _GATED
+            else safetensors_bytes(metadata={"k": "v"})
+        )
+        base = Path(name).name
+        (tmp_path / base).write_bytes(data)
+        files.append(ProjectFile(physical_path=base, distribution_path=base))
+    with reading_remote_clone():
+        return scan_project_for_ai_models(
+            tmp_path, files, scan_usage=scan_usage, usage_hint=lambda: False
+        )
+
+
+def remote_gate_infos(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, CODE_ATTR, None) == READER_UNSAFE_REMOTE.code
+    ]
+
+
+def test_a_project_scan_in_a_git_clone_is_gated(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    with mock.patch.object(scanner, "read_ai_model", wraps=read_ai_model) as spy:
+        models = _scan_project_in_a_clone(tmp_path, list(_GATED))
+    assert [c.args[0].suffix for c in spy.call_args_list] == [".safetensors"]
+    read = sorted((str(m.format_info.model_format), bool(m.provenance)) for m in models)
+    assert read == [
+        *[("fasttext", False)] * 2,
+        *[("gguf", False), ("hdf5", False), ("onnx", False)],
+        *[("pytorch", False)] * 2,
+        ("safetensors", True),
+    ]
+    (info,) = remote_gate_infos(caplog)  # seven gated models, one line
+    assert ": fasttext, gguf, hdf5, onnx, pytorch; " in info
+    assert not gate_infos(caplog)  # not the wheel's line
+
+
+def test_a_failed_project_scan_in_a_git_clone_reports_no_gate(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No SBOM is written on failure, so no line says what it lists."""
+    caplog.set_level(logging.INFO)
+    with mock.patch.object(
+        scanner, "attach_usage_references", side_effect=RuntimeError("scan failed")
+    ):
+        with pytest.raises(RuntimeError, match="scan failed"):
+            _scan_project_in_a_clone(
+                tmp_path, ["onnx/light-inception-v2.onnx"], scan_usage=True
+            )
+    assert not remote_gate_infos(caplog)
 
 
 @pytest.mark.parametrize(

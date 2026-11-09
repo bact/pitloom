@@ -29,19 +29,22 @@ from pitloom.assemble import (
     generate_git_sbom,
     generate_model_sbom,
 )
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.ai_model import reader as ai_model_reader
-from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import READER_UNSAFE_REMOTE
-from tests._model_fixtures import FORMATS, fixture_path
+from tests._model_fixtures import (
+    FORMATS,
+    fixture_path,
+    has_reader_library,
+    spy_readers,
+)
 from tests.warning_helpers import count_naming, logged_warnings
 
 _URL = "https://user:SECRET@git.example.org/o/r/-/blob/main/models/m"
@@ -75,16 +78,6 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     return seen
-
-
-def _has_library(fmt: AiModelFormat) -> bool:
-    """Whether *fmt*'s reader can run here (its optional library, if any, is
-    installed): without it the scan does not call the reader."""
-    try:
-        require_library(fmt)
-    except ImportError:
-        return False
-    return True
 
 
 def _messages(caplog: pytest.LogCaptureFixture) -> list[str]:
@@ -134,17 +127,7 @@ def test_a_native_library_reader_never_runs_on_a_downloaded_file(
     outside = generate_model_sbom(local, creation_metadata=_FIXED)
     model = _copy(fmt, tmp_path / "clone" / "models")
     fetched.update(folder=model.parent, file="")
-    read: list[Path] = []
-    # pylint: disable-next=protected-access
-    readers = ai_model_reader._READERS  # the dispatch the read goes through
-    real = readers[fmt]
-
-    def spy(path: Path) -> AiModelMetadata:
-        """Record the read, then read."""
-        read.append(path)
-        return real(path)
-
-    monkeypatch.setitem(readers, fmt, spy)
+    read = spy_readers(monkeypatch, (fmt,))
     with caplog.at_level(logging.INFO):
         sbom = generate_git_sbom(_URL, creation_metadata=_FIXED)
     notes = [
@@ -154,7 +137,7 @@ def test_a_native_library_reader_never_runs_on_a_downloaded_file(
     ]
     gated = fmt in WHEEL_GATED_FORMATS
     assert len(notes) == int(gated)
-    assert read == ([] if gated or not _has_library(fmt) else [model])
+    assert read == ([] if gated or not has_reader_library(fmt) else [(fmt, model)])
     if not gated:
         assert sbom == outside
     assert f"FILE=models/{model.name}" in caplog.text  # the folder's one model

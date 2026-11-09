@@ -53,8 +53,9 @@ loom generate https://github.com/owner/repo/blob/main/models/m.keras -o m.spdx3.
 # A folder holding one model file and no project (read non-recursively)
 loom model https://gitlab.com/group/project/-/tree/main/models
 # Several models in the folder: [model-ambiguous]; rerun with one file's URL
-# Model SBOM: fastText/GGUF/HDF5/ONNX/PyTorch files are listed without metadata
-# ([reader-unsafe/remote]): clone, then `loom model <file>` for what you trust
+# Model or project SBOM: fastText/GGUF/HDF5/ONNX/PyTorch files are listed
+# without metadata ([reader-unsafe/remote]): clone, then `loom model <file>`
+# or `loom project <dir>` for what you trust
 ```
 
 ## Project SBOM with lock file (resolved transitive dependencies)

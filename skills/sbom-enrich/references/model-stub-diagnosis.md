@@ -40,7 +40,7 @@ table what the code leaves of the model:
 | [`over-cap`](messages.md#over-cap) | a stub, or read with the cut the line names | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. |
 | [`parameter-count-invalid`](messages.md#parameter-count-invalid) | read, with no parameter count | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. |
 | [`reader-unsafe`](messages.md#reader-unsafe) | a stub (a wheel's gated formats) | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. |
-| [`reader-unsafe/remote`](messages.md#reader-unsaferemote) | a stub (a Git URL's gated formats) | An AI model file read from a Git URL is in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. |
+| [`reader-unsafe/remote`](messages.md#reader-unsaferemote) | a stub (a Git URL's gated formats) | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. |
 
 <!-- END GENERATED -->
 

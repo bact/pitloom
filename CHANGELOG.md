@@ -26,28 +26,28 @@ and this project adheres to
 
 - A model file or folder at a Git URL gives a model SBOM, for every model
   format: `blob`, `raw` and `tree` pages; `loom model <url>` and `loom generate
-  <url>` choose it; `generate_git_sbom()` is the library call ([#463])
+  <url>` choose it; `generate_git_sbom()` is the library call ([#464])
 - `loom model DIR` and `generate(DIR)` read a folder with one model and no
   project; `generate()` reads a file as a model by content, not only suffix
-  ([#463])
+  ([#464])
 - Keras v3 models give layer count, optimizer, loss, metrics and
-  archive members; a member that does not parse is one `WARNING:` ([#463])
+  archive members; a member that does not parse is one `WARNING:` ([#464])
 
 ### Changed
 
-- A model SBOM from a Git URL lists a fastText, GGUF, HDF5, ONNX or PyTorch
-  model by name, format and hash only, with one `INFO:` ([#463])
+- A model or project SBOM from a Git URL lists a fastText, GGUF, HDF5, ONNX or
+  PyTorch model by name, format and hash only, with one `INFO:` ([#464])
 - A directory with neither a project nor a model raises
-  `project-or-model-not-found` (was `FileNotFoundError`) ([#463])
+  `project-or-model-not-found` (was `FileNotFoundError`) ([#464])
 
 ### Fixed
 
 - A lone surrogate in a Keras `training_config` or `compile_config` no longer
-  fails the whole model read ([#463])
+  fails the whole model read ([#464])
 - A `raw` file URL of GitHub, GitLab, Gitea, Forgejo, Codeberg or Bitbucket is
-  read as a file page, not cloned as a repository ([#463])
+  read as a file page, not cloned as a repository ([#464])
 
-[#463]: https://github.com/bact/pitloom/pull/463
+[#464]: https://github.com/bact/pitloom/pull/464
 
 ## [0.23.3] - 2026-11-09
 

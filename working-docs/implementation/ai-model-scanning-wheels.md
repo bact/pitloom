@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -203,9 +203,10 @@ Hatchling hook scans its project directory, never a wheel.
   a plain opt-in like `--allow-build`, `store_true` with a `None` default so the
   inert-option machinery can tell "not given" from "given", and no config key,
   since a config can live in the untrusted tree. Live on wheel, `wheel --embed`
-  and standalone `embed-wheel`; `INERT` on every other kind. A project scan is
-  not gated: the tree is the user's own, but that is unsafe for an untrusted
-  checkout. Metadata-only readers that never hand the file to a native library
+  and standalone `embed-wheel`; `INERT` on every other kind. A local project
+  scan is not gated: the tree is the user's own, but that is unsafe for an
+  untrusted checkout (a project from a Git URL is gated, with no opt-in:
+  `scanner_project.remote_reader_gate()`). Metadata-only readers that never hand the file to a native library
   are the real fix:
   [model-metadata-readers.md](../design/model-metadata-readers.md).
 - **Enrichment stays off** for a wheel: no README or model card is read from

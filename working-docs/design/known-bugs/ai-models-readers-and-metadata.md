@@ -193,21 +193,18 @@ history.
   same holds for a copy of an ONNX, Keras, PyTorch or PT2 file renamed to
   `x.dat` (`NEEDS_SUFFIX` in `tests/_model_fixtures.py`). By design for now:
   the header alone does not confirm them.
-- [ ] **Native-library readers still run on models of a Git *project* SBOM
-  (S-M, security).** The gate of `reader-unsafe/remote` is applied to a model
-  file read through `loom model <url>` / `generate_git_sbom` (the
-  `read_model_file` route). A Git URL read as a project lists models from the
-  build backend's file list and reads them in place, ungated: a hostile
-  `.h5` or `.onnx` in a repository the build backend lists reaches h5py or
-  onnx (checked 2026-11-09: `loom generate <url>/tree/main` on a repository
-  with `pyproject.toml` and `demo/m.onnx` calls the ONNX reader on it).
-  Lumina-facing: a repository with a pyproject and model files is read
-  ungated under `generate()`'s auto choice, which picks the project route,
-  so a caller relying on the gate for untrusted URLs is not covered. The
-  docs (`docs/git-urls.md`, `docs/python-api.md`, `docs/cli.md`), the skill
-  reference and `resolve_git_target`'s docstring now say the gate covers a
-  model SBOM only. Gate the project scan inside `GitCheckout.reading()` too,
-  or record it as a decision.
+- [ ] **A link inside a Git project's clone is followed by the model scan
+  (S, security).** On the project route `project_candidates`, the header
+  sniff, the Git LFS pointer probe and the hash open
+  `project_dir / physical_path` unconditionally, so a symlink the repository
+  commits (a build file list entry that is a link) makes them read a file
+  outside the clone: its header, its first bytes as a pointer, and its hash
+  in the SBOM. The `reader-unsafe/remote` gate does not close this (a gated
+  format is still sniffed and hashed; an ungated one is read). The model
+  route avoids links in a clone (`model_target`: `os.path.islink` under
+  `in_remote_clone()`). Skip or refuse a link in `scanner_project` within
+  `in_remote_clone()`, and check what the file list and the hash step do
+  with one. *Found 2026-11-09, while gating the project route.*
 - [ ] **A repository root whose models are only in subfolders gives
   `project-or-model-not-found` (S).** Folder discovery is non-recursive, by
   decision (D4), so `loom generate <repo>` on a repository that keeps its
@@ -263,8 +260,19 @@ release ships.
 
 ### Fixed, P3: 0.24.0 and later
 
+- [x] **Native-library readers still ran on models of a Git *project* SBOM
+  (S-M, security).** Fixed by #464: `scan_project_for_ai_models` builds
+  `remote_reader_gate()` (in `scanner_project`), which is the
+  `reader-unsafe/remote` gate inside `GitCheckout.reading()` and `None`
+  elsewhere, so a fastText, GGUF, HDF5, ONNX or PyTorch file in a Git
+  project's build file list is a format-only entry with one `INFO:` per
+  SBOM, on `generate_git_sbom`, `generate_git_project_sbom`, `generate()`
+  and `loom project`/`loom generate <url>`. A local project, the Hatchling
+  hook and `embed-wheel` stay ungated. (Was: the gate covered the
+  `read_model_file` route only; a hostile `.h5` or `.onnx` the build backend
+  listed reached h5py or onnx.)
 - [x] **Keras v3 did not read `compile_config`, and parsed `config.json` apart
-  from Keras v1/v2 (S).** Fixed by #463: `keras_config.py` shares the model
+  from Keras v1/v2 (S).** Fixed by #464: `keras_config.py` shares the model
   config parser with HDF5 (`parse_model_config_object`) and reads
   `compile_config` with `keras_training_config.py` (optimizer as a class name
   or a string, loss, metrics), so the Keras v3 reader gives the
@@ -274,13 +282,13 @@ release ships.
   other is still read. (Was: `keras.py` had its own `_parse_model_config`;
   `compile_config` was ignored.)
 - [x] **A Keras `training_config` with a lone surrogate failed the whole read
-  (S).** Fixed by #463: `keras_training_config._collection_text` retries on a
+  (S).** Fixed by #464: `keras_training_config._collection_text` retries on a
   copy escaped with `escape_lone_surrogates_in` when RFC 8785 raises
   `ValueError`, for HDF5 `training_config` and Keras v3 `compile_config`
   alike. (Was: `_record_json_value` caught only `RecursionError`, so the read
   ended as `model-unreadable` and the other fields were lost.)
 - [x] **A non-string Keras v3 `date_saved` landed in properties as an integer
-  (S).** Fixed by #463: a `metadata.json` value that is not a string is
+  (S).** Fixed by #464: a `metadata.json` value that is not a string is
   dropped with one `WARNING:` (`model-field-unreadable`). (Was: recorded as
   read.)
 

@@ -197,20 +197,21 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - A file is a model by its **content**, not its name: a GGUF file named `m.dat`
   is read when its URL is given. A folder's candidates are chosen by the
   suffixes the scan knows, then confirmed by their content.
-- **Some readers are not run on a download for a model SBOM.** The readers
+- **Some readers are not run on a download.** The readers
   of fastText, HDF5 and ONNX files open the file with a C/C++ library, the
   PyTorch (`.pt`, `.pth`) reader parses a pickle, and the GGUF reader runs a
   parsing loop that a crafted file can make very slow or very large: a
   hostile file could crash, hang or exhaust them in memory. A model of one of
-  these formats that a model SBOM from a Git URL describes is listed with its
-  name, format and hash only, and one `INFO:` says so. Keras, Safetensors
+  these formats that a model SBOM from a Git URL describes, or that the build
+  file list of a project from a Git URL holds, is listed with its name,
+  format and hash only, and one `INFO:` per SBOM says so. Keras, Safetensors
   (with its Rust library, read in full on purpose), NumPy, CRFsuite and PT2
   files are read in full. To read the others, clone the repository (with Git
   LFS, when it stores the model there) and run `loom model <file>` on a file
-  you trust. This gate covers a model SBOM only: a folder read as a project
-  (`loom project`, or `loom generate` on a folder with `pyproject.toml`,
-  `setup.cfg` or `setup.py`) has the model files of its build read by every
-  reader, ungated, as for a local project.
+  you trust, or `loom project <dir>` on a project you trust. The gate covers a
+  folder read as a project too (`loom project`, or `loom generate` on a
+  folder with `pyproject.toml`, `setup.cfg` or `setup.py`); a local project
+  directory is not gated.
 - **Git LFS pointers are refused.** A model file that is a pointer (LFS is off
   for the clone) is an error that gives the pointer's `oid` and size and says
   to clone with Git LFS and run on the file. In a folder, pointers are

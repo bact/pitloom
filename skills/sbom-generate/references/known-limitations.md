@@ -92,7 +92,8 @@ Pitloom did, what to tell the user):
 
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
   in these formats are listed without metadata ...: onnx. Pass
-  --trust-wheel-model ...` per scan), `[library-missing]`,
+  --trust-wheel-model ...` per scan; `[reader-unsafe/remote]` for a model or
+  project from a Git URL, one per SBOM), `[library-missing]`,
   `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
   metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
   model-scan budget cap; ...` the per-wheel budget). Lists past 1000 entries
@@ -124,10 +125,11 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   A member that does not parse is one `WARNING: ... [model-field-unreadable]`
   and the other member is still read; an absent, `null` or `{}`
   `compile_config` is a model not compiled, silently.
-- A model from a Git URL in a format whose reader is not run on a download
-  (fastText, GGUF, HDF5, ONNX, PyTorch `.pt`/`.pth`) is a name, format and
-  hash only (`[reader-unsafe/remote]`); a Git *project* scan still reads such
-  models in place, ungated. Only the folder a URL names is searched, not its
+- A model from a Git URL, named or in a Git project's build file list, in a
+  format whose reader is not run on a download (fastText, GGUF, HDF5, ONNX,
+  PyTorch `.pt`/`.pth`) is a name, format and hash only
+  (`[reader-unsafe/remote]`); a local project directory reads such models in
+  place, ungated. Only the folder a URL names is searched, not its
   subfolders; a copy of an ONNX, Keras, PyTorch or PT2 model renamed to
   `x.dat`, or a Keras archive named `.zip`, or a `pytorch_model.bin`, is not
   recognised as a model by its content.

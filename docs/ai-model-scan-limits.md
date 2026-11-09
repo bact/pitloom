@@ -65,11 +65,13 @@ stub.
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
 | `loom model FILE`, `loom enrich FILE`, `loom generate FILE`, `loom model DIR` or `loom generate DIR` for a folder with one model and no project | Read in place, as a project scan reads a file | No | No | Yes |
 | `loom model URL`, `loom generate URL` for a model file or folder at a Git URL | Read in the temporary clone, one file | No | **Git gate**: the same formats, see [Formats gated for a Git URL](#formats-gated-for-a-git-url) | Yes |
+| `loom project URL`, `loom generate URL` for a project at a Git URL | Read in place in the temporary clone, from the build file list | No | **Git gate**: the same formats | Yes |
 | `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
-Scanning an untrusted checkout therefore runs the fastText, HDF5, ONNX,
-GGUF and PyTorch readers on its files, in Pitloom's own process, with no
-size ceiling. Only scan project directories you trust.
+Scanning an untrusted local checkout therefore runs the fastText, HDF5,
+ONNX, GGUF and PyTorch readers on its files, in Pitloom's own process, with
+no size ceiling. Only scan project directories you trust; give an untrusted
+repository's Git URL instead, which gates those formats.
 
 `loom model FILE`, `loom enrich FILE` and `loom generate FILE` (and
 `generate_model_sbom()`, `enrich_model()`) read the file by the same rule as
@@ -224,21 +226,20 @@ gated; the caps above still apply to them.
 
 ## Formats gated for a Git URL
 
-A model file from a Git URL is read in a temporary clone of a repository you
-may not trust, so the formats of the wheel gate are gated there too: a fastText,
+A model file from a Git URL, or a model file in the build file list of a
+project from a Git URL, is read in a temporary clone of a repository you may
+not trust, so the formats of the wheel gate are gated there too: a fastText,
 GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) file is listed with its name,
-format and hashes only, and one line says so:
+format and hashes only, and one line per SBOM says so:
 
 ```text
 INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; clone the repository and run on the file you trust
 ```
 
 There is no flag to read them from a Git URL; clone the repository (with Git
-LFS when it holds the model there) and run `loom model <file>` on the file.
-Keras v3, Safetensors, NumPy, PT2 and CRFsuite files are read in full, with
-the caps above. The Python files of a Git project SBOM are another route (a
-project scan lists models from the build backend's file list, and reads them
-in place, ungated; see [Which scans apply which limits](#which-scans-apply-which-limits)).
+LFS when it holds the model there) and run `loom model <file>` on the file, or
+`loom project <dir>` on the project. Keras v3, Safetensors, NumPy, PT2 and
+CRFsuite files are read in full, with the caps above.
 
 ## What is a model
 

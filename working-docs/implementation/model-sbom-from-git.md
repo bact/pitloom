@@ -17,7 +17,7 @@ Hub follow-up that was evaluated and not built),
 [known-bugs/ai-models-readers-and-metadata.md](../design/known-bugs/ai-models-readers-and-metadata.md),
 the user pages `docs/git-urls.md` and `docs/ai-model-formats.md`.
 
-What was built for 0.24.0 (PR #463, number a guess until the PR exists), why,
+What was built for 0.24.0 (PR #464), why,
 what was measured first, and what was left out.
 
 ## Why
@@ -73,6 +73,19 @@ refactor of `hdf5_config.py`.
   hit crash-prone readers); a flag to trust a download (a URL is not a thing
   a user inspected; cloning and running on a local file is the same step with
   the user's eyes on it).
+  *Revised (follow-up request): the project route is gated too.* D1 first
+  covered the model route only (`read_model_file`); a Git URL read as a
+  project still ran every reader on the models in the build file list. Now
+  `scan_project_for_ai_models` builds the same gate
+  (`scanner_project.remote_reader_gate()`, moved there from `model_target`,
+  which re-exports it) from the `in_remote_clone()` ContextVar that
+  `GitCheckout.reading()` sets, and reports it once after a scan that
+  succeeded (after the usage pass, as a wheel scan does). One mechanism, no
+  new parameter: every route into a clone (`generate_git_sbom`,
+  `generate_git_project_sbom`, `generate()`, `loom project`/`loom generate
+  <url>`) is gated; a local project, the Hatchling hook and `embed-wheel`
+  never run inside `reading()` and stay ungated. `--trust-wheel-model` does
+  not lift it (it is inert on a Git URL).
 - **D2 Commands.** `generate(url)` and `loom generate <url>` choose a project
   or a model. `loom model <url>` accepts a Git URL (model only; it used to
   refuse and name `loom project`). `loom project <url>` stays project-only;
@@ -137,7 +150,7 @@ URL form by mode (`resolve_git_target`, then `resolve_sbom_target`). A
 | a file with a model suffix that is no model (empty `e.gguf`) | refused (`model-wrong-format`), as `loom model e.gguf` locally | the same | the folder's project |
 | a file absent from the repository, or a link | model suffix: `git.path-not-found`; any other name: the folder, `INFO:` as above | `git.path-not-found` | the folder's project (the file name is ignored) |
 | a model file that is an LFS pointer | `ERROR:` `lfs-pointer` (clone advice) | the same | n/a |
-| a folder with a project | the project | its one model file, if any | the project |
+| a folder with a project | the project (gated formats of its build file list: format-only, D1) | its one model file, if any | the project (gated as for `generate`) |
 | a folder with no project, one model | the model, `INFO:` | the model, `INFO:` | `git.no-project` + hint |
 | a folder with no project, several models | `model-ambiguous` | `model-ambiguous` | `git.no-project` + hint |
 | a folder with neither | `project-or-model-not-found` (`git.no-project` when subprojects exist) | `model-wrong-format` | the project read's own error, with the subproject hint |
@@ -195,8 +208,12 @@ row: options a model cannot use warn once), `messages/_sbom_target.py`
   `CodedValueError` (a `ValueError`), not `FileNotFoundError`; a file with a
   model magic and no model suffix is now read as a model by `generate()` (it
   used to be an unreadable project path). Alpha, no compatibility promise.
-- **Not gated:** a Git *project* SBOM still reads models listed by the build
-  backend with the native readers (the gate is on the model route only).
+- **Links on the project route:** a Git *project* SBOM's model scan opens
+  `project_dir / physical_path` for the header sniff, the pointer probe and
+  the hash without refusing a link, so a symlink the repository commits can
+  make it read a file outside the clone (checked: a link to an outside GGUF
+  file gets that file's hash). The D1 gate does not close this; the model
+  route avoids links in a clone. Open in known-bugs.
 - **Not built:** recursive model discovery; origin provenance (URL, ref,
   commit) in the package; `raw.githubusercontent.com` and Hugging Face
   `/resolve/` links (not Git page URLs); a Hub per-file hash.

@@ -57,7 +57,7 @@ most one prefix from the table of prefixes.
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.24.0 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
-| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | An AI model file read from a Git URL is in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.24.0 |
+| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.24.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
@@ -727,18 +727,20 @@ A line may start with one prefix before its text:
 ### `reader-unsafe/remote`
 
 - **Level**: INFO.
-- **Means**: An AI model file read from a Git URL is in a format whose reader
-  Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch
-  .pt and .pth): a hostile file could crash or hang it, or exhaust its memory.
+- **Means**: A model file or a project's model files read from a Git URL are in
+  a format whose reader Pitloom does not run on a downloaded file (fastText,
+  GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang
+  it, or exhaust its memory.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Listed the model by its file, format and hashes only (a
   format-only entry, named after its file), without its metadata, its reader not
   run.
-- **Tell the user**: the model from the Git URL was not read, and why. If they
-  trust the file, they clone the repository (with Git LFS when it stores the
-  model there) and run Pitloom on the local file, which is read in full. Do not
-  clone the repository or run Pitloom on the file for them; ask first, and with
-  nobody to ask, report it only.
+- **Tell the user**: which models from the Git URL were not read, and why. If
+  they trust the files, they clone the repository (with Git LFS when it stores
+  the models there) and run Pitloom on the local copy, loom model on the model
+  file or loom project on the project folder, which reads them in full. Do not
+  clone the repository or run Pitloom for them; ask first, and with nobody to
+  ask, report it only.
 - **Lines**:
 
   ```text

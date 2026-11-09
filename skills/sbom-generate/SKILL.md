@@ -145,8 +145,8 @@ project at the root fails naming the projects below it: ask which one
 (non-interactively, report the list). A Git URL may name an AI model file or
 folder (0.24.0+): `loom generate`/`loom model <url>` writes its SBOM; several
 models: ask which file (non-interactively, report the list); formats listed
-unread (`[reader-unsafe/remote]`): relay, never clone. To explain a refusal,
-redirect or model rule, read `references/git-url.md`.
+unread, in a model or project (`[reader-unsafe/remote]`): relay, never clone.
+To explain a refusal, redirect or model rule, read `references/git-url.md`.
 
 ## Lock files
 
