@@ -72,9 +72,6 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   folder is read non-recursively; the commit and URL are not in the SBOM;
   fastText, GGUF, HDF5, ONNX and PyTorch are listed unread). See
   [model-sbom-from-git.md](../implementation/model-sbom-from-git.md).
-- [ ] **A Hub model file read by HTTP range requests** (evaluated 2026-11-09,
-  not built: a `.keras`-only Hub repository has no Keras-derived field). See
-  [hub-model-file-range-read.md](hub-model-file-range-read.md).
 - [ ] **`License-File:` selection** for wheels (the unknown-id warning in an
   SPDX-only field is built, #357). See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
@@ -487,6 +484,9 @@ Recorded findings; each is fixable on its own.
 
 ## Medium-term
 
+- [ ] **A Hub model file read by HTTP range requests**, for consideration
+  (evaluated 2026-11-09, not built: a `.keras`-only Hub repository has no
+  Keras-derived field). See [hub-model-file-range-read.md](hub-model-file-range-read.md).
 - [ ] **CycloneDX assembler** consuming the existing `DocumentModel`; no
   extractor changes.
 - [ ] **AIDOC / TechOps renderer**, another `DocumentModel` output.

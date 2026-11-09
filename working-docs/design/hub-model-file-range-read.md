@@ -8,6 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # A Hub model file read by HTTP range requests (evaluated, not built)
 
+Roadmap: medium-term, for consideration.
+
 See also: [roadmap.md](roadmap.md),
 [model-sbom-from-git.md](../implementation/model-sbom-from-git.md) (decision
 D10 and the Git route),
