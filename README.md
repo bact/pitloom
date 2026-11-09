@@ -122,7 +122,7 @@ wheel built ([PEP 770], compact canonical JSON). Needs Hatchling **1.29.0+**:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.23.3"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.23.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -192,7 +192,7 @@ SBOM generation in CI, for any Python build backend:
 - uses: actions/setup-python@v7
   with:
     python-version: "3.x"
-- uses: bact/pitloom@v0.23.3
+- uses: bact/pitloom@v0.23.4
 ```
 
 Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
@@ -293,7 +293,7 @@ gh attestation verify <file> -R bact/pitloom \
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.23.3) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.23.4) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -304,7 +304,7 @@ BibTeX:
     month = nov,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.23.3},
+    version = {0.23.4},
     year = {2026}
 }
 ```
