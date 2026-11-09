@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Changed
 
-- Requires `licenseid>=0.8.2,<0.9`; the skills require `pitloom>=0.23.4`
+- Requires `licenseid>=0.8.3,<0.9`, which reads a `licenses.nuget.org`
+  expression URL as its expression; the skills require `pitloom>=0.23.4`
   ([#462])
 
 [#462]: https://github.com/bact/pitloom/pull/462

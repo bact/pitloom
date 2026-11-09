@@ -65,7 +65,7 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.2,
+- Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.3,
   which reads `Apache Software License 2.0` and similar names as
   `Apache-2.0`, and does not warn about a missing licence database for a
   declared licence name; the licence readings, message codes and LicenseID
@@ -81,7 +81,7 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 - **Prepare the licence database before the first `loom` run** of a session
   that reads licences (project, wheel, sdist, model, Git URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
-  "licenseid>=0.8.2,<0.9" licenseid update --source packaged`; one command
+  "licenseid>=0.8.3,<0.9" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do
   not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).
