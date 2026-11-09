@@ -26,9 +26,10 @@ and this project adheres to
 
 - Requires `licenseid>=0.8.3,<0.9`, which reads a `licenses.nuget.org`
   expression URL as its expression; the skills require `pitloom>=0.23.4`
-  ([#462])
+  ([#462], [#465])
 
 [#462]: https://github.com/bact/pitloom/pull/462
+[#465]: https://github.com/bact/pitloom/pull/465
 
 ## [0.23.3] - 2026-11-09
 
