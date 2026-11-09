@@ -9,9 +9,13 @@ Python project but folders below it do (a monorepo)."""
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from pitloom.core.path_confine import regular_file_inside, spelled_as_on_disk
+from pitloom.core.path_confine import (
+    in_git_dir,
+    regular_file_inside,
+    spelled_as_on_disk,
+)
 from pitloom.core.project_markers import PROJECT_MARKERS
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
@@ -50,7 +54,8 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
         RemoteSourceError: ``git.path-not-found`` (its ``pitloom_code``
             ``input-not-found``), *subdir* is no folder of the checkout (a
             case-insensitive file system finding it in another case
-            included), or a link leads out of it.
+            included), a link leads out of it, or it is the checkout's
+            ``.git`` directory or below it.
     """
     if not subdir:
         return work_dir
@@ -58,6 +63,7 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     folder = os.path.realpath(os.path.join(root, subdir))
     if (
         not folder.startswith(root + os.sep)
+        or in_git_dir(PurePath(folder), PurePath(root))
         or not os.path.isdir(folder)
         or not spelled_as_on_disk(root, subdir)
     ):
@@ -71,9 +77,13 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
 
 def checkout_has_file(work_dir: str, path: str) -> bool:
     """Whether *path* is a regular file of the checkout *work_dir*, not
-    reached through a link that leads out of it, and spelled as on disk
+    reached through a link that leads out of it, not in its ``.git``
+    directory, and spelled as on disk
     (:func:`~pitloom.core.path_confine.regular_file_inside`)."""
-    return regular_file_inside(work_dir, path)
+    root = os.path.realpath(work_dir)
+    return regular_file_inside(work_dir, path) and not in_git_dir(
+        PurePath(os.path.realpath(os.path.join(root, path))), PurePath(root)
+    )
 
 
 def subproject_hint(folder: str, whole_repository: bool) -> str:

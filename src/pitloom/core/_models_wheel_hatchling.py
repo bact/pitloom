@@ -23,12 +23,13 @@ from pitloom.core._models_wheel_clone import (
     warn_build_code_ignored,
     warn_entries_left_out,
 )
+from pitloom.core._models_wheel_guard import discovery_deadline
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     to_posix_distribution_path,
     warn_discovery_failed,
 )
-from pitloom.core.lfs_pointer import in_remote_clone
+from pitloom.core.clone_mark import in_remote_clone
 
 if TYPE_CHECKING:
     from hatchling.builders.wheel import WheelBuilder
@@ -135,18 +136,19 @@ def discover(
     from hatchling.builders.wheel import WheelBuilder
 
     try:
-        builder = WheelBuilder(str(project_dir))
-        if in_remote_clone():
-            _confine(builder, project_dir)
-        return [
-            IncludedFile(
-                path=included_file.path,
-                distribution_path=to_posix_distribution_path(
-                    included_file.distribution_path
-                ),
-            )
-            for included_file in builder.recurse_included_files()
-        ]
+        with discovery_deadline(project_dir):
+            builder = WheelBuilder(str(project_dir))
+            if in_remote_clone():
+                _confine(builder, project_dir)
+            return [
+                IncludedFile(
+                    path=included_file.path,
+                    distribution_path=to_posix_distribution_path(
+                        included_file.distribution_path
+                    ),
+                )
+                for included_file in builder.recurse_included_files()
+            ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         warn_discovery_failed(log, "Hatchling", project_dir, exc)

@@ -16,7 +16,9 @@ does not need (a server without partial clone sends them; one that rejects
 the filter is asked again without it): a large file in the checked-out tree
 is still fetched, at checkout. It follows no redirect itself and runs with
 git-lfs off; with ``max_bytes`` it stops past a disk cap (``git.too-large``),
-which bounds a large file too.
+which bounds a large file too. Once checked out, the URL git wrote to
+``.git/config`` loses its user information, and a symbolic link out of the
+checkout, into its ``.git`` or to a folder is removed.
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -31,13 +33,15 @@ import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.path_confine import in_git_dir, is_inside
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
     sanitize_url_credentials,
+    url_without_credentials,
 )
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
@@ -199,6 +203,7 @@ def _prepare(
     clone_url, page, target = _resolve(runner, page, check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
+    _forget_credentials(runner, clone_url, work_dir)
     _drop_outside_links(work_dir)
     folder, file = _folder(work_dir, target)
     commit = _head(runner, work_dir, shown)
@@ -373,6 +378,22 @@ def _fetch(
     )
 
 
+def _forget_credentials(runner: GitRunner, clone_url: str, work_dir: str) -> None:
+    """Rewrite the URL git wrote to the clone's ``.git/config`` (``clone``
+    and ``remote add`` keep it as given) without its user information
+    (:func:`~pitloom.core.url_masking.url_without_credentials`): no read of
+    the clone, a link into ``.git`` included, can find the credential.
+    Nothing else of the clone holds the URL whole (git writes it to
+    ``FETCH_HEAD`` and the reflog without the user information)."""
+    stored = url_without_credentials(clone_url)
+    if stored != clone_url:
+        runner.run(
+            ["-C", work_dir, "config", "remote.origin.url", stored],
+            "config",
+            echo=False,
+        )
+
+
 def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
     """The commit checked out; an empty repository has none."""
     try:
@@ -388,10 +409,14 @@ def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
 
 
 def _drop_outside_links(work_dir: str) -> None:
-    """Remove a symbolic link of the checkout that leads out of it: the
-    repository is untrusted, and a link to a host file would have Pitloom
-    read, and hash, that file. One ``INFO:`` says how many."""
-    root = os.path.realpath(work_dir)
+    """Remove a symbolic link of the checkout that leads out of it, into its
+    ``.git`` directory or to a folder: the repository is untrusted, a link
+    to a host file would have Pitloom read, and hash, that file, one into
+    ``.git`` a file Pitloom wrote (its ``config`` names the URL), and two
+    links to folders (``a -> .``, ``b -> .``) make every walk of the files
+    endless. A link to a file of the checkout is kept. One ``INFO:`` says
+    how many."""
+    root = PurePath(os.path.realpath(work_dir))
     dropped = 0
     for here, folders, files in os.walk(work_dir):
         if here == work_dir and ".git" in folders:
@@ -400,14 +425,18 @@ def _drop_outside_links(work_dir: str) -> None:
             path = os.path.join(here, name)
             if not os.path.islink(path):
                 continue
-            target = os.path.realpath(path)
-            if target != root and not target.startswith(root + os.sep):
+            target = PurePath(os.path.realpath(path))
+            if (
+                not is_inside(target, root)
+                or in_git_dir(target, root)
+                or os.path.isdir(target)
+            ):
                 os.unlink(path)
                 dropped += 1
     if dropped:
         log.info(
-            "Git source: %d symbolic link(s) leading out of the repository "
-            "were not followed",
+            "Git source: %d symbolic link(s) leading out of the repository, "
+            "into its .git directory or to a folder were not followed",
             dropped,
         )
 

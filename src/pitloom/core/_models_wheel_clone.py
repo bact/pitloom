@@ -21,13 +21,14 @@ discovery: :mod:`pitloom.core._models_wheel_hatchling`,
 from __future__ import annotations
 
 import logging
+import ntpath
 import os
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePath
 
 from pitloom.core._models_wheel_types import IncludedFile
-from pitloom.core.lfs_pointer import in_remote_clone, remote_clone_root
-from pitloom.core.path_confine import is_inside
+from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
+from pitloom.core.path_confine import inside_clone_but_not_git
 from pitloom.messages import (
     CONFIG_UNSAFE_BUILD_CODE,
     FILE_UNREADABLE_OUTSIDE_REPOSITORY,
@@ -45,14 +46,15 @@ def clone_root(project_dir: Path) -> PurePath:
 
 def left_out(path: str, root: PurePath) -> bool:
     """Whether *path*, links followed, is not a file of the repository at
-    *root* (already resolved): outside it, or in its ``.git`` directory
-    (the clone's own, which can hold the URL's user information). Never
+    *root* (already resolved): outside it, or in the clone's ``.git``
+    directory, which can hold the URL's user information
+    (:func:`~pitloom.core.path_confine.inside_clone_but_not_git`). Never
     raises (a NUL, or a link loop on Windows, leaves it out)."""
     try:
         real = PurePath(os.path.realpath(path))
     except (OSError, ValueError):
         return True
-    return not is_inside(real, root) or is_inside(real, root / ".git")
+    return not inside_clone_but_not_git(real, root)
 
 
 def warn_entries_left_out(project_dir: Path, entries: Iterable[str]) -> None:
@@ -85,6 +87,54 @@ def warn_build_code_ignored(
             settings=shown,
             once=f"build-code:{project_dir}\x00{file}\x00{','.join(shown)}",
         )
+
+
+class LeftOut:
+    """What a clone's build configuration leaves out before a discovery
+    reads it: the settings that name code, and the entries out of the clone
+    or in its ``.git``, each named as written by :meth:`warn`."""
+
+    def __init__(self, project_dir: Path) -> None:
+        self.project_dir = project_dir
+        self.root = clone_root(project_dir)
+        self.code: list[str] = []
+        self.entries: list[str] = []
+
+    def outside(self, path: str) -> bool:
+        """Whether the directory or file *path* (relative to the project) is
+        out of the clone or in its ``.git`` (:func:`left_out`), added to the
+        entries left out when it is."""
+        if left_out(os.path.join(self.project_dir, path), self.root):
+            self.entries.append(path)
+            return True
+        return False
+
+    def pattern_outside(self, pattern: str) -> bool:
+        """Whether the file pattern or path *pattern* can reach out of the
+        clone (absolute: rooted or with a drive; from the home directory;
+        or with a ``..`` part) or into its ``.git``, added to the entries
+        left out when it can."""
+        written = pattern.replace("\\", "/")
+        parts = written.split("/")
+        if (
+            written.startswith(("/", "~"))
+            or ntpath.splitdrive(written)[0]
+            or ".." in parts
+            or any(part.casefold() == ".git" for part in parts)
+        ):
+            self.entries.append(pattern)
+            return True
+        return False
+
+    def kept(self, listed: list[str], test: Callable[[str], bool]) -> list[str]:
+        """The entries of *listed* that *test* (:meth:`outside`,
+        :meth:`pattern_outside`) keeps."""
+        return [entry for entry in listed if not test(entry)]
+
+    def warn(self, file: str) -> None:
+        """Say what *file* had left out."""
+        warn_build_code_ignored(self.project_dir, file, self.code)
+        warn_entries_left_out(self.project_dir, self.entries)
 
 
 def drop_outside_clone(

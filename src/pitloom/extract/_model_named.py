@@ -21,7 +21,8 @@ from pathlib import Path
 from typing import NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata, model_file_suffixes
-from pitloom.core.lfs_pointer import in_remote_clone, refuse_named_pointer
+from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.path_confine import regular_file_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_error

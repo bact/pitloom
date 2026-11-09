@@ -18,6 +18,7 @@ See also: :mod:`tests.core.models_wheel.test_models_wheel_outside_clone`
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,7 +26,7 @@ from types import SimpleNamespace
 import pytest
 
 from pitloom.core import _models_wheel_pdm
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.models import get_wheel_files
 from pitloom.logging_config import CODE_ATTR
 
@@ -146,7 +147,8 @@ _VECTORS = [
     ),
 ]
 
-#: Run by a local discovery in a subprocess (slow): checked in a clone only.
+#: Run by a local discovery in a subprocess: its local control is its own
+#: test.
 _RUN_SETUPTOOLS = (
     "pdm-run-setuptools",
     {
@@ -302,6 +304,20 @@ def test_a_local_project_runs_its_build_code_as_before(
     assert not _said(caplog)
 
 
+def test_a_local_pdm_project_runs_its_setup_py_as_before(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The control of ``run-setuptools``: out of a clone, PDM runs
+    ``setup.py`` while it lists the files."""
+    marker = tmp_path / "RAN"
+    root = _write(tmp_path / "local", _RUN_SETUPTOOLS[1], marker)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        found = _discover(root, clone=False)
+    assert marker.exists()
+    assert "demo/__init__.py" in found
+    assert not _said(caplog)
+
+
 @pytest.mark.parametrize("clone", [True, False], ids=["clone", "local"])
 @pytest.mark.parametrize("files", [v[1] for v in _INERT], ids=[v[0] for v in _INERT])
 def test_code_no_discovery_runs_stays_unrun_and_unsaid(
@@ -371,14 +387,18 @@ def test_an_installed_pdm_plugins_hooks_still_run_in_a_clone(
         SimpleNamespace(load=lambda: ClassHook),
         SimpleNamespace(load=lambda: module_hook),
     ]
-    monkeypatch.setattr(
-        _models_wheel_pdm,
-        "entry_points",
-        lambda *, group: plugins if group == "pdm.build.hook" else [],
-    )
+    loaded_in: list[str] = []
+
+    def entry_points(*, group: str) -> list[SimpleNamespace]:
+        loaded_in.append(os.getcwd())
+        return plugins if group == "pdm.build.hook" else []
+
+    monkeypatch.setattr(_models_wheel_pdm, "entry_points", entry_points)
     marker = tmp_path / "RAN"
     root = _write(
         tmp_path / "clone", {v[0]: v[1] for v in _VECTORS}["pdm-build-py"], marker
     )
     assert _discover(root, clone=True) == ["demo/__init__.py"]
     assert called == ["class", "module"] and not marker.exists()
+    # Loaded before the working directory is the clone.
+    assert loaded_in and str(root) not in loaded_in

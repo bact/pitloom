@@ -24,18 +24,17 @@ the model gate) and :mod:`pitloom.core.file_hash` (the chunked hasher).
 
 from __future__ import annotations
 
-import contextlib
-import contextvars
 import io
 import logging
 import os
 import re
 import stat
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from os.path import normcase, realpath
 from typing import Final
 
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
@@ -59,15 +58,12 @@ __all__ = [
     "LfsPointer",
     "PrefixCapture",
     "UnreadPointers",
-    "in_remote_clone",
     "is_pointer_text",
     "log_pointer_not_read",
     "opens_lfs_pointer",
     "parse_lfs_pointer",
     "read_lfs_pointer",
-    "reading_remote_clone",
     "refuse_named_pointer",
-    "remote_clone_root",
     "size_text",
     "warn_pointers_not_read",
 ]
@@ -111,45 +107,6 @@ _POINTER: Final = re.compile(
 
 
 _log = logging.getLogger(__name__)
-
-#: Whether the run reads a temporary clone of a remote repository, where
-#: ``git lfs pull`` has nothing to pull into.
-_REMOTE_CLONE: Final[contextvars.ContextVar[bool]] = contextvars.ContextVar(
-    "pitloom_lfs_remote_clone", default=False
-)
-#: The root directory of that clone, when known.
-_CLONE_ROOT: Final[contextvars.ContextVar[str | None]] = contextvars.ContextVar(
-    "pitloom_remote_clone_root", default=None
-)
-
-
-@contextlib.contextmanager
-def reading_remote_clone(root: str | None = None) -> Iterator[None]:
-    """Mark the reads within as those of a temporary clone whose root
-    directory is *root* (``None``: not known), so the warning for a pointer
-    left unread (:func:`warn_pointers_not_read`) tells the user to clone
-    with Git LFS instead of to pull, and no file out of the clone is read
-    (:func:`remote_clone_root`)."""
-    token = _REMOTE_CLONE.set(True)
-    root_token = _CLONE_ROOT.set(root)
-    try:
-        yield
-    finally:
-        _CLONE_ROOT.reset(root_token)
-        _REMOTE_CLONE.reset(token)
-
-
-def in_remote_clone() -> bool:
-    """Whether the run is within :func:`reading_remote_clone`: it reads a
-    temporary clone of a remote repository, whose files were downloaded."""
-    return _REMOTE_CLONE.get()
-
-
-def remote_clone_root() -> str | None:
-    """The root directory of the clone :func:`reading_remote_clone` marks,
-    nothing out of which is read; ``None`` outside one, or when not known
-    (the folder read is the bound then)."""
-    return _CLONE_ROOT.get()
 
 
 @dataclass(frozen=True)
@@ -219,8 +176,9 @@ def refuse_named_pointer(
     """Refuse a file named on its own (``loom model``, ``read_ai_model()``)
     whose header is a Git LFS pointer's opening line, in the catalogue's
     words: ``lfs-pointer``, with the ``oid`` and size it states, when the
-    whole file is a pointer (within :func:`reading_remote_clone`, the
-    advice is to clone with Git LFS instead of to pull), else
+    whole file is a pointer (within
+    :func:`~pitloom.core.clone_mark.reading_remote_clone`, the advice is
+    to clone with Git LFS instead of to pull), else
     ``lfs-pointer-malformed``. The error names the file *shown* (default:
     *path*). Returns when the file cannot be read again, so the caller's own
     reason stands.
@@ -293,7 +251,8 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     """One ``WARNING:`` for all the pointers a run met (none: silent), naming
     the first path in sorted order. *archive*: the pointers were shipped in a
     built artefact (the bytes are recorded as they are), not left by an
-    unpulled checkout. Within :func:`reading_remote_clone` the advice for a
+    unpulled checkout. Within
+    :func:`~pitloom.core.clone_mark.reading_remote_clone` the advice for a
     checkout is to clone with Git LFS."""
     if not paths:
         return

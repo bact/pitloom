@@ -31,8 +31,8 @@ import pytest
 from pitloom.assemble import _generators_git, generate_git_sbom
 from pitloom.core import path_confine
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.extract import scanner_project
 from pitloom.extract.ai_model import read_ai_model_header
 from pitloom.extract.model_target import AUTO, MODEL, PROJECT, resolve_sbom_target

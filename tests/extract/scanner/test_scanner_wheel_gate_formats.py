@@ -31,7 +31,7 @@ from unittest import mock
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.project import ProjectFile
 from pitloom.extract import scanner, scanner_wheel
 from pitloom.extract.ai_model import read_ai_model

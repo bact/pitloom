@@ -21,7 +21,8 @@ from pathlib import Path
 from typing import IO
 
 from pitloom.core.ai_metadata import AiModelMetadata
-from pitloom.core.lfs_pointer import LfsPointer, in_remote_clone, read_lfs_pointer
+from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
 from pitloom.extract.scanner import (

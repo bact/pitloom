@@ -58,9 +58,11 @@ CONFIG_UNSAFE_BUILD_CODE: Final = Message(
     "names Python code of the repository that listing the wheel's files "
     "would run: a Hatchling metadata hook, a setuptools cmdclass or attr "
     "version, a PDM build hook (pdm_build.py or custom-hook) or "
-    "run-setuptools. The repository is untrusted, so that code is not run. "
-    "The line names the file that holds the settings and the settings "
-    "ignored.",
+    "run-setuptools; or a setup.cfg [global] section, which sets "
+    "setuptools' own options (where it reads files from, which command code "
+    "it loads). The repository is untrusted, so that code is not run and "
+    "those options are not set. The line names the file that holds the "
+    "settings and the settings ignored.",
     did="Ignored those settings: no code of the repository ran, and the "
     "wheel's files were listed from the rest of the build configuration, "
     "which may miss a file that code would add.",

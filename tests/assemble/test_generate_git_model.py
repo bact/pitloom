@@ -30,9 +30,9 @@ from pitloom.assemble import (
     generate_model_sbom,
 )
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.internal_error import InternalError
-from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout

@@ -6,6 +6,9 @@
 """Whether a path lies inside a directory, and opening a file only when it
 does: the one confinement check every reader of a project's own files
 (licence sources, ``[tool.setuptools.dynamic]`` requirements files) uses.
+In a temporary clone of a remote repository, the clone's ``.git`` directory
+is not inside (:func:`inside_clone_but_not_git`): Pitloom wrote it, and its
+configuration can hold the URL's user information.
 
 See also: :mod:`pitloom.core.file_identity` (identity by
 ``(st_dev, st_ino)``).
@@ -20,6 +23,7 @@ from contextlib import ExitStack
 from pathlib import Path, PurePath
 from typing import BinaryIO
 
+from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
 from pitloom.core.file_identity import file_id
 
 #: Opens a FIFO without waiting for a writer (no such flag on Windows).
@@ -85,6 +89,28 @@ def is_inside(path: PurePath, root: PurePath) -> bool:
     return inside_ancestor(path, root) is not None
 
 
+def in_git_dir(path: PurePath, root: PurePath) -> bool:
+    """Whether *path* is the ``.git`` directory of *root*, or lies below it,
+    both already resolved (:func:`is_inside`: a case-insensitive file system
+    also finds ``.GIT``). Never raises."""
+    return is_inside(path, root / ".git")
+
+
+def inside_clone_but_not_git(path: PurePath, root: PurePath) -> bool:
+    """Whether *path* is *root* or lies below it (:func:`is_inside`), both
+    already resolved, and, within a temporary clone
+    (:func:`~pitloom.core.clone_mark.in_remote_clone`), not in the clone's
+    ``.git`` directory (:func:`in_git_dir`), that of its root
+    (:func:`~pitloom.core.clone_mark.remote_clone_root`), else of *root*.
+    Out of a clone, :func:`is_inside`. Never raises."""
+    if not is_inside(path, root):
+        return False
+    if not in_remote_clone():
+        return True
+    clone = remote_clone_root()
+    return not in_git_dir(path, PurePath(os.path.realpath(clone)) if clone else root)
+
+
 def spelled_as_on_disk(root: str | os.PathLike[str], relative: str) -> bool:
     """Whether each part of the POSIX *relative* path, from *root* down, is
     the name of an entry of its directory exactly as spelled: a
@@ -105,16 +131,17 @@ def spelled_as_on_disk(root: str | os.PathLike[str], relative: str) -> bool:
 
 def regular_file_inside(root: str | os.PathLike[str], relative: str) -> bool:
     """Whether the POSIX *relative* path under *root* is a regular file whose
-    real path (links followed) lies inside *root*'s (:func:`is_inside`), and
-    is spelled as on disk (:func:`spelled_as_on_disk`), so every file system
-    agrees with a case-sensitive one. Nothing is opened. Never raises."""
+    real path (links followed) lies inside *root*'s, out of a clone's
+    ``.git`` directory (:func:`inside_clone_but_not_git`), and is spelled as
+    on disk (:func:`spelled_as_on_disk`), so every file system agrees with a
+    case-sensitive one. Nothing is opened. Never raises."""
     try:
         real_root = os.path.realpath(root)
         target = os.path.realpath(os.path.join(real_root, relative))
     except (OSError, ValueError):  # a NUL, or a link loop on Windows
         return False
     return (
-        is_inside(PurePath(target), PurePath(real_root))
+        inside_clone_but_not_git(PurePath(target), PurePath(real_root))
         and os.path.isfile(target)
         and spelled_as_on_disk(real_root, relative)
     )
@@ -133,7 +160,8 @@ def open_inside(written: Path, root: Path) -> BinaryIO:
     a regular file inside *root*.
 
     The check follows the open and is made on the opened file: *written*
-    resolved then must be inside *root* (:func:`is_inside`) and, opened
+    resolved then must be inside *root*, and out of a clone's ``.git``
+    directory (:func:`inside_clone_but_not_git`) and, opened
     again, be the very file opened, by ``(st_dev, st_ino)``, so a symlink
     swapped while opening is refused rather than followed out. On a file
     system without file identity (``st_ino`` 0), only the resolved path is
@@ -141,7 +169,8 @@ def open_inside(written: Path, root: Path) -> BinaryIO:
 
     Raises:
         NotRegularFileError: *written* is not a regular file.
-        OutsideRootError: it is outside *root*, or not the file opened.
+        OutsideRootError: it is outside *root* (or in a clone's ``.git``),
+            or not the file opened.
         OSError: it cannot be opened, or resolved (a symlink loop:
             :class:`SymlinkLoopError`).
         ValueError: its path holds a NUL.
@@ -163,7 +192,7 @@ def _check_opened(handle: BinaryIO, written: Path, root: Path) -> None:
         raise NotRegularFileError
     try:
         resolved = written.resolve()
-        inside = is_inside(resolved, root.resolve())
+        inside = inside_clone_but_not_git(resolved, root.resolve())
     except RuntimeError as exc:  # a symlink loop, on 3.10-3.12
         raise SymlinkLoopError from exc
     if not inside or (opened.st_ino and not _opened_at(resolved, opened)):

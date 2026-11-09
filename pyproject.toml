@@ -81,6 +81,8 @@ dependencies = [
     "pyproject-metadata>=0.12.1",
     "pyyaml>=6.0.3,<7",
     "rfc8785>=0.1.4",
+    # No ceiling: a Git URL's clone uses private setuptools pieces; one gone
+    # fails that discovery, said (pitloom.core._models_wheel_setuptools_clone).
     "setuptools>=84.0.0",
     "spdx-python-model==0.0.6",
     "tomli>=2.4.1; python_version<'3.11'",

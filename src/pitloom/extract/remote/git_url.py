@@ -351,7 +351,19 @@ def _find_marker(
 #: The names of the checkout's ``.git`` directory, as each file system reads
 #: one (case-folded, Windows' trailing dots and spaces dropped; its 8.3 short
 #: name): the clone's own, which can hold the URL's user information.
-_GIT_DIR_NAMES = frozenset({".git", "git~1"})
+#: A name Windows reads as the ``.git`` directory once its stream
+#: (``:``...) and its trailing dots and spaces are cut: ``.git`` itself, or
+#: an 8.3 short name ``GIT~<n>`` (in any letter case).
+_GIT_DIR_NAME = re.compile(r"\.git|git~[0-9]+")
+
+
+def _names_git_dir(part: str) -> bool:
+    """Whether the path part *part* names the ``.git`` directory on some
+    file system (:data:`_GIT_DIR_NAME`): ``.git``, ``.GIT``, ``.git.``,
+    ``.git ``, ``.git::$DATA``, ``.git:x``, ``GIT~1``; never
+    ``.github`` or ``foo.git``."""
+    name = part.partition(":")[0].casefold().rstrip(". ")
+    return _GIT_DIR_NAME.fullmatch(name) is not None
 
 
 def _check_segments(rest: tuple[str, ...], url: str) -> None:
@@ -359,14 +371,14 @@ def _check_segments(rest: tuple[str, ...], url: str) -> None:
     checkout, start outside it or into its ``.git`` directory: one holding
     a ``\\`` or a NUL, or whose parts between the ``/`` it may hold (an
     encoded ``%2F``, as in a branch ``feature%2Fx``) include ``.``, ``..``,
-    an empty one (``%2Fetc``) or ``.git`` (:data:`_GIT_DIR_NAMES`)."""
+    an empty one (``%2Fetc``) or ``.git`` (:func:`_names_git_dir`)."""
     for segment in rest:
         parts = segment.split("/")
         if (
             "\0" in segment
             or "\\" in segment
             or any(part in {"", ".", ".."} for part in parts)
-            or any(part.casefold().rstrip(". ") in _GIT_DIR_NAMES for part in parts)
+            or any(_names_git_dir(part) for part in parts)
         ):
             raise RemoteSourceError(
                 "git.url-invalid",

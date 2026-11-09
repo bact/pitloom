@@ -91,6 +91,7 @@ CAP_UNITS: Final = frozenset(
         "marker",
         "opcode",
         "part",
+        "second",
         "unit",
     }
 )

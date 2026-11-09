@@ -28,7 +28,6 @@ from __future__ import annotations
 import ast
 import configparser
 import logging
-import os
 import sys
 import tempfile
 from collections.abc import Iterator
@@ -36,6 +35,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pitloom.core._models_wheel_guard import discovery_chdir, discovery_deadline
 from pitloom.core._models_wheel_setuptools_clone import (
     apply_pyproject,
     apply_setup_cfg,
@@ -43,6 +43,7 @@ from pitloom.core._models_wheel_setuptools_clone import (
 from pitloom.core._models_wheel_setuptools_relay import relay_setuptools_output
 from pitloom.core._models_wheel_types import (
     IncludedFile,
+    discovery_failure_text,
     has_resolvable_pyproject_config,
     mark_discovery_failed,
     to_posix_distribution_path,
@@ -50,7 +51,6 @@ from pitloom.core._models_wheel_types import (
 )
 from pitloom.core.path_confine import is_inside
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
@@ -83,28 +83,6 @@ _IMPERATIVE_PACKAGING_KWARGS = frozenset(
 # setuptools' auto-discovery off (``ext_modules``: setuptools' own
 # ``ConfigDiscovery._explicitly_specified``) or changes the file list.
 _AUTO_DISCOVERY_BLOCKERS = _IMPERATIVE_PACKAGING_KWARGS | {"ext_modules"}
-
-
-@contextmanager
-def _chdir(project_dir: Path) -> Iterator[None]:
-    """Setuptools' :class:`~setuptools.dist.Distribution`/
-    :class:`~setuptools.command.build_py.build_py` resolve paths relative
-    to the current working directory, so discovery needs to run from
-    *project_dir* for the duration of the call.
-
-    This process-wide ``os.chdir()`` is only safe because
-    :mod:`pitloom.core._models_wheel_dispatch` -- the sole caller of
-    :func:`discover` -- runs every call to this function under its
-    read/write discovery lock's exclusive write mode, which keeps it
-    from overlapping any other backend's discovery call (Hatchling's
-    included); this module holds no lock of its own.
-    """
-    original_cwd = Path.cwd()
-    os.chdir(project_dir)
-    try:
-        yield
-    finally:
-        os.chdir(original_cwd)
 
 
 @contextmanager
@@ -149,7 +127,7 @@ def _load_distribution(
     static config only.
 
     Must run with the process cwd already set to *project_dir* (see the
-    ``_chdir`` caller in :func:`discover`): ``apply_configuration()`` is
+    ``discovery_chdir`` call in :func:`discover`): ``apply_configuration()`` is
     what performs ``[tool.setuptools.dynamic]``/``attr:`` resolution,
     which can import the target project's own modules -- running it
     with the wrong cwd risks resolving that import against an unrelated
@@ -395,7 +373,11 @@ def discover(
     from setuptools.errors import PackageDiscoveryError
 
     try:
-        with _chdir(project_dir), relay_setuptools_output(project_dir):
+        with (
+            discovery_chdir(project_dir),
+            relay_setuptools_output(project_dir),
+            discovery_deadline(project_dir),
+        ):
             with _isolated_sys_modules(project_dir):
                 dist = _load_distribution(project_dir, pyproject_data)
             if dist is None:
@@ -426,7 +408,7 @@ def discover(
             "(%s) -- specify `packages`/`py_modules` explicitly in "
             "pyproject.toml or setup.cfg",
             quote_source(project_dir),
-            one_line(exc),
+            discovery_failure_text(exc),
         )
         mark_discovery_failed()
         return None

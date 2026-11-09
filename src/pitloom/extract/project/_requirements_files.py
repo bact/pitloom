@@ -27,7 +27,9 @@ Deliberate differences from setuptools, each with a ``WARNING:``:
   setuptools fails the build on it, so ``-r`` is not followed;
 * a base requirement that is not PEP 508 is skipped
   (:func:`pep508_only`), as an extra's is; setuptools fails the build on
-  it.
+  it. In a Git URL's clone such a line of a listed file is skipped as
+  :data:`NOT_SHOWN`: a downloaded repository's file is not echoed to the
+  terminal.
 
 See also: :mod:`pitloom.extract.project._setuptools_dynamic` and
 :mod:`pitloom.extract.project._setuptools_options` (the users).
@@ -43,6 +45,7 @@ from typing import BinaryIO
 
 from packaging.requirements import InvalidRequirement
 
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
@@ -60,6 +63,10 @@ MAX_REQUIREMENTS_FILE_BYTES = 1024 * 1024
 #: file that would pass it and the files after it are skipped, with one
 #: warning.
 MAX_REQUIREMENTS_TOTAL_BYTES = 4 * 1024 * 1024
+
+#: What a skipping ``WARNING:`` shows for a line of a Git URL's clone's
+#: requirements file that is not PEP 508 (itself not PEP 508, so skipped).
+NOT_SHOWN = "<a line of the downloaded repository, not shown>"
 
 #: A listed file: its identity, else (none on this file system, or it
 #: could not be opened) its path as written.
@@ -178,6 +185,15 @@ def pep508_only(requirements: list[str], field: str, quiet: bool) -> list[str]:
     return kept
 
 
+def _is_pep508(text: str) -> bool:
+    """Whether *text* parses as a PEP 508 requirement (quietly)."""
+    try:
+        parse_requirement(text, quiet=True)
+    except InvalidRequirement:
+        return False
+    return True
+
+
 class _Unreadable(Exception):
     """A listed file is not read: *cause* says why."""
 
@@ -237,6 +253,8 @@ class RequirementsFiles:
                 ", ".join(loggable(o) for o in dict.fromkeys(options)),
                 loggable(self.field(key)),
             )
+        if in_remote_clone():
+            return [text if _is_pep508(text) else NOT_SHOWN for text in requirements]
         return requirements
 
     def warn_skipped(self) -> None:

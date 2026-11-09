@@ -29,6 +29,7 @@ from pitloom.core.url_masking import (
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
+    url_without_credentials,
 )
 from pitloom.logging_config import configure_logging, escape_controls, loggable
 
@@ -298,3 +299,18 @@ def test_the_masking_module_imports_the_standard_library_only() -> None:
         elif isinstance(node, ast.ImportFrom):
             imported.add((node.module or "").partition(".")[0])
     assert imported and imported <= set(sys.stdlib_module_names)
+
+
+@pytest.mark.parametrize(
+    ("url", "kept"),
+    [
+        ("https://u:SECRET@h/o/r.git", "https://h/o/r.git"),
+        ("https://SECRET@h:8080/r", "https://h:8080/r"),
+        ("https://u:p@ss@SECRET@h/r", "https://h/r"),
+        ("https://h/r?private_token=SECRET", "https://h/r?private_token=***"),
+        ("https://h/r", "https://h/r"),
+    ],
+    ids=["user-password", "token-port", "at-in-password", "query", "none"],
+)
+def test_the_url_kept_on_disk_has_no_credentials(url: str, kept: str) -> None:
+    assert url_without_credentials(url) == kept

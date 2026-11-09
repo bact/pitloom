@@ -18,7 +18,6 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 import threading
 from pathlib import Path
 
@@ -26,16 +25,15 @@ import pytest
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.lfs_pointer import in_remote_clone, remote_clone_root
 from pitloom.extract.remote import fetch_git_project, git_url
 from pitloom.logging_config import CODE_ATTR
 from tests._model_fixtures import fixture_path, spy_readers
 
 pytestmark = [
     pytest.mark.skipif(shutil.which("git") is None, reason="needs git"),
-    pytest.mark.skipif(sys.platform == "win32", reason="file:// URLs of POSIX paths"),
 ]
 
 _ENV = {
@@ -89,7 +87,7 @@ def _hostile(tmp_path: Path) -> tuple[str, Path]:
     _git(root, "checkout", "-q", "-b", "main")
     _git(root, "add", "-A")
     _git(root, "commit", "-q", "-m", "x")
-    return f"file://{root}", secret
+    return root.as_uri(), secret
 
 
 def _codes(caplog: pytest.LogCaptureFixture) -> list[str]:

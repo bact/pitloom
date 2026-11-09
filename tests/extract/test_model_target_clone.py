@@ -24,7 +24,7 @@ from typing import Any
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.extract import _model_named
 from pitloom.extract.ai_model import NotAModel, refusal_error
 from pitloom.extract.model_target import (

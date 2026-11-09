@@ -29,7 +29,7 @@ import pytest
 from pitloom.core import _models_wheel
 from pitloom.core._models_wheel_clone import drop_outside_clone
 from pitloom.core._models_wheel_types import IncludedFile
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.models import get_wheel_files
 from pitloom.logging_config import CODE_ATTR
 from tests._symlink import CAN_SYMLINK
@@ -267,25 +267,34 @@ def test_a_setting_out_of_the_clone_is_left_out_before_any_walk(
     assert "hostfile" not in caplog.text and "hostpkg/__init__" not in caplog.text
 
 
+def _case_insensitive(where: Path) -> bool:
+    (where / "Probe").mkdir()
+    return (where / "probe").is_dir()
+
+
+@pytest.mark.parametrize("spelled", [".git", ".GIT"], ids=["git", "case-variant"])
 def test_the_clones_git_directory_is_left_out(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, spelled: str
 ) -> None:
     """``.git/config`` can hold the URL's user information: a setting naming
-    it is left out, and so is a file of ``.git`` a backend lists."""
+    it is left out, and so is a file of ``.git`` a backend lists, in another
+    letter case too where the file system finds it so."""
+    if spelled != ".git" and not _case_insensitive(tmp_path):
+        pytest.skip("the file system tells cases apart")
     root = tmp_path / "clone"
     (root / "demo").mkdir(parents=True)
     (root / "demo" / "__init__.py").write_bytes(b"")
     (root / ".git").mkdir()
     (root / ".git" / "config").write_bytes(b"[remote]\n")
     (root / "pyproject.toml").write_bytes(
-        _HB_FORCE + b'".git/config" = "demo/config"\n'
+        _HB_FORCE + f'"{spelled}/config" = "demo/config"\n'.encode()
     )
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         with reading_remote_clone(str(root)):
             _root, files, _cleanup = get_wheel_files(root)
             kept = drop_outside_clone(
                 [
-                    IncludedFile(str(root / ".git" / "config"), "demo/config"),
+                    IncludedFile(str(root / spelled / "config"), "demo/config"),
                     IncludedFile(
                         str(root / "demo" / "__init__.py"), "demo/__init__.py"
                     ),
@@ -295,7 +304,7 @@ def test_the_clones_git_directory_is_left_out(
     assert [f.distribution_path for f in files] == ["demo/__init__.py"]
     assert [f.distribution_path for f in kept] == ["demo/__init__.py"]
     assert [r.getMessage() for r in _outside_records(caplog)] == [
-        "FILE=.git/config: outside the downloaded repository; not read",
+        f"FILE={spelled}/config: outside the downloaded repository; not read",
         "listed files outside the downloaded repository; not read",
     ]
 

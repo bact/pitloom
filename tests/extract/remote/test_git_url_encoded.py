@@ -6,8 +6,9 @@
 segment (``%2F``, ``%2f``, Azure DevOps' ``path=`` decoded twice:
 ``%252F``) or a ``\\`` (``%5C``) never walks out of the checkout, on every
 page form, nor into its ``.git`` directory (in any letter case, or as
-Windows reads ``.git.`` and ``GIT~1``); a branch named with an encoded
-``/`` (Bitbucket's ``feature%2Fx``) is still read.
+Windows reads ``.git.``, ``.git ``, ``GIT~1`` and ``.git::$DATA``); a
+branch named with an encoded ``/`` (Bitbucket's ``feature%2Fx``) is still
+read, as is a name that starts with ``.git`` (``.github``).
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_target_named` and
@@ -37,6 +38,11 @@ _ESCAPES = {
     "dotgit-upper": "sub/.GIT/config",
     "dotgit-win32": ".git.%2Fconfig",
     "dotgit-short": "GIT~1/config",
+    "dotgit-short-2": "git~12/config",
+    "dotgit-space": ".git%20/config",
+    "dotgit-ads": ".git::$DATA",
+    "dotgit-ads-index": ".git::$INDEX_ALLOCATION/config",
+    "dotgit-stream": ".git:x/config",
 }
 
 #: Page forms whose path segments follow a marker, ``{p}`` the path.
@@ -120,3 +126,12 @@ def test_an_encoded_slash_between_plain_names_is_kept(
     """A ``/`` encoded between names (a branch ``feature/x``) stays in its
     segment: the ref split reads it from the server's refs."""
     assert parse_git_page(url).rest == rest
+
+
+@pytest.mark.parametrize(
+    "name",
+    [".gitmodules", ".gitattributes", ".gitignore", ".github", "foo.git", "git~x"],
+)
+def test_a_name_that_only_starts_or_ends_with_git_is_kept(name: str) -> None:
+    page = parse_git_page(f"https://h.example/o/r/blob/main/{name}/m.gguf")
+    assert page.rest == ("main", name, "m.gguf")

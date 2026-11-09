@@ -32,7 +32,7 @@ most one prefix from the table of prefixes.
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the repository chooses, and the repository is untrusted. | 0.23.4 |
-| [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools. The repository is untrusted, so that code is not run. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
+| [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
@@ -165,9 +165,11 @@ A line may start with one prefix before its text:
 - **Means**: The build configuration of a project fetched from a Git URL names
   Python code of the repository that listing the wheel's files would run: a
   Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build
-  hook (pdm_build.py or custom-hook) or run-setuptools. The repository is
-  untrusted, so that code is not run. The line names the file that holds the
-  settings and the settings ignored.
+  hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global]
+  section, which sets setuptools' own options (where it reads files from, which
+  command code it loads). The repository is untrusted, so that code is not run
+  and those options are not set. The line names the file that holds the settings
+  and the settings ignored.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Ignored those settings: no code of the repository ran, and
   the wheel's files were listed from the rest of the build configuration, which

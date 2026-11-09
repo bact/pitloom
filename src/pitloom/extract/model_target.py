@@ -33,12 +33,9 @@ from pathlib import Path
 from typing import Final, NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.internal_error import InternalError
-from pitloom.core.lfs_pointer import (
-    in_remote_clone,
-    refuse_named_pointer,
-    warn_pointers_not_read,
-)
+from pitloom.core.lfs_pointer import refuse_named_pointer, warn_pointers_not_read
 from pitloom.core.project import is_sdist_archive
 from pitloom.core.project_markers import has_project_config
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
