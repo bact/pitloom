@@ -48,12 +48,11 @@ User manual: <https://bact.github.io/pitloom/>
 ```bash
 pip install pitloom
 licenseid update --source packaged   # once: enables LICENSE-file matching
-loom project .     # SBOM for the Python project in the current dir
+loom project .                       # SBOM for the Python project in the current dir
 ```
 
-Without the LicenseID database, a declared licence is still read, but a
-`LICENSE` file is not matched (`INFO:` or `WARNING:`, depending on whether a
-licence is declared).
+Without the [LicenseID] database, a declared licence is still read,
+but a `LICENSE` file is not matched.
 
 Extras enable more metadata extraction (see [CONTRIBUTING.md](CONTRIBUTING.md)
 for the dev install):
@@ -63,6 +62,8 @@ pip install "pitloom[ai]"              # AI model files and Hugging Face Hub
 pip install "pitloom[content-type]"    # content type detection (Magika)
 pip install "pitloom[validate]"        # SPDX 3 schema/SHACL validation
 ```
+
+[LicenseID]: https://github.com/bact/licenseid
 
 ## Usage
 
@@ -95,7 +96,7 @@ Works with remote resources too:
 ```bash
 loom project https://gitlab.com/group/project
 loom model https://github.com/org/repo/blob/main/m.keras
-loom model https://huggingface.co/Qwen/Qwen3.8-27B       # Or just Qwen/Qwen3.8-27B
+loom model https://huggingface.co/Qwen/Qwen3.8-27B            # Or just Qwen/Qwen3.8-27B
 ```
 
 `-o FILE` sets the output path. The per-file inventory (file list, hashes)
