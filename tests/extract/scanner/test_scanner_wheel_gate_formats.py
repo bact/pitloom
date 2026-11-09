@@ -38,8 +38,7 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner import ReaderGate
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
-from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import READER_UNSAFE_REMOTE
+from tests._model_fixtures import remote_gate_infos
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 
 _FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels"
@@ -258,17 +257,10 @@ def _scan_project_in_a_clone(
         )
 
 
-def remote_gate_infos(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [
-        r.getMessage()
-        for r in caplog.records
-        if getattr(r, CODE_ATTR, None) == READER_UNSAFE_REMOTE.code
-    ]
-
-
 def test_a_project_scan_in_a_git_clone_is_gated(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    pytest.importorskip("safetensors")  # the one reader the gate lets run
     caplog.set_level(logging.INFO)
     with mock.patch.object(scanner, "read_ai_model", wraps=read_ai_model) as spy:
         models = _scan_project_in_a_clone(tmp_path, list(_GATED))

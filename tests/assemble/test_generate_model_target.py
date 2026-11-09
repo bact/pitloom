@@ -13,6 +13,7 @@ See also: :mod:`tests.extract.test_model_target` (the resolver) and
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 from collections.abc import Callable
@@ -87,7 +88,10 @@ def test_a_folder_with_a_project_is_still_a_project(tmp_path: Path) -> None:
     _keras_folder(tmp_path)
     (tmp_path / "pyproject.toml").write_text(_DEMO, encoding="utf-8")
     assert _classify_target(tmp_path) == "project"
-    assert "demo" in generate(tmp_path, creation_metadata=_FIXED)
+    graph = json.loads(generate(tmp_path, creation_metadata=_FIXED))["@graph"]
+    names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
+    assert names == ["demo"]  # the project's package, and no model's
+    assert not [e for e in graph if e.get("type") == "ai_AIPackage"]
 
 
 @pytest.mark.parametrize(

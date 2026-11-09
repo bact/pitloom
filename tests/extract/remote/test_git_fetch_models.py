@@ -278,6 +278,24 @@ def test_a_project_only_of_a_model_folder_says_to_ask_for_a_model(
     assert "loom model <url>" in text and "\n" not in text
 
 
+@pytest.mark.parametrize(
+    ("count", "tail"), [(5, ""), (6, " and 1 more")], ids=["five", "six"]
+)
+def test_a_model_folder_lists_at_most_five_names(
+    tmp_path: Path, count: int, tail: str
+) -> None:
+    """The boundary of the listing: five names are all shown, a sixth is
+    counted ("and 1 more"), never named."""
+    names = [f"m{i}.keras" for i in range(count)]
+    url = _repo(tmp_path / "o", dict.fromkeys(names, b"x"))
+    with pytest.raises(RemoteSourceError) as excinfo:
+        _resolved(url, PROJECT)
+    text = str(excinfo.value)
+    assert f"({', '.join(names[:5])}{tail})" in text
+    assert ("more" in text) == bool(tail)
+    assert "m5.keras" not in text
+
+
 def test_a_project_only_of_a_model_folder_with_projects_below_reads_it(
     tmp_path: Path,
 ) -> None:

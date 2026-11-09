@@ -40,11 +40,11 @@ pitloom.cli._id_entity 5
 pitloom.cli._id_target 2
 pitloom.cli.commands._embed_wheel_batch 4
 pitloom.cli.commands.embed_wheel 3
-pitloom.cli.commands.enrich 2
+pitloom.cli.commands.enrich 1
 pitloom.cli.commands.fragment 10
 pitloom.cli.commands.generate 1
 pitloom.cli.commands.merge 3
-pitloom.cli.commands.model 2
+pitloom.cli.commands.model 1
 pitloom.cli.commands.project 1
 pitloom.cli.commands.utils 6
 pitloom.cli.commands.validate_wheel 3
@@ -52,7 +52,7 @@ pitloom.cli.commands.verify_wheel 6
 pitloom.cli.commands.wheel 1
 pitloom.cli.id 15
 pitloom.cli.options 5
-pitloom.cli.options_resolve 2
+pitloom.cli.options_resolve 1
 pitloom.cli.parser 2
 pitloom.core._config_keys 1
 pitloom.core._config_legacy 5

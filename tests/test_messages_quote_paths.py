@@ -52,7 +52,7 @@ _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 #: Calls that take a path and quote it inside, or only count paths. The
 #: catalogue's coded exceptions (CodedValueError, CodedImportError,
 #: CodedFileNotFoundError) write each value through its field (a ``path`` in
-#: quotes, a ``file`` through loggable);
+#: quotes, a ``file`` through loggable), as does ``Line.render``;
 #: ``refusal_error`` says the refusal through CodedValueError, else quoted.
 _QUOTING_CALLS = frozenset(
     {
@@ -65,6 +65,7 @@ _QUOTING_CALLS = frozenset(
         "_same_document_message",
         "failed_to_save_message",
         "refusal_error",
+        "render",
         "name_key_reason",
         "detail",
         "detect_ai_model_format_from_name",

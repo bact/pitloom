@@ -157,7 +157,7 @@ def read_metadata(meta: dict[str, Any], fields: KerasFields) -> None:
 def read_config(config_data: dict[str, Any], fields: KerasFields) -> None:
     """The model config of ``config.json`` (its class, name,
     hyperparameters, layer count and input shape) and its
-    ``compile_config`` (optimizer, loss and metrics), each part with at most
+    ``compile_config`` (optimiser, loss and metrics), each part with at most
     one ``WARNING:`` naming what it could not read."""
     fields.type_of_model, fields.name, problem = parse_model_config_object(
         config_data,

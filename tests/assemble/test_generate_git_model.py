@@ -74,7 +74,15 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     ) -> Iterator[GitCheckout]:
         seen.update(url=url, check_url=check_url, offline=offline, max_bytes=max_bytes)
         folder, file = seen["folder"], seen.get("file", "")
-        yield GitCheckout(str(folder), url, "main", "c", "models", False, str(file))
+        yield GitCheckout(
+            folder=str(folder),
+            repo_url=url,
+            ref="main",
+            commit="c",
+            subdir="models",
+            whole_repository=False,
+            file=str(file),
+        )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     return seen
@@ -191,7 +199,8 @@ def test_an_option_a_model_cannot_use_warns_once_with_the_models_reason(
     assert sum("project_metadata has no effect" in w for w in warnings) == 1
     assert any("for a model target (there are no Python files" in w for w in warnings)
     assert all("SECRET" not in w and str(tmp_path) not in w for w in warnings)
-    assert len(warnings) == 5
+    # The five option lines; a missing optional library adds its own warning.
+    assert sum("Options: " in w for w in warnings) == 5
 
 
 def test_a_project_only_of_a_model_folder_is_refused_with_a_hint(

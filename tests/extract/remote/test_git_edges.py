@@ -376,6 +376,7 @@ def test_a_folder_page_that_names_a_file_reads_the_folder_holding_it(
     assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
     assert file == "app.toml"
     assert "is a file, not a folder" in caplog.text
+    assert "reading the folder holding it" not in caplog.text
 
 
 @pytest.mark.parametrize(

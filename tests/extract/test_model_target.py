@@ -350,8 +350,9 @@ def test_a_folder_over_the_candidate_cap_is_refused_unread(
     assert not model_files_in(tmp_path)
     (tmp_path / "c.bin").write_bytes(b"x")
     caplog.clear()
-    with pytest.raises(ValueError) as caught:
-        model_files_in(tmp_path, subject="d")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with pytest.raises(ValueError) as caught:
+            model_files_in(tmp_path, subject="d")
     assert code_of(caught.value) == "model-ambiguous/over-cap"
     assert str(caught.value) == (
         "'d': more than 2 files that could be AI models, none read; name one file"
@@ -412,8 +413,9 @@ def test_the_cap_names_the_folder_by_default(
 ) -> None:
     monkeypatch.setattr(model_target, "MAX_FOLDER_CANDIDATES", 0)
     (tmp_path / "a.bin").write_bytes(b"x")
-    with pytest.raises(ValueError) as caught:
-        model_files_in(tmp_path)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with pytest.raises(ValueError) as caught:
+            model_files_in(tmp_path)
     where = quote_source(str(tmp_path))
     assert str(caught.value) == (
         f"{where}: more than 0 files that could be AI models, none read; name one file"

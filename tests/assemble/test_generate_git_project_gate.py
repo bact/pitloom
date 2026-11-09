@@ -43,12 +43,11 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
-from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import READER_UNSAFE_REMOTE
 from tests._model_fixtures import (
     FORMATS,
     fixture_path,
     has_reader_library,
+    remote_gate_infos,
     spy_readers,
     write_model_project,
 )
@@ -73,7 +72,14 @@ def _project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         max_bytes: int | None = None,
     ) -> Iterator[GitCheckout]:
         del check_url, offline, max_bytes  # the fetch's own; not this test's
-        yield GitCheckout(str(folder), url, "main", "c", "proj", False)
+        yield GitCheckout(
+            folder=str(folder),
+            repo_url=url,
+            ref="main",
+            commit="c",
+            subdir="proj",
+            whole_repository=False,
+        )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     return folder
@@ -95,14 +101,6 @@ _ROUTES: dict[str, Callable[[], str]] = {
     "git-project": lambda: generate_git_project_sbom(_URL, creation_metadata=_FIXED),
     "generate": lambda: generate(_URL, creation_metadata=_FIXED),
 }
-
-
-def _gate_notes(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [
-        r.getMessage()
-        for r in caplog.records
-        if getattr(r, CODE_ATTR, None) == READER_UNSAFE_REMOTE.code
-    ]
 
 
 def _models_by_file(sbom: str) -> dict[str, object]:
@@ -143,7 +141,7 @@ def test_a_gated_reader_never_runs_on_a_git_urls_project(
     assert sorted(fmt for fmt, _ in read) == [
         f for f in FORMATS if f not in WHEEL_GATED_FORMATS and has_reader_library(f)
     ]
-    (note,) = _gate_notes(caplog)  # five gated models, one line
+    (note,) = remote_gate_infos(caplog)  # five gated models, one line
     assert f": {', '.join(_GATED_NAMES)}; " in note
     assert set(remote) == set(local) == {fixture_path(f).name for f in FORMATS}
     for fmt in FORMATS:
@@ -170,7 +168,7 @@ def test_a_local_project_reads_every_format(
     if not set(expected) & WHEEL_GATED_FORMATS:
         pytest.skip("no gated format's library is installed")
     assert sorted(fmt for fmt, _ in read) == expected
-    assert not _gate_notes(caplog)
+    assert not remote_gate_infos(caplog)
 
 
 def test_a_project_without_a_gated_model_says_nothing(
@@ -183,14 +181,21 @@ def test_a_project_without_a_gated_model_says_nothing(
 
     @contextmanager
     def fetch(url: str, **_options: object) -> Iterator[GitCheckout]:
-        yield GitCheckout(str(folder), url, "main", "c", "proj", False)
+        yield GitCheckout(
+            folder=str(folder),
+            repo_url=url,
+            ref="main",
+            commit="c",
+            subdir="proj",
+            whole_repository=False,
+        )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     with caplog.at_level(logging.INFO):
         assert generate_git_project_sbom(_URL, creation_metadata=_FIXED) == _local(
             folder
         )
-    assert not _gate_notes(caplog)
+    assert not remote_gate_infos(caplog)
 
 
 @pytest.mark.parametrize("hostile", ["hdf5-hang.h5", "hdf5-segfault.h5"])
@@ -211,7 +216,14 @@ def test_a_hostile_hdf5_in_a_git_urls_project_is_listed_not_opened(
 
         @contextmanager
         def fetch(url, **_options):
-            yield GitCheckout(sys.argv[1], url, "main", "c", "proj", False)
+            yield GitCheckout(
+                folder=sys.argv[1],
+                repo_url=url,
+                ref="main",
+                commit="c",
+                subdir="proj",
+                whole_repository=False,
+            )
 
         _generators_git.fetch_git_project = fetch
         sbom = generate_git_project_sbom("https://git.example.org/o/r")

@@ -40,6 +40,7 @@ from pitloom.extract.remote import (
     parse_hf_model_id,
 )
 from pitloom.logging_config import print_error
+from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
 
 
 def _write_model_sbom(
@@ -132,7 +133,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
         # A URL that is no source we read (user information in a Hugging
         # Face one) is named as given, cleaned, not as a path under the cwd.
         shown = sanitize_url(target) if "://" in target else Path(target).resolve()
-        print_error(f"model file not found: {quote_source(shown)}")
+        print_error(
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": shown}),
+            code=INPUT_NOT_FOUND.code,
+        )
         return 1
     # A folder: its one model file, which names the output.
     model_path = model_path_of(opened_path, subject=target)

@@ -5,11 +5,11 @@
 
 """Parsing of a Keras training config: the ``training_config`` root attribute
 of a Keras v1/v2 HDF5 model, and the ``compile_config`` of a Keras v3
-``.keras`` archive's ``config.json``, which state the optimizer, the loss and
+``.keras`` archive's ``config.json``, which state the optimiser, the loss and
 the metrics the model was compiled with.
 
-A part that is not what Keras writes is a problem: the optimizer's is one
-for the optimizer alone, the loss and the metrics are still read.
+A part that is not what Keras writes is a problem: the optimiser's is one
+for the optimiser alone, the loss and the metrics are still read.
 
 See also: :mod:`pitloom.extract.ai_model.hdf5_config` (the model config and
 the shared shape checks) and :mod:`pitloom.extract.ai_model._hdf5_warnings`,
@@ -42,7 +42,7 @@ class TrainingLayout(NamedTuple):
         where: The key path of the training config, as provenance and a
             problem name it (``training_config`` in HDF5,
             ``config.compile_config`` in ``.keras``).
-        text_optimizer: Whether the optimizer may be a string, its
+        text_optimizer: Whether the optimiser may be a string, its
             identifier (``"adam"``), as Keras 3 keeps the one ``compile()``
             was given; else it is an object with a class name.
     """

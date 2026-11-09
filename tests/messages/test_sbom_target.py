@@ -167,21 +167,28 @@ def test_the_errors_name_the_folder_quoted() -> None:
 
 
 @pytest.mark.parametrize(
-    ("message", "values"),
+    ("message", "values", "complaint"),
     [
-        (MODEL_AMBIGUOUS, {"file": None}),
-        (MODEL_AMBIGUOUS, {"file": "a", "count": 2}),
-        (TARGET_AMBIGUOUS, {"file": "a"}),
-        (TARGET_AMBIGUOUS, {"file": "a", "line": MODEL_FILES_LINE}),
+        (MODEL_AMBIGUOUS, {"file": None}, "not a path"),
+        (MODEL_AMBIGUOUS, {"file": "a", "count": 2}, "name of its INFO lines"),
+        (TARGET_AMBIGUOUS, {"file": "a"}, "name of its INFO lines"),
+        (
+            TARGET_AMBIGUOUS,
+            {"file": "a", "line": MODEL_FILES_LINE},
+            "not one of its INFO lines",
+        ),
     ],
     ids=["file-none", "extra-count", "no-line", "other-line"],
 )
 def test_a_value_out_of_shape_is_refused_when_said(
-    message: Message, values: dict[str, Any], caplog: pytest.LogCaptureFixture
+    message: Message,
+    values: dict[str, Any],
+    complaint: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A value of the wrong shape, or a line not named (three name
     ``file``) or not the entry's, is refused before any record."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=complaint):
         emit(_LOG, message, logging.INFO, **values)
     assert not caplog.records
 

@@ -13,10 +13,8 @@ check at ``WARNING``), :mod:`tests.extract.scanner.test_scanner_reader_logs`.
 
 from __future__ import annotations
 
-import io
 import logging
 import sys
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -25,6 +23,7 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import read_ai_model
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
+from tests.extract.ai_model.zip_builders import unextractable_zip
 
 _EVIL = ["\n::error::x", "\nERROR: x"]
 
@@ -68,23 +67,11 @@ def test_debug_scan_of_hostile_names_forges_no_line(
 _BAD = b"not a model" * 20
 
 
-def _zip(members: dict[str, bytes]) -> bytes:
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zf:
-        for name, data in members.items():
-            zf.writestr(name, data)
-    return buffer.getvalue()
-
-
 def _zip_unextractable() -> bytes:
     """A ``.keras`` whose ``config.json`` names a compression method that does
     not exist, so reading the member fails (invalid JSON no longer does: the
     reader warns and reads the other members)."""
-    data = bytearray(_zip({"config.json": b"{}"}))
-    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
-        at = data.find(signature) + offset
-        data[at : at + 2] = (99).to_bytes(2, "little")
-    return bytes(data)
+    return unextractable_zip({"config.json": b"{}"})
 
 
 # Content each reader gets as far as its generic failure handler with.

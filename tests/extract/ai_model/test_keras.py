@@ -20,7 +20,7 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model.keras import read_keras
-from tests.extract.ai_model.zip_builders import dated_zip
+from tests.extract.ai_model.zip_builders import dated_zip, unextractable_zip
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -263,12 +263,8 @@ def test_read_keras_member_that_cannot_be_extracted_logs_and_raises(
     ``zipfile`` does not support) is a read failure, not data absent: the
     failure is logged at DEBUG and a ValueError is raised. (A member that
     is extracted but is not JSON is a warning: test_keras_config.py.)"""
-    data = bytearray(dated_zip({"config.json": b"{}"}))
-    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
-        at = data.find(signature) + offset
-        data[at : at + 2] = (99).to_bytes(2, "little")  # compression method
     f = tmp_path / "model.keras"
-    f.write_bytes(bytes(data))
+    f.write_bytes(unextractable_zip({"config.json": b"{}"}))
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.keras"):
         with pytest.raises(ValueError, match="Failed to read Keras file"):

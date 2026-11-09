@@ -14,6 +14,7 @@ tests/extract/test_model_target.py (the guard).
 
 from __future__ import annotations
 
+import logging
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -23,6 +24,8 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model import reader as ai_model_reader
 from pitloom.extract.ai_model.reader_requirements import require_library
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import READER_UNSAFE_REMOTE
 
 _ROOT = Path(__file__).resolve().parent / "fixtures" / "aimodels"
 
@@ -110,3 +113,14 @@ def spy_readers(
     for fmt in formats:
         monkeypatch.setitem(readers, fmt, spy(fmt))
     return read
+
+
+def remote_gate_infos(caplog: pytest.LogCaptureFixture) -> list[str]:
+    """The ``INFO:`` lines of the Git URL reader gate
+    (``reader-unsafe/remote``) that *caplog* holds."""
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelno == logging.INFO
+        and getattr(r, CODE_ATTR, None) == READER_UNSAFE_REMOTE.code
+    ]

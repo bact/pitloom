@@ -415,10 +415,7 @@ def _folder(work_dir: str, target: GitTarget) -> tuple[str, str]:
         parent, _slash, leaf = target.subdir.rpartition("/")
         if target.file or not checkout_has_file(work_dir, target.subdir):
             raise
-        log.info(
-            "Git source: %s is a file, not a folder; reading the folder holding it",
-            loggable(target.subdir),
-        )
+        log.info("Git source: %s is a file, not a folder", loggable(target.subdir))
         return checkout_folder(work_dir, parent), leaf
     if target.file and Path(folder, target.file).is_dir():
         log.info(

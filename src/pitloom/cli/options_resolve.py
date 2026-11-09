@@ -46,6 +46,7 @@ from pitloom.extract.project import (
     sdist_config_source,
 )
 from pitloom.logging_config import print_error
+from pitloom.messages import PROJECT_NOT_FOUND, PROJECT_NOT_FOUND_LINE
 
 #: An ``http(s):`` URL a path normalisation turned into a path (``https:/h``,
 #: ``https:\\h`` on Windows).
@@ -115,8 +116,8 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
             return project_dir, config_path
 
     print_error(
-        f"no project configuration found in {quote_source(project_dir)}. "
-        "Expected pyproject.toml, setup.cfg, or setup.py."
+        PROJECT_NOT_FOUND_LINE.render({"path": project_dir}),
+        code=PROJECT_NOT_FOUND.code,
     )
     return None, None
 
