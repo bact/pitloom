@@ -58,7 +58,7 @@ plugin; `$sbom-enrich` in Codex). For a worked example, read
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.2, which
+Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.3, which
 reads `Apache Software License 2.0` and similar names as `Apache-2.0`, and
 does not warn about a missing licence database for a declared licence name;
 the message codes and licence readings below are those of 0.23.4):
