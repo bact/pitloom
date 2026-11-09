@@ -16,7 +16,9 @@ wins over the folder's project; a folder with a project config is a
 project; else its one model file is the target. Several model files, or
 none, are refused (``model-ambiguous``, ``project-or-model-not-found``).
 
-See also: :mod:`pitloom.extract.scanner` (the read rule),
+See also: :mod:`pitloom.extract._model_named` (a file named on its own,
+whose public names this module re-exports),
+:mod:`pitloom.extract.scanner` (the read rule),
 :mod:`pitloom.core.project_markers` (what makes a project) and
 :mod:`pitloom.core.lfs_pointer` (a Git LFS pointer in place of a model).
 """
@@ -24,32 +26,38 @@ See also: :mod:`pitloom.extract.scanner` (the read rule),
 from __future__ import annotations
 
 import logging
+import operator
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, NoReturn
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata, model_file_suffixes
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import (
     in_remote_clone,
     refuse_named_pointer,
     warn_pointers_not_read,
 )
-from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import is_sdist_archive
 from pitloom.core.project_markers import has_project_config
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
+from pitloom.extract._model_named import (
+    ModelFile,
+    has_model_suffix,
+    named_file,
+    named_model_file,
+    read_model_file,
+    refuse_not_a_model,
+    require_model_file,
+)
 from pitloom.extract.ai_model import (
-    LFS_POINTER_REASON,
-    NotAModel,
     detect_ai_model_format_from_header,
+    detect_ai_model_format_from_name,
     read_ai_model_header,
-    refusal_error,
 )
 from pitloom.extract.scanner import (
     is_model_candidate_name,
-    read_model_candidate,
     scan_step,
     sniff_model_format,
 )
@@ -58,10 +66,8 @@ from pitloom.extract.scanner_project import (
     remote_reader_gate,
 )
 from pitloom.messages import (
-    INPUT_NOT_FOUND,
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,
-    MODEL_FILE_NOT_FOUND_LINE,
     MODEL_WRONG_FORMAT,
     NAMED_NOT_A_MODEL_LINE,
     NO_PROJECT_ONE_MODEL_LINE,
@@ -70,9 +76,9 @@ from pitloom.messages import (
     ONE_MODEL_LINE,
     TARGET_AMBIGUOUS,
     Cap,
-    CodedFileNotFoundError,
     CodedValueError,
     emit,
+    file_unreadable_error,
     warn_over_cap,
 )
 
@@ -94,6 +100,7 @@ __all__ = [
     "require_model_file",
     "resolve_model_file",
     "resolve_sbom_target",
+    "say_reading_folder",
 ]
 
 log = logging.getLogger(__name__)
@@ -109,21 +116,6 @@ _MODES: Final = frozenset({AUTO, PROJECT, MODEL})
 #: sniffed (a bounded header read), so a folder of more is not read, said in
 #: one ``over-cap`` warning, and refused (``model-ambiguous/over-cap``).
 MAX_FOLDER_CANDIDATES = 1000
-
-
-@dataclass(frozen=True)
-class ModelFile:
-    """A file whose header confirms an AI model format.
-
-    Attributes:
-        path: The file on disk (possibly in a temporary clone).
-        shown: How messages name it: never a temporary path.
-        model_format: The format its header confirms.
-    """
-
-    path: Path
-    shown: str
-    model_format: AiModelFormat
 
 
 @dataclass(frozen=True)
@@ -146,114 +138,10 @@ def _shown(prefix: str, name: str) -> str:
     return f"{prefix}/{name}" if prefix else name
 
 
-def refuse_not_a_model(
-    path: Path, exc: NotAModel, *, shown: str | None = None
-) -> NoReturn:
-    """Refuse the file at *path*, named on its own, that *exc* says is not a
-    model, in the words every surface uses: a Git LFS pointer as
-    :func:`~pitloom.core.lfs_pointer.refuse_named_pointer` says it, else
-    :func:`~pitloom.extract.ai_model.refusal_error`. The error names the
-    file *shown* (default: *path*).
-
-    Raises:
-        ValueError: Always (see :func:`~pitloom.extract.ai_model.refusal_error`).
-    """
-    if exc.reason == LFS_POINTER_REASON:
-        refuse_named_pointer(path, exc, shown=shown)
-    named = path if shown is None else Path(shown)
-    raise refusal_error(named, exc.model_format, str(exc)) from exc
-
-
-def require_model_file(path: Path, shown: str | os.PathLike[str]) -> None:
-    """Refuse the model file *path*, named on its own, when it does not
-    exist (a link is followed); the error names it *shown*. A path that is
-    there but cannot be looked at is no missing file: its error stands.
-
-    Raises:
-        pitloom.messages.CodedFileNotFoundError: ``input-not-found``.
-        OSError: *path* cannot be looked at (permission denied).
-    """
-    try:
-        os.stat(path)
-    except OSError as exc:
-        if not is_missing_errno(exc):
-            raise
-        raise CodedFileNotFoundError(
-            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=shown
-        ) from None
-
-
-def read_model_file(path: Path, *, shown: str | None = None) -> AiModelMetadata:
-    """Read the model file at *path*, named on its own, by the rule a scan
-    applies (:func:`~pitloom.extract.scanner.read_model_candidate`), its
-    messages naming it *shown* (default: *path*). In a Git URL's temporary
-    clone the formats of
-    :func:`~pitloom.extract.scanner_project.remote_reader_gate` are listed
-    without metadata, said in one ``INFO:`` after the read.
-
-    Raises:
-        pitloom.messages.CodedFileNotFoundError: *path* does not exist
-            (:func:`require_model_file`).
-        ValueError: The file is not a model (:func:`refuse_not_a_model`).
-        OSError: The header cannot be read.
-    """
-    require_model_file(path, path if shown is None else shown)
-    gate = remote_reader_gate()
-    candidate = local_model_candidate(path, shown=shown, gate=gate)
-    try:
-        model = read_model_candidate(candidate)
-    except NotAModel as exc:
-        refuse_not_a_model(path, exc, shown=shown)
-    if gate is not None:
-        gate.report()
-    return model
-
-
-def has_model_suffix(name: str | os.PathLike[str]) -> bool:
-    """Whether the file name *name* has the suffix of a model file of a
-    supported format (:func:`~pitloom.core.ai_metadata.model_file_suffixes`,
-    the suffix :func:`is_model_file_target` reads a file by): a file so
-    named, but not a model, is refused, not passed over."""
-    return Path(name).suffix.lower() in model_file_suffixes()
-
-
-def _named(path: Path, shown: str, *, strict: bool) -> ModelFile | None:
-    """The model file named *path*, by its content; ``None`` for a file that
-    is plainly not a model, or is no regular file (gone, a folder, or in a
-    Git URL's clone a link, not followed), unless *strict*, which refuses
-    it. A Git LFS pointer, or a header that contradicts a model suffix, is
-    refused either way."""
-    if not strict and (
-        not os.path.isfile(path) or (in_remote_clone() and os.path.islink(path))
-    ):
-        return None
-    require_model_file(path, shown)
-    try:
-        fmt = sniff_model_format(local_model_candidate(path, shown=shown))
-    except NotAModel as exc:
-        if strict or exc.reason == LFS_POINTER_REASON or exc.model_format is not None:
-            refuse_not_a_model(path, exc, shown=shown)
-        return None
-    return ModelFile(path, shown, fmt)
-
-
-def named_model_file(path: Path, shown: str) -> ModelFile | None:
-    """The file at *path*, named on its own, as a model file when its header
-    confirms a format (whatever its suffix: ``x.dat`` with GGUF magic is
-    one); ``None`` for a file whose name no model file has
-    (:func:`has_model_suffix`) and that is plainly not a model
-    (``README.md``, ``pyproject.toml``), or is no regular file. Messages
-    name it *shown*.
-
-    Raises:
-        pitloom.messages.CodedFileNotFoundError: *path*, with a model
-            suffix, does not exist (``input-not-found``).
-        ValueError: It has a model suffix and is not a model (an empty
-            ``x.gguf``), or is a Git LFS pointer, or its header contradicts
-            a model suffix: see :func:`refuse_not_a_model`.
-        OSError: Its header cannot be read.
-    """
-    return _named(path, shown, strict=has_model_suffix(path.name))
+def say_reading_folder(shown: str) -> None:
+    """Say, in one ``INFO:``, that the file named *shown* is not read as a
+    model and its folder is read instead."""
+    emit(log, TARGET_AMBIGUOUS, logging.INFO, line=NAMED_NOT_A_MODEL_LINE, file=shown)
 
 
 def _candidate_names(folder: Path) -> list[str]:
@@ -285,7 +173,8 @@ def model_files_in(
             naming *subject* (default: *folder*), when more than
             :data:`MAX_FOLDER_CANDIDATES` names could be models (after one
             ``over-cap`` warning: no file is read); ``lfs-pointer``, for
-            pointers only.
+            pointers only; ``file-unreadable``, when no file is a model and
+            one could not be read (each said in its ``WARNING:`` first).
         OSError: *folder* cannot be listed.
     """
     names = _candidate_names(folder)
@@ -298,19 +187,36 @@ def model_files_in(
         )
     found: list[ModelFile] = []
     pointers: list[str] = []
+    unreadable: list[tuple[str, OSError]] = []
     paths: dict[str, Path] = {}
     for name in names:
         path, shown = folder / name, _shown(shown_prefix, name)
         paths[shown] = path
         candidate = local_model_candidate(path, shown=shown)
-        fmt = scan_step(candidate, sniff_model_format, pointers)
+        fmt = scan_step(candidate, sniff_model_format, pointers, unreadable)
         if fmt is not None:
             found.append(ModelFile(path, shown, fmt))
     warn_pointers_not_read(pointers)
-    if not found and pointers:
+    if not found:
+        _refuse_unread(paths, pointers, unreadable)
+    return found
+
+
+def _refuse_unread(
+    paths: dict[str, Path],
+    pointers: list[str],
+    unreadable: list[tuple[str, OSError]],
+) -> None:
+    """For a folder with no model file: refuse it as its first Git LFS
+    pointer, else as its first candidate that could not be read; return
+    when there is neither (*paths*: each candidate by its shown name)."""
+    if pointers:
         first = min(pointers)
         refuse_named_pointer(paths[first], shown=first)
-    return found
+    if unreadable:
+        shown, exc = min(unreadable, key=operator.itemgetter(0))
+        model_format = detect_ai_model_format_from_name(shown)
+        raise file_unreadable_error(exc, file=shown, model_format=model_format)
 
 
 def is_model_file_target(path: str | os.PathLike[str]) -> bool:
@@ -369,14 +275,18 @@ def resolve_sbom_target(
        ``INFO:``.
 
     Messages name a file *shown_prefix* ``/`` its name, and the folder
-    *subject* (a path, or a URL with no credentials).
+    *subject* (a path, or a URL with no credentials). In a Git URL's clone a
+    named file that is a link, or whose real path is out of *folder*, is
+    never opened: refused when strict, else the folder decides.
 
     Raises:
         pitloom.messages.CodedValueError: ``model-ambiguous`` (several model
             files, one ``INFO:`` naming each first), ``project-or-model-not-found``
             (none, under :data:`AUTO`), ``model-wrong-format`` (none, or
-            the named file not a model, under :data:`MODEL`), or a refusal of
-            the named file (:func:`named_model_file`).
+            the named file not a model, under :data:`MODEL`),
+            ``file-unreadable`` (none, and a candidate could not be read:
+            :func:`model_files_in`), or a refusal of the named file
+            (:func:`named_model_file`).
         pitloom.messages.CodedFileNotFoundError: The named file does not
             exist, under :data:`MODEL` or with a model suffix
             (``input-not-found``).
@@ -390,12 +300,10 @@ def resolve_sbom_target(
     if file and mode != PROJECT:
         shown = _shown(shown_prefix, file)
         strict = mode == MODEL or has_model_suffix(file)
-        model = _named(where / file, shown, strict=strict)
+        model = named_file(where / file, shown, strict=strict, root=where)
         if model is not None:
             return SbomTarget(MODEL, where, model)
-        emit(
-            log, TARGET_AMBIGUOUS, logging.INFO, line=NAMED_NOT_A_MODEL_LINE, file=shown
-        )
+        say_reading_folder(shown)
     if mode == PROJECT or (mode == AUTO and has_project_config(where)):
         return SbomTarget(PROJECT, where)
     models = model_files_in(where, shown_prefix, subject=subject)

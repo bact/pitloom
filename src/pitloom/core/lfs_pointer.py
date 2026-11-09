@@ -67,6 +67,7 @@ __all__ = [
     "read_lfs_pointer",
     "reading_remote_clone",
     "refuse_named_pointer",
+    "remote_clone_root",
     "size_text",
     "warn_pointers_not_read",
 ]
@@ -116,17 +117,25 @@ _log = logging.getLogger(__name__)
 _REMOTE_CLONE: Final[contextvars.ContextVar[bool]] = contextvars.ContextVar(
     "pitloom_lfs_remote_clone", default=False
 )
+#: The root directory of that clone, when known.
+_CLONE_ROOT: Final[contextvars.ContextVar[str | None]] = contextvars.ContextVar(
+    "pitloom_remote_clone_root", default=None
+)
 
 
 @contextlib.contextmanager
-def reading_remote_clone() -> Iterator[None]:
-    """Mark the reads within as those of a temporary clone, so the warning
-    for a pointer left unread (:func:`warn_pointers_not_read`) tells the
-    user to clone with Git LFS instead of to pull."""
+def reading_remote_clone(root: str | None = None) -> Iterator[None]:
+    """Mark the reads within as those of a temporary clone whose root
+    directory is *root* (``None``: not known), so the warning for a pointer
+    left unread (:func:`warn_pointers_not_read`) tells the user to clone
+    with Git LFS instead of to pull, and no file out of the clone is read
+    (:func:`remote_clone_root`)."""
     token = _REMOTE_CLONE.set(True)
+    root_token = _CLONE_ROOT.set(root)
     try:
         yield
     finally:
+        _CLONE_ROOT.reset(root_token)
         _REMOTE_CLONE.reset(token)
 
 
@@ -134,6 +143,13 @@ def in_remote_clone() -> bool:
     """Whether the run is within :func:`reading_remote_clone`: it reads a
     temporary clone of a remote repository, whose files were downloaded."""
     return _REMOTE_CLONE.get()
+
+
+def remote_clone_root() -> str | None:
+    """The root directory of the clone :func:`reading_remote_clone` marks,
+    nothing out of which is read; ``None`` outside one, or when not known
+    (the folder read is the bound then)."""
+    return _CLONE_ROOT.get()
 
 
 @dataclass(frozen=True)

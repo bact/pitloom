@@ -60,6 +60,8 @@ CODED_SITES = [
     ("src/pitloom/extract/remote/git_target.py", "raise"),
     ("src/pitloom/extract/project/reader.py", "raise"),
     ("src/pitloom/cli/commands/_remote.py", "emit"),
+    ("src/pitloom/extract/_model_named.py", "raise"),
+    ("src/pitloom/core/_models_wheel_clone.py", "emit"),
 ]
 
 
@@ -107,6 +109,8 @@ def test_no_module_gains_or_silently_loses_an_uncoded_site(
         "git-target",
         "project-not-found",
         "config-unsafe",
+        "named-file",
+        "outside-repository",
     ],
 )
 def test_the_tool_sees_the_catalogued_sites_as_coded(

@@ -38,7 +38,7 @@ CONFIG_UNSAFE: Final = Message(
     actor="none",
     advice="the SBOM is generated with the defaults; settings the user trusts "
     "go in a file they pass with --config.",
-    since="0.24.0",
+    since="0.23.4",
 )
 
 ENTRIES: Final = (CONFIG_UNSAFE,)

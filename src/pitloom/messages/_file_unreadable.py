@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A file Pitloom could not read and a directory it could not list:
-``file-unreadable``, its variants ``file-unreadable/not-utf8`` and
-``file-unreadable/outside-project``, and ``dir-unlistable``. A file or
+``file-unreadable``, its variants ``file-unreadable/not-utf8``,
+``file-unreadable/outside-project`` and
+``file-unreadable/outside-repository``, and ``dir-unlistable``. A file or
 directory that is absent is none of them: absent data is quiet.
 
 The codes equal the evidence reasons of the same names
@@ -45,11 +46,14 @@ HEADER_LINE: Final = Line(
     level="WARNING",
     template="FORMAT=%(format)s FILE=%(file)s: could not read header; %(failure)s",
 )
+#: The same, where the read raises: the only model file of a folder named as
+#: a model.
+HEADER_ERROR_LINE: Final = Line(level="ERROR", template=HEADER_LINE.template)
 
 FILE_UNREADABLE: Final = Message(
     code="file-unreadable",
     condition="unreadable",
-    lines=(FILE_LINE, FIELD_LINE, HEADER_LINE, FILE_ERROR_LINE),
+    lines=(FILE_LINE, FIELD_LINE, HEADER_LINE, FILE_ERROR_LINE, HEADER_ERROR_LINE),
     summary="A file Pitloom found or was named could not be read: the "
     "operating system refused it (no read permission, a directory above it "
     "without search permission, a file another program holds open on "
@@ -66,7 +70,8 @@ FILE_UNREADABLE: Final = Message(
     "file; a model whose header could not be read is not listed as an AI "
     "model; a model or dataset card sets none of the fields it states. As an "
     "ERROR, the call that named the file raises (a Croissant document: the "
-    "dataset declaration fails).",
+    "dataset declaration fails; the only possible model file of a folder "
+    "named for a model SBOM: no SBOM is written).",
     effect="thinner",
     actor="user",
     advice="Tell the user which file could not be read and what the system "
@@ -134,6 +139,35 @@ FILE_UNREADABLE_OUTSIDE: Final = Message(
     subject_key="FILE",
 )
 
+FILE_UNREADABLE_OUTSIDE_REPOSITORY: Final = Message(
+    code="file-unreadable/outside-repository",
+    condition="unreadable",
+    lines=(
+        Line(
+            level="WARNING",
+            template="FILE=%(file)s: outside the downloaded repository%(count)s; "
+            "not read",
+        ),
+    ),
+    summary="The build configuration of a project fetched from a Git URL lists "
+    "files outside the downloaded repository (an absolute or .. path, as in "
+    "a Hatchling force-include), and Pitloom "
+    "reads no file outside it: the repository is untrusted, and such a file "
+    "is the host's. The line names the first such file by its path in the "
+    "wheel and, for two or more, how many there are.",
+    did="Did not read them and left them out of the SBOM: no hash, no "
+    "copyright or licence text from their headers, no AI model metadata.",
+    effect="thinner",
+    actor="user",
+    advice="Tell the user that the repository's build configuration names "
+    "files outside it, which were left out, as the line says. To have them in "
+    "the SBOM, they clone the repository, check what those paths name, and "
+    "generate from the local copy. Do not clone or run on a local copy for "
+    f"them; {_ASK}",
+    subject_key="FILE",
+    since="0.23.4",
+)
+
 DIR_UNLISTABLE: Final = Message(
     code="dir-unlistable",
     condition="unlistable",
@@ -163,5 +197,6 @@ ENTRIES: Final = (
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
+    FILE_UNREADABLE_OUTSIDE_REPOSITORY,
     DIR_UNLISTABLE,
 )

@@ -165,7 +165,7 @@ READER_UNSAFE_REMOTE: Final = Message(
     "model on the model file or loom project on the project folder, which "
     "reads them in full. Do not clone the repository or run Pitloom for "
     f"them; {_ASK}",
-    since="0.24.0",
+    since="0.23.4",
 )
 
 #: A reader that failed on a file whose header is a model format's.

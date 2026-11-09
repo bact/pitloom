@@ -31,9 +31,15 @@ from tests._git_http_server import backend_available, make_repo, serve_git
 from tests._model_fixtures import fixture_path
 from tests._spdx3_validate import assert_spdx3_valid
 
+#: The stand-in server runs ``git http-backend`` as a POSIX CGI program.
+_WINDOWS = sys.platform == "win32"
+
 pytestmark = [
     pytest.mark.loopback,
-    pytest.mark.skipif(not backend_available(), reason="needs git http-backend"),
+    pytest.mark.skipif(_WINDOWS, reason="git http-backend CGI server is POSIX-only"),
+    pytest.mark.skipif(
+        not _WINDOWS and not backend_available(), reason="needs git http-backend"
+    ),
 ]
 
 _DEMO = '[project]\nname = "demo"\nversion = "1.0"\n'

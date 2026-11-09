@@ -26,34 +26,35 @@ most one prefix from the table of prefixes.
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
-| [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the repository chooses, and the repository is untrusted. | 0.24.0 |
+| [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the repository chooses, and the repository is untrusted. | 0.23.4 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
+| [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. The line names the first such file by its path in the wheel and, for two or more, how many there are. | 0.23.4 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
-| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file on disk, or the file or folder a Git URL names in the repository at its branch (a link there is not followed, so it counts as absent). | 0.24.0 |
+| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file on disk, or the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link). | 0.23.4 |
 | [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read (a Croissant file) does not parse, or its top level is not an object. | 0.23.0 |
 | [`lfs-pointer`](#lfs-pointer) | ERROR, WARNING | A file is a Git LFS pointer: a small text file standing in for content the checkout does not have (made or cloned without Git LFS). | 0.22.0 |
 | [`lfs-pointer-malformed`](#lfs-pointer-malformed) | ERROR, WARNING | A file starts with the Git LFS pointer line but is not a valid pointer: damaged, cut short, or 1 KiB or larger. | 0.22.0 |
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
 | [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
-| [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.24.0 |
-| [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.24.0 |
+| [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
+| [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
-| [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.24.0 |
-| [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.24.0 |
-| [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.24.0 |
+| [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
+| [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
+| [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
-| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.24.0 |
-| [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.24.0 |
+| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
+| [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
@@ -209,7 +210,8 @@ A line may start with one prefix before its text:
   dependency pins are read from a lock file; a model whose header could not be
   read is not listed as an AI model; a model or dataset card sets none of the
   fields it states. As an ERROR, the call that named the file raises (a
-  Croissant document: the dataset declaration fails).
+  Croissant document: the dataset declaration fails; the only possible model
+  file of a folder named for a model SBOM: no SBOM is written).
 - **Tell the user**: which file could not be read and what the system reported,
   as the line says. They give the account Pitloom runs as read access to it (or
   close the program that holds it), or restore a damaged copy, and generate
@@ -222,6 +224,7 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: could not read for <field>; <failure> [file-unreadable]
   WARNING: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
   ERROR: FILE=<file>: could not read <use>; <failure> [file-unreadable]
+  ERROR: FORMAT=<format> FILE=<file>: could not read header; <failure> [file-unreadable]
   ```
 
 ### `file-unreadable/not-utf8`
@@ -267,6 +270,28 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: could not read for <field>; outside the project directory [file-unreadable/outside-project]
   ```
 
+### `file-unreadable/outside-repository`
+
+- **Level**: WARNING.
+- **Means**: The build configuration of a project fetched from a Git URL lists
+  files outside the downloaded repository (an absolute or .. path, as in a
+  Hatchling force-include), and Pitloom reads no file outside it: the repository
+  is untrusted, and such a file is the host's. The line names the first such
+  file by its path in the wheel and, for two or more, how many there are.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Did not read them and left them out of the SBOM: no hash, no
+  copyright or licence text from their headers, no AI model metadata.
+- **Tell the user**: that the repository's build configuration names files
+  outside it, which were left out, as the line says. To have them in the SBOM,
+  they clone the repository, check what those paths name, and generate from the
+  local copy. Do not clone or run on a local copy for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: outside the downloaded repository<count>; not read [file-unreadable/outside-repository]
+  ```
+
 ### `hyperparameter-conflict`
 
 - **Level**: WARNING.
@@ -290,7 +315,8 @@ A line may start with one prefix before its text:
   nothing for it (exit 1).
 - **Means**: A path named for Pitloom to read does not exist: a model file on
   disk, or the file or folder a Git URL names in the repository at its branch (a
-  link there is not followed, so it counts as absent).
+  symbolic link there is not followed, so it counts as absent: its line says it
+  is a link).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM. A Git URL's error code is git.path-not-found.
 - **Tell the user**: which path was not found, as the line names it (for a Git
@@ -302,6 +328,7 @@ A line may start with one prefix before its text:
   ```text
   ERROR: Model file not found: '<path>' [input-not-found]
   ERROR: No file '<path>' in the repository at that branch. [input-not-found]
+  ERROR: File '<path>' in the repository at that branch is a symbolic link; links are not followed. [input-not-found]
   ERROR: No folder '<path>' in the repository at that branch. [input-not-found]
   ```
 

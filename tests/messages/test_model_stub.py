@@ -70,7 +70,7 @@ def test_the_family_has_its_eight_codes() -> None:
     ]
     assert {c: m.since for c, m in _ENTRIES.items() if m.since != "0.22.0"} == {
         "library-unusable": "0.23.0",
-        "reader-unsafe/remote": "0.24.0",
+        "reader-unsafe/remote": "0.23.4",
     }
     assert HYPERPARAMETER_CONFLICT.actor == HYPERPARAMETER_CONFLICT.effect == "none"
     assert all(m.actor == "user" for m in _ENTRIES.values() if m.effect != "none")

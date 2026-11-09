@@ -51,6 +51,7 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
+    FILE_UNREADABLE_OUTSIDE_REPOSITORY,
 )
 from pitloom.messages._file_unreadable_warning import (
     file_unreadable_error,
@@ -59,6 +60,7 @@ from pitloom.messages._file_unreadable_warning import (
 )
 from pitloom.messages._frames import FRAMES, HANDLER_FRAMES, RELAY_FRAME, Frame
 from pitloom.messages._input_not_found import (
+    GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     GIT_FOLDER_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
@@ -207,10 +209,12 @@ __all__ = [
     "FILE_UNREADABLE",
     "FILE_UNREADABLE_NOT_UTF8",
     "FILE_UNREADABLE_OUTSIDE",
+    "FILE_UNREADABLE_OUTSIDE_REPOSITORY",
     "FRAMES",
     "Field",
     "Frame",
     "GGUF_LENGTH_LINE",
+    "GIT_FILE_IS_LINK_LINE",
     "GIT_FILE_NOT_FOUND_LINE",
     "GIT_FOLDER_NOT_FOUND_LINE",
     "GIT_OUTPUT_LINE",

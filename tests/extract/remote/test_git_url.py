@@ -286,8 +286,8 @@ def test_a_raw_path_that_leaves_the_checkout_is_refused(marker: str, path: str) 
 
 def test_an_encoded_slash_stays_inside_one_segment() -> None:
     """``%2F`` is part of a name (a branch ``feature/x``), not a separator."""
-    page = parse_git_page("https://github.com/o/r/tree/a%2F..%2Fb")
-    assert page.rest == ("a/../b",)
+    page = parse_git_page("https://github.com/o/r/tree/a%2Fb")
+    assert page.rest == ("a/b",)
 
 
 _SHA = "0123456789abcdef0123456789abcdef01234567"

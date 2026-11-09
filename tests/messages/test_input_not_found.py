@@ -5,7 +5,7 @@
 
 """``input-not-found``: each line reads back as its entry, the error is a
 :class:`FileNotFoundError` that keeps its code through a copy or a pickle,
-and a caller names which of its three lines it says.
+and a caller names which of its four lines it says.
 
 See also: tests/extract/test_model_target.py (a model file named on its
 own) and tests/extract/remote/test_git_fetch_models.py (a Git URL's file).
@@ -19,6 +19,7 @@ import pickle  # nosec B403
 import pytest
 
 from pitloom.messages import (
+    GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     GIT_FOLDER_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
@@ -40,11 +41,16 @@ from tests._message_drift import raised_as
             "No file 'a b.gguf' in the repository at that branch.",
         ),
         (
+            GIT_FILE_IS_LINK_LINE,
+            "File 'a b.gguf' in the repository at that branch is a symbolic "
+            "link; links are not followed.",
+        ),
+        (
             GIT_FOLDER_NOT_FOUND_LINE,
             "No folder 'a b.gguf' in the repository at that branch.",
         ),
     ],
-    ids=["model-file", "git-file", "git-folder"],
+    ids=["model-file", "git-file", "git-link", "git-folder"],
 )
 def test_each_line_is_a_file_not_found_error_with_its_code(
     line: Line, text: str
@@ -59,8 +65,8 @@ def test_each_line_is_a_file_not_found_error_with_its_code(
 
 
 def test_the_caller_names_the_line() -> None:
-    """Three lines name a path alone: none is chosen for the caller."""
-    with pytest.raises(ValueError, match="3 name of its ERROR lines"):
+    """Four lines name a path alone: none is chosen for the caller."""
+    with pytest.raises(ValueError, match="4 name of its ERROR lines"):
         raise CodedFileNotFoundError(INPUT_NOT_FOUND, path="a")
 
 

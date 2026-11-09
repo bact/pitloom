@@ -117,13 +117,21 @@ class GitCheckout:
                 raise
             raise RemoteSourceError("git.no-project", f"{exc}{hint}") from exc
 
+    @property
+    def root(self) -> str:
+        """The checkout's root directory: :attr:`folder` without the
+        :attr:`subdir` below it."""
+        depth = len(self.subdir.split("/")) if self.subdir else 0
+        return str(Path(self.folder).parents[depth - 1]) if depth else self.folder
+
     @contextmanager
     def reading(self) -> Iterator[None]:
         """The context in which a caller reads :attr:`folder`: failures are
         explained (:meth:`explaining_failures`), and a Git LFS pointer
-        is reported as in a temporary clone
+        is reported as in a temporary clone, out of whose :attr:`root`
+        nothing is read
         (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
-        with reading_remote_clone(), self.explaining_failures():
+        with reading_remote_clone(self.root), self.explaining_failures():
             yield
 
 

@@ -22,7 +22,7 @@ from typing import Final
 from pitloom.messages._types import Line, Message
 
 #: The release that first prints these codes.
-_SINCE: Final = "0.24.0"
+_SINCE: Final = "0.23.4"
 
 #: A file named with its folder whose name no model file has and that is
 #: plainly not a model (``pyproject.toml``), or is missing or a link: the

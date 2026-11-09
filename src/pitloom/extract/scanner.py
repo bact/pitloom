@@ -341,15 +341,19 @@ def scan_step(
     candidate: ModelCandidate,
     step: Callable[[ModelCandidate], _T],
     pointers: list[str] | None = None,
+    unreadable: list[tuple[str, OSError]] | None = None,
 ) -> _T | None:
     """*step* (:func:`read_model_candidate`, :func:`sniff_model_format`) on
     a scan's candidate, else ``None``, said in the scan's words: an
-    unreadable header, a header contradicting a model suffix; a whole Git
-    LFS pointer only with ``--debug``, its path added to *pointers*."""
+    unreadable header, its path and error added to *unreadable*; a header
+    contradicting a model suffix; a whole Git LFS pointer only with
+    ``--debug``, its path added to *pointers*."""
     try:
         return step(candidate)
     except OSError as e:
         if not is_missing_errno(e):  # gone since it was found: absent
+            if unreadable is not None:
+                unreadable.append((candidate.physical_path, e))
             warn_file_unreadable(
                 log,
                 e,

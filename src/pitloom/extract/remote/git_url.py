@@ -349,9 +349,17 @@ def _find_marker(
 
 
 def _check_segments(rest: tuple[str, ...], url: str) -> None:
-    """Refuse a segment that would walk out of the checkout."""
+    """Refuse a segment, percent-decoded, that would walk out of the
+    checkout or start outside it: one holding a ``\\`` or a NUL, or whose
+    parts between the ``/`` it may hold (an encoded ``%2F``, as in a branch
+    ``feature%2Fx``) include ``.``, ``..`` or an empty one (``%2Fetc``)."""
     for segment in rest:
-        if segment in {".", ".."} or "\0" in segment or "\\" in segment:
+        parts = segment.split("/")
+        if (
+            "\0" in segment
+            or "\\" in segment
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
             raise RemoteSourceError(
                 "git.url-invalid",
                 f"Invalid path in URL: {quote_source(sanitize_url(url))}",

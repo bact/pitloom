@@ -520,3 +520,20 @@ def test_a_lone_surrogate_in_an_hdf5_training_config_is_written_escaped() -> Non
     raw = _SURROGATE_TRAINING.decode()
     assert parse_training_config(raw, "S", props, prov) is None
     assert props == {"loss": '["\\\\ud800"]', "metrics": '{"\\\\udc00":1}'}
+
+
+def test_an_empty_layers_list_is_a_count_of_zero_for_hdf5_and_keras(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``layers: []`` is stated, not absent: a count of 0, with its
+    provenance, in an HDF5 ``model_config`` and a ``.keras`` config alike."""
+    config = {"class_name": "Sequential", "config": {"name": "m", "layers": []}}
+    props: dict[str, str] = {}
+    prov: dict[str, str] = {}
+    source = provenance_source("m.h5")
+    parse_model_config(json.dumps(config), source, {}, [], props, prov)
+    meta, messages = _read(tmp_path, caplog, config)
+    assert messages == []
+    assert props["layer_count"] == meta.properties["layer_count"] == "0"
+    assert "properties.layer_count" in prov
+    assert "properties.layer_count" in meta.provenance

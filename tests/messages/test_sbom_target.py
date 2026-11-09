@@ -53,7 +53,7 @@ def test_the_module_has_its_codes() -> None:
         "project-not-found",
         "project-not-found/model-files",
     ]
-    assert {m.since for m in _sbom_target.ENTRIES} == {"0.24.0"}
+    assert {m.since for m in _sbom_target.ENTRIES} == {"0.23.4"}
     assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] + ["not-written"] * 5
 
 

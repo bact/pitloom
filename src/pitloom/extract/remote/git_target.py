@@ -27,6 +27,7 @@ from pitloom.extract.model_target import (
     SbomTarget,
     has_model_suffix,
     resolve_sbom_target,
+    say_reading_folder,
 )
 from pitloom.extract.remote._git_folder import checkout_has_file, subproject_hint
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -34,6 +35,7 @@ from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
     MODEL_FILES_LINE,
@@ -49,23 +51,36 @@ __all__ = ["resolve_git_target"]
 _NAMES_SHOWN: Final = 5
 
 
-def _named_file(checkout: GitCheckout) -> None:
-    """Refuse the file the URL named when it is no regular file of the
-    folder read (gone, a folder, or a link: a link is not followed).
+def _named_file(checkout: GitCheckout, mode: str) -> str:
+    """The file the URL named, to be read (``""``: none, or the folder is
+    read instead). Under ``PROJECT`` it is passed on unread. Else it is read
+    only when it is a regular file of the folder, inside the clone and
+    spelled as on disk (:func:`checkout_has_file`); nothing outside the
+    clone is opened. Any other name (gone, a folder, a link, out of the
+    clone) is refused under ``MODEL`` or for a name with a model suffix;
+    under ``AUTO`` the folder is read instead, said in one ``INFO:``.
 
     Raises:
         RemoteSourceError: ``git.path-not-found`` (its ``pitloom_code``
-            ``input-not-found``).
+            ``input-not-found``), its line saying whether the name is a
+            link.
     """
-    path = os.path.join(checkout.folder, checkout.file)
-    if not os.path.islink(path) and checkout_has_file(checkout.folder, checkout.file):
-        return
-    shown = f"{checkout.subdir}/{checkout.file}".lstrip("/")
-    raise RemoteSourceError(
-        "git.path-not-found",
-        GIT_FILE_NOT_FOUND_LINE.render({"path": shown}),
-        pitloom_code=INPUT_NOT_FOUND.code,
-    )
+    named = checkout.file
+    if not named or mode == PROJECT:
+        return named
+    link = os.path.islink(os.path.join(checkout.folder, named))
+    if not link and checkout_has_file(checkout.folder, named):
+        return named
+    shown = f"{checkout.subdir}/{named}".lstrip("/")
+    if mode == MODEL or has_model_suffix(named):
+        line = GIT_FILE_IS_LINK_LINE if link else GIT_FILE_NOT_FOUND_LINE
+        raise RemoteSourceError(
+            "git.path-not-found",
+            line.render({"path": shown}),
+            pitloom_code=INPUT_NOT_FOUND.code,
+        )
+    say_reading_folder(shown)
+    return ""
 
 
 def _model_like_names(folder: str) -> list[str]:
@@ -119,6 +134,10 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
     PyTorch) is not run, on a model target and on the model files of a
     project target alike.
 
+    The named file is read only when it is a regular file of the folder
+    inside the clone (:func:`_named_file`): a name leading out of it is
+    never opened, whatever its suffix.
+
     Raises:
         RemoteSourceError: ``git.path-not-found`` (the named file is no
             file of the folder, under ``MODEL`` or, under ``AUTO``, for a
@@ -134,16 +153,14 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
         OSError: The folder cannot be listed.
     """
     subject = sanitize_url(url.strip())
-    named = checkout.file
-    if named and (mode == MODEL or (mode != PROJECT and has_model_suffix(named))):
-        _named_file(checkout)
+    named = _named_file(checkout, mode)
     if mode == PROJECT:
         _refuse_model_only_folder(checkout, subject)
     try:
         return resolve_sbom_target(
             checkout.folder,
             subject=subject,
-            file=checkout.file,
+            file=named,
             mode=mode,
             shown_prefix=checkout.subdir,
         )

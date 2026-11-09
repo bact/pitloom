@@ -85,6 +85,42 @@ def is_inside(path: PurePath, root: PurePath) -> bool:
     return inside_ancestor(path, root) is not None
 
 
+def spelled_as_on_disk(root: str | os.PathLike[str], relative: str) -> bool:
+    """Whether each part of the POSIX *relative* path, from *root* down, is
+    the name of an entry of its directory exactly as spelled: a
+    case-insensitive file system also finds ``M.GGUF`` for ``m.gguf``, which
+    a case-sensitive one does not. Never raises (a directory that cannot be
+    listed spells nothing)."""
+    here = os.fspath(root)
+    for part in relative.split("/"):
+        try:
+            with os.scandir(here) as entries:
+                if not any(entry.name == part for entry in entries):
+                    return False
+        except OSError:
+            return False
+        here = os.path.join(here, part)
+    return True
+
+
+def regular_file_inside(root: str | os.PathLike[str], relative: str) -> bool:
+    """Whether the POSIX *relative* path under *root* is a regular file whose
+    real path (links followed) lies inside *root*'s (:func:`is_inside`), and
+    is spelled as on disk (:func:`spelled_as_on_disk`), so every file system
+    agrees with a case-sensitive one. Nothing is opened. Never raises."""
+    try:
+        real_root = os.path.realpath(root)
+        target = os.path.realpath(os.path.join(real_root, relative))
+    except (OSError, ValueError):  # a NUL, or a link loop on Windows
+        return False
+    return (
+        target != real_root
+        and is_inside(PurePath(target), PurePath(real_root))
+        and os.path.isfile(target)
+        and spelled_as_on_disk(real_root, relative)
+    )
+
+
 def open_nonblocking(path: str, flags: int) -> int:
     """``os.open`` for :func:`open`'s *opener*: a FIFO opens at once, with
     no writer, so the caller's ``fstat()`` can refuse it instead of
