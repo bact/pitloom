@@ -5,8 +5,9 @@
 """A percent-encoded separator in a Git page URL: a ``/`` encoded in one
 segment (``%2F``, ``%2f``, Azure DevOps' ``path=`` decoded twice:
 ``%252F``) or a ``\\`` (``%5C``) never walks out of the checkout, on every
-page form; a branch named with an encoded ``/`` (Bitbucket's ``feature%2Fx``)
-is still read.
+page form, nor into its ``.git`` directory (in any letter case, or as
+Windows reads ``.git.`` and ``GIT~1``); a branch named with an encoded
+``/`` (Bitbucket's ``feature%2Fx``) is still read.
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_fetch_escape` (the same URLs against a
@@ -30,6 +31,11 @@ _ESCAPES = {
     "double-slash": "a%2F%2Fm.gguf",
     "backslash": "..%5Chost%5Cm.gguf",
     "nul": "m.gguf%00.txt",
+    "dotgit": ".git/config",
+    "dotgit-encoded": ".git%2Fconfig",
+    "dotgit-upper": "sub/.GIT/config",
+    "dotgit-win32": ".git.%2Fconfig",
+    "dotgit-short": "GIT~1/config",
 }
 
 #: Page forms whose path segments follow a marker, ``{p}`` the path.
@@ -61,8 +67,8 @@ _CASES = [
 def test_an_encoded_separator_that_leaves_the_checkout_is_refused(
     form_id: str, path_id: str
 ) -> None:
-    """Decoded, each segment is a path of names: none is ``.``, ``..`` or
-    empty, and none holds a ``\\`` or a NUL."""
+    """Decoded, each segment is a path of names: none is ``.``, ``..``,
+    ``.git`` or empty, and none holds a ``\\`` or a NUL."""
     with pytest.raises(RemoteSourceError) as excinfo:
         parse_git_page(_FORMS[form_id].format(p=_ESCAPES[path_id]))
     assert excinfo.value.code == "git.url-invalid"

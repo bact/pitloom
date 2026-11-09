@@ -32,12 +32,13 @@ most one prefix from the table of prefixes.
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the repository chooses, and the repository is untrusted. | 0.23.4 |
+| [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools. The repository is untrusted, so that code is not run. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
-| [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. The line names the first such file by its path in the wheel and, for two or more, how many there are. | 0.23.4 |
+| [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
 | [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file on disk, or the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link). | 0.23.4 |
 | [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read (a Croissant file) does not parse, or its top level is not an object. | 0.23.0 |
@@ -112,6 +113,7 @@ A line may start with one prefix before its text:
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
+| `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 | `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
@@ -155,6 +157,30 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: Git source: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
+  ```
+
+### `config-unsafe/build-code`
+
+- **Level**: WARNING.
+- **Means**: The build configuration of a project fetched from a Git URL names
+  Python code of the repository that listing the wheel's files would run: a
+  Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build
+  hook (pdm_build.py or custom-hook) or run-setuptools. The repository is
+  untrusted, so that code is not run. The line names the file that holds the
+  settings and the settings ignored.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Ignored those settings: no code of the repository ran, and
+  the wheel's files were listed from the rest of the build configuration, which
+  may miss a file that code would add.
+- **Tell the user**: that the repository's build configuration names code that
+  Pitloom does not run on a downloaded repository, so the file list may miss
+  what it would add. To have it, they clone the repository, review that code,
+  and generate from the local copy. Do not clone or run that code for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]
   ```
 
 ### `dir-unlistable`
@@ -280,9 +306,11 @@ A line may start with one prefix before its text:
 - **Level**: WARNING.
 - **Means**: The build configuration of a project fetched from a Git URL lists
   files outside the downloaded repository (an absolute or .. path, as in a
-  Hatchling force-include), and Pitloom reads no file outside it: the repository
-  is untrusted, and such a file is the host's. The line names the first such
-  file by its path in the wheel and, for two or more, how many there are.
+  Hatchling force-include, or its .git directory), and Pitloom reads no file
+  outside it: the repository is untrusted, and such a file is the host's. A
+  setting entry left out before the files are listed is named as the
+  configuration writes it, one line each; files left out once listed are only
+  counted, never named.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Did not read them and left them out of the SBOM: no hash, no
   copyright or licence text from their headers, no AI model metadata.
@@ -294,7 +322,8 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  WARNING: FILE=<file>: outside the downloaded repository<count>; not read [file-unreadable/outside-repository]
+  WARNING: FILE=<file>: outside the downloaded repository; not read [file-unreadable/outside-repository]
+  WARNING: listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]
   ```
 
 ### `hyperparameter-conflict`

@@ -145,16 +145,21 @@ FILE_UNREADABLE_OUTSIDE_REPOSITORY: Final = Message(
     lines=(
         Line(
             level="WARNING",
-            template="FILE=%(file)s: outside the downloaded repository%(count)s; "
+            template="FILE=%(file)s: outside the downloaded repository; not read",
+        ),
+        Line(
+            level="WARNING",
+            template="listed files outside the downloaded repository%(count)s; "
             "not read",
         ),
     ),
     summary="The build configuration of a project fetched from a Git URL lists "
     "files outside the downloaded repository (an absolute or .. path, as in "
-    "a Hatchling force-include), and Pitloom "
+    "a Hatchling force-include, or its .git directory), and Pitloom "
     "reads no file outside it: the repository is untrusted, and such a file "
-    "is the host's. The line names the first such file by its path in the "
-    "wheel and, for two or more, how many there are.",
+    "is the host's. A setting entry left out before the files are listed is "
+    "named as the configuration writes it, one line each; files left out "
+    "once listed are only counted, never named.",
     did="Did not read them and left them out of the SBOM: no hash, no "
     "copyright or licence text from their headers, no AI model metadata.",
     effect="thinner",

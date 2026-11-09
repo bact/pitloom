@@ -33,7 +33,9 @@ integration already trusts a project's own ``hatch_build.py`` -- a
 project opting into a custom PDM build hook is explicitly asking for
 code execution as part of its declared build-backend contract, unlike
 setuptools' *implicit* ``setup.py`` fallback. Accepted as consistent with
-the existing Poetry/Hatchling delegation precedent, not a new exception.
+the existing Poetry/Hatchling delegation precedent, not a new exception,
+for a local project; in a Git URL's clone the builder loads no such hook
+(:func:`pitloom.core._models_wheel_pdm.wheel_builder`).
 
 See also: :mod:`pitloom.core._models_wheel_pdm` (the sibling wheel
 file-discovery module, sharing this same ``Builder``/``Context``
@@ -118,7 +120,8 @@ def resolve_pdm_dynamic_version(
     # pylint: disable=import-outside-toplevel
     from pdm.backend.hooks.base import Context
     from pdm.backend.hooks.version import DynamicVersionBuildHook
-    from pdm.backend.wheel import WheelBuilder
+
+    from pitloom.core._models_wheel_pdm import wheel_builder
 
     try:
         # WheelBuilder, not the plain Builder base: Builder never sets
@@ -131,7 +134,7 @@ def resolve_pdm_dynamic_version(
         # a _version.py). WheelBuilder sets target = "wheel", same as
         # the sibling _models_wheel_pdm.py discovery module already
         # uses, so this attribute is always defined.
-        builder = WheelBuilder(project_dir)
+        builder = wheel_builder(project_dir)
         # A plain Context, never through Builder.build_context() -- that
         # helper mkdir()s dist_dir as a build-time side effect. Neither
         # resolve_version_from_file nor resolve_version_from_scm reads

@@ -48,6 +48,7 @@ from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
     _resolve_cfg_version,
+    resolve_attr_directive,
 )
 from pitloom.extract.project._setuptools_options import (
     ConflictReport,
@@ -87,6 +88,7 @@ __all__ = [
     "read_setup_cfg",
     "read_setup_py",
     "read_setuptools",
+    "resolve_attr_directive",
 ]
 
 

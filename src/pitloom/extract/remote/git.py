@@ -146,6 +146,13 @@ def fetch_git_project(
     """Fetch the repository *url* names into a temporary directory, removed
     on exit.
 
+    Within the block, the reads are a temporary clone's
+    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
+    :meth:`GitCheckout.reading`): nothing out of the checkout's root is read,
+    the model readers a wheel scan does not run are not run, and the
+    repository's build-time code is not run. The mark is reset on every exit
+    and belongs to the calling thread's context alone.
+
     *check_url* is called with the URL of every redirect target, without
     user information, before it is requested and raises for one that must not
     be fetched; Pitloom does not check the URL it is given (the caller does,
@@ -171,7 +178,8 @@ def fetch_git_project(
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
             raise
-        yield checkout
+        with reading_remote_clone(checkout.root):
+            yield checkout
 
 
 def _prepare(

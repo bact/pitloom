@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from pitloom.messages._card_malformed import CARD_MALFORMED
 from pitloom.messages._catalogue import MESSAGES
-from pitloom.messages._config_unsafe import CONFIG_UNSAFE
+from pitloom.messages._config_unsafe import CONFIG_UNSAFE, CONFIG_UNSAFE_BUILD_CODE
 from pitloom.messages._emit import (
     CodedFileNotFoundError,
     CodedImportError,
@@ -187,6 +187,7 @@ __all__ = [
     "CONDITIONS",
     "CONFIG_KEPT_LINE",
     "CONFIG_UNSAFE",
+    "CONFIG_UNSAFE_BUILD_CODE",
     "KERAS_MEMBER_LINE",
     "CONFIG_MEMBER_LINE",
     "CONFIG_RAW_CUT_LINE",

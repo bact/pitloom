@@ -93,9 +93,17 @@ def test_the_sbom_holds_nothing_of_a_file_out_of_the_repository(
     assert all(digest not in text for digest in _digests(host))
     assert "HOSTSECRET-COPY" not in text and "demo/secret.py" not in text
     assert not read
-    codes = [getattr(r, CODE_ATTR, None) for r in caplog.records]
-    assert codes.count("file-unreadable/outside-repository") == 1
-    assert str(host) not in caplog.text and str(folder) not in caplog.text
+    said = [
+        r.getMessage()
+        for r in caplog.records
+        if getattr(r, CODE_ATTR, None) == "file-unreadable/outside-repository"
+    ]
+    # Each entry as the configuration writes it, and no file of the host.
+    assert said == [
+        f"FILE={entry}: outside the downloaded repository; not read"
+        for entry in sorted([(host / "secret.py").as_posix(), "../host/p.safetensors"])
+    ]
+    assert str(folder) not in caplog.text
 
 
 def test_the_same_project_read_locally_keeps_the_file(

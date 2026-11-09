@@ -348,17 +348,25 @@ def _find_marker(
     return None
 
 
+#: The names of the checkout's ``.git`` directory, as each file system reads
+#: one (case-folded, Windows' trailing dots and spaces dropped; its 8.3 short
+#: name): the clone's own, which can hold the URL's user information.
+_GIT_DIR_NAMES = frozenset({".git", "git~1"})
+
+
 def _check_segments(rest: tuple[str, ...], url: str) -> None:
     """Refuse a segment, percent-decoded, that would walk out of the
-    checkout or start outside it: one holding a ``\\`` or a NUL, or whose
-    parts between the ``/`` it may hold (an encoded ``%2F``, as in a branch
-    ``feature%2Fx``) include ``.``, ``..`` or an empty one (``%2Fetc``)."""
+    checkout, start outside it or into its ``.git`` directory: one holding
+    a ``\\`` or a NUL, or whose parts between the ``/`` it may hold (an
+    encoded ``%2F``, as in a branch ``feature%2Fx``) include ``.``, ``..``,
+    an empty one (``%2Fetc``) or ``.git`` (:data:`_GIT_DIR_NAMES`)."""
     for segment in rest:
         parts = segment.split("/")
         if (
             "\0" in segment
             or "\\" in segment
             or any(part in {"", ".", ".."} for part in parts)
+            or any(part.casefold().rstrip(". ") in _GIT_DIR_NAMES for part in parts)
         ):
             raise RemoteSourceError(
                 "git.url-invalid",

@@ -69,6 +69,7 @@ SAMPLES: dict[str, object] = {
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
     "requirement": "pitloom[gguf]",
+    "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "unit": "byte",
     "use": "for file scanning",

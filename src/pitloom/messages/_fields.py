@@ -66,6 +66,8 @@ _ELEMENT: Final = r"[a-z][a-z0-9-]* \((?:not recorded|written in [A-Za-z_]+)\)"
 #: name, a note in brackets after it when it has one.
 _MODEL_FIELD: Final = r"[a-z_][A-Za-z0-9_.]*(?: \([^()]+\))?"
 #: One step of a Keras config key path (``layers[0]``).
+#: A build setting, as its file names it (``tool.pdm.build.custom-hook``).
+_SETTING: Final = r"[a-z][a-z0-9_-]*(?:\.[a-z][a-z0-9_-]*)*"
 _KEY_STEP: Final = r"[a-z_]+(?:\[(?:0|[1-9][0-9]*)\])?"
 
 #: The keys an over-cap line names its input by: a file, a directory, a
@@ -316,6 +318,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<requirement>",
             "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
             "`pitloom[ai]` installs every model reader",
+        ),
+        "settings": Field(
+            rf"{_SETTING}(?:, {_SETTING})*",
+            joined,
+            "<settings>",
+            "the build settings left out, comma-separated, as the file names "
+            "them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, "
+            "`metadata.version`)",
         ),
         "size": Field(
             r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes",

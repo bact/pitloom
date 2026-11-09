@@ -114,8 +114,7 @@ def regular_file_inside(root: str | os.PathLike[str], relative: str) -> bool:
     except (OSError, ValueError):  # a NUL, or a link loop on Windows
         return False
     return (
-        target != real_root
-        and is_inside(PurePath(target), PurePath(real_root))
+        is_inside(PurePath(target), PurePath(real_root))
         and os.path.isfile(target)
         and spelled_as_on_disk(real_root, relative)
     )

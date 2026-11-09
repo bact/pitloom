@@ -153,14 +153,14 @@ def _extract_setuptools_dynamic_version(
 
     # pylint: disable-next=import-outside-toplevel
     from pitloom.extract.project._setup_cfg_directives import (
-        _resolve_cfg_attr_directive,
         _resolve_cfg_version_file_directive,
+        resolve_attr_directive,
     )
 
     what = "pyproject.toml tool.setuptools.dynamic.version"
     attr = version_directive.get("attr")
     if attr:
-        return _resolve_cfg_attr_directive(attr, project_dir, what)
+        return resolve_attr_directive(attr, project_dir, what)
 
     file_list = version_directive.get("file")
     if file_list:

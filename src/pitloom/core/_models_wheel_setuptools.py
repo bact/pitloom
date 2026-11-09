@@ -36,6 +36,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pitloom.core._models_wheel_setuptools_clone import (
+    apply_pyproject,
+    apply_setup_cfg,
+)
 from pitloom.core._models_wheel_setuptools_relay import relay_setuptools_output
 from pitloom.core._models_wheel_types import (
     IncludedFile,
@@ -154,15 +158,16 @@ def _load_distribution(
 
     ``setup.cfg`` is applied first (legacy config as a base), then
     ``pyproject.toml`` on top -- matching how a real setuptools build
-    consults both rather than treating them as mutually exclusive.
+    consults both rather than treating them as mutually exclusive. In a Git
+    URL's clone, without the settings that would import the repository's
+    code (:mod:`pitloom.core._models_wheel_setuptools_clone`).
 
     *pyproject_data*, when given, is the already-parsed
     ``pyproject.toml`` (see
     :func:`pitloom.extract.project.setuptools.read_pyproject_toml`) -- pass it
     when the caller already parsed the file, to avoid re-parsing it here.
     """
-    # pylint: disable=import-outside-toplevel
-    from setuptools.config import pyprojecttoml, setupcfg
+    # pylint: disable-next=import-outside-toplevel
     from setuptools.dist import Distribution
 
     pyproject_path = project_dir / "pyproject.toml"
@@ -191,9 +196,9 @@ def _load_distribution(
     dist.script_name = "setup.py"
 
     if has_setup_cfg:
-        setupcfg.apply_configuration(dist, str(setup_cfg_path))
+        apply_setup_cfg(dist, setup_cfg_path, project_dir)
     if has_pyproject:
-        pyprojecttoml.apply_configuration(dist, str(pyproject_path))
+        apply_pyproject(dist, pyproject_path, project_dir)
 
     # apply_configuration() only applies what's explicitly declared --
     # setuptools' zero-config auto-discovery (flat-layout/src-layout
