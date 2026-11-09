@@ -325,13 +325,18 @@ def test_a_null_member_is_no_data(
     assert meta.type_of_model is None and meta.format_info.framework_version is None
 
 
-def test_a_config_nested_1000_deep_is_read_without_a_crash(
+def test_a_config_nested_deeply_is_read_without_a_crash(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Deep values where a scalar or a collection is read: the hyperparameter
-    is skipped (not a scalar), the loss kept or named as too deep."""
+    is skipped (not a scalar), the loss kept or named as too deep.
+
+    The depth parses on every supported Python: on 3.10 and 3.11 the json
+    module counts nesting against the recursion limit, so 1000 levels fail to
+    encode or decode there. A document too deep for the parser is the ``deep``
+    case of the member-warning test above."""
     deep: Any = []
-    for _ in range(1000):
+    for _ in range(300):
         deep = [deep]
     config = {
         "class_name": "Sequential",
