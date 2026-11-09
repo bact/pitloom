@@ -87,10 +87,15 @@ loom project .                                 # Source SBOM of a project
 loom wheel dist/pkg-1.0-py3-none-any.whl       # Analyzed SBOM of a built wheel
 loom env -o env.spdx3.json                     # Deployed SBOM of the installed environment
 loom model path/to/model.safetensors           # Analyzed SBOM of one AI model file
-loom model Qwen/Qwen3-235B-A22B                # ... or a Hugging Face Hub model (needs pitloom[huggingface_hub])
-loom project https://gitlab.com/group/project  # a Git repository or page URL (needs git)
-loom model https://github.com/org/repo/blob/main/m.keras  # a model file or folder in a Git repository
 loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
+```
+
+Works with remote resources too:
+
+```bash
+loom project https://gitlab.com/group/project
+loom model https://github.com/org/repo/blob/main/m.keras
+loom model https://huggingface.co/Qwen/Qwen3.8-27B       # Or just Qwen/Qwen3.8-27B
 ```
 
 `-o FILE` sets the output path. The per-file inventory (file list, hashes)
