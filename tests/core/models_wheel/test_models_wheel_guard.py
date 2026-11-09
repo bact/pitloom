@@ -144,12 +144,33 @@ def test_the_import_path_is_restored_after_the_discovery(tmp_path: Path) -> None
         sys.path[:] = before
 
 
-@pytest.mark.parametrize("entry", ["", ".", "rel", 7, "a\0b", "/a\0b"], ids=repr)
+@pytest.mark.parametrize("entry", ["", ".", "rel", 7, b"/a", "a\0b", "/a\0b"], ids=repr)
 def test_an_entry_that_is_no_absolute_path_is_off_the_path(
     tmp_path: Path, entry: object
 ) -> None:
     # pylint: disable-next=protected-access
     assert not guard._kept_entry(entry, tmp_path)
+
+
+@pytest.mark.parametrize("error", [OSError, ValueError], ids=["os", "value"])
+def test_an_entry_whose_real_path_cannot_be_read_is_off_the_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: type[Exception]
+) -> None:
+    """A link loop on Windows raises ``OSError``; the guard's own ``os`` is
+    stubbed, as no entry raises one here."""
+
+    def realpath(_path: str) -> str:
+        raise error("unreadable")
+
+    stub = SimpleNamespace(
+        fspath=os.fspath,
+        PathLike=os.PathLike,
+        path=SimpleNamespace(isabs=os.path.isabs, realpath=realpath),
+    )
+    monkeypatch.setattr(guard, "os", stub)
+    absolute = str(tmp_path.resolve())
+    # pylint: disable-next=protected-access
+    assert not guard._kept_entry(absolute, tmp_path)
 
 
 def test_a_discovery_past_the_cap_stops_and_says_so(
