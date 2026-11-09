@@ -56,7 +56,7 @@ shallowly into a temporary directory and read as a project; `loom generate` take
 the same URL. `loom project` reads only a project: a folder with AI model files
 and no project is refused with a hint to use `loom model <url>` or `loom
 generate <url>` ([below](#generate-an-sbom)). The repository is untrusted: its own `[tool.pitloom]` is ignored
-(`--config FILE` applies) and its build backend is never run. `--offline` is an
+(`--config FILE` applies) and its own build-time code is not run. `--offline` is an
 error for it. Every redirect or change of the URL is an `INFO:` naming both URLs,
 and a URL that is refused or not followed is a `WARNING:` or `ERROR:`. See
 [SBOM from a Git URL](git-urls.md) for the URL forms, the platforms checked and

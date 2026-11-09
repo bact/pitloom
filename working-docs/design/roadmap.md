@@ -68,7 +68,7 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   `setup.py` reader, CLI clone cap, commit and URL in the SBOM. See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
 - [ ] **A model file from a Git URL: recursive discovery, origin provenance, a
-  gated read of the native-library formats** (model SBOM built for 0.24.0: a
+  gated read of the native-library formats** (model SBOM built for 0.23.4: a
   folder is read non-recursively; the commit and URL are not in the SBOM;
   fastText, GGUF, HDF5, ONNX and PyTorch are listed unread). See
   [model-sbom-from-git.md](../implementation/model-sbom-from-git.md).

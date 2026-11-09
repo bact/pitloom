@@ -29,9 +29,12 @@ URL is read by the host's conventions. Rules to state to the user:
   `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a
   repository.
 - The repository is untrusted: its own `[tool.pitloom]` is ignored (an `INFO:`
-  says so, `[config-unsafe]`; `--config FILE` applies) and its build backend never runs:
-  `--allow-build` gets `WARNING: Build: <url>: --allow-build has no effect for
-  a remote repository`.
+  says so, `[config-unsafe]`; `--config FILE` applies) and `--allow-build` gets
+  `WARNING: Build: <url>: --allow-build has no effect for a remote repository`.
+  Its own build-time code (Hatchling metadata hooks, setuptools `cmdclass`, PDM
+  hooks) is not run either: one `WARNING: FILE=<file>: build-time code of the
+  downloaded repository is not run; <settings> ignored
+  [config-unsafe/build-code]`, and the file list may miss what that code adds.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`WARNING: Git source: Cannot fetch <url>: network
   access is forbidden.`, then the `ERROR:`).
@@ -78,8 +81,10 @@ generate <url>`. Rules to state:
 - A file name in a URL is read as the repository spells it and never leaves
   the clone: an encoded-slash name (`%2F` joined to `.`/`..`), a backslash or a
   NUL is refused (`Invalid path in URL`, `git.url-invalid`); a wrong-case name
-  is `git.path-not-found`. A cloned project's build file list drops files
-  outside the repository with one `WARNING:` (`[file-unreadable/outside-repository]`).
+  is `git.path-not-found`. A cloned project's build file list drops entries
+  outside the repository, one `WARNING: FILE=<entry>: outside the downloaded
+  repository; not read` each (`[file-unreadable/outside-repository]`), and
+  counts files found outside later in one more line.
 - A folder is read non-recursively (the repository URL reads the root files
   only): a model in a subfolder needs that folder's URL or the file's.
 - One model per SBOM: several models in a folder give `INFO: FILE=<file>: one

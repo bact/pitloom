@@ -130,7 +130,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   PyTorch `.pt`/`.pth`) is a name, format and hash only
   (`[reader-unsafe/remote]`); a local project directory reads such models in
   place, ungated. Only the folder a URL names is searched, not its
-  subfolders; a copy of an ONNX, Keras, PyTorch or PT2 model renamed to
+  subfolders; a copy of an ONNX, Keras, PyTorch, PT2 or NumPy `.npz` model renamed to
   `x.dat`, or a Keras archive named `.zip`, or a `pytorch_model.bin`, is not
   recognised as a model by its content.
 - A Hugging Face model is read from its card, configuration files and Hub

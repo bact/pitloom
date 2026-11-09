@@ -24,10 +24,8 @@ and this project adheres to
 
 ### Added
 
-- A model file or folder at a Git URL gives a model SBOM, for every model
-  format: `blob`, `raw`, `tree` and `src` pages; `loom model <url>` and
-  `loom generate <url>` choose it; `generate_git_sbom()` is the library call
-  ([#464])
+- A model file or folder at a Git URL gives a model SBOM: `loom model <url>`,
+  `loom generate <url>`, `generate_git_sbom()` ([#464])
 - `loom model DIR` and `generate(DIR)` read a folder with one model and no
   project; `generate()` reads a file as a model by content, not by suffix
   ([#464])
@@ -53,8 +51,14 @@ and this project adheres to
 - A named FIFO no longer hangs `loom model` ([#464])
 - A lone surrogate in a Keras `training_config` or `compile_config` no longer
   fails the whole model read ([#464])
-- A `raw` file URL of GitHub, GitLab, Gitea, Forgejo, Codeberg or Bitbucket is
-  read as a file page, not cloned as a repository ([#464])
+- A `raw` file URL of a Git host is read as a file page, not cloned as a
+  repository ([#464])
+- A cloned repository's own build code (Hatchling metadata hooks, setuptools
+  `cmdclass`, PDM hooks) is no longer run while listing files; one `WARNING:`
+  ([#464])
+- `fetch_git_project()` confines reads by default; a build file entry outside
+  the clone is dropped before discovery, and `.git` is never listed or named in
+  a URL ([#464])
 
 [#462]: https://github.com/bact/pitloom/pull/462
 [#464]: https://github.com/bact/pitloom/pull/464

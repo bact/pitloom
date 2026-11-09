@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [remote-source-ingestion.md](../design/remote-source-ingestion.md)
 (the design this builds part of), [model-sbom-from-git.md](model-sbom-from-git.md)
-(model files at a Git URL, 0.24.0), the user page `docs/git-urls.md`,
+(model files at a Git URL, 0.23.4), the user page `docs/git-urls.md`,
 [roadmap.md](../design/roadmap.md), and the Lumina notes that led here
 (`working-docs/design.md` in `bact/lumina`).
 

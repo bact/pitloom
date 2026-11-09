@@ -10,7 +10,8 @@ Windows reads ``.git.`` and ``GIT~1``); a branch named with an encoded
 ``/`` (Bitbucket's ``feature%2Fx``) is still read.
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
-:mod:`tests.extract.remote.test_git_fetch_escape` (the same URLs against a
+:mod:`tests.extract.remote.test_git_target_named` and
+:mod:`tests.extract.remote.test_git_fetch_models` (the same URLs against a
 real checkout).
 """
 

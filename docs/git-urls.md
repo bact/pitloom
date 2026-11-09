@@ -200,16 +200,19 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   pyproject.toml, setup.cfg, or setup.py found in <url>; it holds files that
   may be AI models ... [project-not-found/model-files]`.
 - **A name is read as the repository spells it, and stays inside the clone.**
-  A file name is never joined to the clone as a path: a URL whose file name
-  decodes (`%2F`) to a segment `.` or `..`, an empty part, a backslash or a NUL
-  is refused (`Invalid path in URL`, `git.url-invalid`), and a name that does
-  not match a file of the folder letter for letter is "not found" on every
-  operating system, also where the file system ignores case. A link named in a
+  An encoded slash between plain names (`models%2Fm.keras`) is a path inside
+  the folder (here `models/m.keras`). A URL segment that decodes (`%2F`) to a
+  part `.` or `..`, an empty part, a backslash, a NUL or `.git` (any case,
+  trailing dots or spaces, `git~1`) is refused (`Invalid path in URL`,
+  `git.url-invalid`), and a name that does not match a file on disk letter for
+  letter is "not found" on every operating system, also where the file system
+  ignores case. A link named in a
   `blob` URL is not followed and has its own line under
   [`input-not-found`](message-codes.md#input-not-found). A named FIFO or other
   special file is refused, never opened.
 - A file is a model by its **content**, not its name: a GGUF file named `m.dat`
-  is read when its URL is given. A folder's candidates are chosen by the
+  is recognised as GGUF when its URL is given, and listed without metadata
+  (the GGUF reader is not run on a download: next item). A folder's candidates are chosen by the
   suffixes the scan knows, then confirmed by their content.
 - **Some readers are not run on a download.** The readers
   of fastText, HDF5 and ONNX files open the file with a C/C++ library, the
@@ -247,8 +250,17 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - **A downloaded repository is untrusted.** Its own `[tool.pitloom]` settings are
   ignored (`INFO: Git source: the repository's own [tool.pitloom] settings are
   ignored (untrusted) ... [config-unsafe]`; `--config FILE` is yours and
-  applies), and its
-  build backend is never run: `--allow-build` is reported as having no effect.
+  applies), and `--allow-build` is reported as having no effect.
+- **The repository's own build-time code is not run** while its files are
+  listed. In a clone, these settings are ignored, with one `WARNING:` naming
+  the file and the settings ([`config-unsafe/build-code`](message-codes.md#config-unsafebuild-code)):
+  Hatchling metadata hooks (`pyproject.toml` and `hatch.toml`), setuptools
+  `cmdclass` and an `attr:` version Pitloom cannot read statically, and PDM
+  hooks (`pdm_build.py`, `custom-hook`, `run-setuptools`). Hatchling build
+  hooks, a `version` of `source = "code"` alone, PDM `source = "call"`, a Flit
+  dynamic version, `setup.py` (read as a syntax tree), a Poetry build script
+  and in-tree backends do not run the repository's code either. A local
+  project is not changed: it still runs its own hooks, as a build would.
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
   follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
@@ -279,11 +291,17 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   takes more disk than a limit you give (`max_clone_bytes=`, error code
   `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
   [Python API](python-api.md).
-- A cloned project's build file list (`force-include` with an absolute or
-  `../` path, say) keeps only files inside the repository: the others are
-  dropped with one `WARNING:` ([`file-unreadable/outside-repository`](message-codes.md#file-unreadableoutside-repository)),
-  so a host file is never listed, hashed or read. A local project is not
-  changed.
+- A cloned project's build file list (Hatchling `force-include`, setuptools
+  `package-dir`, `packages.find.where` or `package-data` with an absolute or
+  `..` path, say) keeps only files inside the repository. Such an entry is
+  dropped before the files are discovered, one `WARNING:` per entry as written
+  ([`file-unreadable/outside-repository`](message-codes.md#file-unreadableoutside-repository)),
+  and a file found outside after discovery is only counted, in one more line;
+  so a host file is never listed, hashed or read. The clone's own `.git`
+  directory is never listed. A local project is not changed.
+- Not every build file list is checked before discovery: MANIFEST.in, PDM,
+  Poetry and Flit entries are still walked, and a file outside the repository
+  is dropped afterwards (and counted).
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.
@@ -320,8 +338,10 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
 | `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository were not followed` | links to host files were removed |
 | `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
-| `WARNING:` | `FILE=<file>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a cloned project's build file list names a file outside the repository |
-| `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a file name that decodes to `.`/`..`, an empty part, a backslash or a NUL |
+| `WARNING:` | `FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]` | a cloned project's build settings would run the repository's own code (once per SBOM) |
+| `WARNING:` | `FILE=<entry>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a build file list entry, as written, names a path outside the repository (one line per entry) |
+| `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
+| `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
 | `ERROR:` | `SBOM generation failed: …` | the run could not finish |
 

@@ -17,7 +17,7 @@ Hub follow-up that was evaluated and not built),
 [known-bugs/ai-models-readers-and-metadata.md](../design/known-bugs/ai-models-readers-and-metadata.md),
 the user pages `docs/git-urls.md` and `docs/ai-model-formats.md`.
 
-What was built for 0.24.0 (PR #464), why,
+What was built for 0.23.4 (PR #464), why,
 what was measured first, and what was left out.
 
 ## Why
@@ -158,6 +158,29 @@ refactor of `hdf5_config.py`.
   The project-route gate (D1, revised) stays as described. *Rejected:* trusting
   the URL decoder alone (the build file list was a second vector); resolving
   with `realpath` only (a case-insensitive file system still hits the file).
+- **D7 The repository's own code is not run (second review round).** Listing a
+  project's wheel files ran the repository's Python (Hatchling metadata hooks,
+  setuptools `cmdclass` and unresolved `attr:` versions, PDM `pdm_build.py`,
+  `custom-hook`, `run-setuptools`).
+  1. *Neutralise in a clone only:* the settings are dropped before discovery,
+     with one `config-unsafe/build-code` `WARNING:`, inside a clone
+     (`in_remote_clone()`); a local project still runs its own hooks, as a
+     build would, so its file list stays that of the build. *Rejected:*
+     dropping them for local projects too (changes the output for the user's
+     own project), a sandbox subprocess (platform-specific).
+  2. *`fetch_git_project` confines by default:* its block sets the clone mark
+     (`reading_remote_clone`), so a library caller that reads `co.folder`
+     itself gets the same confinement and reader gate; `reading()` stays and
+     nests. *Rejected:* a note in the docs asking callers to wrap the block.
+  3. *Filter before discovery:* a Hatchling `force-include` or a setuptools
+     `package-dir`/`packages.find.where`/`package-data` entry outside the
+     repository is dropped before the files are discovered (the host directory
+     is not walked) and named as written; files found outside after discovery
+     are only counted. MANIFEST.in, PDM, Poetry and Flit entries rely on the
+     count-only net (known-bugs).
+  4. *`.git`:* a `.git` part of a Git URL path (any case, trailing dots or
+     spaces, `git~1`) is refused (`git.url-invalid`), and the clone's `.git`
+     is never listed.
 
 ## Behaviour
 
@@ -229,12 +252,12 @@ row: options a model cannot use warn once), `messages/_sbom_target.py`
   `CodedValueError` (a `ValueError`), not `FileNotFoundError`; a file with a
   model magic and no model suffix is now read as a model by `generate()` (it
   used to be an unreadable project path). Alpha, no compatibility promise.
-- **Links on the project route:** a Git *project* SBOM's model scan opens
-  `project_dir / physical_path` for the header sniff, the pointer probe and
-  the hash without refusing a link, so a symlink the repository commits can
-  make it read a file outside the clone (checked: a link to an outside GGUF
-  file gets that file's hash). The D1 gate does not close this; the model
-  route avoids links in a clone. Open in known-bugs.
+- **Links on the project route:** closed. An earlier note here said a
+  committed symlink could make the model scan read a file outside the clone.
+  A review showed links that leave the clone are already removed after the
+  checkout (`_drop_outside_links`); the real vector was the build backend's
+  file list (`force-include` with an absolute or `..` path), which
+  `drop_outside_clone` and the pre-discovery filter now close (D7).
 - **Not built:** recursive model discovery; origin provenance (URL, ref,
   commit) in the package; `raw.githubusercontent.com` and Hugging Face
   `/resolve/` links (not Git page URLs); a Hub per-file hash.

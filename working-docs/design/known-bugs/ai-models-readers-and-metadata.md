@@ -252,10 +252,6 @@ history.
   path in URL` is a plain `RemoteSourceError` text, so a skill sees no
   `[code]`. Add a catalogued message when the `git.*` family is catalogued.
   *Found 2026-11-09, review of #464.*
-- [ ] **Hatchling discovery still lists names under a host directory named by
-  `force-include` (S).** Nothing is read or listed in the SBOM (the clone
-  confinement drops the entries), but the walk is slow for `/`.
-  *Found 2026-11-09, review of #464.*
 - [ ] **One readable and one unreadable model file in a folder picks the
   readable one (S).** The ambiguity check is suppressed on an access failure,
   so `model-ambiguous` is not raised; the unreadable file is silently not the
@@ -277,7 +273,7 @@ Kept for history, with the PR. A fixed entry moves to
 [roadmap-completed.md](../../implementation/roadmap-completed.md) once its
 release ships.
 
-### Fixed, P3: 0.24.0 and later
+### Fixed, P3: 0.23.4
 
 - [x] **A Git project's build file list read host files (S, security).**
   Fixed by #464 (`drop_outside_clone` in `core/_models_wheel_clone.py`, inside
@@ -290,6 +286,26 @@ release ships.
   (Was: `project_candidates`, the header sniff, the pointer probe and the hash
   opened `project_dir / physical_path`, so such a host file was hashed, and
   its licence header text copied into the SBOM.)
+- [x] **A cloned repository's own code ran while its files were listed (M,
+  security).** Fixed by #464 (`core/_models_wheel_clone.py`,
+  `_models_wheel_hatchling.py`, `_models_wheel_pdm.py`,
+  `_models_wheel_setuptools_clone.py`): in a clone the settings that make
+  listing the wheel's files run the repository's Python are dropped before
+  discovery, with one `config-unsafe/build-code` `WARNING:`. Vectors closed:
+  Hatchling metadata hooks (`pyproject.toml` and `hatch.toml`, a `custom` hook
+  and `path`), setuptools `cmdclass` and an `attr:` version (pyproject or
+  setup.cfg) that cannot be read statically, PDM `pdm_build.py`, `custom-hook`
+  and `run-setuptools`. Checked not to run repository code: Hatchling build
+  hooks, `version source=code` alone, PDM `source=call`, a Flit dynamic
+  version, a literal `attr`, `setup.py` (AST only), a Poetry build script,
+  in-tree backends. A local project is unchanged (it runs its own hooks, as a
+  build would). The same change: `fetch_git_project` confines reads by
+  default; an outside entry (Hatchling `force-include`, setuptools
+  `package-dir`, `packages.find.where`, `package-data`) is dropped before
+  discovery, so the host directory is not walked (this closes "Hatchling
+  discovery lists names under a host directory named by `force-include`") and
+  is named as written; `.git` is never listed from a clone and a `.git` part of
+  a Git URL is refused.
 - [x] **Native-library readers still ran on models of a Git *project* SBOM
   (S-M, security).** Fixed by #464: `scan_project_for_ai_models` builds
   `remote_reader_gate()` (in `scanner_project`), which is the

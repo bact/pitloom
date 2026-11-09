@@ -104,6 +104,6 @@ Build it only with all of the following:
 
 ## Result of the evaluation
 
-Not built for 0.24.0. The Git route was fixed instead (a `.keras` file in a Git
+Not built for 0.23.4. The Git route was fixed instead (a `.keras` file in a Git
 repository is read in full), and the Hub gap is documented with the
 workaround.

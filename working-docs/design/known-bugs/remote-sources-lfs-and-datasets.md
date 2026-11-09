@@ -100,6 +100,37 @@ entries stay in the last section for history.
   stands for "not pulled".
   *Found 2026-11-03, review of the 0.22.1 release.*
 
+- [ ] **Some build file lists of a clone are still walked before the outside
+  check (S).** MANIFEST.in `graft ../..`, PDM `includes`/`package-dir`, Poetry
+  `include`/`from` and Flit entries are not filtered before discovery; the
+  count-only safety net drops what they list outside the repository, but the
+  walk still happens.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Dropping a setuptools `package-dir` that a listed package needs makes
+  setuptools discovery fail (S).** It falls back to the Hatchling heuristic,
+  with warnings, so the file list can differ from a real build.
+  *Found 2026-11-09, review of #464.*
+- [ ] **A clone drops all Hatchling metadata hooks, installed plugins' too,
+  while PDM keeps installed plugin hooks (S).** Inconsistent; decide one rule.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Setuptools in a clone relies on private pieces (S).**
+  `pyprojecttoml._apply`, `Distribution._finalize_license_files`,
+  `_finalize_requires` and distutils `parse_config_files`: a setuptools release
+  can change them with no signal short of a test.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Installed setuptools file finders (setuptools-scm) still run `git` in
+  the clone (S, security).** Third-party code of the Pitloom environment, not
+  the repository's, but it reads the clone's Git data.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`loom project missingdir` prints an uncoded `ERROR: project directory
+  not found` (low).** `cli/options_resolve.py` (about l.107) and
+  `cli/commands/_embed_wheel_batch.py` (about l.115); a skill sees no `[code]`.
+  *Found 2026-11-09, review of #464.*
+- [ ] **A named file is checked by path and opened by path (low).** A
+  time-of-check to time-of-use gap; not exploitable today, as nothing writes
+  into the clone.
+  *Found 2026-11-09, review of #464.*
+
 ## Fixed
 
 Kept for history, with the PR. A fixed entry moves to

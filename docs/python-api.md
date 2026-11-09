@@ -91,7 +91,8 @@ generate_git_project_sbom(
 
 The repository is fetched shallowly into a temporary directory that is removed
 on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
-`pitloom_config=`, and its build backend never runs. A failure is a
+`pitloom_config=`, and its own build-time code (Hatchling metadata hooks,
+setuptools `cmdclass`, PDM hooks) is not run while its files are listed. A failure is a
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
@@ -102,7 +103,10 @@ also carry the catalogued code `over-cap` as `pitloom_code`
 exception to refuse an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
-`commit` the commit checked out). Its *max_bytes*, and
+`commit` the commit checked out). Reads inside the block are confined to the
+checkout and the repository's build-time code is not run, as for
+`generate_git_sbom()`, with no further call (`with checkout.reading():` is
+optional and may be nested). Its *max_bytes*, and
 `generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
 `git.too-large`, once the checkout takes more disk than that (no limit by
 default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
