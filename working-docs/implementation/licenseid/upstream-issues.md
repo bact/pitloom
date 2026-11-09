@@ -28,26 +28,27 @@ a hook; **edge** = unusual input.
 | - | - | - | - | - |
 | 1 | Short word detected as a licence | contract | none | fixed in LicenseID 0.7.2 |
 | 2 | Which characters are white space | edge/doc | none | reproduces on 0.8.4 |
-| 3 | `coverage` above 1 | contract | Pitloom clamps it (kept) | reproducer gives 0.4753 on 0.8.4; wider sweep not done |
-| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces on 0.8.2 (text still seen on 0.8.4) |
-| 5 | When a database warning is said once | process | none | reproduces on 0.8.2 (not re-run on 0.8.4) |
+| 3 | `coverage` above 1 | contract | Pitloom clamps it (kept) | reproduces on 0.8.4 (up to 1.18 on real texts) |
+| 4 | Messages name `--db` and a networked command | process | own line names `--source packaged` | reproduces on 0.8.4 |
+| 5 | When a database warning is said once | process | none | reproduces on 0.8.4 |
 | 6 | Deprecated ids' List names resolve to nothing | contract | 14 names in `_license_names.py` `UNREAD_LISTED_NAMES` | reproduces on 0.8.4 |
 | 7 | `trust: none` answers are hard to use | process | special-cases the category | reproduces on 0.8.4 |
 | 8 | `components` empty for most answers | contract | none | reproduces on 0.8.4 |
 | 9 | Database is a black box | process | none | still open on 0.8.4 |
-| 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces on 0.8.2 (not re-run on 0.8.4) |
+| 10 | Non-ASCII space before "or later" has no step | contract | none | reproduces on 0.8.4 |
 | 11 | Apache name variants read inconsistently | edge | none needed | fixed in LicenseID 0.7.3 |
 
-Items 2, 3, 6, 7, 8 and 9 were re-run on LicenseID 0.8.4 on 2026-11-09 (packaged
-List 3.29.0): all reproduce except 3, whose BSD-1-Clause reproducer now gives
-`coverage` 0.4753. Items 4, 5 and 10 were not re-run on 0.8.4 (4: the
-`run 'licenseid update'` text still appears for a missing database). 0.8.4 also
-reads `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (not a finding). The earlier
-runs used LicenseID 0.8.2 (PyPI wheel, fresh `HOME`,
-`licenseid update --source packaged`) on 2026-11-08, with the same results as
-on 0.8.1; item 5 used a database built by LicenseID 0.6.0. Item 9 is open:
+All reproducers were re-run on LicenseID 0.8.4 (PyPI wheel, fresh `HOME`,
+`licenseid update --source packaged`, List 3.29.0) on 2026-11-09, with the same
+results as on 0.8.2, apart from these notes: item 3's short BSD-1-Clause
+reproducer gives `coverage` 0.4753, but the real texts in
+`tests/fixtures/license-texts` still reach 1.18 (MIT, `ast_serialize`), so the
+finding stands; item 5 used a copy of the packaged database with
+`build_version` set to 2; item 10 uses U+00A0: `MIT\u00a0OR ISC` lists a
+`whitespace` step and `GPL-2.0\u00a0or later` none, as on 0.8.2. 0.8.4 also
+reads `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (not a finding). Item 9 is open:
 `LicenseDatabase` is public, in `__all__`, has 15 public methods, and its
-stability is undocumented.
+stability is undocumented (checked on 0.8.4).
 
 ## Issue text
 

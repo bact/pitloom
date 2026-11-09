@@ -123,7 +123,9 @@ its id too: `https://opensource.org/licenses/MIT` as `MIT`,
 (`https://www.gnu.org/licenses/gpl-3.0.html`) as that id, `GPL-3.0`, with the
 note on its successors. A control or format character at either end of a
 value (a zero-width space after `MIT`) is dropped; the provenance keeps the
-value as written, the character escaped (`\u200b`). Licences joined by `;`
+value as written, the character escaped (`\u200b`). Two licences joined by a
+slash (`MIT/Apache-2.0`) read as `OR` (`Apache-2.0 OR MIT`); the provenance
+keeps the value as written. Licences joined by `;`
 (`MIT; Apache-2.0`) name no operator, so no expression: text, as written.
 Text that has an operator or parenthesis and an id as written, so looks like
 a broken expression (`MIT OR`), is kept as text with one `WARNING:` per value;
