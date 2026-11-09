@@ -23,6 +23,7 @@ Some formats require optional dependencies to read metadata:
 from __future__ import annotations
 
 import os
+import stat
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -50,8 +51,11 @@ from pitloom.extract.ai_model.safetensors import (
 )
 from pitloom.messages import (
     EMPTY_LINE,
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
     MODEL_WRONG_FORMAT,
     NOT_A_MODEL_LINE,
+    CodedFileNotFoundError,
     CodedValueError,
 )
 
@@ -211,7 +215,8 @@ _EXTENSION_ADMITS: dict[str, Callable[[bytes], bool]] = {
 def read_ai_model_header(model_path: Path) -> bytes:
     """Return the first :data:`SNIFF_BYTES` bytes of *model_path*.
 
-    Returns ``b""`` when *model_path* is absent or not a regular file.
+    Returns ``b""`` when *model_path* is absent or not a regular file (a
+    FIFO is not opened: the open would wait for a writer).
 
     Raises:
         OSError: The file exists but cannot be read (e.g. ``PermissionError``,
@@ -219,6 +224,8 @@ def read_ai_model_header(model_path: Path) -> bytes:
             this is.
     """
     try:
+        if not stat.S_ISREG(os.stat(model_path).st_mode):
+            return b""
         with model_path.open("rb") as fh:
             return fh.read(SNIFF_BYTES)
     except (FileNotFoundError, NotADirectoryError, IsADirectoryError):
@@ -342,7 +349,7 @@ def refusal_reason(header: bytes, name: str, *, is_file: bool) -> str | None:
 
 
 def refusal_error(
-    path: Path, named: AiModelFormat | None, reason: str | None
+    path: str | os.PathLike[str], named: AiModelFormat | None, reason: str | None
 ) -> ValueError:
     """The error a surface naming the file at *path* on its own raises when
     it is not a model, *reason* being :func:`refusal_reason`'s and *named*
@@ -426,7 +433,8 @@ def read_ai_model(
         AiModelMetadata populated with available fields.
 
     Raises:
-        FileNotFoundError: If the model file does not exist.
+        pitloom.messages.CodedFileNotFoundError: If the model file does not
+            exist (``input-not-found``).
         ValueError: The file cannot be parsed; a
             :class:`~pitloom.messages.CodedValueError` when it is no model of
             a supported format (``model-wrong-format``, the words ``loom
@@ -438,7 +446,9 @@ def read_ai_model(
             a bound.
     """
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
+        raise CodedFileNotFoundError(
+            INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=model_path
+        )
     if not os.path.isfile(model_path):
         raise refusal_error(model_path, None, None)
 

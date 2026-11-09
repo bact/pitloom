@@ -31,8 +31,10 @@ from pitloom.assemble import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.remote import RemoteSourceError
-from pitloom.extract.remote.git import CONFIG_IGNORED_INFO, GitCheckout
+from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import CONFIG_UNSAFE
 
 _URL = "https://gitlab.example.org/g/p"
 
@@ -103,13 +105,14 @@ def test_the_repositorys_own_settings_are_ignored_unless_the_caller_gives_some(
     with caplog.at_level(logging.INFO):
         compact = generate_git_project_sbom(_URL)
     assert "\n" not in compact.strip()
-    assert [r.getMessage() for r in caplog.records].count(CONFIG_IGNORED_INFO) == 1
+    said = [r for r in caplog.records if getattr(r, CODE_ATTR, None) == "config-unsafe"]
+    assert [r.getMessage() for r in said] == [CONFIG_UNSAFE.lines[0].template]
     caplog.clear()
     with caplog.at_level(logging.INFO):
         pretty = generate_git_project_sbom(
             _URL, pitloom_config=PitloomConfig(pretty=True)
         )
-    assert pretty.count("\n") > 10 and CONFIG_IGNORED_INFO not in caplog.text
+    assert pretty.count("\n") > 10 and "[tool.pitloom]" not in caplog.text
     assert seen["url"] == _URL
 
 

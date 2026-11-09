@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -202,14 +202,21 @@ declined or fixed entry with its outcome.
 - Element or property: `software_File`; nearest is `dataset_datasetSize`,
   on `dataset_DatasetPackage` only
 - Fact to record: the size in bytes a Git LFS pointer states for the content
-  it stands in for (the content itself was not read)
-- Pitloom today: the size only in the `Hash` `comment` ("Git LFS pointer
-  oid; content not read; size N bytes")
-- Why imprecise: no property
-- Proposal: an optional byte size on `software_File` (or on `Artifact`)
-- Evidence: `tests/assemble/test_document_files_lfs.py`
+  it stands in for (the content itself was not read); and the measured size
+  in bytes (`stat()`) of any file Pitloom hashes, a model file above all (the
+  Keras fixture is 19,215 bytes), which a `loom model` SBOM describes by an
+  `ai_AIPackage` with no `software_File`
+- Pitloom today: the pointer's size only in the `Hash` `comment` ("Git LFS
+  pointer oid; content not read; size N bytes"); a model file's size nowhere
+  in the SBOM (its SHA-256 and SHA-512 are in `verifiedUsing`)
+- Why imprecise: no property, on `software_File`, on `ai_AIPackage` or on
+  `Artifact`
+- Proposal: an optional byte size on `software_File` (or on `Artifact`, so a
+  package that stands for a file can carry it)
+- Evidence: `tests/assemble/test_document_files_lfs.py`;
+  `tests/fixtures/aimodels/details/keras.md` (size listed, not recordable)
 - Status: noted
-- Date: 2026-10-29
+- Date: 2026-10-29 (extended to model files 2026-11-09)
 
 ### FG-10 A hash copied from a statement looks like a computed one
 

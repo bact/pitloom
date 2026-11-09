@@ -95,3 +95,13 @@ def dated_zip(files: dict[str, bytes]) -> bytes:
         for name, data in files.items():
             zf.writestr(zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0)), data)
     return buffer.getvalue()
+
+
+def unextractable_zip(files: dict[str, bytes]) -> bytes:
+    """A ZIP archive of *files* whose entries name compression method 99,
+    which ``zipfile`` does not support: it opens, and reading a member fails."""
+    data = bytearray(dated_zip(files))
+    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
+        at = data.find(signature) + offset
+        data[at : at + 2] = (99).to_bytes(2, "little")
+    return bytes(data)

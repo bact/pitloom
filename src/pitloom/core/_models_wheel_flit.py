@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 
+from pitloom.core._models_wheel_guard import discovery_deadline
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     to_posix_distribution_path,
@@ -28,6 +29,65 @@ from pitloom.core._models_wheel_types import (
 from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
+
+
+def _flit_files(project_dir: Path) -> list[IncludedFile]:
+    """The files flit-core lists for *project_dir* (see :func:`discover`)."""
+    # pylint: disable=import-outside-toplevel,cyclic-import
+    from flit_core.common import (
+        Module,
+        get_docstring_and_version_via_ast,
+        normalize_dist_name,
+        walk_data_dir,
+    )
+    from flit_core.config import read_flit_config
+
+    loaded_cfg = read_flit_config(project_dir / "pyproject.toml")
+    module = Module(loaded_cfg.module, project_dir)
+    source_dir = str(module.source_dir)
+
+    files = [
+        IncludedFile(
+            path=full_path,
+            distribution_path=to_posix_distribution_path(
+                os.path.relpath(full_path, source_dir)
+            ),
+        )
+        for full_path in module.iter_files()
+    ]
+
+    if loaded_cfg.data_directory is not None:
+        name = loaded_cfg.metadata.get("name") or loaded_cfg.module
+        version = loaded_cfg.metadata.get("version")
+        if version is None:
+            # Dynamic version: AST-only resolution, same as
+            # pitloom.extract.project.flit's own approach -- never falls
+            # back to importing the module the way flit-core's own
+            # get_info_from_module()/make_metadata() would.
+            _, version = get_docstring_and_version_via_ast(module)
+
+        if version is None:
+            log.warning(
+                "%s: could not resolve a static version for "
+                "[tool.flit.external-data] without executing the "
+                "project's module -- external-data files excluded "
+                "from this result",
+                quote_source(project_dir),
+            )
+        else:
+            dist_name = normalize_dist_name(name, version)
+            for full_path in walk_data_dir(loaded_cfg.data_directory):
+                rel_path = os.path.relpath(full_path, loaded_cfg.data_directory)
+                files.append(
+                    IncludedFile(
+                        path=full_path,
+                        distribution_path=to_posix_distribution_path(
+                            f"{dist_name}.data/data/{rel_path}"
+                        ),
+                    )
+                )
+
+    return files
 
 
 def discover(
@@ -71,62 +131,9 @@ def discover(
     ``read_flit_config()`` is the only public entry point and always
     re-reads ``pyproject.toml`` itself.
     """
-    # pylint: disable=import-outside-toplevel,cyclic-import
-    from flit_core.common import (
-        Module,
-        get_docstring_and_version_via_ast,
-        normalize_dist_name,
-        walk_data_dir,
-    )
-    from flit_core.config import read_flit_config
-
     try:
-        loaded_cfg = read_flit_config(project_dir / "pyproject.toml")
-        module = Module(loaded_cfg.module, project_dir)
-        source_dir = str(module.source_dir)
-
-        files = [
-            IncludedFile(
-                path=full_path,
-                distribution_path=to_posix_distribution_path(
-                    os.path.relpath(full_path, source_dir)
-                ),
-            )
-            for full_path in module.iter_files()
-        ]
-
-        if loaded_cfg.data_directory is not None:
-            name = loaded_cfg.metadata.get("name") or loaded_cfg.module
-            version = loaded_cfg.metadata.get("version")
-            if version is None:
-                # Dynamic version: AST-only resolution, same as
-                # pitloom.extract.project.flit's own approach -- never falls
-                # back to importing the module the way flit-core's own
-                # get_info_from_module()/make_metadata() would.
-                _, version = get_docstring_and_version_via_ast(module)
-
-            if version is None:
-                log.warning(
-                    "%s: could not resolve a static version for "
-                    "[tool.flit.external-data] without executing the "
-                    "project's module -- external-data files excluded "
-                    "from this result",
-                    quote_source(project_dir),
-                )
-            else:
-                dist_name = normalize_dist_name(name, version)
-                for full_path in walk_data_dir(loaded_cfg.data_directory):
-                    rel_path = os.path.relpath(full_path, loaded_cfg.data_directory)
-                    files.append(
-                        IncludedFile(
-                            path=full_path,
-                            distribution_path=to_posix_distribution_path(
-                                f"{dist_name}.data/data/{rel_path}"
-                            ),
-                        )
-                    )
-
-        return files
+        with discovery_deadline(project_dir):
+            return _flit_files(project_dir)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         warn_discovery_failed(log, "Flit", project_dir, exc)

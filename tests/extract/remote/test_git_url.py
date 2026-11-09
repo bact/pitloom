@@ -7,7 +7,9 @@ every platform whose web pages Pitloom reads: GitHub, GitLab (also the
 instances of public bodies), Gitea, Forgejo (Codeberg, code.overheid.nl),
 Bitbucket Cloud and SourceHut.
 
-See also: :mod:`tests.extract.remote.test_git_fetch` for a real checkout.
+See also: :mod:`tests.extract.remote.test_git_fetch` for a real checkout,
+:mod:`tests.extract.remote.test_git_url_raw` (``raw`` file pages) and
+:mod:`tests.extract.remote.test_git_url_encoded`.
 """
 
 from __future__ import annotations
@@ -199,6 +201,8 @@ def test_a_page_url_names_its_repository(
         ("https://gitlab.com/src/p/x", "https://gitlab.com/src/p/x", False),
         # A marker with nothing after it is part of the path.
         ("https://github.com/o/r/tree", "https://github.com/o/r/tree", False),
+        # A repository called ``raw`` is not a raw-file page.
+        ("https://github.com/raw/repo", "https://github.com/raw/repo", False),
     ],
 )
 def test_a_plain_repository_url_has_no_branch_or_folder(
@@ -219,8 +223,8 @@ def test_a_path_that_leaves_the_checkout_is_refused(path: str) -> None:
 
 def test_an_encoded_slash_stays_inside_one_segment() -> None:
     """``%2F`` is part of a name (a branch ``feature/x``), not a separator."""
-    page = parse_git_page("https://github.com/o/r/tree/a%2F..%2Fb")
-    assert page.rest == ("a/../b",)
+    page = parse_git_page("https://github.com/o/r/tree/a%2Fb")
+    assert page.rest == ("a/b",)
 
 
 _SHA = "0123456789abcdef0123456789abcdef01234567"

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -248,6 +248,25 @@ drift is silent.
   generate/import" stay (decision of 2026-10-15). `--no-scan-model-usage` has
   no phrasing of its own: the body line in `SKILL.md` covers it once the skill
   is open.
+
+- **Model from a Git URL (2026-11-09).** No subcommand was added
+  (`add_parser(` lists the same twelve; `loom model`'s, `loom project`'s and
+  `loom generate`'s `--help` changed). `loom model <url>` now takes a Git URL
+  and `loom generate <url>` picks a project or a model by what the URL names,
+  so `sbom-generate`'s description names "Git URL (repo, folder or model file
+  page)" (1020 of 1024 characters, YAML parsed; the room came from dropping
+  "branch/" and "or"). The body gained three lines and the rest moved to
+  `references/git-url.md` (the body ratchet is 16 KB: 16,078 bytes before,
+  under 16,384 after). `loom project` stays project-only, so its refusal of a
+  folder with models and no project names `loom model <url>` and `loom
+  generate <url>`; the skill relays that, and a folder with several models
+  (`model-ambiguous`) is a follow-up question with a non-interactive fallback
+  (report the list, never pick a file). `[reader-unsafe/remote]` is relayed,
+  never acted on: the skill does not clone unasked. The verify/validate split
+  is unchanged. Legitimate-input checks not run (no skill test exists): the
+  recipes in `references/examples.md` were checked against `loom model
+  --help`, and the local ones (`loom model DIR`, `loom generate FILE.dat`)
+  were run on the GGUF fixture.
 
 ## Portability across clients (2026-09-29, PR #235)
 

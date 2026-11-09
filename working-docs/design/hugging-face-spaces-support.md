@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,11 @@ See also: [remote-source-ingestion.md](remote-source-ingestion.md) (remote
 targets), [target-resolution-and-purl.md](target-resolution-and-purl.md) (a
 `pkg:huggingface` PURL), [roadmap.md](roadmap.md),
 [remote-git-ingestion.md](../implementation/remote-git-ingestion.md).
+
+> **Update (2026-11-09):** a Space or dataset that holds a model file now gets
+> a model SBOM from `loom model <url>` / `loom generate <url>` (see
+> [model-sbom-from-git.md](../implementation/model-sbom-from-git.md)); the
+> application-without-a-project limitation below stays for a Space with no model.
 
 > **Status (2026-10-23):** a limitation is recorded and a direction sketched.
 > Nothing here is built or decided, except item 4 of the direction (the LFS

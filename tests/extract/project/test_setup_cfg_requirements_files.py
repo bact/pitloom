@@ -17,11 +17,13 @@ tests/test_requirements_file_surfaces.py (every route).
 from __future__ import annotations
 
 import logging
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.extract.project import _requirements_files, read_project
 from tests._symlink import CAN_SYMLINK
 
@@ -314,3 +316,30 @@ def test_unreadable_setup_file_warns(
         "pyproject.toml: dynamic dependencies, optional-dependencies not read"
         f" from {reason}: "
     )
+
+
+@pytest.mark.parametrize("clone", [False, True], ids=["local", "clone"])
+def test_a_clones_listed_line_that_is_no_requirement_is_not_shown(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, clone: bool
+) -> None:
+    """In a Git URL's clone the line is counted, not echoed: a repository's
+    file text stays off the terminal. A local project's is shown."""
+    project = _project(
+        tmp_path,
+        {
+            "setup.cfg": _cfg("install_requires = file: r.txt\n", "x = file: r.txt\n"),
+            "r.txt": "[remote LINETEXT]\nurl = LINETEXT\nc\n",
+        },
+    )
+    with caplog.at_level(logging.WARNING), ExitStack() as stack:
+        if clone:
+            stack.enter_context(reading_remote_clone(str(project)))
+        metadata = read_project(project, include_locked_dependencies=False)[0]
+    assert metadata.dependencies == ["c", 'c; extra == "x"']
+    assert ("LINETEXT" in caplog.text) is not clone
+    if clone:
+        line = "'<a line of the downloaded repository, not shown>'"
+        reason = "not a valid PEP 508 requirement"
+        assert caplog.messages == 2 * [
+            f"Skipping dependency {line} (options.install_requires): {reason}"
+        ] + 2 * [f"Skipping extra entry {line} of 'x' (extras_require): {reason}"]

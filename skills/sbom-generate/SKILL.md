@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-08
+# Last-Modified: 2026-11-09
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -10,7 +10,8 @@ description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
   wheel, installed environment, local AI model file (GGUF, ONNX,
   PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite), Hugging
-  Face model or Git URL (repo or branch/folder page). Triggers:
+  Face model or Git URL (repo, folder or model file page).
+  Triggers:
   "generate/create/give me an SBOM/BOM", "software bill of materials",
   "dependency inventory", "AIBOM", "document this model's
   provenance". Also combined asks (then hand off to
@@ -43,8 +44,8 @@ AI/ML model files and Python environments. This skill drives its CLI
 Triggers on natural-language requests (see the description), or explicitly
 with `/sbom-generate [target]` (`/pitloom:sbom-generate` via the Claude Code
 plugin; `$sbom-generate` in Codex). `target` is optional: a project
-directory, sdist/wheel path, local model file, Hugging Face model ID or
-`http(s)` Git URL (default: the current directory). For more recipes
+directory, sdist/wheel path, local model file or folder, Hugging Face model
+ID or `http(s)` Git URL (default: the current directory). For more recipes
 (multiple creators, a capped real build), read `references/examples.md`.
 
 ## Hard rules
@@ -65,7 +66,7 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.3,
+- Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.4,
   which reads `Apache Software License 2.0` and similar names as
   `Apache-2.0`, and does not warn about a missing licence database for a
   declared licence name; the licence readings, message codes and LicenseID
@@ -81,7 +82,7 @@ directory, sdist/wheel path, local model file, Hugging Face model ID or
 - **Prepare the licence database before the first `loom` run** of a session
   that reads licences (project, wheel, sdist, model, Git URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
-  "licenseid>=0.8.3,<0.9" licenseid update --source packaged`; one command
+  "licenseid>=0.8.4,<0.9" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do
   not generate first and fix after: without the database no `LICENSE` text is
   matched to an id (a declared value such as `Apache2` is read without it).
@@ -141,8 +142,11 @@ untrusted (its `[tool.pitloom]` is ignored, **`--allow-build` has no
 effect**), `ssh://`/`git@host:path`/`file://` are refused; read the `INFO:`
 lines for each redirect and the branch and folder used. A monorepo with no
 project at the root fails naming the projects below it: ask which one
-(non-interactively, report the list). To explain a refusal or redirect, read
-`references/git-url.md`.
+(non-interactively, report the list). A Git URL may name an AI model file or
+folder (0.23.4+): `loom generate`/`loom model <url>` writes its SBOM; several
+models: ask which file (non-interactively, report the list); formats listed
+unread, in a model or project (`[reader-unsafe/remote]`): relay, never clone.
+To explain a refusal, redirect or model rule, read `references/git-url.md`.
 
 ## Lock files
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,6 +44,20 @@ loom project https://codeberg.org/owner/repo/src/branch/main/svc -o svc.spdx3.js
 # Read stderr: every redirect and every branch/folder used is an INFO: line
 ```
 
+## AI model SBOM from a Git URL (a model file or folder)
+
+```bash
+# One model file (a blob or raw page); loom generate chooses the same
+loom model https://github.com/owner/repo/blob/main/models/m.keras
+loom generate https://github.com/owner/repo/blob/main/models/m.keras -o m.spdx3.json
+# A folder holding one model file and no project (read non-recursively)
+loom model https://gitlab.com/group/project/-/tree/main/models
+# Several models in the folder: [model-ambiguous]; rerun with one file's URL
+# Model or project SBOM: fastText/GGUF/HDF5/ONNX/PyTorch files are listed
+# without metadata ([reader-unsafe/remote]): clone, then `loom model <file>`
+# or `loom project <dir>` for what you trust
+```
+
 ## Project SBOM with lock file (resolved transitive dependencies)
 
 ```bash
@@ -69,7 +83,7 @@ matched to an id and one `WARNING: licenseid database cannot be used: ...` (or
 
 ```bash
 licenseid update --source packaged   # from an install of pitloom
-uvx --from "licenseid>=0.8.3,<0.9" licenseid update --source packaged  # no install
+uvx --from "licenseid>=0.8.4,<0.9" licenseid update --source packaged  # no install
 loom project . -o sbom.spdx3.json    # then generate
 ```
 
@@ -139,6 +153,8 @@ loom project . -o sbom.spdx3.json
 loom project dist/mypackage-1.0.0.tar.gz
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
 loom model models/model.safetensors
+loom model models/                          # a folder holding one model file
+loom model https://github.com/owner/repo/blob/main/m.keras   # model in a Git repo
 loom model mistralai/Mistral-7B-v0.1        # Hugging Face model ID
 loom env -o env.spdx3.json
 loom merge .spdx3-fragments/ -o combined.spdx3.json

@@ -40,6 +40,11 @@ from pitloom.extract.project.installed import (
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.project.setuptools import read_setuptools
+from pitloom.messages import (
+    PROJECT_NOT_FOUND,
+    PROJECT_NOT_FOUND_LINE,
+    CodedFileNotFoundError,
+)
 
 log = logging.getLogger(__name__)
 
@@ -161,8 +166,10 @@ def read_project(
           has no config member (or *read_config* is off).
 
     Raises:
-        FileNotFoundError: If *project_path* does not exist or no valid project
-            config is found.
+        FileNotFoundError: If *project_path* does not exist, or no valid
+            project config is found (a
+            :class:`~pitloom.messages.CodedFileNotFoundError`,
+            ``project-not-found``).
         ValueError: If config is malformed.
     """
     if not project_path.exists():
@@ -209,9 +216,8 @@ def read_project(
         )
         config_path = setup_cfg if setup_cfg.exists() else setup_py
     else:
-        raise FileNotFoundError(
-            "No pyproject.toml, setup.cfg, or setup.py found in "
-            f"{quote_source(project_path)}"
+        raise CodedFileNotFoundError(
+            PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path=project_path
         )
 
     if include_locked_dependencies:

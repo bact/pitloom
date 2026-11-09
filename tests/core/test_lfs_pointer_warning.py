@@ -14,11 +14,11 @@ from pathlib import Path
 import pytest
 
 from pitloom.core import lfs_pointer
+from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.lfs_pointer import (
     LfsPointer,
     UnreadPointers,
     log_pointer_not_read,
-    reading_remote_clone,
     size_text,
     warn_pointers_not_read,
 )

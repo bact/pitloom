@@ -24,6 +24,7 @@ Messages quote a URL without its credentials.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -55,12 +56,17 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 _MARKERS: tuple[tuple[tuple[str, ...], str | None, bool], ...] = (
     (("-", "tree"), None, False),  # GitLab
     (("-", "blob"), None, True),
+    (("-", "raw"), None, True),
     (("-", "commits"), None, False),
     (("src", "branch"), "branch", False),  # Gitea, Forgejo, Codeberg
     (("src", "tag"), "tag", False),
     (("src", "commit"), "commit", False),
+    (("raw", "branch"), "branch", True),  # Gitea raw file
+    (("raw", "tag"), "tag", True),
+    (("raw", "commit"), "commit", True),
     (("tree",), None, False),  # GitHub, SourceHut
     (("blob",), None, True),
+    (("raw",), None, True),  # GitHub, Bitbucket Cloud raw file
     (("src",), None, False),  # Bitbucket Cloud
     (("commits", "branch"), "branch", False),
     (("commits", "tag"), "tag", False),
@@ -138,6 +144,17 @@ def is_unsupported_remote_url(source: str) -> bool:
     if is_git_url(text) or _HF_HOST.search(text):
         return False
     return bool(_ANY_URL.match(text) or _SCP_ADDRESS.fullmatch(text))
+
+
+def is_unfetchable_remote(source: str) -> bool:
+    """Whether *source* is a remote address Pitloom cannot fetch
+    (:func:`is_unsupported_remote_url`) and no local path of that name exists.
+
+    The one rule ``loom model``, ``loom project`` and ``loom generate`` share,
+    so all three refuse such an address alike; a file or folder literally
+    named like one is still read.
+    """
+    return is_unsupported_remote_url(source) and not os.path.exists(source)
 
 
 @dataclass(frozen=True)
@@ -285,10 +302,10 @@ def _query_page(
 
 def _is_forge_path(raw: list[str]) -> bool:
     """Whether the path carries a forge's own unambiguous page marker (GitLab's
-    ``-``, Gitea's ``src/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
+    ``-``, Gitea's ``src|raw/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
     is a stray query, not cgit's."""
     return any(
-        entry[0][0] in {"-", "src"}
+        entry[0][0] in {"-", "src", "raw"}
         and len(entry[0]) == 2
         and _find_marker(raw, (entry,)) is not None
         for entry in _MARKERS
@@ -343,10 +360,38 @@ def _find_marker(
     return None
 
 
+#: The names of the checkout's ``.git`` directory, as each file system reads
+#: one (case-folded, Windows' trailing dots and spaces dropped; its 8.3 short
+#: name): the clone's own, which can hold the URL's user information.
+#: A name Windows reads as the ``.git`` directory once its stream
+#: (``:``...) and its trailing dots and spaces are cut: ``.git`` itself, or
+#: an 8.3 short name ``GIT~<n>`` (in any letter case).
+_GIT_DIR_NAME = re.compile(r"\.git|git~[0-9]+")
+
+
+def _names_git_dir(part: str) -> bool:
+    """Whether the path part *part* names the ``.git`` directory on some
+    file system (:data:`_GIT_DIR_NAME`): ``.git``, ``.GIT``, ``.git.``,
+    ``.git ``, ``.git::$DATA``, ``.git:x``, ``GIT~1``; never
+    ``.github`` or ``foo.git``."""
+    name = part.partition(":")[0].casefold().rstrip(". ")
+    return _GIT_DIR_NAME.fullmatch(name) is not None
+
+
 def _check_segments(rest: tuple[str, ...], url: str) -> None:
-    """Refuse a segment that would walk out of the checkout."""
+    """Refuse a segment, percent-decoded, that would walk out of the
+    checkout, start outside it or into its ``.git`` directory: one holding
+    a ``\\`` or a NUL, or whose parts between the ``/`` it may hold (an
+    encoded ``%2F``, as in a branch ``feature%2Fx``) include ``.``, ``..``,
+    an empty one (``%2Fetc``) or ``.git`` (:func:`_names_git_dir`)."""
     for segment in rest:
-        if segment in {".", ".."} or "\0" in segment or "\\" in segment:
+        parts = segment.split("/")
+        if (
+            "\0" in segment
+            or "\\" in segment
+            or any(part in {"", ".", ".."} for part in parts)
+            or any(_names_git_dir(part) for part in parts)
+        ):
             raise RemoteSourceError(
                 "git.url-invalid",
                 f"Invalid path in URL: {quote_source(sanitize_url(url))}",

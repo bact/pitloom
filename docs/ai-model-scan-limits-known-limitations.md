@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,8 +28,9 @@ it free. Figures are approximate, from measurements on one machine.
   The trimmed maps are rebuilt and the memory released, so a wheel's peak is
   its largest model's, not the sum of its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
-  bounded, only gated in wheels. With `--trust-wheel-model`, or in a
-  project scan, a crafted file can use gigabytes (a 16 MiB ONNX measured
+  bounded, only gated in wheels and for a model file or a project read from
+  a Git URL. With `--trust-wheel-model`, in a scan of a local project, or in
+  `loom model FILE` on a local file, a crafted file can use gigabytes (a 16 MiB ONNX measured
   about 3 GB; a 308-byte fastText header reached 5 GB and kept climbing)
   or crash or hang libhdf5.
 - **No Ctrl-C while a native parser runs.** A signal handler does not run

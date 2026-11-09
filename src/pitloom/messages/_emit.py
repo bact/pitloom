@@ -4,11 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Saying a catalogued message: as a log record (:func:`emit`) or as an
-exception (:class:`CodedValueError`, :class:`CodedImportError`). Either way
-the catalogue writes the text from the message's line and the caller's
-values, and the code travels with it: on the record and on an exception of
-any class, as its :data:`~pitloom.logging_config.CODE_ATTR` attribute
-(:func:`code_of` reads it).
+exception (:class:`CodedValueError`, :class:`CodedImportError`,
+:class:`CodedFileNotFoundError`). Either way the catalogue writes the text
+from the message's line and the caller's values, and the code travels with
+it: on the record and on an exception of any class, as its
+:data:`~pitloom.logging_config.CODE_ATTR` attribute (:func:`code_of` reads
+it).
 
 See also: :mod:`pitloom.messages` (the catalogue) and
 :mod:`pitloom.logging_config` (which prints the code).
@@ -126,7 +127,19 @@ def _restored(cls: type[_CodedError], text: str, code: str) -> _CodedError:
 
 class CodedValueError(_CodedError, ValueError):
     """A :class:`ValueError` that says a catalogued *message*
-    (``CodedValueError(LFS_POINTER, path=..., oid=..., size=...)``).
+    (``CodedValueError(LFS_POINTER_MALFORMED, path=...)``; with
+    ``line=`` when several ``ERROR`` lines name the same values).
+
+    Raises:
+        ValueError: (a plain one) No ``ERROR`` line of *message* names
+            *values*, or a value does not have its field's shape.
+    """
+
+
+class CodedFileNotFoundError(_CodedError, FileNotFoundError):
+    """A :class:`FileNotFoundError` that says a catalogued *message*: a
+    path named for Pitloom to read does not exist (``input-not-found``).
+    Its ``errno`` and ``filename`` are ``None``: the text names the path.
 
     Raises:
         ValueError: (a plain one) No ``ERROR`` line of *message* names

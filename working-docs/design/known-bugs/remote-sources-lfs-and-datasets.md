@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,9 +48,14 @@ entries stay in the last section for history.
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.
   *Found 2026-10-29, Git LFS pointer work.*
-- [ ] **The blob-filter docs say "10 MB"; git's `10m` is 10 MiB (S).**
-  `BLOB_LIMIT` in `extract/remote/git.py`; fix `docs/git-urls.md`.
-  *Found 2026-10-29, Git LFS pointer work.*
+- [x] **`git.py` said the blob filter omits blobs over 10 MB (S), fixed.** The module
+  docstring and `BLOB_LIMIT` comment (`extract/remote/git.py`) describe
+  `--filter=blob:limit=10m` as leaving out large files. It leaves out only
+  blobs the checkout does not need: the WP0 probe of the Git model URL work
+  (2026-11-09, local smart HTTP) cloned a 12 MB file of the checked-out tree in full. Also `10m` is
+  10 MiB. `docs/git-urls.md` and the `git.py` docstring now say 10 MiB and that only
+  blobs the checkout does not need are left out.
+  *Found 2026-11-09, Git model URL work.*
 - [ ] **A dataset's identity can change from a hash to omitted after a pull
   (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated
   sizes above the ceiling mean no hash. The SHA-256 is otherwise unchanged.
@@ -95,6 +100,49 @@ entries stay in the last section for history.
   stands for "not pulled".
   *Found 2026-11-03, review of the 0.22.1 release.*
 
+- [ ] **Some build file lists of a clone are still walked before the outside
+  check (S).** MANIFEST.in `graft ../..`, PDM `includes`/`package-dir`, Poetry
+  `include`/`from` and Flit entries are not filtered before discovery; the
+  count-only safety net drops what they list outside the repository, but the
+  walk still happens.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Dropping a setuptools `package-dir` that a listed package needs makes
+  setuptools discovery fail (S).** It falls back to the Hatchling heuristic,
+  with warnings, so the file list can differ from a real build.
+  *Found 2026-11-09, review of #464.*
+- [ ] **A clone drops all Hatchling metadata hooks, installed plugins' too,
+  while PDM keeps installed plugin hooks (S).** Inconsistent; decide one rule.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Setuptools in a clone relies on private pieces (S).**
+  `pyprojecttoml._apply`, `Distribution._finalize_license_files`,
+  `_finalize_requires` and distutils `parse_config_files`: a setuptools release
+  can change them with no signal short of a test.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Installed setuptools file finders (setuptools-scm) still run `git` in
+  the clone (S, security).** Third-party code of the Pitloom environment, not
+  the repository's, but it reads the clone's Git data.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`loom project missingdir` prints an uncoded `ERROR: project directory
+  not found` (low).** `cli/options_resolve.py` (about l.107) and
+  `cli/commands/_embed_wheel_batch.py` (about l.115); a skill sees no `[code]`.
+  *Found 2026-11-09, review of #464.*
+- [ ] **A named file is checked by path and opened by path (low).** A
+  time-of-check to time-of-use gap; not exploitable today, as nothing writes
+  into the clone.
+  *Found 2026-11-09, review of #464.*
+
+- [x] **FIXED (round 4 of #464): credentials, `[global]`, code execution,
+  link loops.** A clone's `.git/config` no longer holds the URL's user
+  information; setup.cfg `[global]` (`src_root`) is not applied; discovery no
+  longer imports repository code through `sys.path`/the working directory;
+  folder links are dropped and discovery stops after 60 s; Poetry `from` and
+  other path entries are filtered; interleaved `fetch_git_project` blocks keep
+  their own confinement.
+- [ ] **Residuals of round 4 (S).** The 60 s cap cannot stop a call blocked in
+  C and is lost if a library swallows `BaseException` (dropping folder links is
+  the main loop guard). A licence file pointing into `.git` now fails to read.
+  `fetch_git_project(file:///C:/...)` is untested on Windows.
+
 ## Fixed
 
 Kept for history, with the PR. A fixed entry moves to
@@ -110,6 +158,9 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **The blob-filter docs said "10 MB" (S).** Fixed 2026-11-09 in
+  `docs/git-urls.md`, which now says 10 MiB and that only blobs the checkout
+  does not need are left out (a large file of the checkout is fetched).
 - [x] **`dataset_datasetSize` held a record count (M), fixed in #382.** A
   Croissant `totalItems` filled it, but SPDX defines it in bytes. `totalItems`
   is not Croissant, so it is no longer read; `DatasetMetadata.byte_size` (bytes,

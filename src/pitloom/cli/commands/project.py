@@ -9,13 +9,13 @@ archive or a Git URL."""
 from __future__ import annotations
 
 import argparse
-import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
     generate_project_sbom,
 )
+from pitloom.cli.commands._remote import run_remote
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import (
     _resolve_output_path,
@@ -29,9 +29,8 @@ from pitloom.cli.options import (
     build_options_from_args,
 )
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
-from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.cli.verbose import log_verbose_options
-from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
+from pitloom.core.build_options import BuildOptions
 from pitloom.core.inert_options import (
     GIT,
     forward_options,
@@ -40,16 +39,13 @@ from pitloom.core.inert_options import (
 )
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
+from pitloom.extract.model_target import PROJECT
 from pitloom.extract.remote import (
-    fetch_git_project,
     is_git_url,
     is_huggingface_source,
-    is_unsupported_remote_url,
+    is_unfetchable_remote,
 )
-from pitloom.extract.remote.git import CONFIG_IGNORED_INFO
 from pitloom.logging_config import print_error
-
-log = logging.getLogger(__name__)
 
 
 def generate_project_from_args(
@@ -97,34 +93,11 @@ def generate_project_from_args(
 
 
 def run_remote_project(args: argparse.Namespace, url: str) -> int:
-    """Generate a Source SBOM for the project at the Git URL *url*: fetch the
-    repository (or the folder of it the URL names), then read it as
-    ``loom project`` reads a directory.
-
-    Shared by ``loom project <url>`` and ``loom generate <url>``. The
-    repository is untrusted: its own ``[tool.pitloom]`` is ignored (only
-    ``--config`` applies) and its build backend never runs. ``--offline``
-    (or ``offline`` in ``--config``) forbids the fetch.
-    """
-    explicit = load_explicit_config(args)
-    offline = args.offline
-    if offline is None and explicit is not None:
-        offline = explicit.offline
-    build_options = build_options_from_args(args).settle_not_applicable(
-        url, REMOTE_REPOSITORY_REASON
-    )
-    with fetch_git_project(url, offline=offline) as checkout:
-        if explicit is None:
-            log.info(CONFIG_IGNORED_INFO)
-        with checkout.reading():
-            output = generate_project_from_args(
-                args,
-                Path(checkout.folder),
-                build_options,
-                remote_url=url,
-            )
-    _print_sbom_output_path(output)
-    return 0
+    """Generate a Source SBOM for the project at the Git URL *url*
+    (:func:`~pitloom.cli.commands._remote.run_remote`, for a project only:
+    a folder of model files and no project is refused with a hint to use
+    ``loom model``)."""
+    return run_remote(args, url, PROJECT, build_options_from_args(args))
 
 
 def _project_target(text: str) -> Path | str:
@@ -132,11 +105,7 @@ def _project_target(text: str) -> Path | str:
     collapse its ``//``), a Hugging Face model URL (refused with a message
     naming ``loom model``) or any other remote address (refused with a message
     naming what is fetched), else a path."""
-    if (
-        is_git_url(text)
-        or _is_hub_model_url(text)
-        or (is_unsupported_remote_url(text) and not Path(text).exists())
-    ):
+    if is_git_url(text) or _is_hub_model_url(text) or is_unfetchable_remote(text):
         return text.strip()
     return Path(text)
 
@@ -197,7 +166,9 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "the http(s) URL of a Git repository or of one of its web pages (a "
         "branch, tag or commit and a folder may be named). A repository is "
         "fetched shallowly; its own [tool.pitloom] is ignored (--config "
-        "applies) and its build backend never runs.",
+        "applies) and its build backend never runs. A folder with AI model "
+        "files and no project is refused: use 'loom model' or "
+        "'loom generate'.",
     )
     add_offline_argument(
         proj_parser,

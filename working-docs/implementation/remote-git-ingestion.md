@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Remote Git ingestion: `loom project <url>`
 
 See also: [remote-source-ingestion.md](../design/remote-source-ingestion.md)
-(the design this builds part of), the user page `docs/git-urls.md`,
+(the design this builds part of), [model-sbom-from-git.md](model-sbom-from-git.md)
+(model files at a Git URL, 0.23.4), the user page `docs/git-urls.md`,
 [roadmap.md](../design/roadmap.md), and the Lumina notes that led here
 (`working-docs/design.md` in `bact/lumina`).
 
@@ -122,7 +123,9 @@ on the earlier tree (`tests/extract/remote/test_git_hardening.py`):
 
 Left as they are: DNS rebinding between the caller's address check and git's own
 lookup (as with the earlier Lumina code); no cap on the size of a clone beyond
-the 10-minute deadline (the 10 MB blob filter is only a request to the server).
+the 10-minute deadline (the 10 MiB blob filter is only a request to the server,
+and leaves out only blobs the checkout does not need: a large file of the
+checkout is fetched; see [model-sbom-from-git.md](model-sbom-from-git.md)).
 
 ## Not built
 

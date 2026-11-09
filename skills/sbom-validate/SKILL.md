@@ -76,7 +76,7 @@ to validate. For copy-paste recipes, read `references/examples.md`.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.3, which
+Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.4, which
 reads `Apache Software License 2.0` and similar names as `Apache-2.0`, and
 does not warn about a missing licence database for a declared licence name;
 the commands, output lines and messages below are those of 0.23.4), the `loom`/`pitloom` entry point or the

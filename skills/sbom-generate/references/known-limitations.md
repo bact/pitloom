@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -92,7 +92,8 @@ Pitloom did, what to tell the user):
 
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
   in these formats are listed without metadata ...: onnx. Pass
-  --trust-wheel-model ...` per scan), `[library-missing]`,
+  --trust-wheel-model ...` per scan; `[reader-unsafe/remote]` for a model or
+  project from a Git URL, one per SBOM), `[library-missing]`,
   `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
   metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
   model-scan budget cap; ...` the per-wheel budget). Lists past 1000 entries
@@ -113,6 +114,30 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
 - A file-named entry with other properties was read: NumPy, fastText,
   CRFsuite and classic PyTorch carry no model name, nor does an ONNX file
   whose `graph.name` is an exporter default.
+- Keras v3 (`.keras`) gives the class (`ai_typeOfModel`), name,
+  scalar config entries (`ai_hyperparameter`), input shape, the Keras version
+  (provenance only) and, as properties in the artifact-metadata annotation,
+  `date_saved` (no time zone, so no release time), `layer_count`, `optimizer`,
+  `loss`, `metrics` and the archive member list. A `config.json` `metadata`
+  object (description, author, version, licence) is a convention of some
+  exporters, not a Keras field: it is not read, so no description, version or
+  licence comes from it, and the weights are not opened (no parameter count).
+  A member that does not parse is one `WARNING: ... [model-field-unreadable]`
+  and the other member is still read; an absent, `null` or `{}`
+  `compile_config` is a model not compiled, silently.
+- A model from a Git URL, named or in a Git project's build file list, in a
+  format whose reader is not run on a download (fastText, GGUF, HDF5, ONNX,
+  PyTorch `.pt`/`.pth`) is a name, format and hash only
+  (`[reader-unsafe/remote]`); a local project directory reads such models in
+  place, ungated. Only the folder a URL names is searched, not its
+  subfolders; a copy of an ONNX, Keras, PyTorch, PT2 or NumPy `.npz` model renamed to
+  `x.dat`, or a Keras archive named `.zip`, or a `pytorch_model.bin`, is not
+  recognised as a model by its content.
+- A Hugging Face model is read from its card, configuration files and Hub
+  information: no model file is opened, so a repository whose weights are a
+  `.keras` file has no Keras-derived field, no format and no hash. Download
+  the file and run `loom model <file>` for those, or give the file's Git URL
+  when the repository is on a Git host.
 - Producer and parameter count (`ai_AIPackage`): `originatedBy` holds one
   generic `Agent` (name only) per name a structured field states (ONNX
   `model_author`, split on commas, so `Doe, Jane` becomes two; PT2
@@ -292,7 +317,7 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.8.3,<0.9" licenseid update --source packaged`). It uses the copy
+"licenseid>=0.8.4,<0.9" licenseid update --source packaged`). It uses the copy
 in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`

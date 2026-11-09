@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,7 +63,7 @@ examples.
 - [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md) -- `embed-wheel`,
   `verify-wheel`, `validate-wheel`, the package hash.
 - [SBOM from a Git URL](git-urls.md) -- `loom project <url>` for a repository
-  or one of its pages.
+  or one of its pages; `loom model <url>` for a model file or folder in one.
 - [SBOM fragments](fragments.md) -- merge, validate and list fragments.
 - [Loom ID registry](id-registry.md) -- keep `spdxId`s stable across fragments
   and runs.

@@ -31,7 +31,7 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.project._setup_cfg_directives import (
-    _resolve_cfg_attr_directive,
+    resolve_attr_directive,
 )
 from pitloom.extract.project.setuptools_cfg import read_setup_cfg
 from tests._bounded import run_bounded_in_child
@@ -347,7 +347,7 @@ def test_a_version_file_is_read_only_inside_the_project_and_under_the_cap(
     assert caplog.messages == expected
 
 
-_ATTR = "pitloom.extract.project._setup_cfg_directives:_resolve_cfg_attr_directive"
+_ATTR = "pitloom.extract.project._setup_cfg_directives:resolve_attr_directive"
 _NINE = ("9", "Source: m.py | Method: attr_directive")
 
 
@@ -393,7 +393,7 @@ def test_attr_line_over_the_cap_is_skipped(
     assert len(line) == _setup_cfg_directives.MAX_ATTR_LINE_CHARS + over
     (tmp_path / "m.py").write_text(f"{line}\n__version__ = '9'\n", encoding="utf-8")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+        found = resolve_attr_directive("m.__version__", tmp_path, "t")
     assert found == (_NINE if over else ("9" * digits, _NINE[1]))
     cap = "FILE=m.py: larger than the 256-character attr-directive-line cap;"
     assert caplog.messages == [f"{cap} __version__ line skipped for t"] * over
@@ -427,7 +427,7 @@ def test_attr_directive_reads_each_assignment_form(tmp_path: Path, module: str) 
     or ``;``-joined logical line, an annotated or a chained target, after a
     ``;``."""
     (tmp_path / "m.py").write_text(module, encoding="utf-8")
-    found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    found = resolve_attr_directive("m.__version__", tmp_path, "t")
     assert found == ("1.0", _NINE[1])
 
 
@@ -445,7 +445,7 @@ def test_attr_line_the_parser_cannot_hold_is_skipped(
     monkeypatch.setattr(_setup_cfg_directives, "ast", parser)
     (tmp_path / "m.py").write_text("__version__ = '1'\n", encoding="utf-8")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+        found = resolve_attr_directive("m.__version__", tmp_path, "t")
     assert found == (None, None)
     assert caplog.messages == [
         f"FILE=m.py: {error.__name__} parsing the __version__ line; skipped for t"

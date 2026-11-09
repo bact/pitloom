@@ -128,6 +128,25 @@ def test_a_read_that_raises_says_the_error_line(exc: OSError, tail: str) -> None
     assert trusted_message(f"ERROR: {text} [file-unreadable]") is FILE_UNREADABLE
 
 
+def test_a_header_read_that_raises_names_the_format_first() -> None:
+    denied = PermissionError(13, "Permission denied", _ABS)
+    error = file_unreadable_error(denied, file="d/m.gguf", model_format="gguf")
+    text = "FORMAT=gguf FILE=d/m.gguf: could not read header; Permission denied"
+    assert str(error) == text and code_of(error) == "file-unreadable"
+    assert trusted_message(f"ERROR: {text} [file-unreadable]") is FILE_UNREADABLE
+
+
+@pytest.mark.parametrize(
+    "purpose",
+    [{}, {"use": "for the Croissant document", "model_format": "gguf"}],
+    ids=["neither", "both"],
+)
+def test_a_read_that_raises_says_one_purpose(purpose: dict[str, str]) -> None:
+    denied = PermissionError(13, "Permission denied", _ABS)
+    with pytest.raises(InternalError, match="one of use and model_format"):
+        file_unreadable_error(denied, file="c.json", **purpose)
+
+
 @pytest.mark.parametrize(
     ("exc", "match"),
     [

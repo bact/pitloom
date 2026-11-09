@@ -109,7 +109,7 @@ came from:
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by LicenseID (`licenseid>=0.8.3,<0.9`), the one
+Every expression is read by LicenseID (`licenseid>=0.8.4,<0.9`), the one
 reader of a declared value. A deprecated id ending `+` becomes its
 `-or-later` successor (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
@@ -123,7 +123,9 @@ its id too: `https://opensource.org/licenses/MIT` as `MIT`,
 (`https://www.gnu.org/licenses/gpl-3.0.html`) as that id, `GPL-3.0`, with the
 note on its successors. A control or format character at either end of a
 value (a zero-width space after `MIT`) is dropped; the provenance keeps the
-value as written, the character escaped (`\u200b`). Licences joined by `;`
+value as written, the character escaped (`\u200b`). Two licences joined by a
+slash (`MIT/Apache-2.0`) read as `OR` (`Apache-2.0 OR MIT`); the provenance
+keeps the value as written. Licences joined by `;`
 (`MIT; Apache-2.0`) name no operator, so no expression: text, as written.
 Text that has an operator or parenthesis and an id as written, so looks like
 a broken expression (`MIT OR`), is kept as text with one `WARNING:` per value;

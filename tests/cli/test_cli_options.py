@@ -146,7 +146,9 @@ def test_resolve_project_paths_no_config(
     monkeypatch.setattr(sys, "argv", ["loom", "project", str(empty_dir)])
     result = __main__.main()
     assert result == 1
-    assert "ERROR: no project configuration found" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "ERROR: No pyproject.toml, setup.cfg, or setup.py found" in err
+    assert err.rstrip().endswith("[project-not-found]")
 
 
 @pytest.mark.usefixtures("stub_project_pipeline")

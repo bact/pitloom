@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -66,8 +66,11 @@ Lessons:
   HDF5, ONNX, PyTorch pickle) for wheels: list the model with format only,
   plus one `INFO:`, unless the user passes `--trust-wheel-model`. No
   config key for the opt-in, because a config file can live in the
-  untrusted tree. Project scans are not gated (the user's own tree), which
-  is documented as unsafe for an untrusted checkout.
+  untrusted tree. A local project scan is not gated (the user's own tree),
+  which is documented as unsafe for an untrusted checkout; the same gate
+  without an opt-in (`reader-unsafe/remote`) covers a model file and a
+  project read from a Git URL's temporary clone, keyed on the one
+  `in_remote_clone()` ContextVar, so no call site can forget it.
 
 ## 3.3 Archives inside archives
 

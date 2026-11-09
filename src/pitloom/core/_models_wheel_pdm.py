@@ -10,52 +10,84 @@ this backend is registered with ``needs_write_lock=True``, see
 :class:`~pitloom.core._models_wheel_dispatch._RegisteredBackend`),
 :mod:`pitloom.core._models_wheel_types`,
 :mod:`pitloom.core._models_wheel_setuptools` (the other "writer"
-backend, same ``_chdir`` contract); :mod:`pitloom.extract.project.pdm` (the
+backend, same ``discovery_chdir`` contract); :mod:`pitloom.extract.project.pdm` (the
 sibling metadata-side module, sharing this ``Builder``/``Context``
-construction pattern and its custom-build-hook caveat, documented there).
+construction pattern and its custom-build-hook caveat, documented there),
+:mod:`pitloom.core._models_wheel_clone` (what a clone leaves out).
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import tempfile
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable
+from importlib.metadata import entry_points
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
+from pitloom.core._models_wheel_clone import warn_build_code_ignored
+from pitloom.core._models_wheel_guard import discovery_chdir, discovery_deadline
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.clone_mark import in_remote_clone
+
+if TYPE_CHECKING:
+    from pdm.backend.hooks import BuildHookInterface
+    from pdm.backend.wheel import WheelBuilder
 
 log = logging.getLogger(__name__)
 
 
-@contextmanager
-def _chdir(project_dir: Path) -> Iterator[None]:
-    """pdm-backend's own package auto-discovery
-    (``pdm.backend.base._find_top_packages``) globs relative to the
-    process's current working directory, not the ``Builder``'s own
-    ``location`` -- so, like setuptools, discovery needs to run from
-    *project_dir* for the duration of the call.
+def plugin_hooks() -> list[Any]:
+    """The build hooks of the installed PDM plugins (entry points of the
+    ``pdm.build.hook`` group): a hook class made once, or a hook module."""
+    hooks: list[Any] = []
+    for entry_point in entry_points(group="pdm.build.hook"):
+        hook = entry_point.load()
+        try:
+            hooks.append(hook())  # a hook class
+        except TypeError:
+            hooks.append(hook)  # a hook module
+    return hooks
 
-    This process-wide ``os.chdir()`` is only safe because
-    :mod:`pitloom.core._models_wheel_dispatch` -- the sole caller of
-    :func:`discover` -- runs every call to this function under its
-    read/write discovery lock's exclusive write mode (this backend is
-    registered with ``needs_write_lock=True`` there), which keeps it
-    from overlapping any other backend's discovery call; this module
-    holds no lock of its own.
-    """
-    original_cwd = Path.cwd()
-    os.chdir(project_dir)
-    try:
-        yield
-    finally:
-        os.chdir(original_cwd)
+
+def wheel_builder(project_dir: Path, plugins: list[Any] | None = None) -> WheelBuilder:
+    """pdm-backend's ``WheelBuilder`` for *project_dir*; in a Git URL's
+    clone, one that loads none of the repository's own build hooks: the
+    local hook (``pdm_build.py`` or ``custom-hook``), imported when the
+    builder is made, and ``run-setuptools``, which runs ``setup.py`` when
+    the files are listed. The hooks of installed plugins run as usual:
+    *plugins* (:func:`plugin_hooks`, loaded before the working directory
+    is the clone), else loaded when the builder is made."""
+    # pylint: disable=import-outside-toplevel
+    from pdm.backend.hooks.setuptools import SetuptoolsBuildHook
+    from pdm.backend.wheel import WheelBuilder
+
+    if not in_remote_clone():
+        return WheelBuilder(project_dir)
+
+    class _CloneWheelBuilder(WheelBuilder):
+        """Loads the hooks :func:`wheel_builder` keeps."""
+
+        def get_hooks(self) -> Iterable[BuildHookInterface]:
+            build = self.config.build_config
+            ignored = [
+                setting
+                for setting, named in (
+                    ("tool.pdm.build.custom-hook", build.custom_hook is not None),
+                    ("tool.pdm.build.run-setuptools", build.run_setuptools),
+                )
+                if named
+            ]
+            warn_build_code_ignored(project_dir, "pyproject.toml", ignored)
+            yield from (h for h in self.hooks if not isinstance(h, SetuptoolsBuildHook))
+            yield from plugin_hooks() if plugins is None else plugins
+
+    return _CloneWheelBuilder(project_dir)
 
 
 def discover(
@@ -117,6 +149,11 @@ def discover(
     Returns ``None`` on any discovery failure (e.g. not a PDM project,
     malformed config) -- the caller falls back accordingly.
 
+    The builder loads the project's own build hook (``pdm_build.py``),
+    whose ``pdm_build_update_files`` runs here, and with ``run-setuptools``
+    runs ``setup.py``: in a Git URL's clone neither is loaded
+    (:func:`wheel_builder`).
+
     *pyproject_data* is accepted, not used, for the same reason
     :mod:`pitloom.core._models_wheel_poetry` ignores it: pdm-backend's
     own ``Config.from_pyproject()`` always re-reads ``pyproject.toml``
@@ -125,11 +162,11 @@ def discover(
     # pylint: disable=import-outside-toplevel,cyclic-import
     from pdm.backend.base import Builder as PDMBuilder
     from pdm.backend.hooks.base import Context
-    from pdm.backend.wheel import WheelBuilder
 
     try:
-        with _chdir(project_dir):
-            builder = WheelBuilder(project_dir)
+        plugins = plugin_hooks() if in_remote_clone() else None
+        with discovery_chdir(project_dir), discovery_deadline(project_dir):
+            builder = wheel_builder(project_dir, plugins)
             context = Context(
                 # A path that never exists (a random UUID under the
                 # system temp root, never created), so
@@ -139,7 +176,7 @@ def discover(
                 # tempfile.TemporaryDirectory(): that creates a directory
                 # only to prove non-existence, and this call holds the
                 # discovery dispatcher's exclusive write lock (see
-                # _chdir's docstring), so extra I/O blocks every other
+                # discovery_chdir's docstring), so extra I/O blocks every other
                 # discoverer for longer.
                 build_dir=Path(tempfile.gettempdir())
                 / f"pitloom-unused-{uuid.uuid4().hex}",

@@ -114,6 +114,14 @@ def sanitize_url(url: str) -> str:
     return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
 
 
+def url_without_credentials(url: str) -> str:
+    """*url*, one URL, without its user information (``https://user:pass@
+    host/`` -> ``https://host/``) and with the value of a query parameter
+    named like a secret masked (:func:`sanitize_url_credentials`): the URL
+    to keep where a credential must not be (a clone's ``.git/config``)."""
+    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://", url))
+
+
 #: The name prefix of the temporary directory a Git URL is checked out in.
 CHECKOUT_DIR_PREFIX = "pitloom-git-"
 #: What a message shows for that directory, so two runs read the same.

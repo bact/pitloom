@@ -75,6 +75,7 @@ _LIBRARIES = {
 _FOLDER_LISTS = {
     "crfsuite": {"labels"},
     "fasttext": {"labels"},
+    "keras": {"archive_contents"},
     "pytorch": {"archive_contents"},
     "pytorch_pt2": {"archive_contents", "tags"},
 }

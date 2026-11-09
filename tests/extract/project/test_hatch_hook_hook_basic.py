@@ -30,7 +30,12 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.messages import LFS_POINTER, CodedValueError, trusted_message
+from pitloom.messages import (
+    LFS_POINTER,
+    LFS_PULL_ERROR_LINE,
+    CodedValueError,
+    trusted_message,
+)
 from pitloom.plugins.hatch import PitloomBuildHook
 
 from ..conftest import (
@@ -408,7 +413,13 @@ _POINTER_TEXT = (
     ("raised", "tail"),
     [
         (
-            CodedValueError(LFS_POINTER, path="m.bin", oid="0f" * 32, size=3),
+            CodedValueError(
+                LFS_POINTER,
+                line=LFS_PULL_ERROR_LINE,
+                path="m.bin",
+                oid="0f" * 32,
+                size=3,
+            ),
             f"{_POINTER_TEXT} [lfs-pointer]",
         ),
         (ValueError("'m.bin': x"), "'m.bin': x"),

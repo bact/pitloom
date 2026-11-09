@@ -28,7 +28,6 @@ from pitloom.core.inert_options import (
     SDIST,
     settle_inert,
 )
-from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
@@ -37,13 +36,11 @@ from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_error
+from pitloom.extract.model_target import model_path_of, read_model_file
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
-from pitloom.extract.scanner import read_model_candidate
-from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.id_registry import (
     Alias,
     IdRegistry,
@@ -59,33 +56,25 @@ from pitloom.messages import warn_file_unreadable
 log = logging.getLogger(__name__)
 
 
-def _read_local_model(model_path: Path) -> AiModelMetadata:
+def _read_local_model(model_path: Path, shown: str | None = None) -> AiModelMetadata:
     """Read a local model file by the rule a project or wheel scan applies
     (:func:`~pitloom.extract.scanner.read_model_candidate`): a confirmed model
     whose read fails or is over a limit keeps a format-only entry and one
     ``WARNING:``, the per-model entry cap applies, so every surface lists the
-    same entry for the same file. A scan's suffix filter only chooses which
-    files to look at: a file named here is read by its content, whatever its
-    suffix (``x.dat`` with GGUF magic is a GGUF model).
+    same entry for the same file. A file named here is read by its content,
+    whatever its suffix (``x.dat`` with GGUF magic is a GGUF model); see
+    :func:`~pitloom.extract.model_target.read_model_file`.
+
+    Messages name the file *shown* (default: *model_path*).
 
     Raises:
-        FileNotFoundError: *model_path* does not exist.
-        ValueError: The file is not a model of a supported format (an empty
-            file, an unknown format, a header that contradicts the suffix): a
-            :class:`~pitloom.messages.CodedValueError`, ``model-wrong-format``
-            (:func:`~pitloom.extract.ai_model.refusal_error`), or for a Git
-            LFS pointer ``lfs-pointer`` or ``lfs-pointer-malformed``
-            (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`).
+        pitloom.messages.CodedFileNotFoundError: *model_path* does not exist
+            (``input-not-found``).
+        ValueError: The file is not a model of a supported format: see
+            :func:`~pitloom.extract.model_target.refuse_not_a_model`.
         OSError: The header cannot be read.
     """
-    if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
-    try:
-        return read_model_candidate(local_model_candidate(model_path))
-    except NotAModel as e:
-        if e.reason == LFS_POINTER_REASON:
-            refuse_named_pointer(model_path, e)
-        raise refusal_error(model_path, e.model_format, str(e)) from e
+    return read_model_file(model_path, shown=shown)
 
 
 def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
@@ -226,6 +215,7 @@ def generate_model_sbom(
     enrich: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
+    shown: str | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -237,7 +227,13 @@ def generate_model_sbom(
     Three parameters apply to one source kind only, and warn when given for
     the other (see :data:`pitloom.core.inert_options.INERT`): *offline* for
     a Hugging Face source (a local file never reaches the network), and
-    *enrich*/*id_registry* for a local file.
+    *enrich*/*id_registry* for a local file; a local folder, its one model
+    file (:func:`~pitloom.extract.model_target.model_path_of`).
+
+    *shown* is how messages name a local model file (default: as given): a
+    caller that copied it to a temporary directory names it as its user
+    knows it (its path in a Git repository). The SBOM names the file by its
+    own name alone either way.
     """
     configure_logging()
     source_str = str(source)
@@ -270,12 +266,12 @@ def generate_model_sbom(
         model = read_huggingface(source_str)
         entity_spdx_id = digest = None
     else:
-        model_path = Path(source)
+        model_path = model_path_of(Path(source), subject=source_str)
         # Resolved before _read_local_model()/run_enrichers() below -- a
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
-        model = _read_local_model(model_path)
+        model = _read_local_model(model_path, shown)
         digest = _model_file_digests(model_path)
         entity_spdx_id = _model_registry_id(
             resolved_registry,

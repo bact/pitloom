@@ -24,26 +24,27 @@ the model gate) and :mod:`pitloom.core.file_hash` (the chunked hasher).
 
 from __future__ import annotations
 
-import contextlib
-import contextvars
 import io
 import logging
 import os
 import re
 import stat
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from os.path import normcase, realpath
 from typing import Final
 
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
+    LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
     CodedValueError,
     emit,
@@ -62,7 +63,6 @@ __all__ = [
     "opens_lfs_pointer",
     "parse_lfs_pointer",
     "read_lfs_pointer",
-    "reading_remote_clone",
     "refuse_named_pointer",
     "size_text",
     "warn_pointers_not_read",
@@ -107,24 +107,6 @@ _POINTER: Final = re.compile(
 
 
 _log = logging.getLogger(__name__)
-
-#: Whether the run reads a temporary clone of a remote repository, where
-#: ``git lfs pull`` has nothing to pull into.
-_REMOTE_CLONE: Final[contextvars.ContextVar[bool]] = contextvars.ContextVar(
-    "pitloom_lfs_remote_clone", default=False
-)
-
-
-@contextlib.contextmanager
-def reading_remote_clone() -> Iterator[None]:
-    """Mark the reads within as those of a temporary clone, so the warning
-    for a pointer left unread (:func:`warn_pointers_not_read`) tells the
-    user to clone with Git LFS instead of to pull."""
-    token = _REMOTE_CLONE.set(True)
-    try:
-        yield
-    finally:
-        _REMOTE_CLONE.reset(token)
 
 
 @dataclass(frozen=True)
@@ -186,13 +168,20 @@ def read_lfs_pointer(path: str | os.PathLike[str]) -> LfsPointer | None:
 
 
 def refuse_named_pointer(
-    path: str | os.PathLike[str], cause: BaseException | None = None
+    path: str | os.PathLike[str],
+    cause: BaseException | None = None,
+    *,
+    shown: str | None = None,
 ) -> None:
     """Refuse a file named on its own (``loom model``, ``read_ai_model()``)
     whose header is a Git LFS pointer's opening line, in the catalogue's
     words: ``lfs-pointer``, with the ``oid`` and size it states, when the
-    whole file is a pointer, else ``lfs-pointer-malformed``. Returns when the
-    file cannot be read again, so the caller's own reason stands.
+    whole file is a pointer (within
+    :func:`~pitloom.core.clone_mark.reading_remote_clone`, the advice is
+    to clone with Git LFS instead of to pull), else
+    ``lfs-pointer-malformed``. The error names the file *shown* (default:
+    *path*). Returns when the file cannot be read again, so the caller's own
+    reason stands.
 
     Raises:
         pitloom.messages.CodedValueError: It opens like a pointer (*cause*
@@ -202,10 +191,12 @@ def refuse_named_pointer(
         pointer = read_lfs_pointer(path)
     except OSError:
         return
+    named = path if shown is None else shown
     if pointer is None:
-        raise CodedValueError(LFS_POINTER_MALFORMED, path=path) from cause
+        raise CodedValueError(LFS_POINTER_MALFORMED, path=named) from cause
+    line = LFS_CLONE_ERROR_LINE if in_remote_clone() else LFS_PULL_ERROR_LINE
     raise CodedValueError(
-        LFS_POINTER, path=path, oid=pointer.oid, size=pointer.size
+        LFS_POINTER, line=line, path=named, oid=pointer.oid, size=pointer.size
     ) from cause
 
 
@@ -260,7 +251,8 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     """One ``WARNING:`` for all the pointers a run met (none: silent), naming
     the first path in sorted order. *archive*: the pointers were shipped in a
     built artefact (the bytes are recorded as they are), not left by an
-    unpulled checkout. Within :func:`reading_remote_clone` the advice for a
+    unpulled checkout. Within
+    :func:`~pitloom.core.clone_mark.reading_remote_clone` the advice for a
     checkout is to clone with Git LFS."""
     if not paths:
         return
@@ -268,7 +260,7 @@ def warn_pointers_not_read(paths: Sequence[str], *, archive: bool = False) -> No
     if archive:
         emit(_log, LFS_POINTER_SHIPPED, logging.WARNING, file=first, count=count)
     else:
-        line = LFS_CLONE_LINE if _REMOTE_CLONE.get() else LFS_PULL_LINE
+        line = LFS_CLONE_LINE if in_remote_clone() else LFS_PULL_LINE
         emit(_log, LFS_POINTER, logging.WARNING, line=line, file=first, count=count)
 
 

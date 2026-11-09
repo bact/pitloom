@@ -31,10 +31,12 @@ from pitloom.logging_config import (
     print_error,
 )
 from pitloom.messages import (
+    LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
+    LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
     CodedValueError,
     Line,
@@ -44,6 +46,7 @@ from pitloom.messages import (
     emit,
     relay_extra,
 )
+from tests._message_drift import raised_as
 
 _LOG = logging.getLogger("pitloom.test_messages_emit")
 _OID = "0f" * 32
@@ -299,7 +302,9 @@ def test_a_relayed_record_keeps_its_code_only_while_its_text_fits(
 
 
 def test_a_coded_error_is_a_value_error_with_its_code() -> None:
-    exc = CodedValueError(LFS_POINTER, path="m.bin", oid=_OID, size=1)
+    exc = CodedValueError(
+        LFS_POINTER, line=LFS_PULL_ERROR_LINE, path="m.bin", oid=_OID, size=1
+    )
     text = (
         f"'m.bin': header is a Git LFS pointer, content not pulled (oid sha256:{_OID}, "
         "size 1 byte); run 'git lfs pull'"
@@ -311,6 +316,21 @@ def test_a_coded_error_is_a_value_error_with_its_code() -> None:
     for again in (pickle.loads(pickle.dumps(exc)), copy.copy(exc)):  # nosec B301
         assert isinstance(again, CodedValueError)
         assert (str(again), code_of(again)) == (text, "lfs-pointer")
+
+
+def test_the_pointer_error_names_its_line() -> None:
+    """A checkout's and a clone's ``ERROR`` lines name the same values, so
+    a caller says which: the clone's advises a clone with Git LFS."""
+    with pytest.raises(ValueError, match="2 name of its ERROR lines"):
+        raise CodedValueError(LFS_POINTER, path="m.bin", oid=_OID, size=1)
+    exc = CodedValueError(
+        LFS_POINTER, line=LFS_CLONE_ERROR_LINE, path="m.bin", oid=_OID, size=3
+    )
+    assert str(exc) == (
+        f"'m.bin': header is a Git LFS pointer, content not fetched (oid "
+        f"sha256:{_OID}, size 3 bytes); clone with git lfs, then run on the file"
+    )
+    assert raised_as(exc, LFS_POINTER)
 
 
 @pytest.mark.parametrize(

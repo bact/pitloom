@@ -15,6 +15,7 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout, fetch_git_project
 from pitloom.extract.remote.git_url import (
     is_git_url,
+    is_unfetchable_remote,
     is_unsupported_remote_url,
     parse_git_page,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "fetch_git_project",
     "is_git_url",
     "is_huggingface_source",
+    "is_unfetchable_remote",
     "is_unsupported_remote_url",
     "log_hf_url_rewrite",
     "parse_git_page",

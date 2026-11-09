@@ -132,7 +132,7 @@ def test_enrich_command_model_not_found(
     monkeypatch.setattr(sys, "argv", ["loom", "enrich", str(nonexistent)])
     result = __main__.main()
     assert result == 1
-    assert "ERROR: model file not found" in capsys.readouterr().err
+    assert "ERROR: Model file not found" in capsys.readouterr().err
 
 
 def test_enrich_command_verbose_mode(

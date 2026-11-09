@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -116,7 +116,7 @@ pitloom/
 │       │   │   └── __init__.py
 │       │   ├── _generators.py  # Project/sdist SBOM generator
 │       │   ├── _generators_env.py  # Installed-environment (Deployed) SBOM generator
-│       │   ├── _generators_git.py  # Source SBOM generator for a remote Git repository
+│       │   ├── _generators_git.py  # SBOM generator for a project or a model file in a remote Git repository (generate_git_sbom)
 │       │   ├── _generators_merge.py  # Merged SBOM generator: a directory of fragments
 │       │   ├── _generators_shared.py # Helpers shared by every generator (_sync_registry)
 │       │   ├── _generators_wheel.py # Built-wheel (Analyzed) SBOM generator
@@ -131,6 +131,7 @@ pitloom/
 │       │   │   ├── fragment.py  # loom fragment
 │       │   │   ├── generate.py  # loom generate (smart entrypoint; -o required)
 │       │   │   ├── merge.py  # loom merge
+│       │   │   ├── _remote.py  # run_remote(): a Git URL for loom project, model and generate
 │       │   │   ├── model.py  # loom model
 │       │   │   ├── project.py  # loom project
 │       │   │   ├── utils.py  # cli_error_handler decorator, wheel-glob path resolution
@@ -192,6 +193,7 @@ pitloom/
 │       │   ├── internal_error.py  # InternalError: a broken internal contract
 │       │   ├── iri.py  # Human name to IRI segment for an SPDX 3 identifier
 │       │   ├── lfs_pointer.py  # Git LFS pointer grammar, bounded read, run summary warning
+│       │   ├── project_markers.py  # PROJECT_MARKERS, has_project_config(): what makes a folder a project
 │       │   ├── inert_options.py  # INERT: options a target kind can't act on; forward_options()
 │       │   ├── license_individuals.py  # The SPDX 3 named licence individuals Pitloom emits
 │       │   ├── model_extract_limit.py  # Validation of max-model-extract-bytes and max-dataset-hash-bytes
@@ -225,12 +227,12 @@ pitloom/
 │       │   ├── spdx3_describe.py  # One way to name an SPDX 3 element or value in a message
 │       │   └── spdx3_json.py  # SPDX 3 JSON-LD serialiser
 │       ├── extract/                # Layer 1 -- read sources
-│       │   ├── ai_model/  # AI model extractors (crfsuite, fasttext, gguf, hdf5, keras, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
+│       │   ├── ai_model/  # AI model extractors (crfsuite, fasttext, gguf, hdf5, hdf5_config, keras, keras_config, keras_training_config, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
 │       │   │   └── formats/  # Metadata-only format readers, stdlib only, no Pitloom import (pickle_walk, crfsuite)
 │       │   ├── dataset/  # Dataset extractors (card, croissant, croissant_key, licence, reader)
 │       │   ├── lock/  # Lockfile extractors (cascade, poetry, pdm, uv, pylock, pipfile, requirements, _common, _hash, etc.)
 │       │   ├── project/  # Build backend & project metadata extractors (pyproject, poetry, pdm, flit, setuptools, sdist, hatchling, reader)
-│       │   ├── remote/  # Remote sources (git, git_url, _git_* helpers, errors, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field)
+│       │   ├── remote/  # Remote sources (git, git_url, git_target, _git_* helpers, errors, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field)
 │       │   ├── _author_parts.py  # Where a free-text author field is cut into entries
 │       │   ├── _author_warnings.py  # WARNING: lines of the free-text author reading
 │       │   ├── _core_metadata.py  # Shared RFC 822 Core-Metadata parsing helpers
@@ -253,6 +255,7 @@ pitloom/
 │       │   ├── binary.py  # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── env.py  # Deployed SBOM: installed-environment dependency tree
 │       │   ├── license_refs.py  # Several License:: classifiers as one licence expression
+│       │   ├── model_target.py  # What a path, folder or Git folder names: a project or one model file (resolve_sbom_target)
 │       │   ├── scanner.py  # AI model discovery policy: ModelCandidate, discover/attach passes
 │       │   ├── scanner_project.py  # Project-directory producer for the AI model scanner
 │       │   ├── scanner_wheel.py  # Built-wheel producer for the AI model scanner

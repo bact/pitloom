@@ -9,16 +9,24 @@ Python project but folders below it do (a monorepo)."""
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from pitloom.core.quote_source import quote_source
+from pitloom.core.path_confine import (
+    in_git_dir,
+    regular_file_inside,
+    spelled_as_on_disk,
+)
+from pitloom.core.project_markers import PROJECT_MARKERS
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
+from pitloom.messages import GIT_FOLDER_NOT_FOUND_LINE, INPUT_NOT_FOUND
 
-__all__ = ["PROJECT_MARKERS", "checkout_folder", "subproject_hint"]
-
-#: Files that make a directory a Python project.
-PROJECT_MARKERS = ("pyproject.toml", "setup.cfg", "setup.py")
+__all__ = [
+    "PROJECT_MARKERS",
+    "checkout_folder",
+    "checkout_has_file",
+    "subproject_hint",
+]
 
 #: Directories never searched for sub-projects, and how deep to look.
 _SKIPPED_DIRS = frozenset(
@@ -43,27 +51,39 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     for ``""``).
 
     Raises:
-        RemoteSourceError: ``git.path-not-found``, *subdir* is no folder of
-            the checkout, or a link leads out of it.
+        RemoteSourceError: ``git.path-not-found`` (its ``pitloom_code``
+            ``input-not-found``), *subdir* is no folder of the checkout (a
+            case-insensitive file system finding it in another case
+            included), a link leads out of it, or it is the checkout's
+            ``.git`` directory or below it.
     """
     if not subdir:
         return work_dir
     root = os.path.realpath(work_dir)
     folder = os.path.realpath(os.path.join(root, subdir))
-    if not folder.startswith(root + os.sep) or not os.path.isdir(folder):
+    if (
+        not folder.startswith(root + os.sep)
+        or in_git_dir(PurePath(folder), PurePath(root))
+        or not os.path.isdir(folder)
+        or not spelled_as_on_disk(root, subdir)
+    ):
         raise RemoteSourceError(
             "git.path-not-found",
-            f"No folder {quote_source(subdir)} in the repository at that branch.",
+            GIT_FOLDER_NOT_FOUND_LINE.render({"path": subdir}),
+            pitloom_code=INPUT_NOT_FOUND.code,
         )
     return folder
 
 
 def checkout_has_file(work_dir: str, path: str) -> bool:
     """Whether *path* is a regular file of the checkout *work_dir*, not
-    reached through a link that leads out of it."""
+    reached through a link that leads out of it, not in its ``.git``
+    directory, and spelled as on disk
+    (:func:`~pitloom.core.path_confine.regular_file_inside`)."""
     root = os.path.realpath(work_dir)
-    target = os.path.realpath(os.path.join(root, path))
-    return target.startswith(root + os.sep) and os.path.isfile(target)
+    return regular_file_inside(work_dir, path) and not in_git_dir(
+        PurePath(os.path.realpath(os.path.join(root, path))), PurePath(root)
+    )
 
 
 def subproject_hint(folder: str, whole_repository: bool) -> str:

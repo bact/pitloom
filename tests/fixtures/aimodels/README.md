@@ -29,13 +29,19 @@ Not models to read: two 8 448-byte HDF5 files, each a one-to-27-byte mutation
 of a valid Keras `.h5`, on which `h5py`/libhdf5 crashes or never returns.
 They are regression inputs for the wheel scan's format gate: a wheel scan
 without `--trust-wheel-model` must list such a model without metadata and
-never open it. **Never pass them to a reader in-process** -- use a
-subprocess with a timeout. Excluded from the sdist.
+never open it. A model file read from a Git URL, named or in the build file
+list of a project from a Git URL, is gated for the same formats. **Never pass
+them to a reader in-process** -- use a subprocess with a timeout. Excluded from the sdist.
 
 | Path | What libhdf5 does | SHA-256 |
 | :--- | :--- | :--- |
 | `hostile/hdf5-segfault.h5` | `SIGSEGV` inside `h5py.File(...)` | `20a74cfea05f0bac4b982198fcf5296262db5b1ba9050ce870357c09d6de0cc4` |
 | `hostile/hdf5-hang.h5` | never returns (busy loop) | `aae5c4109f023e619206e0b821243b4173e4974457a38076d982793a7323158d` |
+
+One file per format (see `FORMAT_FIXTURES` in `tests/_model_fixtures.py`) is
+also the input of the tests that read a model from a path, a folder or a Git
+URL. `NEEDS_SUFFIX` in the same module names the formats whose file is not
+recognised under another suffix.
 
 ## AI model summary
 

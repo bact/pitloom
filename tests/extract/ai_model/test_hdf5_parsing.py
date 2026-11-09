@@ -24,13 +24,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from pitloom.core.ai_metadata import source_metadata
-from pitloom.extract.ai_model import hdf5_config
+from pitloom.extract.ai_model import keras_training_config
 from pitloom.extract.ai_model.hdf5 import _decode_h5_attr
 from pitloom.extract.ai_model.hdf5_config import (
     extract_input_from_layers,
     parse_model_config,
-    parse_training_config,
 )
+from pitloom.extract.ai_model.keras_training_config import parse_training_config
 
 # ---------------------------------------------------------------------------
 # _decode_h5_attr -- direct unit tests
@@ -393,7 +393,7 @@ def test_metrics_too_deep_to_serialise_is_a_problem_not_a_crash(
     def too_deep(value: object) -> str:
         raise RecursionError
 
-    monkeypatch.setattr(hdf5_config, "canonical_json", too_deep)
+    monkeypatch.setattr(keras_training_config, "canonical_json", too_deep)
     props: dict[str, str] = {}
     prov: dict[str, str] = {}
     raw = _json.dumps({"loss": "mse", "metrics": ["a"], "optimizer": optimizer})

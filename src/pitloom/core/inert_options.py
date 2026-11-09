@@ -47,6 +47,8 @@ SDIST = "sdist"
 WHEEL = "wheel"
 ENV = "env"
 GIT = "git"
+#: An AI model file at a Git URL (the file it names, or its folder's one).
+GIT_MODEL = "git_model"
 MODEL_FILE = "model_file"
 HF = "hf"
 ENRICH = "enrich"
@@ -211,6 +213,12 @@ INERT: dict[str, dict[str, str]] = {
     MODEL_FILE: {
         **_MODEL_FILE_ROW,
         "offline": _MODEL_NO_NETWORK,
+        "use_lockfile": _NO_LOCKFILE,
+        "project_dir": _NOT_AN_ARCHIVE,
+    },
+    # The fetch consumes offline; the folder is no project of its own.
+    GIT_MODEL: {
+        **_MODEL_FILE_ROW,
         "use_lockfile": _NO_LOCKFILE,
         "project_dir": _NOT_AN_ARCHIVE,
     },
@@ -394,6 +402,7 @@ __all__ = [
     "ENRICH_STANDALONE",
     "ENV",
     "GIT",
+    "GIT_MODEL",
     "HF",
     "HOOK",
     "INERT",

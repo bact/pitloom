@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,6 +67,11 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
 - [ ] **Git URL ingestion, open follow-ups**: DNS rebinding, imperative
   `setup.py` reader, CLI clone cap, commit and URL in the SBOM. See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
+- [ ] **A model file from a Git URL: recursive discovery, origin provenance, a
+  gated read of the native-library formats** (model SBOM built for 0.23.4: a
+  folder is read non-recursively; the commit and URL are not in the SBOM;
+  fastText, GGUF, HDF5, ONNX and PyTorch are listed unread). See
+  [model-sbom-from-git.md](../implementation/model-sbom-from-git.md).
 - [ ] **`License-File:` selection** for wheels (the unknown-id warning in an
   SPDX-only field is built, #357). See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
@@ -479,6 +484,9 @@ Recorded findings; each is fixable on its own.
 
 ## Medium-term
 
+- [ ] **A Hub model file read by HTTP range requests**, for consideration
+  (evaluated 2026-11-09, not built: a `.keras`-only Hub repository has no
+  Keras-derived field). See [hub-model-file-range-read.md](hub-model-file-range-read.md).
 - [ ] **CycloneDX assembler** consuming the existing `DocumentModel`; no
   extractor changes.
 - [ ] **AIDOC / TechOps renderer**, another `DocumentModel` output.

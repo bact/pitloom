@@ -11,10 +11,14 @@ tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
 parse_git_page`). The server's redirect (GitLab's ``project`` to
 ``project.git``) is followed first, each hop passed to the caller's URL check
 (:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`). The clone is
-shallow, asks the server to omit blobs over 10 MB (a server without partial
-clone sends them; one that rejects the filter is asked again without it),
-follows no redirect itself and runs with git-lfs off; with ``max_bytes`` it
-stops past a disk cap (``git.too-large``).
+shallow and asks the server to leave out blobs over 10 MiB that the checkout
+does not need (a server without partial clone sends them; one that rejects
+the filter is asked again without it): a large file in the checked-out tree
+is still fetched, at checkout. It follows no redirect itself and runs with
+git-lfs off; with ``max_bytes`` it stops past a disk cap (``git.too-large``),
+which bounds a large file too. Once checked out, the URL git wrote to
+``.git/config`` loses its user information, and a symbolic link out of the
+checkout, into its ``.git`` or to a folder is removed.
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -29,13 +33,15 @@ import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from pitloom.core.lfs_pointer import reading_remote_clone
+from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.path_confine import in_git_dir, is_inside
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
     sanitize_url_credentials,
+    url_without_credentials,
 )
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
@@ -53,27 +59,23 @@ from pitloom.extract.remote.git_url import (
     split_ref,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import PROJECT_NOT_FOUND, code_of
 
 log = logging.getLogger(__name__)
 
 __all__ = [
     "BLOB_LIMIT",
-    "CONFIG_IGNORED_INFO",
     "RESOLVED_INFO",
     "GitCheckout",
     "fetch_git_project",
 ]
 
-#: Blobs above this size are not fetched: Pitloom reads packaging metadata.
-#: A server without partial clone ignores the filter; one that rejects it
-#: (HTTP 400) is asked again without it (:func:`_checkout`).
+#: The partial-clone filter leaves out blobs above this size that the
+#: checkout does not need; a large file in the checked-out tree is fetched at
+#: checkout, bounded by the ``max_bytes`` cap. A server without partial clone
+#: ignores the filter; one that rejects it (HTTP 400) is asked again without
+#: it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
-
-#: ``log.info()`` for a repository's own settings, which are not used.
-CONFIG_IGNORED_INFO = (
-    "Git source: the repository's own [tool.pitloom] settings are ignored "
-    "(untrusted); --config or pitloom_config= applies"
-)
 
 #: ``log.info()`` format for a URL that names more than the clone URL.
 #: Arguments: the URL given, the repository cloned, what else it names.
@@ -86,7 +88,8 @@ class GitCheckout:
 
     ``folder`` is the directory Pitloom reads: the checkout, or the folder
     the URL named; ``whole_repository`` says which. ``commit`` is the commit
-    checked out.
+    checked out. ``file`` is the file the URL named, relative to ``folder``;
+    empty for a folder URL.
     """
 
     folder: str
@@ -95,6 +98,7 @@ class GitCheckout:
     commit: str
     subdir: str
     whole_repository: bool
+    file: str = ""
 
     @contextmanager
     def explaining_failures(self) -> Iterator[None]:
@@ -106,18 +110,32 @@ class GitCheckout:
         except RemoteSourceError:
             raise
         except Exception as exc:
-            hint = subproject_hint(self.folder, self.whole_repository)
+            # A catalogued refusal (a model file's) says its own condition;
+            # a missing project's is the one the hint explains.
+            hint = (
+                ""
+                if code_of(exc) not in (None, PROJECT_NOT_FOUND.code)
+                else subproject_hint(self.folder, self.whole_repository)
+            )
             if not hint:
                 raise
             raise RemoteSourceError("git.no-project", f"{exc}{hint}") from exc
+
+    @property
+    def root(self) -> str:
+        """The checkout's root directory: :attr:`folder` without the
+        :attr:`subdir` below it."""
+        depth = len(self.subdir.split("/")) if self.subdir else 0
+        return str(Path(self.folder).parents[depth - 1]) if depth else self.folder
 
     @contextmanager
     def reading(self) -> Iterator[None]:
         """The context in which a caller reads :attr:`folder`: failures are
         explained (:meth:`explaining_failures`), and a Git LFS pointer
-        is reported as in a temporary clone
+        is reported as in a temporary clone, out of whose :attr:`root`
+        nothing is read
         (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
-        with reading_remote_clone(), self.explaining_failures():
+        with reading_remote_clone(self.root), self.explaining_failures():
             yield
 
 
@@ -131,6 +149,13 @@ def fetch_git_project(
 ) -> Iterator[GitCheckout]:
     """Fetch the repository *url* names into a temporary directory, removed
     on exit.
+
+    Within the block, the reads are a temporary clone's
+    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
+    :meth:`GitCheckout.reading`): nothing out of the checkout's root is read,
+    the model readers a wheel scan does not run are not run, and the
+    repository's build-time code is not run. The mark is reset on every exit
+    and belongs to the calling thread's context alone.
 
     *check_url* is called with the URL of every redirect target, without
     user information, before it is requested and raises for one that must not
@@ -157,7 +182,8 @@ def fetch_git_project(
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
             raise
-        yield checkout
+        with reading_remote_clone(checkout.root):
+            yield checkout
 
 
 def _prepare(
@@ -177,8 +203,9 @@ def _prepare(
     clone_url, page, target = _resolve(runner, page, check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
+    _forget_credentials(runner, clone_url, work_dir)
     _drop_outside_links(work_dir)
-    folder = _folder(work_dir, target)
+    folder, file = _folder(work_dir, target)
     commit = _head(runner, work_dir, shown)
     subdir = os.path.relpath(os.path.realpath(folder), os.path.realpath(work_dir))
     return GitCheckout(
@@ -188,6 +215,7 @@ def _prepare(
         commit=commit,
         subdir="" if subdir == "." else subdir.replace(os.sep, "/"),
         whole_repository=subdir == ".",
+        file=file,
     )
 
 
@@ -284,12 +312,14 @@ def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) 
 def _checkout(
     runner: GitRunner, clone_url: str, work_dir: str, target: GitTarget
 ) -> None:
-    """Check out *target* of *clone_url* into *work_dir*, shallowly, without
-    blobs over :data:`BLOB_LIMIT`. A server that answers the filter with an
-    error (Azure DevOps: HTTP 400) is asked again without it; the size cap
-    still bounds the transfer. ``init`` and ``remote add`` run once, and the
-    tag and commit retry says ``--no-filter``: the failed fetch saved the
-    filter in the repository config."""
+    """Check out *target* of *clone_url* into *work_dir*, shallowly, with a
+    filter that leaves out blobs over :data:`BLOB_LIMIT` the checkout does
+    not need (a large file in the checked-out tree is fetched at checkout).
+    A server that answers the filter with an error (Azure DevOps: HTTP 400)
+    is asked again without it; the size cap still bounds the transfer.
+    ``init`` and ``remote add`` run once, and the tag and commit retry says
+    ``--no-filter``: the failed fetch saved the filter in the repository
+    config."""
     pinned = bool(target.commit or target.tag)
     if pinned:
         runner.run(["init", "--quiet", "--", work_dir], "init")
@@ -348,6 +378,22 @@ def _fetch(
     )
 
 
+def _forget_credentials(runner: GitRunner, clone_url: str, work_dir: str) -> None:
+    """Rewrite the URL git wrote to the clone's ``.git/config`` (``clone``
+    and ``remote add`` keep it as given) without its user information
+    (:func:`~pitloom.core.url_masking.url_without_credentials`): no read of
+    the clone, a link into ``.git`` included, can find the credential.
+    Nothing else of the clone holds the URL whole (git writes it to
+    ``FETCH_HEAD`` and the reflog without the user information)."""
+    stored = url_without_credentials(clone_url)
+    if stored != clone_url:
+        runner.run(
+            ["-C", work_dir, "config", "remote.origin.url", stored],
+            "config",
+            echo=False,
+        )
+
+
 def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
     """The commit checked out; an empty repository has none."""
     try:
@@ -363,10 +409,14 @@ def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
 
 
 def _drop_outside_links(work_dir: str) -> None:
-    """Remove a symbolic link of the checkout that leads out of it: the
-    repository is untrusted, and a link to a host file would have Pitloom
-    read, and hash, that file. One ``INFO:`` says how many."""
-    root = os.path.realpath(work_dir)
+    """Remove a symbolic link of the checkout that leads out of it, into its
+    ``.git`` directory or to a folder: the repository is untrusted, a link
+    to a host file would have Pitloom read, and hash, that file, one into
+    ``.git`` a file Pitloom wrote (its ``config`` names the URL), and two
+    links to folders (``a -> .``, ``b -> .``) make every walk of the files
+    endless. A link to a file of the checkout is kept. One ``INFO:`` says
+    how many."""
+    root = PurePath(os.path.realpath(work_dir))
     dropped = 0
     for here, folders, files in os.walk(work_dir):
         if here == work_dir and ".git" in folders:
@@ -375,37 +425,40 @@ def _drop_outside_links(work_dir: str) -> None:
             path = os.path.join(here, name)
             if not os.path.islink(path):
                 continue
-            target = os.path.realpath(path)
-            if target != root and not target.startswith(root + os.sep):
+            target = PurePath(os.path.realpath(path))
+            if (
+                not is_inside(target, root)
+                or in_git_dir(target, root)
+                or os.path.isdir(target)
+            ):
                 os.unlink(path)
                 dropped += 1
     if dropped:
         log.info(
-            "Git source: %d symbolic link(s) leading out of the repository "
-            "were not followed",
+            "Git source: %d symbolic link(s) leading out of the repository, "
+            "into its .git directory or to a folder were not followed",
             dropped,
         )
 
 
-def _folder(work_dir: str, target: GitTarget) -> str:
-    """The folder of the checkout to read. A file page that names a folder
-    reads that folder, and a folder page that names a file (Bitbucket and
-    SourceHut write both alike) reads the folder holding it; each says so."""
+def _folder(work_dir: str, target: GitTarget) -> tuple[str, str]:
+    """The folder of the checkout to read and the file of it the URL named
+    (``""``: none). A file page that names a folder reads that folder, and a
+    folder page that names a file (Bitbucket and SourceHut write both alike)
+    names that file of the folder holding it; each says so."""
     try:
         folder = checkout_folder(work_dir, target.subdir)
     except RemoteSourceError:
-        parent = target.subdir.rpartition("/")[0]
+        parent, _slash, leaf = target.subdir.rpartition("/")
         if target.file or not checkout_has_file(work_dir, target.subdir):
             raise
-        log.info(
-            "Git source: %s is a file, not a folder; reading the folder holding it",
-            loggable(target.subdir),
-        )
-        return checkout_folder(work_dir, parent)
+        log.info("Git source: %s is a file, not a folder", loggable(target.subdir))
+        return checkout_folder(work_dir, parent), leaf
     if target.file and Path(folder, target.file).is_dir():
         log.info(
             "Git source: %s is a folder, not a file; reading it",
             loggable(f"{target.subdir}/{target.file}".lstrip("/")),
         )
-        return checkout_folder(work_dir, f"{target.subdir}/{target.file}".lstrip("/"))
-    return folder
+        named = f"{target.subdir}/{target.file}".lstrip("/")
+        return checkout_folder(work_dir, named), ""
+    return folder, target.file

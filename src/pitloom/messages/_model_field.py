@@ -79,6 +79,11 @@ CONFIG_KEPT_LINE: Final = _skipped(
 )
 #: A ``training_config`` part not as Keras writes it.
 TRAINING_CONFIG_LINE: Final = _skipped("%(part)s %(error)s; reading stopped there")
+#: A JSON member of a ``.keras`` archive (``config.json``) that does not
+#: parse, or whose top level is no object.
+KERAS_MEMBER_LINE: Final = _skipped(
+    "%(part)s %(error)s; the other archive members are read"
+)
 
 MODEL_FIELD_UNREADABLE: Final = Message(
     code="model-field-unreadable",
@@ -99,6 +104,7 @@ MODEL_FIELD_UNREADABLE: Final = Message(
         CONFIG_RAW_CUT_LINE,
         CONFIG_KEPT_LINE,
         TRAINING_CONFIG_LINE,
+        KERAS_MEMBER_LINE,
     ),
     summary="A model reader read the file but not one of its parts (a fastText "
     "call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute "

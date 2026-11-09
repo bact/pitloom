@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-28
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,7 +69,7 @@ Rules:
 | - | - | - |
 | GGUF | inputs, outputs | the file has tensors, no signature |
 | GGUF | licence link (`general.license.link`) | no licence-URL field in `AiModelMetadata` (SPDX 3.0.1 has `ExternalRefType` `license`) |
-| Keras v3 | training (`compile_config`) | not read yet |
+| Keras v3 | parameter count; the optimiser's settings, `loss_weights`, `weighted_metrics`, `run_eagerly`, `steps_per_execution`, `jit_compile` | the weights member is not opened; the HDF5 reader skips the same `training_config` keys |
 | NumPy | inputs | an array is data, not a model input |
 | PyTorch classic | hyperparameters, inputs, training | a pickle of arbitrary objects; only the top class is read, without running it |
 | Safetensors | inputs, a licence key other than `modelspec.license` | weights only; no other key seen |
@@ -116,7 +116,7 @@ nobody checked the file format for it; do not assume.
 | Safetensors | none in the format | JSON header: tensor dtype, shape, offsets; `__metadata__`: flat string-to-string, free-form | any author, licence or version key: the format has none; conventions only (ModelSpec `modelspec.*`, kohya `ss_*`) | not measured |
 | NumPy | `.npy` format version in bytes 6-7 (1.0, 2.0, 3.0); `.npz` is a ZIP | dtype, shape, order | any model meaning | the header encoding follows the major version (`numpy.py`) |
 | HDF5, Keras v1-v2 | `keras_version` root attribute (major = `v1`/`v2`) | root attributes `keras_version`, `backend`, JSON `model_config`, `training_config` | an HDF5 file without them is not a Keras model | recorded as `format_version` (`hdf5.py`) |
-| Keras v3 | `metadata.json` `keras_version` | ZIP: `metadata.json`, `config.json`, `model.weights.h5` | Stored, not read: `compile_config` | the ZIP magic is shared, so detection needs the `.keras` extension and a ZIP header (`reader.py`) |
+| Keras v3 | `metadata.json` `keras_version` | ZIP: `metadata.json`, `config.json`, `model.weights.h5` | Stored, not read: the weights member; `compile_config` is read as HDF5's `training_config` (optimizer, loss, metrics: `keras_training_config.py`), `config.json['metadata']` is a convention of some exporters (the fixture's description, author, version, licence), not a Keras field, and is not mapped | the ZIP magic is shared, so detection needs the `.keras` extension and a ZIP header (`reader.py`) |
 | PyTorch classic | not read | ZIP members and the top class of `data.pkl` (found without running it), or an old raw pickle (`format_detail: raw pickle`) | Stored, not read: the pickled objects | pickle protocol: not measured |
 | PT2 / ExecuTorch | no format version read (`extra/model_version` is the model's) | ZIP, `extra/` files, `models/model.json` signature | Stored, not read: parameters, buffers, constants (not inputs) | not measured |
 | CRFsuite | header version 100, type `FOMC` | header counts, labels | Stored, not read: feature weights, attribute strings | any other version or type is `UnsupportedVersion` (`formats/crfsuite.py`) |

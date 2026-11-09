@@ -27,6 +27,7 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
+    HEADER_ERROR_LINE,
 )
 from pitloom.messages._types import Message
 
@@ -130,21 +131,37 @@ def warn_dir_unlistable(
 
 
 def file_unreadable_error(
-    exc: BaseException, *, file: str | os.PathLike[str], use: str
+    exc: BaseException,
+    *,
+    file: str | os.PathLike[str],
+    use: str | None = None,
+    model_format: str | None = None,
 ) -> CodedValueError:
     """The error to raise for the file *file* (as the line names it) that
-    *exc* stopped Pitloom reading for *use* (one of
-    :data:`~pitloom.messages._fields.READ_USES`), ``file-unreadable``: what
-    *exc* reports, never its text. The caller raises it ``from exc``.
+    *exc* stopped Pitloom reading for exactly one of: *use* (one of
+    :data:`~pitloom.messages._fields.READ_USES`) or *model_format* (the
+    header read to confirm a model of that format), ``file-unreadable``:
+    what *exc* reports, never its text. The caller raises it ``from exc``.
 
     Raises:
         pitloom.core.internal_error.InternalError: *exc* says the file is
             absent, or is one only a ``WARNING:`` says (a text not UTF-8, a
-            path out of the project).
+            path out of the project), or not exactly one of *use* and
+            *model_format* is given.
     """
     _refuse_absent(exc)
     if _entry(exc) is not FILE_UNREADABLE:
         raise InternalError(f"no ERROR line for {type(exc).__name__}")
+    if (use is None) == (model_format is None):
+        raise InternalError("one of use and model_format")
+    if model_format is not None:
+        return CodedValueError(
+            FILE_UNREADABLE,
+            line=HEADER_ERROR_LINE,
+            file=file,
+            format=model_format,
+            failure=exc,
+        )
     return CodedValueError(
         FILE_UNREADABLE, line=FILE_ERROR_LINE, file=file, use=use, failure=exc
     )

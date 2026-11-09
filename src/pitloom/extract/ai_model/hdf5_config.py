@@ -3,15 +3,19 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Parsing of the JSON root attributes of a Keras v1/v2 HDF5 model.
+"""Parsing of a Keras model config: the ``model_config`` root attribute of a
+Keras v1/v2 HDF5 model, and ``config.json`` of a Keras v3 ``.keras``
+archive, which hold the same object.
 
-``model_config`` and ``training_config`` are untrusted JSON. A part that is
-not what Keras writes (not valid JSON, nested too deeply, not an object, a
-name that is not a string) is one problem per attribute: parsing stops there,
-what was read before it is kept, and :class:`ConfigProblem` names what was
-lost. Absent parts are not problems.
+The config is untrusted JSON. A part that is not what Keras writes (not
+valid JSON, nested too deeply, not an object, a name that is not a string)
+is one problem per config: parsing stops there, what was read before it is
+kept, and :class:`ConfigProblem` names what was lost. Absent parts are not
+problems.
 
-See also: :mod:`pitloom.extract.ai_model.hdf5`, which reads the attributes,
+See also: :mod:`pitloom.extract.ai_model.hdf5` and
+:mod:`pitloom.extract.ai_model.keras`, which read the configs,
+:mod:`pitloom.extract.ai_model.keras_training_config` (the training config),
 and :mod:`pitloom.extract.ai_model._hdf5_warnings`, which says the problems.
 """
 
@@ -23,7 +27,6 @@ from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
-from pitloom.core.canonical_json import canonical_json
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.logging_config import one_line
@@ -34,14 +37,16 @@ RAW_CONFIG_CHARS = 500
 #: The property an unparsed ``model_config`` is kept in.
 RAW_CONFIG_KEY = "model_config_raw"
 
-_MODEL_CONFIG_FIELDS = (
+#: The fields a model config sets, named when it cannot be read.
+MODEL_CONFIG_FIELDS = (
     "type_of_model",
     "name",
     "hyperparameters",
     "inputs",
     "properties.layer_count",
 )
-_TRAINING_CONFIG_FIELDS = (
+#: The fields a training config sets, named when it cannot be read.
+TRAINING_CONFIG_FIELDS = (
     "properties.optimizer",
     "properties.loss",
     "properties.metrics",
@@ -50,8 +55,8 @@ _TRAINING_CONFIG_FIELDS = (
 ATTRIBUTE_FIELDS = {
     "keras_version": ("framework_version", "format_version"),
     "backend": ("properties.backend",),
-    "model_config": _MODEL_CONFIG_FIELDS,
-    "training_config": _TRAINING_CONFIG_FIELDS,
+    "model_config": MODEL_CONFIG_FIELDS,
+    "training_config": TRAINING_CONFIG_FIELDS,
 }
 
 
@@ -110,8 +115,12 @@ def _object(value: Any, what: str) -> dict[str, Any]:
     return value
 
 
-def _member_object(parent: dict[str, Any], key: str, what: str) -> dict[str, Any]:
-    """``parent[key]`` as a mapping; ``{}`` when absent or ``null``."""
+def member_object(parent: dict[str, Any], key: str, what: str) -> dict[str, Any]:
+    """``parent[key]`` as a mapping; ``{}`` when absent or ``null``.
+
+    Raises:
+        ConfigShapeError: The value is something else than an object.
+    """
     value = parent.get(key)
     return {} if value is None else _object(value, what)
 
@@ -130,19 +139,23 @@ def member_text(parent: dict[str, Any], key: str, what: str) -> str | None:
     return value or None
 
 
-def _json_object(raw: str, what: str) -> dict[str, Any]:
+def json_object(raw: str | bytes, what: str) -> dict[str, Any]:
     """The JSON object in *raw*; ``{}`` for JSON ``null`` (no data).
+
+    *raw* as bytes is decoded as :func:`json.loads` does (UTF-8, -16 or -32,
+    a UTF-8 byte order mark skipped).
 
     Raises:
         ConfigShapeError: *raw* is not valid JSON (nesting too deep for the
-            parser included), or not an object; the message is the reason, as
-            it reads after *what*.
+            parser, or bytes that are not text, included), or not an object;
+            the message is the reason, as it reads after *what*.
     """
     try:
         parsed = json.loads(raw)
     except RecursionError as exc:
         raise ConfigShapeError(what, "is not valid JSON (nested too deeply)") from exc
-    except ValueError as exc:  # JSONDecodeError, or an over-long integer
+    # JSONDecodeError, UnicodeDecodeError, or an over-long integer
+    except ValueError as exc:
         raise ConfigShapeError(what, f"is not valid JSON ({exc})") from exc
     if parsed is None:
         return {}
@@ -152,7 +165,7 @@ def _json_object(raw: str, what: str) -> dict[str, Any]:
 
 
 def extract_input_from_layers(
-    layers: list[Any], source: str
+    layers: list[Any], source: str, *, where: str = "model_config"
 ) -> tuple[list[dict[str, Any]], str]:
     """Extract the model input shape from a Keras ``config.layers`` list.
 
@@ -162,8 +175,10 @@ def extract_input_from_layers(
     - **Other layers**: uses ``build_config.input_shape``.
 
     Args:
-        layers: The ``config.layers`` list from ``model_config``.
+        layers: The ``config.layers`` list of the model config.
         source: Provenance source string (e.g. ``"Source: model.h5"``).
+        where: The key path of the model config, as provenance names it
+            (``model_config`` in HDF5, ``config`` in ``.keras``).
 
     Returns:
         Tuple of ``(inputs, provenance_value)`` where ``inputs`` is a
@@ -177,60 +192,47 @@ def extract_input_from_layers(
     for i, entry in enumerate(layers):
         layer = _object(entry, f"layers[{i}]")
         if layer.get("class_name", "") == "InputLayer":
-            layer_config = _member_object(layer, "config", f"layers[{i}].config")
+            layer_config = member_object(layer, "config", f"layers[{i}].config")
             batch_shape = layer_config.get("batch_shape")
             if batch_shape is not None:
-                prov = (
-                    f"{source} | Field: model_config.config.layers"
-                    "[InputLayer].config.batch_shape"
+                prov = provenance_segment(
+                    source,
+                    "Field",
+                    f"{where}.config.layers[InputLayer].config.batch_shape",
                 )
                 return [{"shape": batch_shape}], prov
         else:
-            build = _member_object(layer, "build_config", f"layers[{i}].build_config")
+            build = member_object(layer, "build_config", f"layers[{i}].build_config")
             in_shape = build.get("input_shape")
             if in_shape is not None:
-                prov = (
-                    f"{source} | Field: model_config.config.layers[{i}]"
-                    ".build_config.input_shape"
+                prov = provenance_segment(
+                    source,
+                    "Field",
+                    f"{where}.config.layers[{i}].build_config.input_shape",
                 )
                 return [{"shape": in_shape}], prov
     return [], ""
 
 
-def _extract_layers_info(layers: list[Any], done: _Progress) -> None:
-    """Extract layer count and input shapes from layers list."""
-    source, inputs, provenance = done.source, done.inputs, done.provenance
-    record_scalar_property(done.properties, done.natives, "layer_count", len(layers))
-    provenance["properties.layer_count"] = (
-        f"{source} | Field: model_config.config.layers (count)"
-    )
-    new_inputs, inputs_prov = extract_input_from_layers(layers, source)
-    if new_inputs:
-        inputs.extend(new_inputs)
-    if inputs_prov:
-        provenance["inputs"] = inputs_prov
+class ConfigLayout(NamedTuple):
+    """Where a model config sits in its file, and how its reader treats it.
+
+    Attributes:
+        where: The key path of the model config, as provenance and a problem
+            name it (``model_config`` in HDF5, ``config`` in ``.keras``).
+        skipped_keys: The keys of its ``config`` that are no hyperparameters.
+        skip_bad_names: Whether a class or model name that is not a string is
+            skipped, reading going on; else reading stops there (HDF5 then
+            keeps the raw text in its place).
+    """
+
+    where: str = "model_config"
+    skipped_keys: tuple[str, ...] = ("name", "layers")
+    skip_bad_names: bool = False
 
 
-def _extract_config_hyperparameters(
-    config: dict[str, Any],
-    source: str,
-    hyperparameters: dict[str, Any],
-    provenance: dict[str, str],
-) -> None:
-    """Extract scalar hyperparameter entries and record their provenance."""
-    for key, val in config.items():
-        if key in ("name", "layers"):
-            continue
-        if isinstance(val, (int, float, bool, str)):
-            hyperparameters[key] = val
-
-    record_dict_field_provenance(
-        provenance,
-        "hyperparameters",
-        hyperparameters,
-        source,
-        location_prefix="model_config.config.",
-    )
+#: The layout of the ``model_config`` root attribute of an HDF5 model.
+HDF5_LAYOUT = ConfigLayout()
 
 
 @dataclass
@@ -243,8 +245,11 @@ class _Progress:
         inputs: Filled in place.
         properties: Filled in place.
         provenance: Filled in place.
+        layout: Where the config sits, and how it is read.
         natives: Filled in place with the native value of each property
             held as text, for :func:`pitloom.core.ai_metadata.source_metadata`.
+        problems: Each name skipped by :attr:`ConfigLayout.skip_bad_names`,
+            then the part that stopped reading, if any.
         type_of_model: The model class, once read.
         name: The model name, once read.
         lost: The fields the stages not yet passed would set, so that a raise
@@ -256,10 +261,38 @@ class _Progress:
     inputs: list[dict[str, Any]]
     properties: dict[str, str]
     provenance: dict[str, str]
+    layout: ConfigLayout = HDF5_LAYOUT
     natives: dict[str, Any] = field(default_factory=dict)
+    problems: list[ConfigShapeError] = field(default_factory=list)
     type_of_model: str | None = None
     name: str | None = None
-    lost: list[str] = field(default_factory=lambda: list(_MODEL_CONFIG_FIELDS))
+    lost: list[str] = field(default_factory=lambda: list(MODEL_CONFIG_FIELDS))
+
+    def key_at(self, under: str) -> str:
+        """The key path of *under*, a path under the model config."""
+        return f"{self.layout.where}.{under}"
+
+    def field_at(self, under: str) -> str:
+        """The provenance of a value at *under* in the model config."""
+        return provenance_segment(self.source, "Field", self.key_at(under))
+
+    def text_at(
+        self, parent: dict[str, Any], key: str, under: str
+    ) -> tuple[str | None, bool]:
+        """``parent[key]`` as text (:func:`member_text`), *under* naming it
+        in the model config, and whether it was a value to keep.
+
+        Raises:
+            ConfigShapeError: The value is not a string, and the layout does
+                not skip such a name.
+        """
+        try:
+            return member_text(parent, key, self.key_at(under)), True
+        except ConfigShapeError as exc:
+            if not self.layout.skip_bad_names:
+                raise
+            self.problems.append(exc)
+            return None, False
 
 
 def _read_layers(config: dict[str, Any], done: _Progress) -> None:
@@ -271,32 +304,69 @@ def _read_layers(config: dict[str, Any], done: _Progress) -> None:
     """
     layers = config.get("layers")
     if layers is not None and not isinstance(layers, list):
-        raise ConfigShapeError("model_config.config.layers", "is not a list")
+        raise ConfigShapeError(done.key_at("config.layers"), "is not a list")
     done.lost.remove("properties.layer_count")
-    if layers is not None:
-        _extract_layers_info(layers, done)
+    if layers is None:
+        return
+    record_scalar_property(done.properties, done.natives, "layer_count", len(layers))
+    done.provenance["properties.layer_count"] = done.field_at("config.layers (count)")
+    new_inputs, inputs_prov = extract_input_from_layers(
+        layers, done.source, where=done.layout.where
+    )
+    done.inputs.extend(new_inputs)
+    if inputs_prov:
+        done.provenance["inputs"] = inputs_prov
+
+
+def _read_hyperparameters(config: dict[str, Any], done: _Progress) -> None:
+    """The scalar entries of ``config``, each with its provenance."""
+    for key, val in config.items():
+        if key in done.layout.skipped_keys:
+            continue
+        if isinstance(val, (int, float, bool, str)):
+            done.hyperparameters[key] = val
+    record_dict_field_provenance(
+        done.provenance,
+        "hyperparameters",
+        done.hyperparameters,
+        done.source,
+        location_prefix=done.key_at("config."),
+    )
+    done.lost.remove("hyperparameters")
+
+
+def _read_names(model_config: dict[str, Any], done: _Progress) -> dict[str, Any]:
+    """The class and the name of the model; its ``config``, for the stages
+    after them.
+
+    Raises:
+        ConfigShapeError: A name is not a string (when the layout does not
+            skip it), or ``config`` is not an object.
+    """
+    type_of_model, kept = done.text_at(model_config, "class_name", "class_name")
+    if kept:
+        done.type_of_model = type_of_model
+        if type_of_model:
+            done.provenance["type_of_model"] = done.field_at("class_name")
+        done.lost.remove("type_of_model")
+
+    config = member_object(model_config, "config", done.key_at("config"))
+    for key in ("name", "model_name"):
+        name, kept = done.text_at(config, key, f"config.{key}")
+        if not kept or name:
+            break
+    if kept:
+        done.name = name
+        if name:
+            done.provenance["name"] = done.field_at(f"config.{key}")
+        done.lost.remove("name")
+    return config
 
 
 def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
-    """The stages of :func:`parse_model_config`, in the order that keeps the
-    most when one raises."""
-    source, provenance = done.source, done.provenance
-    done.type_of_model = member_text(
-        model_config, "class_name", "model_config.class_name"
-    )
-    if done.type_of_model:
-        provenance["type_of_model"] = f"{source} | Field: model_config.class_name"
-    done.lost.remove("type_of_model")
-
-    config = _member_object(model_config, "config", "model_config.config")
-    for key in ("name", "model_name"):
-        name_field = f"model_config.config.{key}"
-        done.name = member_text(config, key, name_field)
-        if done.name:
-            provenance["name"] = provenance_segment(source, "Field", name_field)
-            break
-    done.lost.remove("name")
-
+    """The stages of :func:`parse_model_config_object`, in the order that
+    keeps the most when one raises."""
+    config = _read_names(model_config, done)
     # Layers are recorded before the hyperparameters, as SBOM output has always
     # ordered them; a bad layers part must not lose the hyperparameters.
     layers_error: ConfigShapeError | None = None
@@ -304,22 +374,68 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
         _read_layers(config, done)
     except ConfigShapeError as exc:
         layers_error = exc
-    _extract_config_hyperparameters(config, source, done.hyperparameters, provenance)
-    done.lost.remove("hyperparameters")
+    _read_hyperparameters(config, done)
     if layers_error is not None:
         raise layers_error
 
     # Top-level build_config -- fallback if layers didn't give a shape.
     if not done.inputs:
-        build = _member_object(
-            model_config, "build_config", "model_config.build_config"
-        )
+        build = member_object(model_config, "build_config", done.key_at("build_config"))
         in_shape = build.get("input_shape")
         if in_shape is not None:
             done.inputs.append({"shape": in_shape})
-            provenance["inputs"] = (
-                f"{source} | Field: model_config.build_config.input_shape"
-            )
+            done.provenance["inputs"] = done.field_at("build_config.input_shape")
+    done.lost.remove("inputs")
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def parse_model_config_object(
+    model_config: dict[str, Any],
+    source: str,
+    hyperparameters: dict[str, Any],
+    inputs: list[dict[str, Any]],
+    properties: dict[str, str],
+    provenance: dict[str, str],
+    natives: dict[str, Any] | None = None,
+    layout: ConfigLayout = HDF5_LAYOUT,
+) -> tuple[str | None, str | None, ConfigProblem | None]:
+    """Read a Keras model config, already parsed: the object of an HDF5
+    ``model_config`` attribute or of a ``.keras`` archive's ``config.json``,
+    where *layout* says it sits.
+
+    Extracts:
+
+    - ``class_name`` -> ``type_of_model`` (returned)
+    - ``config.name`` (else ``config.model_name``) -> ``name`` (returned)
+    - Scalar entries of ``config`` but the layout's skipped keys
+      -> *hyperparameters*
+    - The number of ``config.layers`` -> ``properties["layer_count"]``
+    - The input shape: an ``InputLayer``'s ``config.batch_shape``, else a
+      layer's ``build_config.input_shape``, else the top-level
+      ``build_config.input_shape`` -> *inputs*
+    - Per-field source paths -> *provenance*
+
+    *hyperparameters*, *inputs*, *properties* and *provenance* are filled in
+    place; *natives*, when given, with the native value of each property
+    held as text (``layer_count``), for
+    :func:`pitloom.core.ai_metadata.source_metadata`.
+
+    Returns:
+        ``(type_of_model, name, problem)``. *problem* is ``None``, or why the
+        config could not be read whole (a part of it not an object or a
+        string); what was read before it is kept.
+    """
+    done = _Progress(
+        source, hyperparameters, inputs, properties, provenance, layout=layout
+    )
+    if natives is not None:
+        done.natives = natives
+    try:
+        _read_model_config(model_config, done)
+    except ConfigShapeError as exc:
+        done.problems.append(exc)
+    problem = ConfigProblem.of(done.problems, done.lost) if done.problems else None
+    return done.type_of_model, done.name, problem
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -332,144 +448,18 @@ def parse_model_config(
     provenance: dict[str, str],
     natives: dict[str, Any] | None = None,
 ) -> tuple[str | None, str | None, ConfigProblem | None]:
-    """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model.
-
-    *hyperparameters*, *inputs*, *properties* and *provenance* are filled in
-    place; *natives*, when given, with the native value of each property
-    held as text (``layer_count``), for
-    :func:`pitloom.core.ai_metadata.source_metadata`.
+    """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model, as
+    :func:`parse_model_config_object` reads it.
 
     Returns:
         ``(type_of_model, name, problem)``. *problem* is ``None``, or why the
         config could not be read whole (not JSON, not an object, a part of
         it not an object or a string); what was read before it is kept.
     """
-    done = _Progress(source, hyperparameters, inputs, properties, provenance)
-    if natives is not None:
-        done.natives = natives
     try:
-        _read_model_config(_json_object(raw, "model_config"), done)
+        model_config = json_object(raw, "model_config")
     except ConfigShapeError as exc:
-        return done.type_of_model, done.name, ConfigProblem.of([exc], done.lost)
-    return done.type_of_model, done.name, None
-
-
-def _read_optimizer(
-    training_config: dict[str, Any],
-    source: str,
-    properties: dict[str, str],
-    provenance: dict[str, str],
-) -> None:
-    """``optimizer_config.class_name`` (or ``optimizer.class_name``).
-
-    Raises:
-        ConfigShapeError: The optimizer is not an object, or its class name
-            is not a string.
-    """
-    opt_key = (
-        "optimizer_config"
-        if training_config.get("optimizer_config") is not None
-        else "optimizer"
+        return None, None, ConfigProblem.of([exc], MODEL_CONFIG_FIELDS)
+    return parse_model_config_object(
+        model_config, source, hyperparameters, inputs, properties, provenance, natives
     )
-    optimizer = _member_object(training_config, opt_key, f"training_config.{opt_key}")
-    opt_class = member_text(
-        optimizer, "class_name", f"training_config.{opt_key}.class_name"
-    )
-    if opt_class:
-        properties["optimizer"] = opt_class
-        provenance["properties.optimizer"] = (
-            f"{source} | Field: training_config.{opt_key}.class_name"
-        )
-
-
-def _record_json_value(
-    properties: dict[str, str], natives: dict[str, Any], key: str, value: Any
-) -> None:
-    """Record JSON *value* of ``training_config`` under *key*: a string as
-    is; a number or a boolean as by
-    :func:`~pitloom.core.ai_metadata.record_scalar_property`; a list or an
-    object as its JSON text in *properties* and as read in *natives*.
-
-    Raises:
-        ConfigShapeError: *value* is nested too deeply to serialise (the
-            parser's stack held it, the serialiser's did not).
-    """
-    if isinstance(value, str):
-        properties[key] = value
-    elif isinstance(value, (list, dict)):
-        try:
-            properties[key] = canonical_json(value)
-        except RecursionError as exc:
-            raise ConfigShapeError(
-                f"training_config.{key}", "is nested too deeply"
-            ) from exc
-        natives[key] = value
-    else:
-        record_scalar_property(properties, natives, key, value)
-
-
-def parse_training_config(
-    raw: str,
-    source: str,
-    properties: dict[str, str],
-    provenance: dict[str, str],
-    natives: dict[str, Any] | None = None,
-) -> ConfigProblem | None:
-    """Parse ``training_config`` JSON from a Keras v1/v2 HDF5 model.
-
-    Extracts:
-
-    - ``loss`` and ``metrics`` -> ``properties`` (updated in-place): a
-      string as is, a number or a boolean its scalar text, a list or an
-      object its JSON text; the value as read, when not a string, also
-      -> ``natives``
-    - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
-      -> ``properties["optimizer"]`` (updated in-place)
-    - Per-field source paths -> ``provenance`` (updated in-place)
-
-    Args:
-        raw: Raw JSON string from the ``training_config`` HDF5 attribute.
-        source: Provenance source string (e.g. ``"Source: model.h5"``).
-        properties: Updated in-place with optimizer, loss, and metrics entries.
-        provenance: Updated in-place with per-field source descriptions.
-        natives: Updated in-place with ``loss`` and ``metrics`` as read,
-            when not a string, for
-            :func:`pitloom.core.ai_metadata.source_metadata`.
-
-    Returns:
-        ``None``, or why the attribute could not be read whole: not a JSON
-        object (nothing is read), an optimizer that is not an object with
-        a string class name (loss and metrics are read), or a loss or
-        metrics nested too deeply to serialise (that field is not read).
-    """
-    lost = list(_TRAINING_CONFIG_FIELDS)
-    try:
-        training_config = _json_object(raw, "training_config")
-    except ConfigShapeError as exc:
-        return ConfigProblem.of([exc], lost)
-    # Optimizer first, as SBOM output has always ordered the properties; a bad
-    # optimizer must not lose the loss and metrics.
-    optimizer_error: ConfigShapeError | None = None
-    try:
-        _read_optimizer(training_config, source, properties, provenance)
-        lost.remove("properties.optimizer")
-    except ConfigShapeError as exc:
-        optimizer_error = exc
-
-    sink: dict[str, Any] = {} if natives is None else natives
-    errors = [] if optimizer_error is None else [optimizer_error]
-    for key in ("loss", "metrics"):
-        value = training_config.get(key)
-        # A null loss is absent; a null or empty metrics too.
-        if value is not None and (key == "loss" or value):
-            try:
-                _record_json_value(properties, sink, key, value)
-            except ConfigShapeError as exc:
-                errors.append(exc)
-                continue
-            provenance[f"properties.{key}"] = f"{source} | Field: training_config.{key}"
-        lost.remove(f"properties.{key}")
-
-    if errors:
-        return ConfigProblem.of(errors, lost)
-    return None

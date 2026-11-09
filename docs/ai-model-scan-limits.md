@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,6 +32,7 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 | Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
+| A model, or a model listed in a project's build file list, from a Git URL: an `ai_AIPackage` with name, format and hash only, plus one `INFO: ... listed without metadata ... [reader-unsafe/remote]` | fastText, GGUF, HDF5, ONNX or PyTorch reader not run on a download | [Formats gated for a Git URL](#formats-gated-for-a-git-url) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](#size-and-count-caps) (Parameter count) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
@@ -63,12 +64,15 @@ stub.
 | :----- | :-------------------- | :-------------- | :--------- | :--------------------------------- |
 | `wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`, `generate x.whl` | Copied out of the wheel to a temporary file, one at a time | Yes | Yes | Yes |
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
-| `loom model FILE`, `loom enrich FILE`, `loom generate FILE` | Read in place, as a project scan reads a file | No | No | Yes |
+| `loom model FILE`, `loom enrich FILE`, `loom generate FILE`, `loom model DIR` or `loom generate DIR` for a folder with one model and no project | Read in place, as a project scan reads a file | No | No | Yes |
+| `loom model URL`, `loom generate URL` for a model file or folder at a Git URL | Read in the temporary clone, one file | No | **Git gate**: the same formats, see [Formats gated for a Git URL](#formats-gated-for-a-git-url) | Yes |
+| `loom project URL`, `loom generate URL` for a project at a Git URL | Read in place in the temporary clone, from the build file list | No | **Git gate**: the same formats | Yes |
 | `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
-Scanning an untrusted checkout therefore runs the fastText, HDF5, ONNX,
-GGUF and PyTorch readers on its files, in Pitloom's own process, with no
-size ceiling. Only scan project directories you trust.
+Scanning an untrusted local checkout therefore runs the fastText, HDF5,
+ONNX, GGUF and PyTorch readers on its files, in Pitloom's own process, with
+no size ceiling. Only scan project directories you trust; give an untrusted
+repository's Git URL instead, which gates those formats.
 
 `loom model FILE`, `loom enrich FILE` and `loom generate FILE` (and
 `generate_model_sbom()`, `enrich_model()`) read the file by the same rule as
@@ -86,12 +90,27 @@ path and the reason, e.g. `header is a Git LFS pointer, content not pulled
 (oid sha256:<oid>, size <N> byte(s)); run 'git lfs pull'`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom
-enrich` take a file of any suffix; `loom generate FILE` takes only the
-[suffixes scanned](ai-model-formats.md#how-a-file-is-recognised) for models:
-any other file is read as a project (an sdist archive, or a directory), and
-fails as one. A script that used the exit status to detect an unreadable
-model must look for the `WARNING:` instead.
-The 1000-entry cap applies as in the scans, with the same one `WARNING:`.
+enrich` take a file of any suffix; `loom generate FILE` reads a file as a
+model when its suffix is one of the
+[suffixes scanned](ai-model-formats.md#how-a-file-is-recognised) or its header
+confirms a format with a magic (a GGUF file named `x.dat`); any other file is
+read as a project (an sdist archive, or a directory), and fails as one. A
+script that used the exit status to detect an unreadable model must look for
+the `WARNING:` instead.
+
+A **folder** given to `loom model` or `loom generate` (a folder with no
+project config, for `generate`) is read for its one model file. It is read
+non-recursively, and its candidates are chosen by the suffix filter of a scan
+(a model renamed to `weights.dat` is not found), then confirmed by their
+header. At most 1000 files whose names could be models are looked at: a
+folder of more is not read, said in one `WARNING: DIR=<dir>: larger than the
+1000-entry model-candidate cap; no file read [over-cap]`, and is refused
+with `more than 1000 files that could be AI models, none read; name one file`
+(`model-ambiguous/over-cap`). A
+folder with none is `no Python project (pyproject.toml, setup.cfg or
+setup.py) and no AI model file of a supported format`
+(`project-or-model-not-found`) for `generate`, and a path that is not a model
+for `loom model`.
 
 ## Size and count caps
 
@@ -121,6 +140,7 @@ Values are exact; "stub" is the format-only entry described above.
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut; an array of the same 20 names in the artifact-metadata annotation), with the member count in `archive_member_count` | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the count and the text say it is cut |
 | Artifact-metadata nesting | 32 levels of a collection; a deeper part is kept as its JSON text | The artifact-metadata annotation of every format (HDF5 `metrics`, PT2 `tags`) | No | No log line; the deeper part is text, `<nested over 32 levels>` where its JSON text nests too deeply to write |
 | Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when neither the class nor the name could be read | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config is not valid JSON (<error>); kept as properties.model_config_raw, the first 500 of <N> characters ... [model-field-unreadable]` (the cut is part of the same line; `is not a JSON object` for a JSON that is not an object, `is not valid JSON (nested too deeply)` for a nesting the parser cannot take, `model_config.class_name is not a string` for a class that is not text); the fields not read are named after it, `Field(s) affected (skipped)`. A valid config without a class or name longer than 500 characters: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 500-character raw-model-config cap; the first 500 of <N> characters kept in properties.model_config_raw [over-cap]` |
+| Unreadable Keras v3 member | The other member is still read | Keras v3 `metadata.json`, `config.json` | No | One `WARNING: FORMAT=keras FILE=<path>: config.json is not valid JSON (<error>); the other archive members are read \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also a member whose top level is no object, or that nests too deeply); a value of the wrong type is dropped with one `WARNING:` per part (metadata, model config, `compile_config`). An absent, `null` or `{}` `compile_config` is silent; `[]` warns, as it does for an HDF5 `training_config` |
 | Keras config part of the wrong type | The parts read before it are kept | HDF5 `model_config` | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config.config is not an object; the fields read before it are kept \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also `layers is not a list`, `layers[<i>] is not an object`, a `class_name` or `name` that is not a string); the fields are those not read. A part, or the whole attribute, set to JSON `null` counts as absent: no warning |
 | Unreadable Keras training config | Not read, or the optimiser not read | HDF5 | No | One `WARNING: FORMAT=<fmt> FILE=<path>: training_config is not valid JSON (<error>); reading stopped there ... [model-field-unreadable]`, or `training_config.optimizer_config is not an object` / `... class_name is not a string` with the loss and metrics kept |
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
@@ -199,9 +219,27 @@ To read them, for a wheel you trust:
 
 There is no `[tool.pitloom]` key, on purpose: a config file can sit in the
 untrusted tree, so it must not be able to switch the protection off. On any
-other target the option warns that it has no effect. Safetensors, Keras v3,
-NumPy, PT2 and CRFsuite readers do not pass the file to a native library
-and are not gated; the caps above still apply to them.
+other target the option warns that it has no effect. Keras v3, NumPy, PT2
+and CRFsuite readers do not pass the file to a native library, and the
+Safetensors reader's Rust library is read in full on purpose: these are not
+gated; the caps above still apply to them.
+
+## Formats gated for a Git URL
+
+A model file from a Git URL, or a model file in the build file list of a
+project from a Git URL, is read in a temporary clone of a repository you may
+not trust, so the formats of the wheel gate are gated there too: a fastText,
+GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) file is listed with its name,
+format and hashes only, and one line per SBOM says so:
+
+```text
+INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; clone the repository and run on the file you trust
+```
+
+There is no flag to read them from a Git URL; clone the repository (with Git
+LFS when it holds the model there) and run `loom model <file>` on the file, or
+`loom project <dir>` on the project. Keras v3, Safetensors, NumPy, PT2 and
+CRFsuite files are read in full, with the caps above.
 
 ## What is a model
 

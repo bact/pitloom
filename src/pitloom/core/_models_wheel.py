@@ -31,6 +31,7 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
+from pitloom.core._models_wheel_clone import drop_outside_clone
 from pitloom.core._models_wheel_dispatch import (
     _discover_included_files,
     _noop_cleanup,
@@ -326,6 +327,9 @@ def get_wheel_files(
     a build extracted it, by its own digests (see
     :func:`~pitloom.core.project.digest_fields`).
 
+    In a Git URL's clone a file outside the repository is left out unread
+    (:func:`~pitloom.core._models_wheel_clone.drop_outside_clone`).
+
     A discovered file that exists but cannot be read (permissions, a
     race) gets one ``WARNING:`` naming its project-relative path and is
     left out; the other files are still returned. A directory the
@@ -391,6 +395,7 @@ def get_wheel_files(
         # pylint: disable-next=broad-exception-caught
         except Exception:
             return _discovery_failure_result()
+        included_files = drop_outside_clone(included_files, project_dir)
 
         scanned: tuple[str | None, list[ProjectFile]] | None = None
         registry = (

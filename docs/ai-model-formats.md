@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [AI model scan limits](ai-model-scan-limits.md) for why a model
 can be missing metadata, and [Metadata provenance](metadata-provenance.md)
-for the annotations named below.
+for the annotations named below, and [SBOM from a Git URL](git-urls.md#model-files)
+for a model file in a Git repository.
 
 Use this when you want to know which AI model file formats `loom model`
 reads, what each format can hold, what Pitloom takes from it, and where
@@ -32,9 +33,13 @@ targets that scan for models.
 ## How a file is recognised
 
 A file is a model when its header confirms a format. The header check comes
-first, so a file named on the command line is read whatever its suffix (a
-`x.dat` with GGUF magic is GGUF); a project or wheel scan only looks at the
-suffixes below. A header that contradicts the suffix (text named `.gguf`)
+first, so a file named on the command line (`loom model`, `loom generate`,
+`generate()`), or by a Git URL, is read whatever its suffix when its header
+has a magic (a `x.dat` with GGUF magic is GGUF); ONNX, Keras v3, PyTorch,
+PT2 and NumPy `.npz` files have none Pitloom can tell from other files (a
+protobuf, a ZIP, a pickle), so a copy of one named `x.dat` is not recognised: it keeps its
+suffix. A project or wheel scan, and a folder given for its
+one model file, only look at the suffixes below. A header that contradicts the suffix (text named `.gguf`)
 is not a model, and a Git LFS pointer is never one (it is listed as a
 file only); see
 [What is a model](ai-model-scan-limits.md#what-is-a-model).
@@ -45,7 +50,7 @@ file only); see
 | fastText | `.ftz`, `.bin` | magic `BA 16 4F 2F` | whole model, in memory | `fasttext-community` (`fasttext`) |
 | GGUF | `.gguf` | magic `GGUF` | key-value header (memory-mapped) | `gguf` (`gguf`) |
 | HDF5, Keras v1-v2 | `.h5`, `.hdf5` | HDF5 magic, or any non-empty file (a userblock moves the signature) | root attributes | `h5py` (`hdf5`) |
-| Keras v3 | `.keras` | ZIP | `config.json`, `metadata.json` | none |
+| Keras v3 | `.keras` | ZIP | `metadata.json`, `config.json` (architecture, compile settings) and the member list | none |
 | NumPy | `.npy`, `.npz` | `.npy`: magic `\x93NUMPY`; `.npz`: ZIP | array headers | `numpy` (`numpy`) |
 | ONNX | `.onnx` | none: any non-empty file | whole protobuf, in memory; external data files not loaded | `onnx` (`onnx`) |
 | PyTorch classic | `.pt`, `.pth` | ZIP, or pickle protocol 2-5 (a text `.pth` path file is not a model) | archive listing, top of `data.pkl` | `fickling` (`pytorch`), optional: without it, no type of model |
@@ -73,7 +78,7 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 | fastText | -- | -- | -- | -- | Yes [3] | Part [4] | Part [2] | Kept | Kept (loss) | -- |
 | GGUF | Yes | Yes | Yes | Yes [5] | Yes | Part [6] | No | Kept [7] | -- | Kept |
 | HDF5, Keras v1-v2 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | Kept [11] | Kept |
-| Keras v3 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | No [12] | Kept |
+| Keras v3 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | Part [12] | Kept [27] |
 | NumPy | -- | -- | -- | -- | Fixed | -- | No [13] | -- | -- | Kept [13] |
 | ONNX | Part [14] | Yes | Yes [15] | Yes [16] | Part [17] | -- | Yes [17] | -- | -- | Kept [18] |
 | PyTorch classic | -- | -- | -- | -- | Part [19] | No | No | -- | No | Kept [20] |
@@ -125,11 +130,26 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
    annotation (`type` left out for an element code the format does not
    define); its elements are never read.
 8. The Keras class name (`Sequential`, `Functional`, ...).
-9. The scalar entries of the model `config`.
-10. The input shape only (Keras v3 `build_config`; v1-v2 the first layer's
-    `batch_input_shape`). No outputs.
-11. Optimiser class name, loss and metrics names from `training_config`.
-12. `compile_config` is not read.
+9. The scalar entries of the model `config` (Keras v3: all but `name`,
+   `layers` and `dtype`, a dtype policy). The number of layers is kept as
+   `properties` `layer_count`; an `InputLayer` counts as a layer.
+10. The input shape only (Keras v3: an `InputLayer`'s `batch_shape`, else a
+    layer's `build_config.input_shape`, else the model's; v1-v2 the first
+    layer's `batch_input_shape`). No outputs.
+11. From `training_config`: the optimiser's class name, as `properties`
+    `optimizer`; the loss and the metrics as given, as `loss` and `metrics`
+    (a string as is, an object or a list as its canonical JSON text). A
+    `null` or `""` value is left out, and so are empty metrics. A
+    `training_config` that is absent, `null` or `{}` is quiet; one that is
+    not a JSON object (`[]` included) is one `WARNING:`.
+12. `compile_config`: the optimiser (its class name, or the string a model
+    was compiled with), the loss and the metrics, recorded as for
+    `training_config` (note 11). Not read: the optimiser's settings
+    (learning rate, ...), `loss_weights`, `weighted_metrics`, `run_eagerly`,
+    `steps_per_execution`, `jit_compile`. A `compile_config` that is absent,
+    `null` or `{}` is a model not compiled: no warning. Any other value that
+    is not an object (`[]` included) is one `WARNING:`, as for an HDF5
+    `training_config`.
 13. An array is data, not a model input, so there are no inputs. An `.npy`
     file's shape and dtype are kept as `properties` `array_shape` (`2x2`,
     `scalar` for none) and `array_dtype`; an `.npz` archive's array count as
@@ -182,6 +202,19 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     datasets, domains (pipeline tag).
 25. Selected values of `config.json` and `generation_config.json`.
 26. The model card's `model-index` evaluation results, as read.
+27. Properties, as text: `date_saved` (`metadata.json`, as written; it has no
+    time zone, so it is not a release time), `layer_count`, and the member
+    list and count of the ZIP (`archive_contents`, `archive_member_count`).
+    A `config.json` `metadata` object (a description, author, version or
+    licence that some exporters add) is not a Keras field and is not read.
+    No parameter count: it would need the weights member
+    (`model.weights.h5`), which is not opened.
+
+A `.keras` archive member that cannot be read (not valid JSON, its top level
+no object, nested too deeply) is one `WARNING:`
+(`model-field-unreadable`); the other member is still read. A value of the
+wrong type is dropped with one `WARNING:` per part (the metadata, the model
+config, the compile config).
 
 ## Producer and parameter count
 
@@ -404,6 +437,15 @@ are read as `https://huggingface.co/...`, with an `INFO:` line saying so.
 This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
 `ai_AIPackage` as in the tables above.
+
+It never opens a model file of the repository, so it reads no per-file
+metadata and no hash: a repository whose weights are a `.keras` file gets an
+SBOM from its card and configuration files, with no Keras-derived field, no
+format and no file entry. Reading the archive's members over HTTP range
+requests would be a partial download of the file from the Hub's storage hosts,
+which Pitloom does not do. To get a model file's fields, download it and run
+`loom model <file>`; for a model file in a Git repository, give its Git URL
+(see [SBOM from a Git URL](git-urls.md#model-files)).
 
 For each dataset the model card lists (`datasets:`, else the Hub's
 `dataset:*` tags) that is a Hub repository id, Pitloom also reads that

@@ -124,7 +124,7 @@ def _resolve_cfg_version_file_directive(
     return None, None
 
 
-def _resolve_cfg_attr_directive(
+def resolve_attr_directive(
     value: str, project_dir: Path, what: str
 ) -> tuple[str | None, str | None]:
     """Resolve an ``attr:`` directive, read for *what*: each candidate
@@ -186,7 +186,7 @@ def _resolve_cfg_version(
         )
     # _DIRECTIVE_RE only captures "file" or "attr" in this group, so
     # "attr" is the only remaining case.
-    return _resolve_cfg_attr_directive(value, project_dir, "setup.cfg metadata.version")
+    return resolve_attr_directive(value, project_dir, "setup.cfg metadata.version")
 
 
 def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str | None:

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+from contextlib import ExitStack
 from pathlib import Path
 from unittest import mock
 
@@ -31,6 +32,8 @@ from pitloom.core._models_wheel_types import (
     has_uv_build_backend_overrides,
     warn_discovery_failed,
 )
+from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import configure_logging
 
 _MULTI_LINE = "first line\n\n  second line\r\nthird"
@@ -44,7 +47,7 @@ _ONE_LINE = "first line second line third"
         pytest.param(
             "hatchling", "Hatchling", ("hatchling.builders.wheel", "WheelBuilder")
         ),
-        pytest.param("pdm", "PDM", ("pdm.backend.wheel", "WheelBuilder")),
+        pytest.param("pdm", "PDM", ("pitloom.core._models_wheel_pdm", "wheel_builder")),
         pytest.param("poetry", "Poetry", ("poetry.core.factory", "Factory")),
         pytest.param(
             "setuptools",
@@ -53,6 +56,8 @@ _ONE_LINE = "first line second line third"
         ),
     ],
 )
+@pytest.mark.parametrize("clone", [False, True], ids=["local", "clone"])
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_backend_discovery_failure_logs_one_line(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -60,9 +65,12 @@ def test_backend_discovery_failure_logs_one_line(
     module_name: str,
     backend: str,
     raiser: tuple[str, str],
+    clone: bool,
 ) -> None:
     """Every backend discoverer routes its blanket failure through the
-    shared helper, which collapses a multi-line exception to one line."""
+    shared helper, which collapses a multi-line exception to one line; in
+    a Git URL's clone it says the exception's type alone, as its text can
+    quote a file the backend read."""
     module = importlib.import_module(f"pitloom.core._models_wheel_{module_name}")
 
     def fail(*args: object, **kwargs: object) -> None:
@@ -73,13 +81,30 @@ def test_backend_discovery_failure_logs_one_line(
     spy = mock.create_autospec(warn_discovery_failed, side_effect=warn_discovery_failed)
     monkeypatch.setattr(module, "warn_discovery_failed", spy)
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING), ExitStack() as stack:
+        if clone:
+            stack.enter_context(reading_remote_clone(str(tmp_path)))
         assert module.discover(tmp_path) is None
 
     spy.assert_called_once()
+    said = (
+        "RuntimeError (text not shown for a downloaded repository)"
+        if clone
+        else _ONE_LINE
+    )
     assert [r.getMessage() for r in caplog.records] == [
-        f"{backend} file discovery failed for '{tmp_path}': {_ONE_LINE}"
+        f"{backend} file discovery failed for '{tmp_path}': {said}"
     ]
+
+
+def test_pitloom_own_failure_text_is_said_in_a_clone(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING), reading_remote_clone(str(tmp_path)):
+        warn_discovery_failed(
+            logging.getLogger("pitloom.t"), "X", tmp_path, InternalError("mine")
+        )
+    assert caplog.records[0].getMessage().endswith(": mine")
 
 
 def test_real_hatchling_failure_is_one_tagged_stderr_line(

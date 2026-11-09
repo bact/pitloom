@@ -15,14 +15,48 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
+from pitloom.core._models_wheel_clone import LeftOut
+from pitloom.core._models_wheel_guard import discovery_deadline
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.clone_mark import in_remote_clone
 
 log = logging.getLogger(__name__)
+
+
+def _confine(package: Any, project_dir: Path) -> None:
+    """Leave out of the clone's poetry-core *package*, before anything walks
+    them, the ``packages`` whose ``from`` or ``include`` and the
+    ``include`` and ``exclude`` entries that reach out of the clone or into
+    its ``.git``, each named as written in one ``WARNING:``
+    (:class:`~pitloom.core._models_wheel_clone.LeftOut`)."""
+    left = LeftOut(project_dir)
+    package.packages = [
+        item for item in package.packages if not _package_outside(item, left)
+    ]
+    package.include = [
+        item
+        for item in package.include
+        if not left.pattern_outside(str(item.get("path", "")))
+    ]
+    package.exclude = left.kept([str(e) for e in package.exclude], left.pattern_outside)
+    left.warn("pyproject.toml")
+
+
+def _package_outside(item: dict[str, Any], left: LeftOut) -> bool:
+    """Whether the ``packages`` entry *item* reads out of the clone or in
+    its ``.git``: by its ``from`` folder, else by its ``include``."""
+    source = item.get("from")
+    if source is not None and (
+        left.pattern_outside(str(source)) or left.outside(str(source))
+    ):
+        return True
+    return left.pattern_outside(str(item.get("include", "")))
 
 
 def discover(
@@ -65,17 +99,20 @@ def discover(
     from poetry.core.masonry.builders.wheel import WheelBuilder
 
     try:
-        poetry_project = Factory().create_poetry(project_dir)
-        builder = WheelBuilder(poetry_project)
-        return [
-            IncludedFile(
-                path=str(included_file.path),
-                distribution_path=to_posix_distribution_path(
-                    str(included_file.relative_to_target_root())
-                ),
-            )
-            for included_file in builder.find_files_to_add()
-        ]
+        with discovery_deadline(project_dir):
+            poetry_project = Factory().create_poetry(project_dir)
+            if in_remote_clone():
+                _confine(poetry_project.package, project_dir)
+            builder = WheelBuilder(poetry_project)
+            return [
+                IncludedFile(
+                    path=str(included_file.path),
+                    distribution_path=to_posix_distribution_path(
+                        str(included_file.relative_to_target_root())
+                    ),
+                )
+                for included_file in builder.find_files_to_add()
+            ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         warn_discovery_failed(log, "Poetry", project_dir, exc)

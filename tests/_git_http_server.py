@@ -23,7 +23,7 @@ import os
 import shutil
 import subprocess
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
@@ -71,10 +71,14 @@ def git(cwd: Path, *args: str) -> str:
 
 
 def make_repo(
-    root: Path, name: str, files: dict[str, dict[str, str]], default: str = "main"
+    root: Path,
+    name: str,
+    files: Mapping[str, Mapping[str, str | bytes]],
+    default: str = "main",
 ) -> Path:
     """The bare repository ``<root>/<name>.git`` holding one commit per branch
-    of *files* (branch -> path -> content), with *default* as its HEAD."""
+    of *files* (branch -> path -> content, text or bytes), with *default* as
+    its HEAD."""
     bare = root / f"{name}.git"
     bare.parent.mkdir(parents=True, exist_ok=True)
     work = root / f".work-{name.replace('/', '-')}"
@@ -86,7 +90,10 @@ def make_repo(
         for rel, content in tree.items():
             target = work / rel
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            if isinstance(content, bytes):
+                target.write_bytes(content)
+            else:
+                target.write_text(content, encoding="utf-8")
         git(work, "add", ".")
         git(work, "commit", "-q", "-m", f"{branch}")
     subprocess.run(

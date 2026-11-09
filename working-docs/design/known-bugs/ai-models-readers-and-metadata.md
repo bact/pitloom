@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,9 +115,6 @@ history.
   longer in the capped `properties`. Harmless (the field name is a pointer
   into the file, not the SBOM); decide whether the cap keeps keys that
   other fields cite.
-- [ ] **Keras v3 does not read `compile_config` (S).** The HDF5/Keras v1-v2
-  reader takes optimizer, loss and metrics from `training_config`; the v3
-  reader (`keras.py`) reads `config` and `build_config` only.
 - [ ] **PT2 / ExecuTorch reader never sets `type_of_model` (S).** No
   `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
 - [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
@@ -140,10 +137,12 @@ history.
   base model, not this one) is a name candidate; prefer `ss_output_name`.
   Framework is the raw `format` value `pt`, not `pytorch`.
 - [ ] **Keras `layer_count` counts `InputLayer` (S, needs a decision).**
-  `len(layers)` in `hdf5_config.py`; a Sequential with an `InputLayer` and one
-  `Dense` gives 2. Keras 3 and a Sequential's `model.layers` leave the
-  `InputLayer` out, but a Keras 2 functional model counts it. Pick the rule;
-  `test_hdf5_hostile_attrs.py` pins the current count and must flip.
+  `len(layers)` in `hdf5_config.py`, shared by the Keras v3 reader since
+  2026-11-09 (the fixture's `Sequential` of `InputLayer`, two `Dense` gives 3).
+  Keras 3 and a Sequential's `model.layers` leave the `InputLayer` out, but a
+  Keras 2 functional model counts it. Pick the rule for both readers;
+  `test_hdf5_hostile_attrs.py` and `test_keras_config.py` pin the current
+  count and must flip.
 - [ ] **Type of model holds a class or training mode (S).** PyTorch
   `OrderedDict` (a state dict) and fastText `supervised`/`cbow`/`skipgram`
   reach `ai_typeOfModel`; neither is a model type. Map or drop.
@@ -159,20 +158,11 @@ history.
   `.crfsuite` or `.onnx` exits 0 with a `WARNING:`; an empty `.model`
   exits 1 with `ERROR: ... not an AI model file`. The ONNX warning repeats
   itself: `failed to extract metadata; Failed to load ONNX model from <path>`.
-- [ ] **Keras v3 `config.json` is parsed apart from Keras v1/v2 (S).** Found
-  in the #294 review. A non-string `class_name` or `config.name` is fixed by
-  #426 (the field is skipped with one `WARNING:`). Open: `keras.py` has its
-  own `_parse_model_config`; share `hdf5_config.parse_model_config` between
-  Keras v1/v2 and v3, since v3 also omits `InputLayer` `batch_shape` inputs,
-  `layer_count` and the `model_name` fallback, and drops `dtype` from
-  hyperparameters, unlike HDF5. Add a drift-guard test over one model in both
-  formats.
 - [ ] **Model metadata spellings differ across readers (S).** Found in the
   #294 review: counts are `num_labels`/`num_features` in CRFsuite and
   fastText but `GGUF.tensor_count`, `layer_count` and
   `archive_member_count` elsewhere; `type_of_model` mixes class names,
-  training modes and families (see the type-of-model entry above); a
-  non-string Keras v3 `date_saved` lands in properties as an integer.
+  training modes and families (see the type-of-model entry above).
 - [ ] **CRFsuite description ambiguity (low).** Labels joined by `", "`
   (a label may contain it or a newline); `backslashreplace` `\xff` looks
   like a real 4-character label.
@@ -184,6 +174,39 @@ history.
 - [ ] **`_loom_model.py` names the provenance document `declared.name or
   "model"` (low; was `_loom_active_run.py:185`).** Not in this diff; check it
   against the name cascade.
+
+- [ ] **A Hub model gets no per-file format or hash (M).** The Hugging Face
+  route reads the card, `model_info`, config JSON files and licence files and
+  never opens a model file, so a repository whose weights are a `.keras` file
+  has no Keras-derived field, no format, no file entry and no hash. A range read
+  of the archive's two JSON members was evaluated and not built (decision D10,
+  2026-11-09): see
+  [hub-model-file-range-read.md](../hub-model-file-range-read.md). Documented in
+  `docs/ai-model-formats.md`. Workaround: download the file, `loom model`.
+- [ ] **`pytorch_model.bin` is never recognised as a model (S).** `.bin` is a
+  shared suffix and a classic PyTorch checkpoint has no magic, so the file is a
+  model only when it carries fastText's magic. Hugging Face repositories name
+  PyTorch weights this way. A header check would have to tell a pickle or ZIP
+  from any other `.bin`.
+- [ ] **A Keras v3 archive named `.zip` is never recognised (S).** `.zip` is a
+  candidate suffix, but nothing confirms a Keras archive without `.keras`; the
+  same holds for a copy of an ONNX, Keras, PyTorch or PT2 file renamed to
+  `x.dat` (`NEEDS_SUFFIX` in `tests/_model_fixtures.py`). By design for now:
+  the header alone does not confirm them.
+- [ ] **A repository root whose models are only in subfolders gives
+  `project-or-model-not-found` (S).** Folder discovery is non-recursive, by
+  decision (D4), so `loom generate <repo>` on a repository that keeps its
+  models under `models/` fails and the user names the folder or the file.
+  Recursive discovery needs a cap, an order and a rule for several models.
+- [ ] **`shown` is wrapped in `Path` for a refusal on one route (low).**
+  `refuse_not_a_model` builds `Path(shown)` for `refusal_error`, so on Windows
+  a path in a repository (`models/m.gguf`) prints with backslashes in that one
+  error, where every other message prints it with `/`. Pass the string through.
+- [ ] **A Git model SBOM does not record where the file came from (S).**
+  The SBOM names the file by its own name and hash; the URL, ref and commit
+  are not in it (no temporary path, by design), and `GitCheckout.commit` is
+  not passed on. Origin provenance for a Git-sourced package is also open for
+  projects.
 
 ### Found in review rounds, not yet prioritised
 
@@ -200,22 +223,14 @@ history.
   `read_model_candidate`; decide whether the readers should return escaped
   text.
   *Found 2026-11-03, review of the merges #426 to #429.*
-- [ ] **A Keras `training_config` with a lone surrogate fails the whole read
-  (S).** A lone surrogate (`"\ud800"`, which `json.loads` accepts) in a nested
-  list, an object, an object key or a top-level list of `training_config`
-  makes RFC 8785 raise `ValueError`; `_record_json_value`
-  (`extract/ai_model/hdf5_config.py`) catches only `RecursionError`, so the
-  read ends as `model-unreadable` and the model's other fields are lost. Same
-  on 0.22.0. Fix as #433 did for PT2 `extra/tags`: on `ValueError`, retry on a
-  copy escaped with `escape_lone_surrogates_in`.
-  *Found 2026-11-03, review of the 0.22.1 release.*
 - [ ] **A PT2 tag nested about 330 levels or more that holds a lone surrogate
   fails the read (S).** `_tag_text` (`extract/ai_model/pytorch_pt2.py`, new in
   #433) escapes the surrogate on `copy.deepcopy(tag)` with the recursive
   `escape_lone_surrogates_in`; past the recursion limit that raises
   `RecursionError`, which nothing catches, so the model is unreadable.
   Hostile input only. A loop-based escape (an explicit stack) would fix it and
-  could serve the Keras entry above too.
+  could serve the Keras training-config collections too (they now escape the
+  same way and report a collection too deep to copy as unreadable).
   *Found 2026-11-03, review of the 0.22.1 release.*
 - [ ] **A collection nested over 32 levels that holds a lone surrogate shows
   as `<nested over 32 levels>` (low).** `_collection_text`
@@ -224,12 +239,104 @@ history.
   surrogate escaped. Display text only; the same fallback as "Deep metadata
   text depends on call-stack depth" above.
   *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **A text file starting with `GGUF` is treated as a model by content (S).**
+  A file named on its own is a model when its header has a magic, so
+  `generate notes.txt` on text that begins `GGUF` is read as GGUF and fails or
+  gives a thin entry. By design for the content rule; decide whether a
+  non-model suffix should need more than four bytes.
+  *Found 2026-11-09, review of #464.*
+- [ ] **The Azure DevOps `path=` value is decoded twice (S).** A folder whose
+  name really contains `%` (`a%20b`) is mangled in the folder the URL names.
+  *Found 2026-11-09, review of #464.*
+- [ ] **The `git.url-invalid` ERROR carries no catalogue code (S).** `Invalid
+  path in URL` is a plain `RemoteSourceError` text, so a skill sees no
+  `[code]`. Add a catalogued message when the `git.*` family is catalogued.
+  *Found 2026-11-09, review of #464.*
+- [ ] **One readable and one unreadable model file in a folder picks the
+  readable one (S).** The ambiguity check is suppressed on an access failure,
+  so `model-ambiguous` is not raised; the unreadable file is silently not the
+  model.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`has_project_config` and `subproject_hint` disagree on case (low).**
+  The first uses `os.path.exists` (case-insensitive on macOS and Windows), the
+  second exact names, so `Pyproject.toml` is a project in one and not the other
+  there.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`core/_models_wheel.py` is 501 lines (low).** Over the soft limit; split
+  a cohesive part out (the clone helpers are already in
+  `_models_wheel_clone.py`).
+  *Found 2026-11-09, review of #464.*
 
 ## Fixed
 
 Kept for history, with the PR. A fixed entry moves to
 [roadmap-completed.md](../../implementation/roadmap-completed.md) once its
 release ships.
+
+### Fixed, P3: 0.23.4
+
+- [x] **A Git project's build file list read host files (S, security).**
+  Fixed by #464 (`drop_outside_clone` in `core/_models_wheel_clone.py`, inside
+  a clone): a build file list entry outside the repository root (a Hatchling
+  `force-include` with an absolute or `../` path) is dropped with one
+  `file-unreadable/outside-repository` `WARNING:`, before the model scan, the
+  hash and the licence-header read can open it. Symbolic links were already
+  dropped by `_drop_outside_links` (`extract/remote/git.py`); the vector was
+  the build backend's file list, not a link. A local project is unchanged.
+  (Was: `project_candidates`, the header sniff, the pointer probe and the hash
+  opened `project_dir / physical_path`, so such a host file was hashed, and
+  its licence header text copied into the SBOM.)
+- [x] **A cloned repository's own code ran while its files were listed (M,
+  security).** Fixed by #464 (`core/_models_wheel_clone.py`,
+  `_models_wheel_hatchling.py`, `_models_wheel_pdm.py`,
+  `_models_wheel_setuptools_clone.py`): in a clone the settings that make
+  listing the wheel's files run the repository's Python are dropped before
+  discovery, with one `config-unsafe/build-code` `WARNING:`. Vectors closed:
+  Hatchling metadata hooks (`pyproject.toml` and `hatch.toml`, a `custom` hook
+  and `path`), setuptools `cmdclass` and an `attr:` version (pyproject or
+  setup.cfg) that cannot be read statically, PDM `pdm_build.py`, `custom-hook`
+  and `run-setuptools`. Checked not to run repository code: Hatchling build
+  hooks, `version source=code` alone, PDM `source=call`, a Flit dynamic
+  version, a literal `attr`, `setup.py` (AST only), a Poetry build script,
+  in-tree backends. A local project is unchanged (it runs its own hooks, as a
+  build would). The same change: `fetch_git_project` confines reads by
+  default; an outside entry (Hatchling `force-include`, setuptools
+  `package-dir`, `packages.find.where`, `package-data`) is dropped before
+  discovery, so the host directory is not walked (this closes "Hatchling
+  discovery lists names under a host directory named by `force-include`") and
+  is named as written; `.git` is never listed from a clone and a `.git` part of
+  a Git URL is refused.
+- [x] **Native-library readers still ran on models of a Git *project* SBOM
+  (S-M, security).** Fixed by #464: `scan_project_for_ai_models` builds
+  `remote_reader_gate()` (in `scanner_project`), which is the
+  `reader-unsafe/remote` gate inside `GitCheckout.reading()` and `None`
+  elsewhere, so a fastText, GGUF, HDF5, ONNX or PyTorch file in a Git
+  project's build file list is a format-only entry with one `INFO:` per
+  SBOM, on `generate_git_sbom`, `generate_git_project_sbom`, `generate()`
+  and `loom project`/`loom generate <url>`. A local project, the Hatchling
+  hook and `embed-wheel` stay ungated. (Was: the gate covered the
+  `read_model_file` route only; a hostile `.h5` or `.onnx` the build backend
+  listed reached h5py or onnx.)
+- [x] **Keras v3 did not read `compile_config`, and parsed `config.json` apart
+  from Keras v1/v2 (S).** Fixed by #464: `keras_config.py` shares the model
+  config parser with HDF5 (`parse_model_config_object`) and reads
+  `compile_config` with `keras_training_config.py` (optimizer as a class name
+  or a string, loss, metrics), so the Keras v3 reader gives the
+  `model_name` fallback, the `InputLayer` `batch_shape` input, `layer_count`
+  and `dtype` left out of the hyperparameters, as the HDF5 reader does; it adds
+  `date_saved` and the ZIP member list. An unreadable member warns and the
+  other is still read. (Was: `keras.py` had its own `_parse_model_config`;
+  `compile_config` was ignored.)
+- [x] **A Keras `training_config` with a lone surrogate failed the whole read
+  (S).** Fixed by #464: `keras_training_config._collection_text` retries on a
+  copy escaped with `escape_lone_surrogates_in` when RFC 8785 raises
+  `ValueError`, for HDF5 `training_config` and Keras v3 `compile_config`
+  alike. (Was: `_record_json_value` caught only `RecursionError`, so the read
+  ended as `model-unreadable` and the other fields were lost.)
+- [x] **A non-string Keras v3 `date_saved` landed in properties as an integer
+  (S).** Fixed by #464: a `metadata.json` value that is not a string is
+  dropped with one `WARNING:` (`model-field-unreadable`). (Was: recorded as
+  read.)
 
 ### Fixed, P2: 0.21.0 and later
 

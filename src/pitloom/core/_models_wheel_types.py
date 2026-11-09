@@ -19,7 +19,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
 
@@ -42,17 +44,43 @@ AGENTS.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
 _DISCOVERY_FAILURE = threading.local()
 
 
+class DiscoveryTimeoutError(Exception):
+    """A file discovery in a Git URL's clone took longer than its cap
+    (:func:`pitloom.core._models_wheel_guard.discovery_deadline`), which
+    already said so; *pitloom_code* is that warning's code."""
+
+    def __init__(self, seconds: float, *, pitloom_code: str) -> None:
+        super().__init__(f"file discovery stopped after {seconds:g} seconds")
+        self.pitloom_code = pitloom_code
+
+
+def discovery_failure_text(exc: BaseException) -> str:
+    """What a ``WARNING:`` says of *exc*, a file discovery's failure: its
+    text, on one line; in a Git URL's clone its type alone, as a backend's
+    text can quote a file it read (a ``.git/config``, a host file a setting
+    names), unless Pitloom wrote it (an
+    :class:`~pitloom.core.internal_error.InternalError`)."""
+    if not in_remote_clone() or isinstance(exc, InternalError):
+        return one_line(exc)
+    return f"{type(exc).__name__} (text not shown for a downloaded repository)"
+
+
 def warn_discovery_failed(
     log: logging.Logger, backend: str, project_dir: Path, exc: Exception
 ) -> None:
     """Log the one-line ``WARNING:`` for a backend discoverer whose own file
     discovery raised, just before it returns ``None`` (the caller then
-    falls back). *backend* is the display name, e.g. ``"Hatchling"``."""
+    falls back), saying *exc* as :func:`discovery_failure_text` does; none
+    for a :class:`DiscoveryTimeoutError`, already said. *backend* is the
+    display name, e.g. ``"Hatchling"``."""
+    if isinstance(exc, DiscoveryTimeoutError):
+        mark_discovery_failed()
+        return
     log.warning(
         "%s file discovery failed for %s: %s",
         backend,
         quote_source(project_dir),
-        one_line(exc),
+        discovery_failure_text(exc),
     )
     mark_discovery_failed()
 

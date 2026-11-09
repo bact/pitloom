@@ -19,13 +19,17 @@ See also:
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
-from pitloom.assemble._generators_git import generate_git_project_sbom
+from pitloom.assemble._generators_git import (
+    generate_git_project_sbom,
+    generate_git_sbom,
+)
 from pitloom.assemble._generators_merge import generate_merged_sbom
 from pitloom.assemble._generators_wheel import (
     generate_wheel_sbom,
@@ -37,7 +41,6 @@ from pitloom.assemble._model_generator import (
     project_document_id,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
-from pitloom.core.ai_metadata import model_file_suffixes
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
@@ -54,6 +57,7 @@ from pitloom.core.inert_options import (
     forward_options,
     project_target_kind,
 )
+from pitloom.core.project_markers import has_project_config
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import (
@@ -65,10 +69,11 @@ from pitloom.embed import (
     embed_wheel_sbom,
     find_embedded_sbom,
 )
+from pitloom.extract.model_target import AUTO, is_model_file_target, resolve_sbom_target
 from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
-    is_unsupported_remote_url,
+    is_unfetchable_remote,
 )
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -89,6 +94,7 @@ __all__ = [
     "generate",
     "generate_env_sbom",
     "generate_git_project_sbom",
+    "generate_git_sbom",
     "generate_merged_sbom",
     "generate_model_sbom",
     "generate_project_sbom",
@@ -100,16 +106,18 @@ __all__ = [
     "target_resolves_to_project",
 ]
 
-_MODEL_FILE_EXTENSIONS = tuple(sorted(model_file_suffixes()))
-
 
 def _classify_target(target: Path | str) -> str:
     """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``, ``"git"`` (a
-    remote Git repository URL), ``"model_file"``, or ``"project"`` (plain
-    directory or sdist archive).
+    remote Git repository URL), ``"model_file"`` (a model by its suffix or
+    content: :func:`~pitloom.extract.model_target.is_model_file_target`),
+    ``"model_folder"`` (a directory with no project config, read for its one
+    model file), or ``"project"`` (a project directory, an sdist archive, or
+    a path that does not exist).
 
     The one classification behind :func:`generate`'s dispatch,
     :func:`target_is_git_url` and :func:`target_resolves_to_project`.
+    Silent: a CLI run asks it more than once.
     """
     target_str = str(target).strip()
     if target_str.lower() in ("env", "environment", "--env"):
@@ -118,15 +126,18 @@ def _classify_target(target: Path | str) -> str:
         return "wheel"
     if is_huggingface_source(target_str):
         return "hf"
-    if is_git_url(target_str) or (
-        is_unsupported_remote_url(target_str) and not Path(target_str).exists()
-    ):
+    if is_git_url(target_str) or is_unfetchable_remote(target_str):
         return "git"
-    target_path = Path(target_str)
-    if target_path.is_file() and target_path.name.lower().endswith(
-        _MODEL_FILE_EXTENSIONS
-    ):
+    return _local_kind(target_str)
+
+
+def _local_kind(target: str) -> str:
+    """``"model_file"``, ``"model_folder"`` or ``"project"`` for the local
+    path *target* (see :func:`_classify_target`)."""
+    if is_model_file_target(target):
         return "model_file"
+    if os.path.isdir(target) and not has_project_config(target):
+        return "model_folder"
     return "project"
 
 
@@ -134,7 +145,7 @@ def target_is_git_url(target: Path | str) -> bool:
     """Return whether :func:`generate` reads *target* as the URL of a remote
     Git repository (or of one of its web pages), which
     ``pitloom.cli.commands.generate._run_generate_command`` routes to the
-    same code path as ``loom project <url>``."""
+    code path ``loom project <url>`` and ``loom model <url>`` share."""
     return _classify_target(target) == "git"
 
 
@@ -142,13 +153,30 @@ def target_resolves_to_project(target: Path | str) -> bool:
     """Return whether :func:`generate`'s dispatch reaches
     :func:`~pitloom.assemble._generators.generate_project_sbom` (a plain
     project directory or sdist archive) for *target*, rather than the
-    env/wheel/Hugging-Face/model-file branches.
+    env/wheel/Hugging-Face/model-file branches. A directory with no project
+    config is no project: it is read for its one model file.
 
     ``pitloom.cli.commands.generate._run_generate_command`` calls it to
     route a project target through the same code path as ``loom project``
     and every other target through :func:`generate`.
     """
     return _classify_target(target) == "project"
+
+
+def _model_file_of(target: str) -> Path:
+    """The model file *target* names, or for a folder with no project its
+    one model file (:func:`~pitloom.extract.model_target.resolve_sbom_target`).
+
+    Raises:
+        pitloom.messages.CodedValueError: The folder holds no model file
+            (``project-or-model-not-found``), or several.
+    """
+    if not os.path.isdir(target):
+        return Path(target)
+    found = resolve_sbom_target(target, subject=target, mode=AUTO)
+    # A project config made since the folder was classified: the model
+    # generator reads the folder for its model file all the same.
+    return Path(target) if found.model is None else found.model.path
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
@@ -192,10 +220,13 @@ def generate(
     raises ``ValueError`` whatever the target.
 
     A target that is the ``http`` or ``https`` URL of a Git repository (or of
-    one of its web pages) is fetched and read as a project
-    (:func:`generate_git_project_sbom`); *check_url* is its address policy,
+    one of its web pages) is fetched and read as a project, or as the model
+    file it names or its folder's one model file
+    (:func:`generate_git_sbom`); *check_url* is its address policy,
     called with every redirect target before it is requested, and no other
-    target uses it.
+    target uses it. A local directory with no project config is read for its
+    one model file; one with no model file either is refused
+    (``project-or-model-not-found``).
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -249,15 +280,16 @@ def generate(
             target_str,
             **forward_options(HF, target_str, generate_model_sbom, options),
         )
-    if classification == "model_file":
-        return generate_model_sbom(
-            Path(target_str),
-            **forward_options(MODEL_FILE, target_str, generate_model_sbom, options),
+    if classification in ("model_file", "model_folder"):
+        forwarded = forward_options(
+            MODEL_FILE, target_str, generate_model_sbom, options
         )
+        return generate_model_sbom(_model_file_of(target_str), **forwarded)
     if classification == "git":
-        return generate_git_project_sbom(
+        return generate_git_sbom(
             target_str,
-            **forward_options(GIT, target_str, generate_git_project_sbom, options),
+            sbom_kind=AUTO,
+            **forward_options(GIT, target_str, generate_git_sbom, options),
             build_options=build_options,
             check_url=check_url,
         )

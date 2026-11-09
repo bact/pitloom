@@ -81,7 +81,7 @@ names, no id, or deferred assumed readings).
 
 | Area | Change |
 | - | - |
-| `pyproject.toml` | pin `licenseid` (now `>=0.8.2,<0.9`); move `py-spdx-license` from dependencies to the test group |
+| `pyproject.toml` | pin `licenseid` (now `>=0.8.4,<0.9`); move `py-spdx-license` from dependencies to the test group |
 | `extract/_license_classify.py` (479 lines) | `_classify` = early exits (surrogates, `NOASSERTION`, `NONE`, `UNKNOWN`, several lines, over 200 characters) then `resolve()`. Delete about 250 lines: `_strict_parse`, `_canonical_string`, `_gap_term`, `_gap_expression`, `_GAP_*`, `_successor_id`, `with_successor_ids`, `_replace_deprecated`, `_DEPRECATED_SUCCESSORS`, `_looks_like_expression`, `_parse_locally`, `_ambiguous_deprecated_ids`, the py-spdx-license imports |
 | `is_listed_name`, `same_licence`, `tag_deprecated_license_ids` | use the `listed_name` category and `operands[*].candidates`, not `get_spdx_license` |
 | `extract/_license_resolve.py` (151) | accept `prose_form`, `trove_name`, `assumed_only`, `deprecated_ambiguous`; drop `expression`; delete `_FOLDABLE` (LicenseID refuses the dropped-character cases itself); notes from `operands`/`reason` |

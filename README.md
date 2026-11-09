@@ -89,6 +89,7 @@ loom env -o env.spdx3.json                     # Deployed SBOM of the installed 
 loom model path/to/model.safetensors           # Analyzed SBOM of one AI model file
 loom model Qwen/Qwen3-235B-A22B                # ... or a Hugging Face Hub model (needs pitloom[huggingface_hub])
 loom project https://gitlab.com/group/project  # a Git repository or page URL (needs git)
+loom model https://github.com/org/repo/blob/main/m.keras  # a model file or folder in a Git repository
 loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
 ```
 
@@ -99,8 +100,9 @@ other backends fall back to a heuristic with a `WARNING:`.
 Lock files (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
 `Pipfile.lock`, pinned `requirements.txt`) are read automatically;
 opt out with `--no-use-lockfile`.
-Local AI model formats: GGUF, ONNX, Safetensors,
-PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy, fastText, CRFsuite.
+AI model formats: GGUF, ONNX, Safetensors,
+PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy, fastText, CRFsuite; a
+file, a folder holding one model, or a Git URL of either.
 
 AI-model gaps (licence, datasets) can be filled from a README or model card's
 YAML frontmatter, opt in with `--enrich`, or standalone as a mergeable

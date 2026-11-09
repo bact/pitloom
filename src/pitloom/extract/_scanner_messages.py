@@ -132,13 +132,14 @@ def _say_library(
 
 def say_not_a_model(
     log: logging.Logger, refusal: NotAModel, candidate: ModelCandidate
-) -> None:
+) -> bool:
     """The line on *log* for a file whose header contradicts its model
     suffix (``model-wrong-format``, naming the format the suffix names), or
     is a Git LFS pointer: a whole, valid one is said once for the run (the
-    document build), so here only with ``--debug``; an opening whose rest
+    caller's summary), so here only with ``--debug``; an opening whose rest
     does not parse is a defect (``lfs-pointer-malformed``). A pointer named
-    ``x.bin`` has no format to name."""
+    ``x.bin`` has no format to name. Returns whether the file is a whole,
+    valid pointer."""
     where, fmt = candidate.physical_path, refusal.model_format
     if refusal.reason != LFS_POINTER_REASON:
         emit(log, MODEL_WRONG_FORMAT, _WARNING, format=fmt, file=where)
@@ -150,7 +151,9 @@ def say_not_a_model(
             loggable(where),
             refusal.reason,
         )
+        return True
     elif fmt is None:
         emit(log, LFS_POINTER_MALFORMED, _WARNING, file=where)
     else:
         emit(log, LFS_POINTER_MALFORMED, _WARNING, format=fmt, file=where)
+    return False

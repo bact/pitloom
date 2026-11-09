@@ -24,9 +24,9 @@ from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
+from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +41,10 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     model_path: Path = given_path.resolve()
     opened_path = existing_model_path(given_path)
     if opened_path is None:
-        print_error(f"model file not found: {quote_source(model_path)}")
+        print_error(
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": model_path}),
+            code=INPUT_NOT_FOUND.code,
+        )
         return 1
 
     # Only an explicitly named config applies: a pyproject.toml near the

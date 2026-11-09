@@ -5,6 +5,10 @@
 
 """Project-directory producer for the AI model scanner.
 
+In a Git URL's temporary clone the formats a wheel scan does not read
+either are listed without metadata (:func:`remote_reader_gate`); a local
+project, the Hatchling hook and ``embed-wheel`` read every format.
+
 See also: :mod:`pitloom.extract.scanner`.
 """
 
@@ -17,10 +21,32 @@ from pathlib import Path
 from typing import IO
 
 from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
-from pitloom.extract.scanner import ModelCandidate, UsageSource, scan_ai_models
+from pitloom.extract.scanner import (
+    ModelCandidate,
+    ReaderGate,
+    UsageSource,
+    scan_ai_models,
+)
+from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
+from pitloom.messages import READER_UNSAFE_REMOTE
+
+
+def remote_reader_gate() -> ReaderGate | None:
+    """The gate of model files read from a Git URL's temporary clone
+    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`), on the model
+    route and the project route alike: the formats a wheel scan does not
+    read either are listed without metadata, and
+    :meth:`~pitloom.extract.scanner.ReaderGate.report` says
+    ``reader-unsafe/remote``; ``None`` (every format read) elsewhere."""
+    if not in_remote_clone():
+        return None
+    return ReaderGate(
+        WHEEL_GATED_FORMATS, lambda _fmt: True, message=READER_UNSAFE_REMOTE
+    )
 
 
 def _stable_path(pf: ProjectFile) -> str:
@@ -59,26 +85,36 @@ def _opener(path: Path) -> Callable[[], AbstractContextManager[IO[bytes]]]:
     return _open
 
 
-def local_model_candidate(path: Path) -> ModelCandidate:
+def local_model_candidate(
+    path: Path, *, shown: str | None = None, gate: ReaderGate | None = None
+) -> ModelCandidate:
     """A single local model file as a :class:`ModelCandidate`, for the
-    surfaces that name one file (``loom model``, ``loom enrich``): the one
-    read rule of a scan, with *path* as given for the physical path, its name as
-    the distribution path, and no gate. The scan's suffix filter
+    surfaces that name one file (``loom model``, ``loom enrich``) and a
+    folder's files (:mod:`pitloom.extract.model_target`): the one read rule
+    of a scan, with *shown* (default: *path* as given) for the physical
+    path, its name as the distribution path, and *gate* (none: every
+    format read). The scan's suffix filter
     (:func:`~pitloom.extract.scanner.is_model_candidate_name`) is not applied:
     a file named explicitly is read by its content."""
     return ModelCandidate(
         distribution_path=path.name,
-        physical_path=str(path),
+        physical_path=str(path) if shown is None else shown,
         sniff=_sniffer(path),
         materialize=_materializer(path),
         read_path=path,
+        gate=gate,
+        pointer=_pointer_reader(path),
     )
 
 
 def project_candidates(
-    project_dir: Path, files: Iterable[ProjectFile]
+    project_dir: Path,
+    files: Iterable[ProjectFile],
+    *,
+    gate: ReaderGate | None = None,
 ) -> Iterator[ModelCandidate]:
-    """One :class:`ModelCandidate` per file, in *files* order."""
+    """One :class:`ModelCandidate` per file, in *files* order, each under
+    *gate* (none: every format read)."""
     for pf in files:
         # An absolute physical_path (--allow-build) drops project_dir here.
         path = project_dir / pf.physical_path
@@ -88,6 +124,7 @@ def project_candidates(
             sniff=_sniffer(path),
             materialize=_materializer(path),
             read_path=path,
+            gate=gate,
             pointer=_pointer_reader(path),
         )
 
@@ -117,12 +154,20 @@ def scan_project_for_ai_models(
     *usage_hint* is asked before the one-line ``INFO:`` naming the setting (see
     :func:`pitloom.extract.scanner.scan_ai_models`).
 
+    In a Git URL's temporary clone the formats of :func:`remote_reader_gate`
+    are listed without metadata, said in one ``INFO:`` after a scan that
+    succeeded (a failed one writes no SBOM for the line to describe).
+
     Models come back sorted; see
     :func:`pitloom.extract.scanner.discover_ai_models`.
     """
-    return scan_ai_models(
-        project_candidates(project_dir, files),
+    gate = remote_reader_gate()
+    models = scan_ai_models(
+        project_candidates(project_dir, files, gate=gate),
         project_sources(project_dir, files),
         scan_usage=scan_usage,
         usage_hint=usage_hint,
     )
+    if gate is not None:
+        gate.report()
+    return models

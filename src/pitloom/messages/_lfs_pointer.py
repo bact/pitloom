@@ -31,21 +31,28 @@ LFS_CLONE_LINE: Final = Line(
     "clone with git lfs, then run on the directory",
 )
 
+#: A model file named on its own that is a whole pointer, in a checkout.
+LFS_PULL_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="%(path)s: header is a Git LFS pointer, content not pulled "
+    "(oid sha256:%(oid)s, size %(size)s); run 'git lfs pull'",
+)
+#: A model file named on its own that is a whole pointer, in a Git URL's
+#: temporary clone.
+LFS_CLONE_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="%(path)s: header is a Git LFS pointer, content not fetched "
+    "(oid sha256:%(oid)s, size %(size)s); clone with git lfs, then run on "
+    "the file",
+)
+
 #: Pointers left by a checkout made without Git LFS, or a model file named on
 #: its own that is a whole pointer. The code equals the evidence reason
 #: ``lfs-pointer`` (:data:`pitloom.core.evidence.REASON_CODES`).
 LFS_POINTER: Final = Message(
     code="lfs-pointer",
     condition="lfs-pointer",
-    lines=(
-        LFS_PULL_LINE,
-        LFS_CLONE_LINE,
-        Line(
-            level="ERROR",
-            template="%(path)s: header is a Git LFS pointer, content not pulled "
-            "(oid sha256:%(oid)s, size %(size)s); run 'git lfs pull'",
-        ),
-    ),
+    lines=(LFS_PULL_LINE, LFS_CLONE_LINE, LFS_PULL_ERROR_LINE, LFS_CLONE_ERROR_LINE),
     summary="A file is a Git LFS pointer: a small text file standing in for "
     "content the checkout does not have (made or cloned without Git LFS).",
     did="Listed each pointer file by the SHA-256 the pointer states for its "
