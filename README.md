@@ -84,11 +84,11 @@ Pick the one that fits how you work:
 `loom -h` lists every option.
 
 ```bash
-loom project .                                 # Source SBOM of a project
-loom wheel dist/pkg-1.0-py3-none-any.whl       # Analyzed SBOM of a built wheel
-loom env -o env.spdx3.json                     # Deployed SBOM of the installed environment
-loom model path/to/model.safetensors           # Analyzed SBOM of one AI model file
-loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
+loom project .                               # Source SBOM of a project
+loom wheel dist/pkg-1.0-py3-none-any.whl     # Analyzed SBOM of a built wheel
+loom env -o env.spdx3.json                   # Deployed SBOM of the installed environment
+loom model path/to/model.safetensors         # Analyzed SBOM of one AI model file
+loom generate . -o sbom.spdx3.json           # detect the target type (-o is required)
 ```
 
 Works with remote resources too:
