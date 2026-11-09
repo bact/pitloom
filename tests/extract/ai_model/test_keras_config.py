@@ -19,12 +19,14 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.provenance import provenance_source
+from pitloom.extract.ai_model import hdf5_config
 from pitloom.extract.ai_model.hdf5_config import parse_model_config
 from pitloom.extract.ai_model.keras import read_keras
 from pitloom.extract.ai_model.keras_training_config import parse_training_config
@@ -43,7 +45,10 @@ _MODEL_FIELDS = (
     "type_of_model, name, hyperparameters, inputs, properties.layer_count, "
     "properties.optimizer, properties.loss, properties.metrics"
 )
-_DEEP = 100_000  # deeper than the JSON parser's stack
+# How the parser fails on this many unclosed brackets depends on the Python
+# build (a recursion error, or a plain syntax error where the C stack is
+# deep enough), so only the stub test below pins the recursion wording.
+_DEEP = 100_000
 
 
 def _body(value: Any) -> bytes:
@@ -268,7 +273,7 @@ _UNPARSED = [
     pytest.param(b"{not valid json", "is not valid JSON (", id="invalid"),
     pytest.param(b"[1, 2]", "is not a JSON object", id="list"),
     pytest.param(b'{"a": "\xff"}', "is not valid JSON ('utf-8' codec", id="utf8"),
-    pytest.param(b"[" * _DEEP, "is not valid JSON (nested too deeply)", id="deep"),
+    pytest.param(b"[" * _DEEP, "is not valid JSON (", id="unclosed-deep"),
 ]
 
 
@@ -299,6 +304,42 @@ def test_metadata_that_does_not_parse_keeps_the_config(
     assert (meta.type_of_model, meta.name) == ("Sequential", "m")
     assert meta.hyperparameters == {"units": 2}
     assert meta.format_info.framework_version is None
+
+
+_TOO_DEEP = b"too-deep"  # a body the stubbed parser cannot take
+
+
+@pytest.mark.parametrize("member", ["config.json", "metadata.json"])
+def test_a_member_too_deep_for_the_parser_is_one_warning(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    member: str,
+) -> None:
+    """The parser's recursion guard firing is one warning that keeps the other
+    member. The guard is stubbed, since where a real parser reaches it
+    depends on the Python build."""
+    real_loads = json.loads
+
+    def loads(raw: Any, *args: Any, **kwargs: Any) -> Any:
+        if raw == _TOO_DEEP:
+            raise RecursionError("maximum recursion depth exceeded")
+        return real_loads(raw, *args, **kwargs)
+
+    monkeypatch.setattr(hdf5_config, "json", SimpleNamespace(loads=loads))
+    config, metadata = (
+        (_TOO_DEEP, _META) if member == "config.json" else (_MODEL, _TOO_DEEP)
+    )
+    meta, messages = _read(tmp_path, caplog, config, metadata)
+    (message,) = messages
+    assert message.startswith(f"{member} is not valid JSON (nested too deeply); ")
+    assert "the other archive members are read" in message
+    if member == "config.json":
+        assert meta.format_info.framework_version == "3.5.0"
+        assert meta.type_of_model is None
+    else:
+        assert (meta.type_of_model, meta.name) == ("Sequential", "m")
+        assert meta.format_info.framework_version is None
 
 
 @pytest.mark.parametrize(
