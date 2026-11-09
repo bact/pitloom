@@ -106,7 +106,8 @@ def _kept_entry(entry: object, root: PurePath) -> bool:
     if not isinstance(entry, (str, os.PathLike)):
         return False
     path = os.fspath(entry)
-    if not isinstance(path, str) or not os.path.isabs(path):
+    # A NUL is checked first: Windows' realpath does not raise for one.
+    if not isinstance(path, str) or "\0" in path or not os.path.isabs(path):
         return False
     try:
         return not is_inside(PurePath(os.path.realpath(path)), root)

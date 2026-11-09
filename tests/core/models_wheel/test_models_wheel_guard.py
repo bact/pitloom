@@ -207,15 +207,17 @@ def test_a_swallowing_handler_does_not_keep_the_cap_from_stopping(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A backend's ``except Exception`` does not catch the stop."""
-    monkeypatch.setattr(guard, "DISCOVERY_SECONDS", 0.0)
+    monkeypatch.setattr(guard, "DISCOVERY_SECONDS", 0.05)
     swallowed: list[BaseException] = []
+    give_up = time.monotonic() + 30  # the clock may tick in 15 ms steps
     with reading_remote_clone(str(tmp_path)):
         with pytest.raises(DiscoveryTimeoutError):
             with guard.discovery_deadline(tmp_path):
-                try:
-                    time.sleep(0.001)
-                except Exception as exc:  # pylint: disable=broad-exception-caught
-                    swallowed.append(exc)
+                while time.monotonic() < give_up:
+                    try:
+                        time.sleep(0.01)
+                    except Exception as exc:  # pylint: disable=broad-exception-caught
+                        swallowed.append(exc)
     assert not swallowed and sys.getprofile() is None
 
 
