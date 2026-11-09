@@ -60,7 +60,7 @@ URL is read by the host's conventions. Rules to state to the user:
   checkout. The output file is named as for a local project
   (`<name>-<version>.spdx3.json`).
 
-## A model file or folder (Pitloom 0.24.0 and later)
+## A model file or folder (Pitloom 0.23.4 and later)
 
 A URL naming an AI model file (any supported format), or a folder or the
 repository holding one, gives a model SBOM; `loom generate <url>` chooses
@@ -75,6 +75,11 @@ generate <url>`. Rules to state:
   it). A file named as a model (`.gguf`, `.onnx`, `.bin`, ...) that is not
   one is refused (`[model-wrong-format]`), and one absent from the
   repository is `git.path-not-found` (`[input-not-found]`).
+- A file name in a URL is read as the repository spells it and never leaves
+  the clone: an encoded-slash name (`%2F` joined to `.`/`..`), a backslash or a
+  NUL is refused (`Invalid path in URL`, `git.url-invalid`); a wrong-case name
+  is `git.path-not-found`. A cloned project's build file list drops files
+  outside the repository with one `WARNING:` (`[file-unreadable/outside-repository]`).
 - A folder is read non-recursively (the repository URL reads the root files
   only): a model in a subfolder needs that folder's URL or the file's.
 - One model per SBOM: several models in a folder give `INFO: FILE=<file>: one
@@ -82,7 +87,10 @@ generate <url>`. Rules to state:
   ...; name one file` (`[model-ambiguous]`). Ask which one and rerun with the
   file's URL (non-interactively, report the list). Neither a project nor a
   model: `ERROR: ... no Python project (pyproject.toml, setup.cfg or setup.py)
-  and no AI model file of a supported format ...` (`[project-or-model-not-found]`).
+  and no AI model file of a supported format ...` (`[project-or-model-not-found]`;
+  `git.no-project` only when the repository has subprojects). `loom model
+  <url>` on such a folder says `not an AI model file of a supported format`
+  (`[model-wrong-format]`) instead.
 - In a model SBOM, and in a project SBOM (`loom project`, or `loom generate`
   on a folder with a project config) for the model files in its build file
   list, fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` files are listed
@@ -93,7 +101,8 @@ generate <url>`. Rules to state:
   purpose), NumPy, CRFsuite and PT2 are read in full. Offer, never do
   unasked, cloning the repository (with Git LFS) and running
   `loom model <file>` on a file, or `loom project <dir>` on a project, the
-  user trusts: a local directory is not gated.
+  user trusts: a local directory is not gated (non-interactively, report
+  only).
 - The output goes to `-o`, or for `loom model` to the current directory as
   `<file name>.spdx3.json`; never into the clone. No temporary path is in it.
 - A Hugging Face model address is read through the Hub (card and

@@ -22,43 +22,43 @@ and this project adheres to
 
 ## [0.23.4] - 2026-11-08
 
+### Added
+
+- A model file or folder at a Git URL gives a model SBOM, for every model
+  format: `blob`, `raw`, `tree` and `src` pages; `loom model <url>` and
+  `loom generate <url>` choose it; `generate_git_sbom()` is the library call
+  ([#464])
+- `loom model DIR` and `generate(DIR)` read a folder with one model and no
+  project; `generate()` reads a file as a model by content, not by suffix
+  ([#464])
+- Keras v3 models give layer count, optimiser, loss, metrics and archive
+  members; a member that does not parse is one `WARNING:` ([#464])
+
 ### Changed
 
 - Requires `licenseid>=0.8.3,<0.9`, which reads a `licenses.nuget.org`
   expression URL as its expression; the skills require `pitloom>=0.23.4`
   ([#462], [#465])
-
-[#462]: https://github.com/bact/pitloom/pull/462
-[#465]: https://github.com/bact/pitloom/pull/465
-
-## [Unreleased]
-
-### Added
-
-- A model file or folder at a Git URL gives a model SBOM, for every model
-  format: `blob`, `raw` and `tree` pages; `loom model <url>` and `loom generate
-  <url>` choose it; `generate_git_sbom()` is the library call ([#464])
-- `loom model DIR` and `generate(DIR)` read a folder with one model and no
-  project; `generate()` reads a file as a model by content, not only suffix
-  ([#464])
-- Keras v3 models give layer count, optimizer, loss, metrics and
-  archive members; a member that does not parse is one `WARNING:` ([#464])
-
-### Changed
-
 - A model or project SBOM from a Git URL lists a fastText, GGUF, HDF5, ONNX or
   PyTorch model by name, format and hash only, with one `INFO:` ([#464])
 - A directory with neither a project nor a model raises
   `project-or-model-not-found` (was `FileNotFoundError`) ([#464])
+- A linked or unreadable model file, or a file that is not a model, gets its
+  own message wording ([#464])
 
 ### Fixed
 
+- A Git URL file name with encoded slashes, and a cloned project's
+  `force-include`, no longer read files outside the clone ([#464])
+- A named FIFO no longer hangs `loom model` ([#464])
 - A lone surrogate in a Keras `training_config` or `compile_config` no longer
   fails the whole model read ([#464])
 - A `raw` file URL of GitHub, GitLab, Gitea, Forgejo, Codeberg or Bitbucket is
   read as a file page, not cloned as a repository ([#464])
 
+[#462]: https://github.com/bact/pitloom/pull/462
 [#464]: https://github.com/bact/pitloom/pull/464
+[#465]: https://github.com/bact/pitloom/pull/465
 
 ## [0.23.3] - 2026-11-09
 

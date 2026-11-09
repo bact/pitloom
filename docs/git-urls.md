@@ -160,8 +160,9 @@ HTTP (`git http-backend`) that answers like GitLab does.
 ## Model files
 
 A URL can name an AI model instead of a project: a `blob` or `raw` page of a
-model file, or a `tree` page (or the repository itself) of a folder that holds
-one. The SBOM is then the model SBOM `loom model` writes for a local file,
+model file (also a `src/<ref>/<file>` page of Forgejo, Codeberg or Bitbucket,
+and a SourceHut `blob` page), or a `tree` page (or the repository itself) of a
+folder that holds one. The SBOM is then the model SBOM `loom model` writes for a local file,
 whatever the format (CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX,
 PyTorch, PT2, Safetensors). Which command reads which URL:
 
@@ -186,14 +187,27 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - **One model per SBOM.** A folder with several model files is an error
   (`model-ambiguous`): one `INFO:` per file names them, sorted, and you give
   the URL of one file. A folder with neither project nor model is an error
-  (`project-or-model-not-found`; via Git the error code is `git.no-project`,
-  with the subprojects named when the repository has some). A named file with
+  (`project-or-model-not-found`; the error code is `git.no-project` only when
+  the repository has subprojects, which the message names; an empty or
+  README-only repository gives `project-or-model-not-found` with no `git.*`
+  code). `loom model <url>` on such a folder says `not an AI model file of a
+  supported format` (`model-wrong-format`) instead, as for a local path that is
+  not a model. A named file with
   a model suffix that is not in the repository, or is a link (not followed),
   is `git.path-not-found` (`No file '<path>' in the repository at that
   branch. [input-not-found]`); for `loom model`, any named file is. `loom
   project <url>` on a folder with models and no project says `ERROR: ... No
   pyproject.toml, setup.cfg, or setup.py found in <url>; it holds files that
   may be AI models ... [project-not-found/model-files]`.
+- **A name is read as the repository spells it, and stays inside the clone.**
+  A file name is never joined to the clone as a path: a URL whose file name
+  decodes (`%2F`) to a segment `.` or `..`, an empty part, a backslash or a NUL
+  is refused (`Invalid path in URL`, `git.url-invalid`), and a name that does
+  not match a file of the folder letter for letter is "not found" on every
+  operating system, also where the file system ignores case. A link named in a
+  `blob` URL is not followed and has its own line under
+  [`input-not-found`](message-codes.md#input-not-found). A named FIFO or other
+  special file is refused, never opened.
 - A file is a model by its **content**, not its name: a GGUF file named `m.dat`
   is read when its URL is given. A folder's candidates are chosen by the
   suffixes the scan knows, then confirmed by their content.
@@ -265,6 +279,11 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   takes more disk than a limit you give (`max_clone_bytes=`, error code
   `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
   [Python API](python-api.md).
+- A cloned project's build file list (`force-include` with an absolute or
+  `../` path, say) keeps only files inside the repository: the others are
+  dropped with one `WARNING:` ([`file-unreadable/outside-repository`](message-codes.md#file-unreadableoutside-repository)),
+  so a host file is never listed, hashed or read. A local project is not
+  changed.
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.
@@ -287,7 +306,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `Git source: <url> names repository <url>, branch <ref>, folder <path>` | the URL named more than a repository (or was cleaned) |
 | `INFO:` | `Git source: <url> is not a repository; trying <url>` | a group called `src`/`tree`/`blob`: the whole URL is tried |
 | `INFO:` | `Git source: <path> is a folder, not a file; reading it` | a file page whose path is a folder |
-| `INFO:` | `Git source: <path> is a file, not a folder; reading the folder holding it` | a folder page whose path is a file |
+| `INFO:` | `Git source: <path> is a file, not a folder` | a folder page whose path is a file: the file is read as the one the URL named (a model file, or else its folder) |
 | `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file whose name no model has, and that is not a model or is missing (`loom generate`) |
 | `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
 | `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
@@ -301,6 +320,8 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
 | `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository were not followed` | links to host files were removed |
 | `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
+| `WARNING:` | `FILE=<file>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a cloned project's build file list names a file outside the repository |
+| `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a file name that decodes to `.`/`..`, an empty part, a backslash or a NUL |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
 | `ERROR:` | `SBOM generation failed: …` | the run could not finish |
 

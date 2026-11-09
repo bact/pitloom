@@ -35,9 +35,9 @@ targets that scan for models.
 A file is a model when its header confirms a format. The header check comes
 first, so a file named on the command line (`loom model`, `loom generate`,
 `generate()`), or by a Git URL, is read whatever its suffix when its header
-has a magic (a `x.dat` with GGUF magic is GGUF); ONNX, Keras v3, PyTorch and
-PT2 files have none Pitloom can tell from other files (a protobuf, a ZIP, a
-pickle), so a copy of one named `x.dat` is not recognised: it keeps its
+has a magic (a `x.dat` with GGUF magic is GGUF); ONNX, Keras v3, PyTorch,
+PT2 and NumPy `.npz` files have none Pitloom can tell from other files (a
+protobuf, a ZIP, a pickle), so a copy of one named `x.dat` is not recognised: it keeps its
 suffix. A project or wheel scan, and a folder given for its
 one model file, only look at the suffixes below. A header that contradicts the suffix (text named `.gguf`)
 is not a model, and a Git LFS pointer is never one (it is listed as a

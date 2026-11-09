@@ -95,9 +95,9 @@ Generate a **Deployed SBOM** of the installed environment graph:
 loom env -o env.spdx3.json
 ```
 
-Generate an **Analyzed SBOM** for a single AI model file, with no Python
-project directory (also a folder that holds exactly one model file and no
-project). Supported formats: GGUF, ONNX, Safetensors, PyTorch
+Generate an **Analyzed SBOM** for a single AI model file (a Python project
+is not needed, and one beside the file is not read; also a folder that holds
+exactly one model file). Supported formats: GGUF, ONNX, Safetensors, PyTorch
 (`.pt`/`.pth`, PT2/ExecuTorch `.pt2`), Keras, HDF5, NumPy, fastText,
 CRFsuite; see [AI model formats](ai-model-formats.md) for extensions and
 install extras:

@@ -138,6 +138,27 @@ refactor of `hdf5_config.py`.
   that model files are not downloaded. The docs give the workaround: download
   the file, run `loom model <file>`.
 
+- **D11 Confinement: nothing outside the clone is opened (revision, review
+  round 1, `9ce199f`).** A Git URL's file name such as `.git%2F..%2F...` decoded
+  to a path out of the clone, and a cloned project's build file list
+  (`force-include` with an absolute or `../` path) listed and hashed host
+  files. Four rules:
+  1. *URL parser:* a decoded segment holding a slash-separated `.` or `..`, an
+     empty part, a backslash or a NUL is refused (`git.url-invalid`, `Invalid
+     path in URL`).
+  2. *Exact spelling:* a named file must be a regular file inside the folder, spelled
+     as on disk (`regular_file_inside`, `core/path_confine.py`), so a wrong-case URL is "not found" on
+     every OS (a case-insensitive file system does not make it a hit).
+  3. *Repository-root boundary for the build file list:*
+     `drop_outside_clone` (`core/_models_wheel_clone.py`) drops entries outside
+     the clone with one `file-unreadable/outside-repository` `WARNING:`, inside
+     a clone only; a local project is unchanged.
+  4. *FIFO refusal:* `require_model_file` refuses a FIFO or other special file
+     (`model-wrong-format`) before it is opened (it hung `loom model`).
+  The project-route gate (D1, revised) stays as described. *Rejected:* trusting
+  the URL decoder alone (the build file list was a second vector); resolving
+  with `realpath` only (a case-insensitive file system still hits the file).
+
 ## Behaviour
 
 URL form by mode (`resolve_git_target`, then `resolve_sbom_target`). A

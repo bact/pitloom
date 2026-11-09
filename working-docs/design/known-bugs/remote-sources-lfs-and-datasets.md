@@ -48,12 +48,13 @@ entries stay in the last section for history.
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.
   *Found 2026-10-29, Git LFS pointer work.*
-- [ ] **`git.py` says the blob filter omits blobs over 10 MB (S).** The module
+- [x] **`git.py` said the blob filter omits blobs over 10 MB (S), fixed.** The module
   docstring and `BLOB_LIMIT` comment (`extract/remote/git.py`) describe
   `--filter=blob:limit=10m` as leaving out large files. It leaves out only
   blobs the checkout does not need: the WP0 probe of the Git model URL work
   (2026-11-09, local smart HTTP) cloned a 12 MB file of the checked-out tree in full. Also `10m` is
-  10 MiB. `docs/git-urls.md` was corrected the same day; correct the docstring.
+  10 MiB. `docs/git-urls.md` and the `git.py` docstring now say 10 MiB and that only
+  blobs the checkout does not need are left out.
   *Found 2026-11-09, Git model URL work.*
 - [ ] **A dataset's identity can change from a hash to omitted after a pull
   (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated

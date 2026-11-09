@@ -32,6 +32,7 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 | Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
+| A model, or a model listed in a project's build file list, from a Git URL: an `ai_AIPackage` with name, format and hash only, plus one `INFO: ... listed without metadata ... [reader-unsafe/remote]` | fastText, GGUF, HDF5, ONNX or PyTorch reader not run on a download | [Formats gated for a Git URL](#formats-gated-for-a-git-url) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](#size-and-count-caps) (Parameter count) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
@@ -110,7 +111,6 @@ folder with none is `no Python project (pyproject.toml, setup.cfg or
 setup.py) and no AI model file of a supported format`
 (`project-or-model-not-found`) for `generate`, and a path that is not a model
 for `loom model`.
-The 1000-entry cap applies as in the scans, with the same one `WARNING:`.
 
 ## Size and count caps
 

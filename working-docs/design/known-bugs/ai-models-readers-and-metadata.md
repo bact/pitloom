@@ -193,18 +193,6 @@ history.
   same holds for a copy of an ONNX, Keras, PyTorch or PT2 file renamed to
   `x.dat` (`NEEDS_SUFFIX` in `tests/_model_fixtures.py`). By design for now:
   the header alone does not confirm them.
-- [ ] **A link inside a Git project's clone is followed by the model scan
-  (S, security).** On the project route `project_candidates`, the header
-  sniff, the Git LFS pointer probe and the hash open
-  `project_dir / physical_path` unconditionally, so a symlink the repository
-  commits (a build file list entry that is a link) makes them read a file
-  outside the clone: its header, its first bytes as a pointer, and its hash
-  in the SBOM. The `reader-unsafe/remote` gate does not close this (a gated
-  format is still sniffed and hashed; an ungated one is read). The model
-  route avoids links in a clone (`model_target`: `os.path.islink` under
-  `in_remote_clone()`). Skip or refuse a link in `scanner_project` within
-  `in_remote_clone()`, and check what the file list and the hash step do
-  with one. *Found 2026-11-09, while gating the project route.*
 - [ ] **A repository root whose models are only in subfolders gives
   `project-or-model-not-found` (S).** Folder discovery is non-recursive, by
   decision (D4), so `loom generate <repo>` on a repository that keeps its
@@ -251,6 +239,37 @@ history.
   surrogate escaped. Display text only; the same fallback as "Deep metadata
   text depends on call-stack depth" above.
   *Found 2026-11-03, review of the 0.22.1 release.*
+- [ ] **A text file starting with `GGUF` is treated as a model by content (S).**
+  A file named on its own is a model when its header has a magic, so
+  `generate notes.txt` on text that begins `GGUF` is read as GGUF and fails or
+  gives a thin entry. By design for the content rule; decide whether a
+  non-model suffix should need more than four bytes.
+  *Found 2026-11-09, review of #464.*
+- [ ] **The Azure DevOps `path=` value is decoded twice (S).** A folder whose
+  name really contains `%` (`a%20b`) is mangled in the folder the URL names.
+  *Found 2026-11-09, review of #464.*
+- [ ] **The `git.url-invalid` ERROR carries no catalogue code (S).** `Invalid
+  path in URL` is a plain `RemoteSourceError` text, so a skill sees no
+  `[code]`. Add a catalogued message when the `git.*` family is catalogued.
+  *Found 2026-11-09, review of #464.*
+- [ ] **Hatchling discovery still lists names under a host directory named by
+  `force-include` (S).** Nothing is read or listed in the SBOM (the clone
+  confinement drops the entries), but the walk is slow for `/`.
+  *Found 2026-11-09, review of #464.*
+- [ ] **One readable and one unreadable model file in a folder picks the
+  readable one (S).** The ambiguity check is suppressed on an access failure,
+  so `model-ambiguous` is not raised; the unreadable file is silently not the
+  model.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`has_project_config` and `subproject_hint` disagree on case (low).**
+  The first uses `os.path.exists` (case-insensitive on macOS and Windows), the
+  second exact names, so `Pyproject.toml` is a project in one and not the other
+  there.
+  *Found 2026-11-09, review of #464.*
+- [ ] **`core/_models_wheel.py` is 501 lines (low).** Over the soft limit; split
+  a cohesive part out (the clone helpers are already in
+  `_models_wheel_clone.py`).
+  *Found 2026-11-09, review of #464.*
 
 ## Fixed
 
@@ -260,6 +279,17 @@ release ships.
 
 ### Fixed, P3: 0.24.0 and later
 
+- [x] **A Git project's build file list read host files (S, security).**
+  Fixed by #464 (`drop_outside_clone` in `core/_models_wheel_clone.py`, inside
+  a clone): a build file list entry outside the repository root (a Hatchling
+  `force-include` with an absolute or `../` path) is dropped with one
+  `file-unreadable/outside-repository` `WARNING:`, before the model scan, the
+  hash and the licence-header read can open it. Symbolic links were already
+  dropped by `_drop_outside_links` (`extract/remote/git.py`); the vector was
+  the build backend's file list, not a link. A local project is unchanged.
+  (Was: `project_candidates`, the header sniff, the pointer probe and the hash
+  opened `project_dir / physical_path`, so such a host file was hashed, and
+  its licence header text copied into the SBOM.)
 - [x] **Native-library readers still ran on models of a Git *project* SBOM
   (S-M, security).** Fixed by #464: `scan_project_for_ai_models` builds
   `remote_reader_gate()` (in `scanner_project`), which is the
