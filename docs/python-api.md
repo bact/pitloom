@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -75,8 +75,9 @@ generate_project_sbom(
 )
 ```
 
-A project in a Git repository is read through its URL, with `generate()` or
-`generate_git_project_sbom()`:
+A project in a Git repository is read through its URL, with `generate()`,
+`generate_git_sbom()` or `generate_git_project_sbom()` (the last reads a project
+only; `generate_git_sbom(url, sbom_kind="project")` is the same):
 
 ```python
 from pitloom.assemble import generate_git_project_sbom
@@ -105,6 +106,35 @@ a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
 `git.too-large`, once the checkout takes more disk than that (no limit by
 default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
+
+A URL can name an AI model instead: a `blob` or `raw` page of a model file, or
+a folder (or the repository) holding one. `generate()` and
+`generate_git_sbom()` choose between the project and the model by what the URL
+names; `sbom_kind` fixes the choice:
+
+```python
+from pitloom.assemble import generate_git_sbom
+
+generate_git_sbom(
+    "https://github.com/owner/repo/blob/main/models/m.keras",
+    sbom_kind="model",  # "auto" (the default), "project" or "model"
+    output_path=Path("model.spdx3.json"),
+)
+```
+
+`"auto"` reads a model file the URL names (even beside a project), else the
+folder's project, else the folder's one model file; `"model"` reads the named
+file, else the folder's one model file. The folder is read non-recursively.
+Several model files, or neither a project nor a model, raise a
+`pitloom.messages.CodedValueError` (a `ValueError`; codes `model-ambiguous`,
+`project-or-model-not-found`, see [Message codes](message-codes.md)); with
+`git.no-project` a `RemoteSourceError`, which keeps the code
+`project-or-model-not-found` as `pitloom_code`, names subprojects when the
+repository has some. A Git LFS pointer raises `ValueError` coded `lfs-pointer`.
+The readers of fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` files are not
+run on a file from a Git URL: it is listed with its name, format and hash only,
+and one `INFO:` says so. `check_url=`, `max_clone_bytes=` and `offline=` apply
+as for a project; options a model SBOM cannot use warn once.
 
 When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 `pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present
@@ -239,6 +269,14 @@ one freshly computed from the model's own
 identity. Raises `ValueError` for a Hugging Face Hub source -- Hugging
 Face model cards are already parsed natively when generating the SBOM,
 so local enrichment doesn't apply there.
+
+`generate_model_sbom()` and `generate()` also take a folder that holds exactly
+one model file and no project (a folder with neither raises `ValueError` coded
+`project-or-model-not-found`, where `generate()` raised `FileNotFoundError`
+before); `generate()` reads a file as a model by its header too (a GGUF file
+named `x.dat`), not only by suffix. `generate_model_sbom(..., shown=)` names
+the model file in messages as the caller knows it (a path in a repository)
+when it has been copied elsewhere; the SBOM names it by its own file name.
 
 A local model is read as a project scan reads it: one whose read fails
 (truncated, over a bound, a missing extra) does not raise. `enrich_model()`

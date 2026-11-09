@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,15 +8,20 @@ SPDX-License-Identifier: CC0-1.0
 
 # SBOM from a Git URL
 
-See also: [Command line](cli.md) for `loom project` and `loom generate`,
-[Python API](python-api.md) for `generate()` and `generate_git_project_sbom()`,
+See also: [Command line](cli.md) for `loom project`, `loom model` and
+`loom generate`,
+[Python API](python-api.md) for `generate()`, `generate_git_sbom()` and
+`generate_git_project_sbom()`,
+[AI model formats](ai-model-formats.md) for what is read from each model file,
 [Building a project (`--allow-build`)](allow-build.md) for why a downloaded
 repository is never built.
 
-Give `loom project` or `loom generate` the `http` or `https` URL of a Git
-repository, or of one of its web pages, and Pitloom fetches the repository
-shallowly into a temporary directory, reads the Python project in it and writes
-the SBOM. The directory is removed afterwards, and a message that would name
+Give `loom project`, `loom model` or `loom generate` the `http` or `https` URL
+of a Git repository, or of one of its web pages, and Pitloom fetches the
+repository shallowly into a temporary directory, reads the Python project in it
+(or, for `loom model` and for `loom generate` on a folder with models and no
+project, an AI model file; see [Model files](#model-files)) and writes the
+SBOM. The directory is removed afterwards, and a message that would name
 it says `<checkout>` instead, so two runs print the same text. It needs the
 `git` program.
 
@@ -25,6 +30,7 @@ loom project https://gitlab.com/group/project                  # the default bra
 loom project https://github.com/owner/repo/tree/v1.2/src       # a tag and a folder
 loom project https://codeberg.org/owner/repo/src/branch/main/svc/api
 loom generate https://labs.etsi.org/rep/ocf/capif/-/tree/staging/services/register -o sbom.json
+loom model https://github.com/owner/repo/blob/main/models/m.keras   # one model file
 ```
 
 ## Which URLs
@@ -39,17 +45,19 @@ from the server's own branches and tags, longest match first.
 
 | Platform | Page URL read | Names |
 | :------- | :------------ | :---- |
-| GitLab | `…/-/tree/<ref>/<folder>`, `…/-/blob/<ref>/<file>` | branch, tag, commit; folder |
-| GitHub | `…/tree/<ref>/<folder>`, `…/blob/<ref>/<file>` | branch, tag, commit; folder |
-| Gitea, Forgejo, Codeberg | `…/src/branch/<ref>/…`, `…/src/tag/<ref>/…`, `…/src/commit/<sha>/…` | branch, tag, commit; folder |
-| Bitbucket Cloud | `…/src/<ref>/<folder>`, `…/branch/<ref>`, `…/commits/branch/<ref>`, `…/commits/tag/<ref>`, `…/commits/<sha>` | branch, tag, commit; folder |
+| GitLab | `…/-/tree/<ref>/<folder>`, `…/-/blob/<ref>/<file>`, `…/-/raw/<ref>/<file>` | branch, tag, commit; folder, file |
+| GitHub | `…/tree/<ref>/<folder>`, `…/blob/<ref>/<file>`, `…/raw/<ref>/<file>` | branch, tag, commit; folder, file |
+| Gitea, Forgejo, Codeberg | `…/src/branch/<ref>/…`, `…/src/tag/<ref>/…`, `…/src/commit/<sha>/…`, `…/raw/branch/<ref>/<file>`, `…/raw/tag/<ref>/<file>`, `…/raw/commit/<sha>/<file>` | branch, tag, commit; folder, file |
+| Bitbucket Cloud | `…/src/<ref>/<folder>`, `…/raw/<ref>/<file>`, `…/branch/<ref>`, `…/commits/branch/<ref>`, `…/commits/tag/<ref>`, `…/commits/<sha>` | branch, tag, commit; folder, file |
 | SourceHut | `…/tree/<ref>/item/<folder>`, `…/log/<ref>` | branch, tag; folder |
 | Gitiles (Gerrit's code browser, `*.googlesource.com`) | `…/+/refs/heads/<ref>/<folder>`, `…/+/refs/tags/<ref>/<folder>`, `…/+/<ref>/<folder>` | branch, tag; folder |
 | cgit (kernel.org, Launchpad) | `…/tree/<folder>?h=<ref>`, `…/log/?h=<ref>`, `…/commit/?id=<sha>` | branch, tag, commit; folder |
 | Azure DevOps | `…/_git/<repo>?path=/<folder>&version=GB<branch>` (`GT` tag, `GC` commit) | branch, tag, commit; folder |
 | Hugging Face Space or dataset | `huggingface.co/spaces/<org>/<name>`, `…/datasets/<org>/<name>`, with `…/tree/<ref>/<folder>` or `…/blob/<ref>/<file>` | branch, tag, commit; folder |
 
-- A page URL naming a **file** reads the folder that holds it. A file page whose
+- A page URL naming a **file** (`blob` or `raw`) reads the folder that holds it,
+  unless the file is an AI model: then it is the model that is read (see
+  [Model files](#model-files)). A file page whose
   path is a folder reads that folder, and a folder page whose path is a file
   (Bitbucket, SourceHut, Forgejo and Gitiles write both alike) reads the folder
   holding the file.
@@ -76,8 +84,12 @@ from the server's own branches and tags, longest match first.
   or **dataset** (`huggingface.co/spaces/...`, `.../datasets/...`) is a Git
   repository and is fetched like any other (Git LFS files stay pointers; see
   below). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py` has no
-  Python project to read, and says so.
-- Not read: hosts that need a login, `ssh://`, `git://`, `file://` and
+  Python project to read, and `loom project` says so (naming `loom model` when
+  the folder holds files that may be models).
+- Not read: `raw.githubusercontent.com` (a file host, not a repository page;
+  use the `github.com` `blob` or `raw` page of the file instead), a Hugging
+  Face `/resolve/` file link (give the repository address), hosts that need a
+  login, `ssh://`, `git://`, `file://` and
   scp-style `user@host:path` addresses. These are refused with a message (see
   below).
 
@@ -141,13 +153,75 @@ Beyond live servers, the whole path (redirect, branch, folder, tag, commit,
 `.git`, refusals) runs in the test suite against a local Git server over smart
 HTTP (`git http-backend`) that answers like GitLab does.
 
+## Model files
+
+A URL can name an AI model instead of a project: a `blob` or `raw` page of a
+model file, or a `tree` page (or the repository itself) of a folder that holds
+one. The SBOM is then the model SBOM `loom model` writes for a local file,
+whatever the format (CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX,
+PyTorch, PT2, Safetensors). Which command reads which URL:
+
+| Command | A model file URL | A folder URL (or the repository) |
+| :------ | :--------------- | :------------------------------- |
+| `loom generate <url>` (and `generate()`) | the model | the project if the folder has one, else its one model file |
+| `loom model <url>` | the model | its one model file, even beside a project |
+| `loom project <url>` | the folder's project | the project; a folder with models and no project is refused (`git.no-project`), naming `loom model` and `loom generate` |
+
+- **A model file URL wins** over a project in the same folder. A file URL that
+  is not a model (`blob/.../pyproject.toml`, `README.md`) reads the folder as
+  before, with one `INFO:`; `loom model` refuses it.
+- **A folder is read non-recursively**: only the named folder, and for the
+  repository itself only the files at its root. A model in a subfolder needs
+  that folder's URL or the file's. A folder of more than 1000 files whose
+  names could be models is not read (one `over-cap` `WARNING:`) and is
+  refused, as several models are.
+- **One model per SBOM.** A folder with several model files is an error
+  (`model-ambiguous`): one `INFO:` per file names them, sorted, and you give
+  the URL of one file. A folder with neither project nor model is an error
+  (`project-or-model-not-found`; via Git the error code is `git.no-project`,
+  with the subprojects named when the repository has some). A named file that
+  is not in the repository is `git.path-not-found` (`No file '<path>' in the
+  repository at that branch. [input-not-found]`). `loom project <url>` on a
+  folder with models and no project says `ERROR: ... No pyproject.toml,
+  setup.cfg, or setup.py found in <url>; it holds files that may be AI models
+  ... [project-not-found/model-files]`.
+- A file is a model by its **content**, not its name: a GGUF file named `m.dat`
+  is read when its URL is given. A folder's candidates are chosen by the
+  suffixes the scan knows, then confirmed by their content.
+- **Some readers are not run on a download.** The readers of fastText, GGUF,
+  HDF5, ONNX and PyTorch (`.pt`, `.pth`) files call native libraries, or a
+  pickle parser, that a hostile file could crash, hang or exhaust in memory.
+  A model of one of these formats from a Git URL is listed with its name,
+  format and hash only, and one `INFO:` says so. Keras, Safetensors, NumPy,
+  CRFsuite and PT2 files are read in full. To read the others, clone the
+  repository (with Git LFS, when it stores the model there) and run
+  `loom model <file>` on a file you trust.
+- **Git LFS pointers are refused.** A model file that is a pointer (LFS is off
+  for the clone) is an error that gives the pointer's `oid` and size and says
+  to clone with Git LFS and run on the file. In a folder, pointers are
+  counted in one `WARNING:` and a folder of pointers only is refused as the
+  first of them.
+- The SBOM names the file by its own name, and every message by its path in
+  the repository: no temporary path is in the output, so two runs of one URL
+  and commit give the same SBOM for a fixed creation time. `loom model <url>`
+  writes `<file name>.spdx3.json` to `-o` or the current directory, never into
+  the checkout.
+- `--offline` is an error for `loom model <url>` too: nothing is fetched.
+- Only a Git repository is read this way. A Hugging Face **model** (not
+  Space or dataset) address is read through the Hub, which reads the model
+  card and repository metadata and never opens a weights file: see
+  [AI model formats](ai-model-formats.md#hugging-face-hub-models).
+
 ## What it does and does not do
 
 - **A downloaded repository is untrusted.** Its own `[tool.pitloom]` settings are
-  ignored (an `INFO:` says so; `--config FILE` is yours and applies), and its
+  ignored (`INFO: Git source: the repository's own [tool.pitloom] settings are
+  ignored (untrusted) ... [config-unsafe]`; `--config FILE` is yours and
+  applies), and its
   build backend is never run: `--allow-build` is reported as having no effect.
-- The clone is shallow, asks the server to leave out blobs over 10 MB (a server
-  without partial clone sends them) and never follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
+- The clone is shallow, asks the server to leave out blobs over 10 MiB that the
+  checkout does not need (a server without partial clone sends them) and never
+  follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
   (at most 5, 60 s for all probes), and a caller can check each hop first
   (`check_url=` in the Python API; Lumina uses it as its address guard).
 - `git` has 10 minutes for all its calls together and 8 MiB of output (and of
@@ -161,15 +235,17 @@ HTTP (`git http-backend`) that answers like GitLab does.
   comment says the content was not read, and the file's provenance is `Method:
   lfs_pointer`), so the hash is the same after `git lfs pull`. The stated size
   is only recorded in that comment. A pointer named like an AI model (`.onnx`,
-  `.gguf`, ...) is listed as a file only, with no AI package. No content type,
+  `.gguf`, ...) is listed as a file only, with no AI package; a pointer named
+  by its own URL is an error (see [Model files](#model-files)). No content type,
   licence or copyright comes from the pointer text. One `WARNING:` per SBOM
   names the first pointer (and, for more than one, the count): `clone with git
   lfs, then run on the directory`. Run `loom project` on that directory for
   the content. Most model repositories on Hugging Face, and many on GitLab
   and Codeberg, keep their weights in LFS.
 - **No size limit by default.** The command line sets none, so a very large
-  repository is fetched in full (blobs over 10 MB excepted, on a server that
-  supports partial clone). The library API can stop a fetch once the checkout
+  repository is fetched in full: the 10 MiB filter leaves out only large blobs
+  the checkout does not need, and a large file in the checked-out tree (a model
+  of 12 MiB, say) is fetched. The library API can stop a fetch once the checkout
   takes more disk than a limit you give (`max_clone_bytes=`, error code
   `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
   [Python API](python-api.md).
@@ -178,10 +254,12 @@ HTTP (`git http-backend`) that answers like GitLab does.
   hashed.
 - A relative `--id-registry` is relative to where you run `loom`, not to the
   checkout.
-- `--offline` forbids the fetch: it is an error, not a fallback.
+- `--offline` forbids the fetch: it is an error, not a fallback, for `loom
+  project`, `loom model` and `loom generate` alike.
 - An empty repository is an error that says so.
-- The output file is named from the project, as for a local one. `-o -` writes the
-  SBOM to stdout.
+- The output file is named from the project (or the model file), as for a
+  local one, and written to the current directory. `-o -` writes the SBOM to
+  stdout.
 
 ## Messages
 
@@ -194,6 +272,13 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `Git source: <url> is not a repository; trying <url>` | a group called `src`/`tree`/`blob`: the whole URL is tried |
 | `INFO:` | `Git source: <path> is a folder, not a file; reading it` | a file page whose path is a folder |
 | `INFO:` | `Git source: <path> is a file, not a folder; reading the folder holding it` | a folder page whose path is a file |
+| `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file that is not a model (`loom generate`) |
+| `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
+| `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
+| `INFO:` | `FILE=<file>: one of several AI model files`, then `ERROR:` `<url>: several AI model files (N files); name one file` | a folder holds several models (one line per file; `model-ambiguous`) |
+| `INFO:` | `AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; clone the repository and run on the file you trust` | a model in a format whose reader is not run on a download |
+| `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file` | neither a project nor a model (`project-or-model-not-found`) |
+| `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
 | `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |
 | `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
 | `INFO:` | `Git source: $ git …` | each `git` call, credentials masked |

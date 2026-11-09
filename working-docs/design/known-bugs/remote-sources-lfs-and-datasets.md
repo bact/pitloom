@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,9 +48,13 @@ entries stay in the last section for history.
   document's (S).** Its Merkle root takes the `oid`; the hook's package root
   takes the text's digest.
   *Found 2026-10-29, Git LFS pointer work.*
-- [ ] **The blob-filter docs say "10 MB"; git's `10m` is 10 MiB (S).**
-  `BLOB_LIMIT` in `extract/remote/git.py`; fix `docs/git-urls.md`.
-  *Found 2026-10-29, Git LFS pointer work.*
+- [ ] **`git.py` says the blob filter omits blobs over 10 MB (S).** The module
+  docstring and `BLOB_LIMIT` comment (`extract/remote/git.py`) describe
+  `--filter=blob:limit=10m` as leaving out large files. It leaves out only
+  blobs the checkout does not need: the WP0 probe of the Git model URL work
+  (2026-11-09, local smart HTTP) cloned a 12 MB file of the checked-out tree in full. Also `10m` is
+  10 MiB. `docs/git-urls.md` was corrected the same day; correct the docstring.
+  *Found 2026-11-09, Git model URL work.*
 - [ ] **A dataset's identity can change from a hash to omitted after a pull
   (S).** A pointer-based dataset is hashed from the `oid`s; once pulled, stated
   sizes above the ceiling mean no hash. The SHA-256 is otherwise unchanged.
@@ -110,6 +114,9 @@ release ships.
 
 ### Fixed, Found in review rounds, not yet prioritised
 
+- [x] **The blob-filter docs said "10 MB" (S).** Fixed 2026-11-09 in
+  `docs/git-urls.md`, which now says 10 MiB and that only blobs the checkout
+  does not need are left out (a large file of the checkout is fetched).
 - [x] **`dataset_datasetSize` held a record count (M), fixed in #382.** A
   Croissant `totalItems` filled it, but SPDX defines it in bytes. `totalItems`
   is not Croissant, so it is no longer read; `DatasetMetadata.byte_size` (bytes,

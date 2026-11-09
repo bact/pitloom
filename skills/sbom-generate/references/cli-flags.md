@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,8 +28,9 @@ where they differ, and a flag with no effect on a target logs
 - `--pretty` -- indent the JSON (default: compact).
 - `--offline`/`--no-offline` -- forbid/allow network (`project`, `wheel`,
   `env`, `model`, `embed-wheel`; `generate` follows its target; `enrich` has
-  none). On a local model file it has no effect (a `WARNING:`); on a Hugging
-  Face model or a Git URL it is an `ERROR:`, as nothing can be fetched.
+  none). On a local model file or folder it has no effect (a `WARNING:`); on a
+  Hugging Face model or a Git URL (for `project`, `model` and `generate`) it is
+  an `ERROR:`, as nothing can be fetched.
 - `-v` / `--verbose` -- `INFO:` lines: every effective option and its source
   for `project`/`generate` on a project or sdist; the version, target and
   output path for `wheel`/`env`/`model`/`enrich`; a no-effect `WARNING:` on

@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,7 @@ Format detection is handled by
 | fastText | `.ftz`, `.bin` | `fasttext.py` | `fasttext-community` (`pitloom[fasttext]`) | `model.f.getArgs()` via C++ binding; `model.get_labels()` for supervised class list |
 | GGUF | `.gguf` | `gguf.py` | `gguf` (`pitloom[gguf]`) | `GGUFReader` to extract typed key-value pairs from the binary header |
 | HDF5 / Keras v1-v2 | `.h5`, `.hdf5` | `hdf5.py` | `h5py` (`pitloom[hdf5]`) | `h5py.File.attrs` for root attributes; JSON-encoded `model_config` and `training_config` |
-| Keras v3 | `.keras` | `keras.py` | (stdlib only) | Inspect `config.json` inside the `.keras` ZIP archive; no model execution required |
+| Keras v3 | `.keras` | `keras.py` | (stdlib only) | `metadata.json` and `config.json` (model config and `compile_config`, parsed as HDF5's, in `keras_config.py`) and the member list of the `.keras` ZIP archive; no model execution required |
 | NumPy | `.npy`, `.npz` | `numpy.py` | `numpy` (`pitloom[numpy]`) | Memory-map header to read shape and dtype without loading tensor data |
 | ONNX | `.onnx` | `onnx.py` | `onnx` (`pitloom[onnx]`) | `onnx.load()` to access graph properties and `metadata_props` dictionary |
 | PyTorch classic | `.pt`, `.pth` | `pytorch.py` | `fickling` (`pitloom[pytorch]`) | ZIP archive structure inspection; `fickling` for safe pickle AST inspection (never calls `pickle.load`) |

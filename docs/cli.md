@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,8 @@ Use this when you want a one-off SBOM from a terminal, a Makefile target, or
 any shell script. The console script is installed as `loom` and `pitloom`;
 they run the same tool.
 
-See also: [SBOM from a Git URL](git-urls.md) for `loom project <url>`,
+See also: [SBOM from a Git URL](git-urls.md) for `loom project <url>` and
+`loom model <url>`,
 [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
 [SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which
 hold the `embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment`
@@ -52,7 +53,9 @@ loom project https://gitlab.com/group/project   # a Git URL: see below
 A target that is the `http` or `https` URL of a Git repository, or of one of its
 web pages (a branch, tag or commit and a folder may be named), is fetched
 shallowly into a temporary directory and read as a project; `loom generate` takes
-the same URL. The repository is untrusted: its own `[tool.pitloom]` is ignored
+the same URL. `loom project` reads only a project: a folder with AI model files
+and no project is refused with a hint to use `loom model <url>` or `loom
+generate <url>` ([below](#generate-an-sbom)). The repository is untrusted: its own `[tool.pitloom]` is ignored
 (`--config FILE` applies) and its build backend is never run. `--offline` is an
 error for it. Every redirect or change of the URL is an `INFO:` naming both URLs,
 and a URL that is refused or not followed is a `WARNING:` or `ERROR:`. See
@@ -93,7 +96,8 @@ loom env -o env.spdx3.json
 ```
 
 Generate an **Analyzed SBOM** for a single AI model file, with no Python
-project directory. Supported formats: GGUF, ONNX, Safetensors, PyTorch
+project directory (also a folder that holds exactly one model file and no
+project). Supported formats: GGUF, ONNX, Safetensors, PyTorch
 (`.pt`/`.pth`, PT2/ExecuTorch `.pt2`), Keras, HDF5, NumPy, fastText,
 CRFsuite; see [AI model formats](ai-model-formats.md) for extensions and
 install extras:
@@ -101,7 +105,30 @@ install extras:
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
 loom model path/to/model.gguf --pretty
+loom model path/to/models/      # a folder with one model file
 ```
+
+A file is read as a model by its content, not only its suffix (a GGUF file
+named `x.dat` is GGUF, for `loom model` and `loom generate` alike); a folder
+is read non-recursively, by suffix, and holds one model file: several are an
+error (`several AI model files`; name one file) and none is a path that is
+not a model. See [AI model formats](ai-model-formats.md#how-a-file-is-recognised).
+
+A model file, or a folder holding one, in a **Git repository** is read the same
+way from its web address (a `blob`, `raw` or `tree` page, or the repository):
+
+```bash
+loom model https://github.com/owner/repo/blob/main/models/m.keras
+loom generate https://gitlab.com/group/project/-/tree/main/models -o model.spdx3.json
+```
+
+The repository is fetched shallowly into a temporary directory; the SBOM is
+written to `-o` or the current directory, never into it. `--offline` is an
+error. Formats whose reader calls a native library (fastText, GGUF, HDF5,
+ONNX, PyTorch `.pt`/`.pth`) are listed with name, format and hash only, with
+one `INFO:`; clone the repository and run `loom model <file>` on a file you
+trust to read them. A Git LFS pointer is an error. See [SBOM from a Git
+URL](git-urls.md#model-files).
 
 A model whose read fails (truncated, a bound exceeded, a missing extra) is
 still written as a format-only entry, with one `WARNING:` and exit 0, as a
@@ -120,14 +147,15 @@ loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
 
 A Hugging Face **Space** or **dataset** is a Git repository, not a model: give
-its URL to `loom project` ([SBOM from a Git URL](git-urls.md)); `loom model`
-refuses it and names `loom project`.
+its URL to `loom project` ([SBOM from a Git URL](git-urls.md)), or to `loom
+model` to read a model file it holds.
 
 Or let `generate` detect the target type:
 
 ```bash
 loom generate . -o sbom.spdx3.json                           # project directory -> Source SBOM
 loom generate path/to/model.safetensors -o model.spdx3.json  # AI model asset    -> Analyzed SBOM
+loom generate path/to/models/ -o model.spdx3.json            # folder, no project, one model
 loom generate env -o env.spdx3.json                          # installed venv    -> Deployed SBOM
 ```
 

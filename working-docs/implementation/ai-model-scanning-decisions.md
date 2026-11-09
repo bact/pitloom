@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -127,7 +127,9 @@ surface, whatever its read outcome. Code: `read_model_candidate()` in
   A `null` *inside* `layers` is a malformed layer and warns
   (`layers[<i>] is not an object`). A valid config
   without class or name keeps the old cut-only notice. Parsing lives in
-  `ai_model/hdf5_config.py` (hdf5.py was near the size limit).
+  `ai_model/hdf5_config.py` (hdf5.py was near the size limit); the training
+  config is parsed in `ai_model/keras_training_config.py`, which the Keras v3
+  `compile_config` shares.
 - **HDF5 string-array attributes** (`h5py.string_dtype()` arrays read as
   `object` ndarrays) are decoded per element, joined by newline; `tobytes()`
   of an object array is its pointers, so the text, and the SBOM, differed per
@@ -152,5 +154,6 @@ surface, whatever its read outcome. Code: `read_model_candidate()` in
   error for a parse failure on a single file (two rules, still unlike a scan).
 - **Not changed:** ids stay outcome-dependent (`AIPackage-ok-1` read,
   `AIPackage-safetensors-3` stubbed); registry v3 owns that.
-- **Follow-ups** (roadmap): Keras v3 failing whole on a bad
-  `config.json`; scan `FORMAT=hdf5` vs a reader result of `keras`.
+- **Follow-ups** (roadmap): scan `FORMAT=hdf5` vs a reader result of `keras`.
+  (Keras v3 failing whole on a bad `config.json` is closed: one unreadable
+  member warns and the other is still read, 2026-11-09.)
