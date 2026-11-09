@@ -579,12 +579,20 @@ Released 2026-11-09, a patch release for LicenseID 0.8.1. Open items:
   `pitloom>=0.23.3`. Python 3.15 is not tested: some `ai` extra wheels
   (such as `onnx`) have no 3.15 build yet.
 
-## Shipped in 0.23.4 (PR #462)
+## Shipped in 0.23.4 (PRs #462, #464, #465)
 
-Released 2026-11-08, a patch release for LicenseID 0.8.2. Open items:
+Released 2026-11-09, a patch release for LicenseID 0.8.4 and a model SBOM
+from a Git URL. Open items:
 [roadmap.md](../design/roadmap.md#0240-message-catalogue-and-licence-provenance).
 
 - [x] **Release PR** (#462): requires `licenseid>=0.8.2,<0.9`. Pitloom reads
   every declared value, licence text and route as with 0.8.1: no licence
   reading, warning, category or database build changed (a database built by
   0.8.1 stays current). The skills require `pitloom>=0.23.4`.
+- [x] **Floor raised** (#465, #464): `licenseid>=0.8.3,<0.9` reads a
+  `licenses.nuget.org` expression URL as its expression; `>=0.8.4,<0.9` reads
+  `MIT/Apache-2.0` as `Apache-2.0 OR MIT` (category `separator`). The 0.8.4
+  re-run of the upstream findings is in
+  [licenseid/upstream-issues.md](licenseid/upstream-issues.md).
+- [x] **A model SBOM from a model file or Git URL** (#464): see
+  [model-sbom-from-git.md](model-sbom-from-git.md).
