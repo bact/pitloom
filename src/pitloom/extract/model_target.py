@@ -162,8 +162,8 @@ def model_files_in(
     each file the scan's suffix filter keeps whose header confirms a format,
     a file that is not one said in the scan's words. Each is named
     *shown_prefix* ``/`` its name (its name alone for ``""``). Git LFS
-    pointers get one summary ``WARNING:``; a folder of pointers and no
-    model is refused as its first pointer.
+    pointers beside a model get one summary ``WARNING:``; a folder of
+    pointers and no model is refused as its first pointer, with no warning.
 
     Raises:
         pitloom.messages.CodedValueError: ``model-ambiguous/over-cap``
@@ -193,8 +193,11 @@ def model_files_in(
         fmt = scan_step(candidate, sniff_model_format, pointers, unreadable)
         if fmt is not None:
             found.append(ModelFile(path, shown, fmt))
-    warn_pointers_not_read(pointers)
-    if not found:
+    if found:
+        warn_pointers_not_read(pointers)
+    else:
+        # The refusal of a folder of pointers names the first and says what
+        # to do, so a summary warning would repeat it with other advice.
         _refuse_unread(paths, pointers, unreadable)
     return found
 

@@ -24,6 +24,7 @@ Messages quote a URL without its credentials.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -143,6 +144,17 @@ def is_unsupported_remote_url(source: str) -> bool:
     if is_git_url(text) or _HF_HOST.search(text):
         return False
     return bool(_ANY_URL.match(text) or _SCP_ADDRESS.fullmatch(text))
+
+
+def is_unfetchable_remote(source: str) -> bool:
+    """Whether *source* is a remote address Pitloom cannot fetch
+    (:func:`is_unsupported_remote_url`) and no local path of that name exists.
+
+    The one rule ``loom model``, ``loom project`` and ``loom generate`` share,
+    so all three refuse such an address alike; a file or folder literally
+    named like one is still read.
+    """
+    return is_unsupported_remote_url(source) and not os.path.exists(source)
 
 
 @dataclass(frozen=True)

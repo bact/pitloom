@@ -121,6 +121,17 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
     )
 
 
+def _folder_subject(subject: str, file: str) -> str:
+    """The URL *subject* of a project read without the file the URL named: a
+    project read takes the folder, so a refusal names the folder, not the
+    file. *subject* is kept when it does not end with the file's name (a
+    query-style page)."""
+    if not file:
+        return subject
+    tail = "/" + file
+    return subject[: -len(tail)] if subject.endswith(tail) else subject
+
+
 def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget:
     """What the SBOM of the fetched *checkout* of *url* describes under
     *mode* (:data:`~pitloom.extract.model_target.AUTO`, ``PROJECT`` or
@@ -153,6 +164,8 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
         OSError: The folder cannot be listed.
     """
     subject = sanitize_url(url.strip())
+    if mode == PROJECT:
+        subject = _folder_subject(subject, checkout.file)
     named = _named_file(checkout, mode)
     if mode == PROJECT:
         _refuse_model_only_folder(checkout, subject)

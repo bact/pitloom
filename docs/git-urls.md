@@ -232,9 +232,9 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   directory is not gated.
 - **Git LFS pointers are refused.** A model file that is a pointer (LFS is off
   for the clone) is an error that gives the pointer's `oid` and size and says
-  to clone with Git LFS and run on the file. In a folder, pointers are
-  counted in one `WARNING:` and a folder of pointers only is refused as the
-  first of them.
+  to clone with Git LFS and run on the file. In a folder, pointers beside
+  a model are counted in one `WARNING:`; a folder of pointers only is refused
+  as the first of them, with no warning.
 - The SBOM names the file by its own name, and every message by its path in
   the repository: no temporary path is in the output, so two runs of one URL
   and commit give the same SBOM for a fixed creation time. `loom model <url>`

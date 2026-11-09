@@ -36,6 +36,7 @@ from pitloom.extract.model_target import MODEL, model_path_of
 from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
+    is_unfetchable_remote,
     log_hf_url_rewrite,
     parse_hf_model_id,
 )
@@ -126,6 +127,8 @@ def _run_model_command(args: argparse.Namespace) -> int:
         return run_remote(args, target.strip(), MODEL, BuildOptions())
     if is_huggingface_source(target):
         return _run_hf_model(args, target)
+    if is_unfetchable_remote(target):
+        return run_remote(args, target.strip(), MODEL, BuildOptions())
     # The path as given goes to the generator, so its log lines name the
     # file as the user wrote it.
     opened_path = existing_model_path(Path(target))

@@ -203,7 +203,7 @@ def test_a_named_lfs_pointer_is_refused_for_every_suffix(
 
 
 @pytest.mark.parametrize("suffix", _SUFFIXES)
-def test_a_folder_of_pointers_warns_once_then_refuses_the_first(
+def test_a_folder_of_pointers_only_is_refused_as_the_first_with_no_warning(
     suffix: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     for stem in ("b", "a"):
@@ -212,8 +212,8 @@ def test_a_folder_of_pointers_warns_once_then_refuses_the_first(
         model_files_in(tmp_path)
     assert code_of(caught.value) == "lfs-pointer"
     assert f"'a{suffix}'" in str(caught.value)
-    assert _codes(caplog, logging.WARNING) == ["lfs-pointer"]
-    assert caplog.records[-1].getMessage().startswith(f"FILE=a{suffix}: ")
+    # The refusal carries the advice; a warning would give it again.
+    assert _codes(caplog, logging.WARNING) == []
 
 
 def test_a_pointer_beside_a_model_is_warned_of_and_the_model_kept(

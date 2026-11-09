@@ -73,7 +73,7 @@ from pitloom.extract.model_target import AUTO, is_model_file_target, resolve_sbo
 from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
-    is_unsupported_remote_url,
+    is_unfetchable_remote,
 )
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -126,9 +126,7 @@ def _classify_target(target: Path | str) -> str:
         return "wheel"
     if is_huggingface_source(target_str):
         return "hf"
-    if is_git_url(target_str) or (
-        is_unsupported_remote_url(target_str) and not Path(target_str).exists()
-    ):
+    if is_git_url(target_str) or is_unfetchable_remote(target_str):
         return "git"
     return _local_kind(target_str)
 

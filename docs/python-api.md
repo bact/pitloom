@@ -283,10 +283,11 @@ Face model cards are already parsed natively when generating the SBOM,
 so local enrichment doesn't apply there.
 
 `generate_model_sbom()` and `generate()` also take a folder that holds exactly
-one model file and no project (a folder with neither raises `ValueError` coded
-`project-or-model-not-found`, where `generate()` raised `FileNotFoundError`
-before); `generate()` reads a file as a model by its header too (a GGUF file
-named `x.dat`), not only by suffix. `generate_model_sbom(..., shown=)` names
+one model file and no project. A folder with neither raises `ValueError`:
+from `generate()` coded `project-or-model-not-found` (it raised
+`FileNotFoundError` before), from `generate_model_sbom()` coded
+`model-wrong-format` (not an AI model file of a supported format). `generate()` reads a file as a model by its header too (a
+GGUF file named `x.dat`), not only by suffix. `generate_model_sbom(..., shown=)` names
 the model file in messages as the caller knows it (a path in a repository)
 when it has been copied elsewhere; the SBOM names it by its own file name.
 

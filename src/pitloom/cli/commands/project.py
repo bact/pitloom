@@ -43,7 +43,7 @@ from pitloom.extract.model_target import PROJECT
 from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
-    is_unsupported_remote_url,
+    is_unfetchable_remote,
 )
 from pitloom.logging_config import print_error
 
@@ -105,11 +105,7 @@ def _project_target(text: str) -> Path | str:
     collapse its ``//``), a Hugging Face model URL (refused with a message
     naming ``loom model``) or any other remote address (refused with a message
     naming what is fetched), else a path."""
-    if (
-        is_git_url(text)
-        or _is_hub_model_url(text)
-        or (is_unsupported_remote_url(text) and not Path(text).exists())
-    ):
+    if is_git_url(text) or _is_hub_model_url(text) or is_unfetchable_remote(text):
         return text.strip()
     return Path(text)
 
