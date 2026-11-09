@@ -131,10 +131,17 @@ Several model files, or neither a project nor a model, raise a
 `git.no-project` a `RemoteSourceError`, which keeps the code
 `project-or-model-not-found` as `pitloom_code`, names subprojects when the
 repository has some. A Git LFS pointer raises `ValueError` coded `lfs-pointer`.
-The readers of fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` files are not
-run on a file from a Git URL: it is listed with its name, format and hash only,
-and one `INFO:` says so. `check_url=`, `max_clone_bytes=` and `offline=` apply
-as for a project; options a model SBOM cannot use warn once.
+For a model SBOM, the readers of fastText, HDF5 and ONNX files (C/C++
+libraries), PyTorch `.pt`/`.pth` files (a pickle parser) and GGUF files (a
+parsing loop a crafted file can make very slow or very large) are not run on a
+file from a Git URL: it is listed with its name, format and hash only, and one
+`INFO:` says so. Keras, Safetensors, NumPy, CRFsuite and PT2 files are read in
+full. A folder read as a project (`"project"`, or `"auto"` with a project
+config) has its model files read by every reader, ungated, as a local project
+does. `check_url=` and `offline=` apply as for a project, and so does
+`max_clone_bytes=`, a parameter of `generate_git_sbom()` and
+`generate_git_project_sbom()` only (`generate()` has none); options a model
+SBOM cannot use warn once.
 
 When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 `pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present

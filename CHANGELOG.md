@@ -35,8 +35,8 @@ and this project adheres to
 
 ### Changed
 
-- A model from a Git URL in a fastText, GGUF, HDF5, ONNX or PyTorch format is
-  listed by name, format and hash only, with one `INFO:` ([#463])
+- A model SBOM from a Git URL lists a fastText, GGUF, HDF5, ONNX or PyTorch
+  model by name, format and hash only, with one `INFO:` ([#463])
 - A directory with neither a project nor a model raises
   `project-or-model-not-found` (was `FileNotFoundError`) ([#463])
 

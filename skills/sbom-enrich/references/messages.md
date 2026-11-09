@@ -45,7 +45,8 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
 | [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
-| [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files (or too many files a model could be to look at), and no file was named: one SBOM describes one model. | 0.24.0 |
+| [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.24.0 |
+| [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.24.0 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
@@ -57,7 +58,7 @@ most one prefix from the table of prefixes.
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
 | [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | An AI model file read from a Git URL is in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.24.0 |
-| [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it that is not an AI model (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.24.0 |
+| [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
@@ -453,13 +454,11 @@ A line may start with one prefix before its text:
 
 - **Level**: ERROR, INFO. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
-- **Means**: A folder named for an AI model SBOM holds several AI model files
-  (or too many files a model could be to look at), and no file was named: one
-  SBOM describes one model.
+- **Means**: A folder named for an AI model SBOM holds several AI model files,
+  and no file was named: one SBOM describes one model.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM. One INFO line per model file found names it,
-  in sorted order, before the error; a folder of more files a model could be
-  than its cap is not read, said first in one over-cap WARNING instead.
+  in sorted order, before the error.
 - **Tell the user**: which model files the folder holds, as the INFO lines name
   them. They name the one they want (its path, or for a Git URL the link to the
   file's page) and generate again, once per model. Do not pick a file and
@@ -469,6 +468,27 @@ A line may start with one prefix before its text:
   ```text
   INFO: FILE=<file>: one of several AI model files [model-ambiguous]
   ERROR: '<path>': several AI model files<count>; name one file [model-ambiguous]
+  ```
+
+### `model-ambiguous/over-cap`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A folder named for an AI model SBOM holds more files whose names
+  could be AI models than its cap, and no file was named: which of them are
+  models is not known, and one SBOM describes one model.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM; no file of the folder was read, said first in
+  one over-cap WARNING.
+- **Tell the user**: the folder holds too many files that could be models for
+  Pitloom to look at. They name the one model file they want (its path, or for a
+  Git URL the link to the file's page), or a folder holding only it, and
+  generate again. Do not pick a file and generate for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: '<path>': more than <limit> files that could be AI models, none read; name one file [model-ambiguous/over-cap]
   ```
 
 ### `model-field-conflict`
@@ -728,10 +748,11 @@ A line may start with one prefix before its text:
 ### `target-ambiguous`
 
 - **Level**: INFO.
-- **Means**: The path named for an SBOM is a folder, or a file in it that is not
-  an AI model (a Git URL of README.md), so it does not say by itself what the
-  SBOM describes; Pitloom decided by the rule: a project config makes it a
-  project's, else the folder's one AI model file is read.
+- **Means**: The path named for an SBOM is a folder, or a file in it whose name
+  no AI model file has and that is not one, or is missing (a Git URL of
+  README.md), so it does not say by itself what the SBOM describes; Pitloom
+  decided by the rule: a project config makes it a project's, else the folder's
+  one AI model file is read.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Read what the line names: the folder, or its one model file.
   The SBOM describes that file, or the folder's project.

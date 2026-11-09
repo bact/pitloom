@@ -83,16 +83,26 @@ refactor of `hdf5_config.py`.
   (`extract/model_target.py`, `extract/remote/git_target.py`).
 - **D3 A model file URL wins** under `auto`, even beside a project. A
   non-model file URL (`pyproject.toml`, `README.md`) reads the folder as
-  before, with one `INFO:`.
+  before, with one `INFO:`. "Non-model" is decided by the name first
+  (`has_model_suffix`, the suffix set `generate("x.gguf")` reads a file
+  by): a file named as a model that is not one (an empty `e.gguf`) is
+  refused under `auto` too, as it is locally; passing it over for the
+  folder's project would ignore what the user named. `.zip` is not such a
+  suffix (an sdist can be one).
 - **D4 One model per SBOM.** A folder with several model files is an error
   (`model-ambiguous`, one `INFO:` per file, then the `ERROR:`); the user names
   one file. A multi-model document is out of scope. A folder is read
   non-recursively (the named folder; the repository root is its root files
-  only), and at most 1000 files whose names could be models are sniffed.
+  only), and at most 1000 files whose names could be models are sniffed: a
+  folder of more is refused unread as `model-ambiguous/over-cap` (its own
+  variant: no file is known to be a model, so "several AI model files"
+  would overstate it).
 - **D5 Neither project nor model:** `project-or-model-not-found` (library:
   `CodedValueError`; via Git: `RemoteSourceError` `git.no-project` keeping that
   code as `pitloom_code`, plus the subproject hint when the repository has
-  subprojects). A named file absent from the repository is `git.path-not-found`.
+  subprojects). A named file absent from the repository is `git.path-not-found`
+  when its name has a model suffix (or under `loom model`); any other name
+  (`README.md`) reads the folder, as on `main` before this change.
 - **D6 `config.json["metadata"]` of a Keras archive is not mapped.** The
   fixture's `description`, `author`, `model_version` and `license` there are a
   convention of that fixture's generator, not a Keras field. Mapping them would
@@ -123,8 +133,9 @@ URL form by mode (`resolve_git_target`, then `resolve_sbom_target`). A
 | URL names | `generate` (auto) | `loom model` | `loom project` |
 | :-------- | :---------------- | :----------- | :------------- |
 | a model file | the model (even beside a project) | the model | the folder's project; no project and model-like files: `git.no-project` + hint |
-| a non-model file (`pyproject.toml`) | `INFO:` `not an AI model file; reading its folder`, then as a folder | refused (`model-wrong-format`) | the folder's project |
-| a file absent from the repository | `git.path-not-found` | `git.path-not-found` | the folder's project (the file name is ignored) |
+| a non-model file with a name no model has (`pyproject.toml`) | `INFO:` `not an AI model file; reading its folder`, then as a folder | refused (`model-wrong-format`) | the folder's project |
+| a file with a model suffix that is no model (empty `e.gguf`) | refused (`model-wrong-format`), as `loom model e.gguf` locally | the same | the folder's project |
+| a file absent from the repository, or a link | model suffix: `git.path-not-found`; any other name: the folder, `INFO:` as above | `git.path-not-found` | the folder's project (the file name is ignored) |
 | a model file that is an LFS pointer | `ERROR:` `lfs-pointer` (clone advice) | the same | n/a |
 | a folder with a project | the project | its one model file, if any | the project |
 | a folder with no project, one model | the model, `INFO:` | the model, `INFO:` | `git.no-project` + hint |

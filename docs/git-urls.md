@@ -86,12 +86,16 @@ from the server's own branches and tags, longest match first.
   below). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py` has no
   Python project to read, and `loom project` says so (naming `loom model` when
   the folder holds files that may be models).
-- Not read: `raw.githubusercontent.com` (a file host, not a repository page;
-  use the `github.com` `blob` or `raw` page of the file instead), a Hugging
-  Face `/resolve/` file link (give the repository address), hosts that need a
-  login, `ssh://`, `git://`, `file://` and
-  scp-style `user@host:path` addresses. These are refused with a message (see
-  below).
+- Not read as a file: `raw.githubusercontent.com` is a file host, not a
+  repository page, but its URL is taken as a repository: the whole URL is
+  cloned and fails (`git.clone-failed`). Use the `github.com` `blob` or `raw`
+  page of the file instead. A Hugging Face `/resolve/` file link of a model
+  (`huggingface.co/<org>/<name>/resolve/main/<file>`) is read as the Hub
+  model `<org>/<name>`: the file part is dropped and no model file is read.
+  The `/resolve/` link of a Space or a dataset is taken as a repository and
+  fails as `raw.githubusercontent.com` does: give the repository address.
+- Refused with a message (see below): hosts that need a login, `ssh://`,
+  `git://`, `file://` and scp-style `user@host:path` addresses.
 
 ## Verified platforms
 
@@ -167,35 +171,46 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 | `loom model <url>` | the model | its one model file, even beside a project |
 | `loom project <url>` | the folder's project | the project; a folder with models and no project is refused (`git.no-project`), naming `loom model` and `loom generate` |
 
-- **A model file URL wins** over a project in the same folder. A file URL that
-  is not a model (`blob/.../pyproject.toml`, `README.md`) reads the folder as
-  before, with one `INFO:`; `loom model` refuses it.
+- **A model file URL wins** over a project in the same folder. A file URL whose
+  name no model file has (`blob/.../pyproject.toml`, `README.md`) and that is
+  not a model, or is missing or a link, reads the folder as before, with one
+  `INFO:`; `loom model` refuses it. A file named as a model (`.gguf`, `.onnx`,
+  `.bin`, ...) that is not one (empty, or of no supported format) is refused
+  by both, as `loom model <file>` refuses it locally.
 - **A folder is read non-recursively**: only the named folder, and for the
   repository itself only the files at its root. A model in a subfolder needs
   that folder's URL or the file's. A folder of more than 1000 files whose
   names could be models is not read (one `over-cap` `WARNING:`) and is
-  refused, as several models are.
+  refused (`more than 1000 files that could be AI models, none read`;
+  `model-ambiguous/over-cap`).
 - **One model per SBOM.** A folder with several model files is an error
   (`model-ambiguous`): one `INFO:` per file names them, sorted, and you give
   the URL of one file. A folder with neither project nor model is an error
   (`project-or-model-not-found`; via Git the error code is `git.no-project`,
-  with the subprojects named when the repository has some). A named file that
-  is not in the repository is `git.path-not-found` (`No file '<path>' in the
-  repository at that branch. [input-not-found]`). `loom project <url>` on a
-  folder with models and no project says `ERROR: ... No pyproject.toml,
-  setup.cfg, or setup.py found in <url>; it holds files that may be AI models
-  ... [project-not-found/model-files]`.
+  with the subprojects named when the repository has some). A named file with
+  a model suffix that is not in the repository, or is a link (not followed),
+  is `git.path-not-found` (`No file '<path>' in the repository at that
+  branch. [input-not-found]`); for `loom model`, any named file is. `loom
+  project <url>` on a folder with models and no project says `ERROR: ... No
+  pyproject.toml, setup.cfg, or setup.py found in <url>; it holds files that
+  may be AI models ... [project-not-found/model-files]`.
 - A file is a model by its **content**, not its name: a GGUF file named `m.dat`
   is read when its URL is given. A folder's candidates are chosen by the
   suffixes the scan knows, then confirmed by their content.
-- **Some readers are not run on a download.** The readers of fastText, GGUF,
-  HDF5, ONNX and PyTorch (`.pt`, `.pth`) files call native libraries, or a
-  pickle parser, that a hostile file could crash, hang or exhaust in memory.
-  A model of one of these formats from a Git URL is listed with its name,
-  format and hash only, and one `INFO:` says so. Keras, Safetensors, NumPy,
-  CRFsuite and PT2 files are read in full. To read the others, clone the
-  repository (with Git LFS, when it stores the model there) and run
-  `loom model <file>` on a file you trust.
+- **Some readers are not run on a download for a model SBOM.** The readers
+  of fastText, HDF5 and ONNX files open the file with a C/C++ library, the
+  PyTorch (`.pt`, `.pth`) reader parses a pickle, and the GGUF reader runs a
+  parsing loop that a crafted file can make very slow or very large: a
+  hostile file could crash, hang or exhaust them in memory. A model of one of
+  these formats that a model SBOM from a Git URL describes is listed with its
+  name, format and hash only, and one `INFO:` says so. Keras, Safetensors
+  (with its Rust library, read in full on purpose), NumPy, CRFsuite and PT2
+  files are read in full. To read the others, clone the repository (with Git
+  LFS, when it stores the model there) and run `loom model <file>` on a file
+  you trust. This gate covers a model SBOM only: a folder read as a project
+  (`loom project`, or `loom generate` on a folder with `pyproject.toml`,
+  `setup.cfg` or `setup.py`) has the model files of its build read by every
+  reader, ungated, as for a local project.
 - **Git LFS pointers are refused.** A model file that is a pointer (LFS is off
   for the clone) is an error that gives the pointer's `oid` and size and says
   to clone with Git LFS and run on the file. In a folder, pointers are
@@ -272,7 +287,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `Git source: <url> is not a repository; trying <url>` | a group called `src`/`tree`/`blob`: the whole URL is tried |
 | `INFO:` | `Git source: <path> is a folder, not a file; reading it` | a file page whose path is a folder |
 | `INFO:` | `Git source: <path> is a file, not a folder; reading the folder holding it` | a folder page whose path is a file |
-| `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file that is not a model (`loom generate`) |
+| `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file whose name no model has, and that is not a model or is missing (`loom generate`) |
 | `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
 | `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
 | `INFO:` | `FILE=<file>: one of several AI model files`, then `ERROR:` `<url>: several AI model files (N files); name one file` | a folder holds several models (one line per file; `model-ambiguous`) |

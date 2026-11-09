@@ -11,10 +11,12 @@ tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
 parse_git_page`). The server's redirect (GitLab's ``project`` to
 ``project.git``) is followed first, each hop passed to the caller's URL check
 (:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`). The clone is
-shallow, asks the server to omit blobs over 10 MB (a server without partial
-clone sends them; one that rejects the filter is asked again without it),
-follows no redirect itself and runs with git-lfs off; with ``max_bytes`` it
-stops past a disk cap (``git.too-large``).
+shallow and asks the server to leave out blobs over 10 MiB that the checkout
+does not need (a server without partial clone sends them; one that rejects
+the filter is asked again without it): a large file in the checked-out tree
+is still fetched, at checkout. It follows no redirect itself and runs with
+git-lfs off; with ``max_bytes`` it stops past a disk cap (``git.too-large``),
+which bounds a large file too.
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -64,9 +66,11 @@ __all__ = [
     "fetch_git_project",
 ]
 
-#: Blobs above this size are not fetched: Pitloom reads packaging metadata.
-#: A server without partial clone ignores the filter; one that rejects it
-#: (HTTP 400) is asked again without it (:func:`_checkout`).
+#: The partial-clone filter leaves out blobs above this size that the
+#: checkout does not need; a large file in the checked-out tree is fetched at
+#: checkout, bounded by the ``max_bytes`` cap. A server without partial clone
+#: ignores the filter; one that rejects it (HTTP 400) is asked again without
+#: it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
 
 #: ``log.info()`` format for a URL that names more than the clone URL.
@@ -287,12 +291,14 @@ def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) 
 def _checkout(
     runner: GitRunner, clone_url: str, work_dir: str, target: GitTarget
 ) -> None:
-    """Check out *target* of *clone_url* into *work_dir*, shallowly, without
-    blobs over :data:`BLOB_LIMIT`. A server that answers the filter with an
-    error (Azure DevOps: HTTP 400) is asked again without it; the size cap
-    still bounds the transfer. ``init`` and ``remote add`` run once, and the
-    tag and commit retry says ``--no-filter``: the failed fetch saved the
-    filter in the repository config."""
+    """Check out *target* of *clone_url* into *work_dir*, shallowly, with a
+    filter that leaves out blobs over :data:`BLOB_LIMIT` the checkout does
+    not need (a large file in the checked-out tree is fetched at checkout).
+    A server that answers the filter with an error (Azure DevOps: HTTP 400)
+    is asked again without it; the size cap still bounds the transfer.
+    ``init`` and ``remote add`` run once, and the tag and commit retry says
+    ``--no-filter``: the failed fetch saved the filter in the repository
+    config."""
     pinned = bool(target.commit or target.tag)
     if pinned:
         runner.run(["init", "--quiet", "--", work_dir], "init")

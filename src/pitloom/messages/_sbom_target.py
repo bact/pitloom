@@ -6,7 +6,8 @@
 """What a folder named for an SBOM is, or is not: ``target-ambiguous`` (a
 folder, or a file that is not a model, read for what it holds),
 ``project-or-model-not-found`` (neither a Python project nor an AI model
-file), ``model-ambiguous`` (several AI model files, none named) and
+file), ``model-ambiguous`` (several AI model files, none named; with
+``/over-cap``, too many files a model could be to look at) and
 ``project-not-found`` (a project asked for, none found; with
 ``/model-files``, model files found instead).
 
@@ -23,8 +24,9 @@ from pitloom.messages._types import Line, Message
 #: The release that first prints these codes.
 _SINCE: Final = "0.24.0"
 
-#: A file named with its folder that is plainly not a model
-#: (``pyproject.toml``): the folder decides.
+#: A file named with its folder whose name no model file has and that is
+#: plainly not a model (``pyproject.toml``), or is missing or a link: the
+#: folder decides.
 NAMED_NOT_A_MODEL_LINE: Final = Line(
     level="INFO", template="FILE=%(file)s: not an AI model file; reading its folder"
 )
@@ -42,8 +44,9 @@ TARGET_AMBIGUOUS: Final = Message(
     code="target-ambiguous",
     condition="ambiguous",
     lines=(NAMED_NOT_A_MODEL_LINE, NO_PROJECT_ONE_MODEL_LINE, ONE_MODEL_LINE),
-    summary="The path named for an SBOM is a folder, or a file in it that is "
-    "not an AI model (a Git URL of README.md), so it does not say by itself "
+    summary="The path named for an SBOM is a folder, or a file in it whose "
+    "name no AI model file has and that is not one, or is missing (a Git URL "
+    "of README.md), so it does not say by itself "
     "what the SBOM describes; Pitloom decided by the rule: a project config "
     "makes it a project's, else the folder's one AI model file is read.",
     did="Read what the line names: the folder, or its one model file. The "
@@ -95,12 +98,10 @@ MODEL_AMBIGUOUS: Final = Message(
     code="model-ambiguous",
     condition="ambiguous",
     lines=(AMBIGUOUS_FILE_LINE, AMBIGUOUS_ERROR_LINE),
-    summary="A folder named for an AI model SBOM holds several AI model files "
-    "(or too many files a model could be to look at), and no file was named: "
-    "one SBOM describes one model.",
+    summary="A folder named for an AI model SBOM holds several AI model files, "
+    "and no file was named: one SBOM describes one model.",
     did="Wrote no SBOM. One INFO line per model file found names it, in "
-    "sorted order, before the error; a folder of more files a model could be "
-    "than its cap is not read, said first in one over-cap WARNING instead.",
+    "sorted order, before the error.",
     effect="not-written",
     actor="user",
     advice="Tell the user which model files the folder holds, as the INFO "
@@ -109,6 +110,32 @@ MODEL_AMBIGUOUS: Final = Message(
     "pick a file and generate for them; ask first, and with nobody to ask, "
     "report it only.",
     subject_key="FILE",
+    since=_SINCE,
+)
+
+#: The refusal of a folder with more files whose names could be models than
+#: the cap: none was read, so none is known to be one.
+OVER_CAP_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="%(path)s: more than %(limit)s files that could be AI models, none "
+    "read; name one file",
+)
+MODEL_AMBIGUOUS_OVER_CAP: Final = Message(
+    code="model-ambiguous/over-cap",
+    condition="ambiguous",
+    lines=(OVER_CAP_ERROR_LINE,),
+    summary="A folder named for an AI model SBOM holds more files whose names "
+    "could be AI models than its cap, and no file was named: which of "
+    "them are models is not known, and one SBOM describes one model.",
+    did="Wrote no SBOM; no file of the folder was read, said first in one "
+    "over-cap WARNING.",
+    effect="not-written",
+    actor="user",
+    advice="Tell the user the folder holds too many files that could be "
+    "models for Pitloom to look at. They name the one model file they want "
+    "(its path, or for a Git URL the link to the file's page), or a folder "
+    "holding only it, and generate again. Do not pick a file and generate for "
+    "them; ask first, and with nobody to ask, report it only.",
     since=_SINCE,
 )
 
@@ -164,6 +191,7 @@ ENTRIES: Final = (
     TARGET_AMBIGUOUS,
     NO_SBOM_TARGET,
     MODEL_AMBIGUOUS,
+    MODEL_AMBIGUOUS_OVER_CAP,
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_MODEL_FILES,
 )

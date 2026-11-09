@@ -239,6 +239,34 @@ def test_a_file_whose_header_contradicts_its_suffix_is_said_and_skipped(
 
 
 @pytest.mark.parametrize(
+    ("name", "content", "code"),
+    [
+        ("e.gguf", b"", "model-wrong-format"),
+        ("x.bin", b"hello", "model-wrong-format"),
+        ("gone.onnx", None, "input-not-found"),
+        ("x.dat", b"", None),
+        ("data.zip", b"PK\x05\x06" + bytes(18), None),
+        ("gone.md", None, None),
+    ],
+    ids=["empty-gguf", "bin", "gone-onnx", "dat", "zip", "gone-md"],
+)
+def test_a_named_file_is_refused_by_its_model_suffix(
+    tmp_path: Path, name: str, content: bytes | None, code: str | None
+) -> None:
+    """A name a model file has (:func:`has_model_suffix`) and no model is
+    refused, as ``generate("e.gguf")`` refuses it; any other name is no
+    model (``None``), gone or not."""
+    if content is not None:
+        (tmp_path / name).write_bytes(content)
+    if code is None:
+        assert named_model_file(tmp_path / name, name) is None
+        return
+    with pytest.raises((ValueError, FileNotFoundError)) as caught:
+        named_model_file(tmp_path / name, name)
+    assert code_of(caught.value) == code
+
+
+@pytest.mark.parametrize(
     ("mode", "named", "kind"),
     [
         (AUTO, "", PROJECT),
@@ -324,8 +352,10 @@ def test_a_folder_over_the_candidate_cap_is_refused_unread(
     caplog.clear()
     with pytest.raises(ValueError) as caught:
         model_files_in(tmp_path, subject="d")
-    assert code_of(caught.value) == "model-ambiguous"
-    assert str(caught.value) == "'d': several AI model files (3 files); name one file"
+    assert code_of(caught.value) == "model-ambiguous/over-cap"
+    assert str(caught.value) == (
+        "'d': more than 2 files that could be AI models, none read; name one file"
+    )
     (record,) = caplog.records
     assert record.getMessage() == (
         "DIR=d: larger than the 2-entry model-candidate cap; no file read"
@@ -385,7 +415,9 @@ def test_the_cap_names_the_folder_by_default(
     with pytest.raises(ValueError) as caught:
         model_files_in(tmp_path)
     where = quote_source(str(tmp_path))
-    assert str(caught.value) == f"{where}: several AI model files; name one file"
+    assert str(caught.value) == (
+        f"{where}: more than 0 files that could be AI models, none read; name one file"
+    )
     assert caplog.messages == [
         f"DIR={tmp_path}: larger than the 0-entry model-candidate cap; no file read"
     ]

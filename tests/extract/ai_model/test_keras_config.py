@@ -135,8 +135,9 @@ def test_compile_config_absent_is_quiet(
         ({"optimizer": {"class_name": 5}, "loss": "mse"}, "class_name is not a s", 1),
         ("adam", "compile_config is not an object", 0),
         ([{"loss": "mse"}], "compile_config is not an object", 0),
+        ([], "compile_config is not an object", 0),
     ],
-    ids=["int", "list", "class-int", "config-string", "config-list"],
+    ids=["int", "list", "class-int", "config-string", "config-list", "config-[]"],
 )
 def test_a_compile_config_part_of_the_wrong_type_warns_once(
     tmp_path: Path,
@@ -146,10 +147,14 @@ def test_a_compile_config_part_of_the_wrong_type_warns_once(
     kept: int,
 ) -> None:
     """One warning; the loss after a bad optimizer is kept, and so is the
-    model config."""
+    model config. An empty list is no object either, as for an HDF5
+    ``training_config``."""
     meta, messages = _read(
         tmp_path, caplog, {**_MODEL, "compile_config": compile_config}
     )
+    if compile_config == []:
+        hdf5 = parse_training_config("[]", "S", {}, {})
+        assert hdf5 is not None and hdf5.error == "is not a JSON object"
     (message,) = messages
     assert message.startswith("config.compile_config")
     assert problem in message
@@ -172,14 +177,26 @@ def test_a_compile_config_part_of_the_wrong_type_warns_once(
         ("metrics", ["accuracy"], '["accuracy"]'),
         ("metrics", [], None),
         ("metrics", None, None),
+        ("loss", "", None),
+        ("metrics", "", None),
     ],
-    ids=["loss-str", "loss-dict", "loss-list", "metrics", "metrics-empty", "null"],
+    ids=[
+        "loss-str",
+        "loss-dict",
+        "loss-list",
+        "metrics",
+        "metrics-empty",
+        "null",
+        "loss-empty-str",
+        "metrics-empty-str",
+    ],
 )
 def test_loss_and_metrics_as_stated(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, value: Any, text: Any
 ) -> None:
     """A string as is, a collection as its JSON text and, in the raw
-    metadata, as read; empty metrics are absent."""
+    metadata, as read; empty metrics and an empty loss string are absent,
+    as an empty optimizer string is."""
     meta, _ = _read(tmp_path, caplog, {**_MODEL, "compile_config": {key: value}})
     assert meta.properties.get(key) == text
     assert meta.raw_metadata.get(key) == (value if text is not None else None)

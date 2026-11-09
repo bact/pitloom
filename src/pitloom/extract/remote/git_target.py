@@ -22,8 +22,10 @@ from typing import Final
 from pitloom.core.project_markers import has_project_config
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import (
+    MODEL,
     PROJECT,
     SbomTarget,
+    has_model_suffix,
     resolve_sbom_target,
 )
 from pitloom.extract.remote._git_folder import checkout_has_file, subproject_hint
@@ -112,12 +114,15 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
     its path in the repository and the folder by *url* without credentials.
 
     Called within :meth:`~pitloom.extract.remote.git.GitCheckout.reading`, so
-    a link is not followed, a Git LFS pointer is said as in a clone and a
-    native-library reader is not run.
+    a link is not followed, a Git LFS pointer is said as in a clone and, for
+    a model target, a reader a hostile file could crash or hang (fastText,
+    GGUF, HDF5, ONNX, PyTorch) is not run. A project target is read by its
+    own route, whose model files every reader reads, ungated.
 
     Raises:
         RemoteSourceError: ``git.path-not-found`` (the named file is no
-            file of the folder, unless *mode* is ``PROJECT``;
+            file of the folder, under ``MODEL`` or, under ``AUTO``, for a
+            name with a model suffix: any other name reads the folder;
             ``input-not-found``) or ``git.no-project``: a project only, of a
             folder whose files may be models
             (``project-not-found/model-files``); or neither a project nor a
@@ -129,7 +134,8 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
         OSError: The folder cannot be listed.
     """
     subject = sanitize_url(url.strip())
-    if checkout.file and mode != PROJECT:
+    named = checkout.file
+    if named and (mode == MODEL or (mode != PROJECT and has_model_suffix(named))):
         _named_file(checkout)
     if mode == PROJECT:
         _refuse_model_only_folder(checkout, subject)

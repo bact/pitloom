@@ -6,7 +6,7 @@
 file: the SBOM a local run of the file gives, for every format, whatever
 temporary directory the clone is in; the fetch's own options reach the
 fetch, an option a model cannot use warns once, and a downloaded file is
-never read by a native-library reader.
+never read by a gated reader (fastText, GGUF, HDF5, ONNX, PyTorch).
 
 The fetch is stood in for by a prepared directory; see
 :mod:`tests.extract.remote.test_git_fetch_models` for real clones.
@@ -29,11 +29,13 @@ from pitloom.assemble import (
     generate_git_sbom,
     generate_model_sbom,
 )
-from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import reading_remote_clone
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract.ai_model import reader as ai_model_reader
+from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
@@ -75,6 +77,16 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     return seen
 
 
+def _has_library(fmt: AiModelFormat) -> bool:
+    """Whether *fmt*'s reader can run here (its optional library, if any, is
+    installed): without it the scan does not call the reader."""
+    try:
+        require_library(fmt)
+    except ImportError:
+        return False
+    return True
+
+
 def _messages(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [r.getMessage() for r in caplog.records]
 
@@ -112,14 +124,27 @@ def test_a_native_library_reader_never_runs_on_a_downloaded_file(
     fetched: dict[str, object],
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The gated formats get the format-only entry and one
-    ``reader-unsafe/remote`` ``INFO:``; every other format is read as a
-    local file outside a clone is."""
+    """The gated formats' reader is never called: the format-only entry and
+    one ``reader-unsafe/remote`` ``INFO:``; every other format is read as a
+    local file outside a clone is. A spy on the reader decides, not the
+    SBOM: without its optional library a local read is a stub too."""
     local = _copy(fmt, tmp_path / "local")
     outside = generate_model_sbom(local, creation_metadata=_FIXED)
     model = _copy(fmt, tmp_path / "clone" / "models")
     fetched.update(folder=model.parent, file="")
+    read: list[Path] = []
+    # pylint: disable-next=protected-access
+    readers = ai_model_reader._READERS  # the dispatch the read goes through
+    real = readers[fmt]
+
+    def spy(path: Path) -> AiModelMetadata:
+        """Record the read, then read."""
+        read.append(path)
+        return real(path)
+
+    monkeypatch.setitem(readers, fmt, spy)
     with caplog.at_level(logging.INFO):
         sbom = generate_git_sbom(_URL, creation_metadata=_FIXED)
     notes = [
@@ -129,7 +154,9 @@ def test_a_native_library_reader_never_runs_on_a_downloaded_file(
     ]
     gated = fmt in WHEEL_GATED_FORMATS
     assert len(notes) == int(gated)
-    assert (sbom == outside) is not gated
+    assert read == ([] if gated or not _has_library(fmt) else [model])
+    if not gated:
+        assert sbom == outside
     assert f"FILE=models/{model.name}" in caplog.text  # the folder's one model
 
 

@@ -156,8 +156,8 @@ def parse_training_config_object(
     - ``loss`` and ``metrics`` -> ``properties`` (updated in-place): a
       string as is, a number or a boolean its scalar text, a list or an
       object its JSON text; the value as read, when not a string, also
-      -> ``natives``. A ``null`` loss is absent; a ``null`` or empty
-      metrics too.
+      -> ``natives``. A ``null`` or ``""`` loss is absent, as an ``""``
+      optimizer is; a ``null`` or empty metrics too.
     - ``optimizer_config.class_name`` (or ``optimizer.class_name``, or an
       ``optimizer`` string when the layout allows one)
       -> ``properties["optimizer"]`` (updated in-place)
@@ -192,8 +192,8 @@ def parse_training_config_object(
     sink: dict[str, Any] = {} if natives is None else natives
     for key in ("loss", "metrics"):
         value = training_config.get(key)
-        # A null loss is absent; a null or empty metrics too.
-        if value is not None and (key == "loss" or value):
+        # A null or empty-string loss is absent; a null or empty metrics too.
+        if value is not None and value != "" and (key == "loss" or value):
             try:
                 _record_json_value(properties, sink, key, value, layout.where)
             except ConfigShapeError as exc:

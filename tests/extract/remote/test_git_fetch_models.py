@@ -14,6 +14,7 @@ See also: :mod:`tests.extract.remote.test_git_fetch` (the fetch itself) and
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import sys
@@ -173,6 +174,47 @@ def test_a_named_file_that_is_no_file_of_the_folder_is_path_not_found(
     assert excinfo.value.code == "git.path-not-found"
     assert ("'link.keras'" if links else "'nope.keras'") in str(excinfo.value)
     assert _resolved(page, PROJECT)[0] == PROJECT
+
+
+@pytest.mark.parametrize(
+    "links", [None, {"README.md": "docs/README.md"}], ids=["missing", "link"]
+)
+def test_a_named_non_model_file_that_is_no_file_reads_the_folder(
+    tmp_path: Path, links: dict[str, str] | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Under auto a file page of a name no model has (``README.md``), gone
+    or a link, reads the folder as a file that is not a model does; for a
+    model only it is ``git.path-not-found``."""
+    files = {"pyproject.toml": _DEMO, "docs/README.md": "r\n"}
+    url = _repo(tmp_path / "o", files, links)
+    page = url + "/blob/main/README.md"
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert _resolved(page)[0] == PROJECT
+    assert "FILE=README.md: not an AI model file; reading its folder" in caplog.text
+    with pytest.raises(RemoteSourceError) as excinfo:
+        _resolved(page, MODEL)
+    assert excinfo.value.code == "git.path-not-found"
+
+
+@pytest.mark.parametrize("name", ["e.gguf", "t.onnx", "x.bin"])
+def test_a_named_file_with_a_model_suffix_that_is_no_model_is_refused(
+    tmp_path: Path, name: str
+) -> None:
+    """Under auto, as for a model only and as a local file named on its own:
+    a file whose name says model (empty, or of no format) is refused, not
+    passed over for the folder's project; a name no model has is not."""
+    files: dict[str, str | bytes] = {
+        "pyproject.toml": _DEMO,
+        name: b"",
+        "notes.txt": b"hello",
+    }
+    url = _repo(tmp_path / "o", files)
+    for mode in (AUTO, MODEL):
+        with pytest.raises(CodedValueError) as excinfo:
+            _resolved(url + f"/blob/main/{name}", mode)
+        assert code_of(excinfo.value) == MODEL_WRONG_FORMAT.code
+        assert f"'{name}'" in str(excinfo.value)
+    assert _resolved(url + "/blob/main/notes.txt")[0] == PROJECT
 
 
 def test_a_linked_model_in_the_folder_is_not_followed(tmp_path: Path) -> None:

@@ -101,8 +101,9 @@ non-recursively, and its candidates are chosen by the suffix filter of a scan
 (a model renamed to `weights.dat` is not found), then confirmed by their
 header. At most 1000 files whose names could be models are looked at: a
 folder of more is not read, said in one `WARNING: DIR=<dir>: larger than the
-1000-entry model-candidate cap; no file read [over-cap]`, and is refused as
-several models are, with `several AI model files` (`model-ambiguous`). A
+1000-entry model-candidate cap; no file read [over-cap]`, and is refused
+with `more than 1000 files that could be AI models, none read; name one file`
+(`model-ambiguous/over-cap`). A
 folder with none is `no Python project (pyproject.toml, setup.cfg or
 setup.py) and no AI model file of a supported format`
 (`project-or-model-not-found`) for `generate`, and a path that is not a model
@@ -137,7 +138,7 @@ Values are exact; "stub" is the format-only entry described above.
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut; an array of the same 20 names in the artifact-metadata annotation), with the member count in `archive_member_count` | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the count and the text say it is cut |
 | Artifact-metadata nesting | 32 levels of a collection; a deeper part is kept as its JSON text | The artifact-metadata annotation of every format (HDF5 `metrics`, PT2 `tags`) | No | No log line; the deeper part is text, `<nested over 32 levels>` where its JSON text nests too deeply to write |
 | Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when neither the class nor the name could be read | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config is not valid JSON (<error>); kept as properties.model_config_raw, the first 500 of <N> characters ... [model-field-unreadable]` (the cut is part of the same line; `is not a JSON object` for a JSON that is not an object, `is not valid JSON (nested too deeply)` for a nesting the parser cannot take, `model_config.class_name is not a string` for a class that is not text); the fields not read are named after it, `Field(s) affected (skipped)`. A valid config without a class or name longer than 500 characters: `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 500-character raw-model-config cap; the first 500 of <N> characters kept in properties.model_config_raw [over-cap]` |
-| Unreadable Keras v3 member | The other member is still read | Keras v3 `metadata.json`, `config.json` | No | One `WARNING: FORMAT=keras FILE=<path>: config.json is not valid JSON (<error>); the other archive members are read \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also a member whose top level is no object, or that nests too deeply); a value of the wrong type is dropped with one `WARNING:` per part (metadata, model config, `compile_config`). An absent, `null`, `{}` or `[]` `compile_config` is silent |
+| Unreadable Keras v3 member | The other member is still read | Keras v3 `metadata.json`, `config.json` | No | One `WARNING: FORMAT=keras FILE=<path>: config.json is not valid JSON (<error>); the other archive members are read \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also a member whose top level is no object, or that nests too deeply); a value of the wrong type is dropped with one `WARNING:` per part (metadata, model config, `compile_config`). An absent, `null` or `{}` `compile_config` is silent; `[]` warns, as it does for an HDF5 `training_config` |
 | Keras config part of the wrong type | The parts read before it are kept | HDF5 `model_config` | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config.config is not an object; the fields read before it are kept \| Field(s) affected (skipped): <fields> [model-field-unreadable]` (also `layers is not a list`, `layers[<i>] is not an object`, a `class_name` or `name` that is not a string); the fields are those not read. A part, or the whole attribute, set to JSON `null` counts as absent: no warning |
 | Unreadable Keras training config | Not read, or the optimiser not read | HDF5 | No | One `WARNING: FORMAT=<fmt> FILE=<path>: training_config is not valid JSON (<error>); reading stopped there ... [model-field-unreadable]`, or `training_config.optimizer_config is not an object` / `... class_name is not a string` with the loss and metrics kept |
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
@@ -216,9 +217,10 @@ To read them, for a wheel you trust:
 
 There is no `[tool.pitloom]` key, on purpose: a config file can sit in the
 untrusted tree, so it must not be able to switch the protection off. On any
-other target the option warns that it has no effect. Safetensors, Keras v3,
-NumPy, PT2 and CRFsuite readers do not pass the file to a native library
-and are not gated; the caps above still apply to them.
+other target the option warns that it has no effect. Keras v3, NumPy, PT2
+and CRFsuite readers do not pass the file to a native library, and the
+Safetensors reader's Rust library is read in full on purpose: these are not
+gated; the caps above still apply to them.
 
 ## Formats gated for a Git URL
 

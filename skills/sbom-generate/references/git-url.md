@@ -38,10 +38,13 @@ URL is read by the host's conventions. Rules to state to the user:
 - A page URL naming a file (`blob`, or `raw`: GitHub `.../raw/main/f`, GitLab
   `.../-/raw/main/f`, Codeberg/Gitea `.../raw/branch/main/f`, Bitbucket
   `.../raw/main/f`) reads the folder that holds it, unless the file is an AI
-  model (below). `raw.githubusercontent.com` and Hugging Face `/resolve/`
-  links are not read: use the repository's page URL. A commit needs its
-  full 40 (or 64) hex digits; a `#fragment` is ignored, and so is a query that
-  names no ref (cgit's `?h=` and Azure's `?version=` are read).
+  model (below). A `raw.githubusercontent.com` URL, or the `/resolve/` link
+  of a Hugging Face Space or dataset, is taken as a repository and its clone
+  fails (`git.clone-failed`); a model's `/resolve/` link is read as the Hub
+  model, its file part dropped. Use the repository's page URL (`github.com`
+  `blob`/`raw` page) instead. A commit needs its full 40 (or 64) hex
+  digits; a `#fragment` is ignored, and so is a query that names no ref
+  (cgit's `?h=` and Azure's `?version=` are read).
 - A monorepo with no Python project at the root fails with an error that names
   the projects below it (up to five): ask which one (non-interactively, report
   the list) and rerun with that folder's page URL.
@@ -66,10 +69,12 @@ a folder with models and no project fails with `git.no-project`
 (`[project-not-found/model-files]`), naming `loom model <url>` and `loom
 generate <url>`. Rules to state:
 
-- A model file URL wins over a project in the same folder; a file URL that is
-  no model (`pyproject.toml`) reads the folder (one `INFO:`; `loom model`
-  refuses it). A file absent from the repository is `git.path-not-found`
-  (`[input-not-found]`).
+- A model file URL wins over a project in the same folder; a file URL whose
+  name no model has (`pyproject.toml`, `README.md`) and that is no model, or
+  is missing or a link, reads the folder (one `INFO:`; `loom model` refuses
+  it). A file named as a model (`.gguf`, `.onnx`, `.bin`, ...) that is not
+  one is refused (`[model-wrong-format]`), and one absent from the
+  repository is `git.path-not-found` (`[input-not-found]`).
 - A folder is read non-recursively (the repository URL reads the root files
   only): a model in a subfolder needs that folder's URL or the file's.
 - One model per SBOM: several models in a folder give `INFO: FILE=<file>: one
@@ -78,12 +83,17 @@ generate <url>`. Rules to state:
   file's URL (non-interactively, report the list). Neither a project nor a
   model: `ERROR: ... no Python project (pyproject.toml, setup.cfg or setup.py)
   and no AI model file of a supported format ...` (`[project-or-model-not-found]`).
-- fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` files are listed with
-  name, format and hash only (`INFO: AI models from a Git URL in these formats
-  are listed without metadata ... [reader-unsafe/remote]`): their readers are
-  not run on a download. Keras, Safetensors, NumPy, CRFsuite and PT2 are read
-  in full. Offer, never do unasked, cloning the repository (with Git LFS) and
-  `loom model <file>` on a file the user trusts.
+- In a model SBOM, fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth`
+  files are listed with name, format and hash only (`INFO: AI models from a
+  Git URL in these formats are listed without metadata ...
+  [reader-unsafe/remote]`): their readers (a C/C++ library, a pickle parser,
+  GGUF's parsing loop) are not run on a download. Keras, Safetensors (its
+  Rust library, on purpose), NumPy, CRFsuite and PT2 are read in full.
+  Offer, never do unasked, cloning the repository (with Git LFS) and running
+  `loom model <file>` on a file the user trusts. Not gated: a folder read as
+  a project (`loom project`, or `loom generate` on a folder with a project
+  config) has its build's model files read by every reader, as a local
+  project does; say so when the user's concern is an untrusted repository.
 - The output goes to `-o`, or for `loom model` to the current directory as
   `<file name>.spdx3.json`; never into the clone. No temporary path is in it.
 - A Hugging Face model address is read through the Hub (card and

@@ -142,6 +142,7 @@ from pitloom.messages._over_cap_warning import (
 )
 from pitloom.messages._sbom_target import (
     MODEL_AMBIGUOUS,
+    MODEL_AMBIGUOUS_OVER_CAP,
     MODEL_FILES_LINE,
     NAMED_NOT_A_MODEL_LINE,
     NO_PROJECT_ONE_MODEL_LINE,
@@ -241,6 +242,7 @@ __all__ = [
     "MESSAGES",
     "MODEL_FIELD_CONFLICT",
     "MODEL_AMBIGUOUS",
+    "MODEL_AMBIGUOUS_OVER_CAP",
     "MODEL_FIELD_UNREADABLE",
     "MODEL_FILE_NOT_FOUND_LINE",
     "MODEL_FILES_LINE",

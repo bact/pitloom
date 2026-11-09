@@ -104,8 +104,10 @@ def generate_git_sbom(
 
     A model file of a clone is read as a local one
     (:func:`~pitloom.assemble.generate_model_sbom`), except that a format
-    whose reader runs a native library is listed without metadata, said in
-    one ``INFO:``. Its messages name it by its path in the repository; an
+    whose reader a hostile file could crash or hang (fastText, GGUF, HDF5,
+    ONNX, PyTorch) is listed without metadata, said in one ``INFO:``. A
+    project's model files are read by every reader, as for a local
+    project. Its messages name it by its path in the repository; an
     option a model SBOM cannot use warns once.
 
     Raises:

@@ -136,13 +136,20 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 10. The input shape only (Keras v3: an `InputLayer`'s `batch_shape`, else a
     layer's `build_config.input_shape`, else the model's; v1-v2 the first
     layer's `batch_input_shape`). No outputs.
-11. Optimiser class name, loss and metrics names from `training_config`.
-12. `compile_config`: the optimiser (class name, or the string a model was
-    compiled with), loss and metrics names, as `properties` `optimizer`,
-    `loss` and `metrics`. Not read: the optimiser's settings (learning rate,
-    ...), `loss_weights`, `weighted_metrics`, `run_eagerly`,
+11. From `training_config`: the optimiser's class name, as `properties`
+    `optimizer`; the loss and the metrics as given, as `loss` and `metrics`
+    (a string as is, an object or a list as its canonical JSON text). A
+    `null` or `""` value is left out, and so are empty metrics. A
+    `training_config` that is absent, `null` or `{}` is quiet; one that is
+    not a JSON object (`[]` included) is one `WARNING:`.
+12. `compile_config`: the optimiser (its class name, or the string a model
+    was compiled with), the loss and the metrics, recorded as for
+    `training_config` (note 11). Not read: the optimiser's settings
+    (learning rate, ...), `loss_weights`, `weighted_metrics`, `run_eagerly`,
     `steps_per_execution`, `jit_compile`. A `compile_config` that is absent,
-    `null`, `{}` or `[]` is a model not compiled: no warning.
+    `null` or `{}` is a model not compiled: no warning. Any other value that
+    is not an object (`[]` included) is one `WARNING:`, as for an HDF5
+    `training_config`.
 13. An array is data, not a model input, so there are no inputs. An `.npy`
     file's shape and dtype are kept as `properties` `array_shape` (`2x2`,
     `scalar` for none) and `array_dtype`; an `.npz` archive's array count as

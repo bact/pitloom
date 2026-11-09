@@ -199,9 +199,15 @@ history.
   `read_model_file` route). A Git URL read as a project lists models from the
   build backend's file list and reads them in place, ungated: a hostile
   `.h5` or `.onnx` in a repository the build backend lists reaches h5py or
-  onnx. `resolve_git_target`'s docstring ("a native-library reader is not run")
-  describes the model route only. Gate the project scan inside
-  `GitCheckout.reading()` too, or document it as a decision.
+  onnx (checked 2026-11-09: `loom generate <url>/tree/main` on a repository
+  with `pyproject.toml` and `demo/m.onnx` calls the ONNX reader on it).
+  Lumina-facing: a repository with a pyproject and model files is read
+  ungated under `generate()`'s auto choice, which picks the project route,
+  so a caller relying on the gate for untrusted URLs is not covered. The
+  docs (`docs/git-urls.md`, `docs/python-api.md`, `docs/cli.md`), the skill
+  reference and `resolve_git_target`'s docstring now say the gate covers a
+  model SBOM only. Gate the project scan inside `GitCheckout.reading()` too,
+  or record it as a decision.
 - [ ] **A repository root whose models are only in subfolders gives
   `project-or-model-not-found` (S).** Folder discovery is non-recursive, by
   decision (D4), so `loom generate <repo>` on a repository that keeps its
