@@ -19,6 +19,11 @@ as raw material for a paper on building an SBOM generator for AI artefacts.
 Every number below was measured (peak resident memory under a watchdog,
 macOS, CPython 3.10 unless stated); "PLAUSIBLE" findings are left out.
 
+Later round: reading a model from a Git URL made the file list of an
+untrusted repository an attack surface of its own; see
+[model-sbom-from-git-lessons.md](sbom-generator-field-notes/model-sbom-from-git-lessons.md)
+section 1.
+
 ## 1. Setting
 
 - Pitloom generates SPDX 3 SBOMs for Python packages, including the AI
