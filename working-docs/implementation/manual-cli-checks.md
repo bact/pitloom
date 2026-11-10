@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,6 +44,7 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | unreadable files, unlistable directories | `9,20,24,25` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
+  | remote targets (Git, PyPI URLs) | `M/*/target/*` (add `--network` for the fetches) |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
 
 - Gate B, once before handoff, and again after a merge of main that
@@ -82,7 +83,13 @@ checks (`1`-`26`, `B1`-`B7`) it runs:
   `parity` (`generate` vs the dedicated subcommand). The plan is
   `_matrix_plan.py`; `M/completeness` fails on any subcommand or option
   it doesn't classify, and `tests/scripts/test_manual_cli_checks.py`
-  runs that check in every CI run.
+  runs that check in every CI run. A remote target cannot be a variant
+  (a variant adds options to the cell's local target), so the `target`
+  cells (`M/<command>/target/<label>`, `_matrix_targets.py`) give a whole
+  command line: each refusal made before any request (`--offline`,
+  another index, a `files.pythonhosted.org` link) runs in every run behind
+  the guard, the CI test included; a fetch per route (a GitHub tag, a PyPI
+  release's wheel and sdist) and the download cap run with `--network`.
 - **Sequences** (`S1`-`S8`): commands in order where one's side effect
   is the next one's input -- a default output inside the scanned
   project, re-embedding, `embed-wheel` vs `wheel --embed` in both

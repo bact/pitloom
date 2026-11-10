@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import (
     RemoteSourceError,
     _git_run,
@@ -255,7 +256,7 @@ def test_a_resolved_url_is_one_info_naming_source_and_target(
 def test_offline_fetches_nothing(repo: tuple[Path, str]) -> None:
     """``git.offline`` before any ``git`` call."""
     with pytest.raises(RemoteSourceError) as excinfo:
-        with fetch_git_project(_url(repo[0]), offline=True):
+        with fetch_git_project(_url(repo[0]), policy=RemoteFetchPolicy(offline=True)):
             pass  # pragma: no cover
     assert excinfo.value.code == "git.offline"
 

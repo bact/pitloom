@@ -42,6 +42,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +50,11 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
-from pitloom.core.model_extract_limit import require_positive_ceiling
+from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.model_extract_limit import (
+    require_max_download_bytes,
+    require_positive_ceiling,
+)
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
@@ -60,7 +65,9 @@ __all__ = [
     "ConfigOverrides",
     "apply_overrides",
     "load_config_file",
+    "require_download_override",
     "require_model_extract_override",
+    "resolve_fetch_policy",
     "resolve_standalone_config",
 ]
 
@@ -92,12 +99,19 @@ class ConfigOverrides:
             other embed warns. Checked by
             :func:`require_model_extract_override` even there: at least 1,
             else ``ValueError``.
+        max_download_bytes: ``--max-download-bytes``: the most bytes a
+            PyPI URL target or each file of a Hugging Face repository
+            downloads, or a Git URL target's checkout takes on disk. Only
+            those targets read it (:func:`resolve_fetch_policy`); any other
+            warns. Checked by
+            :func:`require_download_override`: at least 1, else
+            ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
             ``update_id_registry`` (see
             :data:`pitloom.core.inert_options.INERT`).
-        trust_wheel_model: ``--trust-wheel-model``: read a wheel's AI model
+        trust_model_files: ``--trust-model-files``: read a wheel's AI model
             files with every format reader, including those gated in a
             wheel. Like ``build_options``, no ``[tool.pitloom]`` cascade (a config must
             not opt in) and :func:`apply_overrides` never touches it; only a
@@ -126,7 +140,8 @@ class ConfigOverrides:
     update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
     max_model_extract_bytes: int | None = None
-    trust_wheel_model: bool | None = None
+    max_download_bytes: int | None = None
+    trust_model_files: bool | None = None
     build_options: BuildOptions = BuildOptions()
 
 
@@ -138,6 +153,16 @@ def require_model_extract_override(value: object) -> int:
         ValueError: *value* is not an integer of at least 1.
     """
     return require_positive_ceiling(value, "max_model_extract_bytes")
+
+
+def require_download_override(value: object) -> int:
+    """A ``max_download_bytes`` keyword or override, checked by
+    :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`.
+
+    Raises:
+        ValueError: *value* is not an integer of at least 1.
+    """
+    return require_positive_ceiling(value, "max_download_bytes")
 
 
 def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
@@ -248,6 +273,10 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["max_model_extract_bytes"] = require_model_extract_override(
             overrides.max_model_extract_bytes
         )
+    if overrides.max_download_bytes is not None:
+        changes["max_download_bytes"] = require_download_override(
+            overrides.max_download_bytes
+        )
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)
     return merged
@@ -266,3 +295,37 @@ def resolve_standalone_config(
     belong to an unrelated project.
     """
     return apply_overrides(pitloom_config or PitloomConfig(), overrides)
+
+
+def resolve_fetch_policy(
+    pitloom_config: PitloomConfig | None,
+    *,
+    offline: bool | None = None,
+    max_download_bytes: int | None = None,
+    check_url: Callable[[str], None] | None = None,
+) -> RemoteFetchPolicy:
+    """The :class:`~pitloom.core.fetch_policy.RemoteFetchPolicy` of one
+    fetch from a Git URL, a PyPI URL or a Hugging Face repository, made here
+    alone so that every surface (each CLI command, each library call)
+    resolves the same one for the same inputs.
+
+    *offline* (``--offline``) and *max_download_bytes*
+    (``--max-download-bytes``) win; else *pitloom_config*'s ``offline`` and
+    ``max-download-bytes`` (an explicitly named config: a fetched project's
+    own is never read); else not offline, and
+    :data:`~pitloom.core.model_extract_limit.DEFAULT_MAX_DOWNLOAD_BYTES`.
+    *check_url* is the caller's address policy (no config sets one).
+
+    Raises:
+        ValueError: *max_download_bytes* or the config's value is not an
+            integer of at least 1.
+    """
+    cfg = resolve_standalone_config(
+        pitloom_config,
+        ConfigOverrides(offline=offline, max_download_bytes=max_download_bytes),
+    )
+    return RemoteFetchPolicy(
+        max_bytes=require_max_download_bytes(cfg.max_download_bytes, "pitloom_config"),
+        offline=cfg.offline,
+        check_url=check_url,
+    )

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -139,7 +139,7 @@ except Exception as exc:
   catalogued code, and `None` for anything else. An exception's own `code`
   (an HTTP status, an exit status, `git.too-large` of a remote-source error)
   is never read.
-- A Git URL's checkout over `max_clone_bytes`, or a `git` call's output over
+- A Git URL's checkout over `max_download_bytes`, or a `git` call's output over
   its cap, raises a `RemoteSourceError` whose `code` is `git.too-large` or
   `git.output-too-large` and whose `pitloom_code` is `over-cap`.
 - A library a step needs that is not installed (a model reader's, the Hugging

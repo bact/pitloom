@@ -29,6 +29,8 @@ from pitloom import __main__
 from pitloom.assemble import generate_model_sbom
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
+from pitloom.extract.remote._hub_files import HubFiles
+from pitloom.extract.remote.errors import RemoteSourceError
 from tests._author_routes import CREATED
 from tests._license_graph import license_elements, license_targets
 from tests.conformance.g7ai_shared import without_licence_database
@@ -140,10 +142,10 @@ def test_no_dataset_is_requested_when_the_model_is_not_looked_up(
         patch.object(hub_dataset, "_load_dataset_info", seam_info),
         patch.object(hub_dataset, "_load_dataset_card", seam_card),
         patch("huggingface_hub.dataset_info", info),
-        patch("huggingface_hub.hf_hub_download", download),
+        patch.object(HubFiles, "fetch", download),
     ):
         if surface == "library":
-            with pytest.raises(ValueError, match="Offline mode"):
+            with pytest.raises(RemoteSourceError, match="network access is forbidden"):
                 generate_model_sbom("acme/model", offline=True)
         else:
             monkeypatch.setattr(

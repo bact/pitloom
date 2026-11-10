@@ -21,7 +21,6 @@ import json
 import random
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -40,6 +39,7 @@ from pitloom.extract.dataset.croissant_key import (
     VERSION_KEYS,
 )
 from pitloom.extract.remote.huggingface_dataset import _load_dataset_card
+from tests.extract.remote.hf_patches._hf_patches_base import fake_hub
 
 #: How many inputs each seed makes: small, the whole file runs in seconds.
 _PER_SEED = 25
@@ -209,8 +209,7 @@ def test_a_hub_dataset_card_and_a_model_card_never_raise(
     card = tmp_path / "README.md"
     for _ in range(_PER_SEED):
         card.write_bytes(_card(rng))
-        with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
-            text, frontmatter = _load_dataset_card("o/d", None)
+        text, frontmatter = _load_dataset_card(fake_hub(card), "o/d", None)
         assert text is None or isinstance(text, str)
         assert isinstance(frontmatter, dict)
         model = AiModelMetadata()

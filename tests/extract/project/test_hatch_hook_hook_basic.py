@@ -29,6 +29,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.temp_dirs import remove_temp_dir
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.messages import (
     LFS_POINTER,
@@ -36,6 +37,7 @@ from pitloom.messages import (
     CodedValueError,
     trusted_message,
 )
+from pitloom.plugins import hatch
 from pitloom.plugins.hatch import PitloomBuildHook
 
 from ..conftest import (
@@ -193,14 +195,13 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
         hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
 
-        cleanup_calls: list[str] = []
-        original_cleanup = tempfile.TemporaryDirectory.cleanup
+        cleanup_calls: list[Path] = []
 
-        def _tracking_cleanup(self: Any) -> None:
-            cleanup_calls.append(self.name)
-            original_cleanup(self)
+        def _tracking_remove(path: Path, log_prefix: str) -> None:
+            cleanup_calls.append(path)
+            remove_temp_dir(path, log_prefix)
 
-        monkeypatch.setattr(tempfile.TemporaryDirectory, "cleanup", _tracking_cleanup)
+        monkeypatch.setattr(hatch, "remove_temp_dir", _tracking_remove)
 
         def _raise_when_staged(msg: str, *_args: Any, **_kwargs: Any) -> None:
             if msg.startswith("Pitloom: staged"):
@@ -212,7 +213,7 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
             hook.initialize("standard", build_data)
 
         assert len(cleanup_calls) == 1
-        assert not Path(cleanup_calls[0]).exists()
+        assert not cleanup_calls[0].exists()
         assert hook._staging_dir is None
         staged = staged_sbom(build_data)
         assert staged is not None and not staged.exists()

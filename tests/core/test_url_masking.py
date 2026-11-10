@@ -26,6 +26,7 @@ from pitloom.cli.kv_output import kv_line
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
+    DOWNLOAD_DIR_PREFIX,
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
@@ -101,6 +102,95 @@ _DIR = f"/tmp/{CHECKOUT_DIR_PREFIX}v6mrrlyz"
 def test_the_checkout_is_masked_and_nothing_else(text: str, expected: str) -> None:
     assert mask_checkout(text) == expected
     assert mask_checkout(mask_checkout(text)) == expected
+
+
+_DOWNLOAD = f"{DOWNLOAD_DIR_PREFIX}k2p9_x1z"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            f"/tmp/{_DOWNLOAD}/x-1.0-py3-none-any.whl",
+            "<download>/x-1.0-py3-none-any.whl",
+        ),
+        (
+            str(PureWindowsPath("C:/Temp") / _DOWNLOAD / "x-1.0.tar.gz"),
+            "<download>\\x-1.0.tar.gz",
+        ),
+        (f"'/tmp/{_DOWNLOAD}' and {_DIR}", "'<download>' and <checkout>"),
+        (f"/tmp/{_DOWNLOAD}/{CHECKOUT_DIR_PREFIX}ab12cd34", "<checkout>"),
+        (f"/home/u/{DOWNLOAD_DIR_PREFIX}fix/a", f"/home/u/{DOWNLOAD_DIR_PREFIX}fix/a"),
+        (f"https://h/{_DOWNLOAD}/x.whl", f"https://h/{_DOWNLOAD}/x.whl"),
+        (f"/tmp/{_DOWNLOAD}x/a", f"/tmp/{_DOWNLOAD}x/a"),
+    ],
+    ids=["posix", "windows", "both", "nested", "other-name", "url", "longer-name"],
+)
+def test_the_download_directory_is_masked(text: str, expected: str) -> None:
+    assert mask_checkout(text) == expected
+    assert mask_checkout(mask_checkout(text)) == expected
+
+
+_SPACED = PureWindowsPath("C:/Users/John Smith/AppData/Local/Temp")
+
+
+@pytest.mark.parametrize(
+    ("prefix", "placeholder"),
+    [(DOWNLOAD_DIR_PREFIX, "<download>"), (CHECKOUT_DIR_PREFIX, "<checkout>")],
+    ids=["pypi", "git"],
+)
+@pytest.mark.parametrize(
+    ("template", "expected"),
+    [
+        ("{path}", "{ph}\\x.whl"),
+        ("reading {path} now", "reading {ph}\\x.whl now"),
+        ("read '{path}'", "read '{ph}\\x.whl'"),
+        ("FILE={path}", "FILE={ph}\\x.whl"),
+        ("copy /a/b to {path}", "copy /a/b to {ph}\\x.whl"),
+        ("a\n{path}", "a\n{ph}\\x.whl"),
+    ],
+    ids=["alone", "in-text", "quoted", "key", "after-a-path", "new-line"],
+)
+def test_a_path_with_spaces_is_masked_from_its_root(
+    prefix: str, placeholder: str, template: str, expected: str
+) -> None:
+    """A temporary directory under a user folder with a space: the whole
+    path is masked, never the part before the space (the user's name)."""
+    path = str(_SPACED / f"{prefix}abcd1234" / "x.whl")
+    masked = mask_checkout(template.format(path=path))
+    assert masked == expected.format(ph=placeholder)
+    assert "John" not in masked
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "/home/J S/t/pitloom-pypi-abcd1234/x y",
+            "<download>/x y",
+        ),
+        (
+            "failed to read /tmp/pitloom-git-abcd1234/a ok",
+            "failed to read <checkout>/a ok",
+        ),
+        ("see John Smith/pitloom-pypi-abcd1234/x", "see John <download>/x"),
+        (
+            "\\\\srv\\J S\\pitloom-pypi-abcd1234\\x",
+            "<download>\\x",
+        ),
+        (
+            "copy /a/b to /tmp/pitloom-git-abcd1234/x",
+            "copy /a/b to <checkout>/x",
+        ),
+        (
+            "see /etc/x 'John Smith/pitloom-pypi-abcd1234/x'",
+            "see /etc/x 'John <download>/x'",
+        ),
+    ],
+    ids=["posix-space", "word-at-root", "no-root", "unc", "after-a-path", "quote"],
+)
+def test_the_path_start(text: str, expected: str) -> None:
+    assert mask_checkout(text) == expected
 
 
 def test_a_message_is_masked_and_data_is_not() -> None:

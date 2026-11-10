@@ -8,11 +8,11 @@ loop per element), HDF5 (libhdf5 crashes and hangs on hostile files), ONNX
 (protobuf amplification) and PyTorch ``.pt``/``.pth`` (fickling
 amplification). Default wheel scan: format-only entry, reader never run, one
 ``INFO:`` listing the gated formats met that the caller's per-format claim
-accepts; ``--trust-wheel-model`` runs the readers. A project scan is gated
+accepts; ``--trust-model-files`` runs the readers. A project scan is gated
 the same way in a Git URL's temporary clone only
 (``reader-unsafe/remote``).
 
-See also: :mod:`tests.assemble.test_trust_wheel_model` (every surface) and
+See also: :mod:`tests.assemble.test_trust_model_files` (every surface) and
 :mod:`tests.fixtures.aimodels` README (the hostile files).
 """
 
@@ -38,6 +38,8 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner import ReaderGate
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import READER_UNSAFE
 from tests._model_fixtures import remote_gate_infos
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 
@@ -54,7 +56,7 @@ _GATED = {
     "pytorch/example-model.pt": "pytorch",
     "pytorch/example-model.pth": "pytorch",
 }
-_TRUST = "--trust-wheel-model"
+_TRUST = "--trust-model-files"
 
 
 def fixture_bytes(name: str) -> bytes:
@@ -100,7 +102,8 @@ def gate_infos(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [
         r.getMessage()
         for r in caplog.records
-        if r.levelno == logging.INFO and _TRUST in r.getMessage()
+        if r.levelno == logging.INFO
+        and getattr(r, CODE_ATTR, None) == READER_UNSAFE.code
     ]
 
 
@@ -130,7 +133,7 @@ def test_default_lists_every_gated_format_without_reading_it(
         if str(model.format_info.model_format) != "safetensors":
             assert not model.provenance  # format-only
     (info,) = gate_infos(caplog)  # seven gated models, one line
-    assert ": fasttext, gguf, hdf5, onnx, pytorch. " in info  # sorted, each once
+    assert ": fasttext, gguf, hdf5, onnx, pytorch; " in info  # sorted, each once
 
 
 def test_a_failed_scan_reports_no_gate_but_still_removes_its_scratch(
@@ -178,7 +181,7 @@ def test_a_successful_scan_reports_the_gate_after_removing_its_scratch(
         _scan(wheel)
     assert order == ["remove", "report"]
     (info,) = gate_infos(caplog)
-    assert ": onnx. " in info
+    assert ": onnx; " in info
 
 
 def test_trust_reads_every_gated_format(tmp_path: Path) -> None:
@@ -237,7 +240,11 @@ def test_a_local_project_scan_is_not_gated(
 
 
 def _scan_project_in_a_clone(
-    tmp_path: Path, names: list[str], *, scan_usage: bool = False
+    tmp_path: Path,
+    names: list[str],
+    *,
+    scan_usage: bool = False,
+    trust_model_files: bool = False,
 ) -> list[AiModelMetadata]:
     """Scan a project of *names* and a Safetensors file as in a Git URL's
     temporary clone."""
@@ -251,7 +258,7 @@ def _scan_project_in_a_clone(
         base = Path(name).name
         (tmp_path / base).write_bytes(data)
         files.append(ProjectFile(physical_path=base, distribution_path=base))
-    with reading_remote_clone():
+    with reading_remote_clone(trust_model_files=trust_model_files):
         return scan_project_for_ai_models(
             tmp_path, files, scan_usage=scan_usage, usage_hint=lambda: False
         )
@@ -273,8 +280,23 @@ def test_a_project_scan_in_a_git_clone_is_gated(
         ("safetensors", True),
     ]
     (info,) = remote_gate_infos(caplog)  # seven gated models, one line
-    assert ": fasttext, gguf, hdf5, onnx, pytorch; " in info
+    assert ": fasttext, gguf, hdf5, onnx, pytorch; pass --trust-model-files " in info
+    assert "--trust-model-files for a repository you trust" in info
     assert not gate_infos(caplog)  # not the wheel's line
+
+
+def test_a_trusted_git_clone_is_not_gated(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The user vouched for the clone's model files: every reader runs, as in
+    a local project, and no gate line is said."""
+    caplog.set_level(logging.INFO)
+    with mock.patch.object(scanner, "read_ai_model", wraps=read_ai_model) as spy:
+        models = _scan_project_in_a_clone(
+            tmp_path, list(_GATED), trust_model_files=True
+        )
+    assert len(spy.call_args_list) == len(models)  # every candidate was read
+    assert not remote_gate_infos(caplog) and not gate_infos(caplog)
 
 
 def test_a_failed_project_scan_in_a_git_clone_reports_no_gate(
@@ -295,9 +317,9 @@ def test_a_failed_project_scan_in_a_git_clone_reports_no_gate(
 @pytest.mark.parametrize(
     ("claimed", "named"),
     [
-        ({"gguf", "onnx"}, ": gguf, onnx. "),
-        ({"onnx"}, ": onnx. "),
-        ({"gguf"}, ": gguf. "),
+        ({"gguf", "onnx"}, ": gguf, onnx; "),
+        ({"onnx"}, ": onnx; "),
+        ({"gguf"}, ": gguf; "),
         (set(), None),
     ],
 )

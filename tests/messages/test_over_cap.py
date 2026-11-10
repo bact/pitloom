@@ -25,7 +25,7 @@ import pytest
 
 from pitloom import loom
 from pitloom.__main__ import main
-from pitloom.assemble import generate_git_project_sbom
+from pitloom.assemble import generate_git_project_sbom, generate_pypi_sbom
 from pitloom.core.ai_metadata import AiModelFormat, model_cap
 from pitloom.core.config import INT_KEYS
 from pitloom.core.internal_error import InternalError
@@ -43,8 +43,8 @@ from pitloom.messages import (
     trusted_message,
     warn_over_cap,
 )
-from pitloom.messages._fields import render
 from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, REASON
+from pitloom.messages._templates import render
 
 _LOG = logging.getLogger("pitloom.test_over_cap")
 _NAME = Cap(1024, "character", "name")
@@ -241,11 +241,15 @@ def test_the_settings_the_advice_names_exist(
         "max-dataset-hash-bytes",
         "--max-dataset-hash-bytes",
         "max_dataset_hash_bytes",
-        "max_clone_bytes",
+        "max-download-bytes",
+        "--max-download-bytes",
     ]
     assert all(name in OVER_CAP.advice for name in named)
     assert "--max-model-extract-bytes" in _help(monkeypatch, capsys, "wheel")
     assert "--max-dataset-hash-bytes" in _help(monkeypatch, capsys, "id", "generate")
     assert {"max-model-extract-bytes", "max-dataset-hash-bytes"} <= INT_KEYS[""]
     assert "max_dataset_hash_bytes" in inspect.signature(loom.Run).parameters
-    assert "max_clone_bytes" in inspect.signature(generate_git_project_sbom).parameters
+    assert "--max-download-bytes" in _help(monkeypatch, capsys, "project")
+    assert "max-download-bytes" in INT_KEYS[""]
+    for call in (generate_git_project_sbom, generate_pypi_sbom):
+        assert "max_download_bytes" in inspect.signature(call).parameters

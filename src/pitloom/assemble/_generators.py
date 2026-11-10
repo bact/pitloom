@@ -11,6 +11,8 @@ See also:
 - :mod:`pitloom.assemble._generators_wheel` for the built-wheel generator.
 - :mod:`pitloom.assemble._generators_env` for the installed-environment
   generator.
+- :mod:`pitloom.assemble._generators_pypi` for an sdist named by a PyPI URL,
+  which it delegates to and which reads the download here.
 """
 
 from __future__ import annotations
@@ -22,14 +24,20 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom._sbom_io import write_sbom_output
+from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core._models_wheel_dispatch import _noop_cleanup
+from pitloom.core.acquisition import Acquisition
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
+from pitloom.core.config_cascade import (
+    ConfigOverrides,
+    apply_overrides,
+    require_download_override,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import (
@@ -39,12 +47,15 @@ from pitloom.core.inert_options import (
     settle_inert,
 )
 from pitloom.core.models import get_wheel_files
+from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
+from pitloom.extract.remote.pypi import SDIST as SDIST_FILE
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import (
     IdRegistry,
@@ -95,7 +106,7 @@ def generate_project_sbom(
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
     scan_model_usage: bool | None = None,
-    trust_wheel_model: bool | None = None,
+    trust_model_files: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
@@ -104,8 +115,24 @@ def generate_project_sbom(
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
     project_dir: Path | str | None = None,
+    check_url: Callable[[str], None] | None = None,
+    max_download_bytes: int | None = None,
+    acquisition: Acquisition | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
+
+    *project_target* may be a PyPI project or release URL (a ``str``; a
+    :class:`~pathlib.Path` is always local): the release's sdist is
+    downloaded and read (:func:`~pitloom.assemble.generate_pypi_sbom`, which
+    never reads the sdist's own ``[tool.pitloom]``): *check_url* is called
+    with every URL of the release lookup and the download before it is
+    requested (a dependency's licence lookup does not pass through it), and
+    *max_download_bytes* caps the file; *project_metadata* then has no effect,
+    with one ``WARNING:``. For a local target *check_url* is not used and
+    *max_download_bytes* has no effect (one ``WARNING:``; an invalid value
+    raises all the same). *acquisition* records how an sdist was downloaded
+    (set by :func:`~pitloom.assemble.generate_pypi_sbom`): one provenance
+    record on the main package, nothing else.
 
     ``build_options`` (see :class:`~pitloom.core.build_options.BuildOptions`),
     unlike every other flag-shaped parameter here, deliberately has no
@@ -134,8 +161,8 @@ def generate_project_sbom(
 
     For an sdist archive, ``extract_file_header``, ``content_type``,
     ``enrich``, ``scan_model_usage``, ``use_lockfile`` and
-    ``trust_wheel_model`` have no effect, and for a directory
-    ``trust_wheel_model`` has none; each warns when given (see
+    ``trust_model_files`` have no effect, and for a directory
+    ``trust_model_files`` has none; each warns when given (see
     :data:`pitloom.core.inert_options.INERT`). ``max_model_extract_bytes``
     is no parameter here: a caller forwarding it settles it with
     :func:`~pitloom.core.inert_options.forward_options` and
@@ -151,8 +178,46 @@ def generate_project_sbom(
     Raises:
         FileNotFoundError: *project_dir* is given for an sdist and is not a
             directory.
+        pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's sdist
+            could not be fetched or verified (``pypi.*``).
     """
     configure_logging()
+    if isinstance(project_target, str) and is_pypi_url(project_target):
+        if project_metadata is not None:
+            warn_no_effect(
+                INERT_LOG_PREFIX,
+                project_target,
+                ("project_metadata",),
+                "for a PyPI URL target (the metadata is read from the downloaded "
+                "sdist)",
+            )
+        return generate_pypi_sbom(
+            project_target,
+            kind=SDIST_FILE,
+            check_url=check_url,
+            max_download_bytes=max_download_bytes,
+            output_path=output_path,
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
+            pitloom_config=pitloom_config,
+            id_registry=id_registry,
+            provenance=provenance,
+            enrich=enrich,
+            extract_file_header=extract_file_header,
+            scan_model_usage=scan_model_usage,
+            trust_model_files=trust_model_files,
+            content_type=content_type,
+            content_type_method=content_type_method,
+            offline=offline,
+            update_id_registry=update_id_registry,
+            use_lockfile=use_lockfile,
+            build_options=build_options,
+            max_source_metadata_bytes=max_source_metadata_bytes,
+            project_dir=project_dir,
+        )
+    if max_download_bytes is not None:
+        require_download_override(max_download_bytes)  # even if inert
     target_path = Path(project_target)
 
     # A cheap stat, before any project-metadata/lock-file read, so the
@@ -171,7 +236,7 @@ def generate_project_sbom(
                 "enrich": enrich,
                 "extract_file_header": extract_file_header,
                 "scan_model_usage": scan_model_usage,
-                "trust_wheel_model": trust_wheel_model,
+                "trust_model_files": trust_model_files,
                 "content_type": content_type,
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
@@ -181,13 +246,18 @@ def generate_project_sbom(
                 "creation_metadata": creation_metadata,
                 "use_lockfile": use_lockfile,
                 "project_dir": project_dir,
+                "max_download_bytes": max_download_bytes,
             },
         )
     else:
         settle_inert(
             PROJECT,
             target_path,
-            {"trust_wheel_model": trust_wheel_model, "project_dir": project_dir},
+            {
+                "trust_model_files": trust_model_files,
+                "project_dir": project_dir,
+                "max_download_bytes": max_download_bytes,
+            },
         )
 
     if project_metadata is None or pitloom_config is None:
@@ -291,6 +361,7 @@ def generate_project_sbom(
         project=project_metadata,
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
+        acquisition=acquisition,
         files_origin=(
             FilesOrigin(project_dir=sdist_project_dir, archive=True, sdist=True)
             if target_path.is_file()

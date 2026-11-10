@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from urllib.parse import quote as url_quote
 
 from packaging.utils import canonicalize_name
 
@@ -23,6 +22,7 @@ from pitloom.extract._extract_utils import fetch_json
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract.dependency_authors import dependency_originator_pairs
 from pitloom.extract.lock._hash_selection import select_sha256_hash
+from pitloom.extract.remote.pypi_url import pypi_json_url
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
 # slow network doesn't meaningfully stall a build; see _fetch_pypi_release_info.
@@ -98,13 +98,10 @@ def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] |
     fetch_json` (also used for Croissant metadata) rather than a second
     urlopen/json.loads implementation, so the scheme-restriction and
     HTTP-exception handling only need to be reviewed and gotten right once.
+    The URL is :func:`~pitloom.extract.remote.pypi_url.pypi_json_url`'s, as
+    the PyPI URL target's is: each segment quoted whole, a ``/`` too.
     """
-    path = (
-        f"{url_quote(name)}/{url_quote(version)}/json"
-        if version
-        else f"{url_quote(name)}/json"
-    )
-    url = f"https://pypi.org/pypi/{path}"
+    url = pypi_json_url(name, version or None)
     try:
         return fetch_json(
             url, timeout=_PYPI_TIMEOUT_SECONDS, use="for the PyPI release metadata"

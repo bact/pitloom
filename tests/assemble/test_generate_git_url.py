@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -25,11 +25,14 @@ from pitloom.assemble import (
     _generators_git,
     generate,
     generate_git_project_sbom,
+    generate_git_sbom,
     target_is_git_url,
     target_resolves_to_project,
 )
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
@@ -54,12 +57,19 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        seen.update(url=url, check_url=check_url, offline=offline, max_bytes=max_bytes)
-        yield GitCheckout(str(folder), url, None, "c", "", True)
+        seen.update(
+            url=url,
+            check_url=policy.check_url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
+            trust_model_files=trust_model_files,
+        )
+        yield GitCheckout(
+            str(folder), url, None, "c", "", True, trust_model_files=trust_model_files
+        )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     return seen
@@ -129,32 +139,80 @@ def test_generate_passes_the_address_check_and_offline_to_the_fetch(
     assert seen["check_url"] is check and seen["offline"] is False
 
 
-@pytest.mark.parametrize("given", [1234, None])
-def test_the_clone_size_cap_reaches_the_fetch(
-    seen: dict[str, object], given: int | None
+@pytest.mark.parametrize(
+    ("given", "configured", "expected"),
+    [
+        (None, None, DEFAULT_MAX_DOWNLOAD_BYTES),
+        (None, 1000, 1000),
+        (2000, 1000, 2000),
+        (2000, None, 2000),
+    ],
+    ids=["default", "config", "argument-beats-config", "argument"],
+)
+@pytest.mark.parametrize("call", [generate_git_project_sbom, generate])
+def test_the_download_cap_cascades_to_the_fetch(
+    seen: dict[str, object],
+    call: Callable[..., str],
+    given: int | None,
+    configured: int | None,
+    expected: int,
 ) -> None:
-    generate_git_project_sbom(_URL, max_clone_bytes=given)
-    assert seen["max_bytes"] == given
+    """``max_download_bytes`` > the explicit config's > 512 MiB, never
+    unlimited, on every library route to a Git URL."""
+    config = (
+        None if configured is None else PitloomConfig(max_download_bytes=configured)
+    )
+    call(_URL, max_download_bytes=given, pitloom_config=config)
+    assert seen["max_bytes"] == expected
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, 1.5], ids=repr)
+@pytest.mark.parametrize("call", [generate_git_project_sbom, generate])
+def test_an_invalid_download_cap_is_refused_before_the_fetch(
+    seen: dict[str, object], call: Callable[..., str], bad: object
+) -> None:
+    with pytest.raises(ValueError, match="max.download.bytes"):
+        call(_URL, max_download_bytes=bad)
+    with pytest.raises(ValueError, match="max.download.bytes"):
+        call(_URL, pitloom_config=PitloomConfig(max_download_bytes=cast(int, bad)))
+    assert "max_bytes" not in seen
 
 
 def test_an_option_a_remote_repository_cannot_use_warns_once(
     seen: dict[str, object], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``trust_wheel_model`` and ``project_dir`` have no effect on a remote
+    """``max_model_extract_bytes`` and ``project_dir`` have no effect on a remote
     repository, and a build flag never runs its backend: each is one
     ``WARNING:``, never a silent drop."""
     with caplog.at_level(logging.WARNING):
         generate(
             _URL,
-            trust_wheel_model=True,
+            max_model_extract_bytes=1024,
             project_dir=tmp_path,
             build_options=BuildOptions(allow=True),
         )
     text = "\n".join(r.getMessage() for r in caplog.records)
-    assert text.count("--trust-wheel-model has no effect for this target") == 1
+    assert text.count("--max-model-extract-bytes has no effect for this target") == 1
     assert text.count("--project-dir has no effect for a remote repository") == 1
     assert text.count("--allow-build has no effect for a remote repository") == 1
     assert seen["url"] == _URL
+
+
+@pytest.mark.parametrize("given", [True, False, None])
+@pytest.mark.parametrize(
+    "route", ["generate", "generate_git_sbom", "generate_git_project_sbom"]
+)
+def test_trust_model_files_reaches_the_fetch_on_every_route(
+    seen: dict[str, object], route: str, given: bool | None
+) -> None:
+    """Only an explicit ``True`` vouches for the repository's model files."""
+    routes: dict[str, Callable[..., str]] = {
+        "generate": generate,
+        "generate_git_sbom": generate_git_sbom,
+        "generate_git_project_sbom": generate_git_project_sbom,
+    }
+    routes[route](_URL, trust_model_files=given)
+    assert seen["trust_model_files"] is (given is True)
 
 
 def test_a_relative_id_registry_means_the_callers_directory(

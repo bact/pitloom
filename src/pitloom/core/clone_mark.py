@@ -23,16 +23,22 @@ import contextvars
 from collections.abc import Iterator
 from typing import Final
 
-__all__ = ["in_remote_clone", "reading_remote_clone", "remote_clone_root"]
+__all__ = [
+    "in_remote_clone",
+    "reading_remote_clone",
+    "remote_clone_root",
+    "remote_clone_trusted",
+]
 
 
 class _Block:  # pylint: disable=too-few-public-methods
     """One open :func:`reading_remote_clone` block, known by identity."""
 
-    __slots__ = ("root",)
+    __slots__ = ("root", "trust_model_files")
 
-    def __init__(self, root: str | None) -> None:
+    def __init__(self, root: str | None, trust_model_files: bool) -> None:
         self.root = root
+        self.trust_model_files = trust_model_files
 
 
 #: The open blocks, the last entered last.
@@ -42,14 +48,18 @@ _BLOCKS: Final[contextvars.ContextVar[tuple[_Block, ...]]] = contextvars.Context
 
 
 @contextlib.contextmanager
-def reading_remote_clone(root: str | None = None) -> Iterator[None]:
+def reading_remote_clone(
+    root: str | None = None, *, trust_model_files: bool = False
+) -> Iterator[None]:
     """Mark the reads within as those of a temporary clone whose root
     directory is *root* (``None``: not known), so the warning for a Git LFS
     pointer left unread tells the user to clone with Git LFS instead of to
     pull, and no file out of the clone is read (:func:`remote_clone_root`).
-    On exit, by any route and in any order, only this block's entry is
-    removed."""
-    block = _Block(root)
+    With *trust_model_files* the user vouches for the clone's model files, so
+    the model readers a hostile file could crash or hang are run on them
+    (:func:`remote_clone_trusted`). On exit, by any route and in any order,
+    only this block's entry is removed."""
+    block = _Block(root, trust_model_files)
     _BLOCKS.set((*_BLOCKS.get(), block))
     try:
         yield
@@ -70,3 +80,11 @@ def remote_clone_root() -> str | None:
     bound then)."""
     blocks = _BLOCKS.get()
     return blocks[-1].root if blocks else None
+
+
+def remote_clone_trusted() -> bool:
+    """Whether the last entered :func:`reading_remote_clone` block still
+    open was entered with *trust_model_files*; ``False`` outside one. Only
+    the innermost block decides."""
+    blocks = _BLOCKS.get()
+    return blocks[-1].trust_model_files if blocks else False

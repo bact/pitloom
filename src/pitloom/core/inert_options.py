@@ -49,6 +49,9 @@ ENV = "env"
 GIT = "git"
 #: An AI model file at a Git URL (the file it names, or its folder's one).
 GIT_MODEL = "git_model"
+#: The wheel, or the sdist, of a release named by a PyPI URL.
+PYPI_WHEEL = "pypi_wheel"
+PYPI_SDIST = "pypi_sdist"
 MODEL_FILE = "model_file"
 HF = "hf"
 ENRICH = "enrich"
@@ -68,8 +71,9 @@ PARAM_TO_FLAG: dict[str, str] = {
     "extract_file_header": "--extract-file-header/--no-extract-file-header",
     "content_type": "--content-type/--no-content-type",
     "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
-    "trust_wheel_model": "--trust-wheel-model",
+    "trust_model_files": "--trust-model-files",
     "max_model_extract_bytes": "--max-model-extract-bytes",
+    "max_download_bytes": "--max-download-bytes",
     "content_type_method": "--content-type-method",
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
@@ -145,10 +149,20 @@ _HOOK_NO_HARVEST = (
 )
 
 _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
+_NO_READER_GATE = (
+    "for this target (it lifts the reader gate of a built wheel or of a Git "
+    "URL's clone only)"
+)
 _PROJECT_IS_DIR = (
     "for a project directory target (its files are keyed below that directory)"
 )
 _GIT_PROJECT_DIR = "for a remote repository (its checkout is the project directory)"
+_PYPI_PROJECT_DIR = (
+    "for a PyPI URL target (the file was not built from a directory here)"
+)
+_NOT_A_DOWNLOAD = (
+    "for this target (only a PyPI URL, a Git URL or a Hugging Face target downloads)"
+)
 _NOT_AN_ARCHIVE = (
     "for this target (it keys the files of an sdist or a wheel below their "
     "project directory only)"
@@ -159,8 +173,10 @@ _EMBED_PROJECT_MODELS = (
 
 _FILE_SCAN = ("extract_file_header", "content_type")
 #: The options that steer only the scan of AI model files inside a wheel.
-_WHEEL_MODEL_SCAN = ("trust_wheel_model", "max_model_extract_bytes")
-_NOT_A_WHEEL_ROW = dict.fromkeys(_WHEEL_MODEL_SCAN, _NOT_A_WHEEL)
+_WHEEL_MODEL_SCAN = ("trust_model_files", "max_model_extract_bytes")
+_NO_EXTRACT_ROW = {"max_model_extract_bytes": _NOT_A_WHEEL}
+_NO_GATE_ROW = {"trust_model_files": _NO_READER_GATE}
+_NOT_A_WHEEL_ROW = {**_NO_GATE_ROW, **_NO_EXTRACT_ROW}
 #: Options no wheel-embedded SBOM can use, however it is embedded
 #: (``embed-wheel`` or ``wheel --embed``).
 _EMBED_COMMON: dict[str, str] = {
@@ -168,8 +184,10 @@ _EMBED_COMMON: dict[str, str] = {
     "describe_relationship": _EMBED_NO_DESCRIBE,
     "update_id_registry": _NO_HARVEST,
 }
+#: A model file read on its own, local or in a Git URL's clone (the gate of
+#: the clone's file is lifted by ``trust_model_files``, so it is not here).
 _MODEL_FILE_ROW: dict[str, str] = {
-    **_NOT_A_WHEEL_ROW,
+    **_NO_EXTRACT_ROW,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "scan_model_usage": _MODEL_NO_USAGE,
@@ -186,22 +204,28 @@ _ENRICH_ROW: dict[str, str] = {
     "update_id_registry": _NO_HARVEST,
 }
 
-#: Target kind -> {parameter: reason it has no effect there}.
-INERT: dict[str, dict[str, str]] = {
+_SDIST_ROW: dict[str, str] = {
+    **_NOT_A_WHEEL_ROW,
+    **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
+    "enrich": _SDIST_NO_ENRICH,
+    "scan_model_usage": _SDIST_NO_MODELS,
+    "use_lockfile": _SDIST_NO_LOCKFILE,
+}
+_WHEEL_ROW: dict[str, str] = {
+    **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
+    "enrich": _WHEEL_NO_ENRICH,
+    "use_lockfile": _NO_LOCKFILE,
+}
+
+#: :data:`INERT` but the download cap's entries.
+_ROWS: dict[str, dict[str, str]] = {
     PROJECT: {**_NOT_A_WHEEL_ROW, "project_dir": _PROJECT_IS_DIR},
-    GIT: {**_NOT_A_WHEEL_ROW, "project_dir": _GIT_PROJECT_DIR},
-    SDIST: {
-        **_NOT_A_WHEEL_ROW,
-        **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
-        "enrich": _SDIST_NO_ENRICH,
-        "scan_model_usage": _SDIST_NO_MODELS,
-        "use_lockfile": _SDIST_NO_LOCKFILE,
-    },
-    WHEEL: {
-        **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
-        "enrich": _WHEEL_NO_ENRICH,
-        "use_lockfile": _NO_LOCKFILE,
-    },
+    GIT: {**_NO_EXTRACT_ROW, "project_dir": _GIT_PROJECT_DIR},
+    SDIST: _SDIST_ROW,
+    WHEEL: _WHEEL_ROW,
+    # A downloaded file is read as the local one; only the cap is its own.
+    PYPI_WHEEL: {**_WHEEL_ROW, "project_dir": _PYPI_PROJECT_DIR},
+    PYPI_SDIST: {**_SDIST_ROW, "project_dir": _PYPI_PROJECT_DIR},
     ENV: {
         **_NOT_A_WHEEL_ROW,
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
@@ -212,6 +236,7 @@ INERT: dict[str, dict[str, str]] = {
     },
     MODEL_FILE: {
         **_MODEL_FILE_ROW,
+        **_NO_GATE_ROW,
         "offline": _MODEL_NO_NETWORK,
         "use_lockfile": _NO_LOCKFILE,
         "project_dir": _NOT_AN_ARCHIVE,
@@ -224,6 +249,7 @@ INERT: dict[str, dict[str, str]] = {
     },
     HF: {
         **_MODEL_FILE_ROW,
+        **_NO_GATE_ROW,
         "enrich": _HF_NO_LOCAL_ENRICH,
         "id_registry": _HF_NO_REGISTRY,
         "use_lockfile": _NO_LOCKFILE,
@@ -237,7 +263,7 @@ INERT: dict[str, dict[str, str]] = {
     },
     EMBED_PROJECT: {
         **_EMBED_COMMON,
-        "trust_wheel_model": _EMBED_PROJECT_MODELS,
+        "trust_model_files": _EMBED_PROJECT_MODELS,
         "max_model_extract_bytes": _EMBED_PROJECT_MODELS,
     },
     EMBED_STANDALONE: {
@@ -267,6 +293,23 @@ INERT: dict[str, dict[str, str]] = {
     },
 }
 
+
+#: The target kinds a fetch caps (``max_download_bytes``): a PyPI URL's
+#: download, a Git URL's checkout, a Hugging Face repository's files.
+_DOWNLOADS = (PYPI_WHEEL, PYPI_SDIST, GIT, GIT_MODEL, HF)
+
+#: Target kind -> {parameter: reason it has no effect there}. Only a PyPI
+#: URL, a Git URL or a Hugging Face target downloads: the download cap is
+#: inert for every other but the hook, which has no flag and settles only
+#: :func:`configured_options` (no cap among them).
+INERT: dict[str, dict[str, str]] = {
+    kind: (
+        row
+        if kind in (*_DOWNLOADS, HOOK)
+        else {**row, "max_download_bytes": _NOT_A_DOWNLOAD}
+    )
+    for kind, row in _ROWS.items()
+}
 
 #: The parameters of :data:`_EMBED_COMMON`, for a caller that embeds by
 #: another route than :func:`pitloom.embed.embed_wheel_sbom`.
@@ -409,6 +452,8 @@ __all__ = [
     "MODEL_FILE",
     "PARAM_TO_FLAG",
     "PROJECT",
+    "PYPI_SDIST",
+    "PYPI_WHEEL",
     "SDIST",
     "WHEEL",
     "configured_options",

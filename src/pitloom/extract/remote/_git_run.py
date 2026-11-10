@@ -23,20 +23,35 @@ from dataclasses import dataclass, field
 from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
+from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.core.url_masking import (
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
 )
 from pitloom.extract.remote import git_url
-from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
+from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import CLONE_LINE, GIT_OUTPUT_LINE, OVER_CAP
+from pitloom.messages import (
+    CLONE_LINE,
+    DOWNLOAD_FAILED,
+    DOWNLOAD_TIMEOUT,
+    GIT_NETWORK_FAILED_LINE,
+    GIT_OUTPUT_LINE,
+    GIT_TIMEOUT_LINE,
+    OVER_CAP,
+    Cap,
+)
 
 log = logging.getLogger(__name__)
 
-__all__ = ["GIT_TIMEOUT_SECONDS", "MAX_OUTPUT_BYTES", "GitRunner"]
+__all__ = [
+    "GIT_TIMEOUT_SECONDS",
+    "MAX_OUTPUT_BYTES",
+    "GitRunner",
+    "is_network_failure",
+]
 
 #: Seconds one ``git`` call may take; the calls of one fetch share a deadline.
 GIT_TIMEOUT_SECONDS = 600.0
@@ -76,6 +91,49 @@ _SCRUBBED_ENV = re.compile(
 
 #: Lines of git's standard error that say what went wrong.
 _ERROR_LINE = re.compile(r"(fatal|error|remote): ")
+
+#: The lines of those that git (or curl through it) writes itself; a
+#: ``remote:`` line is the server's own text.
+_OWN_ERROR_LINE = re.compile(r"(fatal|error): ")
+
+#: What a line of git's says that is not git's own words: a quoted span (a
+#: URL, a path, a repository name; a quote after a letter is an apostrophe,
+#: ``Couldn't``), a URL and what follows ``remote error:`` (the server's
+#: text).
+_NOT_GITS_WORDS = re.compile(
+    r"(?<![A-Za-z])'[^']*'|[A-Za-z][A-Za-z0-9+.-]*://\S*|remote error:.*",
+    re.IGNORECASE,
+)
+
+#: What git (through curl) says when the server could not be reached or the
+#: transfer broke: a ``download-network-failed``. Any other failure (a
+#: repository, ref or sign-in the server refused, an HTTP 4xx answer) is no
+#: network failure and carries no code. Each is a phrase of curl's, its TLS
+#: library's or git's own (a ref name holds no space): a single word such as
+#: ``SSL`` would match a repository or branch named for it.
+_NETWORK_FAILURE = re.compile(
+    r"Could(n't| not) resolve (host|proxy)|Failed to connect|Couldn't connect"
+    r"|Connection (refused|reset|timed out)|Operation timed out"
+    r"|Network is unreachable|No route to host"
+    r"|SSL certificate problem|SSL peer certificate|(SSL|TLS) connect error"
+    r"|(Open|Libre|Boring)SSL SSL_|SSL routines|SSL: (no alternative|certificate)"
+    r"|gnutls_handshake\(\) failed|server certificate verification failed"
+    r"|schannel: |error setting certificate"
+    r"|Empty reply from server|transfer closed|Recv failure|Send failure"
+    r"|early EOF|unexpected disconnect|Proxy CONNECT aborted"
+    r"|RPC failed; curl \d+|RPC failed; HTTP 5\d\d"
+    r"|The requested URL returned error: 5\d\d"
+    r"|Received HTTP code 5\d\d from proxy",
+    re.IGNORECASE,
+)
+
+#: The locale every call runs in: git translates its messages (Git for
+#: Windows into the display language), and :func:`is_network_failure` and
+#: the callers that read a failure's text read git's English.
+_LOCALE = "C"
+
+#: Variables that would choose another language over :data:`_LOCALE`.
+_LOCALE_ENV = ("LANGUAGE", "LC_MESSAGES", "LANG")
 
 
 @dataclass
@@ -134,25 +192,20 @@ class GitRunner:
             )
         left = self.remaining()
         if left <= 0:
-            raise RemoteSourceError(
-                "git.timeout", f"git {what} did not start within {self.seconds:.0f}s"
-            )
+            raise self._timeout(what)
         cap = None
         if watch is not None and self.max_bytes is not None:
             cap = SizeCap(watch, self.max_bytes)
         status, out, err = _capture(command, left, cap)
         if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
+            reason = Cap(cap.limit, "byte", MAX_DOWNLOAD_BYTES_KEY).reason_values()
             raise RemoteSourceError(
                 "git.too-large",
-                CLONE_LINE.render(
-                    {"amount": readable_bytes(cap.limit), "command": what}
-                ),
+                CLONE_LINE.render({**reason, "command": what}),
                 pitloom_code=OVER_CAP.code,
             )
         if status is None:
-            raise RemoteSourceError(
-                "git.timeout", f"git {what} exceeded {self.seconds:.0f}s"
-            )
+            raise self._timeout(what)
         if out is None:
             raise RemoteSourceError(
                 "git.output-too-large",
@@ -160,8 +213,46 @@ class GitRunner:
                 pitloom_code=OVER_CAP.code,
             )
         if status != 0:
-            raise RemoteSourceError("git.clone-failed", _failure(err, status))
+            raise _failed(what, err, status)
         return out
+
+    def _timeout(self, what: str) -> RemoteSourceError:
+        """``git.timeout``: the shared deadline passed before or during the
+        call *what*."""
+        values = {"command": what, "seconds": max(round(self.seconds), 1)}
+        return RemoteSourceError(
+            "git.timeout",
+            GIT_TIMEOUT_LINE.render(values),
+            pitloom_code=DOWNLOAD_TIMEOUT.code,
+        )
+
+
+def _failed(what: str, err: str, status: int) -> RemoteSourceError:
+    """``git.clone-failed`` for the call *what* that exited *status*: its
+    text is git's own (:func:`_failure`); when git could not reach the
+    server (:data:`_NETWORK_FAILURE`), it is the ``download-network-failed``
+    line."""
+    text = _failure(err, status)
+    if not is_network_failure(err):
+        return RemoteSourceError("git.clone-failed", text)
+    return RemoteSourceError(
+        "git.clone-failed",
+        GIT_NETWORK_FAILED_LINE.render({"command": what, "error": text}),
+        pitloom_code=DOWNLOAD_FAILED.code,
+    )
+
+
+def is_network_failure(err: str) -> bool:
+    """Whether git's standard error *err* says, in its own words on one of
+    its ``fatal:``/``error:`` lines, that the server could not be reached or
+    the transfer broke. A ``remote:`` line, and a quoted span, a URL or a
+    ``remote error:`` of a line (:data:`_NOT_GITS_WORDS`), are text the
+    user or the server chose, never a cause."""
+    return any(
+        _NETWORK_FAILURE.search(_NOT_GITS_WORDS.sub(" ", line))
+        for line in err.splitlines()
+        if _OWN_ERROR_LINE.match(line.strip())
+    )
 
 
 def _failure(err: str, status: int) -> str:
@@ -175,11 +266,16 @@ def _failure(err: str, status: int) -> str:
 
 
 def _environment() -> dict[str, str]:
-    """The environment git runs in."""
+    """The environment git runs in: the caller's, without what points git
+    elsewhere, with no prompt, no LFS download, only the allowed transports
+    and English messages (:data:`_LOCALE`)."""
     env = {k: v for k, v in os.environ.items() if not _SCRUBBED_ENV.fullmatch(k)}
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GIT_LFS_SKIP_SMUDGE"] = "1"
     env["GIT_ALLOW_PROTOCOL"] = ":".join(sorted(git_url.ALLOWED_SCHEMES))
+    for name in _LOCALE_ENV:
+        env.pop(name, None)
+    env["LC_ALL"] = _LOCALE
     return env
 
 

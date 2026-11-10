@@ -3,17 +3,19 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``--trust-wheel-model`` on every surface that reads a built wheel.
+"""``--trust-model-files`` on every surface that reads a built wheel.
 
 By default a fastText model in a wheel is listed without metadata (its native
 loader is never called) and one ``INFO:`` per run names the flag; with the
-flag (``trust_wheel_model=True``; for ``embed_wheel_sbom()`` the
+flag (``trust_model_files=True``; for ``embed_wheel_sbom()`` the
 ``ConfigOverrides`` field) the loader runs. A local project scan is not
 gated (a Git URL's project is, whatever the flag), and the flag there warns
 once that it has no effect. There is no config key.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_gate_formats` (the
-gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind).
+gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind),
+:mod:`tests.assemble.test_trust_model_files_pypi` (a wheel downloaded from a
+PyPI URL).
 """
 
 from __future__ import annotations
@@ -40,7 +42,7 @@ from tests.extract.scanner.test_scanner_wheel_gate_formats import (
 from tests.warning_helpers import count_naming, logged_warnings
 
 _MEMBER = "demo/sentimentdemo.bin"
-_FLAG = "--trust-wheel-model"
+_FLAG = "--trust-model-files"
 _Runner = Callable[[Path, pytest.MonkeyPatch, bool], str]  # -> SBOM json
 
 
@@ -80,16 +82,16 @@ def _cli_generate(tmp: Path, mp: pytest.MonkeyPatch, trust: bool) -> str:
 
 
 def _lib_generate(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
-    return generate(_wheel(tmp / "d"), offline=True, trust_wheel_model=trust)
+    return generate(_wheel(tmp / "d"), offline=True, trust_model_files=trust)
 
 
 def _lib_wheel(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
-    return generate_wheel_sbom(_wheel(tmp / "d"), offline=True, trust_wheel_model=trust)
+    return generate_wheel_sbom(_wheel(tmp / "d"), offline=True, trust_model_files=trust)
 
 
 def _lib_embed(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
     wheel = _wheel(tmp / "d")
-    overrides = ConfigOverrides(offline=True, trust_wheel_model=trust or None)
+    overrides = ConfigOverrides(offline=True, trust_model_files=trust or None)
     embed_wheel_sbom(wheel, overrides=overrides)
     return _embedded(wheel)
 
@@ -168,7 +170,7 @@ def test_a_batch_names_each_gated_format_once_across_its_wheels(
         for n, m in models.items()
     ]
     run_cli(["embed-wheel", *map(str, wheels), "--offline"], monkeypatch)
-    named = [re.search(r": ([a-z0-9, ]+)\. Pass ", line) for line in gate_infos(caplog)]
+    named = [re.search(r": ([a-z0-9, ]+); pass ", line) for line in gate_infos(caplog)]
     # Sorted, so that the order the wheels finish in does not matter.
     assert sorted(m.group(1) for m in named if m) == ["gguf", "onnx"]
     assert [_hyperparameters(_embedded(w)) for w in wheels] == [False] * 3

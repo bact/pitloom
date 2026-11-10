@@ -6,7 +6,8 @@
 """Project-directory producer for the AI model scanner.
 
 In a Git URL's temporary clone the formats a wheel scan does not read
-either are listed without metadata (:func:`remote_reader_gate`); a local
+either are listed without metadata (:func:`remote_reader_gate`) unless the
+user vouches for the model files (``--trust-model-files``); a local
 project, the Hatchling hook and ``embed-wheel`` read every format.
 
 See also: :mod:`pitloom.extract.scanner`.
@@ -21,7 +22,7 @@ from pathlib import Path
 from typing import IO
 
 from pitloom.core.ai_metadata import AiModelMetadata
-from pitloom.core.clone_mark import in_remote_clone
+from pitloom.core.clone_mark import in_remote_clone, remote_clone_trusted
 from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
@@ -31,7 +32,7 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
+from pitloom.extract.scanner_wheel import reader_gate
 from pitloom.messages import READER_UNSAFE_REMOTE
 
 
@@ -41,11 +42,15 @@ def remote_reader_gate() -> ReaderGate | None:
     route and the project route alike: the formats a wheel scan does not
     read either are listed without metadata, and
     :meth:`~pitloom.extract.scanner.ReaderGate.report` says
-    ``reader-unsafe/remote``; ``None`` (every format read) elsewhere."""
+    ``reader-unsafe/remote``; ``None`` (every format read) elsewhere, and in
+    a clone whose caller vouched for its model files
+    (:func:`~pitloom.core.clone_mark.remote_clone_trusted`)."""
     if not in_remote_clone():
         return None
-    return ReaderGate(
-        WHEEL_GATED_FORMATS, lambda _fmt: True, message=READER_UNSAFE_REMOTE
+    return reader_gate(
+        trusted=remote_clone_trusted(),
+        announce=lambda _fmt: True,
+        message=READER_UNSAFE_REMOTE,
     )
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +17,7 @@ only). Summarised in
 [roadmap.md](roadmap.md) as one bullet linking here.
 
 See also: [ai-model-scanning-wheels.md](../implementation/ai-model-scanning-wheels.md)
-(what shipped in #263: the wheel gate, `--trust-wheel-model`, the input
+(what shipped in #263: the wheel gate, `--trust-model-files`, the input
 bounds and the measured worst cases).
 
 ## Problem
@@ -68,7 +68,7 @@ else by its declared length, and stops.
   (`h5py` stays until HDF5 has its own reader.)
 - **The wheel gate lifts per format** as its reader lands: a format whose
   reader is metadata-only is no longer in `WHEEL_GATED_FORMATS`. When HDF5
-  is the only gated format left, `--trust-wheel-model` applies to it alone;
+  is the only gated format left, `--trust-model-files` applies to it alone;
   it is retired when HDF5 has its own reader or leaves the gate another way.
 
 ## What the readers remove, and what stays
@@ -84,7 +84,7 @@ Goes away:
 |---|---|
 | Library amplification (GGUF numpy views, fickling AST, ONNX protobuf) | Only header bytes are read; cost follows the header, not the file |
 | Native crashes and hangs (libhdf5 segfault/loop, fastText full load) | No native code (HDF5 only once it has its own reader; gated until then) |
-| The wheel gate, `--trust-wheel-model`, the batch gate notice | Nothing left to gate (except HDF5 until its reader lands) |
+| The wheel gate, `--trust-model-files`, the batch gate notice | Nothing left to gate (except HDF5 until its reader lands) |
 | fickling stderr capture (`stderr_capture`): its race, `None` stderr, `writelines` | No third-party code writes to stderr |
 | Most of the reader log capture (`_reader_log`) | Our readers report through Pitloom's own warnings |
 | Ctrl-C not interrupting a native parser | Pure Python is always interruptible |

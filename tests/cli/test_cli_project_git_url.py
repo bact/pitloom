@@ -26,6 +26,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands import _remote
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
@@ -56,11 +57,29 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     asked: dict[str, object] = {}
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        asked["url"], asked["offline"] = url, offline
-        if offline:
+    def fetch(
+        url: str,
+        *,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
+    ) -> Iterator[GitCheckout]:
+        asked.update(
+            url=url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
+            trust_model_files=trust_model_files,
+        )
+        if policy.offline:
             raise RemoteSourceError("git.offline", f"no network for {url}")
-        yield GitCheckout(str(folder), url, "main", "c0ffee", "svc", False)
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c0ffee",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     asked["folder"] = folder
@@ -86,7 +105,7 @@ def test_a_git_url_is_fetched_and_read_as_a_project(
     carries the output path alone."""
     out = tmp_path / "sbom.json"
     assert _run(monkeypatch, tmp_path, command, _URL, "-o", str(out)) == 0
-    assert fetched["url"] == _URL and fetched["offline"] is None
+    assert fetched["url"] == _URL and fetched["offline"] is False
     captured = capsys.readouterr()
     assert sbom_output_path(captured.out) == str(out)
     assert "\n" not in out.read_text(encoding="utf-8").strip()
@@ -208,8 +227,13 @@ def test_a_failure_to_read_the_fetched_project_names_the_projects_below(
     (folder / "services" / "a" / "setup.py").write_text("", encoding="utf-8")
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        _ = offline
+    def fetch(
+        url: str,
+        *,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
+    ) -> Iterator[GitCheckout]:
+        _ = policy, trust_model_files
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
@@ -330,9 +354,22 @@ def test_a_gated_reader_runs_on_a_local_project_only(
     )
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        _ = offline
-        yield GitCheckout(str(folder), url, "main", "c", "svc", False)
+    def fetch(
+        url: str,
+        *,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
+    ) -> Iterator[GitCheckout]:
+        _ = policy
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     read = spy_readers(monkeypatch)
@@ -348,3 +385,51 @@ def test_a_gated_reader_runs_on_a_local_project_only(
     else:
         assert gated == {f for f in WHEEL_GATED_FORMATS if has_reader_library(f)}
         assert not notes
+
+
+@pytest.mark.parametrize("command", ["project", "generate"])
+def test_trust_model_files_runs_the_gated_readers_on_a_git_urls_project(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--trust-model-files`` on a Git URL is the user's word for the
+    repository's model files: every reader runs, as in the local directory, no
+    ``reader-unsafe/remote`` line, and no "has no effect" warning (the fetch
+    consumes it, the local project read never sees it)."""
+    folder = write_model_project(
+        tmp_path / "checkout", [fixture_path(f) for f in FORMATS]
+    )
+    asked: dict[str, object] = {}
+
+    @contextmanager
+    def fetch(
+        url: str,
+        *,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
+    ) -> Iterator[GitCheckout]:
+        _ = policy
+        asked["trust_model_files"] = trust_model_files
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
+
+    monkeypatch.setattr(_remote, "fetch_git_project", fetch)
+    read = spy_readers(monkeypatch)
+    out = str(tmp_path / "o.json")
+    args = (command, _URL, "-o", out, "--trust-model-files")
+    assert _run(monkeypatch, tmp_path, *args) == 0
+    err = capsys.readouterr().err
+    assert asked["trust_model_files"] is True
+    assert {fmt for fmt, _ in read} & WHEEL_GATED_FORMATS == {
+        f for f in WHEEL_GATED_FORMATS if has_reader_library(f)
+    }
+    assert "[reader-unsafe/" not in err and "has no effect" not in err

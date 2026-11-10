@@ -18,7 +18,12 @@ from pitloom.assemble.spdx3.ai import lookup_model_id
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
+from pitloom.core.config_cascade import (
+    ConfigOverrides,
+    require_download_override,
+    resolve_fetch_policy,
+    resolve_standalone_config,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.inert_options import (
@@ -41,6 +46,7 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import (
     Alias,
     IdRegistry,
@@ -51,7 +57,12 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging, loggable
-from pitloom.messages import warn_file_unreadable
+from pitloom.messages import (
+    MODEL_URL_LINE,
+    PYPI_URL_UNUSABLE,
+    CodedValueError,
+    warn_file_unreadable,
+)
 
 log = logging.getLogger(__name__)
 
@@ -202,6 +213,24 @@ def project_document_id(project_dir: Path) -> str:
 
 
 # pylint: disable=too-many-arguments,too-many-locals
+def _refuse_pypi_url(source: Path | str) -> None:
+    """Raise ``pypi-url-unusable`` when *source* is a PyPI URL, which would
+    otherwise be read as a missing local path.
+
+    Raises:
+        CodedValueError: It is one (logged as well).
+    """
+    if not isinstance(source, str) or not is_pypi_url(source):
+        return
+    error = CodedValueError(
+        PYPI_URL_UNUSABLE,
+        line=MODEL_URL_LINE,
+        url=loggable(sanitize_url(source.strip())),
+    )
+    log.warning("%s", error)
+    raise error
+
+
 def generate_model_sbom(
     source: Path | str,
     *,
@@ -216,6 +245,8 @@ def generate_model_sbom(
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
     shown: str | None = None,
+    max_download_bytes: int | None = None,
+    check_url: Callable[[str], None] | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -224,24 +255,48 @@ def generate_model_sbom(
     built-in defaults. Nothing is read from the current directory or from
     the model file's own directory.
 
-    Three parameters apply to one source kind only, and warn when given for
-    the other (see :data:`pitloom.core.inert_options.INERT`): *offline* for
-    a Hugging Face source (a local file never reaches the network), and
-    *enrich*/*id_registry* for a local file; a local folder, its one model
-    file (:func:`~pitloom.extract.model_target.model_path_of`).
+    Four parameters apply to one source kind only, and warn when given for
+    the other (see :data:`pitloom.core.inert_options.INERT`):
+    *offline* and *max_download_bytes* for a Hugging Face source (a local
+    file never reaches the network), and *enrich*/*id_registry* for a local
+    file; a local folder, its one model file
+    (:func:`~pitloom.extract.model_target.model_path_of`).
+
+    A Hugging Face source's metadata files are downloaded as
+    :func:`~pitloom.extract.remote.read_huggingface` describes, under the
+    policy every remote route resolves
+    (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`): with
+    *offline* (else *pitloom_config*'s) true nothing is fetched
+    (``huggingface.offline``, ``offline-unusable``); each file is capped at
+    *max_download_bytes* (else *pitloom_config*'s ``max-download-bytes``,
+    else 512 MiB); *check_url* is called with each file's URL and each
+    redirect target before it is requested (a local file does not use it).
 
     *shown* is how messages name a local model file (default: as given): a
     caller that copied it to a temporary directory names it as its user
     knows it (its path in a Git repository). The SBOM names the file by its
     own name alone either way.
+
+    Raises:
+        CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
+            release is not a model), refused as ``loom model`` refuses it,
+            before anything is read or fetched; logged as well.
     """
     configure_logging()
+    _refuse_pypi_url(source)
+    if max_download_bytes is not None:
+        require_download_override(max_download_bytes)  # even if inert
     source_str = str(source)
     is_hf = is_huggingface_source(source_str)
     settle_inert(
         HF if is_hf else MODEL_FILE,
         source_str,
-        {"offline": offline, "enrich": enrich, "id_registry": id_registry},
+        {
+            "offline": offline,
+            "enrich": enrich,
+            "id_registry": id_registry,
+            "max_download_bytes": max_download_bytes,
+        },
     )
     cfg = resolve_standalone_config(
         pitloom_config,
@@ -258,12 +313,13 @@ def generate_model_sbom(
 
     resolved_registry: IdRegistry | None = None
     if is_hf:
-        if cfg.offline:
-            raise ValueError(
-                "Offline mode enabled: cannot fetch remote Hugging Face source "
-                f"{quote_source(sanitize_url(source_str))}"
-            )
-        model = read_huggingface(source_str)
+        policy = resolve_fetch_policy(
+            pitloom_config,
+            offline=offline,
+            max_download_bytes=max_download_bytes,
+            check_url=check_url,
+        )
+        model = read_huggingface(source_str, policy=policy)
         entity_spdx_id = digest = None
     else:
         model_path = model_path_of(Path(source), subject=source_str)

@@ -28,7 +28,7 @@ dependency is not installed or the file is absent.
 Not models to read: two 8 448-byte HDF5 files, each a one-to-27-byte mutation
 of a valid Keras `.h5`, on which `h5py`/libhdf5 crashes or never returns.
 They are regression inputs for the wheel scan's format gate: a wheel scan
-without `--trust-wheel-model` must list such a model without metadata and
+without `--trust-model-files` must list such a model without metadata and
 never open it. A model file read from a Git URL, named or in the build file
 list of a project from a Git URL, is gated for the same formats. **Never pass
 them to a reader in-process** -- use a subprocess with a timeout. Excluded from the sdist.

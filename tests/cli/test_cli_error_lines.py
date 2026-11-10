@@ -76,7 +76,10 @@ def test_a_hostile_path_cannot_forge_a_line(
 
 _LOOKS = "'m': header looks like a Git LFS pointer but is not a valid one"
 _CONFIG = "config file 's.tar.gz:setup.cfg': larger than the 1-byte config-member cap"
-_CLONE = "the repository is larger than 1 KiB; git clone was stopped"
+_CLONE = (
+    "the repository is larger than the 1024-byte max-download-bytes cap; "
+    "git clone was stopped"
+)
 
 
 @pytest.mark.parametrize(

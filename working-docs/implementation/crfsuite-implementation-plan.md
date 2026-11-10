@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -159,7 +159,7 @@ refuses it; a Git LFS pointer named `x.model` warns once
 
 Project scan, wheel scan and `loom model` give the same entry and the same
 single `WARNING:` for a truncated copy (CRFsuite is read inside wheels
-without `--trust-wheel-model`); two `loom project` runs are byte-identical.
+without `--trust-model-files`); two `loom project` runs are byte-identical.
 Manual check 17 (`scripts/manual_cli_checks/_checks_model.py`) gained a
 LFS pointer named `x.model` and a truncated CRFsuite file. No new CLI
 option, so `_matrix_plan.py` needed nothing.

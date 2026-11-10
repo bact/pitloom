@@ -22,7 +22,7 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
-from pitloom.messages._fields import render
+from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
 _BACKSLASHED = Path("C:\\d\\")
@@ -100,8 +100,6 @@ def test_a_line_may_start_with_a_quoted_path_and_end_in_a_dotted_table() -> None
         ("purpose", ".npy-header", ".npy-header"),
         ("purpose", "per-wheel model-scan budget", "per-wheel model-scan budget"),
         ("outcome", "the first 1000 kept in labels", "the first 1000 kept in labels"),
-        ("amount", "1 byte", "1 byte"),
-        ("amount", "512 MiB", "512 MiB"),
         ("command", "ls-remote", "ls-remote"),
         ("use", "for file scanning", "for file scanning"),
         ("field", "project.readme", "project.readme"),
@@ -148,9 +146,6 @@ def test_a_field_writes_a_value_of_its_shape(field: str, value: Any, text: str) 
         ("purpose", "a b c d"),
         ("purpose", "1st"),
         ("outcome", ""),
-        ("amount", 512),
-        ("amount", "1 bytes"),
-        ("amount", "512 MB"),
         ("command", "clone x"),
         ("use", "for anything"),
         ("use", "file scanning"),

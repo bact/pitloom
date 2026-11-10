@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,8 @@ page -- it installs the exact same three `SKILL.md` files described here.
 Pitloom ships three Skills:
 
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project (a directory
-  or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or
+  or a Git URL), a wheel or sdist (a file, or a release on PyPI by its
+  [URL](pypi-urls.md)), or an AI/ML model file. Also embeds a generated (or
   pre-existing) SBOM directly into a built wheel per PEP 770's
   `.dist-info/sboms/` convention. Asked to pin ids, it creates or updates a
   [Loom ID registry](id-registry.md) with `loom id generate`/`import`.
@@ -35,19 +36,22 @@ Pitloom ships three Skills:
   standard's minimum elements (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM
   for AI 2026 or BSI TR-03183-2) and only ask about what's actually
   missing. Requires a base SBOM to already exist; run `sbom-generate` first.
+  An SBOM generated from a PyPI URL is a wheel or sdist base, so a fragment is
+  drafted but never merged into it.
 - `sbom-validate` -- checks an SPDX 3 JSON document for schema and SHACL
   conformance (`loom fragment validate`, built on the third-party
   `spdx3-validate`), catching a missing required property or a wrong
   relationship type that a bare `@graph`-presence check cannot. Works on
   Pitloom's own output, a hand-authored fragment, or a third-party SPDX 3
-  file. It also checks a wheel's PEP 770 embedded SBOM: `verify-wheel`
-  (structural: present, right place, name/version match) and
-  `validate-wheel` (content: schema/SHACL).
+  file, an SBOM generated from a PyPI URL included. It also checks a wheel's
+  PEP 770 embedded SBOM: `verify-wheel` (structural: present, right place,
+  name/version match) and `validate-wheel` (content: schema/SHACL); both take a
+  wheel file, not a URL.
 
 The three Skills refer to each other, so install all three together.
 
 **Requirements.** A shell, Python 3.10 or later and `pitloom` 0.23.4 or later
-(pip, `uvx` or `pipx`). The Skills follow the development version, whose
+(pip, `uvx` or `pipx`; 0.24.0 or later for a PyPI URL target). The Skills follow the development version, whose
 commands and messages can be newer than the last release; the licence
 readings and message codes they quote are those of 0.23.4. Before the first
 run that reads licences, `sbom-generate` builds the LicenseID database
@@ -227,8 +231,8 @@ the Skill needs to run, above). It has no `argument-hint`: that key is
 outside the Agent Skills specification, and claude.ai and the Skills API
 reject it. Each Skill's body says what argument it takes instead --
 `sbom-generate` accepts a project directory, sdist, wheel, model file,
-Hugging Face model ID or Git URL, while the other two need an existing SBOM
-file path. Nothing else needs configuring to use the Skills as-is.
+Hugging Face model ID, Git URL or PyPI URL, while the other two need an
+existing SBOM file path. Nothing else needs configuring to use the Skills as-is.
 
 ## See also
 

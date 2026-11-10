@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-08
+# Last-Modified: 2026-11-10
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -99,6 +99,14 @@ not merged. To put an enriched SBOM into a wheel, hand off to `sbom-generate`
 ("Embed an SBOM into a wheel"; a signed wheel needs the user's
 `--allow-signed-wheel`).
 
+**A base from a PyPI URL** (`loom wheel`, `project` or `generate` on a
+`pypi.org/project/` page, Pitloom 0.24.0 or later) is such an "other base": no
+`--enrich`, no merge, and the download is gone, so project prose means
+fetching it again, which step 5 gates (non-interactive: "not used -- needs
+consent"). Asked to enrich or check "the SBOM of <pypi-url>" with no file,
+hand off to `sbom-generate` first. Before a gap report or answer about such
+a base, read `references/pypi-url-base.md`.
+
 Steps:
 
 1. Generate a base SBOM first, if not already done (`sbom-generate`), and
@@ -139,7 +147,7 @@ Steps:
    name ends `...~<hex>`, a CRFsuite/fastText model has `num_labels` but no
    `labels`, or `\uXXXX` appears in a name or description, read
    `references/model-stub-diagnosis.md` and tell the user the cause before
-   inferring what the file itself would give. Never add `--trust-wheel-model` or
+   inferring what the file itself would give. Never add `--trust-model-files` or
    raise a model-scan cap yourself; never write a cut name, dropped label or
    unescaped control back into a fragment.
 4. **Interactive session only -- ask the SBOM author about remaining gaps

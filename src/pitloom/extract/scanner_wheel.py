@@ -55,7 +55,13 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import (
+    READER_UNSAFE,
+    READER_UNSAFE_REMOTE,
+    Cap,
+    Message,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 
@@ -73,13 +79,14 @@ class MemberReadError(OSError):
 
 
 #: Formats whose reader is not run on a wheel's files unless the caller
-#: trusts the wheel (``--trust-wheel-model``): a native parser (fastText,
+#: trusts the model files (``--trust-model-files``): a native parser (fastText,
 #: HDF5, ONNX), a pickle parser (PyTorch ``.pt``/``.pth``, through
 #: fickling) or a per-element Python loop (GGUF) that a hostile file can
 #: crash, hang or exhaust memory in. Add a
 #: format here to gate it; nothing else changes. A project scan is gated
 #: in a Git URL's temporary clone only
-#: (:func:`pitloom.extract.scanner_project.remote_reader_gate`).
+#: (:func:`pitloom.extract.scanner_project.remote_reader_gate`), by the same
+#: :func:`reader_gate`.
 WHEEL_GATED_FORMATS = frozenset(
     {
         AiModelFormat.FASTTEXT,
@@ -89,6 +96,44 @@ WHEEL_GATED_FORMATS = frozenset(
         AiModelFormat.PYTORCH,
     }
 )
+
+
+def reader_gate(
+    *,
+    trusted: bool,
+    announce: Callable[[AiModelFormat], bool],
+    message: Message = READER_UNSAFE,
+    file: str | None = None,
+) -> ReaderGate | None:
+    """The gate of the formats in :data:`WHEEL_GATED_FORMATS` for a wheel
+    scan, a Git URL's clone and a wheel downloaded from a PyPI URL alike:
+    ``None`` (every format read) when the user vouches for the model files
+    (*trusted*, ``--trust-model-files``), else a
+    :class:`~pitloom.extract.scanner.ReaderGate` saying *message*, naming
+    *file* when given. *announce* is the gate's own (see
+    :class:`~pitloom.extract.scanner.ReaderGate`)."""
+    if trusted:
+        return None
+    return ReaderGate(WHEEL_GATED_FORMATS, announce, message=message, file=file)
+
+
+def _wheel_gate(
+    trusted: bool,
+    announce: Callable[[AiModelFormat], bool],
+    downloaded_as: str | None,
+) -> ReaderGate | None:
+    """:func:`reader_gate` for a wheel scan: a local wheel's says
+    ``reader-unsafe``, one downloaded as *downloaded_as* (its file name) says
+    ``reader-unsafe/remote``'s PyPI URL line, naming it."""
+    if downloaded_as is None:
+        return reader_gate(trusted=trusted, announce=announce)
+    return reader_gate(
+        trusted=trusted,
+        announce=announce,
+        message=READER_UNSAFE_REMOTE,
+        file=downloaded_as,
+    )
+
 
 #: The wheel's overall extraction budget, in multiples of the per-model ceiling.
 BUDGET_FACTOR = 4
@@ -282,6 +327,9 @@ def _wheel_sources(
         )
 
 
+# Keyword-only: the gate's three (trust, gate_hint, downloaded_as) are one
+# concern, each with a default.
+# pylint: disable-next=too-many-arguments
 def scan_wheel_for_ai_models(
     wheel_path: Path,
     *,
@@ -290,6 +338,7 @@ def scan_wheel_for_ai_models(
     max_bytes: int,
     trust: bool = False,
     gate_hint: Callable[[AiModelFormat], bool] = lambda _fmt: True,
+    downloaded_as: str | None = None,
 ) -> list[AiModelMetadata]:
     """Scan a built wheel's files for AI models; with *scan_usage*, their
     script usages.
@@ -310,7 +359,10 @@ def scan_wheel_for_ai_models(
     *trust*: it stays in the result without metadata, and one ``INFO:``
     line per scan names the flag and lists the gated formats met that
     *gate_hint* accepts (called once per format; a batch makes it claim a
-    once-per-run slot for that format, so each format is named once).
+    once-per-run slot for that format, so each format is named once). The
+    line is ``reader-unsafe``'s, or for a wheel downloaded from a PyPI URL
+    (*downloaded_as*, its file name, which the line names)
+    ``reader-unsafe/remote``'s; *trust* lifts either.
 
     *usage_hint*: see :func:`pitloom.extract.scanner.scan_ai_models`.
 
@@ -329,7 +381,7 @@ def scan_wheel_for_ai_models(
         own = matching if len(matching) == 1 else ()
         members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)
-        gate = None if trust else ReaderGate(WHEEL_GATED_FORMATS, gate_hint)
+        gate = _wheel_gate(trust, gate_hint, downloaded_as)
         try:
             models = scan_ai_models(
                 _wheel_candidates(zf, members, scratch, gate),

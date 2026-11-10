@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import (
     RemoteSourceError,
     _git_run,
@@ -76,10 +77,18 @@ def test_git_runs_without_lfs_and_with_a_clean_environment(
 ) -> None:
     """git-lfs would fetch from the address a repository's ``.lfsconfig``
     names, past the URL check; a ``GIT_DIR`` of the caller (a git hook) would
-    point git at another repository."""
+    point git at another repository; a language of the caller's would
+    translate the messages the network classifier reads."""
     seen = tmp_path / "seen.txt"
     _fake_git(tmp_path, monkeypatch, f'echo "$@" > {seen}; env >> {seen}')
     monkeypatch.setenv("GIT_DIR", "/elsewhere/.git")
+    for name, value in (
+        ("LC_ALL", "de_DE.UTF-8"),
+        ("LANGUAGE", "fr"),
+        ("LC_MESSAGES", "fr_FR.UTF-8"),
+        ("LANG", "fr_FR.UTF-8"),
+    ):
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
     monkeypatch.setenv("GIT_AUTHOR_NAME", "kept")
     GitRunner().run(["ls-remote"], "ls-remote", echo=False)
@@ -95,6 +104,8 @@ def test_git_runs_without_lfs_and_with_a_clean_environment(
     assert env["GIT_LFS_SKIP_SMUDGE"] == "1" and env["GIT_TERMINAL_PROMPT"] == "0"
     assert env["GIT_ALLOW_PROTOCOL"] == "http:https"
     assert "GIT_DIR" not in env and "GIT_CONFIG_COUNT" not in env
+    assert env["LC_ALL"] == "C"
+    assert not {"LANGUAGE", "LC_MESSAGES", "LANG"} & set(env)
     assert env["GIT_AUTHOR_NAME"] == "kept"  # only what repoints git is removed
 
 
@@ -345,7 +356,7 @@ def test_a_failure_of_the_caller_inside_the_block_is_not_a_fetch_warning(
 def test_offline_is_a_warning_as_well(caplog: pytest.LogCaptureFixture) -> None:
     """The same as a refused scheme: logged and raised."""
     with caplog.at_level(logging.WARNING), pytest.raises(RemoteSourceError) as excinfo:
-        with fetch_git_project("https://h/o/r", offline=True):
+        with fetch_git_project("https://h/o/r", policy=RemoteFetchPolicy(offline=True)):
             pytest.fail("not fetched")
     assert excinfo.value.code == "git.offline"
     assert "network access is forbidden" in caplog.text
@@ -484,7 +495,8 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
     runner = GitRunner(max_bytes=100_000)
     if stopped:
         with pytest.raises(
-            RemoteSourceError, match="larger than 100000 bytes"
+            RemoteSourceError,
+            match="larger than the 100000-byte max-download-bytes cap",
         ) as excinfo:
             runner.run(["clone"], "clone", echo=False, watch=str(watched))
         assert excinfo.value.code == "git.too-large"
@@ -506,13 +518,6 @@ def test_nothing_is_watched_without_a_directory_or_a_cap(
     GitRunner().run(["clone"], "clone", echo=False, watch=str(watched))
 
 
-@pytest.mark.parametrize("limit", [0, -1])
-def test_a_cap_that_is_not_positive_is_refused(limit: int) -> None:
-    with pytest.raises(ValueError, match="positive integer"):
-        with fetch_git_project("https://h/o/r", max_bytes=limit):
-            pytest.fail("not fetched")
-
-
 @needs_git
 @posix_only
 @pytest.mark.usefixtures("local")
@@ -527,10 +532,14 @@ def test_a_repository_over_the_cap_is_not_read(tmp_path: Path, limit: int) -> No
     _run(root, "commit", "-q", "-m", "one")
     if limit < 300_000:
         with pytest.raises(RemoteSourceError) as excinfo:
-            with fetch_git_project(f"file://{root}", max_bytes=limit):
+            with fetch_git_project(
+                f"file://{root}", policy=RemoteFetchPolicy(max_bytes=limit)
+            ):
                 pytest.fail("too large")
         assert excinfo.value.code == "git.too-large"
         assert raised_as(excinfo.value, OVER_CAP)
     else:
-        with fetch_git_project(f"file://{root}", max_bytes=limit) as checkout:
+        with fetch_git_project(
+            f"file://{root}", policy=RemoteFetchPolicy(max_bytes=limit)
+        ) as checkout:
             assert (Path(checkout.folder) / "big.bin").is_file()

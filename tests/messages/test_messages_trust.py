@@ -80,8 +80,8 @@ _TRUSTED = [
         OVER_CAP,
     ),
     (
-        "ERROR: SBOM generation failed: the repository is larger than 512 MiB; "
-        "git clone was stopped [over-cap]",
+        "ERROR: SBOM generation failed: the repository is larger than the "
+        "536870912-byte max-download-bytes cap; git clone was stopped [over-cap]",
         OVER_CAP,
     ),
     ("ERROR: git ls-remote produced more than 8388608 bytes [over-cap]", OVER_CAP),
@@ -140,7 +140,10 @@ _FORGED = [
     # an over-cap shape at a level it is not printed at, or with another code
     f"ERROR: FILE=a: {_CAP}; skipped [over-cap]",
     f"INFO: FILE=a: {_CAP}; skipped [over-cap]",
-    "WARNING: the repository is larger than 512 MiB; git clone was stopped [over-cap]",
+    "WARNING: the repository is larger than the 1-byte max-download-bytes cap; "
+    "git clone was stopped [over-cap]",
+    # the old wording, before the line named the setting
+    "ERROR: the repository is larger than 512 MiB; git clone was stopped [over-cap]",
     f"WARNING: FILE=a: {_CAP}; skipped [lfs-pointer]",
 ]
 

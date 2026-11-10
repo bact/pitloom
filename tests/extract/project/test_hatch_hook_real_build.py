@@ -255,3 +255,44 @@ def test_a_true_key_the_hook_does_not_act_on_is_one_info(
     with zipfile.ZipFile(wheels[0]) as zf:
         graph = json.loads(zf.read(sbom_members(wheels[0])[0]))["@graph"]
     assert not [n for n in graph if n["type"] == "Relationship" and "description" in n]
+
+
+_LATER_HOOK = """\
+from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+
+
+class Later(BuildHookInterface):
+    def initialize(self, version, build_data):
+        raise RuntimeError("a later hook failed")
+"""
+
+
+@pytest.mark.parametrize(
+    ("tail", "flags", "fails"),
+    [
+        ("", ["--hooks-only"], False),
+        ("[tool.hatch.build.hooks.custom]", [], True),
+    ],
+    ids=["hooks-only", "later-hook-fails"],
+)
+def test_no_staging_directory_outlives_a_build_without_finalize(
+    tmp_path: Path, tail: str, flags: list[str], fails: bool
+) -> None:
+    """Hatchling calls ``finalize()`` only once the wheel is built: never
+    with ``--hooks-only``, nor when a later hook (or the build) fails. The
+    staged SBOM's directory is removed all the same."""
+    project = make_project(tmp_path / "p", tail=tail)
+    (project / "hatch_build.py").write_text(_LATER_HOOK, encoding="utf-8")
+    temp = tmp_path / "temp"
+    temp.mkdir()
+    env = {name: str(temp) for name in ("TMPDIR", "TEMP", "TMP")}
+    code, lines = run(
+        [sys.executable, "-m", "hatchling", "build", "-t", "wheel", *flags],
+        project,
+        env,
+    )
+    assert (code != 0) is fails, lines
+    staged = [line for line in tagged(lines, "INFO") if "staged SBOM" in line]
+    assert len(staged) == 1, lines  # the hook did stage it
+    assert not list(temp.glob("pitloom-hatch-*"))
+    assert not tagged(lines, "WARNING")

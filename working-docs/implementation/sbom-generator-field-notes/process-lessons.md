@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +17,9 @@ wide, mutation testing),
 [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md) (the
 two-gate rule and the CI measurement, 2026-10-30),
 [agent-work-lessons-oct30.md](agent-work-lessons-oct30.md) (stale premises,
-unpushed work, a patch-coverage gap).
+unpushed work, a patch-coverage gap),
+[agent-work-lessons-nov10.md](agent-work-lessons-nov10.md) (area-split
+reviews after green CI, a reviewer's subprocess on the network).
 
 How the work behind #276 (licence typing, ten numbered review rounds),
 #282, #283 and #284 was reviewed and tested, for a paper's method
@@ -443,3 +445,31 @@ above:
   lint written next flagged a further `" | ".join` in `deps.py` that could
   be forged (f524e61f, #389). Do: when a fix is "every site that does X",
   write the lint before the last site, so it checks the list.
+
+## One flag for every reader gate (#469, 2026-11-10)
+
+- **Several sessions on one machine need a worktree each.** Editing on a
+  branch another session owned, in the shared checkout, cost a patch
+  round-trip: save the diff, restore, switch to a branch from `origin/main`,
+  apply. Do: check the branch and `git worktree list` before the first edit.
+- **A failing test is not "pre-existing" until the environment is ruled
+  out.** Two licence tests failed in the full run. The cause was the
+  virtual environment's LicenseID 0.8.3 against a declared floor of 0.8.4;
+  upgrading fixed both, with no code change. Do: compare installed versions
+  to the declared floors before blaming the code or the base branch.
+- **Mutation-test a security gate in a scratch copy.** Copy the repository
+  (without `.git` and the virtual environment), run `pytest` from inside the
+  copy with `PYTHONPATH` set to its `src`, apply one anchored mutant at a
+  time and restore it. Twenty mutants took about two minutes and none
+  survived; the shared checkout, which other sessions read, was never
+  mutated.
+- **Give a fresh reviewer the diff, not the conclusion.** The reviewer found
+  no defect and four low items. One of them (`since`) was a misreading, which
+  reading the field's contract settled in a minute. Do: verify a review note
+  against the code's own contract before acting on it.
+- **Count what "consistent with the overall" means before picking the
+  example.** The message
+  wording was first matched to a sibling, then, on a whole-catalogue count,
+  to the written shape, and the sibling fixed too. Do: when asked to be
+  consistent, count what "overall" is before choosing the example.
+

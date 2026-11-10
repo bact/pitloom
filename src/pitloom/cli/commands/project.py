@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The ``project`` subcommand: a Source SBOM from a project directory, an sdist
-archive or a Git URL."""
+archive, a Git URL or a PyPI URL."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from pitloom.assemble import (
     generate_project_sbom,
 )
 from pitloom.cli.commands._remote import run_remote
+from pitloom.cli.commands._remote_pypi import run_pypi
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import (
     _resolve_output_path,
@@ -45,6 +46,8 @@ from pitloom.extract.remote import (
     is_huggingface_source,
     is_unfetchable_remote,
 )
+from pitloom.extract.remote.pypi import SDIST
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
 
 
@@ -80,6 +83,9 @@ def generate_project_from_args(
     if remote_url is not None:
         settled = settle_inert(GIT, remote_url, options)
         options = {k: v for k, v in options.items() if k not in settled}
+        # Consumed by the fetch (run_remote), not by the local project read.
+        options.pop("trust_model_files", None)
+        options.pop("max_download_bytes", None)
     kind = project_target_kind(project_dir)
     generate_project_sbom(
         project_dir,
@@ -101,11 +107,16 @@ def run_remote_project(args: argparse.Namespace, url: str) -> int:
 
 
 def _project_target(text: str) -> Path | str:
-    """A ``project`` target: the text itself for a Git URL (a ``Path`` would
-    collapse its ``//``), a Hugging Face model URL (refused with a message
+    """A ``project`` target: the text itself for a PyPI or Git URL (a ``Path``
+    would collapse its ``//``), a Hugging Face model URL (refused with a message
     naming ``loom model``) or any other remote address (refused with a message
     naming what is fetched), else a path."""
-    if is_git_url(text) or _is_hub_model_url(text) or is_unfetchable_remote(text):
+    if (
+        is_pypi_url(text)
+        or is_git_url(text)
+        or _is_hub_model_url(text)
+        or is_unfetchable_remote(text)
+    ):
         return text.strip()
     return Path(text)
 
@@ -128,6 +139,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
                 f"{shown} is a Hugging Face model, not a project: use 'loom model'."
             )
             return 1
+        if is_pypi_url(args.project_dir):
+            return run_pypi(args, args.project_dir, SDIST)
         return run_remote_project(args, args.project_dir)
     # Settle before the path check and the metadata/lock-file read below,
     # so the build-flag WARNING: is the first thing the run logs -- and is
@@ -162,8 +175,11 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         type=_project_target,
         nargs="?",
         default=Path.cwd(),
-        help="Path to project directory or sdist archive (.tar.gz, .zip), or "
-        "the http(s) URL of a Git repository or of one of its web pages (a "
+        help="Path to project directory or sdist archive (.tar.gz, .zip), the "
+        "https URL of a PyPI project or release page (its sdist is "
+        "downloaded and checked against the SHA-256 PyPI declares; its own "
+        "[tool.pitloom] is ignored, --config applies and no build backend "
+        "runs), or the http(s) URL of a Git repository or of one of its web pages (a "
         "branch, tag or commit and a folder may be named). A repository is "
         "fetched shallowly; its own [tool.pitloom] is ignored (--config "
         "applies) and its build backend never runs. A folder with AI model "
@@ -173,7 +189,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     add_offline_argument(
         proj_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it "
-        "can). A Git URL: error, nothing is fetched.",
+        "can). A Git or PyPI URL: error, nothing is fetched.",
     )
     add_use_lockfile_argument(
         proj_parser,

@@ -27,6 +27,7 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.commands import _remote
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from tests._model_fixtures import fixture_path
@@ -48,12 +49,31 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     asked: dict[str, object] = {"folder": folder, "file": _NAME}
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        asked["url"], asked["offline"] = url, offline
-        if offline:
+    def fetch(
+        url: str,
+        *,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
+        trust_model_files: bool = False,
+    ) -> Iterator[GitCheckout]:
+        asked.update(
+            url=url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
+            trust_model_files=trust_model_files,
+        )
+        if policy.offline:
             raise RemoteSourceError("git.offline", "network access is forbidden")
         file = str(asked["file"])
-        yield GitCheckout(str(folder), url, "main", "c", "models", False, file)
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "models",
+            False,
+            file,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     return asked
@@ -94,7 +114,7 @@ def test_model_command_given_a_git_url_fetches_it(
     out = tmp_path / "work"
     assert _run(monkeypatch, out, "model", url) == 0
     captured = capsys.readouterr()
-    assert fetched["url"] == url.strip() and fetched["offline"] is None
+    assert fetched["url"] == url.strip() and fetched["offline"] is False
     assert sbom_output_path(captured.out) == str(out / f"{_NAME}.spdx3.json")
     assert "SECRET" not in captured.err + captured.out
     assert f"FILE=models/{_NAME}" in captured.err
@@ -209,3 +229,20 @@ def test_model_command_on_a_folder_of_two_models_names_them(
     err = capsys.readouterr().err
     assert err.count("one of several AI model files") == 2
     assert "[model-ambiguous]" in err.splitlines()[-1]
+
+
+@pytest.mark.parametrize("given", [True, False])
+def test_trust_model_files_reaches_the_fetch_of_a_model_url(
+    given: bool,
+    fetched: dict[str, object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The flag is the fetch's, not the model delegate's: it reaches the
+    fetch only when given, and never warns "has no effect"."""
+    fetched["file"] = ""
+    flags = ["--trust-model-files"] if given else []
+    assert _run(monkeypatch, tmp_path / "work", "model", _URL, *flags) == 0
+    assert fetched["trust_model_files"] is given
+    assert "has no effect" not in capsys.readouterr().err

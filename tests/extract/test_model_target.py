@@ -486,7 +486,10 @@ def test_a_model_from_a_git_url_is_read_only_in_safe_formats(
     unsafe = [r for r in infos if getattr(r, CODE_ATTR) == "reader-unsafe/remote"]
     assert len(unsafe) == gated
     if gated:
-        assert f"downloaded file: {fmt}; clone " in unsafe[0].getMessage()
+        assert (
+            f"downloaded file: {fmt}; pass --trust-model-files "
+            in unsafe[0].getMessage()
+        )
         assert not meta.provenance
 
 

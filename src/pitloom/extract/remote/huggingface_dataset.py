@@ -21,9 +21,10 @@ Read, each 1:1 and only when stated:
   as a model's owner is.
 
 Called by :func:`~pitloom.extract.remote.huggingface.read_huggingface`
-only, so a dataset is looked up exactly when its model is. A failed request
-is one ``WARNING:`` and the dataset keeps its name and download URL; a field
-the dataset does not state is left unset, silently.
+only, so a dataset is looked up exactly when its model is (and, with the
+Hub refused, never: :attr:`~pitloom.extract.remote._hub_files.HubFiles.asks_hub`).
+A failed request is one ``WARNING:`` and the dataset keeps its name and
+download URL; a field the dataset does not state is left unset, silently.
 
 See also: :mod:`pitloom.extract.remote.huggingface_fetch` (the model's own
 Hub requests) and :mod:`pitloom.extract.dataset.card` (a local dataset card).
@@ -54,6 +55,7 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.remote._card_description import card_description
+from pitloom.extract.remote._hub_files import FileKind, HubFiles, local_reason
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 from pitloom.messages import Cap, warn_over_cap
 
@@ -78,6 +80,8 @@ HUB_DATASET_CARD = CardKind(
     field_loss_suffix("skipped", *_FIELDS_SKIPPED),
     use="for the Hugging Face dataset card",
 )
+#: How a Hub dataset card is downloaded: within its own cap.
+_CARD_FILE = FileKind(HUB_DATASET_CARD.cap, "dataset card not read")
 
 
 def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
@@ -101,35 +105,29 @@ def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
 
 
 def _load_dataset_card(
-    dataset_id: str, revision: str | None
+    hub: HubFiles, dataset_id: str, revision: str | None
 ) -> tuple[str | None, dict[str, Any]]:
-    """The card text, within :data:`MODEL_CARD_MAX_BYTES`, and frontmatter of
-    *dataset_id* at *revision*; ``(None, {})`` when the repository has no
-    card (silently) or it cannot be fetched or read (one ``WARNING:``)."""
-    # pylint: disable=import-outside-toplevel
-    from huggingface_hub import hf_hub_download
-    from huggingface_hub.errors import RemoteEntryNotFoundError
-
+    """The card text and frontmatter of *dataset_id* at *revision*, the
+    card downloaded and read within :data:`MODEL_CARD_MAX_BYTES`;
+    ``(None, {})`` when the repository has no card (silently) or it cannot
+    be fetched or read (one ``WARNING:``)."""
+    local_path = hub.read(
+        dataset_id,
+        "README.md",
+        revision=revision,
+        kind=_CARD_FILE,
+        repo_type="dataset",
+    )
+    if local_path is None:
+        return None, {}
     try:
-        local_path = hf_hub_download(
-            repo_id=dataset_id,
-            filename="README.md",
-            repo_type="dataset",
-            revision=revision,
-        )
         # A third party's card: whatever reading it raises fails only it.
         read = read_card(Path(local_path), HUB_DATASET_CARD, name=dataset_id)
-    except RemoteEntryNotFoundError:
-        return None, {}
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load dataset card for %s: %s" + HUB_DATASET_CARD.fields_skipped
-        # An OSError on a file quotes the local cache path: its reason only.
-        reason: object = exc
-        if isinstance(exc, OSError):
-            if exc.filename:
-                reason = exc.strerror or type(exc).__name__
-        log.warning(msg, loggable(dataset_id), one_line(reason))
+        # An OSError on a file quotes the temporary path: its reason only.
+        log.warning(msg, loggable(dataset_id), one_line(local_reason(exc)))
         return None, {}
     if read is None:
         return None, {}
@@ -175,7 +173,7 @@ def _apply_info(meta: DatasetMetadata, info: dict[str, Any]) -> None:
         )
 
 
-def _look_up(meta: DatasetMetadata) -> None:
+def _look_up(hub: HubFiles, meta: DatasetMetadata) -> None:
     """Fill *meta* from the Hub dataset repository its name is the id of."""
     dataset_id = meta.name
     info = _load_dataset_info(dataset_id)
@@ -184,18 +182,24 @@ def _look_up(meta: DatasetMetadata) -> None:
     _apply_info(meta, info)
     sha = info.get("sha")
     revision = sha if isinstance(sha, str) and sha else None
-    text, card = _load_dataset_card(dataset_id, revision)
+    text, card = _load_dataset_card(hub, dataset_id, revision)
     _apply_card(meta, text, card, f"Hugging Face dataset {dataset_id}")
 
 
-def add_hub_dataset_metadata(datasets: list[DatasetReference], where: str) -> None:
+def add_hub_dataset_metadata(
+    datasets: list[DatasetReference], where: str, hub: HubFiles
+) -> None:
     """Fill each of *datasets* (named by its Hub dataset id, as a model card
     gives it) from its Hub repository, in card order. A name that is not a
     repository id is not looked up; past :data:`MAX_HUB_DATASET_LOOKUPS`
     ids, the rest are not either, with one ``WARNING:`` naming *where* (the
     model). A repeat of a dataset (:func:`~pitloom.core.dataset_names.dataset_key`)
     is not looked up again: the caller lists each dataset once
-    (:func:`~pitloom.core.dataset_names.distinct_dataset_names`)."""
+    (:func:`~pitloom.core.dataset_names.distinct_dataset_names`). Each card
+    is downloaded by *hub*. With the Hub refused (:attr:`HubFiles.asks_hub`),
+    none is looked up, said by nothing more (the refusal was said once)."""
+    if not hub.asks_hub:
+        return
     ids = list(dict.fromkeys(dataset_key(r.metadata.name) for r in datasets))
     ids = [i for i in ids if is_hub_dataset_id(i)]
     if len(ids) > MAX_HUB_DATASET_LOOKUPS:
@@ -205,4 +209,4 @@ def add_hub_dataset_metadata(datasets: list[DatasetReference], where: str) -> No
     allowed = set(ids[:MAX_HUB_DATASET_LOOKUPS])
     for ref in datasets:
         if dataset_key(ref.metadata.name) in allowed:
-            _look_up(ref.metadata)
+            _look_up(hub, ref.metadata)

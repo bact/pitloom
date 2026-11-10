@@ -29,13 +29,15 @@ CARD_MALFORMED: Final = Message(
     lines=(CARD_LINE,),
     summary="The YAML frontmatter at the top of a card (the block between "
     "two --- lines) does not parse: a model card beside a local model, a "
-    "dataset's own card, or a Hugging Face dataset card a Hub model lists. "
+    "dataset's own card, a Hugging Face model's card, or a Hugging Face "
+    "dataset card a Hub model lists. "
     "The line gives what the parser reported.",
-    did="Used nothing of the frontmatter and went on: a model card sets no "
-    "license or datasets; a dataset card no license, license_name, "
-    "license_link, version, tags or pretty_name; a Hugging Face dataset card "
-    "no license or keywords (its description is still read from the card's "
-    "text).",
+    did="Used nothing of the frontmatter and went on: a model card beside a "
+    "local model sets no license or datasets; a Hugging Face model card "
+    "also no tags, base_model, library_name, language, pipeline_tag or "
+    "model-index; a dataset card no license, license_name, license_link, "
+    "version, tags or pretty_name; a Hugging Face dataset card no license or "
+    "keywords (the description is still read from the card's text).",
     effect="thinner",
     actor="user",
     advice="Tell the user which card's frontmatter is not valid YAML and what "
