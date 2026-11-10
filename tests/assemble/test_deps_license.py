@@ -70,6 +70,7 @@ def test_get_or_create_license_element_names_it_short(value: str, name: str) -> 
     wrapper = exporter.object_set.obj_by_id[element.spdx_id]
     assert isinstance(wrapper, spdx3.simplelicensing_LicenseExpression)
     (entry,) = wrapper.simplelicensing_customIdToUri
+    assert isinstance(entry, spdx3.DictionaryEntry) and entry.value is not None
     license_text = exporter.object_set.obj_by_id[entry.value]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == name

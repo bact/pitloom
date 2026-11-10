@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -144,6 +144,15 @@ model by a `Relationship`, so the override is a pair of `@graph` entries, with
   "type": "Relationship"
 }
 ```
+
+A licence relationship accepts only these ends: `from` a
+`software_SoftwareArtifact` (package, file or snippet), `to` a
+`simplelicensing_AnyLicenseInfo` such as the `LicenseExpression` above. Text
+that is no SPDX expression is not a `to` itself: put it in a
+`simplelicensing_SimpleLicensingText` and point the relationship at a
+`LicenseExpression` whose `simplelicensing_licenseExpression` is one
+`LicenseRef-...` and whose `simplelicensing_customIdToUri` maps that key to the
+text element's `spdxId`.
 
 If the base already has an `MIT` expression, the merge keeps the base's
 element (an `Annotation` records the unification), so the override note

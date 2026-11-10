@@ -35,7 +35,14 @@ and this project adheres to
 - The `reader-unsafe` and `reader-unsafe/remote` messages name
   `--trust-model-files` and put the action after a `;` ([#469])
 
+### Fixed
+
+- A licence text is reached through a `LicenseExpression` mapped to the text
+  element, as `hasDeclaredLicense`/`hasConcludedLicense` accept only an
+  `AnyLicenseInfo` ([#471])
+
 [#469]: https://github.com/bact/pitloom/pull/469
+[#471]: https://github.com/bact/pitloom/pull/471
 
 ## [0.23.4] - 2026-11-09
 

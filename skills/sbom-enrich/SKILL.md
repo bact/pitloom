@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-10
+# Last-Modified: 2026-11-11
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -167,7 +167,15 @@ Steps:
    OS. A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
    `spdxId` from the base SBOM, and restate a base element exactly (`spdxId`
    and `name`) to add to it: a stale id silently adds a second `ai_AIPackage`
-   that still validates. **The deterministic result wins by default:** do not
+   that still validates. A `hasDeclaredLicense`/`hasConcludedLicense`
+   relationship has a typed range: `from` a `software_SoftwareArtifact` (a
+   package, file or snippet, so an `ai_AIPackage` or `dataset_DatasetPackage`
+   too), `to` a `simplelicensing_AnyLicenseInfo` (a `LicenseExpression`, or an
+   `expandedlicensing_*` licence or individual), **never** a
+   `SimpleLicensingText` or any other element. Licence text that is no SPDX
+   expression goes in a `SimpleLicensingText` reached through a
+   `LicenseExpression` of one `LicenseRef-` that `customIdToUri` maps to it
+   (read `references/examples.md` when you write such a licence). **The deterministic result wins by default:** do not
    re-propose a different value for a field step 2 set. **Override** only when
    prose clearly contradicts it (e.g. a stale frontmatter `license:`): record
    *both* values and your reason in that entry's provenance comment (the
