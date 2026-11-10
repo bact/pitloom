@@ -40,6 +40,7 @@ from pathlib import Path, PurePath
 from typing import Final
 
 from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.path_confine import in_git_dir, is_inside
 from pitloom.core.temp_dirs import temp_dir
 from pitloom.core.url_masking import (
@@ -67,6 +68,8 @@ from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
     GIT_PYPI_URL_LINE,
+    NETWORK_UNUSABLE,
+    OFFLINE_LINE,
     PROJECT_NOT_FOUND,
     PYPI_URL_UNUSABLE,
     code_of,
@@ -162,9 +165,7 @@ class GitCheckout:
 def fetch_git_project(
     url: str,
     *,
-    check_url: Callable[[str], None] | None = None,
-    offline: bool | None = None,
-    max_bytes: int | None = None,
+    policy: RemoteFetchPolicy = RemoteFetchPolicy(),
     trust_model_files: bool = False,
 ) -> Iterator[GitCheckout]:
     """Fetch the repository *url* names into a temporary directory
@@ -184,31 +185,37 @@ def fetch_git_project(
     files: the readers a wheel scan does not run are run (the build-time code
     is still not run). The default is to run none of them.
 
-    *check_url* is called with the URL of every redirect target, without
-    user information, before it is requested and raises for one that must not
-    be fetched; Pitloom does not check the URL it is given (the caller does,
-    as it knows its own policy; the PyPI route, unlike this one, passes its
-    first URLs to its check too).
-    With *offline* true nothing is fetched. With *max_bytes* the fetch is
-    stopped once the checkout (the ``.git`` directory included) takes more
-    disk than that (``git.too-large``); ``None`` sets no limit.
+    *policy* (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`)
+    says what the fetch may do. Its ``check_url`` is called with the URL of
+    every redirect target, without user information, before it is requested
+    and raises for one that must not be fetched; Pitloom does not check the
+    URL it is given (the caller does, as it knows its own policy; the PyPI
+    route, unlike this one, passes its first URLs to its check too). With
+    ``offline`` nothing is fetched. The fetch is stopped once the checkout
+    (the ``.git`` directory included) takes more disk than ``max_bytes``
+    (``git.too-large``).
 
     Raises:
-        ValueError: *max_bytes* is not a positive integer.
+        ValueError: the policy's ``max_bytes`` is not a positive integer.
         RemoteSourceError: the URL names no fetchable repository, ref or
             folder (a PyPI URL is ``git.url-invalid``, catalogued
-            ``pypi-url-unusable``, checked before *offline*), ``git`` is
-            missing, *offline* is set (``git.offline``), or the repository
-            is larger than *max_bytes*.
-        Exception: whatever *check_url* raises, unchanged.
+            ``pypi-url-unusable``, checked before ``offline``), ``git`` is
+            missing, ``offline`` is set (``git.offline``,
+            ``network-unusable``), git cannot reach the server
+            (``git.clone-failed``, ``download-network-failed``) or does not
+            finish in time (``git.timeout``, ``download-timeout``), or the
+            repository is larger than ``max_bytes`` (``over-cap``).
+        Exception: whatever ``check_url`` raises, unchanged.
     """
-    if max_bytes is not None and max_bytes <= 0:
-        raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
-    runner = GitRunner(max_bytes=max_bytes)
+    if policy.max_bytes <= 0:
+        raise ValueError(
+            f"max_bytes must be a positive integer, got {policy.max_bytes}"
+        )
+    runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
     with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
         try:
-            checkout = _prepare(url, str(work), runner, check_url, offline)
+            checkout = _prepare(url, str(work), runner, policy)
         except Exception as exc:
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
@@ -219,11 +226,7 @@ def fetch_git_project(
 
 
 def _prepare(
-    url: str,
-    work_dir: str,
-    runner: GitRunner,
-    check_url: Callable[[str], None] | None,
-    offline: bool | None,
+    url: str, work_dir: str, runner: GitRunner, policy: RemoteFetchPolicy
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
     shown = loggable(sanitize_url(url))
@@ -234,12 +237,14 @@ def _prepare(
             GIT_PYPI_URL_LINE.render({"url": shown}),
             pitloom_code=PYPI_URL_UNUSABLE.code,
         )
-    if offline:
+    if policy.offline:
         raise RemoteSourceError(
-            "git.offline", f"Cannot fetch {shown}: network access is forbidden."
+            "git.offline",
+            OFFLINE_LINE.render({"url": shown}),
+            pitloom_code=NETWORK_UNUSABLE.code,
         )
     page = _read_url(url, shown)
-    clone_url, page, target = _resolve(runner, page, check_url)
+    clone_url, page, target = _resolve(runner, page, policy.check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
     _forget_credentials(runner, clone_url, work_dir)

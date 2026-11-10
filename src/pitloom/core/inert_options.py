@@ -160,7 +160,9 @@ _GIT_PROJECT_DIR = "for a remote repository (its checkout is the project directo
 _PYPI_PROJECT_DIR = (
     "for a PyPI URL target (the file was not built from a directory here)"
 )
-_NOT_A_DOWNLOAD = "for this target (only a PyPI or a Git URL target downloads)"
+_NOT_A_DOWNLOAD = (
+    "for this target (only a PyPI URL, a Git URL or a Hugging Face target downloads)"
+)
 _NOT_AN_ARCHIVE = (
     "for this target (it keys the files of an sdist or a wheel below their "
     "project directory only)"
@@ -293,12 +295,12 @@ _ROWS: dict[str, dict[str, str]] = {
 
 
 #: The target kinds a fetch caps (``max_download_bytes``): a PyPI URL's
-#: download, a Git URL's checkout.
-_DOWNLOADS = (PYPI_WHEEL, PYPI_SDIST, GIT, GIT_MODEL)
+#: download, a Git URL's checkout, a Hugging Face repository's files.
+_DOWNLOADS = (PYPI_WHEEL, PYPI_SDIST, GIT, GIT_MODEL, HF)
 
 #: Target kind -> {parameter: reason it has no effect there}. Only a PyPI
-#: or a Git URL target downloads: the download cap is inert for every other
-#: but the hook, which has no flag and settles only
+#: URL, a Git URL or a Hugging Face target downloads: the download cap is
+#: inert for every other but the hook, which has no flag and settles only
 #: :func:`configured_options` (no cap among them).
 INERT: dict[str, dict[str, str]] = {
     kind: (

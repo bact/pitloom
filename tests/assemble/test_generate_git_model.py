@@ -32,6 +32,7 @@ from pitloom.assemble import (
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote import RemoteSourceError
@@ -68,16 +69,14 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         seen.update(
             url=url,
-            check_url=check_url,
-            offline=offline,
-            max_bytes=max_bytes,
+            check_url=policy.check_url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
         folder, file = seen["folder"], seen.get("file", "")

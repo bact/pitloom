@@ -31,6 +31,7 @@ from pitloom.assemble import (
 )
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
@@ -56,16 +57,14 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         seen.update(
             url=url,
-            check_url=check_url,
-            offline=offline,
-            max_bytes=max_bytes,
+            check_url=policy.check_url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
         yield GitCheckout(

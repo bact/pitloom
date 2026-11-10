@@ -165,7 +165,9 @@ The download is untrusted data:
 - **The temporary directory is removed** on return, on an error too. No
   message and no SBOM names its path.
 - **`--offline` is an error**, not a fallback, for every command (the flag, or
-  `offline = true` from `--config`): nothing is requested.
+  `offline = true` from `--config`): nothing is requested
+  ([`network-unusable`](message-codes.md#network-unusable), as for a Git
+  URL or a Hugging Face model).
 - **`--embed` is refused** with `wheel <url>`: it would write into a temporary
   file.
 - `--allow-signed-wheel` has no effect on a PyPI URL (a `WARNING:` says so):
@@ -308,6 +310,7 @@ prefix and before the code.
 | `ERROR:` | `FILE=<file>: download URL <target> is not on <hosts>; not fetched` | PyPI names a file on another host ([`url-unsafe`](message-codes.md#url-unsafe)) |
 | `ERROR:` | `URL=<url>: <failure>; not read` | an HTTP status other than 404, a refused connection, a name that did not resolve ([`download-network-failed`](message-codes.md#download-network-failed)) |
 | `ERROR:` | `URL=<url>: no complete answer within <seconds> seconds; not read` | a timeout ([`download-timeout`](message-codes.md#download-timeout)) |
+| `ERROR:` | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | `--offline`, or `offline = true` in `--config` ([`network-unusable`](message-codes.md#network-unusable)) |
 | `ERROR:` | `URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched` | `loom wheel <url> --embed` ([`pypi-url-unusable`](message-codes.md#pypi-url-unusable)) |
 | `ERROR:` | `URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched` | `loom model <url>` ([`pypi-url-unusable`](message-codes.md#pypi-url-unusable)) |
 | `ERROR:` | `FILE=<file>: could not be saved in the temporary directory (<failure>); not downloaded` | the disk is full or the temporary directory cannot be written ([`temp-dir-unusable`](message-codes.md#temp-dir-unusable)) |

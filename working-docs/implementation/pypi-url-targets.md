@@ -185,6 +185,15 @@ Where the build differs from the design below:
     max-download-bytes cap; git clone was stopped`; the `amount` field and
     `readable_bytes()` it used were removed. `fetch_git_project(max_bytes=)`
     keeps no default for a direct caller.
+21. **One fetch policy, shared codes, the Hugging Face files capped**
+    (user decision, 2026-11-10): `resolve_download_cap` became
+    `resolve_fetch_policy`, which makes the `RemoteFetchPolicy`
+    (`max_bytes`, `offline`, `check_url`) every route takes;
+    `fetch_git_project()` and `fetch_pypi_file()` take `policy=`. The
+    offline refusal, a failed request and a timeout carry one code on every
+    route, and a Hugging Face model's metadata files are downloaded through
+    this route's client under the same cap. See
+    [remote-fetch-policy.md](remote-fetch-policy.md).
 
 User-facing page: [pypi-urls.md](../../docs/pypi-urls.md).
 

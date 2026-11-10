@@ -37,6 +37,7 @@ __all__ = [
     "CHECKOUT_PLACEHOLDER",
     "DOWNLOAD_DIR_PREFIX",
     "DOWNLOAD_PLACEHOLDER",
+    "HUB_DIR_PREFIX",
     "mask_checkout",
     "sanitize_url",
     "sanitize_url_credentials",
@@ -136,10 +137,14 @@ CHECKOUT_PLACEHOLDER = "<checkout>"
 DOWNLOAD_DIR_PREFIX = "pitloom-pypi-"
 #: What a message shows for that directory.
 DOWNLOAD_PLACEHOLDER = "<download>"
+#: The name prefix of the temporary directory the files of a Hugging Face
+#: repository are downloaded into; a message shows it as a download.
+HUB_DIR_PREFIX = "pitloom-hf-"
 #: Each prefix and what a message shows for its directory.
 _PLACEHOLDERS = {
     CHECKOUT_DIR_PREFIX: CHECKOUT_PLACEHOLDER,
     DOWNLOAD_DIR_PREFIX: DOWNLOAD_PLACEHOLDER,
+    HUB_DIR_PREFIX: DOWNLOAD_PLACEHOLDER,
 }
 #: ``tempfile.mkdtemp`` appends eight characters of ``[a-z0-9_]``: a directory
 #: of another name (a worktree called ``pitloom-git-fix``) is not the checkout.
@@ -196,9 +201,10 @@ def _path_start(text: str, low: int, word_start: int) -> int:
 
 def mask_checkout(text: str) -> str:
     """*text* with the temporary checkout of a Git URL written as
-    ``<checkout>``, and the temporary download directory of a PyPI URL as
-    ``<download>``: each path holding the directory (``pitloom-git-`` or
-    ``pitloom-pypi-`` and its eight random characters) becomes the
+    ``<checkout>``, and the temporary download directory of a PyPI URL or a
+    Hugging Face repository as ``<download>``: each path holding the
+    directory (``pitloom-git-``, ``pitloom-pypi-`` or ``pitloom-hf-`` and its
+    eight random characters) becomes the
     placeholder and what follows the directory, so a path below it keeps its
     tail (``<checkout>/setup.cfg``, ``<download>/x.whl``). A path is read
     back from the word holding the directory to its root, over spaces

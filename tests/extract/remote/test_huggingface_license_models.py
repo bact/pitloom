@@ -19,6 +19,7 @@ from pitloom.extract.remote.huggingface import (
 )
 from pitloom.extract.remote.huggingface_fetch import _resolve_license
 from tests._author_routes import CREATED
+from tests.extract.remote.hf_patches._hf_patches_base import fake_hub
 from tests.extract.remote.hf_patches._hf_patches_embeddings import (
     _patch_clip_japanese_v2,
     _patch_codeberta,
@@ -122,7 +123,9 @@ def test_card_licence_is_recorded_as_stated(card: str, expected: str) -> None:
     asked, so the result cannot depend on whether its database is present."""
     detector = MagicMock(spec=["detect"])
     with patch("pitloom.extract._license_text_match._detector", return_value=detector):
-        value, _ = _resolve_license({"card_data": {"license": card}}, "o/m", {})
+        value, _ = _resolve_license(
+            fake_hub(), {"card_data": {"license": card}}, "o/m", {}
+        )
     assert value == expected
     detector.detect.assert_not_called()
 
@@ -134,7 +137,9 @@ def test_a_card_gpl_3_is_the_deprecated_id_in_the_sbom(matched: str | None) -> N
     detector = MagicMock(spec=["detect"])
     detector.detect.return_value = [{"expression": matched}] if matched else []
     with patch("pitloom.extract._license_text_match._detector", return_value=detector):
-        value, _ = _resolve_license({"card_data": {"license": "gpl-3.0"}}, "o/m", {})
+        value, _ = _resolve_license(
+            fake_hub(), {"card_data": {"license": "gpl-3.0"}}, "o/m", {}
+        )
     sbom = build_model(AiModelMetadata(name="m", license=value), CREATED).to_json()
     graph = json.loads(sbom)["@graph"]
     (expression,) = [

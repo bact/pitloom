@@ -25,7 +25,7 @@ from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._model_generator import generate_model_sbom
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import resolve_download_cap
+from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
@@ -129,17 +129,18 @@ def generate_git_sbom(
         raise InternalError(
             f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}"
         )
-    cap = resolve_download_cap(pitloom_config, max_download_bytes)
+    policy = resolve_fetch_policy(
+        pitloom_config,
+        offline=offline,
+        max_download_bytes=max_download_bytes,
+        check_url=check_url,
+    )
     build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     if isinstance(id_registry, (str, Path)):
         # A relative path means the caller's directory, not the checkout's.
         id_registry = Path(id_registry).absolute()
     with fetch_git_project(
-        url,
-        check_url=check_url,
-        offline=offline,
-        max_bytes=cap,
-        trust_model_files=trust_model_files is True,
+        url, policy=policy, trust_model_files=trust_model_files is True
     ) as checkout:
         with checkout.reading():
             target = resolve_git_target(checkout, sbom_kind, url)
@@ -235,10 +236,13 @@ def generate_git_project_sbom(
     repository must not name host paths such as fragments or an ID registry)
     unless the caller passes *pitloom_config*, and its build backend is never
     run (a build flag in *build_options* warns once and has no effect). With
-    *offline* true nothing is fetched (``git.offline``). The fetch is
-    stopped once the checkout takes more disk than *max_download_bytes*
-    (else *pitloom_config*'s ``max-download-bytes``, else 512 MiB;
-    ``git.too-large``, ``over-cap``).
+    *offline* (else *pitloom_config*'s ``offline``) true nothing is fetched
+    (``git.offline``, ``network-unusable``). The fetch is stopped once the
+    checkout takes more disk than *max_download_bytes* (else
+    *pitloom_config*'s ``max-download-bytes``, else 512 MiB;
+    ``git.too-large``, ``over-cap``). The three resolve as every remote
+    route resolves them
+    (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`).
 
     A model file of the repository in a format whose reader a hostile file
     could crash or hang (fastText, GGUF, HDF5, ONNX, PyTorch) is listed

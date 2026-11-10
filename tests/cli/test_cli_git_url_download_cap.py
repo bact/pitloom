@@ -21,6 +21,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands import _remote
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 
@@ -34,9 +35,9 @@ def _caps(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
 
     def fetch(url: str, **kwargs: object) -> AbstractContextManager[None]:
         del url
-        max_bytes = kwargs.get("max_bytes")
-        assert max_bytes is None or isinstance(max_bytes, int)
-        seen.append(max_bytes)
+        policy = kwargs["policy"]
+        assert isinstance(policy, RemoteFetchPolicy)
+        seen.append(policy.max_bytes)
         raise RemoteSourceError("git.clone-failed", "stopped by the test")
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)

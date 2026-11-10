@@ -42,6 +42,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,7 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,
@@ -65,7 +67,7 @@ __all__ = [
     "load_config_file",
     "require_download_override",
     "require_model_extract_override",
-    "resolve_download_cap",
+    "resolve_fetch_policy",
     "resolve_standalone_config",
 ]
 
@@ -98,8 +100,10 @@ class ConfigOverrides:
             :func:`require_model_extract_override` even there: at least 1,
             else ``ValueError``.
         max_download_bytes: ``--max-download-bytes``: the most bytes a
-            PyPI URL target downloads, or a Git URL target's checkout takes
-            on disk. Only those targets read it; any other warns. Checked by
+            PyPI URL target or each file of a Hugging Face repository
+            downloads, or a Git URL target's checkout takes on disk. Only
+            those targets read it (:func:`resolve_fetch_policy`); any other
+            warns. Checked by
             :func:`require_download_override`: at least 1, else
             ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
@@ -293,19 +297,35 @@ def resolve_standalone_config(
     return apply_overrides(pitloom_config or PitloomConfig(), overrides)
 
 
-def resolve_download_cap(
-    pitloom_config: PitloomConfig | None, max_download_bytes: int | None
-) -> int:
-    """The ``max-download-bytes`` cap of one fetch from a PyPI or a Git URL:
-    *max_download_bytes* (``--max-download-bytes``), else *pitloom_config*'s
-    (an explicitly named config: a downloaded project's own is never read),
-    else :data:`~pitloom.core.model_extract_limit.DEFAULT_MAX_DOWNLOAD_BYTES`.
+def resolve_fetch_policy(
+    pitloom_config: PitloomConfig | None,
+    *,
+    offline: bool | None = None,
+    max_download_bytes: int | None = None,
+    check_url: Callable[[str], None] | None = None,
+) -> RemoteFetchPolicy:
+    """The :class:`~pitloom.core.fetch_policy.RemoteFetchPolicy` of one
+    fetch from a Git URL, a PyPI URL or a Hugging Face repository, made here
+    alone so that every surface (each CLI command, each library call)
+    resolves the same one for the same inputs.
+
+    *offline* (``--offline``) and *max_download_bytes*
+    (``--max-download-bytes``) win; else *pitloom_config*'s ``offline`` and
+    ``max-download-bytes`` (an explicitly named config: a fetched project's
+    own is never read); else not offline, and
+    :data:`~pitloom.core.model_extract_limit.DEFAULT_MAX_DOWNLOAD_BYTES`.
+    *check_url* is the caller's address policy (no config sets one).
 
     Raises:
         ValueError: *max_download_bytes* or the config's value is not an
             integer of at least 1.
     """
     cfg = resolve_standalone_config(
-        pitloom_config, ConfigOverrides(max_download_bytes=max_download_bytes)
+        pitloom_config,
+        ConfigOverrides(offline=offline, max_download_bytes=max_download_bytes),
     )
-    return require_max_download_bytes(cfg.max_download_bytes, "pitloom_config")
+    return RemoteFetchPolicy(
+        max_bytes=require_max_download_bytes(cfg.max_download_bytes, "pitloom_config"),
+        offline=cfg.offline,
+        check_url=check_url,
+    )

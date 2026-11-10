@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.temp_dirs import temp_dir
@@ -51,7 +52,6 @@ from pitloom.extract.remote._pypi_release import (
     hosts_of,
     resolve_release,
 )
-from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi_select import (
     PRERELEASE,
     SDIST,
@@ -81,10 +81,12 @@ from pitloom.messages import (
     LATEST_LINE,
     LATEST_PRERELEASE_LINE,
     LATEST_YANKED_LINE,
+    NETWORK_UNUSABLE,
     NO_COMPATIBLE_WHEEL_LINE,
     NO_DIGEST_LINE,
     NO_SDIST_LINE,
     NO_WHEEL_LINE,
+    OFFLINE_LINE,
     PYPI_RESPONSE_INVALID,
     QUERY_NO_EFFECT,
     RELEASE_FILE_NOT_FOUND,
@@ -330,13 +332,10 @@ def _checked_file(pick: _Pick) -> str:
 
 
 def _download(
-    target: PypiTarget,
-    kind: str,
-    work_dir: Path,
-    check_url: Callable[[str], None] | None,
-    max_bytes: int,
+    target: PypiTarget, kind: str, work_dir: Path, policy: RemoteFetchPolicy
 ) -> PypiDownload:
     """Resolve, pick, download into *work_dir* and verify."""
+    check_url = policy.check_url
     release = resolve_release(target, Policy(hosts_of(pypi_url.API_BASE), check_url))
     files, refused = read_files(release.urls, target.canonical, release.parsed)
     for skipped, why in refused:
@@ -353,7 +352,9 @@ def _download(
     declared = _checked_file(pick)
     _say_decisions(target, release, pick)
     path = work_dir / pick.file.filename
-    measured, size = _fetch_verified(pick.file, declared, path, check_url, max_bytes)
+    measured, size = _fetch_verified(
+        pick.file, declared, path, check_url, policy.max_bytes
+    )
     file = pick.file
     wheel = file.kind == WHEEL
     return PypiDownload(
@@ -412,12 +413,7 @@ def _fetch_verified(
 
 @contextmanager
 def fetch_pypi_file(
-    url: str,
-    *,
-    kind: str,
-    check_url: Callable[[str], None] | None = None,
-    offline: bool | None = None,
-    max_bytes: int | None = None,
+    url: str, *, kind: str, policy: RemoteFetchPolicy = RemoteFetchPolicy()
 ) -> Iterator[PypiDownload]:
     """Download the *kind* (:data:`WHEEL` or :data:`SDIST`) file of the
     release the PyPI URL *url* names into a temporary directory
@@ -426,41 +422,46 @@ def fetch_pypi_file(
     SIGKILL leaves it); one that cannot be removed (a file still held open on
     Windows) is left behind with one ``WARNING:``, never an error.
 
-    *check_url* is called with every URL before it is requested (the JSON
-    API's, the file's and each redirect target) and raises for one that must
-    not be fetched. With *offline* true nothing is fetched (*url* is read
-    first: an invalid one is ``pypi-url-invalid`` all the same). *max_bytes*
-    caps the file (default :data:`DEFAULT_MAX_DOWNLOAD_BYTES`).
+    *policy* (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`)
+    says what the fetch may do: its ``check_url`` is called with every URL
+    before it is requested (the JSON API's, the file's and each redirect
+    target) and raises for one that must not be fetched; with ``offline``
+    nothing is fetched (*url* is read first: an invalid one is
+    ``pypi-url-invalid`` all the same); ``max_bytes`` caps the file
+    (default :data:`DEFAULT_MAX_DOWNLOAD_BYTES`).
 
     Raises:
         ValueError: *kind* is neither (an
-            :class:`~pitloom.core.internal_error.InternalError`), or
-            *max_bytes* is not positive.
+            :class:`~pitloom.core.internal_error.InternalError`), or the
+            policy's ``max_bytes`` is not positive.
         CodedValueError: ``pypi-url-invalid``, from
             :func:`~pitloom.extract.remote.pypi_url.parse_pypi_url`.
-        RemoteSourceError: ``pypi.offline`` and every ``pypi.*`` failure,
-            each with its catalogued ``pitloom_code`` but ``pypi.offline``.
-        Exception: Whatever *check_url* raises, unchanged.
+        RemoteSourceError: ``pypi.offline`` (``network-unusable``) and every
+            ``pypi.*`` failure, each with its catalogued ``pitloom_code``.
+        Exception: Whatever ``check_url`` raises, unchanged.
     """
     if kind not in (WHEEL, SDIST):
         raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
-    if max_bytes is not None and max_bytes <= 0:
-        raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
+    if policy.max_bytes <= 0:
+        raise ValueError(
+            f"max_bytes must be a positive integer, got {policy.max_bytes}"
+        )
     target = parse_pypi_url(url)
-    if offline:
-        error = RemoteSourceError(
+    if policy.offline:
+        error = remote_error(
             "pypi.offline",
-            f"Cannot fetch {shown_url(url.strip())}: network access is forbidden.",
+            NETWORK_UNUSABLE,
+            OFFLINE_LINE,
+            url=shown_url(url.strip()),
         )
         # The refusal is said as well as raised, as its own text.
         log.warning("%s", error)
         raise error
     if target.cut:
         emit(log, QUERY_NO_EFFECT, logging.INFO, url=shown_url(url.strip()))
-    cap = DEFAULT_MAX_DOWNLOAD_BYTES if max_bytes is None else max_bytes
     with temp_dir(DOWNLOAD_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work_dir:
         try:
-            download = _download(target, kind, work_dir, check_url, cap)
+            download = _download(target, kind, work_dir, policy)
         except Exception as exc:
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("%s", loggable(sanitize_url_credentials(str(exc))))

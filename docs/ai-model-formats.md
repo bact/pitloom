@@ -438,6 +438,28 @@ This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
 `ai_AIPackage` as in the tables above.
 
+Those files (and a licence file, and each listed dataset's card) are
+downloaded at the revision the Hub's model information names, from
+`huggingface.co` and the Hub's CDN only, into a temporary directory removed
+afterwards; none goes to the `huggingface_hub` cache. Each is capped at
+`--max-download-bytes` (`max-download-bytes`, 512 MiB by default), counted on
+the bytes received; a larger one is left out with a `WARNING:`
+([`over-cap`](message-codes.md#over-cap)) and the rest is read. A Hugging
+Face token (`HF_TOKEN`, or the stored `hf auth login`) is sent to
+`huggingface.co` only, never to the CDN a file is redirected to. A file the
+repository does not hold is skipped silently; any other failed download (a
+gated or private repository read without access, a network failure, a
+timeout, a redirect elsewhere) leaves that file out with a `WARNING:`
+carrying the code a Git or PyPI URL fails with
+([`download-network-failed`](message-codes.md#download-network-failed),
+[`download-timeout`](message-codes.md#download-timeout),
+[`url-unsafe`](message-codes.md#url-unsafe)). `--offline` refuses the model
+([`network-unusable`](message-codes.md#network-unusable)), and with
+`huggingface_hub`'s `HF_HUB_OFFLINE` set no file is downloaded (one
+`WARNING:` each). The Hub's model and dataset information and its file
+listing are `huggingface_hub` requests and pass through neither the cap nor
+the library's `check_url=`, which every file download does.
+
 It never opens a model file of the repository, so it reads no per-file
 metadata and no hash: a repository whose weights are a `.keras` file gets an
 SBOM from its card and configuration files, with no Keras-derived field, no

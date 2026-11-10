@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import (
     RemoteSourceError,
     _git_run,
@@ -315,7 +316,7 @@ def test_a_failure_of_the_caller_inside_the_block_is_not_a_fetch_warning(
 def test_offline_is_a_warning_as_well(caplog: pytest.LogCaptureFixture) -> None:
     """The same as a refused scheme: logged and raised."""
     with caplog.at_level(logging.WARNING), pytest.raises(RemoteSourceError) as excinfo:
-        with fetch_git_project("https://h/o/r", offline=True):
+        with fetch_git_project("https://h/o/r", policy=RemoteFetchPolicy(offline=True)):
             pytest.fail("not fetched")
     assert excinfo.value.code == "git.offline"
     assert "network access is forbidden" in caplog.text
@@ -480,7 +481,9 @@ def test_nothing_is_watched_without_a_directory_or_a_cap(
 @pytest.mark.parametrize("limit", [0, -1])
 def test_a_cap_that_is_not_positive_is_refused(limit: int) -> None:
     with pytest.raises(ValueError, match="positive integer"):
-        with fetch_git_project("https://h/o/r", max_bytes=limit):
+        with fetch_git_project(
+            "https://h/o/r", policy=RemoteFetchPolicy(max_bytes=limit)
+        ):
             pytest.fail("not fetched")
 
 
@@ -498,10 +501,14 @@ def test_a_repository_over_the_cap_is_not_read(tmp_path: Path, limit: int) -> No
     _run(root, "commit", "-q", "-m", "one")
     if limit < 300_000:
         with pytest.raises(RemoteSourceError) as excinfo:
-            with fetch_git_project(f"file://{root}", max_bytes=limit):
+            with fetch_git_project(
+                f"file://{root}", policy=RemoteFetchPolicy(max_bytes=limit)
+            ):
                 pytest.fail("too large")
         assert excinfo.value.code == "git.too-large"
         assert raised_as(excinfo.value, OVER_CAP)
     else:
-        with fetch_git_project(f"file://{root}", max_bytes=limit) as checkout:
+        with fetch_git_project(
+            f"file://{root}", policy=RemoteFetchPolicy(max_bytes=limit)
+        ) as checkout:
             assert (Path(checkout.folder) / "big.bin").is_file()

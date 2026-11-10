@@ -339,7 +339,20 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - A relative `--id-registry` is relative to where you run `loom`, not to the
   checkout.
 - `--offline` forbids the fetch: it is an error, not a fallback, for `loom
-  project`, `loom model` and `loom generate` alike.
+  project`, `loom model` and `loom generate` alike (`URL=<url>: network
+  access is forbidden (offline mode); nothing fetched`,
+  [`network-unusable`](message-codes.md#network-unusable), the code a PyPI
+  URL or a Hugging Face model refuses with too).
+- A clone that cannot reach the server (a name that does not resolve, a
+  refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer)
+  ends `git <command> failed: <git's reason>; nothing fetched`
+  ([`download-network-failed`](message-codes.md#download-network-failed));
+  one that runs out of time, `git <command> did not finish within <seconds>
+  seconds; stopped`
+  ([`download-timeout`](message-codes.md#download-timeout)): the codes a
+  PyPI or Hugging Face request that fails the same way carries. Any other
+  git failure (a repository, branch or sign-in the server refused) carries no
+  code; its message is git's own.
 - An empty repository is an error that says so.
 - The output file is named from the project (or the model file), as for a
   local one, and written to the current directory. `-o -` writes the SBOM to

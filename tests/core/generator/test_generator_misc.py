@@ -36,6 +36,8 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.messages import NETWORK_UNUSABLE
 
 from ..conftest import (
     _AI_MODEL_FIXTURES,
@@ -309,11 +311,13 @@ def test_generate_model_sbom_huggingface_offline_raises(
 ) -> None:
     """A Hugging Face source with offline=True (or an explicitly named
     config that sets it) is rejected before any network access is
-    attempted."""
-    with pytest.raises(ValueError, match="Offline mode enabled"):
+    attempted (``network-unusable``)."""
+    with pytest.raises(RemoteSourceError) as info:
         generate_model_sbom(
             "hexgrad/Kokoro-82M", offline=offline, pitloom_config=pitloom_config
         )
+    assert info.value.code == "huggingface.offline"
+    assert info.value.pitloom_code == NETWORK_UNUSABLE.code
 
 
 def test_generate_model_sbom_huggingface_ignores_cwd_offline_config(
@@ -328,7 +332,7 @@ def test_generate_model_sbom_huggingface_ignores_cwd_offline_config(
     monkeypatch.chdir(tmp_path)
     fetched: list[str] = []
 
-    def _fake_read_huggingface(source: str) -> object:
+    def _fake_read_huggingface(source: str, **_kwargs: object) -> object:
         fetched.append(source)
         raise RuntimeError("stop after the fetch was attempted")
 
@@ -346,7 +350,7 @@ def test_generate_model_sbom_huggingface_source(
     monkeypatch.chdir(tmp_path)
     fake_model = object()
 
-    def _fake_read_huggingface(source: str) -> object:
+    def _fake_read_huggingface(source: str, **_kwargs: object) -> object:
         assert source == "hexgrad/Kokoro-82M"
         return fake_model
 

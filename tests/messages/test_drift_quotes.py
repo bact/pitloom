@@ -34,8 +34,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "config-unsafe": ("[tool.pitloom] settings are ignored",),
     "digest-invalid": ("declared by ",),
     "dir-unlistable": ("could not list ",),
-    "download-network-failed": ("URL=",),
-    "download-timeout": ("no complete answer within ",),
+    "download-network-failed": ("URL=", "; nothing fetched"),
+    "download-timeout": ("no complete answer within ", "did not finish within "),
     "field-not-recordable": ("no SPDX 3.0.1 property",),
     "file-ambiguous": (
         "match this environment; using ",
@@ -67,6 +67,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "model-ambiguous": ("several AI model files",),
     "model-unreadable": ("failed to extract metadata",),
     "model-wrong-format": ("header is not ",),
+    "network-unusable": ("network access is forbidden",),
     "over-cap": (" cap;",),
     "parameter-count-invalid": ("parameter count not recorded",),
     "project-not-found": ("No pyproject.toml, setup.cfg, or setup.py found",),

@@ -35,8 +35,8 @@ most one prefix from the table of prefixes.
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`digest-invalid`](#digest-invalid) | ERROR | The SHA-256 of the file Pitloom downloaded differs from the one PyPI declares for it: the download is corrupt or was altered on the way. | 0.24.0 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
-| [`download-network-failed`](#download-network-failed) | ERROR | A request to PyPI, or to the host that serves a file, failed: an HTTP status other than 404, a refused or reset connection, a name that did not resolve, or an answer cut short. | 0.24.0 |
-| [`download-timeout`](#download-timeout) | ERROR | A request to PyPI, or to the host that serves a file, did not finish within the time Pitloom allows. | 0.24.0 |
+| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
+| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`file-ambiguous`](#file-ambiguous) | INFO | The release has several wheels that fit the Python and platform Pitloom runs on, or several sdists, or (loom generate, generate()) both a wheel and an sdist; Pitloom chose one. | 0.24.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
@@ -57,6 +57,7 @@ most one prefix from the table of prefixes.
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
+| [`network-unusable`](#network-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
@@ -77,10 +78,10 @@ most one prefix from the table of prefixes.
 | [`release-unpinned/yanked`](#release-unpinnedyanked) | INFO | The URL names a project without a version and every release is yanked, so Pitloom chose the newest one. | 0.24.0 |
 | [`release-unusable`](#release-unusable) | INFO | The file Pitloom reads is yanked: its maintainers withdrew it, with the reason shown. Either the URL names a release whose files are yanked, or every file of the kind asked for that matches this environment is yanked (the release itself still has files that are not). | 0.24.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
-| [`temp-dir-unusable`](#temp-dir-unusable) | ERROR | A file downloaded from PyPI could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
+| [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name). | 0.24.0 |
-| [`url-unsafe`](#url-unsafe) | ERROR | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
+| [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
 | [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
@@ -258,38 +259,52 @@ A line may start with one prefix before its text:
 
 ### `download-network-failed`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
-- **Means**: A request to PyPI, or to the host that serves a file, failed: an
-  HTTP status other than 404, a refused or reset connection, a name that did not
-  resolve, or an answer cut short.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A request to a remote source failed. PyPI or Hugging Face: an HTTP
+  status other than 404 (a 401 or 403 for a private or gated repository read
+  without access), a refused or reset connection, a name that did not resolve,
+  or an answer cut short. Git: git could not reach the repository (a name that
+  did not resolve, a refused, reset or timed-out connection, a TLS failure, an
+  HTTP 5xx answer); a git failure with any other cause carries no code.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote no SBOM. The error code is pypi.download-failed.
+- **Pitloom did**: Wrote no SBOM (the error: pypi.download-failed,
+  git.clone-failed); for a Hugging Face file, left that file out and read the
+  rest (the warning).
 - **Tell the user**: the request failed, with the reason the line gives. They
-  check the network and run again. Do not retry in a loop; ask first, and with
-  nobody to ask, report it only.
+  check the network and run again; for a private or gated Hugging Face
+  repository (HTTP 401 or 403) they sign in with an account that has access
+  (HF_TOKEN, or 'hf auth login'). Do not retry in a loop or sign in for them;
+  ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   ERROR: URL=<url>: <failure>; not read [download-network-failed]
+  ERROR: git <command> failed: <error>; nothing fetched [download-network-failed]
+  WARNING: URL=<url>: <failure>; <outcome> [download-network-failed]
   ```
 
 ### `download-timeout`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
-- **Means**: A request to PyPI, or to the host that serves a file, did not
-  finish within the time Pitloom allows.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A request to PyPI, to the host that serves a file or to the Hugging
+  Face Hub, or the git calls that fetch a repository, did not finish within the
+  time Pitloom allows.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Stopped the request and wrote no SBOM. The error code is
-  pypi.download-timeout.
+- **Pitloom did**: Stopped the request and wrote no SBOM (the error:
+  pypi.download-timeout, git.timeout); for a Hugging Face file, left that file
+  out and read the rest (the warning).
 - **Tell the user**: the request timed out. They check the network and run
-  again, or download the file themselves and run Pitloom on it. Do not retry in
-  a loop; ask first, and with nobody to ask, report it only.
+  again, or fetch the file or repository themselves and run Pitloom on the local
+  copy. Do not retry in a loop; ask first, and with nobody to ask, report it
+  only.
 - **Lines**:
 
   ```text
   ERROR: URL=<url>: no complete answer within <seconds> seconds; not read [download-timeout]
+  ERROR: git <command> did not finish within <seconds> seconds; stopped [download-timeout]
+  WARNING: URL=<url>: no complete answer within <seconds> seconds; <outcome> [download-timeout]
   ```
 
 ### `field-not-recordable`
@@ -759,6 +774,30 @@ A line may start with one prefix before its text:
   ERROR: '<path>': not an AI model file of a supported format [model-wrong-format]
   ```
 
+### `network-unusable`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: Offline mode is on and the target must be fetched: a Git URL, a
+  PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline
+  key of --config, or offline=True; for a file of a Hugging Face repository also
+  huggingface_hub's own HF_HUB_OFFLINE.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Fetched nothing and wrote no SBOM (the error: git.offline,
+  pypi.offline, huggingface.offline); for a Hugging Face file under
+  HF_HUB_OFFLINE, left that file out and read the rest (the warning).
+- **Tell the user**: the target must be fetched and offline mode forbids it.
+  They run again without offline mode (no --offline, offline = false in the
+  config, HF_HUB_OFFLINE unset), or fetch the repository or file themselves and
+  run Pitloom on the local copy. Do not turn offline mode off for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: network access is forbidden (offline mode); nothing fetched [network-unusable]
+  WARNING: URL=<url>: network access is forbidden (offline mode); <outcome> [network-unusable]
+  ```
+
 ### `over-cap`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -774,11 +813,12 @@ A line may start with one prefix before its text:
   then generate again: max-model-extract-bytes (and with it the per-wheel
   model-scan budget, four times it) by --max-model-extract-bytes or its
   [tool.pitloom] key; max-download-bytes (a wheel or sdist downloaded from a
-  PyPI URL, or a Git URL's checkout) by --max-download-bytes or its key;
-  max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id
-  generate or by the max_dataset_hash_bytes argument of loom.Run. Every other
-  cap is fixed. Do not raise a cap or generate again for them; ask first, and
-  with nobody to ask, report it only.
+  PyPI URL, a Git URL's checkout, or each metadata file of a Hugging Face
+  repository) by --max-download-bytes or its key; max-dataset-hash-bytes by its
+  key, by --max-dataset-hash-bytes of loom id generate or by the
+  max_dataset_hash_bytes argument of loom.Run. Every other cap is fixed. Do not
+  raise a cap or generate again for them; ask first, and with nobody to ask,
+  report it only.
 - **Lines**:
 
   ```text
@@ -1182,14 +1222,15 @@ A line may start with one prefix before its text:
 
 ### `temp-dir-unusable`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
-- **Means**: A file downloaded from PyPI could not be written to the temporary
-  directory: the disk is full, the path is too long (Windows), or the directory
-  cannot be written to.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A file downloaded from PyPI or a Hugging Face repository could not
+  be written to the temporary directory: the disk is full, the path is too long
+  (Windows), or the directory cannot be written to.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Stopped the download and wrote no SBOM. The error code is
-  pypi.save-failed.
+- **Pitloom did**: Stopped the download and wrote no SBOM (the error:
+  pypi.save-failed); for a Hugging Face file, left that file out and read the
+  rest (the warning).
 - **Tell the user**: the download could not be saved locally, with the reason
   the line gives; the network is not the cause. They free disk space, or set
   TMPDIR (TEMP on Windows) to a writable directory with a short path, and run
@@ -1199,6 +1240,7 @@ A line may start with one prefix before its text:
 
   ```text
   ERROR: FILE=<file>: could not be saved in the temporary directory (<failure>); not downloaded [temp-dir-unusable]
+  WARNING: FILE=<file>: could not be saved in the temporary directory (<failure>); <outcome> [temp-dir-unusable]
   ```
 
 ### `text-malformed`
@@ -1241,25 +1283,28 @@ A line may start with one prefix before its text:
 
 ### `url-unsafe`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: Pitloom would have to send a request somewhere it does not: a
-  redirect to a URL that is not https or not on a host it reads PyPI from, more
-  redirects than it follows, or a file whose download URL PyPI gives on another
-  host.
+  redirect to a URL that is not https or not on a host it reads PyPI or a
+  Hugging Face file from, more redirects than it follows, or a file whose
+  download URL PyPI gives on another host.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Did not follow the redirect or fetch the file, and wrote no
-  SBOM.
+  SBOM (the error); for a Hugging Face file, left that file out and read the
+  rest (the warning).
 - **Tell the user**: which URL was not followed and why, as the line says. A
-  mirror or proxy that redirects is not supported; they may download the wheel
-  or sdist themselves and run Pitloom on the file. Do not fetch the target for
-  them; ask first, and with nobody to ask, report it only.
+  mirror or proxy that redirects is not supported; they may download the file
+  themselves and run Pitloom on it. Do not fetch the target for them; ask first,
+  and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   ERROR: URL=<url>: redirects to <target>; not followed (<why>) [url-unsafe]
   ERROR: URL=<url>: more than <number> redirects; not followed [url-unsafe]
   ERROR: FILE=<file>: download URL <target> is not on <hosts>; not fetched [url-unsafe]
+  WARNING: URL=<url>: redirects to <target>; not followed (<why>); <outcome> [url-unsafe]
+  WARNING: URL=<url>: more than <number> redirects; <outcome> [url-unsafe]
   ```
 
 ### `usage-unparseable`

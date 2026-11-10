@@ -31,6 +31,7 @@ import pytest
 
 from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote import _http_fetch, _http_watch
+from pitloom.extract.remote._http_errors import timeout_error
 from pitloom.extract.remote._http_fetch import (
     MAX_REDIRECTS,
     NotFoundError,
@@ -495,6 +496,5 @@ def test_a_socket_timeout_is_reported_as_it_was(
         fetch_json(fake.url("/a"), _policy(fake))
     watch = Watch(100.0)
     watch.socket_seconds = 2.2
-    # pylint: disable-next=protected-access
-    timeout = _http_fetch._timeout("http://h/x", watch)
+    timeout = timeout_error("http://h/x", watch, "pypi")
     assert "within 3 seconds" in str(timeout)

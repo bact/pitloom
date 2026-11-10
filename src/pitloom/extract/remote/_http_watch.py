@@ -23,7 +23,7 @@ connect to each address, an ``HTTPS_PROXY`` ``CONNECT`` tunnel and the TLS
 handshake therefore run outside it, each socket operation bounded only by
 the per-operation timeout the caller passes (at most the time left). A
 socket that joins after the deadline is shut at once. The hosts are the
-allowlisted PyPI hosts, or the user's own proxy.
+allowlisted PyPI and Hugging Face hosts, or the user's own proxy.
 """
 
 from __future__ import annotations

@@ -7,7 +7,10 @@
 
 Downloads and parses raw data from a Hugging Face Hub repository
 (``config.json``, the model card, ``model_info()``, and licence files) and
-resolves the model's SPDX license identifier.
+resolves the model's SPDX license identifier. The files are downloaded by
+:class:`~pitloom.extract.remote._hub_files.HubFiles` (capped, each redirect
+checked, removed after the read); ``model_info()`` and the file listing are
+``huggingface_hub`` API requests.
 
 See also: :mod:`pitloom.extract.remote.huggingface` (public facade) and
 :mod:`pitloom.extract.remote.huggingface_field` (field-extraction helpers that
@@ -25,6 +28,7 @@ from typing import Any
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._license_classify import is_vague_license_value
+from pitloom.extract.remote._hub_files import HubFiles, local_reason
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
@@ -48,9 +52,13 @@ _HF_LICENSE_FILENAMES: tuple[str, ...] = (
 
 
 def _safe_load_json(
-    model_id: str, filename: str, revision: str | None = None
+    hub: HubFiles, model_id: str, filename: str, revision: str | None = None
 ) -> dict[str, Any] | None:
-    """Download *filename* from *model_id* and return parsed JSON, or ``None``."""
+    """Download *filename* from *model_id* and return the JSON object it
+    holds, or ``None``: silently when the repository does not hold it (a
+    model without ``generation_config.json``), with one ``WARNING:`` when
+    the download fails (:meth:`HubFiles.read`), at ``DEBUG`` when it is not
+    a JSON object."""
     if revision is None:
         log.warning(
             "Downloading %s for %s without a pinned revision; "
@@ -58,43 +66,43 @@ def _safe_load_json(
             quote_source(filename),
             model_id,
         )
+    local_path = hub.read(
+        model_id, filename, revision=revision, outcome=f"{filename} not read"
+    )
+    if local_path is None:
+        return None
     try:
-        # pylint: disable=import-outside-toplevel
-
-        from huggingface_hub import hf_hub_download
-
-        local_path = hf_hub_download(
-            repo_id=model_id,
-            filename=filename,
-            revision=revision,
-        )
         with open(local_path, encoding="utf-8") as fh:
-            return json.load(fh)  # type: ignore[no-any-return]
+            data = json.load(fh)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        # File may legitimately not exist (e.g. non-generative models lack
-        # generation_config.json) -- hf_hub_download raises for that same
-        # as for a genuine failure, so this can't be promoted to WARNING.
         log.debug(
             "Failed to load %s for %s: %s",
             quote_source(filename),
             model_id,
-            one_line(exc),
+            one_line(local_reason(exc)),
         )
         return None
+    return data if isinstance(data, dict) else None
 
 
 def _load_model_card(
-    model_id: str,
+    hub: HubFiles, model_id: str, revision: str | None = None
 ) -> tuple[str | None, dict[str, Any]]:
     """Load the whole model card (front matter included, as the description
-    helper expects) and its YAML frontmatter as a dict."""
+    helper expects) and its YAML frontmatter as a dict; ``(None, {})``
+    silently when the repository has no ``README.md``."""
+    local_path = hub.read(
+        model_id, "README.md", revision=revision, outcome="model card not read"
+    )
+    if local_path is None:
+        return None, {}
     try:
         # pylint: disable=import-outside-toplevel
 
         from huggingface_hub import ModelCard
 
-        card = ModelCard.load(model_id)
+        card = ModelCard.load(local_path)
         card_data: dict[str, Any] = card.data.to_dict() if card.data else {}
         return card.content or None, card_data
     # pylint: disable-next=broad-exception-caught
@@ -108,7 +116,7 @@ def _load_model_card(
             "library_name",
             "language",
         )
-        log.warning(msg, loggable(model_id), one_line(exc))
+        log.warning(msg, loggable(model_id), one_line(local_reason(exc)))
         return None, {}
 
 
@@ -195,6 +203,7 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
 
 
 def _detect_license_from_hf_files(
+    hub: HubFiles,
     model_id: str,
     revision: str | None = None,
 ) -> tuple[str | None, str | None]:
@@ -222,26 +231,22 @@ def _detect_license_from_hf_files(
     from pitloom.extract._license_text_match import detect_license_from_text
 
     for filename in _list_license_files_in_repo(model_id):
+        local_path = hub.read(
+            model_id, filename, revision=revision, outcome="license file not read"
+        )
+        if local_path is None:
+            continue
         try:
-            # pylint: disable=import-outside-toplevel
-
-            from huggingface_hub import hf_hub_download
-
-            local_path = hf_hub_download(
-                repo_id=model_id,
-                filename=filename,
-                revision=revision,
-            )
             text = (
                 _Path(local_path).read_text(encoding="utf-8", errors="replace").strip()
             )
-        # pylint: disable-next=broad-exception-caught
-        except Exception as exc:
-            msg = (
-                "Failed to download/read license file %s for %s: %s"
-                + field_loss_suffix("skipped", "license")
+        except OSError as exc:
+            msg = "Failed to read license file %s for %s: %s" + field_loss_suffix(
+                "skipped", "license"
             )
-            log.warning(msg, loggable(filename), loggable(model_id), one_line(exc))
+            log.warning(
+                msg, loggable(filename), loggable(model_id), one_line(local_reason(exc))
+            )
             continue
 
         if not text:
@@ -258,19 +263,20 @@ def _detect_license_from_hf_files(
     return None, None
 
 
-def _fetch_all_hf_data(model_id: str) -> dict[str, Any]:
-    """Fetch all remote HF data sources and return them as a single dict."""
-    card_text, card_data = _load_model_card(model_id)
+def _fetch_all_hf_data(hub: HubFiles, model_id: str) -> dict[str, Any]:
+    """Fetch all remote HF data sources and return them as a single dict;
+    each file at the revision ``model_info()`` states."""
     hub_info = _load_model_info(model_id)
     raw_revision = hub_info.get("sha")
     revision = str(raw_revision) if raw_revision else None
+    card_text, card_data = _load_model_card(hub, model_id, revision)
     return {
-        "config": _safe_load_json(model_id, "config.json", revision=revision),
+        "config": _safe_load_json(hub, model_id, "config.json", revision=revision),
         "tokenizer_config": _safe_load_json(
-            model_id, "tokenizer_config.json", revision=revision
+            hub, model_id, "tokenizer_config.json", revision=revision
         ),
         "generation_config": _safe_load_json(
-            model_id, "generation_config.json", revision=revision
+            hub, model_id, "generation_config.json", revision=revision
         ),
         "card_text": card_text,
         "card_data": card_data,
@@ -279,6 +285,7 @@ def _fetch_all_hf_data(model_id: str) -> dict[str, Any]:
 
 
 def _resolve_license(
+    hub: HubFiles,
     hf_data: dict[str, Any],
     model_id: str,
     provenance: dict[str, str],
@@ -312,7 +319,7 @@ def _resolve_license(
         else None
     )
     detected_id, detected_src = _detect_license_from_hf_files(
-        model_id, revision=revision
+        hub, model_id, revision=revision
     )
     if detected_id:
         provenance["license"] = detected_src or (

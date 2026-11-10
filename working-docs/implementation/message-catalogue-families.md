@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -246,3 +246,14 @@ answers M1 to M10):
 7. `scanner_wheel` raises `MemberReadError`, an `OSError` whose text is the
    detail of the scanner's line (`DETAIL_EXC`, M10).
 8. 488 to 469 uncoded sites, 153 to 146 modules.
+
+## Remote fetch conditions shared by the routes (#468)
+
+`url-unsafe`, `download-network-failed`, `download-timeout`,
+`temp-dir-unusable` and the new `network-unusable` (offline mode) moved from
+`_pypi.py` to `_remote_fetch.py`: one family per condition for the Git, PyPI
+and Hugging Face routes, each route keeping its own line where its subject
+or action differs (a git command, a Hugging Face file's `WARNING:` ending
+in what is not read). `network-unusable` takes `unusable` from the closed
+vocabulary (no word says "forbidden"). See
+[remote-fetch-policy.md](remote-fetch-policy.md).

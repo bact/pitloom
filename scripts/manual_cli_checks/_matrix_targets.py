@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The matrix cells of the remote targets (``M/<command>/target/<label>``):
-a command on a Git or PyPI URL, which no fixture stands for and no
+a command on a Git or PyPI URL or a Hugging Face model, which no fixture
+stands for and no
 one-factor variant can give (a variant adds options to the cell's local
 target). Each refusal made before any request runs in every run, behind
 the network guard, and must make no attempt; a real fetch per route and
@@ -52,13 +53,17 @@ _FILE_LINK = (
     "e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/"
     "six-1.16.0-py2.py3-none-any.whl"
 )
-_OFFLINE = "refuses:network access is forbidden"
+#: A small public model whose metadata files are a few kilobytes.
+_HF_MODEL = "openai-community/gpt2"
+#: Every route refuses offline mode with one code.
+_OFFLINE = "refuses:[network-unusable]"
 _INVALID = "refuses:[pypi-url-invalid]"
 
 TARGET_CELLS: list[TargetCell] = [
     TargetCell("project", "git-url-offline", (_GIT_URL, "--offline"), _OFFLINE),
     TargetCell("wheel", "pypi-url-offline", (_PYPI_URL, "--offline"), _OFFLINE),
     TargetCell("project", "pypi-url-offline", (_PYPI_URL, "--offline"), _OFFLINE),
+    TargetCell("model", "hf-offline", (_HF_MODEL, "--offline"), _OFFLINE),
     TargetCell(
         "wheel", "other-index", ("https://test.pypi.org/project/six/",), _INVALID
     ),
@@ -79,6 +84,16 @@ TARGET_CELLS: list[TargetCell] = [
         "git-url-over-cap",
         (_GIT_URL, "--max-download-bytes", "1"),
         "refuses:[over-cap]",
+        network=True,
+    ),
+    TargetCell("model", "hf", (_HF_MODEL,), "writes", network=True),
+    # Each metadata file over the cap is left out with a WARNING; the SBOM
+    # is still written.
+    TargetCell(
+        "model",
+        "hf-over-cap",
+        (_HF_MODEL, "--max-download-bytes", "1"),
+        "writes",
         network=True,
     ),
 ]

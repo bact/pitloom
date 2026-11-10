@@ -20,10 +20,9 @@ import logging
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
-from huggingface_hub.errors import RemoteEntryNotFoundError
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.core.dataset_names import is_hub_dataset_id
@@ -39,6 +38,9 @@ from tests.extract.remote.hf_patches._hf_patches_base import (
     HubDataset,
     _make_card_data,
     _patch_hf_calls,
+    fake_hub,
+    hub_failure,
+    patch_hub_fetch,
 )
 
 _SHA = "89abcdef0123456789abcdef0123456789abcdef"
@@ -195,14 +197,12 @@ def test_at_the_cap_nothing_is_skipped(caplog: pytest.LogCaptureFixture) -> None
     assert not _warnings(caplog)
 
 
-def _missing() -> Any:
-    raise RemoteEntryNotFoundError("404", response=MagicMock(status_code=404))
-
-
 @pytest.mark.parametrize(
     ("failing", "prefix"),
-    [("info", "Failed to load dataset_info() for o/d: "),
-     ("card", "Failed to load dataset card for o/d: ")],
+    [("info", "Failed to load dataset_info() for o/d: timed out | Field(s) "
+              "affected (skipped): "),
+     ("card", f"URL=https://huggingface.co/datasets/o/d/resolve/{_SHA}/README.md"
+              ": timed out; dataset card not read")],
     ids=["info", "card"],
 )  # fmt: skip
 def test_a_failed_request_warns_once_and_keeps_the_dataset(
@@ -215,10 +215,11 @@ def test_a_failed_request_warns_once_and_keeps_the_dataset(
             raise error
         return MagicMock(author="acme", sha=_SHA)
 
-    def download(repo_id: str, **_kw: Any) -> Any:
-        if failing == "card" and repo_id == "o/d":
-            raise error
-        return _missing()
+    def serve(repo_id: str, filename: str, **kw: Any) -> Path | None:
+        """No card in any repository; *failing*'s card request fails."""
+        if failing != "card" or repo_id != "o/d":
+            return None
+        raise hub_failure(repo_id, filename, error, **kw)
 
     card = _make_card_data(datasets=["o/d", "o/e"])
     with (
@@ -226,15 +227,15 @@ def test_a_failed_request_warns_once_and_keeps_the_dataset(
         patch.object(hub_dataset, "_load_dataset_info", _load_dataset_info),
         patch.object(hub_dataset, "_load_dataset_card", _load_dataset_card),
         patch("huggingface_hub.dataset_info", side_effect=info),
-        patch("huggingface_hub.hf_hub_download", side_effect=download) as fetched,
+        patch_hub_fetch(serve) as fetched,
     ):
         found = [r.metadata for r in read_huggingface("acme/model").datasets]
     (message,) = _warnings(caplog)
-    assert message.startswith(prefix + "timed out | Field(s) affected (skipped): ")
+    assert message.startswith(prefix)
     assert found[0].download_url == "https://huggingface.co/datasets/o/d"
     assert found[0].license is None
     # No card request after a failed info request; the other dataset is read.
-    assert [c.kwargs["repo_id"] for c in fetched.call_args_list] == (
+    assert [c.args[1] for c in fetched.call_args_list] == (
         ["o/e"] if failing == "info" else ["o/d", "o/e"]
     )
     assert found[1].creator == "acme"
@@ -243,25 +244,24 @@ def test_a_failed_request_warns_once_and_keeps_the_dataset(
 def test_a_repository_without_a_card_is_silent(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    with patch("huggingface_hub.hf_hub_download", side_effect=lambda **_k: _missing()):
-        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    assert _load_dataset_card(fake_hub(None), "o/d", _SHA) == (None, {})
     assert not caplog.records
 
 
 def test_the_card_is_read_through_the_capped_reader(tmp_path: Path) -> None:
     card = tmp_path / "README.md"
     card.write_bytes(b"---\nlicense: mit\n---\n" + b"x" * (2 * 1024 * 1024))
-    download = MagicMock(return_value=str(card))
-    with patch("huggingface_hub.hf_hub_download", download):
-        text, data = _load_dataset_card("o/d", _SHA)
+    hub = fake_hub(card)
+    text, data = _load_dataset_card(hub, "o/d", _SHA)
     assert data == {"license": "mit"}
     assert text is not None and len(text) == 1024 * 1024
-    assert download.call_args.kwargs == {
-        "repo_id": "o/d",
-        "filename": "README.md",
-        "repo_type": "dataset",
-        "revision": _SHA,
-    }
+    assert hub.read.call_args == call(
+        "o/d",
+        "README.md",
+        revision=_SHA,
+        outcome="dataset card not read",
+        repo_type="dataset",
+    )
 
 
 def test_a_hub_error_is_logged_on_one_escaped_line(
@@ -381,7 +381,7 @@ def test_a_card_yaml_cannot_load_fails_only_its_dataset(
     with (
         _patch_hf_calls(card_data=model_card),
         patch.object(hub_dataset, "_load_dataset_card", _load_dataset_card),
-        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
+        patch_hub_fetch(lambda *_a, **_k: card),
     ):
         (ref,) = read_huggingface("acme/model").datasets
     assert (ref.metadata.name, ref.metadata.license) == ("o/d", licence)
@@ -394,10 +394,7 @@ def test_any_failure_reading_the_card_is_one_warning(
 ) -> None:
     card = tmp_path / "README.md"
     card.write_text("---\nlicense: mit\n---\n", "utf-8")
-    with (
-        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
-        patch.object(hub_dataset, "read_card", side_effect=RuntimeError("boom")),
-    ):
-        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    with patch.object(hub_dataset, "read_card", side_effect=RuntimeError("boom")):
+        assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (None, {})
     (message,) = _warnings(caplog)
     assert message.startswith("Failed to load dataset card for o/d: boom")

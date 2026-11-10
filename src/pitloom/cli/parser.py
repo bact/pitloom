@@ -199,8 +199,9 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         metavar="BYTES",
         help=(
             "Download at most this many bytes of a file a PyPI URL names, "
-            "or of a Git URL's checkout; a larger one is refused. A positive "
-            "integer: 0 and negative values are errors. PyPI and Git URL "
+            "of a Git URL's checkout, or of each metadata file of a Hugging "
+            "Face model; a larger one is refused. A positive integer: 0 and "
+            "negative values are errors. PyPI URL, Git URL and Hugging Face "
             "targets only. Defers to [tool.pitloom] max-download-bytes "
             "(512 MiB by default) when omitted."
         ),

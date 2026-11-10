@@ -336,13 +336,17 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
 - `--pretty` -- indent the JSON (default: compact). Only whitespace between
   tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` / `--no-offline` -- forbid network access (PyPI and Hugging
-  Face lookups; a Git or PyPI URL target is an error), or, with `--no-offline`, allow
-  it over a config `offline = true`. Not on `enrich`.
+  Face lookups; a Git URL, a PyPI URL or a Hugging Face model target is an
+  error, [`network-unusable`](message-codes.md#network-unusable)), or, with
+  `--no-offline`, allow it over a config `offline = true`. Not on `enrich`.
 - `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
-  (`wheel`, `project` and `generate` with that URL), and the most disk a Git
-  URL's checkout may take (`project`, `model` and `generate` with that URL);
-  beats `--config`'s `max-download-bytes` (512 MiB by default). Over it is an
-  `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no SBOM is written. A
+  (`wheel`, `project` and `generate` with that URL), the most disk a Git
+  URL's checkout may take (`project`, `model` and `generate` with that URL),
+  and the largest metadata file of a Hugging Face model (`model` and
+  `generate`); beats `--config`'s `max-download-bytes` (512 MiB by default).
+  Over it is an `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no
+  SBOM is written; a Hugging Face file over it is left out with a
+  `WARNING:` and the rest is read. A
   positive integer: `0` or a negative value exits 2, even where it has no
   effect. Raise it for one run only when you trust the project. See [SBOM from
   a PyPI URL](pypi-urls.md#size-limit).
@@ -436,7 +440,7 @@ Options: <target>: <flag> has no effect <reason>` and is dropped, never silently
 | installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--use-lockfile`, `--project-dir` |
 | local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
 | model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
 | enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
 | enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
 | embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--update-id-registry` |

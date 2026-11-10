@@ -71,10 +71,13 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     AiModelUsage,
 )
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.optional_libraries import HUB, import_failed
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
+from pitloom.extract.remote._http_errors import remote_error, shown_url
+from pitloom.extract.remote._hub_files import ROUTE, HubFiles, hub_files
 from pitloom.extract.remote.git_url import HUB_HOST_PATTERN
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
 from pitloom.extract.remote.huggingface_fetch import (
@@ -95,6 +98,7 @@ from pitloom.extract.remote.huggingface_field import (
     hub_revision,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import NETWORK_UNUSABLE, OFFLINE_LINE
 
 log = logging.getLogger(__name__)
 
@@ -166,8 +170,9 @@ def is_huggingface_source(source: str) -> bool:
     return parse_hf_model_id(source) is not None
 
 
-# pylint: disable-next=too-many-locals
-def read_huggingface(source: str) -> AiModelMetadata:
+def read_huggingface(
+    source: str, *, policy: RemoteFetchPolicy = RemoteFetchPolicy()
+) -> AiModelMetadata:
     """Extract metadata from a Hugging Face model repository.
 
     Args:
@@ -175,6 +180,13 @@ def read_huggingface(source: str) -> AiModelMetadata:
             (e.g. ``https://huggingface.co/mistralai/Mistral-7B-v0.1``) or
             bare model ID (e.g. ``Qwen/Qwen3-235B-A22B`` or
             ``openthaigpt/openthaigpt-r1-32b-instruct``).
+        policy: What the downloads may do
+            (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`): each
+            metadata file is capped at its ``max_bytes`` and passed, with each
+            redirect target, to its ``check_url``; with ``offline`` nothing
+            is fetched. The ``model_info()``, ``dataset_info()`` and file
+            listing requests are ``huggingface_hub``'s own and pass through
+            neither.
 
     Returns:
         :class:`~pitloom.core.ai_metadata.AiModelMetadata` populated from all
@@ -187,6 +199,9 @@ def read_huggingface(source: str) -> AiModelMetadata:
             import: a :class:`~pitloom.messages.CodedImportError`,
             ``library-missing`` (``library-unusable`` when installed).
         ValueError: If *source* is not a valid Hugging Face URL or model ID.
+        pitloom.extract.remote.errors.RemoteSourceError: The policy is
+            offline (``huggingface.offline``, ``network-unusable``).
+        Exception: Whatever the policy's ``check_url`` raises, unchanged.
     """
     try:
         __import__(HUB.module)
@@ -201,13 +216,27 @@ def read_huggingface(source: str) -> AiModelMetadata:
         )
 
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
+    if policy.offline:
+        raise remote_error(
+            f"{ROUTE}.offline", NETWORK_UNUSABLE, OFFLINE_LINE, url=shown_url(hf_url)
+        )
     log_hf_url_rewrite(source, model_id)
+    with hub_files(policy) as hub:
+        return _read_repository(hub, model_id, hf_url)
+
+
+# pylint: disable-next=too-many-locals
+def _read_repository(hub: HubFiles, model_id: str, hf_url: str) -> AiModelMetadata:
+    """:func:`read_huggingface` of *model_id*, its files downloaded by
+    *hub*."""
     model_name = model_id.split("/")[-1]
     provenance: dict[str, str] = {"name": "Source: Hugging Face Hub | Field: model_id"}
 
-    hf_data = _fetch_all_hf_data(model_id)
+    hf_data = _fetch_all_hf_data(hub, model_id)
     description = _extract_description(hf_data, provenance)
-    license_val, vague_raw_license = _resolve_license(hf_data, model_id, provenance)
+    license_val, vague_raw_license = _resolve_license(
+        hub, hf_data, model_id, provenance
+    )
     type_of_model, architecture, hyperparameters = _parse_config_data(
         hf_data, provenance
     )
@@ -216,7 +245,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     )
     usage_domains = _extract_domains(hf_data, provenance)
     datasets = _extract_datasets(hf_data, tag_data.info_dataset_ids, provenance, hf_url)
-    add_hub_dataset_metadata(datasets, hf_url)
+    add_hub_dataset_metadata(datasets, hf_url, hub)
     base_model_id = _resolve_base_model_id(hf_data)
     extra_data = _build_extra_data(
         model_id,

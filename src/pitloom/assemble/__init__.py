@@ -277,8 +277,12 @@ def generate(
     from, for its registry keys) reaches the sdist and wheel delegates; any
     other target warns that it has no effect. So does
     *max_model_extract_bytes* on any target but a wheel, and
-    *max_download_bytes* on any target but a PyPI or a Git URL; an invalid
-    value of either raises ``ValueError`` whatever the target.
+    *max_download_bytes* on any target but a PyPI URL, a Git URL or a
+    Hugging Face model; an invalid value of either raises ``ValueError``
+    whatever the target. *offline*, *max_download_bytes* and *check_url*
+    resolve for every remote target as
+    :func:`~pitloom.core.config_cascade.resolve_fetch_policy` resolves
+    them.
 
     A PyPI project or release URL is read as ``loom wheel`` reads it: the
     release's wheel that best matches the running environment is
@@ -296,9 +300,15 @@ def generate(
     (:func:`generate_git_sbom`); *check_url* is its address policy,
     called with every redirect target before it is requested. A local
     target does not use it. *max_download_bytes* caps the disk the checkout
-    takes, as it caps a PyPI download. A local directory with no project
-    config is read for its one model file; one with no model file either is
-    refused (``project-or-model-not-found``).
+    takes, as it caps a PyPI download.
+
+    A Hugging Face model URL or id is read by :func:`generate_model_sbom`:
+    *check_url* is called with the URL of each metadata file it downloads
+    and each redirect target, and *max_download_bytes* caps each file.
+
+    A local directory with no project config is read for its one model
+    file; one with no model file either is refused
+    (``project-or-model-not-found``).
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -359,12 +369,16 @@ def generate(
         return generate_model_sbom(
             target_str,
             **forward_options(HF, target_str, generate_model_sbom, options),
+            check_url=check_url,
         )
     if classification in ("model_file", "model_folder"):
         forwarded = forward_options(
             MODEL_FILE, target_str, generate_model_sbom, options
         )
-        return generate_model_sbom(_model_file_of(target_str), **forwarded)
+        # A local file does not use check_url; passed as to every delegate.
+        return generate_model_sbom(
+            _model_file_of(target_str), **forwarded, check_url=check_url
+        )
     project_target = Path(target_str)
     kind = project_target_kind(project_target)
     return generate_project_sbom(

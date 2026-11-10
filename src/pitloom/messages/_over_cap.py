@@ -95,8 +95,9 @@ CONFIG_MEMBER_LINE: Final = Line(
 SOURCE_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
 )
-#: A file Pitloom downloads (from PyPI) over the download cap: it is not
-#: downloaded.
+#: A file Pitloom downloads (from PyPI, or a Hugging Face file) over the
+#: download cap: it is not downloaded. A Hugging Face file is said as
+#: :data:`KEY_LINE` (``FILE=``), its outcome naming what was not read.
 DOWNLOAD_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON}; not downloaded"
 )
@@ -135,8 +136,9 @@ OVER_CAP: Final = Message(
     "they trust and then generate again: max-model-extract-bytes (and with it "
     "the per-wheel model-scan budget, four times it) by "
     "--max-model-extract-bytes or its [tool.pitloom] key; "
-    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL, or a "
-    "Git URL's checkout) by --max-download-bytes or its key; "
+    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL, a "
+    "Git URL's checkout, or each metadata file of a Hugging Face repository) "
+    "by --max-download-bytes or its key; "
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
     "generate or by the max_dataset_hash_bytes argument of loom.Run. "
     "Every other cap is fixed. Do not raise a cap or generate again for them; "

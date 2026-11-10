@@ -27,6 +27,7 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.commands import _remote
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from tests._model_fixtures import fixture_path
@@ -51,17 +52,16 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     def fetch(
         url: str,
         *,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         asked.update(
             url=url,
-            offline=offline,
-            max_bytes=max_bytes,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
-        if offline:
+        if policy.offline:
             raise RemoteSourceError("git.offline", "network access is forbidden")
         file = str(asked["file"])
         yield GitCheckout(
@@ -114,7 +114,7 @@ def test_model_command_given_a_git_url_fetches_it(
     out = tmp_path / "work"
     assert _run(monkeypatch, out, "model", url) == 0
     captured = capsys.readouterr()
-    assert fetched["url"] == url.strip() and fetched["offline"] is None
+    assert fetched["url"] == url.strip() and fetched["offline"] is False
     assert sbom_output_path(captured.out) == str(out / f"{_NAME}.spdx3.json")
     assert "SECRET" not in captured.err + captured.out
     assert f"FILE=models/{_NAME}" in captured.err

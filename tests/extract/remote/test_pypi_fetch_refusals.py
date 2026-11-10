@@ -26,12 +26,14 @@ from typing import Any
 import pytest
 from packaging.tags import Tag
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_pypi_file, pypi, pypi_select
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
 from pitloom.messages import (
     DIGEST_MISMATCH,
     DOWNLOAD_FAILED,
+    NETWORK_UNUSABLE,
     OVER_CAP,
     PYPI_RESPONSE_INVALID,
     PYPI_URL_INVALID,
@@ -80,9 +82,11 @@ def _fake(monkeypatch: pytest.MonkeyPatch, temp: Path) -> Iterator[FakePypi]:
 def _refused(
     url: str, caplog: pytest.LogCaptureFixture, kind: str = WHEEL, **kwargs: Any
 ) -> RemoteSourceError:
-    """The error *url* raises; its text is a ``WARNING:`` too."""
+    """The error *url* raises under the policy *kwargs* make; its text is a
+    ``WARNING:`` too."""
+    policy = RemoteFetchPolicy(**kwargs)
     with caplog.at_level(logging.WARNING), pytest.raises(RemoteSourceError) as info:
-        with fetch_pypi_file(url, kind=kind, **kwargs):
+        with fetch_pypi_file(url, kind=kind, policy=policy):
             pass
     assert str(info.value) in caplog.messages
     assert "\n" not in str(info.value)
@@ -93,8 +97,11 @@ def test_offline_refuses_before_any_request(
     fake: FakePypi, caplog: pytest.LogCaptureFixture
 ) -> None:
     error = _refused(f"{_PAGE}x/", caplog, offline=True)
-    assert error.code == "pypi.offline" and error.pitloom_code is None
-    assert "network access is forbidden" in str(error) and not fake.seen
+    assert (error.code, error.pitloom_code) == ("pypi.offline", NETWORK_UNUSABLE.code)
+    assert str(error) == (
+        f"URL={_PAGE}x/: network access is forbidden (offline mode); nothing fetched"
+    )
+    assert not fake.seen
 
 
 @pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
@@ -103,7 +110,11 @@ def test_an_invalid_url_requests_nothing(
 ) -> None:
     """The URL is read before *offline*: an invalid one says so either way."""
     with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as info:
-        with fetch_pypi_file("http://pypi.org/project/x/", kind=WHEEL, offline=offline):
+        with fetch_pypi_file(
+            "http://pypi.org/project/x/",
+            kind=WHEEL,
+            policy=RemoteFetchPolicy(offline=offline),
+        ):
             pass
     assert code_of(info.value) == PYPI_URL_INVALID.code
     assert len(caplog.records) == 1 and not fake.seen

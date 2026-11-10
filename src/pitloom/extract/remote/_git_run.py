@@ -33,11 +33,25 @@ from pitloom.extract.remote import git_url
 from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import CLONE_LINE, GIT_OUTPUT_LINE, OVER_CAP, Cap
+from pitloom.messages import (
+    CLONE_LINE,
+    DOWNLOAD_FAILED,
+    DOWNLOAD_TIMEOUT,
+    GIT_NETWORK_FAILED_LINE,
+    GIT_OUTPUT_LINE,
+    GIT_TIMEOUT_LINE,
+    OVER_CAP,
+    Cap,
+)
 
 log = logging.getLogger(__name__)
 
-__all__ = ["GIT_TIMEOUT_SECONDS", "MAX_OUTPUT_BYTES", "GitRunner"]
+__all__ = [
+    "GIT_TIMEOUT_SECONDS",
+    "MAX_OUTPUT_BYTES",
+    "GitRunner",
+    "is_network_failure",
+]
 
 #: Seconds one ``git`` call may take; the calls of one fetch share a deadline.
 GIT_TIMEOUT_SECONDS = 600.0
@@ -77,6 +91,22 @@ _SCRUBBED_ENV = re.compile(
 
 #: Lines of git's standard error that say what went wrong.
 _ERROR_LINE = re.compile(r"(fatal|error|remote): ")
+
+#: What git (through curl) says when the server could not be reached or the
+#: transfer broke: a ``download-network-failed``. Any other failure (a
+#: repository, ref or sign-in the server refused, an HTTP 4xx answer) is no
+#: network failure and carries no code.
+_NETWORK_FAILURE = re.compile(
+    r"Could not resolve (host|proxy)|Failed to connect|Couldn't connect"
+    r"|Connection (refused|reset|timed out)|Operation timed out"
+    r"|Network is unreachable|No route to host|SSL|TLS|certificate"
+    r"|Empty reply from server|transfer closed|Recv failure|Send failure"
+    r"|early EOF|unexpected disconnect|Proxy CONNECT aborted"
+    r"|RPC failed; curl \d+|RPC failed; HTTP 5\d\d"
+    r"|The requested URL returned error: 5\d\d"
+    r"|Received HTTP code 5\d\d from proxy",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -135,9 +165,7 @@ class GitRunner:
             )
         left = self.remaining()
         if left <= 0:
-            raise RemoteSourceError(
-                "git.timeout", f"git {what} did not start within {self.seconds:.0f}s"
-            )
+            raise self._timeout(what)
         cap = None
         if watch is not None and self.max_bytes is not None:
             cap = SizeCap(watch, self.max_bytes)
@@ -150,9 +178,7 @@ class GitRunner:
                 pitloom_code=OVER_CAP.code,
             )
         if status is None:
-            raise RemoteSourceError(
-                "git.timeout", f"git {what} exceeded {self.seconds:.0f}s"
-            )
+            raise self._timeout(what)
         if out is None:
             raise RemoteSourceError(
                 "git.output-too-large",
@@ -160,8 +186,44 @@ class GitRunner:
                 pitloom_code=OVER_CAP.code,
             )
         if status != 0:
-            raise RemoteSourceError("git.clone-failed", _failure(err, status))
+            raise _failed(what, err, status)
         return out
+
+    def _timeout(self, what: str) -> RemoteSourceError:
+        """``git.timeout``: the shared deadline passed before or during the
+        call *what*."""
+        values = {"command": what, "seconds": max(round(self.seconds), 1)}
+        return RemoteSourceError(
+            "git.timeout",
+            GIT_TIMEOUT_LINE.render(values),
+            pitloom_code=DOWNLOAD_TIMEOUT.code,
+        )
+
+
+def _failed(what: str, err: str, status: int) -> RemoteSourceError:
+    """``git.clone-failed`` for the call *what* that exited *status*: its
+    text is git's own (:func:`_failure`); when git could not reach the
+    server (:data:`_NETWORK_FAILURE`), it is the ``download-network-failed``
+    line."""
+    text = _failure(err, status)
+    if not is_network_failure(err):
+        return RemoteSourceError("git.clone-failed", text)
+    return RemoteSourceError(
+        "git.clone-failed",
+        GIT_NETWORK_FAILED_LINE.render({"command": what, "error": text}),
+        pitloom_code=DOWNLOAD_FAILED.code,
+    )
+
+
+def is_network_failure(err: str) -> bool:
+    """Whether git's standard error *err* says, on one of its
+    ``fatal:``/``error:``/``remote:`` lines, that the server could not be
+    reached or the transfer broke."""
+    return any(
+        _NETWORK_FAILURE.search(line)
+        for line in err.splitlines()
+        if _ERROR_LINE.match(line.strip())
+    )
 
 
 def _failure(err: str, status: int) -> str:

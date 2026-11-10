@@ -4,12 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The errors of reading a PyPI project or release page URL: an invalid URL,
-a refused redirect or host, a project, release or file PyPI does not hold, a
-digest that does not match, an answer that is not valid, a failed or timed
-out download. ``ERROR`` (and one ``WARNING``): each stops the read.
+a project, release or file PyPI does not hold, a digest that does not match,
+an answer that is not valid. ``ERROR`` (and one ``WARNING``): each stops the
+read.
 
-See also: :mod:`pitloom.messages._pypi_info` (the decisions about which
-release and file to read), :mod:`pitloom.extract.remote.pypi_url` (the URL),
+See also: :mod:`pitloom.messages._remote_fetch` (a refused redirect or host,
+a failed or timed out download, offline mode: shared with the Git and
+Hugging Face routes), :mod:`pitloom.messages._pypi_info` (the decisions
+about which release and file to read), :mod:`pitloom.extract.remote.pypi_url` (the URL),
 :mod:`pitloom.extract.remote.pypi` (the resolver) and
 :mod:`pitloom.extract.remote.pypi_select` (the choice of file).
 """
@@ -95,41 +97,6 @@ PYPI_URL_INVALID: Final = Message(
     "file and running Pitloom on it. Do not guess another URL; ask first, "
     "and with nobody to ask, report it only.",
     subject_key="URL",
-    since=_SINCE,
-)
-
-#: A redirect that is not followed.
-REDIRECT_REFUSED_LINE: Final = Line(
-    level="ERROR",
-    template="URL=%(url)s: redirects to %(target)s; not followed (%(why)s)",
-)
-#: More redirects than Pitloom follows.
-TOO_MANY_REDIRECTS_LINE: Final = Line(
-    level="ERROR", template="URL=%(url)s: more than %(number)s redirects; not followed"
-)
-#: A file's download URL is on a host Pitloom does not fetch from.
-FILE_HOST_REFUSED_LINE: Final = Line(
-    level="ERROR",
-    template="FILE=%(file)s: download URL %(target)s is not on %(hosts)s; not fetched",
-)
-
-#: A redirect or download URL Pitloom does not follow or fetch.
-URL_REFUSED: Final = Message(
-    code="url-unsafe",
-    condition="unsafe",
-    lines=(REDIRECT_REFUSED_LINE, TOO_MANY_REDIRECTS_LINE, FILE_HOST_REFUSED_LINE),
-    summary="Pitloom would have to send a request somewhere it does not: a "
-    "redirect to a URL that is not https or not on a host it reads PyPI "
-    "from, more redirects than it follows, or a file whose download URL PyPI "
-    "gives on another host.",
-    did="Did not follow the redirect or fetch the file, and wrote no SBOM.",
-    effect="not-written",
-    actor="user",
-    advice="Tell the user which URL was not followed and why, as the line "
-    "says. A mirror or proxy that redirects is not supported; they may "
-    "download the wheel or sdist themselves and run Pitloom on the file. Do "
-    "not fetch the target for them; ask first, and with nobody to ask, report "
-    "it only.",
     since=_SINCE,
 )
 
@@ -310,80 +277,6 @@ PYPI_RESPONSE_INVALID: Final = Message(
     since=_SINCE,
 )
 
-#: The request failed.
-DOWNLOAD_FAILED_LINE: Final = Line(
-    level="ERROR", template="URL=%(url)s: %(failure)s; not read"
-)
-
-#: A request to PyPI that failed.
-DOWNLOAD_FAILED: Final = Message(
-    code="download-network-failed",
-    condition="network-failed",
-    lines=(DOWNLOAD_FAILED_LINE,),
-    summary="A request to PyPI, or to the host that serves a file, failed: "
-    "an HTTP status other than 404, a refused or reset connection, a name "
-    "that did not resolve, or an answer cut short.",
-    did="Wrote no SBOM. The error code is pypi.download-failed.",
-    effect="not-written",
-    actor="user",
-    advice="Tell the user the request failed, with the reason the line gives. "
-    "They check the network and run again. Do not retry in a loop; ask "
-    "first, and with nobody to ask, report it only.",
-    subject_key="URL",
-    since=_SINCE,
-)
-
-#: The request did not finish in time.
-DOWNLOAD_TIMEOUT_LINE: Final = Line(
-    level="ERROR",
-    template="URL=%(url)s: no complete answer within %(seconds)s seconds; not read",
-)
-
-#: A request to PyPI that did not finish in time.
-DOWNLOAD_TIMEOUT: Final = Message(
-    code="download-timeout",
-    condition="timeout",
-    lines=(DOWNLOAD_TIMEOUT_LINE,),
-    summary="A request to PyPI, or to the host that serves a file, did not "
-    "finish within the time Pitloom allows.",
-    did="Stopped the request and wrote no SBOM. The error code is "
-    "pypi.download-timeout.",
-    effect="not-written",
-    actor="user",
-    advice="Tell the user the request timed out. They check the network and "
-    "run again, or download the file themselves and run Pitloom on it. Do "
-    "not retry in a loop; ask first, and with nobody to ask, report it only.",
-    subject_key="URL",
-    since=_SINCE,
-)
-
-#: A downloaded file that could not be saved in the temporary directory.
-SAVE_FAILED_LINE: Final = Line(
-    level="ERROR",
-    template="FILE=%(file)s: could not be saved in the temporary directory "
-    "(%(failure)s); not downloaded",
-)
-
-#: The temporary directory cannot take a downloaded file.
-TEMP_DIR_UNUSABLE: Final = Message(
-    code="temp-dir-unusable",
-    condition="unusable",
-    lines=(SAVE_FAILED_LINE,),
-    summary="A file downloaded from PyPI could not be written to the "
-    "temporary directory: the disk is full, the path is too long (Windows), "
-    "or the directory cannot be written to.",
-    did="Stopped the download and wrote no SBOM. The error code is pypi.save-failed.",
-    effect="not-written",
-    actor="user",
-    advice="Tell the user the download could not be saved locally, with the "
-    "reason the line gives; the network is not the cause. They free disk "
-    "space, or set TMPDIR (TEMP on Windows) to a writable directory with a "
-    "short path, and run again. Do not change their temporary directory for "
-    "them; ask first, and with nobody to ask, report it only.",
-    subject_key="FILE",
-    since=_SINCE,
-)
-
 #: ``--embed`` was given with a PyPI URL.
 EMBED_URL_LINE: Final = Line(
     level="ERROR",
@@ -430,15 +323,11 @@ PYPI_URL_UNUSABLE: Final = Message(
 
 ENTRIES: Final = (
     PYPI_URL_INVALID,
-    URL_REFUSED,
     RELEASE_NOT_FOUND,
     RELEASE_FILE_NOT_FOUND,
     RELEASE_FILE_NOT_FOUND_COMPATIBLE,
     RELEASE_FILE_NOT_FOUND_SDIST,
     DIGEST_MISMATCH,
     PYPI_RESPONSE_INVALID,
-    DOWNLOAD_FAILED,
-    DOWNLOAD_TIMEOUT,
-    TEMP_DIR_UNUSABLE,
     PYPI_URL_UNUSABLE,
 )

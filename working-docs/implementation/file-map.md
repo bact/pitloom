@@ -175,7 +175,7 @@ pitloom/
 │       │   ├── build_signals.py  # TerminationGuard: SIGTERM/SIGHUP cleanup of a build-and-read
 │       │   ├── canonical_json.py  # The one serialisation of JSON text embedded in an SBOM string
 │       │   ├── config.py  # PitloomConfig facade and re-exports
-│       │   ├── config_cascade.py  # ConfigOverrides + the one [tool.pitloom] cascade every surface resolves through
+│       │   ├── config_cascade.py  # ConfigOverrides + the one [tool.pitloom] cascade every surface resolves through; resolve_fetch_policy()
 │       │   ├── content_type_config.py # [tool.pitloom.content-type] settings
 │       │   ├── creation.py  # CreationMetadata (creator / timestamp)
 │       │   ├── dataset_hash.py  # Hash a dataset path: file SHA-256 or directory Merkle root
@@ -186,6 +186,7 @@ pitloom/
 │       │   ├── enrich_config.py  # [tool.pitloom.enrich] / EnrichConfig
 │       │   ├── evidence.py  # Evidence levels of a recorded fact, and the one writer of their provenance segment
 │       │   ├── extra_gate.py  # The extras a requirement marker requires, read from its text
+│       │   ├── fetch_policy.py  # RemoteFetchPolicy: max_bytes, offline, check_url of a Git, PyPI or Hugging Face fetch
 │       │   ├── file_hash.py  # One chunked reader: SHA-256 and SHA-512 of a file, from one pass
 │       │   ├── file_identity.py  # Whether two paths are one file, by identity not spelling
 │       │   ├── file_names.py  # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
@@ -232,7 +233,7 @@ pitloom/
 │       │   ├── dataset/  # Dataset extractors (card, croissant, croissant_key, licence, reader)
 │       │   ├── lock/  # Lockfile extractors (cascade, poetry, pdm, uv, pylock, pipfile, requirements, _common, _hash, etc.)
 │       │   ├── project/  # Build backend & project metadata extractors (pyproject, poetry, pdm, flit, setuptools, sdist, hatchling, reader)
-│       │   ├── remote/  # Remote sources (git, git_url, git_target, _git_* helpers, errors, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field)
+│       │   ├── remote/  # Remote sources (git, git_url, git_target, _git_* helpers, errors, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field, _hub_files, pypi*, _http_fetch/_http_errors/_http_credential/_http_watch)
 │       │   ├── _author_parts.py  # Where a free-text author field is cut into entries
 │       │   ├── _author_warnings.py  # WARNING: lines of the free-text author reading
 │       │   ├── _core_metadata.py  # Shared RFC 822 Core-Metadata parsing helpers

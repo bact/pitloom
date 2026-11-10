@@ -25,6 +25,7 @@ import pytest
 from packaging.tags import Tag
 
 from pitloom.core import temp_dirs
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.url_masking import DOWNLOAD_PLACEHOLDER
 from pitloom.extract.remote import fetch_pypi_file, pypi_select
 from pitloom.extract.remote.pypi import (
@@ -137,7 +138,8 @@ def test_a_directory_left_behind_warns_once_and_never_raises(
 def test_every_url_requested_is_checked_first(fake: FakePypi) -> None:
     publish(fake, "x", {"1.0": [Dist(_ANY)]})
     checked: list[str] = []
-    with fetch_pypi_file(f"{_PAGE}x/1.0/", kind=WHEEL, check_url=checked.append):
+    policy = RemoteFetchPolicy(check_url=checked.append)
+    with fetch_pypi_file(f"{_PAGE}x/1.0/", kind=WHEEL, policy=policy):
         pass
     assert checked == [fake.url("/pypi/x/1.0/json"), fake.url(f"/files/{_ANY}")]
 
@@ -364,7 +366,10 @@ def test_sdist_hint_names_loom_project(caplog: pytest.LogCaptureFixture) -> None
 
 @pytest.mark.parametrize(
     ("kwargs", "match"),
-    [({"kind": "egg"}, "kind"), ({"kind": WHEEL, "max_bytes": 0}, "max_bytes")],
+    [
+        ({"kind": "egg"}, "kind"),
+        ({"kind": WHEEL, "policy": RemoteFetchPolicy(max_bytes=0)}, "max_bytes"),
+    ],
     ids=["kind", "max-bytes"],
 )
 def test_bad_arguments_raise_before_anything(

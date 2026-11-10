@@ -18,7 +18,12 @@ from pitloom.assemble.spdx3.ai import lookup_model_id
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
+from pitloom.core.config_cascade import (
+    ConfigOverrides,
+    require_download_override,
+    resolve_fetch_policy,
+    resolve_standalone_config,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.inert_options import (
@@ -33,7 +38,6 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
-from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.model_target import model_path_of, read_model_file
@@ -216,6 +220,8 @@ def generate_model_sbom(
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
     shown: str | None = None,
+    max_download_bytes: int | None = None,
+    check_url: Callable[[str], None] | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -224,11 +230,22 @@ def generate_model_sbom(
     built-in defaults. Nothing is read from the current directory or from
     the model file's own directory.
 
-    Three parameters apply to one source kind only, and warn when given for
-    the other (see :data:`pitloom.core.inert_options.INERT`): *offline* for
-    a Hugging Face source (a local file never reaches the network), and
-    *enrich*/*id_registry* for a local file; a local folder, its one model
-    file (:func:`~pitloom.extract.model_target.model_path_of`).
+    Four parameters apply to one source kind only, and warn when given for
+    the other (see :data:`pitloom.core.inert_options.INERT`):
+    *offline* and *max_download_bytes* for a Hugging Face source (a local
+    file never reaches the network), and *enrich*/*id_registry* for a local
+    file; a local folder, its one model file
+    (:func:`~pitloom.extract.model_target.model_path_of`).
+
+    A Hugging Face source's metadata files are downloaded as
+    :func:`~pitloom.extract.remote.read_huggingface` describes, under the
+    policy every remote route resolves
+    (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`): with
+    *offline* (else *pitloom_config*'s) true nothing is fetched
+    (``huggingface.offline``, ``network-unusable``); each file is capped at
+    *max_download_bytes* (else *pitloom_config*'s ``max-download-bytes``,
+    else 512 MiB); *check_url* is called with each file's URL and each
+    redirect target before it is requested (a local file does not use it).
 
     *shown* is how messages name a local model file (default: as given): a
     caller that copied it to a temporary directory names it as its user
@@ -236,12 +253,19 @@ def generate_model_sbom(
     own name alone either way.
     """
     configure_logging()
+    if max_download_bytes is not None:
+        require_download_override(max_download_bytes)  # even if inert
     source_str = str(source)
     is_hf = is_huggingface_source(source_str)
     settle_inert(
         HF if is_hf else MODEL_FILE,
         source_str,
-        {"offline": offline, "enrich": enrich, "id_registry": id_registry},
+        {
+            "offline": offline,
+            "enrich": enrich,
+            "id_registry": id_registry,
+            "max_download_bytes": max_download_bytes,
+        },
     )
     cfg = resolve_standalone_config(
         pitloom_config,
@@ -258,12 +282,13 @@ def generate_model_sbom(
 
     resolved_registry: IdRegistry | None = None
     if is_hf:
-        if cfg.offline:
-            raise ValueError(
-                "Offline mode enabled: cannot fetch remote Hugging Face source "
-                f"{quote_source(sanitize_url(source_str))}"
-            )
-        model = read_huggingface(source_str)
+        policy = resolve_fetch_policy(
+            pitloom_config,
+            offline=offline,
+            max_download_bytes=max_download_bytes,
+            check_url=check_url,
+        )
+        model = read_huggingface(source_str, policy=policy)
         entity_spdx_id = digest = None
     else:
         model_path = model_path_of(Path(source), subject=source_str)

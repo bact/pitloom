@@ -26,6 +26,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands import _remote
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
@@ -59,17 +60,16 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     def fetch(
         url: str,
         *,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         asked.update(
             url=url,
-            offline=offline,
-            max_bytes=max_bytes,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
-        if offline:
+        if policy.offline:
             raise RemoteSourceError("git.offline", f"no network for {url}")
         yield GitCheckout(
             str(folder),
@@ -105,7 +105,7 @@ def test_a_git_url_is_fetched_and_read_as_a_project(
     carries the output path alone."""
     out = tmp_path / "sbom.json"
     assert _run(monkeypatch, tmp_path, command, _URL, "-o", str(out)) == 0
-    assert fetched["url"] == _URL and fetched["offline"] is None
+    assert fetched["url"] == _URL and fetched["offline"] is False
     captured = capsys.readouterr()
     assert sbom_output_path(captured.out) == str(out)
     assert "\n" not in out.read_text(encoding="utf-8").strip()
@@ -230,11 +230,10 @@ def test_a_failure_to_read_the_fetched_project_names_the_projects_below(
     def fetch(
         url: str,
         *,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline, max_bytes, trust_model_files
+        _ = policy, trust_model_files
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
@@ -358,11 +357,10 @@ def test_a_gated_reader_runs_on_a_local_project_only(
     def fetch(
         url: str,
         *,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline, max_bytes
+        _ = policy
         yield GitCheckout(
             str(folder),
             url,
@@ -409,11 +407,10 @@ def test_trust_model_files_runs_the_gated_readers_on_a_git_urls_project(
     def fetch(
         url: str,
         *,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline, max_bytes
+        _ = policy
         asked["trust_model_files"] = trust_model_files
         yield GitCheckout(
             str(folder),

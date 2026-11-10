@@ -69,7 +69,7 @@ def _caps(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
     real = pypi.fetch_pypi_file
 
     def _spy(url: str, **kwargs: Any) -> AbstractContextManager[pypi.PypiDownload]:
-        seen.append(kwargs["max_bytes"])
+        seen.append(kwargs["policy"].max_bytes)
         return real(url, **kwargs)
 
     monkeypatch.setattr(_generators_pypi, "fetch_pypi_file", _spy)
@@ -227,7 +227,7 @@ def test_a_local_target_warns_the_cap_has_no_effect_once(
         if "--max-download-bytes has no effect" in line
     ]
     assert len(lines) == 1 and lines[0].startswith("WARNING: Options: ")
-    assert "only a PyPI or a Git URL target downloads" in lines[0]
+    assert "only a PyPI URL, a Git URL or a Hugging Face target downloads" in lines[0]
 
 
 @pytest.mark.parametrize("kind", [GIT, GIT_MODEL])

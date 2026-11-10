@@ -76,7 +76,8 @@ Rules to state to the user:
 - Nothing from the download is run (no build, no `setup.py`);
   `--allow-build` has no effect (a `WARNING:` says so) and an sdist's own
   `[tool.pitloom]` is ignored (`--config FILE` applies). `--offline` is an
-  error, and `loom wheel <url> --embed` is refused.
+  error (`[network-unusable]`, as for a Git URL), and `loom wheel <url>
+  --embed` is refused.
 - The file is capped at 512 MiB (`--max-download-bytes BYTES`, or
   `max-download-bytes` in a `--config` file). A larger one is
   refused with `FILE=<file>: ... ; not downloaded [over-cap]` and no SBOM. Tell the

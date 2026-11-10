@@ -27,6 +27,8 @@ and this project adheres to
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
   release URL; `--max-download-bytes` caps the download, and a downloaded
   wheel's models are gated as a Git URL's ([#468])
+- A Hugging Face model's metadata files are capped by `--max-download-bytes`,
+  each redirect checked, the token sent to `huggingface.co` only ([#468])
 - `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
   also lifts the reader gate of a Git URL's model files ([#469])
 
@@ -34,6 +36,11 @@ and this project adheres to
 
 - A Git URL's fetch is capped at 512 MiB by default (`--max-download-bytes`);
   `max_clone_bytes` renamed `max_download_bytes` ([#468])
+- **Breaking:** `fetch_git_project()` takes `policy=` (`RemoteFetchPolicy`)
+  instead of `check_url=`, `offline=` and `max_bytes=` ([#468])
+- Git, PyPI and Hugging Face fetches share codes: `network-unusable`
+  (`--offline`), `download-network-failed`, `download-timeout`, `over-cap`
+  ([#468])
 - **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
   (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
   to `trust-model-files`) ([#469])
@@ -45,6 +52,8 @@ and this project adheres to
 - A Git URL's temporary checkout or the Hatchling hook's staged SBOM that
   cannot be fully removed (a file held open on Windows) warns instead of
   failing the run ([#468])
+- `generate_git_sbom()` honours `pitloom_config`'s `offline`, and
+  `generate(check_url=)` reaches a Hugging Face model's downloads ([#468])
 
 [#468]: https://github.com/bact/pitloom/pull/468
 [#469]: https://github.com/bact/pitloom/pull/469

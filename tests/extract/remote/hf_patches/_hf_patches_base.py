@@ -19,10 +19,16 @@ modules import these names directly from the matching topic module.
 
 from __future__ import annotations
 
-from collections.abc import Generator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
+
+from pitloom.extract.remote._http_errors import remote_error, shown_url
+from pitloom.extract.remote._hub_files import HubFiles, file_url
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.messages import DOWNLOAD_FAILED, DOWNLOAD_FAILED_LINE
 
 
 # pylint: disable-next=too-many-arguments
@@ -101,8 +107,8 @@ def _patch_hub_datasets(datasets: Mapping[str, HubDataset] | None) -> Any:
     def info(dataset_id: str) -> dict[str, Any]:
         return dict(served.get(dataset_id, {}).get("info", {}))
 
-    def card(dataset_id: str, revision: str | None) -> tuple[str | None, Any]:
-        _ = revision
+    def card(hub: Any, dataset_id: str, revision: str | None) -> tuple[str | None, Any]:
+        _ = hub, revision
         entry = served.get(dataset_id, {})
         return entry.get("card_text"), dict(entry.get("card_data", {}))
 
@@ -129,10 +135,9 @@ def _patch_hf_calls(
     dataset repository (see :func:`_patch_hub_datasets`)."""
 
     def _json_side_effect(
-        model_id: str, filename: str, revision: str | None = None
+        hub: Any, model_id: str, filename: str, revision: str | None = None
     ) -> dict[str, Any] | None:
-        _ = model_id
-        _ = revision
+        _ = hub, model_id, revision
         if filename == "config.json":
             return config
         if filename == "tokenizer_config.json":
@@ -168,6 +173,52 @@ def _patch_hf_calls(
         yield
 
 
+def fake_hub(path: Path | None = None) -> Any:
+    """A :class:`~pitloom.extract.remote._hub_files.HubFiles` whose every
+    read gives *path* (``None``: the repository does not hold the file)."""
+    hub = create_autospec(HubFiles, instance=True)
+    hub.read.return_value = path
+    return hub
+
+
+def patch_hub_fetch(serve: Callable[..., Path | None]) -> Any:
+    """Patch :meth:`HubFiles.fetch` (the download; :meth:`HubFiles.read`
+    and its warning still run): ``serve(repo_id, filename, revision=...,
+    repo_type=...)`` gives the local copy, ``None`` for a file the
+    repository does not hold, or raises (:func:`hub_failure`)."""
+
+    def fetch(
+        _self: HubFiles,
+        repo_id: str,
+        filename: str,
+        *,
+        revision: str | None,
+        repo_type: str = "model",
+    ) -> Path | None:
+        return serve(repo_id, filename, revision=revision, repo_type=repo_type)
+
+    return patch.object(HubFiles, "fetch", autospec=True, side_effect=fetch)
+
+
+def hub_failure(
+    repo_id: str,
+    filename: str,
+    failure: BaseException,
+    *,
+    revision: str | None = None,
+    repo_type: str = "model",
+) -> RemoteSourceError:
+    """The error a failed download of *filename* raises."""
+    url = file_url(repo_id, filename, revision=revision, repo_type=repo_type)
+    return remote_error(
+        "huggingface.download-failed",
+        DOWNLOAD_FAILED,
+        DOWNLOAD_FAILED_LINE,
+        url=shown_url(url),
+        failure=failure,
+    )
+
+
 __all__ = [
     "HubDataset",
     "_MISTRAL_CARD_DATA",
@@ -176,4 +227,7 @@ __all__ = [
     "_make_card_data",
     "_patch_hf_calls",
     "_patch_hub_datasets",
+    "fake_hub",
+    "hub_failure",
+    "patch_hub_fetch",
 ]

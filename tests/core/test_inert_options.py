@@ -396,7 +396,7 @@ def test_generate_options_cover_every_cli_option() -> None:
 #: ``settle_inert`` before it acts), so they are declared for the kind
 #: without being stale. Every other accepted option must not be declared.
 _SETTLES_ITSELF = {
-    "generate_model_sbom": {"offline", "enrich", "id_registry"},
+    "generate_model_sbom": {"offline", "enrich", "id_registry", "max_download_bytes"},
     "generate_project_sbom": {
         *inert_options.INERT[inert_options.SDIST],
         *inert_options.INERT[inert_options.PROJECT],

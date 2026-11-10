@@ -22,7 +22,7 @@ import logging
 from pitloom.cli.commands.utils import _print_sbom_output_path
 from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
-from pitloom.core.config_cascade import resolve_download_cap
+from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.inert_options import GIT_MODEL
 from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
@@ -59,16 +59,12 @@ def run_remote(
     from pitloom.cli.commands.project import generate_project_from_args
 
     explicit = load_explicit_config(args)
-    offline = args.offline
-    if offline is None and explicit is not None:
-        offline = explicit.offline
-    cap = resolve_download_cap(explicit, args.max_download_bytes)
+    policy = resolve_fetch_policy(
+        explicit, offline=args.offline, max_download_bytes=args.max_download_bytes
+    )
     settled = build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     with fetch_git_project(
-        url,
-        offline=offline,
-        max_bytes=cap,
-        trust_model_files=args.trust_model_files is True,
+        url, policy=policy, trust_model_files=args.trust_model_files is True
     ) as checkout:
         with checkout.reading():
             target = resolve_git_target(checkout, mode, url)

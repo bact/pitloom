@@ -40,22 +40,28 @@ setuptools `cmdclass`, PDM hooks) is not run while its files are listed. A failu
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
-`git.not-found`, `git.output-too-large`, `git.too-large`); the two size codes
-also carry the catalogued code `over-cap` as `pitloom_code`
-(`pitloom.messages.code_of(exc)`; see
-[Message codes](message-codes.md#over-cap)). *check_url* may raise any
+`git.not-found`, `git.output-too-large`, `git.too-large`). A condition every
+remote route shares carries its catalogued code as `pitloom_code`
+(`pitloom.messages.code_of(exc)`; see [Message codes](message-codes.md)):
+`over-cap` for the two size codes, `network-unusable` for `git.offline`,
+`download-timeout` for `git.timeout`, and `download-network-failed` for a
+`git.clone-failed` whose cause is the network (git could not reach the
+server); any other `git.clone-failed` has none. *check_url* may raise any
 exception to refuse an address, and it reaches you unchanged. To read the
-fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
+fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`
+(its `policy=` takes a `pitloom.core.fetch_policy.RemoteFetchPolicy`, made by
+`pitloom.core.config_cascade.resolve_fetch_policy()` as every surface makes
+it),
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Reads inside the block are confined to the
 checkout and the repository's build-time code is not run, as for
 `generate_git_sbom()`, with no further call (`with checkout.reading():` is
 optional and may be nested); blocks that overlap in time each keep their own
-confinement. Its *max_bytes* (no limit by default) stops the fetch, with
-`git.too-large`, once the checkout takes more disk than that; the generators
-take `max_download_bytes=` instead (else `pitloom_config=`'s
+confinement. The policy's `max_bytes` (512 MiB by default) stops the fetch,
+with `git.too-large`, once the checkout takes more disk than that; the
+generators take `max_download_bytes=` instead (else `pitloom_config=`'s
 `max-download-bytes`, else 512 MiB, as for a PyPI URL; `over-cap` as
-`pitloom_code`). See [SBOM from a Git URL](git-urls.md).
+`pitloom_code`), and `offline=` (else `pitloom_config=`'s `offline`). See [SBOM from a Git URL](git-urls.md).
 
 The wheel or the sdist of a release on PyPI is read through the URL of its
 project or release page, with `generate()`, `generate_wheel_sbom()`,
@@ -96,8 +102,8 @@ unchanged. `generate_pypi_sbom_with_download()` returns
 `PypiSbom(sbom, download, metadata)`. `generate_git_sbom()` and
 `generate_git_project_sbom()` refuse PyPI-family URLs (`git.url-invalid`, with
 `pypi-url-unusable` as `pitloom_code`); `generate()` names the library route in
-its hint. `offline=True` raises
-`pypi.offline` before any request. AI models in a downloaded wheel are gated
+its hint. `offline=True` (or `pitloom_config=`'s `offline`) raises
+`pypi.offline` (`network-unusable`) before any request. AI models in a downloaded wheel are gated
 as a Git URL's are (`reader-unsafe/remote`), and `trust_model_files=True`
 lifts the gate for a release you trust; an sdist's models are not scanned, so
 for `kind="sdist"` it warns that it has no effect. See [SBOM from a PyPI URL](pypi-urls.md).
