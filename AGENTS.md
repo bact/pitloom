@@ -74,6 +74,7 @@ Failure modes that recurred across subsystems; check by name.
 Detail (war stories, PRs, code shapes); read before extending or citing a
 one-liner: [data, semantics](working-docs/implementation/recurring-bug-patterns.md),
 [platform, concurrency, test harness, CI](working-docs/implementation/recurring-bug-patterns-platform.md),
+[CI matrix: dependency and interpreter versions](working-docs/implementation/recurring-bug-patterns-ci-matrix.md),
 [review rounds](working-docs/implementation/recurring-bug-patterns-review-rounds.md);
 fuller wording:
 [examples](working-docs/implementation/recurring-bug-patterns-examples.md).
@@ -147,6 +148,7 @@ Tests, platform and CI:
 - **Python 3.14 reports a temp file closed by `__del__` (`urllib.error.HTTPError`) as unraisable**: `with exc:`, and `gc.collect()` in the test. **`os.killpg` on an exited, unreaped group is `ESRCH` (Linux) or `EPERM` (macOS)**: catch both. Wait for a condition, never a fixed sleep.
 - **Run the whole suite before a PR**: a new target kind adds registry rows that area tests miss.
 - **Fail-fast CI hides legs**: read the cancelled jobs.
+- **CI installs the newest release in a declared range, and the interpreter patch version differs from yours**: compare the CI log's versions with the local ones before a push; assert a stable prefix of a parser's message, not its full wording ([detail](working-docs/implementation/recurring-bug-patterns-ci-matrix.md)).
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`.
 - **pip's `--no-build-isolation` is invocation-global**: never mix a self-referential local install with unrelated packages in one `pip install`.
 - **A Markdown line starting with `<tag>` is an HTML block, even inside a code span that continues from the previous line**: never start a wrapped code-span line with `<`.
