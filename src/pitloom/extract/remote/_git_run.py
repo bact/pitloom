@@ -92,14 +92,33 @@ _SCRUBBED_ENV = re.compile(
 #: Lines of git's standard error that say what went wrong.
 _ERROR_LINE = re.compile(r"(fatal|error|remote): ")
 
+#: The lines of those that git (or curl through it) writes itself; a
+#: ``remote:`` line is the server's own text.
+_OWN_ERROR_LINE = re.compile(r"(fatal|error): ")
+
+#: What a line of git's says that is not git's own words: a quoted span (a
+#: URL, a path, a repository name; a quote after a letter is an apostrophe,
+#: ``Couldn't``), a URL and what follows ``remote error:`` (the server's
+#: text).
+_NOT_GITS_WORDS = re.compile(
+    r"(?<![A-Za-z])'[^']*'|[A-Za-z][A-Za-z0-9+.-]*://\S*|remote error:.*",
+    re.IGNORECASE,
+)
+
 #: What git (through curl) says when the server could not be reached or the
 #: transfer broke: a ``download-network-failed``. Any other failure (a
 #: repository, ref or sign-in the server refused, an HTTP 4xx answer) is no
-#: network failure and carries no code.
+#: network failure and carries no code. Each is a phrase of curl's, its TLS
+#: library's or git's own (a ref name holds no space): a single word such as
+#: ``SSL`` would match a repository or branch named for it.
 _NETWORK_FAILURE = re.compile(
-    r"Could not resolve (host|proxy)|Failed to connect|Couldn't connect"
+    r"Could(n't| not) resolve (host|proxy)|Failed to connect|Couldn't connect"
     r"|Connection (refused|reset|timed out)|Operation timed out"
-    r"|Network is unreachable|No route to host|SSL|TLS|certificate"
+    r"|Network is unreachable|No route to host"
+    r"|SSL certificate problem|SSL peer certificate|(SSL|TLS) connect error"
+    r"|(Open|Libre|Boring)SSL SSL_|SSL routines|SSL: (no alternative|certificate)"
+    r"|gnutls_handshake\(\) failed|server certificate verification failed"
+    r"|schannel: |error setting certificate"
     r"|Empty reply from server|transfer closed|Recv failure|Send failure"
     r"|early EOF|unexpected disconnect|Proxy CONNECT aborted"
     r"|RPC failed; curl \d+|RPC failed; HTTP 5\d\d"
@@ -107,6 +126,14 @@ _NETWORK_FAILURE = re.compile(
     r"|Received HTTP code 5\d\d from proxy",
     re.IGNORECASE,
 )
+
+#: The locale every call runs in: git translates its messages (Git for
+#: Windows into the display language), and :func:`is_network_failure` and
+#: the callers that read a failure's text read git's English.
+_LOCALE = "C"
+
+#: Variables that would choose another language over :data:`_LOCALE`.
+_LOCALE_ENV = ("LANGUAGE", "LC_MESSAGES", "LANG")
 
 
 @dataclass
@@ -216,13 +243,15 @@ def _failed(what: str, err: str, status: int) -> RemoteSourceError:
 
 
 def is_network_failure(err: str) -> bool:
-    """Whether git's standard error *err* says, on one of its
-    ``fatal:``/``error:``/``remote:`` lines, that the server could not be
-    reached or the transfer broke."""
+    """Whether git's standard error *err* says, in its own words on one of
+    its ``fatal:``/``error:`` lines, that the server could not be reached or
+    the transfer broke. A ``remote:`` line, and a quoted span, a URL or a
+    ``remote error:`` of a line (:data:`_NOT_GITS_WORDS`), are text the
+    user or the server chose, never a cause."""
     return any(
-        _NETWORK_FAILURE.search(line)
+        _NETWORK_FAILURE.search(_NOT_GITS_WORDS.sub(" ", line))
         for line in err.splitlines()
-        if _ERROR_LINE.match(line.strip())
+        if _OWN_ERROR_LINE.match(line.strip())
     )
 
 
@@ -237,11 +266,16 @@ def _failure(err: str, status: int) -> str:
 
 
 def _environment() -> dict[str, str]:
-    """The environment git runs in."""
+    """The environment git runs in: the caller's, without what points git
+    elsewhere, with no prompt, no LFS download, only the allowed transports
+    and English messages (:data:`_LOCALE`)."""
     env = {k: v for k, v in os.environ.items() if not _SCRUBBED_ENV.fullmatch(k)}
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GIT_LFS_SKIP_SMUDGE"] = "1"
     env["GIT_ALLOW_PROTOCOL"] = ":".join(sorted(git_url.ALLOWED_SCHEMES))
+    for name in _LOCALE_ENV:
+        env.pop(name, None)
+    env["LC_ALL"] = _LOCALE
     return env
 
 

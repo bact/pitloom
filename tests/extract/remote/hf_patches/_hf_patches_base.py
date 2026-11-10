@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, create_autospec, patch
 from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote._hub_files import HubFiles, file_url
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import DOWNLOAD_FAILED, DOWNLOAD_FAILED_LINE
+from pitloom.messages import DOWNLOAD_FAILED, DOWNLOAD_FAILED_LINE, Cap
 
 
 # pylint: disable-next=too-many-arguments
@@ -177,6 +177,7 @@ def fake_hub(path: Path | None = None) -> Any:
     """A :class:`~pitloom.extract.remote._hub_files.HubFiles` whose every
     read gives *path* (``None``: the repository does not hold the file)."""
     hub = create_autospec(HubFiles, instance=True)
+    hub.asks_hub = True
     hub.read.return_value = path
     return hub
 
@@ -185,7 +186,8 @@ def patch_hub_fetch(serve: Callable[..., Path | None]) -> Any:
     """Patch :meth:`HubFiles.fetch` (the download; :meth:`HubFiles.read`
     and its warning still run): ``serve(repo_id, filename, revision=...,
     repo_type=...)`` gives the local copy, ``None`` for a file the
-    repository does not hold, or raises (:func:`hub_failure`)."""
+    repository does not hold, or raises (:func:`hub_failure`); the cap is
+    the real download's concern (tests/extract/remote/test_hub_files_caps.py)."""
 
     def fetch(
         _self: HubFiles,
@@ -193,8 +195,10 @@ def patch_hub_fetch(serve: Callable[..., Path | None]) -> Any:
         filename: str,
         *,
         revision: str | None,
+        cap: Cap,
         repo_type: str = "model",
     ) -> Path | None:
+        _ = cap
         return serve(repo_id, filename, revision=revision, repo_type=repo_type)
 
     return patch.object(HubFiles, "fetch", autospec=True, side_effect=fetch)

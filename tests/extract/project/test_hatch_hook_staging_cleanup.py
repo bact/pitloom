@@ -16,12 +16,14 @@ lifecycle) and tests/core/test_temp_dirs.py (the removal).
 
 from __future__ import annotations
 
+import gc
 import logging
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from pitloom.core import temp_dirs
 from pitloom.plugins import hatch
 from tests._held_open import hold_open
 from tests.build_and_read_shared import use_sys_tmp
@@ -81,3 +83,37 @@ def test_a_staged_sbom_that_cannot_be_written_leaves_no_directory(
         hook.initialize("standard", {})
     assert not list(sys_tmp.iterdir())
     assert hook._staging_dir is None
+
+
+def _removals(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """The directories :func:`pitloom.plugins.hatch.remove_temp_dir` is
+    called on, as it is, each still removed."""
+    removed: list[str] = []
+    real = temp_dirs.remove_temp_dir
+
+    def spy(path: Path | str, log_prefix: str) -> None:
+        removed.append(Path(path).name)
+        real(path, log_prefix)
+
+    monkeypatch.setattr(hatch, "remove_temp_dir", spy)
+    return removed
+
+
+@pytest.mark.parametrize("finalized", [False, True], ids=["collected", "finalized"])
+def test_the_staging_dir_is_removed_once_with_or_without_finalize(
+    sys_tmp: Path, project: Path, monkeypatch: pytest.MonkeyPatch, finalized: bool
+) -> None:
+    removed = _removals(monkeypatch)
+    hook = make_hook(str(project), {})
+    build_data: dict[str, Any] = {}
+    hook.initialize("standard", build_data)
+    staged = staged_sbom(build_data)
+    assert staged is not None and staged.is_file()
+    if finalized:
+        hook.finalize("standard", build_data, "dist/x.whl")
+        assert removed == [staged.parent.name] and not staged.parent.exists()
+        hook.finalize("standard", build_data, "dist/x.whl")
+    del hook
+    gc.collect()
+    assert removed == [staged.parent.name]
+    assert not list(sys_tmp.iterdir())

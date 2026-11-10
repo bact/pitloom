@@ -364,19 +364,11 @@ def test_sdist_hint_names_loom_project(caplog: pytest.LogCaptureFixture) -> None
     assert _codes(caplog) == [FILE_AMBIGUOUS.code]
 
 
-@pytest.mark.parametrize(
-    ("kwargs", "match"),
-    [
-        ({"kind": "egg"}, "kind"),
-        ({"kind": WHEEL, "policy": RemoteFetchPolicy(max_bytes=0)}, "max_bytes"),
-    ],
-    ids=["kind", "max-bytes"],
-)
-def test_bad_arguments_raise_before_anything(
-    kwargs: dict[str, object], match: str
-) -> None:
-    with pytest.raises(ValueError, match=match):
-        with fetch_pypi_file(f"{_PAGE}x/", **kwargs):  # type: ignore[arg-type]
+def test_a_bad_kind_raises_before_anything() -> None:
+    # A bad cap is refused where the policy is made
+    # (tests/core/test_fetch_policy.py).
+    with pytest.raises(ValueError, match="kind"):
+        with fetch_pypi_file(f"{_PAGE}x/", kind="egg"):
             pass
 
 

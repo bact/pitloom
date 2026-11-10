@@ -34,7 +34,9 @@ from pitloom.assemble import (
     generate_git_project_sbom,
     generate_git_sbom,
     generate_model_sbom,
+    generate_project_sbom,
     generate_pypi_sbom,
+    generate_wheel_sbom,
 )
 from pitloom.cli.commands import _remote
 from pitloom.core.config_cascade import load_config_file, resolve_fetch_policy
@@ -54,7 +56,7 @@ _ROUTES = {
 #: The library calls of each route.
 _LIBRARY: dict[str, tuple[Callable[..., str], ...]] = {
     "git": (generate_git_sbom, generate_git_project_sbom, generate),
-    "pypi": (generate_pypi_sbom, generate),
+    "pypi": (generate_pypi_sbom, generate_project_sbom, generate_wheel_sbom, generate),
     "hf": (generate_model_sbom, generate),
 }
 

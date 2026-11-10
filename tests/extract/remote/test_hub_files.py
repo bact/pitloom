@@ -30,6 +30,8 @@ from pitloom.extract.remote._http_credential import Credential
 from pitloom.extract.remote._http_fetch import under_domain, url_refusal
 from pitloom.extract.remote._hub_files import (
     DEFAULT_HUB_BASE,
+    HUB_JSON_CAP,
+    FileKind,
     HubFiles,
     file_policy,
     file_url,
@@ -58,6 +60,8 @@ pytestmark = pytest.mark.loopback
 _REPO = "o/m"
 _SHA = "0123456789abcdef0123456789abcdef01234567"
 _BEARER = f"Bearer {TOKEN}"
+#: A JSON file, as the readers ask one.
+_JSON = FileKind(HUB_JSON_CAP, "x not read")
 #: The module's own token lookup, before a test replaces it.
 _real_hub_token = _hub_files.hub_token
 
@@ -77,7 +81,7 @@ def _read(
 ) -> bytes | None:
     """What the route reads of *filename*: its bytes, or ``None``."""
     with hub_files(policy) as hub:
-        path = hub.read(_REPO, filename, revision=revision, outcome="x not read")
+        path = hub.read(_REPO, filename, revision=revision, kind=_JSON)
         return None if path is None else path.read_bytes()
 
 
@@ -307,8 +311,8 @@ def test_files_land_in_a_temporary_directory_removed_on_exit(fake: FakeHub) -> N
     serve_in_git(fake, _REPO, "config.json", b"{}", revision=_SHA)
     serve_in_git(fake, _REPO, "README.md", b"# c", revision=_SHA)
     with hub_files(RemoteFetchPolicy()) as hub:
-        first = hub.fetch(_REPO, "config.json", revision=_SHA)
-        second = hub.fetch(_REPO, "README.md", revision=_SHA)
+        first = hub.fetch(_REPO, "config.json", revision=_SHA, cap=HUB_JSON_CAP)
+        second = hub.fetch(_REPO, "README.md", revision=_SHA, cap=HUB_JSON_CAP)
         assert first is not None and second is not None
         work = hub.work_dir
         assert work.name.startswith("pitloom-hf-")

@@ -28,7 +28,9 @@ from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.core.dataset_names import is_hub_dataset_id
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import read_huggingface
+from pitloom.extract.remote._hub_files import FileKind
 from pitloom.extract.remote.huggingface_dataset import (
+    HUB_DATASET_CARD,
     MAX_HUB_DATASET_LOOKUPS,
     _load_dataset_card,
     _load_dataset_info,
@@ -259,7 +261,7 @@ def test_the_card_is_read_through_the_capped_reader(tmp_path: Path) -> None:
         "o/d",
         "README.md",
         revision=_SHA,
-        outcome="dataset card not read",
+        kind=FileKind(HUB_DATASET_CARD.cap, "dataset card not read"),
         repo_type="dataset",
     )
 

@@ -12,7 +12,10 @@ taken for).
 Two forms are read, on ``pypi.org`` (or ``www.pypi.org``, any case, a
 trailing dot dropped): ``https://pypi.org/project/<name>/`` and
 ``https://pypi.org/project/<name>/<version>/``, the trailing slash optional
-and each segment percent-decoded. A query or fragment is cut. The name must
+and each segment percent-decoded. The host is read as a resolver reads it
+(percent-decoded, mapped by IDNA: ``pypi%2Eorg`` and ``pypi\u3002org``, with
+an ideographic dot, are ``pypi.org``), so that no spelling of a PyPI host is
+taken for a Git host and cloned. A query or fragment is cut. The name must
 be a valid PEP 508 name, compared by its PEP 503 form; the version must parse
 as PEP 440. Anything else on the host, ``http:``, user information or a port
 that is not 443 is refused. A URL on another host of the PyPI family (any
@@ -26,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Final
 from urllib.parse import quote, unquote, urlsplit
@@ -113,9 +117,17 @@ class PypiTarget:
 
 
 def _host(hostname: str | None) -> str:
-    """*hostname* (``urlsplit`` gives it lower-cased) without its trailing
-    dots (a fully qualified name); empty for none."""
-    return (hostname or "").rstrip(".")
+    """*hostname* (``urlsplit``'s) as a resolver reads it: percent-decoded,
+    mapped by IDNA (a full-width or ideographic dot is a dot, a full-width
+    letter its ASCII one, a soft hyphen nothing), lower-cased and without
+    its trailing dots (a fully qualified name); empty for none. A host IDNA
+    cannot map (an empty label) is NFKC-normalised instead."""
+    host = unquote(hostname or "")
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        host = unicodedata.normalize("NFKC", host).replace("\u3002", ".")
+    return host.lower().rstrip(".")
 
 
 #: The line refusing each host of the PyPI family that is neither one of
@@ -138,7 +150,8 @@ def is_pypi_url(text: str) -> bool:
     """Whether *text* is an ``http`` or ``https`` URL on a host of the PyPI
     family (:data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org`` such as
     ``test.pypi.org``, ``pypi.python.org`` or the file host
-    ``files.pythonhosted.org``; any case, a trailing dot dropped): ``http``
+    ``files.pythonhosted.org``; any case, a trailing dot dropped, the host
+    percent-decoded and mapped by IDNA as a resolver maps it): ``http``
     and the hosts :func:`parse_pypi_url` refuses too, so that each is refused
     with a PyPI message and never taken for a Git URL. Never raises."""
     stripped = text.strip()

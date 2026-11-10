@@ -29,9 +29,9 @@ import pytest
 from packaging.tags import Tag
 
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.extract.remote import _git_run, _http_fetch, pypi_select
+from pitloom.extract.remote import _git_run, _http_fetch, _hub_files, pypi_select
 from pitloom.extract.remote._git_run import GitRunner, is_network_failure
-from pitloom.extract.remote._hub_files import hub_files
+from pitloom.extract.remote._hub_files import HUB_JSON_CAP, FileKind, hub_files
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.huggingface import read_huggingface
@@ -93,6 +93,21 @@ def _git_answers(
         "fatal: unable to access 'https://h/r/': The requested URL returned error: 502",
         "error: RPC failed; curl 56 Recv failure: Connection reset by peer",
         "fatal: early EOF",
+        # Each TLS library's own words, through curl.
+        "fatal: unable to access 'https://h/r/': OpenSSL SSL_connect: "
+        "SSL_ERROR_SYSCALL in connection to h:443",
+        "fatal: unable to access 'https://h/r/': gnutls_handshake() failed: "
+        "The TLS connection was non-properly terminated.",
+        "fatal: unable to access 'https://h/r/': server certificate verification "
+        "failed. CAfile: none CRLfile: none",
+        "fatal: unable to access 'https://h/r/': schannel: next "
+        "InitializeSecurityContext failed: SEC_E_UNTRUSTED_ROOT",
+        "fatal: unable to access 'https://h/r/': TLS connect error: "
+        "error:0A000126:SSL routines::unexpected eof while reading",
+        "fatal: unable to access 'https://h/r/': SSL: no alternative certificate "
+        "subject name matches target host name 'h'",
+        # An apostrophe opens no quoted span.
+        "fatal: unable to access 'https://h/r/': Couldn't resolve host 'h'",
     ],
 )
 def test_a_git_network_failure_is_download_network_failed(err: str) -> None:
@@ -111,6 +126,18 @@ def test_a_git_network_failure_is_download_network_failed(err: str) -> None:
         "fatal: couldn't find remote ref refs/tags/v9",
         # A network word outside git's error lines is no cause.
         "warning: SSL is fine\nfatal: Remote branch x not found",
+        # Nor is one in a name the user chose: a quoted URL, a ref, a URL.
+        "fatal: repository 'https://github.com/rustls/nope/' not found",
+        "fatal: Authentication failed for 'https://github.com/openssl/private/'",
+        "fatal: Remote branch tls-fix not found in upstream origin",
+        "fatal: unable to access 'https://example.com/certificates.git/': "
+        "The requested URL returned error: 403",
+        "fatal: Authentication failed for https://h/ssl-connect-error/",
+        "fatal: Authentication failed for https://h/Connection refused/",
+        # Nor in the server's own text.
+        "fatal: remote error: upload-pack: not our ref 0123ssl",
+        "fatal: remote error: Connection refused",
+        "remote: Connection refused\nfatal: repository 'https://h/r/' not found",
     ],
 )
 def test_a_git_failure_of_another_cause_carries_no_code(err: str) -> None:
@@ -247,7 +274,8 @@ def _hub_code(
         cache = serve_in_git(fake, "o/m", "config.json", b"", revision=_SHA)
         fake.hub.routes[cache] = route
         with caplog.at_level(logging.WARNING), hub_files(policy) as hub:
-            assert hub.read("o/m", "config.json", revision=_SHA, outcome="o") is None
+            kind = FileKind(HUB_JSON_CAP, "o")
+            assert hub.read("o/m", "config.json", revision=_SHA, kind=kind) is None
     return [getattr(r, CODE_ATTR) for r in caplog.records if hasattr(r, CODE_ATTR)]
 
 
@@ -272,7 +300,7 @@ def test_the_hub_says_each_condition_with_the_shared_code(
     message: Message,
 ) -> None:
     if deadline is not None:
-        monkeypatch.setattr(_http_fetch, "FILE_DEADLINE_SECONDS", deadline)
+        monkeypatch.setattr(_hub_files, "METADATA_DEADLINE_SECONDS", deadline)
     assert _hub_code(monkeypatch, caplog, route, policy) == [message.code]
     printed = f"WARNING: {caplog.records[-1].getMessage()} [{message.code}]"
     assert trusted_message(printed) is message

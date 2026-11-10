@@ -51,11 +51,10 @@ FILE_HOST_REFUSED_LINE: Final = Line(
     template="FILE=%(file)s: download URL %(target)s is not on %(hosts)s; not fetched",
 )
 
-#: An ``HF_ENDPOINT`` no Hugging Face file is fetched from.
+#: An ``HF_ENDPOINT`` nothing is asked of: no file, no API request.
 ENDPOINT_REFUSED_LINE: Final = Line(
     level="WARNING",
-    template="URL=%(url)s: HF_ENDPOINT not used for files (%(why)s); "
-    "no file of the repository fetched",
+    template="URL=%(url)s: HF_ENDPOINT not used (%(why)s); nothing asked of the Hub",
 )
 #: The Hub ``HF_ENDPOINT`` names, which Hugging Face files are fetched from.
 ENDPOINT_LINE: Final = Line(
@@ -99,12 +98,14 @@ ENDPOINT_REFUSED: Final = Message(
     summary="huggingface_hub's HF_ENDPOINT names a Hub that is not an https "
     "URL, or one holding user information, a query or a fragment. The "
     "Hugging Face token must not be sent over plain http.",
-    did="Fetched no file of the Hugging Face repository (config.json, the "
-    "card, a licence file) and read the rest; the SBOM lacks what those "
-    "files hold.",
+    did="Sent no request to the Hub (huggingface_hub would send the token to "
+    "the same endpoint): no file of the Hugging Face repository (config.json, "
+    "the card, a licence file), no model_info(), dataset_info() or file "
+    "listing. The model keeps its id and Hub URL only; the SBOM lacks "
+    "everything else the Hub states.",
     effect="thinner",
     actor="user",
-    advice="Tell the user HF_ENDPOINT is not used for files, and why, as the "
+    advice="Tell the user HF_ENDPOINT is not used, and why, as the "
     "line says. They set it to an https URL without credentials, or unset it "
     "for https://huggingface.co, and run again. Do not change it for them; "
     "ask first, and with nobody to ask, report it only.",
@@ -272,8 +273,38 @@ OFFLINE_UNUSABLE: Final = Message(
     since=_SINCE,
 )
 
+#: A Git URL whose host git would resolve to one its text does not spell.
+GIT_HOST_SPELLING_LINE: Final = Line(
+    level="ERROR",
+    template="URL=%(url)s: the host is not plain ASCII or is percent-encoded, "
+    "which git would resolve to a host the URL does not spell; write it in "
+    "ASCII (an international name in its xn-- form); nothing fetched",
+)
+
+#: A Git URL's host spelled with what a resolver maps to another character.
+URL_HOST_SPELLING: Final = Message(
+    code="url-unsafe/host-spelling",
+    condition="unsafe",
+    lines=(GIT_HOST_SPELLING_LINE,),
+    summary="A Git URL's host holds a non-ASCII character (a full-width or "
+    "ideographic dot, a full-width letter, an international name not in "
+    "its xn-- form) or a percent-encoding. git (through curl) maps it to "
+    "another host than the URL's text names, past every check that reads "
+    "that text (a PyPI host is never cloned).",
+    did="Started no git process, fetched nothing and wrote no SBOM (git.url-invalid).",
+    effect="not-written",
+    actor="user",
+    advice="Tell the user the host must be written as it is resolved. They "
+    "write it in ASCII, an international domain name in its xn-- "
+    "(punycode) form, and run again. Do not rewrite the URL for them; ask "
+    "first, and with nobody to ask, report it only.",
+    subject_key="URL",
+    since=_SINCE,
+)
+
 ENTRIES: Final = (
     URL_REFUSED,
+    URL_HOST_SPELLING,
     ENDPOINT_REFUSED,
     ENDPOINT_MOVED,
     DOWNLOAD_FAILED,

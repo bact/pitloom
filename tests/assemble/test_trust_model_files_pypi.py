@@ -21,21 +21,32 @@ import json
 import logging
 import re
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 from pitloom.assemble import (
+    _generators_git,
     generate,
+    generate_git_project_sbom,
     generate_project_sbom,
     generate_pypi_sbom,
     generate_wheel_sbom,
 )
-from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.remote.pypi import SDIST
-from pitloom.extract.scanner_project import remote_reader_gate
+from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from tests._fake_pypi_server import Dist
-from tests._model_fixtures import remote_gate_infos
+from tests._model_fixtures import (
+    FORMATS,
+    fixture_path,
+    has_reader_library,
+    remote_gate_infos,
+    spy_readers,
+    write_model_project,
+)
 from tests._wheel_models import write_model_wheel
 from tests.assemble._pypi_dists import (
     SDIST_NAME,
@@ -50,7 +61,6 @@ from tests.assemble.embed_surfaces_shared import run_cli
 from tests.assemble.test_trust_model_files import _hyperparameters
 from tests.extract.scanner.test_scanner_wheel_gate_formats import (
     FASTTEXT_DIR,
-    fixture_bytes,
     gate_infos,
     spy_load_model,
 )
@@ -59,14 +69,6 @@ from tests.warning_helpers import count_naming, logged_warnings
 _FLAG = "--trust-model-files"
 _MODEL = "demo/sentimentdemo.bin"
 _Runner = Callable[[Path, pytest.MonkeyPatch, bool], str]  # -> SBOM json
-#: Every gated fixture, for the drift guard.
-_GATED = [
-    "fasttext/sentimentdemo.bin",
-    "gguf/stories260K.gguf",
-    "hdf5/example-model.h5",
-    "onnx/light-inception-v2.onnx",
-    "pytorch/example-model.pt",
-]
 
 
 def _publish(
@@ -184,20 +186,53 @@ def test_a_downloaded_sdists_model_is_not_read_and_the_flag_warns(
     spy.assert_not_called()
 
 
+def _gated_and_read(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    run: Callable[[], str],
+) -> tuple[list[str], list[str]]:
+    """The formats *run*'s ``reader-unsafe/remote`` line names, and those
+    whose reader it ran."""
+    read = spy_readers(monkeypatch)
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        run()
+    (line,) = remote_gate_infos(caplog)
+    named = re.search(r": ([a-z0-9_, ]+); pass --trust-model-files ", line)
+    assert named is not None, line
+    return named.group(1).split(", "), sorted({str(fmt) for fmt, _path in read})
+
+
 @pytest.mark.loopback
 def test_the_pypi_and_git_routes_gate_the_same_formats(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Drift guard: the formats a downloaded wheel's line names, with one
-    model of each gated format, are those a Git URL's clone gates."""
-    members = {f"demo/{Path(n).name}": fixture_bytes(n) for n in _GATED}
-    with reading_remote_clone():
-        git_gate = remote_reader_gate()
-    assert git_gate is not None
-    caplog.set_level(logging.INFO)
-    for _url in _publish(monkeypatch, tmp_path, members):
-        generate_pypi_sbom(URL)
-    (line,) = remote_gate_infos(caplog)
-    named = re.search(r"downloaded file: ([a-z0-9, ]+); pass ", line)
-    assert named is not None
-    assert named.group(1).split(", ") == sorted(map(str, git_gate.formats))
+    """Drift guard: with one model of every format (gated or not) in a
+    downloaded wheel and in a Git URL's clone, the line names the same
+    formats and the same readers run: neither gate can grow or shrink
+    alone."""
+    models = [fixture_path(fmt) for fmt in FORMATS]
+    folder = write_model_project(tmp_path / "clone", models)
+
+    @contextmanager
+    def fetch(url: str, **_kwargs: object) -> Iterator[GitCheckout]:
+        yield GitCheckout(str(folder), url, "main", "c", "", True)
+
+    monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
+    git = _gated_and_read(
+        caplog, monkeypatch, lambda: generate_git_project_sbom("https://h/o/r")
+    )
+    members = {f"demo/{model.name}": model.read_bytes() for model in models}
+    pypi = [
+        _gated_and_read(caplog, monkeypatch, lambda: generate_pypi_sbom(URL))
+        for _url in _publish(monkeypatch, tmp_path / "pypi", members)
+    ]
+    assert pypi == [git]
+    gated, read = git
+    assert gated == sorted(str(f) for f in WHEEL_GATED_FORMATS)
+    assert read == sorted(
+        str(f)
+        for f in FORMATS
+        if f not in WHEEL_GATED_FORMATS and has_reader_library(f)
+    )
+    assert str(AiModelFormat.SAFETENSORS) in read  # a non-gated format is read

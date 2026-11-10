@@ -4,10 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The hosts of the PyPI family on every library surface: ``pypi.org`` with
-a trailing dot is read as ``pypi.org``; another index (``test.pypi.org``)
-and PyPI's old address (``pypi.python.org``) are refused as PyPI URLs, and
-the Git route refuses each, so nothing is fetched or cloned. The URL is
-read before ``offline``.
+a trailing dot, or a dot spelled as a resolver maps it (``%2E``, an
+ideographic or full-width dot), is read as ``pypi.org``; another index
+(``test.pypi.org``) and PyPI's old address (``pypi.python.org``) are refused
+as PyPI URLs, and the Git route refuses each, so nothing is fetched or
+cloned; the model
+call refuses every PyPI URL as ``loom model`` does. The URL is read before
+``offline``.
 
 See also: tests/cli/test_cli_pypi_url_hosts.py (the same on the command
 line), tests/extract/remote/test_pypi_url.py (the URL itself).
@@ -24,6 +27,7 @@ from pitloom.assemble import (
     generate,
     generate_git_project_sbom,
     generate_git_sbom,
+    generate_model_sbom,
     generate_project_sbom,
     generate_pypi_sbom,
     generate_wheel_sbom,
@@ -34,6 +38,7 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.messages import (
     GIT_PYPI_URL_LINE,
+    MODEL_URL_LINE,
     PYPI_URL_INVALID,
     PYPI_URL_UNUSABLE,
     Line,
@@ -45,6 +50,8 @@ from tests.assemble._pypi_dists import (
     DOTTED,
     REFUSED,
     REFUSED_IDS,
+    SPELLED,
+    SPELLED_IDS,
     URL,
     fake_pypi,
     publish_demo,
@@ -104,7 +111,9 @@ def test_a_reader_refuses_another_pypi_host(
 
 @pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
 @pytest.mark.parametrize(
-    "url", [DOTTED, *(url for url, _line in REFUSED)], ids=["dot", *REFUSED_IDS]
+    "url",
+    [DOTTED, *SPELLED, *(url for url, _line in REFUSED)],
+    ids=["dot", *SPELLED_IDS, *REFUSED_IDS],
 )
 @pytest.mark.parametrize("cloner", list(CLONERS))
 @pytest.mark.usefixtures("no_fetch")
@@ -123,10 +132,33 @@ def test_the_git_route_refuses_a_pypi_url(cloner: str, url: str, offline: bool) 
     [(generate, None), (generate_pypi_sbom, SDIST), (generate_project_sbom, None)],
     ids=["generate", "pypi-sdist", "project"],
 )
-def test_a_trailing_dot_reads_pypi_org(
-    fake: FakePypi, call: Callable[..., str], kind: str | None
+@pytest.mark.parametrize("spelled", [DOTTED, *SPELLED], ids=["dot", *SPELLED_IDS])
+def test_a_spelling_of_pypi_org_reads_pypi_org(
+    fake: FakePypi, call: Callable[..., str], kind: str | None, spelled: str
 ) -> None:
+    """A trailing dot, an encoded or a non-ASCII dot: the host a resolver
+    maps it to."""
     extra = {} if kind is None else {"kind": kind}
-    dotted = call(DOTTED, creation_metadata=CREATION, **extra)
+    dotted = call(spelled, creation_metadata=CREATION, **extra)
     assert fake.seen  # read from the (fake) pypi.org
     assert dotted == call(URL, creation_metadata=CREATION, **extra)
+
+
+@pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
+@pytest.mark.parametrize(
+    "url",
+    [URL, DOTTED, *SPELLED, *(url for url, _line in REFUSED)],
+    ids=["url", "dot", *SPELLED_IDS, *REFUSED_IDS],
+)
+@pytest.mark.usefixtures("no_fetch")
+def test_the_model_call_refuses_a_pypi_url_as_loom_model_does(
+    url: str, offline: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Not read as a missing local path (``Model file not found``)."""
+    with pytest.raises(ValueError) as info:
+        generate_model_sbom(url, offline=offline)
+    assert code_of(info.value) == PYPI_URL_UNUSABLE.code
+    assert str(info.value) == MODEL_URL_LINE.render({"url": url})
+    assert [r.getMessage() for r in caplog.records if r.levelname == "WARNING"] == [
+        str(info.value)
+    ]

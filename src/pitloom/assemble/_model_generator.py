@@ -38,6 +38,7 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.model_target import model_path_of, read_model_file
@@ -45,6 +46,7 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import (
     Alias,
     IdRegistry,
@@ -55,7 +57,12 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging, loggable
-from pitloom.messages import warn_file_unreadable
+from pitloom.messages import (
+    MODEL_URL_LINE,
+    PYPI_URL_UNUSABLE,
+    CodedValueError,
+    warn_file_unreadable,
+)
 
 log = logging.getLogger(__name__)
 
@@ -206,6 +213,24 @@ def project_document_id(project_dir: Path) -> str:
 
 
 # pylint: disable=too-many-arguments,too-many-locals
+def _refuse_pypi_url(source: Path | str) -> None:
+    """Raise ``pypi-url-unusable`` when *source* is a PyPI URL, which would
+    otherwise be read as a missing local path.
+
+    Raises:
+        CodedValueError: It is one (logged as well).
+    """
+    if not isinstance(source, str) or not is_pypi_url(source):
+        return
+    error = CodedValueError(
+        PYPI_URL_UNUSABLE,
+        line=MODEL_URL_LINE,
+        url=loggable(sanitize_url(source.strip())),
+    )
+    log.warning("%s", error)
+    raise error
+
+
 def generate_model_sbom(
     source: Path | str,
     *,
@@ -251,8 +276,14 @@ def generate_model_sbom(
     caller that copied it to a temporary directory names it as its user
     knows it (its path in a Git repository). The SBOM names the file by its
     own name alone either way.
+
+    Raises:
+        CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
+            release is not a model), refused as ``loom model`` refuses it,
+            before anything is read or fetched; logged as well.
     """
     configure_logging()
+    _refuse_pypi_url(source)
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
     source_str = str(source)

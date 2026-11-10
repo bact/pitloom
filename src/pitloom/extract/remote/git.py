@@ -38,6 +38,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath
 from typing import Final
+from urllib.parse import urlsplit
 
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.fetch_policy import RemoteFetchPolicy
@@ -67,11 +68,13 @@ from pitloom.extract.remote.git_url import (
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    GIT_HOST_SPELLING_LINE,
     GIT_PYPI_URL_LINE,
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
     PROJECT_NOT_FOUND,
     PYPI_URL_UNUSABLE,
+    URL_HOST_SPELLING,
     code_of,
 )
 
@@ -196,10 +199,9 @@ def fetch_git_project(
     (``git.too-large``).
 
     Raises:
-        ValueError: the policy's ``max_bytes`` is not a positive integer.
         RemoteSourceError: the URL names no fetchable repository, ref or
-            folder (a PyPI URL is ``git.url-invalid``, catalogued
-            ``pypi-url-unusable``, checked before ``offline``), ``git`` is
+            folder (``git.url-invalid``, checked before ``offline``; a
+            PyPI URL is catalogued ``pypi-url-unusable``), ``git`` is
             missing, ``offline`` is set (``git.offline``,
             ``offline-unusable``), git cannot reach the server
             (``git.clone-failed``, ``download-network-failed``) or does not
@@ -207,10 +209,6 @@ def fetch_git_project(
             repository is larger than ``max_bytes`` (``over-cap``).
         Exception: whatever ``check_url`` raises, unchanged.
     """
-    if policy.max_bytes <= 0:
-        raise ValueError(
-            f"max_bytes must be a positive integer, got {policy.max_bytes}"
-        )
     runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
     with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
@@ -237,13 +235,15 @@ def _prepare(
             GIT_PYPI_URL_LINE.render({"url": shown}),
             pitloom_code=PYPI_URL_UNUSABLE.code,
         )
+    # The URL is read first, as the PyPI and Hugging Face routes read theirs:
+    # an invalid one is ``git.url-invalid`` offline too.
+    page = _read_url(url, shown)
     if policy.offline:
         raise RemoteSourceError(
             "git.offline",
             OFFLINE_LINE.render({"url": shown}),
             pitloom_code=OFFLINE_UNUSABLE.code,
         )
-    page = _read_url(url, shown)
     clone_url, page, target = _resolve(runner, page, policy.check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
@@ -267,8 +267,9 @@ def _read_url(url: str, shown: str) -> GitPage:
     """The page *url* names.
 
     Raises:
-        RemoteSourceError: ``git.url-invalid``, a scheme other than http(s) or
-            a path that leaves the checkout.
+        RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
+            a host that is not plain ASCII (:func:`_host_as_typed`,
+            ``url-unsafe/host-spelling``) or a path that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
         raise RemoteSourceError(
@@ -276,7 +277,25 @@ def _read_url(url: str, shown: str) -> GitPage:
             f"Cannot fetch {shown}: only http and https URLs are fetched "
             "(not ssh, git, file or scp-style addresses).",
         )
+    if not _host_as_typed(url.strip()):
+        raise RemoteSourceError(
+            "git.url-invalid",
+            GIT_HOST_SPELLING_LINE.render({"url": shown}),
+            pitloom_code=URL_HOST_SPELLING.code,
+        )
     return parse_git_page(url)
+
+
+def _host_as_typed(url: str) -> bool:
+    """Whether the host of *url* is plain ASCII, not percent-encoded: curl
+    maps any other spelling (``pypi%2Eorg``, a full-width dot) to a host
+    the URL's text does not name, which no check of that text (a PyPI host
+    is never cloned) would see."""
+    try:
+        host = urlsplit(url).hostname or ""
+    except ValueError:
+        return False
+    return host.isascii() and "%" not in host
 
 
 def _resolve(

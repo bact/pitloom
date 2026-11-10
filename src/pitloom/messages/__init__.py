@@ -213,6 +213,7 @@ from pitloom.messages._remote_fetch import (
     ENDPOINT_REFUSED,
     ENDPOINT_REFUSED_LINE,
     FILE_HOST_REFUSED_LINE,
+    GIT_HOST_SPELLING_LINE,
     GIT_NETWORK_FAILED_LINE,
     GIT_TIMEOUT_LINE,
     OFFLINE_LINE,
@@ -225,6 +226,7 @@ from pitloom.messages._remote_fetch import (
     TEMP_DIR_UNUSABLE,
     TOO_MANY_REDIRECTS_LINE,
     TOO_MANY_REDIRECTS_WARNING_LINE,
+    URL_HOST_SPELLING,
     URL_REFUSED,
 )
 from pitloom.messages._sbom_target import (
@@ -323,6 +325,7 @@ __all__ = [
     "GIT_FILE_IS_LINK_LINE",
     "GIT_FILE_NOT_FOUND_LINE",
     "GIT_FOLDER_NOT_FOUND_LINE",
+    "GIT_HOST_SPELLING_LINE",
     "GIT_NETWORK_FAILED_LINE",
     "GIT_OUTPUT_LINE",
     "GIT_PYPI_URL_LINE",
@@ -441,6 +444,7 @@ __all__ = [
     "TOO_MANY_REDIRECTS_LINE",
     "TOO_MANY_REDIRECTS_WARNING_LINE",
     "TRAINING_CONFIG_LINE",
+    "URL_HOST_SPELLING",
     "URL_MOVED",
     "URL_REFUSED",
     "USAGE_UNPARSEABLE",

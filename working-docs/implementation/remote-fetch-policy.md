@@ -23,14 +23,46 @@ The Hugging Face route downloaded `config.json`, `tokenizer_config.json`,
 `huggingface_hub.hf_hub_download` (and `ModelCard.load`) into the library's
 cache, with no size cap. They are now fetched by
 `extract/remote/_hub_files.HubFiles` through the hardened client
-(`_http_fetch.fetch_to_file`): the `max-download-bytes` cap counted on the
-bytes received, a host allowlist checked on every hop, the deadline, chunked
-reads. Each file lands in its own folder of one temporary directory
-(`pitloom-hf-`, masked as `<download>` in messages) removed when the read
-ends. The per-file read caps (the dataset card's 1 MiB) stay on top.
-`model_info()`, `dataset_info()` and `list_repo_files()` remain
-`huggingface_hub` API requests: they download no file, and neither the cap
-nor `check_url` reaches them (documented).
+(`_http_fetch.fetch_capped`): a cap counted on the bytes received, a host
+allowlist checked on every hop, a deadline, chunked reads. Each file lands
+in its own folder of one temporary directory (`pitloom-hf-`, masked as
+`<download>` in messages) removed when the read ends. `model_info()`,
+`dataset_info()` and `list_repo_files()` remain `huggingface_hub` API
+requests: they download no file, and neither the cap nor `check_url`
+reaches them (documented).
+
+### Per-kind caps and the metadata deadline (review round A)
+
+A review found each metadata file downloaded under the 512 MiB weights cap
+and then loaded whole (`json.load` of a text file takes about ten times its
+size; `ModelCard.load` read the whole card), each with the 30-minute
+weights deadline. Now each file is downloaded under the smaller of
+`max-download-bytes` and the cap of its kind (`_hub_files.file_cap`), the
+same cap its reader then reads within, and named as the one that bound
+(the setting's name when it is the smaller or equal, since raising it is
+what would help):
+
+| File | Kind cap | Why this one |
+| :--- | :------- | :----------- |
+| `config.json`, `tokenizer_config.json`, `generation_config.json` | 16 MiB `Hub-JSON` (`_hub_files.HUB_JSON_CAP`) | parsed whole (bytes, so a BOM is accepted); real ones are KiB, a `tokenizer_config.json` with thousands of added tokens about 1 MiB (not measured here); the PyPI JSON cap (64 MiB) would let one file take ~700 MB parsed |
+| model card `README.md` | 1 MiB `model-card` (`enrich.readme.MODEL_CARD_CAP`) | the local model card's cap; read by `enrich.readme.read_card` with a Hub `CardKind`, as the dataset card already was |
+| licence files | 256 KiB `license-detection` (`_license_detect.LICENSE_FILE_CAP`) | every other licence reader's cap (project, wheel, sdist), read by `read_license_file`: one cap per kind of input, not the card's 1 MiB the review suggested |
+| dataset card `README.md` | 1 MiB `dataset-card` | its reader's cap, unchanged |
+
+A file over its kind cap is left out with one `over-cap` `WARNING:`
+(`FILE=<repo>/<file>: larger than the <n>-byte <cap> cap; <what> not read`).
+Unlike a local card, which keeps a frontmatter closed within its first MiB,
+a Hub card over 1 MiB is not downloaded at all: the download keeps no
+partial file it could tell from a whole one. The deadline is
+`_hub_files.METADATA_DEADLINE_SECONDS`, a JSON API request's 120 s.
+
+The model card is no longer parsed by `huggingface_hub.ModelCard`: the
+frontmatter is the file's own YAML mapping (`tags` still made a list
+without repeats, as the binding gave it). So a `model-index` is kept as the
+card states it (the binding rebuilt it, and refused the whole card for one
+it could not parse), a card whose frontmatter is not a mapping keeps its
+text, and malformed YAML is one `card-malformed` `WARNING:` with the text
+(and description) kept.
 
 ### Measured (2026-11-10, huggingface_hub 2.4.0)
 
@@ -66,6 +98,19 @@ dropped, every label a letter-digit-hyphen label, `cdn.hf.co` itself or
 (`evilcdn.hf.co`, `cdn.hf.co.evil.example` are refused; tested). No measured
 metadata file of the surveyed repositories left `huggingface.co`.
 
+A review asked whether an LFS-tracked file not migrated to Xet would go to
+another CDN (`cdn-lfs*.hf.co`, `cas-bridge.xethub.hf.co`). Probed on
+2026-11-10 (`paths-info` API, then one ranged GET without a token):
+
+| Request | Answer |
+| :------ | :----- |
+| `paths-info` of LFS files in `google-bert/bert-base-uncased`, `hf-internal-testing/tiny-random-bert`, `julien-c/dummy-unknown` (old, small repositories) | every LFS file carries a `xetHash`: none found that is LFS-only |
+| `huggingface.co/julien-c/dummy-unknown/resolve/main/flax_model.msgpack` (58 KB, LFS pointer, Xet-backed) | `302` to `https://us.aws.cdn.hf.co/xet-bridge-us/<repo-id>/<xet-hash>?...&Expires=&Policy=&Signature=&Key-Pair-Id=`, `X-Linked-Size: 58499`, `X-Xet-Hash`; then `206` (range) |
+
+An LFS file now goes to the same `cdn.hf.co` host as a Xet one; no
+`cdn-lfs` or `cas-bridge` host appeared, so `CDN_DOMAINS` is unchanged. If
+one ever does, the read warns `url-unsafe` for that file and goes on.
+
 ### `HF_ENDPOINT`
 
 The Hub is `huggingface_hub.constants.ENDPOINT` (`_hub_files.hub_endpoint`),
@@ -82,11 +127,20 @@ default is one `INFO:` per read (`url-moved/hf-endpoint`).
 token to it. Pitloom does not: an endpoint whose scheme is not in
 `_http_fetch.ALLOWED_SCHEMES` (https), or holding user information, a query
 or a fragment, is refused with one `WARNING:` per read
-(`url-unsafe/hf-endpoint`, the credentials masked) and no file is fetched;
-falling back to `huggingface.co` would contradict the user's choice of Hub.
-A plain-http mirror is a loopback or test setup, where losing the files is
-cheap; a token over http is not. The API calls still go wherever the library
-sends them.
+(`url-unsafe/hf-endpoint`, the credentials masked) and nothing is asked of
+the Hub (`HubFiles.asks_hub`): no file, and no `model_info()`,
+`list_repo_files()` or `dataset_info()`, which `huggingface_hub` would send
+to the same endpoint with the token (review round A reproduced that with a
+loopback http endpoint; a test now asserts it sees no request). The model
+keeps its id and URL only, and no other line is said (the "without a
+pinned revision" warnings were said for downloads that never happened).
+Falling back to `huggingface.co` would contradict the user's choice of Hub.
+A plain-http mirror is a loopback or test setup, where losing the metadata
+is cheap; a token over http is not. The default Hub however spelt
+(`https://HuggingFace.co/`, port 443) is the default, said nothing of; a
+look-alike (`huggingface.co.evil.example`, `huggingface.co:8443`) is another
+Hub, one `INFO:`; `https://huggingface.co@evil.example` is refused (user
+information).
 
 ### Token
 

@@ -21,9 +21,10 @@ Read, each 1:1 and only when stated:
   as a model's owner is.
 
 Called by :func:`~pitloom.extract.remote.huggingface.read_huggingface`
-only, so a dataset is looked up exactly when its model is. A failed request
-is one ``WARNING:`` and the dataset keeps its name and download URL; a field
-the dataset does not state is left unset, silently.
+only, so a dataset is looked up exactly when its model is (and, with the
+Hub refused, never: :attr:`~pitloom.extract.remote._hub_files.HubFiles.asks_hub`).
+A failed request is one ``WARNING:`` and the dataset keeps its name and
+download URL; a field the dataset does not state is left unset, silently.
 
 See also: :mod:`pitloom.extract.remote.huggingface_fetch` (the model's own
 Hub requests) and :mod:`pitloom.extract.dataset.card` (a local dataset card).
@@ -54,7 +55,7 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.remote._card_description import card_description
-from pitloom.extract.remote._hub_files import HubFiles, local_reason
+from pitloom.extract.remote._hub_files import FileKind, HubFiles, local_reason
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 from pitloom.messages import Cap, warn_over_cap
 
@@ -79,6 +80,8 @@ HUB_DATASET_CARD = CardKind(
     field_loss_suffix("skipped", *_FIELDS_SKIPPED),
     use="for the Hugging Face dataset card",
 )
+#: How a Hub dataset card is downloaded: within its own cap.
+_CARD_FILE = FileKind(HUB_DATASET_CARD.cap, "dataset card not read")
 
 
 def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
@@ -104,14 +107,15 @@ def _load_dataset_info(dataset_id: str) -> dict[str, Any] | None:
 def _load_dataset_card(
     hub: HubFiles, dataset_id: str, revision: str | None
 ) -> tuple[str | None, dict[str, Any]]:
-    """The card text, within :data:`MODEL_CARD_MAX_BYTES`, and frontmatter of
-    *dataset_id* at *revision*; ``(None, {})`` when the repository has no
-    card (silently) or it cannot be fetched or read (one ``WARNING:``)."""
+    """The card text and frontmatter of *dataset_id* at *revision*, the
+    card downloaded and read within :data:`MODEL_CARD_MAX_BYTES`;
+    ``(None, {})`` when the repository has no card (silently) or it cannot
+    be fetched or read (one ``WARNING:``)."""
     local_path = hub.read(
         dataset_id,
         "README.md",
         revision=revision,
-        outcome="dataset card not read",
+        kind=_CARD_FILE,
         repo_type="dataset",
     )
     if local_path is None:
@@ -192,7 +196,10 @@ def add_hub_dataset_metadata(
     model). A repeat of a dataset (:func:`~pitloom.core.dataset_names.dataset_key`)
     is not looked up again: the caller lists each dataset once
     (:func:`~pitloom.core.dataset_names.distinct_dataset_names`). Each card
-    is downloaded by *hub*."""
+    is downloaded by *hub*. With the Hub refused (:attr:`HubFiles.asks_hub`),
+    none is looked up, said by nothing more (the refusal was said once)."""
+    if not hub.asks_hub:
+        return
     ids = list(dict.fromkeys(dataset_key(r.metadata.name) for r in datasets))
     ids = [i for i in ids if is_hub_dataset_id(i)]
     if len(ids) > MAX_HUB_DATASET_LOOKUPS:

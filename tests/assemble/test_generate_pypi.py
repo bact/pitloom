@@ -36,13 +36,16 @@ from pitloom.assemble import (
     target_is_pypi_url,
     target_resolves_to_project,
 )
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.config import PitloomConfig
 from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
 from pitloom.id_registry import IdRegistry
 from tests._fake_pypi_server import Dist, FakePypi
+from tests._model_fixtures import fixture_path
 from tests._spdx3_validate import assert_spdx3_valid
+from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.assemble._pypi_dists import (
     CREATION,
     NAME,
@@ -193,6 +196,43 @@ def test_the_download_sbom_is_the_local_one_but_for_the_record(
     assert removed == 2  # the Annotation and the comment line ("both")
     assert kept == graph(local)
     assert len(graph(downloaded)) == len(graph(local)) + 1
+
+
+@pytest.mark.parametrize("trust", [False, True], ids=["gated", "trusted"])
+def test_a_downloaded_wheels_models_are_the_local_ones_but_for_the_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, trust: bool
+) -> None:
+    """The same drift guard with a gated (fastText) and a non-gated
+    (safetensors) model in the wheel: the download is gated as the local
+    wheel is, and read as it is with ``trust_model_files``."""
+    members = {
+        "demo/sentimentdemo.bin": fixture_path(AiModelFormat.FASTTEXT).read_bytes(),
+        "demo/t.safetensors": safetensors_bytes(metadata={"k": "v"}),
+    }
+    wheel = write_model_wheel(tmp_path / "local", members)
+    assert wheel.name == WHEEL_NAME
+    local = generate_wheel_sbom(
+        wheel, creation_metadata=CREATION, trust_model_files=trust
+    )
+    (tmp_path / "pypi").mkdir()
+    runs: list[str] = []
+    for fake, _temp in fake_pypi(monkeypatch, tmp_path / "pypi"):
+        publish_demo(fake, {VERSION: [Dist(WHEEL_NAME, wheel.read_bytes())]})
+        runs.append(
+            generate_pypi_sbom(URL, creation_metadata=CREATION, trust_model_files=trust)
+        )
+    assert len(runs) == 1
+    kept, removed = without_record(runs[0])
+    assert removed == 2
+    assert kept == graph(local)
+    packages = {e["name"]: e for e in graph(local) if e["type"] == "ai_AIPackage"}
+    assert len(packages) == 2
+    # Only a trusted read gives the fastText model its hyperparameters.
+    read = {
+        name: any(k.startswith("ai_hyperparameter") for k in e)
+        for name, e in packages.items()
+    }
+    assert read == {"sentimentdemo": trust, "t": True}, packages
 
 
 @pytest.mark.parametrize("kind", [WHEEL, SDIST])

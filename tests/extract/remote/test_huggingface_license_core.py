@@ -238,7 +238,7 @@ def test_detect_license_from_hf_files_failure_logs_and_continues(
             return_value=["LICENSE"],
         ),
         patch_hub_fetch(serve),
-        patch("pathlib.Path.read_text", side_effect=OSError("read failed"))
+        patch("pathlib.Path.open", side_effect=OSError("read failed"))
         if failing == "read"
         else contextlib.nullcontext(),
     ):

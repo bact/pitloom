@@ -64,8 +64,36 @@ REFUSED: list[tuple[str, Line]] = [
         PYPI_FILE_LINK_LINE,
     ),
     (f"https://Files.PythonHosted.org./packages/{SDIST_NAME}", PYPI_FILE_LINK_LINE),
+    # Spellings a resolver (curl, git) maps to the PyPI host: an ideographic,
+    # full-width or half-width ideographic dot, a percent-encoded one.
+    (f"https://test\u3002pypi.org/project/{NAME}/", PYPI_INDEX_LINE),
+    (f"https://test.pypi.org%2E/project/{NAME}/", PYPI_INDEX_LINE),
+    (f"https://pypi%2Epython%2eorg/pypi/{NAME}", PYPI_OLD_HOST_LINE),
+    (
+        f"https://files\uff0epythonhosted\uff61org/packages/{WHEEL_NAME}",
+        PYPI_FILE_LINK_LINE,
+    ),
 ]
-REFUSED_IDS = ["test-index", "test-index-dot", "old-host", "file-link", "file-link-dot"]
+REFUSED_IDS = [
+    "test-index",
+    "test-index-dot",
+    "old-host",
+    "file-link",
+    "file-link-dot",
+    "test-index-ideographic",
+    "test-index-encoded-dot",
+    "old-host-encoded",
+    "file-link-full-width",
+]
+#: ``pypi.org`` as a resolver maps it, each read as ``pypi.org`` and never
+#: taken for a Git host.
+SPELLED = [
+    f"https://pypi\u3002org/project/{NAME}/{VERSION}/",
+    f"https://pypi\uff0eorg/project/{NAME}/{VERSION}/",
+    f"https://pypi%2Eorg/project/{NAME}/{VERSION}/",
+    f"https://pypi.org%2e/project/{NAME}/{VERSION}/",
+]
+SPELLED_IDS = ["ideographic", "full-width", "encoded", "encoded-trailing"]
 
 
 def wheel_bytes(name: str = NAME, version: str = VERSION) -> bytes:

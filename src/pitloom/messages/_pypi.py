@@ -305,16 +305,17 @@ PYPI_URL_UNUSABLE: Final = Message(
     lines=(EMBED_URL_LINE, MODEL_URL_LINE, GIT_PYPI_URL_LINE),
     summary="A PyPI URL was given to a command or option that cannot use it: "
     "loom wheel --embed (it would write into a temporary copy of the wheel), "
-    "loom model (a release is not a model), or a library call that fetches a "
-    "Git repository (generate_git_sbom(), generate_git_project_sbom(), "
-    "fetch_git_project()).",
+    "loom model or generate_model_sbom() (a release is not a model), or a "
+    "library call that fetches a Git repository (generate_git_sbom(), "
+    "generate_git_project_sbom(), fetch_git_project()).",
     did="Fetched nothing and wrote no SBOM.",
     effect="not-written",
     actor="user",
     advice="Tell the user which command or option cannot take the URL. For "
     "--embed they download the wheel and run 'loom wheel FILE --embed'; for "
     "a model they use 'loom wheel URL' or 'loom project URL'; from Python, "
-    "generate_pypi_sbom() (or generate()) instead of the Git call. Do not "
+    "generate_pypi_sbom() (or generate()) instead of the Git or model call. "
+    "Do not "
     "download or embed for them; ask first, and with nobody to ask, report "
     "it only.",
     subject_key="URL",

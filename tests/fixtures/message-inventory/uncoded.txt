@@ -131,7 +131,7 @@ pitloom.extract.remote.git 10
 pitloom.extract.remote.git_url 3
 pitloom.extract.remote.huggingface 2
 pitloom.extract.remote.huggingface_dataset 2
-pitloom.extract.remote.huggingface_fetch 6
+pitloom.extract.remote.huggingface_fetch 5
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
 pitloom.id_registry._format 25

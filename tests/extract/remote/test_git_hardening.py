@@ -75,10 +75,18 @@ def test_git_runs_without_lfs_and_with_a_clean_environment(
 ) -> None:
     """git-lfs would fetch from the address a repository's ``.lfsconfig``
     names, past the URL check; a ``GIT_DIR`` of the caller (a git hook) would
-    point git at another repository."""
+    point git at another repository; a language of the caller's would
+    translate the messages the network classifier reads."""
     seen = tmp_path / "seen.txt"
     _fake_git(tmp_path, monkeypatch, f'echo "$@" > {seen}; env >> {seen}')
     monkeypatch.setenv("GIT_DIR", "/elsewhere/.git")
+    for name, value in (
+        ("LC_ALL", "de_DE.UTF-8"),
+        ("LANGUAGE", "fr"),
+        ("LC_MESSAGES", "fr_FR.UTF-8"),
+        ("LANG", "fr_FR.UTF-8"),
+    ):
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
     monkeypatch.setenv("GIT_AUTHOR_NAME", "kept")
     GitRunner().run(["ls-remote"], "ls-remote", echo=False)
@@ -94,6 +102,8 @@ def test_git_runs_without_lfs_and_with_a_clean_environment(
     assert env["GIT_LFS_SKIP_SMUDGE"] == "1" and env["GIT_TERMINAL_PROMPT"] == "0"
     assert env["GIT_ALLOW_PROTOCOL"] == "http:https"
     assert "GIT_DIR" not in env and "GIT_CONFIG_COUNT" not in env
+    assert env["LC_ALL"] == "C"
+    assert not {"LANGUAGE", "LC_MESSAGES", "LANG"} & set(env)
     assert env["GIT_AUTHOR_NAME"] == "kept"  # only what repoints git is removed
 
 
@@ -476,15 +486,6 @@ def test_nothing_is_watched_without_a_directory_or_a_cap(
     _fake_git(tmp_path, monkeypatch, 'head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/p"')
     GitRunner(max_bytes=100).run(["clone"], "clone", echo=False)
     GitRunner().run(["clone"], "clone", echo=False, watch=str(watched))
-
-
-@pytest.mark.parametrize("limit", [0, -1])
-def test_a_cap_that_is_not_positive_is_refused(limit: int) -> None:
-    with pytest.raises(ValueError, match="positive integer"):
-        with fetch_git_project(
-            "https://h/o/r", policy=RemoteFetchPolicy(max_bytes=limit)
-        ):
-            pytest.fail("not fetched")
 
 
 @needs_git

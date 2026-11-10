@@ -65,7 +65,7 @@ most one prefix from the table of prefixes.
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
 | [`pypi-response-invalid`](#pypi-response-invalid) | ERROR, WARNING | The answer of the PyPI JSON API is not one Pitloom reads: it is for another project, lacks a field it needs, or declares no SHA-256 digest for the file. A file of a release whose entry is not valid is left out of the choice, with a warning. | 0.24.0 |
 | [`pypi-url-invalid`](#pypi-url-invalid) | ERROR | A URL on a PyPI host is not one Pitloom reads: it is not a project or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/), is not https, holds a user name or password, is on another index (test.pypi.org) or PyPI's old address (pypi.python.org), is a link to a file (files.pythonhosted.org), or names a project or version that is not valid. | 0.24.0 |
-| [`pypi-url-unusable`](#pypi-url-unusable) | ERROR | A PyPI URL was given to a command or option that cannot use it: loom wheel --embed (it would write into a temporary copy of the wheel), loom model (a release is not a model), or a library call that fetches a Git repository (generate_git_sbom(), generate_git_project_sbom(), fetch_git_project()). | 0.24.0 |
+| [`pypi-url-unusable`](#pypi-url-unusable) | ERROR | A PyPI URL was given to a command or option that cannot use it: loom wheel --embed (it would write into a temporary copy of the wheel), loom model or generate_model_sbom() (a release is not a model), or a library call that fetches a Git repository (generate_git_sbom(), generate_git_project_sbom(), fetch_git_project()). | 0.24.0 |
 | [`query-no-effect`](#query-no-effect) | INFO | The PyPI URL given holds a query or a fragment (a tab of the page), which names no project or release. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
 | [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL, or the models of a wheel downloaded from a PyPI URL, are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
@@ -84,6 +84,7 @@ most one prefix from the table of prefixes.
 | [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
 | [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
 | [`url-unsafe/hf-endpoint`](#url-unsafehf-endpoint) | WARNING | huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL, or one holding user information, a query or a fragment. The Hugging Face token must not be sent over plain http. | 0.24.0 |
+| [`url-unsafe/host-spelling`](#url-unsafehost-spelling) | ERROR | A Git URL's host holds a non-ASCII character (a full-width or ideographic dot, a full-width letter, an international name not in its xn-- form) or a percent-encoding. git (through curl) maps it to another host than the URL's text names, past every check that reads that text (a PyPI host is never cloned). | 0.24.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
 | [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
@@ -974,16 +975,16 @@ A line may start with one prefix before its text:
   nothing for it (exit 1).
 - **Means**: A PyPI URL was given to a command or option that cannot use it:
   loom wheel --embed (it would write into a temporary copy of the wheel), loom
-  model (a release is not a model), or a library call that fetches a Git
-  repository (generate_git_sbom(), generate_git_project_sbom(),
-  fetch_git_project()).
+  model or generate_model_sbom() (a release is not a model), or a library call
+  that fetches a Git repository (generate_git_sbom(),
+  generate_git_project_sbom(), fetch_git_project()).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Fetched nothing and wrote no SBOM.
 - **Tell the user**: which command or option cannot take the URL. For --embed
   they download the wheel and run 'loom wheel FILE --embed'; for a model they
   use 'loom wheel URL' or 'loom project URL'; from Python, generate_pypi_sbom()
-  (or generate()) instead of the Git call. Do not download or embed for them;
-  ask first, and with nobody to ask, report it only.
+  (or generate()) instead of the Git or model call. Do not download or embed for
+  them; ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
@@ -1331,17 +1332,41 @@ A line may start with one prefix before its text:
   or one holding user information, a query or a fragment. The Hugging Face token
   must not be sent over plain http.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
-- **Pitloom did**: Fetched no file of the Hugging Face repository (config.json,
-  the card, a licence file) and read the rest; the SBOM lacks what those files
-  hold.
-- **Tell the user**: HF_ENDPOINT is not used for files, and why, as the line
-  says. They set it to an https URL without credentials, or unset it for
+- **Pitloom did**: Sent no request to the Hub (huggingface_hub would send the
+  token to the same endpoint): no file of the Hugging Face repository
+  (config.json, the card, a licence file), no model_info(), dataset_info() or
+  file listing. The model keeps its id and Hub URL only; the SBOM lacks
+  everything else the Hub states.
+- **Tell the user**: HF_ENDPOINT is not used, and why, as the line says. They
+  set it to an https URL without credentials, or unset it for
   https://huggingface.co, and run again. Do not change it for them; ask first,
   and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
-  WARNING: URL=<url>: HF_ENDPOINT not used for files (<why>); no file of the repository fetched [url-unsafe/hf-endpoint]
+  WARNING: URL=<url>: HF_ENDPOINT not used (<why>); nothing asked of the Hub [url-unsafe/hf-endpoint]
+  ```
+
+### `url-unsafe/host-spelling`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A Git URL's host holds a non-ASCII character (a full-width or
+  ideographic dot, a full-width letter, an international name not in its xn--
+  form) or a percent-encoding. git (through curl) maps it to another host than
+  the URL's text names, past every check that reads that text (a PyPI host is
+  never cloned).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Started no git process, fetched nothing and wrote no SBOM
+  (git.url-invalid).
+- **Tell the user**: the host must be written as it is resolved. They write it
+  in ASCII, an international domain name in its xn-- (punycode) form, and run
+  again. Do not rewrite the URL for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: the host is not plain ASCII or is percent-encoded, which git would resolve to a host the URL does not spell; write it in ASCII (an international name in its xn-- form); nothing fetched [url-unsafe/host-spelling]
   ```
 
 ### `usage-unparseable`

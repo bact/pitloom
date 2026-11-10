@@ -16,8 +16,8 @@ import logging
 import os
 import shutil
 import stat
+import sys
 from pathlib import Path
-from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -121,7 +121,7 @@ def test_temp_dir_left_behind_warns_once_and_never_raises(
     """The block's result stands: one ``WARNING:`` names the directory, not
     its path."""
     if raises:
-        monkeypatch.setattr(temp_dirs, "shutil", SimpleNamespace(rmtree=_deep_rmtree))
+        monkeypatch.setattr(temp_dirs, "rmtree", _deep_rmtree)
     else:
         monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, _prefix: None)
     with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
@@ -155,7 +155,7 @@ def test_a_read_only_file_is_made_writable_and_removed(
     """A Git pack file is read-only; on Windows rmtree leaves it, so the
     removal makes what is left writable and tries again, quietly. A
     read-only folder, the directory itself included, too."""
-    monkeypatch.setattr(temp_dirs, "shutil", SimpleNamespace(rmtree=_windows_rmtree))
+    monkeypatch.setattr(temp_dirs, "rmtree", _windows_rmtree)
     with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
         pack = path / ".git" / "objects" / "pack"
         pack.mkdir(parents=True)
@@ -182,3 +182,76 @@ def test_making_writable_leaves_a_link_target_alone(tmp_path: Path) -> None:
     temp_dirs._make_writable(inside)  # pylint: disable=protected-access
     assert os.stat(outside).st_mode == before
     assert os.stat(inside / "ro").st_mode & stat.S_IWUSR
+
+
+#: Whether a real junction can be made (``_winapi.CreateJunction``).
+_WINDOWS = sys.platform == "win32"
+
+
+def _fake_junction(monkeypatch: pytest.MonkeyPatch, junction: Path) -> list[str]:
+    """Make :mod:`pitloom.core.temp_dirs` see *junction*, a plain folder, as
+    Windows sees a junction: no symbolic link, a reparse point. Returns the
+    entries it looked at."""
+    real = os.lstat
+    seen: list[str] = []
+
+    # pylint: disable-next=too-few-public-methods
+    class _Junction:
+        st_mode = stat.S_IFDIR | 0o500
+        st_file_attributes = stat.FILE_ATTRIBUTE_REPARSE_POINT
+
+    def lstat(entry: str) -> object:
+        seen.append(os.path.basename(entry))
+        return _Junction() if Path(entry) == junction else real(entry)
+
+    monkeypatch.setattr(temp_dirs, "lstat", lstat)
+    return seen
+
+
+@pytest.mark.skipif(_WINDOWS, reason="POSIX modes; Windows has the real test")
+def test_making_writable_neither_changes_nor_enters_a_junction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``os.path.islink`` is false for a junction, and before Python 3.12
+    ``os.walk`` descends into one: what it leads to (anywhere on the disk)
+    keeps its mode."""
+    inside = tmp_path / "t-dir"
+    junction = inside / "junction"
+    (junction / "below").mkdir(parents=True)
+    (junction / "f").write_bytes(b"host file")
+    (inside / "ro").write_bytes(b"x")
+    for read_only in (junction / "f", inside / "ro"):
+        os.chmod(read_only, stat.S_IREAD)
+    os.chmod(junction, 0o500)
+    seen = _fake_junction(monkeypatch, junction)
+    temp_dirs._make_writable(inside)  # pylint: disable=protected-access
+    assert "junction" in seen and not {"below", "f"} & set(seen)
+    assert stat.S_IMODE(os.stat(junction).st_mode) == 0o500
+    assert not os.stat(junction / "f").st_mode & stat.S_IWUSR
+    assert os.stat(inside / "ro").st_mode & stat.S_IWUSR
+    os.chmod(junction, 0o700)
+
+
+def test_an_entry_that_cannot_be_looked_at_is_left_alone(tmp_path: Path) -> None:
+    gone = str(tmp_path / "gone")
+    assert temp_dirs._is_link(gone)  # pylint: disable=protected-access
+    assert not temp_dirs._is_link(str(tmp_path))  # pylint: disable=protected-access
+
+
+@pytest.mark.skipif(not _WINDOWS, reason="a junction is Windows'")
+def test_a_real_junction_is_left_alone(tmp_path: Path) -> None:  # pragma: no cover
+    import _winapi  # pylint: disable=import-outside-toplevel,import-error
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "f").write_bytes(b"host file")
+    os.chmod(outside / "f", stat.S_IREAD)
+    inside = tmp_path / "t-dir"
+    inside.mkdir()
+    _winapi.CreateJunction(  # type: ignore[attr-defined, unused-ignore]
+        str(outside), str(inside / "junction")
+    )
+    temp_dirs._make_writable(inside)  # pylint: disable=protected-access
+    assert not os.stat(outside / "f").st_mode & stat.S_IWUSR
+    temp_dirs.rmtree_quietly(inside, "")
+    assert (outside / "f").is_file()

@@ -66,3 +66,44 @@ def test_the_policy_is_frozen() -> None:
     policy = RemoteFetchPolicy()
     with pytest.raises(AttributeError):
         policy.offline = True  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"max_bytes": 0}, "max_bytes must be a positive integer, got 0"),
+        ({"max_bytes": -1}, "max_bytes must be a positive integer, got -1"),
+        ({"max_bytes": True}, "max_bytes must be an integer, got bool"),
+        ({"max_bytes": 1.5}, "max_bytes must be an integer, got float"),
+        ({"max_bytes": "5"}, "max_bytes must be an integer, got str"),
+        ({"offline": 1}, "offline must be a bool, got int"),
+        ({"offline": None}, "offline must be a bool, got NoneType"),
+        ({"check_url": "https://h/"}, "check_url must be callable or None"),
+    ],
+    ids=["zero", "negative", "bool", "float", "str", "offline-int",
+         "offline-none", "check-str"],
+)  # fmt: skip
+def test_a_policy_made_by_hand_is_checked(
+    kwargs: dict[str, object], match: str
+) -> None:
+    """Direct construction (a library caller's) is checked as the resolver's
+    value is: a ``ValueError``, never a ``TypeError`` later in a route."""
+    with pytest.raises(ValueError, match=match):
+        RemoteFetchPolicy(**kwargs)  # type: ignore[arg-type]
+
+
+def test_a_valid_policy_made_by_hand_is_kept() -> None:
+    # pylint: disable-next=too-few-public-methods
+    class Index:
+        """An integer that is no ``int`` (a ``numpy.int64``)."""
+
+        def __index__(self) -> int:
+            return 7
+
+    def check(_url: str) -> None:
+        return None
+
+    policy = RemoteFetchPolicy(Index(), True, check)  # type: ignore[arg-type]
+    assert isinstance(policy.max_bytes, int) and policy.max_bytes == 7
+    assert policy.offline is True and policy.check_url is check
+    assert RemoteFetchPolicy(1).max_bytes == 1

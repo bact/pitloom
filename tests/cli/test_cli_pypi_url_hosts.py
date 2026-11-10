@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The hosts of the PyPI family on the command line: ``pypi.org`` with a
-trailing dot is read as ``pypi.org``; another index and PyPI's old address
+trailing dot, or a dot spelled as a resolver maps it, is read as
+``pypi.org``; another index and PyPI's old address
 are refused with ``[pypi-url-invalid]`` by ``loom wheel``, ``loom project``
 and ``loom generate`` (``--offline`` too: the URL is read first), and with
 ``[pypi-url-unusable]`` by ``loom model``. Nothing is fetched or cloned.
@@ -29,7 +30,7 @@ from pitloom.messages import (
     Line,
 )
 from tests._fake_pypi_server import FakePypi
-from tests.assemble._pypi_dists import DOTTED, REFUSED, REFUSED_IDS, URL
+from tests.assemble._pypi_dists import DOTTED, REFUSED, REFUSED_IDS, SPELLED, URL
 from tests.cli._pypi_cli import assert_clean_stderr, pinned_fake, run
 
 pytestmark = pytest.mark.loopback
@@ -84,16 +85,16 @@ def test_a_command_refuses_another_pypi_host(
 
 
 @pytest.mark.parametrize("command", ["wheel", "project", "generate"])
-def test_a_trailing_dot_reads_pypi_org(
+def test_a_spelling_of_pypi_org_reads_pypi_org(
     command: str,
     fake: FakePypi,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sboms: list[bytes] = []
-    for url in (DOTTED, URL):
+    for url in (DOTTED, *SPELLED, URL):
         out = tmp_path / f"out{len(sboms)}.json"
         assert run(monkeypatch, tmp_path, command, url, "-o", str(out)) == 0
         sboms.append(out.read_bytes())
     assert fake.seen
-    assert sboms[0] == sboms[1]
+    assert len(set(sboms)) == 1

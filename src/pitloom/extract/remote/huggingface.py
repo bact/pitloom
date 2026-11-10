@@ -182,11 +182,16 @@ def read_huggingface(
             ``openthaigpt/openthaigpt-r1-32b-instruct``).
         policy: What the downloads may do
             (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`): each
-            metadata file is capped at its ``max_bytes`` and passed, with each
-            redirect target, to its ``check_url``; with ``offline`` nothing
-            is fetched. The ``model_info()``, ``dataset_info()`` and file
-            listing requests are ``huggingface_hub``'s own and pass through
-            neither.
+            metadata file is capped at the smaller of its ``max_bytes`` and
+            the file's own cap
+            (:func:`~pitloom.extract.remote._hub_files.file_cap`) and
+            passed, with each redirect target, to its ``check_url``; with
+            ``offline`` nothing is fetched. The ``model_info()``,
+            ``dataset_info()`` and file listing requests are
+            ``huggingface_hub``'s own and pass through neither. With
+            ``HF_ENDPOINT`` refused (not https, or holding credentials),
+            nothing at all is asked of the Hub: the model keeps its id and
+            URL only, with one ``WARNING:``.
 
     Returns:
         :class:`~pitloom.core.ai_metadata.AiModelMetadata` populated from all

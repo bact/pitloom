@@ -432,8 +432,7 @@ def fetch_pypi_file(
 
     Raises:
         ValueError: *kind* is neither (an
-            :class:`~pitloom.core.internal_error.InternalError`), or the
-            policy's ``max_bytes`` is not positive.
+            :class:`~pitloom.core.internal_error.InternalError`).
         CodedValueError: ``pypi-url-invalid``, from
             :func:`~pitloom.extract.remote.pypi_url.parse_pypi_url`.
         RemoteSourceError: ``pypi.offline`` (``offline-unusable``) and every
@@ -442,10 +441,6 @@ def fetch_pypi_file(
     """
     if kind not in (WHEEL, SDIST):
         raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
-    if policy.max_bytes <= 0:
-        raise ValueError(
-            f"max_bytes must be a positive integer, got {policy.max_bytes}"
-        )
     target = parse_pypi_url(url)
     if policy.offline:
         error = remote_error(

@@ -11,6 +11,8 @@ import dataclasses
 import logging
 import os
 import tempfile
+import weakref
+from collections.abc import Callable
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -223,7 +225,8 @@ def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
     the directory and the file.
 
     Not a context manager: the directory must outlive initialize() and be
-    removed in finalize(), after the wheel is packaged, by
+    removed in finalize(), after the wheel is packaged (or, when Hatchling
+    never calls it, by a ``weakref.finalize`` of the hook), by
     :func:`~pitloom.core.temp_dirs.remove_temp_dir`, which never raises
     (``TemporaryDirectory.cleanup()`` raises when a file is still held open
     on Windows, failing a build whose wheel is already written).
@@ -312,6 +315,9 @@ class PitloomBuildHook(_PitloomBuildHookBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._staging_dir: Path | None = None
+        #: The staging directory's removal, run once: by :meth:`finalize`,
+        #: else when the hook is collected or the process exits.
+        self._remove_staging: Callable[[], object] | None = None
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Generate the SBOM and register it for injection into the wheel.
@@ -455,6 +461,13 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             raise
 
         self._staging_dir = staging_dir
+        # Hatchling calls finalize() only after the artifact is built: never
+        # with --hooks-only, nor when the build or a later hook fails. The
+        # directory is removed when the hook is collected or the process
+        # exits all the same.
+        self._remove_staging = weakref.finalize(
+            self, remove_temp_dir, staging_dir, _LOG_PREFIX
+        )
 
     def _check_name_is_free(
         self, sbom_filename: str, build_data: dict[str, Any]
@@ -492,10 +505,13 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         artifact_path: str,
     ) -> None:
         """Remove the temporary staging directory; one that cannot be fully
-        removed is one ``WARNING:``, never a failed build."""
-        if self._staging_dir is not None:
-            staging_dir, self._staging_dir = self._staging_dir, None
-            remove_temp_dir(staging_dir, _LOG_PREFIX)
+        removed is one ``WARNING:``, never a failed build. The removal runs
+        once: when Hatchling never calls this (``--hooks-only``, a failed
+        build), it runs when the hook is collected or the process exits."""
+        remove, self._remove_staging = self._remove_staging, None
+        self._staging_dir = None
+        if remove is not None:
+            remove()
 
 
 @hookimpl

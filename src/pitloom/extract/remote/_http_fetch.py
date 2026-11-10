@@ -94,6 +94,7 @@ __all__ = [
     "CutShortError",
     "NotFoundError",
     "Policy",
+    "fetch_capped",
     "fetch_json",
     "fetch_to_file",
     "remote_error",
@@ -420,25 +421,35 @@ def fetch_json(url: str, policy: Policy) -> dict[str, Any]:
 def fetch_to_file(
     url: str, policy: Policy, dest: Path, *, max_bytes: int, file: str
 ) -> tuple[str, int]:
-    """Download *url* into the new file *dest*, in
-    :data:`FILE_DEADLINE_SECONDS`, and return the SHA-256 (lower-case hex)
-    and the size of the bytes received. *file* names the file in a message.
+    """:func:`fetch_capped` under the ``max-download-bytes`` cap
+    *max_bytes*, in :data:`FILE_DEADLINE_SECONDS`."""
+    cap = Cap(max_bytes, "byte", MAX_DOWNLOAD_BYTES_KEY)
+    return fetch_capped(
+        url, policy, dest, cap=cap, file=file, deadline=FILE_DEADLINE_SECONDS
+    )
+
+
+def fetch_capped(
+    url: str, policy: Policy, dest: Path, *, cap: Cap, file: str, deadline: float
+) -> tuple[str, int]:
+    """Download *url* into the new file *dest*, in *deadline* seconds
+    (redirects included), and return the SHA-256 (lower-case hex) and the
+    size of the bytes received. *file* names the file in a message.
     *dest* is left partly written on a failure (the caller's temporary
     directory removes it).
 
     Raises:
         NotFoundError: The server answered 404 or 410.
-        RemoteSourceError: ``<route>.too-large`` (``over-cap``): more than
-            *max_bytes* received, whatever ``Content-Length`` declared;
-            ``<route>.save-failed`` (``temp-dir-unusable``): *dest* cannot be
-            created or written (a full disk, a path too long), which is no
-            network failure; past the deadline, a failed read, or as
-            :func:`_open`.
+        RemoteSourceError: ``<route>.too-large`` (``over-cap``, naming
+            *cap*): more than its limit received, whatever
+            ``Content-Length`` declared; ``<route>.save-failed``
+            (``temp-dir-unusable``): *dest* cannot be created or written (a
+            full disk, a path too long), which is no network failure; past
+            the deadline, a failed read, or as :func:`_open`.
     """
     route = policy.route
 
     def over() -> RemoteSourceError:
-        cap = Cap(max_bytes, "byte", MAX_DOWNLOAD_BYTES_KEY)
         return remote_error(
             f"{route}.too-large",
             OVER_CAP,
@@ -449,14 +460,14 @@ def fetch_to_file(
 
     digest = hashlib.sha256()
     size = 0
-    with Watch(FILE_DEADLINE_SECONDS) as watch:
+    with Watch(deadline) as watch:
         response = _open(url, policy, watch)
         with response:
             # Every read error is a RemoteSourceError from _chunks: an
             # OSError here is the local file's.
             try:
                 with dest.open("xb") as out:
-                    chunks = _chunks(response, url, watch, max_bytes, over, route)
+                    chunks = _chunks(response, url, watch, cap.limit, over, route)
                     for chunk in chunks:
                         digest.update(chunk)
                         size += len(chunk)

@@ -20,15 +20,24 @@ import functools
 import logging
 import os
 import shutil
+import stat
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
+from os import lstat
 from pathlib import Path
 
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
+
+
+def rmtree(path: Path | str, *, ignore_errors: bool = False) -> None:
+    """``shutil.rmtree``, looked up when called: the removal every temporary
+    directory of Pitloom's goes through, which a test makes fail here, not
+    on :mod:`shutil` (which every thread shares)."""
+    shutil.rmtree(path, ignore_errors=ignore_errors)
 
 
 def registered_temp_dir(
@@ -101,10 +110,10 @@ def rmtree_quietly(path: Path, log_prefix: str) -> None:
     (Python 3.10's rmtree recurses; the directory's creator controls its
     depth)."""
     try:
-        shutil.rmtree(path, ignore_errors=True)
-        if os.path.isdir(path) and not os.path.islink(path):
+        rmtree(path, ignore_errors=True)
+        if os.path.isdir(path) and not _is_link(str(path)):
             _make_writable(path)
-            shutil.rmtree(path, ignore_errors=True)
+            rmtree(path, ignore_errors=True)
     except Exception as exc:  # pylint: disable=broad-exception-caught
         log.debug("%sremoving %s failed: %r", log_prefix, quote_source(path.name), exc)
 
@@ -112,17 +121,35 @@ def rmtree_quietly(path: Path, log_prefix: str) -> None:
 def _make_writable(path: Path) -> None:
     """Give *path* and every directory below it owner read, write and search
     permission, and every file owner read and write permission; a symbolic
-    link is left alone (``chmod`` would change its target). Top-down, so a
-    directory is opened once it can be. Each failure is passed over."""
+    link or a Windows junction (:func:`_is_link`) is left alone and not
+    descended into (``chmod`` would change its target, which may be
+    outside). Top-down, so a directory is opened once it can be. Each
+    failure is passed over."""
     with suppress(OSError):
         os.chmod(path, 0o700)
-    for here, folders, files in os.walk(path):
+    for here, folders, files in os.walk(path, followlinks=False):
+        # A junction is no symbolic link to os.walk (before Python 3.12 it
+        # descends into one): pruned here, top-down.
+        folders[:] = [n for n in folders if not _is_link(os.path.join(here, n))]
         for names, mode in ((folders, 0o700), (files, 0o600)):
             for name in names:
                 entry = os.path.join(here, name)
-                if not os.path.islink(entry):
+                if not _is_link(entry):
                     with suppress(OSError):
                         os.chmod(entry, mode)
+
+
+def _is_link(entry: str) -> bool:
+    """Whether *entry* is a symbolic link, or any other reparse point (a
+    junction) on Windows, or cannot be looked at: one to leave alone."""
+    try:
+        info = lstat(entry)
+    except OSError:
+        return True
+    attributes = getattr(info, "st_file_attributes", 0)
+    return stat.S_ISLNK(info.st_mode) or bool(
+        attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+    )
 
 
 def warn_if_left_behind(path: Path, log_prefix: str) -> None:
