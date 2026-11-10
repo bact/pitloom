@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -88,7 +88,8 @@ The findings, by class, are in three parts:
   channel, 3.6 determinism.
 - [ai-model-scan-security-lessons-transparency-and-correctness.md](ai-model-scan-security-lessons-transparency-and-correctness.md):
   3.7 transparency, 3.8 correctness bugs found on the way, 3.9 found while
-  planning the next fixes, 3.10 Git LFS pointers.
+  planning the next fixes, 3.10 Git LFS pointers, 3.11 static usage scanning,
+  3.12 an opt-in that lifts a gate.
 
 ## 4. Principles that came out of it
 
