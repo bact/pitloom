@@ -21,6 +21,7 @@ import subprocess
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -43,6 +44,7 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.messages import OVER_CAP
 from tests._message_drift import raised_as
+from tests._pid import wait_pid_gone
 
 posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="a shell script stands in for git"
@@ -151,14 +153,6 @@ def test_git_stderr_is_capped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert len(str(excinfo.value)) <= 1100
 
 
-def _alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    return True
-
-
 @posix_only
 def test_ctrl_c_kills_what_git_started(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -189,10 +183,46 @@ def test_ctrl_c_kills_what_git_started(
         signal.signal(signal.SIGUSR1, previous)
         presser.join()
     pid = int(pid_file.read_text(encoding="utf-8"))
-    deadline = time.monotonic() + 30
-    while _alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert not _alive(pid)
+    assert wait_pid_gone(pid, 30), f"git's helper {pid} survived the interrupt"
+
+
+class _StartInterrupted(threading.Thread):
+    """A thread whose start() is where the Ctrl-C lands."""
+
+    def start(self) -> None:
+        raise KeyboardInterrupt
+
+
+@posix_only
+def test_ctrl_c_while_starting_the_reader_still_kills_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The interrupt can arrive before the read loop: git must still die."""
+    _fake_git(tmp_path, monkeypatch, "sleep 37")
+    started: list[subprocess.Popen[bytes]] = []
+
+    class Recording(subprocess.Popen):  # type: ignore[type-arg]
+        """Popen that remembers the process it started."""
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            super().__init__(*args, **kwargs)  # type: ignore[call-overload]
+            started.append(self)
+
+    # Patch the names the module under test uses, not the shared stdlib.
+    monkeypatch.setattr(
+        _git_run,
+        "subprocess",
+        types.SimpleNamespace(**{**vars(subprocess), "Popen": Recording}),
+    )
+    monkeypatch.setattr(
+        _git_run,
+        "threading",
+        types.SimpleNamespace(**{**vars(threading), "Thread": _StartInterrupted}),
+    )
+    with pytest.raises(KeyboardInterrupt):
+        GitRunner().run(["clone"], "clone", echo=False)
+    assert started, "git was never started"
+    assert wait_pid_gone(started[0].pid, 30), "git survived the interrupt"
 
 
 def test_a_message_never_carries_the_credentials_of_the_url() -> None:

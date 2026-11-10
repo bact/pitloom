@@ -40,6 +40,7 @@ from pitloom.core._models_wheel_build_subprocess import (
     run_build_subprocess,
 )
 from pitloom.core.build_signals import TerminationGuard
+from tests._pid import wait_pid_gone
 from tests.build_and_read_shared import pitloom_subprocess_env, posix_only
 
 # Deliberately not installed: with --skip-dependency-check the build must
@@ -126,46 +127,6 @@ def _make_project(root: Path, backend: str, source: str, requires: str) -> Path:
     return project
 
 
-def _pid_gone(pid: int) -> bool:
-    if sys.platform == "win32":  # os.kill() on Windows terminates, not probes
-        return _windows_pid_gone(pid)
-    try:
-        os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
-        return True
-    # Linux: a killed orphan answers kill(pid, 0) until init reaps it.
-    try:
-        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
-    except OSError:
-        return False
-    return stat.rsplit(")", 1)[1].split()[0] == "Z"
-
-
-def _windows_pid_gone(pid: int) -> bool:
-    """Whether no running process has *pid*, per ``tasklist`` (CSV, no
-    header: one quoted row per match, none when it has exited)."""
-    tasklist = Path(
-        os.environ.get("SystemRoot", r"C:\Windows"), "System32", "tasklist.exe"
-    )
-    rows = subprocess.run(
-        [str(tasklist), "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-        capture_output=True,
-        text=True,
-        check=True,
-        timeout=30,
-    ).stdout
-    return f'"{pid}"' not in rows
-
-
-def _wait_pid_gone(pid: int, limit: float = 10.0) -> bool:
-    deadline = time.monotonic() + limit
-    while time.monotonic() < deadline:
-        if _pid_gone(pid):
-            return True
-        time.sleep(0.1)
-    return _pid_gone(pid)
-
-
 def _rmtree_with_retry(path: Path, limit: float = 10.0) -> None:
     """Remove *path*; on Windows a just-killed process may hold a handle."""
     deadline = time.monotonic() + limit
@@ -215,7 +176,7 @@ def test_real_build_times_out_and_kills_backend(
     assert "timed out after 20s" in str(excinfo.value)
     assert "Build: build output: slow backend started" in caplog.text
     pid = int((project / "backend.pid").read_text(encoding="ascii"))
-    assert _wait_pid_gone(pid), f"backend process {pid} survived the timeout"
+    assert wait_pid_gone(pid), f"backend process {pid} survived the timeout"
 
 
 def test_real_build_returns_the_wheel(
@@ -276,7 +237,7 @@ def test_run_with_timeout_kills_grandchild_ignoring_sigterm(tmp_path: Path) -> N
         )
     assert pid_file.exists(), "grandchild never started within the timeout"
     pid = int(pid_file.read_text(encoding="ascii"))
-    assert _wait_pid_gone(pid), f"grandchild {pid} survived"
+    assert wait_pid_gone(pid), f"grandchild {pid} survived"
 
 
 @posix_only
@@ -326,7 +287,7 @@ def test_second_interrupt_during_grace_still_kills_sigterm_ignoring_tree(
             )
         assert interrupts == 2
         pid = int(pid_file.read_text(encoding="ascii"))
-        assert _wait_pid_gone(pid), f"grandchild {pid} survived"
+        assert wait_pid_gone(pid), f"grandchild {pid} survived"
     finally:
         _kill_leftovers(pid_file)
 
@@ -365,7 +326,7 @@ def test_finished_build_leaves_no_descendant_running(tmp_path: Path) -> None:
         assert returncode == 0
         # Polled: macOS shows the killed process as a zombie until reaped.
         pid = int(pid_file.read_text(encoding="ascii"))
-        assert _wait_pid_gone(pid), f"grandchild {pid} survived"
+        assert wait_pid_gone(pid), f"grandchild {pid} survived"
     finally:
         _kill_leftovers(pid_file)
 
@@ -417,7 +378,7 @@ def test_termination_signal_kills_build_tree_and_removes_temp_dirs(
         out, err, returncode = _run_driver_until_signal(project, env, pid_files, sig)
         for pid_file in pid_files:
             pid = int(pid_file.read_text(encoding="ascii"))
-            assert _wait_pid_gone(pid), f"{pid_file.stem} process {pid} survived"
+            assert wait_pid_gone(pid), f"{pid_file.stem} process {pid} survived"
     finally:
         _kill_leftovers(*pid_files)
     assert not list(sys_tmp.iterdir())

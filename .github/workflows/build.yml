@@ -16,6 +16,8 @@ on:
   pull_request:
     branches: [main, develop]
     paths-ignore: *ignore-paths
+    # labeled: the `test-all-os` label builds on Windows and macOS too.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       spdx_version:
@@ -32,7 +34,9 @@ on:
 permissions: read-all
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # An unrelated label starts a run of its own (its job is skipped), so it
+  # cannot cancel the run that is building the branch.
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'test-all-os' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -52,6 +56,10 @@ env:
 jobs:
   build-wheel:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    # A `labeled` event runs the job only for the `test-all-os` label.
+    if: >-
+      ${{ github.event.action != 'labeled'
+      || github.event.label.name == 'test-all-os' }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -61,16 +69,21 @@ jobs:
     strategy:
       # 3.15: not run, since the `ai` extra's wheels (such as onnx) are
       # not available for 3.15 yet; the core code is expected to work.
-      matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.10"
-          - os: windows-latest
-            python-version: "3.11"
-          - os: macos-latest
-            python-version: "3.12"
-          - os: ubuntu-latest
-            python-version: "3.14"
+      # A pull request builds on Linux only, unless it has the `test-all-os`
+      # label; a push to main or develop, and a manual run, also build on
+      # Windows and macOS (the platform tests in test.yml cover those systems
+      # on a pull request).
+      matrix: >-
+        ${{ fromJSON(github.event_name == 'pull_request'
+        && !contains(github.event.pull_request.labels.*.name, 'test-all-os')
+        && '{"include":[
+        {"os":"ubuntu-latest","python-version":"3.10"},
+        {"os":"ubuntu-latest","python-version":"3.14"}]}'
+        || '{"include":[
+        {"os":"ubuntu-latest","python-version":"3.10"},
+        {"os":"windows-latest","python-version":"3.11"},
+        {"os":"macos-latest","python-version":"3.12"},
+        {"os":"ubuntu-latest","python-version":"3.14"}]}') }}
       fail-fast: true
 
     steps:

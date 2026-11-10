@@ -16,15 +16,19 @@ on:
   pull_request:
     branches: [main, develop]
     paths-ignore: *ignore-paths
+    # labeled: the `test-all-os` label runs every test on Windows and macOS.
+    types: [opened, synchronize, reopened, labeled]
 
 permissions: read-all
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # An unrelated label starts a run of its own (its jobs are skipped), so it
+  # cannot cancel the run that is testing the branch.
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'test-all-os' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Push to main only. Skips the matrix when the merge commit has the tree of
+  # Push to main only. Skips the Linux legs when the merge commit has the tree of
   # a PR head that already passed this workflow (see
   # scripts/ci/skip_duplicate_push.py). Fail open: any doubt runs the tests.
   # A push run is never a required check for a merge, so the skipped matrix
@@ -52,27 +56,29 @@ jobs:
   test:
     name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }})
     needs: decide
-    # decide is skipped on PRs and may fail: run unless it said "true".
-    if: ${{ !cancelled() && needs.decide.outputs.skip != 'true' }}
+    # decide is skipped on PRs and may fail: !cancelled() lets the matrix run;
+    # a "true" skip only shrinks the matrix (below).
+    # A `labeled` event runs the matrix only for the `test-all-os` label.
+    if: >-
+      ${{ !cancelled()
+      && (github.event.action != 'labeled'
+      || github.event.label.name == 'test-all-os') }}
     runs-on: ${{ matrix.os }}
     strategy:
       # 3.15: not run, since the `ai` extra's wheels (such as onnx) are
       # not available for 3.15 yet; the core code is expected to work.
-      matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.10"
-          - os: windows-latest
-            python-version: "3.11"
-          - os: macos-latest
-            python-version: "3.13"
-          - os: ubuntu-latest
-            python-version: "3.14"
-            # Single source of truth for "which combo collects coverage" --
-            # consumed by both the "Run tests" step's bash conditional and
-            # the "Upload coverage reports to Codecov" step's `if:`, so the
-            # two never drift out of sync.
-            coverage: true
+      # After a skipped duplicate push only Windows and macOS run: the PR run
+      # tested them on the `platform` files alone, so main runs them in full.
+      matrix: >-
+        ${{ fromJSON(needs.decide.outputs.skip == 'true'
+        && '{"include":[
+        {"os":"windows-latest","python-version":"3.11"},
+        {"os":"macos-latest","python-version":"3.13"}]}'
+        || '{"include":[
+        {"os":"ubuntu-latest","python-version":"3.10"},
+        {"os":"windows-latest","python-version":"3.11"},
+        {"os":"macos-latest","python-version":"3.13"},
+        {"os":"ubuntu-latest","python-version":"3.14","coverage":true}]}') }}
       fail-fast: true
 
     defaults:
@@ -97,6 +103,10 @@ jobs:
         run: licenseid update --source packaged
 
       - name: Run tests
+        # Windows, macOS: a pull request runs only the OS-dependent files
+        # (`-m platform`, rule in tests/_platform.py); a push to main, or a
+        # pull request with the `test-all-os` label, runs every test. Linux
+        # always runs every test (and the coverage leg is on Linux).
         # Windows: TMP/TEMP (and so pytest's basetemp and every subprocess's
         # temp files) on RUNNER_TEMP, the checkout's D: drive, instead of
         # C:\Users\RUNNER~1\...\Temp; file-heavy tests ran faster there.
@@ -104,18 +114,24 @@ jobs:
         # -m "not network": tests that reach a real host run in live-tests.yml and
         # in the release gate (pypi-publish.yml), not here; a slow host is not a
         # failure of the change under test. Local-server tests (loopback) run.
+        env:
+          ALL_OS: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'test-all-os') }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
           fi
+          expr="not network"
+          if [ "$RUNNER_OS" != "Linux" ] && [ "$ALL_OS" != "true" ]; then
+            expr="platform and not network"
+          fi
           if [ "${{ matrix.coverage }}" == "true" ]; then
-            pytest tests/ -m "not network" -v --tb=short --durations=20 \
+            pytest tests/ -m "$expr" -v --tb=short --durations=20 \
               --junitxml=pytest-junit.xml \
               --cov=pitloom \
               --cov-report=xml \
               --cov-report=term-missing
           else
-            pytest tests/ -m "not network" -v --tb=short --durations=20 \
+            pytest tests/ -m "$expr" -v --tb=short --durations=20 \
               --junitxml=pytest-junit.xml
           fi
 

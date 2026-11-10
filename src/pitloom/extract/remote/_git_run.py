@@ -379,17 +379,18 @@ def _capture(
             _kill(proc)
 
         timer = threading.Timer(seconds, expire)
-        timer.start()
         err_chunks: list[bytes] = []
         drain = threading.Thread(
             target=_drain, args=(cast(IO[bytes], proc.stderr), err_chunks), daemon=True
         )
-        drain.start()
         chunks: list[bytes] = []
         size = 0
         too_large = False
         stdout = cast(IO[bytes], proc.stdout)  # a pipe: set by PIPE
         try:
+            # Started inside the try: a Ctrl-C landing in start() must kill git.
+            timer.start()
+            drain.start()
             with _size_watch(proc, cap):
                 while block := stdout.read(_READ_CHUNK):
                     size += len(block)
