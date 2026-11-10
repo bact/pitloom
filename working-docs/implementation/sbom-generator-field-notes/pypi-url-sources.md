@@ -14,7 +14,9 @@ See also: [README.md](README.md) (index of these notes),
 [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md)
 (the evidence vocabulary),
 [../recurring-bug-patterns-platform-windows.md](../recurring-bug-patterns-platform-windows.md)
-(two Windows-only test failures from the same PR).
+(two Windows-only test failures from the same PR),
+[remote-fetch-hardening.md](remote-fetch-hardening.md) (the fetch policy the
+PyPI route shares with the Git and Hugging Face routes).
 
 Facts checked on 2026-11-10 against the code of PR #468, a local server that
 answers like the PyPI JSON API and file host, and `loom` runs on the same

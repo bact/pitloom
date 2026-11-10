@@ -435,9 +435,6 @@ blocks it.
 - **Hatchling hook leftover name**: its "could not fully remove" warning names
   the real `pitloom-hatch-XXXXXXXX` directory, unmasked, as the build work
   directory's warning does.
-- **Windows junctions**: `rmtree_quietly`'s writable retry skips symbolic
-  links but not junctions (`os.path.islink` is false for one); neither a
-  checkout nor a download holds one.
 - **`verify-wheel`, `validate-wheel`, `embed-wheel` given a URL** print `not a
   .whl file: 'https:/pypi.org/...'`: the `Path` collapses `//`. They should
   say a URL is not read there.

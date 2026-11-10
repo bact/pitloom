@@ -68,6 +68,11 @@ the day it was added (2026-10-02 to 2026-11-06).
   archive hash; a wheel picked for the asking machine; release first, file
   second; a recogniser for a family of hosts (a file-host link still goes to
   Git); a deadline made of a socket shutdown (#468).
+- [remote-fetch-hardening.md](remote-fetch-hardening.md): one fetch policy
+  (cap, offline, URL check) for the Git, PyPI and Hugging Face routes; a
+  library that fetches outside it; host families as DNS names; classifying
+  a failure from the tool's own lines; cleanup when the normal exit never
+  runs; what area-split reviews found after green CI (#468).
 - [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md):
   caps bound reading, never reporting; five evidence levels; recording why a
   value is missing; a record count in a bytes property.
@@ -140,6 +145,10 @@ the day it was added (2026-10-02 to 2026-11-06).
   or a list, author kinds, extras and scope, backend disagreements,
   hostile input, name or path keys for ids); each item says what was
   measured, chosen and left open.
+- [agent-work-lessons-nov10.md](agent-work-lessons-nov10.md): a worktree
+  per session in a shared clone, fenced file ownership, a reviewer that
+  reached the network through a subprocess, reviews after a scope growth,
+  a merge that renames, a set-up proof stricter than its claim (#468).
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
 
