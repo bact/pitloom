@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Several ``License ::`` classifiers are one ``LicenseExpression``, the AND
-of ``LicenseRef-pitloom-classifier-`` terms, whose ``customIdToUri`` maps
+of ``LicenseRef-loom-classifier-`` terms, whose ``customIdToUri`` maps
 each term to the text element of its licence name; identical for the main
 package and for a dependency's installed copy or PyPI record.
 
@@ -28,6 +28,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import _fragments_refs
 from pitloom.assemble.spdx3._fragments_refs import _find_dangling_references
+from pitloom.assemble.spdx3._license_elements import TEXT_REF_PREFIX
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -39,16 +40,18 @@ from pitloom.extract.license_refs import classifier_expression, classifier_terms
 from tests._license_graph import (
     dependency_graph,
     graph_of,
+    license_elements,
     license_targets,
     two_packages,
 )
 from tests._spdx3_validate import assert_spdx3_valid
 
+EXPR = "simplelicensing_LicenseExpression"
 _MIT = "License :: OSI Approved :: MIT License"
 _APACHE = "License :: OSI Approved :: Apache Software License"
 #: "MIT License" is read as the id ``MIT``; "Apache Software License" names no
 #: one id, so it stays a ``LicenseRef-`` term.
-_AND = "LicenseRef-pitloom-classifier-Apache-Software-License AND MIT"
+_AND = "LicenseRef-loom-classifier-Apache-Software-License AND MIT"
 
 
 _SOURCES: dict[str, Callable[[list[str]], Any]] = {
@@ -96,9 +99,7 @@ def test_one_warning_per_set_of_classifiers(caplog: pytest.LogCaptureFixture) ->
 def test_the_and_maps_each_term_to_its_names_text_element() -> None:
     graph = _SOURCES["dependency-installed"]([_MIT, _APACHE])
     by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
-    (expression,) = [
-        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
-    ]
+    (expression,) = [e for e in license_elements(graph) if e["type"] == EXPR]
     assert expression["simplelicensing_licenseExpression"] == _AND
     mapped = {
         entry["key"]: by_id[entry["value"]]["simplelicensing_licenseText"]
@@ -126,11 +127,24 @@ def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -
         [e for e in graph if e["type"] == "simplelicensing_SimpleLicensingText"]
     )
     assert sorted(texts) == ["Apache Software License"]
-    (expression,) = [
-        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
-    ]
+    (expression,) = [e for e in license_elements(graph) if e["type"] == EXPR]
     mapped = {e["value"] for e in expression["simplelicensing_customIdToUri"]}
     assert mapped == set(texts.values())
+
+
+def test_an_and_of_classifiers_makes_no_wrapper_for_a_text_nothing_targets() -> None:
+    """The AND maps its terms to the text elements directly: a wrapper
+    (``LicenseRef-loom-text-``) is made only for a text a relationship
+    targets."""
+    graph = two_packages([_AND])
+    assert [
+        e
+        for e in graph
+        if str(e.get("simplelicensing_licenseExpression", "")).startswith(
+            TEXT_REF_PREFIX
+        )
+    ] == []
+    assert len([e for e in graph if e["type"] == EXPR]) == 1
 
 
 def test_a_project_with_several_classifiers(tmp_path: Path) -> None:
@@ -195,15 +209,17 @@ def test_names_read_as_one_id_are_one_term() -> None:
 @pytest.mark.parametrize(
     "expression",
     [
-        "LicenseRef-pitloom-classifier-MIT-License",  # one term: not an AND
+        "LicenseRef-loom-classifier-MIT-License",  # one term: not an AND
         "MIT AND ISC",  # no classifier term
-        "LicenseRef-pitloom-classifier-MIT OR ISC AND MIT",  # a compound id term
-        "LicenseRef-pitloom-classifier-a.2f AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-a.ZZ AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-.FF AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-a+ AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier- AND LicenseRef-pitloom-classifier-b",
+        "LicenseRef-loom-classifier-MIT OR ISC AND MIT",  # a compound id term
+        "LicenseRef-loom-classifier-a.2f AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-a.ZZ AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-.FF AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-a+ AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier- AND LicenseRef-loom-classifier-b",
         "LicenseRef-x AND LicenseRef-y",  # a user's own references
+        "LicenseRef-loom-classifier-- AND MIT",  # a name of one space
+        "LicenseRef-loom-classifier-.09 AND MIT",  # a name of one tab
     ],
 )
 def test_other_expressions_are_not_classifier_terms(expression: str) -> None:

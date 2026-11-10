@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -372,7 +372,8 @@ wins over every Croissant file and card, whichever call came first; of two
 declared licences, the first call's wins. The call's own name, `dataset_type`
 and `data_preprocessing=` (even `[]`) always win. A licence that is an SPDX
 expression is written as a `LicenseExpression`, any other text as a
-`SimpleLicensingText`. Your own `declared_license="NOASSERTION"` (any case) is
+`SimpleLicensingText` reached through a `LicenseExpression` of one
+`LicenseRef-loom-text-<hash>`, which the relationship targets. Your own `declared_license="NOASSERTION"` (any case) is
 your statement: written as the `NoAssertionLicense` individual, and no source
 replaces it. Any other placeholder, yours or a source's (`unknown`, blank, a
 bare `other`), and a source's `NOASSERTION`, is no licence, written as nothing

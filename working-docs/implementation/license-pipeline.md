@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -291,8 +291,9 @@ relationship(s):
 
 1. `classify_license()` sorts the value. `None` (absent or blank) stops
    here: no element, no relationship.
-2. `exporter.find_license(kind, value)` reuses an existing element of the
-   same `(kind, value)`; an expression and a text with the same string
+2. `exporter.find_license("expression", value)` reuses an existing
+   expression; for a text, the wrapper of its `LicenseRef-` (see the
+   free-text section below). An expression and a text with the same string
    stay apart.
 3. Otherwise a `simplelicensing_LicenseExpression`
    (`simplelicensing_licenseExpression`: the canonical form) or a
@@ -301,7 +302,7 @@ relationship(s):
    seen; deduplicated on the stripped text) is created, with `name` (first
    line, at most 60 characters). Several `License ::` classifiers give one
    `LicenseExpression` whose `customIdToUri` maps each
-   `LicenseRef-pitloom-classifier-` term to its name's text element. Its
+   `LicenseRef-loom-classifier-` term to its name's text element. Its
    provenance (`comment`, `"Metadata provenance: license: <provenance>"`,
    and an Annotation) is written only when high-signal at the
    default `detail = "minimal"` -- a non-manifest source, a `Method`, a
@@ -365,6 +366,12 @@ For a package with a licence the JSON-LD graph contains, for example:
 
 A source that said `NOASSERTION` gives only the relationship, with
 `"to": ["expandedlicensing_NoAssertionLicense"]`.
+
+### Free-text licences
+
+A licence that is no SPDX expression is a `SimpleLicensingText` plus the
+`LicenseExpression` a relationship targets. See
+[license-free-text-wrapper.md](license-free-text-wrapper.md).
 
 ## License files are not listed (PEP 639)
 
@@ -441,7 +448,7 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
 | `src/pitloom/extract/project/_installed_reconcile.py` | static vs installed licence check by `same_licence()`; a weak static value gives way |
 | `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; `file:` lists as setuptools reads them (wrapped, blank entries dropped), missing classified by `path_probe`, an unreadable file (a `version` file too) one `file-unreadable` warning per run |
-| `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
+| `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-loom-classifier-` terms |
 | `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |
 | `src/pitloom/extract/project/_sdist_scan.py` | sdist single pass: root members, licence sources (capped) |

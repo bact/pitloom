@@ -17,6 +17,7 @@ higher-level, pipeline-integration license tests.
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -25,6 +26,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3._license_elements import (
     LicenseElement,
     get_or_create_license_element,
+    text_ref,
 )
 from pitloom.assemble.spdx3.deps_license import (
     _build_license_relationship,
@@ -38,6 +40,7 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_names import UNREAD_LISTED_NAMES
+from tests._license_graph import two_packages
 
 from .conftest import _make_ci
 
@@ -66,7 +69,11 @@ def test_get_or_create_license_element_names_it_short(value: str, name: str) -> 
     )
 
     assert element is not None
-    license_text = exporter.object_set.obj_by_id[element.spdx_id]
+    wrapper = exporter.object_set.obj_by_id[element.spdx_id]
+    assert isinstance(wrapper, spdx3.simplelicensing_LicenseExpression)
+    (entry,) = wrapper.simplelicensing_customIdToUri
+    assert isinstance(entry, spdx3.DictionaryEntry) and entry.value is not None
+    license_text = exporter.object_set.obj_by_id[entry.value]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == name
     assert license_text.simplelicensing_licenseText == value
@@ -315,3 +322,108 @@ def _conflicts(exporter: Spdx3JsonExporter) -> list[object]:
         for o in exporter.object_set.objects
         if "conflict" in str(getattr(o, "statement", ""))
     ]
+
+
+@pytest.mark.parametrize("value", ["Acme custom terms", "MIT OR", "MIT"])
+def test_a_licence_relationship_targets_an_any_license_info(value: str) -> None:
+    """``hasDeclaredLicense``/``hasConcludedLicense`` accept only an
+    ``AnyLicenseInfo``: a text is reached through a ``LicenseExpression``
+    that maps its ``LicenseRef-`` to the text element."""
+    graph = two_packages([value])
+    by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
+    targets = [
+        by_id[t]
+        for e in graph
+        if e.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
+        for t in e["to"]
+    ]
+    assert targets
+    assert {t["type"] for t in targets} == {"simplelicensing_LicenseExpression"}
+    if value == "MIT":
+        return
+    (entry,) = targets[0]["simplelicensing_customIdToUri"]
+    assert entry["key"] == targets[0]["simplelicensing_licenseExpression"]
+    assert by_id[entry["value"]]["type"] == "simplelicensing_SimpleLicensingText"
+    assert by_id[entry["value"]]["simplelicensing_licenseText"] == value
+
+
+def _texts(graph: list[dict[str, Any]]) -> list[str]:
+    return sorted(
+        e["simplelicensing_licenseText"]
+        for e in graph
+        if e["type"] == "simplelicensing_SimpleLicensingText"
+    )
+
+
+@pytest.mark.parametrize(
+    "term",
+    ["Foo-", ".09Foo", "Foo-.09", "-Foo-"],
+    ids=["tail", "tab-head", "tab", "both"],
+)
+def test_a_classifier_name_with_edge_whitespace_still_builds(term: str) -> None:
+    """A decoded name keeps its blank ends; the text is indexed stripped, so
+    the lookup after making it must not use the raw name."""
+    graph = two_packages([f"LicenseRef-loom-classifier-{term} AND MIT"])
+    (text,) = _texts(graph)
+    assert text.strip() == "Foo"
+    (expression,) = [
+        e
+        for e in graph
+        if e["type"] == "simplelicensing_LicenseExpression"
+        and e["simplelicensing_customIdToUri"]
+    ]
+    (entry,) = expression["simplelicensing_customIdToUri"]
+    mapped = {e["spdxId"]: e for e in graph if "spdxId" in e}[entry["value"]]
+    assert mapped["simplelicensing_licenseText"] == text
+
+
+def test_a_user_expression_spelled_as_a_text_ref_does_not_take_the_text() -> None:
+    """``LicenseRef-loom-text-<hash>`` as a licence of its own (the hash is
+    computable) maps to no text: a later text of that hash still gets its
+    own text element and a mapped wrapper."""
+    ref = text_ref("Foo Terms")
+    graph = two_packages([ref, "Foo Terms"])
+    assert _texts(graph) == ["Foo Terms"]
+    by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
+    targets = [
+        by_id[t]
+        for e in graph
+        if e.get("relationshipType") == "hasDeclaredLicense"
+        for t in e["to"]
+    ]
+    assert [bool(t.get("simplelicensing_customIdToUri")) for t in targets] == [
+        False,
+        True,
+    ]
+
+
+def test_a_classifier_text_is_made_beside_a_user_text_ref_expression() -> None:
+    graph = two_packages(
+        [text_ref("Foo Terms"), "LicenseRef-loom-classifier-Foo-Terms AND MIT"]
+    )
+    assert _texts(graph) == ["Foo Terms"]
+
+
+@pytest.mark.parametrize(
+    "classifier_first", [True, False], ids=["and-first", "text-first"]
+)
+def test_a_classifier_name_and_a_text_with_a_blank_space_line_are_one_text(
+    classifier_first: bool,
+) -> None:
+    """The text path empties a line of blank space; the classifier name gets
+    the same rule, so the two are one text element in either order."""
+    values = ["LicenseRef-loom-classifier-Foo.0A--.0ABar AND MIT", "Foo\n  \nBar"]
+    graph = two_packages(values if classifier_first else values[::-1])
+    assert _texts(graph) == ["Foo\n\nBar"]
+
+
+def test_a_text_ref_expression_of_a_user_stays_its_own_element() -> None:
+    """The user's expression and the text's wrapper share one string, not
+    one element: the same declared value is the same element each time."""
+    ref = text_ref("Foo Terms")
+    graph = two_packages([ref, "Foo Terms", ref])
+    targets = [
+        e["to"][0] for e in graph if e.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(targets) == 3
+    assert targets[0] == targets[2] != targets[1]

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,7 +101,7 @@ Deferred until upstream (no Pitloom feature meanwhile):
 - Classifier or licence name to SPDX id: `resolve()` reads a name that names
   one licence (`MIT License`); a family name (`BSD License`, `Apache Software
   License`) stays `SimpleLicensingText`, and several such classifiers are an
-  AND of `LicenseRef-pitloom-classifier-` terms (layer 3).
+  AND of `LicenseRef-loom-classifier-` terms (layer 3).
 - An unknown-id `WARNING:` in a field that must hold an SPDX expression.
 - Names differing only in case give two `LicenseRef-` terms (SPDX matches
   them case-insensitively): needs classifier-to-id knowledge (LicenseID).

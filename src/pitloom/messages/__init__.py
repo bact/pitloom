@@ -85,6 +85,12 @@ from pitloom.messages._lfs_pointer import (
     LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
 )
+from pitloom.messages._license_relationship_invalid import (
+    LICENSE_RELATIONSHIP_ERROR_LINE,
+    LICENSE_RELATIONSHIP_FROM_LINE,
+    LICENSE_RELATIONSHIP_INVALID,
+    LICENSE_RELATIONSHIP_TO_LINE,
+)
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
 from pitloom.messages._model_field import (
     ATTRIBUTE_LINE,
@@ -344,6 +350,10 @@ __all__ = [
     "LFS_POINTER",
     "LFS_POINTER_MALFORMED",
     "LFS_POINTER_SHIPPED",
+    "LICENSE_RELATIONSHIP_ERROR_LINE",
+    "LICENSE_RELATIONSHIP_FROM_LINE",
+    "LICENSE_RELATIONSHIP_INVALID",
+    "LICENSE_RELATIONSHIP_TO_LINE",
     "LFS_PULL_ERROR_LINE",
     "LFS_PULL_LINE",
     "LIBRARY_MISSING",

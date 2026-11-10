@@ -23,7 +23,7 @@ from tests._license_graph import (
     write_fragment,
 )
 from tests._spdx3_validate import assert_spdx3_valid
-from tests.assemble.embed_surfaces_shared import run_cli
+from tests.assemble.embed_surfaces_shared import demo_project, run_cli
 
 
 def test_merge_command_success(
@@ -260,4 +260,43 @@ def test_merge_fails_on_a_root_outside_the_output(
     err = capsys.readouterr().err
     assert f"rootElement references {_NS}x#Q" in err
     assert "1 dangling reference(s)" in err
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("surface", ["merge", "project"])
+def test_a_licence_relationship_of_the_wrong_type_fails_with_its_code(
+    surface: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A relationship to a bare ``SimpleLicensingText`` fails ``loom merge``
+    and a project with the fragment: a coded ``WARNING:`` naming it, a coded
+    ``ERROR:``, exit 1, no SBOM."""
+    ns = "https://spdx.org/spdxdocs/frag"
+    document = fragment_graph(
+        [
+            license_node(f"{ns}#T", "text", "Acme terms"),
+            *licensed_package("P", f"{ns}#T", ns),
+        ],
+        ns,
+    )
+    out = tmp_path / "out.spdx3.json"
+    if surface == "merge":
+        write_fragment(tmp_path / "in" / "a.json", document)
+        argv = ["loom", "merge", str(tmp_path / "in"), "-o", str(out)]
+    else:
+        toml = '\n[tool.pitloom.fragment]\nfiles = ["f.json"]\n'
+        project = demo_project(tmp_path, toml)
+        write_fragment(project / "f.json", document)
+        argv = ["loom", "project", str(project), "--offline", "-o", str(out)]
+    monkeypatch.setattr("sys.argv", argv)
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.splitlines()
+    warnings = [x for x in lines if x.startswith("WARNING: RELATIONSHIP=")]
+    assert len(warnings) == 1
+    assert f"goes to {ns}#T, " in warnings[0]
+    assert warnings[0].endswith(" [license-relationship-invalid]")
+    errors = [x for x in lines if x.startswith("ERROR: ")]
+    assert len(errors) == 1 and errors[0].endswith(" [license-relationship-invalid]")
     assert not out.exists()

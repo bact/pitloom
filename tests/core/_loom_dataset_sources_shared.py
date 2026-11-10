@@ -22,6 +22,7 @@ import pytest
 
 from pitloom import loom
 from pitloom.core.license_individuals import INDIVIDUAL_BY_REFERENCE
+from tests._license_graph import text_behind
 
 Graph = list[dict[str, Any]]
 
@@ -78,7 +79,7 @@ def declared(graph: Graph, name: str) -> list[tuple[str, str]]:
     """``(licence type, value)`` of each ``hasDeclaredLicense`` from the
     dataset *name*; an individual as ``("individual", its SPDX name)``."""
     package_id = package_of(graph, name)["spdxId"]
-    by_id = {e.get("spdxId"): e for e in graph}
+    by_id = {str(e["spdxId"]): e for e in graph if "spdxId" in e}
     out: list[tuple[str, str]] = []
     for rel in graph:
         if (
@@ -90,7 +91,7 @@ def declared(graph: Graph, name: str) -> list[tuple[str, str]]:
             if target in INDIVIDUAL_BY_REFERENCE:
                 out.append(("individual", INDIVIDUAL_BY_REFERENCE[target].spdx_name))
                 continue
-            element = by_id[target]
+            element = text_behind(by_id, by_id[target])
             value = element.get("simplelicensing_licenseExpression") or element.get(
                 "simplelicensing_licenseText"
             )

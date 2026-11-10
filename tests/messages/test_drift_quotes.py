@@ -49,6 +49,11 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "json-malformed": ("not valid JSON for ",),
     "lfs-pointer": ("Git LFS pointer",),
     "lfs-pointer-malformed": ("Git LFS pointer",),
+    "license-relationship-invalid": (
+        "a licence relationship goes to ",
+        "a licence relationship starts at ",
+        "left a licence relationship of the wrong type",
+    ),
     "library-missing": ("required library not installed",),
     "library-unusable": ("required library failed to import",),
     "model-field-conflict": ("the length of array ", "appear more than once"),

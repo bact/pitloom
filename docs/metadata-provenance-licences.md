@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,7 +103,7 @@ came from:
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
 | A single-line value [LicenseID](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`), or several of them joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
-| Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
+| Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks, and a `LicenseExpression` of one `LicenseRef-loom-text-<hash>` whose `customIdToUri` maps it to the text; the relationship targets the expression, as a relationship accepts only an `AnyLicenseInfo` or one of its subclasses; the provenance is recorded on the text, reached from the expression through `customIdToUri` |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
@@ -235,7 +235,7 @@ A multi-line licence text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several licence classifiers
 are one `LicenseExpression`, the AND of terms sorted by classifier: the id for
 a name LicenseID reads as one licence (`MIT License` is `MIT`), else a
-`LicenseRef-pitloom-classifier-<name>` whose `customIdToUri` target is a
+`LicenseRef-loom-classifier-<name>` whose `customIdToUri` target is a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
 `WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
 the build hook record the same declared licence, except a licence file or text

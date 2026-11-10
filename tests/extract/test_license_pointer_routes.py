@@ -35,6 +35,7 @@ from pitloom.assemble._generators_wheel import generate_wheel_sbom
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract._license import stated_license
 from tests._lfs import lfs_pointer_bytes
+from tests._license_graph import license_elements
 from tests._raw_archive import write_raw_tar, write_raw_zip
 from tests.extract.conftest import make_hook, staged_sbom
 
@@ -181,7 +182,7 @@ def _licence_texts(sbom: str) -> tuple[list[str], list[dict[str, Any]]]:
     """The text of each ``simplelicensing_*`` element, and the
     ``hasDeclaredLicense`` relationships, of *sbom*."""
     graph = json.loads(sbom)["@graph"]
-    elements = [e for e in graph if e.get("type", "").startswith("simplelicensing_")]
+    elements = license_elements(graph)
     relationships = [
         e for e in graph if e.get("relationshipType") == "hasDeclaredLicense"
     ]

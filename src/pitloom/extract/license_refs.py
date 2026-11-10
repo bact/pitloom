@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Several ``License ::`` classifiers as one licence expression:
-``LicenseRef-pitloom-classifier-<name> AND ...``, one term per licence name
+``LicenseRef-loom-classifier-<name> AND ...``, one term per licence name
 as the classifier gives it, except a name LicenseID reads as one id
 (``MIT License``), whose term is that id. Each ``LicenseRef-`` encodes its
 name reversibly, so the element builder recovers the names from the
@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
-CLASSIFIER_REF_PREFIX = "LicenseRef-pitloom-classifier-"
+CLASSIFIER_REF_PREFIX = "LicenseRef-loom-classifier-"
 _AND = " AND "
 _PLAIN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
 
@@ -78,7 +78,7 @@ def classifier_expression(
     names: Sequence[str], ids: Mapping[str, str] | None = None
 ) -> str:
     """The ``AND`` of *names* (two or more, in the order given): the id *ids*
-    gives a name, else its ``LicenseRef-pitloom-classifier-`` term; a term
+    gives a name, else its ``LicenseRef-loom-classifier-`` term; a term
     that repeats is kept once."""
     known = ids or {}
     terms = (known.get(n) or CLASSIFIER_REF_PREFIX + _encoded(n) for n in names)
@@ -103,7 +103,7 @@ def classifier_terms(expression: str) -> list[tuple[str, str | None]] | None:
         if not term.startswith(CLASSIFIER_REF_PREFIX):
             return None
         name = _decoded(term[len(CLASSIFIER_REF_PREFIX) :])
-        if not name:
+        if not (name or "").strip():
             return None
         found.append((term, name))
     return found if any(name for _, name in found) else None

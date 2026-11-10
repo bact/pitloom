@@ -45,7 +45,9 @@ def generate_merged_sbom(
         FileNotFoundError: *fragments_dir* does not exist.
         ValueError: it has no ``*.json`` file.
         pitloom.assemble.FragmentMergeError: the merge left a dangling
-            reference, a root included.
+            reference, a root included, or a licence relationship end of the
+            wrong type (a ``pitloom.assemble.spdx3.fragments.
+            FragmentLicenseRangeError``, code ``license-relationship-invalid``).
     """
     configure_logging()
     fragments_dir = Path(fragments_dir)
