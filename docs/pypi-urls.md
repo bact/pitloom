@@ -152,6 +152,16 @@ The download is untrusted data:
   `--allow-build` (a build flag has no effect and says so). The wheel and sdist
   readers read the archive without running it. An sdist's own
   `[tool.pitloom]` is never read; `--config FILE` is yours and applies.
+- **AI models in a downloaded wheel are gated** as a Git URL's are: a
+  fastText, GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) model is listed
+  without metadata, with one `INFO: FILE=<file>: AI models in these formats
+  are listed without metadata ...`
+  ([`reader-unsafe/remote`](message-codes.md#reader-unsaferemote)), unless you
+  pass `--trust-model-files` (`trust_model_files=True`) for a release you
+  trust; see [Formats gated for a
+  download](ai-model-scan-limits.md#formats-gated-for-a-download). An sdist's
+  models are not scanned, as for a local sdist archive, so the flag has no
+  effect on `loom project <url>` and says so.
 - **The temporary directory is removed** on return, on an error too. No
   message and no SBOM names its path.
 - **`--offline` is an error**, not a fallback, for every command (the flag, or
@@ -183,8 +193,10 @@ name lookup, the connection, a proxy `CONNECT` or the TLS handshake; each is
 bounded by the per-operation timeout. On Windows a read stalled on a
 connection ends at that timeout, not at the deadline.
 
-On any other target `--max-download-bytes` has no effect and says so once; see
-[Options with no effect](cli.md#options-with-no-effect).
+The same setting caps a Git URL's checkout ([SBOM from a Git
+URL](git-urls.md#what-it-does-and-does-not-do)). On any other target `--max-download-bytes` has no
+effect and says so once; see [Options with no
+effect](cli.md#options-with-no-effect).
 
 ## What the SBOM records
 

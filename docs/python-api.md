@@ -141,9 +141,10 @@ Other arguments that mirror a CLI flag or config key:
   that is not an integer of at least 1 (`True` included) raises `ValueError` on
   every target.
 - `max_download_bytes=` (`generate()`, `generate_wheel_sbom()`,
-  `generate_project_sbom()`, `generate_pypi_sbom()`): `--max-download-bytes`,
-  the cap on a file downloaded from a PyPI URL; it wins over `pitloom_config=`'s
-  `max-download-bytes`. Other targets warn that it has no effect; a value that
+  `generate_project_sbom()`, `generate_pypi_sbom()`, `generate_git_sbom()`,
+  `generate_git_project_sbom()`): `--max-download-bytes`, the cap on a file
+  downloaded from a PyPI URL and on the disk a Git URL's checkout takes (512
+  MiB by default); it wins over `pitloom_config=`'s `max-download-bytes`. Other targets warn that it has no effect; a value that
   is not an integer of at least 1 (`True` included) raises `ValueError` on
   every target.
 - `id_registry=`: `--id-registry`; see [Loom ID

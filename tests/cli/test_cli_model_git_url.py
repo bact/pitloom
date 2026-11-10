@@ -49,9 +49,18 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
 
     @contextmanager
     def fetch(
-        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+        url: str,
+        *,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        asked.update(url=url, offline=offline, trust_model_files=trust_model_files)
+        asked.update(
+            url=url,
+            offline=offline,
+            max_bytes=max_bytes,
+            trust_model_files=trust_model_files,
+        )
         if offline:
             raise RemoteSourceError("git.offline", "network access is forbidden")
         file = str(asked["file"])

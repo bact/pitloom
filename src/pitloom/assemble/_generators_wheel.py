@@ -210,7 +210,9 @@ def generate_wheel_sbom_with_metadata(
 
     *acquisition* records how the wheel was downloaded (set by
     :func:`~pitloom.assemble.generate_pypi_sbom`); it adds one provenance
-    record on the main package and changes nothing else.
+    record on the main package, and the gated models' ``INFO:`` is the one
+    for a download (``reader-unsafe/remote``, naming the file), not a local
+    wheel's; *trust_model_files* lifts the gate the same way.
 
     Raises:
         ValueError: The wheel is refused as a whole
@@ -259,6 +261,8 @@ def generate_wheel_sbom_with_metadata(
         usage_hint=lambda: cfg.scan_model_usage is None,
         max_bytes=cfg.max_model_extract_bytes,
         trust=trust_model_files is True,
+        # A download is untrusted remote input: its line names the file.
+        downloaded_as=None if acquisition is None else acquisition.filename,
     )
     phantom_deps = find_phantom_dependencies(project_files)
 

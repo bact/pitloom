@@ -128,12 +128,6 @@ CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
     {
-        "amount": Field(
-            r"1 byte|(?:0|[2-9]|[1-9][0-9]+) bytes|[1-9][0-9]* (?:KiB|MiB|GiB)",
-            plain_text,
-            "<amount>",
-            "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
-        ),
         "answered": Field(
             r".+",
             free_text,

@@ -39,7 +39,8 @@ Where the build differs from the design below:
    `--config` for a remote target, since a downloaded project's own config is
    never read), library `max_download_bytes=`; default 512 MiB; a positive
    integer, validated on every surface even where it has no effect, and an
-   inert option (one `WARNING: Options:`) on every target but a PyPI URL.
+   inert option (one `WARNING: Options:`) on every target but a PyPI URL
+   (and, since amendment 20, a Git URL).
    Over the cap: `ERROR:` `over-cap` (`DOWNLOAD_LINE`), no SBOM. The size PyPI
    declares never gates the read; the bytes received do. The design's
    "reuse the existing archive limits" was dropped: those bound what is read
@@ -150,6 +151,40 @@ Where the build differs from the design below:
     `references/pypi-url.md`, `sbom-enrich`'s `references/pypi-url-base.md`,
     a section in `sbom-validate`); see
     [skills-trigger-coverage.md](skills-trigger-coverage.md).
+
+19. **A downloaded wheel's models are gated as remote input** (user
+    decision, 2026-11-10, after the merge of #469/#470 gave the Git route
+    its own gate). Before, the PyPI wheel went through the local wheel's
+    gate and said `reader-unsafe` ("in a wheel ... for a wheel you trust").
+    Now the same formats are gated by the same `reader_gate` and lifted by
+    the same `--trust-model-files`, but the line is
+    `reader-unsafe/remote`'s second one, naming the file
+    (`READER_UNSAFE_PYPI_LINE`: `FILE=<file>: AI models in these formats are
+    listed without metadata, their reader not being run on a downloaded
+    file: ...; pass --trust-model-files for a release you trust`). The Git
+    line keeps its bytes (no `file` value selects it). The switch is
+    explicit: `generate_wheel_sbom_with_metadata` passes the
+    `Acquisition`'s file name as `downloaded_as`. The clone mark
+    (`core/clone_mark.reading_remote_clone`) was not reused: it also
+    confines reads to the clone root, picks the "clone with Git LFS" advice
+    and arms the build-hook guards, none of which fits a downloaded archive
+    (and confinement would refuse the user's own ID registry). An sdist,
+    local or downloaded, is not scanned for models, so the flag stays inert
+    for `PYPI_SDIST`. A drift-guard test checks that the formats a PyPI
+    wheel's line names are those a Git clone gates.
+20. **A Git URL's fetch shares the cap** (user decision, 2026-11-10):
+    `max-download-bytes` (flag, `--config`, library `max_download_bytes=`,
+    512 MiB) also caps the disk a Git URL's checkout takes, through one
+    resolver (`core.config_cascade.resolve_download_cap`) that the PyPI and
+    Git library routes and the CLI's `run_remote` call. The library's
+    `max_clone_bytes` (unset meant unlimited) was renamed, with no alias.
+    `max_download_bytes` is no longer inert for `GIT` or `GIT_MODEL`; the CLI
+    pops it from the options a fetched project or model is read with, as it
+    does `trust_model_files`. The over-cap line (`CLONE_LINE`) now names the
+    setting: `the repository is larger than the <limit>-byte
+    max-download-bytes cap; git clone was stopped`; the `amount` field and
+    `readable_bytes()` it used were removed. `fetch_git_project(max_bytes=)`
+    keeps no default for a direct caller.
 
 User-facing page: [pypi-urls.md](../../docs/pypi-urls.md).
 
@@ -386,10 +421,18 @@ blocks it.
   say a URL is not read there.
 - **GitHub Action**: its inputs name a directory, a wheel pattern or a model,
   not a URL; a PyPI (or Git) URL input is not offered.
-- **Size limits**: `skills/sbom-generate/SKILL.md` body is 16,380 of 16,384
+- **Size limits**: `skills/sbom-generate/SKILL.md` body is 16,376 of 16,384
   bytes (the next addition moves text to `references/`);
-  `core/_config_parse.py` is 505 lines; `docs/cli.md` and
-  `working-docs/design/roadmap.md` were over the ~30 KB limit before this PR.
+  `core/_config_parse.py` is 505 lines; `docs/cli.md`,
+  `docs/ai-model-scan-limits.md` and `working-docs/design/roadmap.md` were
+  over the ~30 KB limit before this PR.
+- **Model scan of an sdist**: neither a local nor a downloaded sdist is
+  scanned for AI models. If one ever is, a downloaded sdist must go through
+  the download gate (amendment 19); the drift-guard test covers the wheel
+  only.
+- **The GitHub Action's `trust-model-files` text** lists where the flag has
+  no effect; a PyPI URL's sdist is not named, as the Action takes no PyPI
+  URL.
 - **CLAUDE.md one-liners proposed**, for "Tests, platform and CI": Windows
   ends no `recv` on a socket shut for reading (spy the shutdown, keep the
   end-of-stream read POSIX-only); Windows' monotonic clock ticks about every

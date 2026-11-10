@@ -23,16 +23,17 @@ from dataclasses import dataclass, field
 from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
+from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.core.url_masking import (
     mask_checkout,
     sanitize_url,
     sanitize_url_credentials,
 )
 from pitloom.extract.remote import git_url
-from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
+from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import CLONE_LINE, GIT_OUTPUT_LINE, OVER_CAP
+from pitloom.messages import CLONE_LINE, GIT_OUTPUT_LINE, OVER_CAP, Cap
 
 log = logging.getLogger(__name__)
 
@@ -142,11 +143,10 @@ class GitRunner:
             cap = SizeCap(watch, self.max_bytes)
         status, out, err = _capture(command, left, cap)
         if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
+            reason = Cap(cap.limit, "byte", MAX_DOWNLOAD_BYTES_KEY).reason_values()
             raise RemoteSourceError(
                 "git.too-large",
-                CLONE_LINE.render(
-                    {"amount": readable_bytes(cap.limit), "command": what}
-                ),
+                CLONE_LINE.render({**reason, "command": what}),
                 pitloom_code=OVER_CAP.code,
             )
         if status is None:

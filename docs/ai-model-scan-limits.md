@@ -32,7 +32,7 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 | Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
-| A model, or a model listed in a project's build file list, from a Git URL: an `ai_AIPackage` with name, format and hash only, plus one `INFO: ... listed without metadata ... [reader-unsafe/remote]` | fastText, GGUF, HDF5, ONNX or PyTorch reader not run on a download | [Formats gated for a Git URL](#formats-gated-for-a-git-url) |
+| A model, or a model listed in a project's build file list, from a Git URL, or a model in a wheel from a PyPI URL: an `ai_AIPackage` with name, format and hash only, plus one `INFO: ... listed without metadata ... [reader-unsafe/remote]` | fastText, GGUF, HDF5, ONNX or PyTorch reader not run on a download | [Formats gated for a download](#formats-gated-for-a-download) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | No `parameters` hyperparameter, plus `WARNING: ... parameter count not recorded` | A tensor dimension or the count is malformed or over the parameter-count cap | [Size and count caps](#size-and-count-caps) (Parameter count) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
@@ -65,9 +65,10 @@ stub.
 | `wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`, `generate x.whl` | Copied out of the wheel to a temporary file, one at a time | Yes | Yes | Yes |
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
 | `loom model FILE`, `loom enrich FILE`, `loom generate FILE`, `loom model DIR` or `loom generate DIR` for a folder with one model and no project | Read in place, as a project scan reads a file | No | No | Yes |
-| `loom model URL`, `loom generate URL` for a model file or folder at a Git URL | Read in the temporary clone, one file | No | **Git gate**: the same formats, see [Formats gated for a Git URL](#formats-gated-for-a-git-url) | Yes |
-| `loom project URL`, `loom generate URL` for a project at a Git URL | Read in place in the temporary clone, from the build file list | No | **Git gate**: the same formats | Yes |
-| `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
+| `loom model URL`, `loom generate URL` for a model file or folder at a Git URL | Read in the temporary clone, one file | No | **Download gate**: the same formats, see [Formats gated for a download](#formats-gated-for-a-download) | Yes |
+| `loom project URL`, `loom generate URL` for a project at a Git URL | Read in place in the temporary clone, from the build file list | No | **Download gate**: the same formats | Yes |
+| `loom wheel URL`, `loom generate URL` for a PyPI URL | Copied out of the downloaded wheel, as for a local wheel | Yes | **Download gate**: the same formats | Yes |
+| `env`, sdist archive (`loom project URL` for a PyPI URL too), `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
 Scanning an untrusted local checkout therefore runs the fastText, HDF5,
 ONNX, GGUF and PyTorch readers on its files, in Pitloom's own process, with
@@ -213,7 +214,7 @@ To read them, for a wheel you trust:
 
 | Surface | How |
 | :------ | :-- |
-| CLI | `--trust-model-files` on `wheel`, `wheel --embed` or `embed-wheel` without `--project-dir` (and, for a Git URL, on `project`, `model` or `generate`: [below](#formats-gated-for-a-git-url)) |
+| CLI | `--trust-model-files` on `wheel`, `wheel --embed` or `embed-wheel` without `--project-dir` (and, for a Git or PyPI URL, on `project`, `model`, `wheel` or `generate`: [below](#formats-gated-for-a-download)) |
 | Python API | `trust_model_files=True` on `generate()` or `generate_wheel_sbom()`; `ConfigOverrides.trust_model_files` for `embed_wheel_sbom()` without `project_dir=` |
 | GitHub Action | Input `trust-model-files: "true"`, with `embed-wheel` and `project-path: ""` (or a Git URL); elsewhere Pitloom warns that it has no effect ([GitHub Action](github-action.md#configuration)) |
 
@@ -224,25 +225,33 @@ and CRFsuite readers do not pass the file to a native library, and the
 Safetensors reader's Rust library is read in full on purpose: these are not
 gated; the caps above still apply to them.
 
-## Formats gated for a Git URL
+## Formats gated for a download
 
 A model file from a Git URL, or a model file in the build file list of a
 project from a Git URL, is read in a temporary clone of a repository you may
-not trust, so the formats of the wheel gate are gated there too: a fastText,
+not trust, and a model in a wheel from a PyPI URL is read from a file you
+downloaded, so the formats of the wheel gate are gated there too: a fastText,
 GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) file is listed with its name,
-format and hashes only, and one line per SBOM says so:
+format and hashes only, and one line per SBOM says so (the second names the
+downloaded wheel):
 
 ```text
 INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; pass --trust-model-files for a repository you trust
+INFO: FILE=demo-1.0-py3-none-any.whl: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; pass --trust-model-files for a release you trust
 ```
 
-To read them, for a repository you trust, use the same option as for a wheel:
-`--trust-model-files` on `project`, `model` or `generate` with the URL,
-`trust_model_files=True` on `generate()`, `generate_git_sbom()` or
-`generate_git_project_sbom()`, or the Action input `trust-model-files: "true"`
-with a Git URL as `project-path` or `model`. It lifts only this gate: the
-repository's own `[tool.pitloom]` is still ignored and its build backend is
-still not run. Cloning the repository and running `loom model <file>` or `loom
+An sdist from a PyPI URL is not scanned for models, as a local sdist archive
+is not, so `--trust-model-files` has no effect on `loom project` with a PyPI
+URL.
+
+To read them, for a repository or release you trust, use the same option as
+for a wheel: `--trust-model-files` on `project`, `model`, `wheel` or
+`generate` with the URL, `trust_model_files=True` on `generate()`,
+`generate_git_sbom()`, `generate_git_project_sbom()`, `generate_pypi_sbom()`
+or `generate_wheel_sbom()` with the URL, or the Action input
+`trust-model-files: "true"` with a Git URL as `project-path` or `model`. It
+lifts only this gate: the repository's own `[tool.pitloom]` is still ignored
+and its build backend is still not run. Cloning the repository and running `loom model <file>` or `loom
 project <dir>` on the copy reads them too, but also trusts the repository's
 configuration and build file list. Keras v3, Safetensors, NumPy, PT2 and
 CRFsuite files are read in full, with the caps above.

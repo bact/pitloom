@@ -366,9 +366,9 @@ def test_every_option_reaches_or_is_declared_inert(
     callee = getattr(assemble, callee_name)
     options = dict.fromkeys(_caller_options(caller), object())
     if kind == inert_options.GIT_MODEL:
-        # The fetch consumes it (it lifts the clone's gate); the model
-        # delegate never sees it.
-        del options["trust_model_files"]
+        # The fetch consumes them (one lifts the clone's gate, the other
+        # caps it); the model delegate never sees them.
+        del options["trust_model_files"], options["max_download_bytes"]
     assert len(options) > 5  # non-vacuous
     with caplog.at_level("WARNING"):
         forwarded = forward_options(kind, "t", callee, options)

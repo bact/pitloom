@@ -18,24 +18,8 @@ from unittest import mock
 
 import pytest
 
-from pitloom.extract.remote._git_size import readable_bytes, tree_bytes
+from pitloom.extract.remote._git_size import tree_bytes
 from tests._symlink import CAN_SYMLINK
-
-
-@pytest.mark.parametrize(
-    ("count", "text"),
-    [
-        (0, "0 bytes"),
-        (1, "1 byte"),
-        (1023, "1023 bytes"),
-        (1024, "1 KiB"),
-        (1025, "1025 bytes"),
-        (512 * 1024 * 1024, "512 MiB"),
-        (3 * 1024**3, "3 GiB"),
-    ],
-)
-def test_readable_bytes(count: int, text: str) -> None:
-    assert readable_bytes(count) == text
 
 
 def test_tree_bytes_counts_every_file_below(tmp_path: Path) -> None:

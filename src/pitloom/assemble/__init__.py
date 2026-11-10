@@ -277,8 +277,8 @@ def generate(
     from, for its registry keys) reaches the sdist and wheel delegates; any
     other target warns that it has no effect. So does
     *max_model_extract_bytes* on any target but a wheel, and
-    *max_download_bytes* on any target but a PyPI URL; an invalid value of
-    either raises ``ValueError`` whatever the target.
+    *max_download_bytes* on any target but a PyPI or a Git URL; an invalid
+    value of either raises ``ValueError`` whatever the target.
 
     A PyPI project or release URL is read as ``loom wheel`` reads it: the
     release's wheel that best matches the running environment is
@@ -295,9 +295,10 @@ def generate(
     file it names or its folder's one model file
     (:func:`generate_git_sbom`); *check_url* is its address policy,
     called with every redirect target before it is requested. A local
-    target does not use it. A local directory with no project config is read for its
-    one model file; one with no model file either is refused
-    (``project-or-model-not-found``).
+    target does not use it. *max_download_bytes* caps the disk the checkout
+    takes, as it caps a PyPI download. A local directory with no project
+    config is read for its one model file; one with no model file either is
+    refused (``project-or-model-not-found``).
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.

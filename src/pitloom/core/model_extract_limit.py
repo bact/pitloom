@@ -13,7 +13,8 @@ receives the value from a library caller's
 
 See also: :mod:`pitloom.core._config_parse_scan`,
 :mod:`pitloom.extract.scanner_wheel`, :mod:`pitloom._loom_active_run` and
-:mod:`pitloom.extract.remote.pypi` (the download the last one caps).
+:mod:`pitloom.extract.remote.pypi` and :mod:`pitloom.extract.remote.git`
+(the downloads the last one caps).
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ MAX_DATASET_HASH_BYTES_KEY = "max-dataset-hash-bytes"
 MAX_DOWNLOAD_BYTES_KEY = "max-download-bytes"
 
 #: Default ``max-download-bytes``: the most bytes of a release file fetched
-#: from PyPI, 512 MiB.
+#: from PyPI, and of disk a Git URL's checkout takes, 512 MiB.
 DEFAULT_MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024
 
 

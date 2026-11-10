@@ -67,7 +67,7 @@ most one prefix from the table of prefixes.
 | [`pypi-url-unusable`](#pypi-url-unusable) | ERROR | A PyPI URL was given to a command or option that cannot use it: loom wheel --embed (it would write into a temporary copy of the wheel), loom model (a release is not a model), or a library call that fetches a Git repository (generate_git_sbom(), generate_git_project_sbom(), fetch_git_project()). | 0.24.0 |
 | [`query-no-effect`](#query-no-effect) | INFO | The PyPI URL given holds a query or a fragment (a tab of the page), which names no project or release. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
-| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
+| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL, or the models of a wheel downloaded from a PyPI URL, are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
 | [`release-file-not-found`](#release-file-not-found) | ERROR | The release the URL names has no wheel for 'loom wheel' to read. | 0.24.0 |
 | [`release-file-not-found/compatible-wheel`](#release-file-not-foundcompatible-wheel) | ERROR | The release the URL names has wheels, but none whose tags this Python and platform accept. | 0.24.0 |
 | [`release-file-not-found/sdist`](#release-file-not-foundsdist) | ERROR | The release the URL names has no sdist for 'loom project' to read. | 0.24.0 |
@@ -104,7 +104,6 @@ A line may start with one prefix before its text:
 
 | Value | What it is |
 | --- | --- |
-| `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
@@ -771,16 +770,15 @@ A line may start with one prefix before its text:
 - **Pitloom did**: Kept what fits the cap and left the rest out, or did not read
   the input; the text after the semicolon says which.
 - **Tell the user**: which input was over which cap and what the SBOM lacks for
-  it. Four caps are settings, which they can raise for an input they trust and
+  it. Three caps are settings, which they can raise for an input they trust and
   then generate again: max-model-extract-bytes (and with it the per-wheel
   model-scan budget, four times it) by --max-model-extract-bytes or its
   [tool.pitloom] key; max-download-bytes (a wheel or sdist downloaded from a
-  PyPI URL) by --max-download-bytes or its key; max-dataset-hash-bytes by its
-  key, by --max-dataset-hash-bytes of loom id generate or by the
-  max_dataset_hash_bytes argument of loom.Run; a Git URL's checkout by the
-  max_clone_bytes argument of the library call. Every other cap is fixed. Do not
-  raise a cap or generate again for them; ask first, and with nobody to ask,
-  report it only.
+  PyPI URL, or a Git URL's checkout) by --max-download-bytes or its key;
+  max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id
+  generate or by the max_dataset_hash_bytes argument of loom.Run. Every other
+  cap is fixed. Do not raise a cap or generate again for them; ask first, and
+  with nobody to ask, report it only.
 - **Lines**:
 
   ```text
@@ -789,7 +787,7 @@ A line may start with one prefix before its text:
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap; not downloaded [over-cap]
-  ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
+  ERROR: the repository is larger than the <limit>-<unit> <cap> cap; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
   ```
 
@@ -993,25 +991,27 @@ A line may start with one prefix before its text:
 ### `reader-unsafe/remote`
 
 - **Level**: INFO.
-- **Means**: A model file or a project's model files read from a Git URL are in
-  a format whose reader Pitloom does not run on a downloaded file (fastText,
-  GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang
-  it, or exhaust its memory.
+- **Means**: A model file or a project's model files read from a Git URL, or the
+  models of a wheel downloaded from a PyPI URL, are in a format whose reader
+  Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch
+  .pt and .pth): a hostile file could crash or hang it, or exhaust its memory.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Listed the model by its file, format and hashes only (a
   format-only entry, named after its file), without its metadata, its reader not
   run.
-- **Tell the user**: which models from the Git URL were not read, and why. If
-  they trust the repository's model files, they pass --trust-model-files
-  (trust_model_files=True in the library; the trust-model-files input of the
-  GitHub Action) and generate again; no config file can set it. Running Pitloom
-  on a local clone reads them in full too, but also honours the repository's own
-  configuration and build file list. Do not add the flag or generate again for
-  them; ask first, and with nobody to ask, report it only.
+- **Tell the user**: which models from the Git URL or the PyPI URL were not
+  read, and why. If they trust the repository's or the release's model files,
+  they pass --trust-model-files (trust_model_files=True in the library; for a
+  Git URL, the trust-model-files input of the GitHub Action) and generate again;
+  no config file can set it. For a Git URL, running Pitloom on a local clone
+  reads them in full too, but also honours the repository's own configuration
+  and build file list. Do not add the flag or generate again for them; ask
+  first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust [reader-unsafe/remote]
+  INFO: FILE=<file>: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a release you trust [reader-unsafe/remote]
   ```
 
 ### `release-file-not-found`

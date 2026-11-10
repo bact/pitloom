@@ -25,6 +25,7 @@ from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._model_generator import generate_model_sbom
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.config_cascade import resolve_download_cap
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
@@ -83,7 +84,7 @@ def generate_git_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-    max_clone_bytes: int | None = None,
+    max_download_bytes: int | None = None,
     trust_model_files: bool | None = None,
     update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
@@ -114,6 +115,8 @@ def generate_git_sbom(
     Raises:
         pitloom.core.internal_error.InternalError: *sbom_kind* is none of
             the three (a :class:`ValueError`).
+        ValueError: *max_download_bytes* (or the config's) is not an
+            integer of at least 1.
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, the named file is not in it
             (``git.path-not-found``), or ``git.no-project``.
@@ -126,6 +129,7 @@ def generate_git_sbom(
         raise InternalError(
             f"sbom_kind must be one of {_SBOM_KINDS}, got {sbom_kind!r}"
         )
+    cap = resolve_download_cap(pitloom_config, max_download_bytes)
     build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     if isinstance(id_registry, (str, Path)):
         # A relative path means the caller's directory, not the checkout's.
@@ -134,7 +138,7 @@ def generate_git_sbom(
         url,
         check_url=check_url,
         offline=offline,
-        max_bytes=max_clone_bytes,
+        max_bytes=cap,
         trust_model_files=trust_model_files is True,
     ) as checkout:
         with checkout.reading():
@@ -208,7 +212,7 @@ def generate_git_project_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-    max_clone_bytes: int | None = None,
+    max_download_bytes: int | None = None,
     trust_model_files: bool | None = None,
     update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
@@ -231,9 +235,10 @@ def generate_git_project_sbom(
     repository must not name host paths such as fragments or an ID registry)
     unless the caller passes *pitloom_config*, and its build backend is never
     run (a build flag in *build_options* warns once and has no effect). With
-    *offline* true nothing is fetched (``git.offline``). With *max_clone_bytes* the
-    fetch is stopped once the checkout takes more disk than that
-    (``git.too-large``).
+    *offline* true nothing is fetched (``git.offline``). The fetch is
+    stopped once the checkout takes more disk than *max_download_bytes*
+    (else *pitloom_config*'s ``max-download-bytes``, else 512 MiB;
+    ``git.too-large``, ``over-cap``).
 
     A model file of the repository in a format whose reader a hostile file
     could crash or hang (fastText, GGUF, HDF5, ONNX, PyTorch) is listed
@@ -269,7 +274,7 @@ def generate_git_project_sbom(
         content_type=content_type,
         content_type_method=content_type_method,
         offline=offline,
-        max_clone_bytes=max_clone_bytes,
+        max_download_bytes=max_download_bytes,
         trust_model_files=trust_model_files,
         update_id_registry=update_id_registry,
         use_lockfile=use_lockfile,

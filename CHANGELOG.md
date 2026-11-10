@@ -25,12 +25,15 @@ and this project adheres to
 ### Added
 
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
-  release URL; `--max-download-bytes` caps the download ([#468])
+  release URL; `--max-download-bytes` caps the download, and a downloaded
+  wheel's models are gated as a Git URL's ([#468])
 - `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
   also lifts the reader gate of a Git URL's model files ([#469])
 
 ### Changed
 
+- A Git URL's fetch is capped at 512 MiB by default (`--max-download-bytes`);
+  `max_clone_bytes` renamed `max_download_bytes` ([#468])
 - **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
   (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
   to `trust-model-files`) ([#469])

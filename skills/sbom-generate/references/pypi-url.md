@@ -81,8 +81,16 @@ Rules to state to the user:
   `max-download-bytes` in a `--config` file). A larger one is
   refused with `FILE=<file>: ... ; not downloaded [over-cap]` and no SBOM. Tell the
   user about the flag and what it costs (disk, time, a hostile file); do not
-  raise it for them (non-interactively, report only). The flag on any other
-  target warns that it has no effect.
+  raise it for them (non-interactively, report only). The same setting caps a
+  Git URL's checkout (`git-url.md`); on any other target the flag warns that
+  it has no effect.
+- AI models in the downloaded wheel are gated as a Git URL's are: fastText,
+  GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` models are listed with name,
+  format and hash only, with one `INFO: FILE=<file>: AI models in these
+  formats are listed without metadata ... [reader-unsafe/remote]`. Relay it;
+  offer, never add unasked, `--trust-model-files` for a release the user
+  trusts. `loom project <url>` does not scan the sdist for models (as for a
+  local sdist), so the flag warns there that it has no effect.
 - The output is named as for a local file (`<wheel file name>.spdx3.json` for
   `loom wheel`, `<name>-<version>.spdx3.json` for `loom project`). No
   temporary path is in the SBOM or a message (`<download>` stands for it).

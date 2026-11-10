@@ -304,8 +304,17 @@ drift is silent.
   `validate-wheel`, `embed-wheel`, `merge` and `enrich` given the URL (each a
   plain "not found"-style `ERROR:`); an SBOM made from a local server standing
   in for PyPI passed `loom fragment validate` (the legitimate input on which
-  the validate paragraph must do nothing). No live PyPI run (the sandbox
-  proxy), so the live download is covered by the loopback tests only.
+  the validate paragraph must do nothing). The live download was later run
+  for real: `loom wheel` and `loom project` on `six` 1.16.0, and the
+  network-marked manual matrix cells (PyPI and a pinned GitHub tag), all
+  passing.
+  *Revised later on 2026-11-10 (after the #469/#470 merge):* a downloaded
+  wheel's gated models now say `[reader-unsafe/remote]` (its PyPI line names
+  the file), `--trust-model-files` lifts it, and a Git URL's fetch shares
+  `--max-download-bytes` (512 MiB). No description or `SKILL.md` body changed
+  (the asks are the same; `sbom-generate`'s body stays at 16,376 bytes); the
+  references carry it: `pypi-url.md`, `git-url.md`, `cli-flags.md`,
+  `known-limitations.md` and `sbom-enrich`'s `pypi-url-base.md`.
 
 ## Portability across clients (2026-09-29, PR #235)
 

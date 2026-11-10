@@ -49,7 +49,10 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
-from pitloom.core.model_extract_limit import require_positive_ceiling
+from pitloom.core.model_extract_limit import (
+    require_max_download_bytes,
+    require_positive_ceiling,
+)
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
@@ -62,6 +65,7 @@ __all__ = [
     "load_config_file",
     "require_download_override",
     "require_model_extract_override",
+    "resolve_download_cap",
     "resolve_standalone_config",
 ]
 
@@ -93,9 +97,9 @@ class ConfigOverrides:
             other embed warns. Checked by
             :func:`require_model_extract_override` even there: at least 1,
             else ``ValueError``.
-        max_download_bytes: ``--max-download-bytes``: the most bytes of
-            a release file a PyPI URL target downloads. Only a PyPI URL
-            target reads it; any other target warns. Checked by
+        max_download_bytes: ``--max-download-bytes``: the most bytes a
+            PyPI URL target downloads, or a Git URL target's checkout takes
+            on disk. Only those targets read it; any other warns. Checked by
             :func:`require_download_override`: at least 1, else
             ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
@@ -287,3 +291,21 @@ def resolve_standalone_config(
     belong to an unrelated project.
     """
     return apply_overrides(pitloom_config or PitloomConfig(), overrides)
+
+
+def resolve_download_cap(
+    pitloom_config: PitloomConfig | None, max_download_bytes: int | None
+) -> int:
+    """The ``max-download-bytes`` cap of one fetch from a PyPI or a Git URL:
+    *max_download_bytes* (``--max-download-bytes``), else *pitloom_config*'s
+    (an explicitly named config: a downloaded project's own is never read),
+    else :data:`~pitloom.core.model_extract_limit.DEFAULT_MAX_DOWNLOAD_BYTES`.
+
+    Raises:
+        ValueError: *max_download_bytes* or the config's value is not an
+            integer of at least 1.
+    """
+    cfg = resolve_standalone_config(
+        pitloom_config, ConfigOverrides(max_download_bytes=max_download_bytes)
+    )
+    return require_max_download_bytes(cfg.max_download_bytes, "pitloom_config")

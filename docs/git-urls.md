@@ -308,13 +308,16 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   lfs, then run on the directory`. Run `loom project` on that directory for
   the content. Most model repositories on Hugging Face, and many on GitLab
   and Codeberg, keep their weights in LFS.
-- **No size limit by default.** The command line sets none, so a very large
-  repository is fetched in full: the 10 MiB filter leaves out only large blobs
-  the checkout does not need, and a large file in the checked-out tree (a model
-  of 12 MiB, say) is fetched. The library API can stop a fetch once the checkout
-  takes more disk than a limit you give (`max_clone_bytes=`, error code
-  `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
-  [Python API: remote targets](python-api-remote.md).
+- **512 MiB of disk by default.** The fetch is stopped once the checkout
+  takes more disk than `--max-download-bytes BYTES` (`[tool.pitloom]
+  max-download-bytes` from `--config`, library `max_download_bytes=`; the
+  setting that caps a [PyPI download](pypi-urls.md#size-limit)): `ERROR: the
+  repository is larger than the <limit>-byte max-download-bytes cap; git clone
+  was stopped`, error code `git.too-large`, message code
+  [`over-cap`](message-codes.md#over-cap), and no SBOM. The 10 MiB filter
+  leaves out only large blobs the checkout does not need; a large file in the
+  checked-out tree (a model of 12 MiB, say) is fetched and counts. Raise the
+  cap for one run when you trust the repository.
 - A cloned project's build file list (Hatchling `force-include`, setuptools
   `package-dir`, `packages.find.where` or `package-data` with an absolute or
   `..` path, say) keeps only files inside the repository. Such an entry is

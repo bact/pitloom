@@ -291,8 +291,8 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("1", "changes", "--max-model-extract-bytes", "1"),
         _v("0", "exit:2", "--max-model-extract-bytes", "0"),
     ],
-    # Live only for a PyPI URL target (_matrix_targets.py: the cap, with
-    # --network); a cell on a local target warns that it has no effect.
+    # Live only for a PyPI or Git URL target (_matrix_targets.py: the cap,
+    # with --network); a cell on a local target warns that it has no effect.
     "--max-download-bytes": [
         _v("1", "any", "--max-download-bytes", "1"),
         _v("0", "exit:2", "--max-download-bytes", "0"),

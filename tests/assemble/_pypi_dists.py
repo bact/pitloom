@@ -88,11 +88,15 @@ def wheel_bytes(name: str = NAME, version: str = VERSION) -> bytes:
     return buffer.getvalue()
 
 
-def sdist_bytes(pyproject_tail: str = "") -> bytes:
+def sdist_bytes(
+    pyproject_tail: str = "", extra: Mapping[str, bytes] | None = None
+) -> bytes:
     """A minimal ``demo-1.0.0`` sdist, *pyproject_tail* appended to its
-    ``pyproject.toml``, the same bytes every time."""
+    ``pyproject.toml`` and the *extra* members (path below the root ->
+    bytes) added, the same bytes every time."""
     root = f"{NAME}-{VERSION}"
     members = {
+        **{f"{root}/{name}": data for name, data in (extra or {}).items()},
         f"{root}/PKG-INFO": (
             f"Metadata-Version: 2.1\nName: {NAME}\nVersion: {VERSION}\n"
         ).encode(),

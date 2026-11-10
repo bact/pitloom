@@ -100,10 +100,10 @@ SOURCE_LINE: Final = Line(
 DOWNLOAD_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON}; not downloaded"
 )
-#: A Git URL's checkout over the library caller's ``max_clone_bytes``.
+#: A Git URL's checkout over the ``max-download-bytes`` cap.
 CLONE_LINE: Final = Line(
     level="ERROR",
-    template="the repository is larger than %(amount)s; git %(command)s was stopped",
+    template=f"the repository is {REASON}; git %(command)s was stopped",
 )
 #: A ``git`` call's output over its cap.
 GIT_OUTPUT_LINE: Final = Line(
@@ -131,15 +131,14 @@ OVER_CAP: Final = Message(
     effect="thinner",
     actor="user",
     advice="Tell the user which input was over which cap and what the SBOM "
-    "lacks for it. Four caps are settings, which they can raise for an input "
+    "lacks for it. Three caps are settings, which they can raise for an input "
     "they trust and then generate again: max-model-extract-bytes (and with it "
     "the per-wheel model-scan budget, four times it) by "
     "--max-model-extract-bytes or its [tool.pitloom] key; "
-    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL) by "
-    "--max-download-bytes or its key; "
+    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL, or a "
+    "Git URL's checkout) by --max-download-bytes or its key; "
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
-    "generate or by the max_dataset_hash_bytes argument of loom.Run; a Git "
-    "URL's checkout by the max_clone_bytes argument of the library call. "
+    "generate or by the max_dataset_hash_bytes argument of loom.Run. "
     "Every other cap is fixed. Do not raise a cap or generate again for them; "
     "ask first, and with nobody to ask, report it only.",
 )

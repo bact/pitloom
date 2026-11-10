@@ -339,12 +339,13 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   Face lookups; a Git or PyPI URL target is an error), or, with `--no-offline`, allow
   it over a config `offline = true`. Not on `enrich`.
 - `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
-  (`wheel`, `project` and `generate` with that URL); beats `--config`'s
-  `max-download-bytes` (512 MiB by default). A file over it is an `ERROR:`
-  ([`over-cap`](message-codes.md#over-cap)) and no SBOM is written. A positive
-  integer: `0` or a negative value exits 2, even where it has no effect. Raise
-  it for one run only when you trust the project. See [SBOM from a PyPI
-  URL](pypi-urls.md#size-limit).
+  (`wheel`, `project` and `generate` with that URL), and the most disk a Git
+  URL's checkout may take (`project`, `model` and `generate` with that URL);
+  beats `--config`'s `max-download-bytes` (512 MiB by default). Over it is an
+  `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no SBOM is written. A
+  positive integer: `0` or a negative value exits 2, even where it has no
+  effect. Raise it for one run only when you trust the project. See [SBOM from
+  a PyPI URL](pypi-urls.md#size-limit).
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
   other targets never read a lock file) and `enrich` (for `--project-dir`
   document identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
@@ -426,7 +427,7 @@ Options: <target>: <flag> has no effect <reason>` and is dropped, never silently
 | Target | Options that warn |
 | --- | --- |
 | project directory | `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--project-dir` |
-| remote Git repository | `--max-model-extract-bytes`, `--max-download-bytes`, `--project-dir` |
+| remote Git repository | `--max-model-extract-bytes`, `--project-dir` |
 | sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--use-lockfile` |
 | wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--max-download-bytes`, `--use-lockfile` |
 | wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--max-download-bytes`, `--update-id-registry` |
@@ -434,7 +435,7 @@ Options: <target>: <flag> has no effect <reason>` and is dropped, never silently
 | sdist at a PyPI URL | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile`, `--project-dir` |
 | installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--use-lockfile`, `--project-dir` |
 | local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
-| model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
+| model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
 | Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
 | enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
 | enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |

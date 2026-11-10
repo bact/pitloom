@@ -131,7 +131,9 @@ from pitloom.messages._model_stub import (
     PARAMETER_COUNT_INVALID,
     PARAMETER_COUNT_SKIPPED,
     READER_UNSAFE,
+    READER_UNSAFE_PYPI_LINE,
     READER_UNSAFE_REMOTE,
+    READER_UNSAFE_REMOTE_LINE,
     STATED_COUNT_REASON,
 )
 from pitloom.messages._over_cap import (
@@ -383,7 +385,9 @@ __all__ = [
     "QUERY_LINE",
     "QUERY_NO_EFFECT",
     "READER_UNSAFE",
+    "READER_UNSAFE_PYPI_LINE",
     "READER_UNSAFE_REMOTE",
+    "READER_UNSAFE_REMOTE_LINE",
     "READ_USES",
     "REDIRECT_LINE",
     "REDIRECT_REFUSED_LINE",

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -93,7 +93,8 @@ Pitloom did, what to tell the user):
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
   in these formats are listed without metadata ...: onnx; pass
   --trust-model-files ...` per scan; `[reader-unsafe/remote]` for a model or
-  project from a Git URL, one per SBOM), `[library-missing]`,
+  project from a Git URL or a wheel from a PyPI URL, one per SBOM),
+  `[library-missing]`,
   `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
   metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
   model-scan budget cap; ...` the per-wheel budget). Lists past 1000 entries

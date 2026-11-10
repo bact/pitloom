@@ -35,7 +35,7 @@ from pitloom.assemble.spdx3 import deps_pypi
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
-from pitloom.core.inert_options import GIT, forward_options
+from pitloom.core.inert_options import GIT, GIT_MODEL, INERT, forward_options
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import pypi
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -227,19 +227,23 @@ def test_a_local_target_warns_the_cap_has_no_effect_once(
         if "--max-download-bytes has no effect" in line
     ]
     assert len(lines) == 1 and lines[0].startswith("WARNING: Options: ")
-    assert "only a PyPI URL target downloads a file" in lines[0]
+    assert "only a PyPI or a Git URL target downloads" in lines[0]
 
 
-def test_a_git_url_declares_the_cap_inert(caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize("kind", [GIT, GIT_MODEL])
+def test_a_git_url_forwards_the_cap_to_its_fetch(
+    caplog: pytest.LogCaptureFixture, kind: str
+) -> None:
     with caplog.at_level(logging.WARNING):
         forwarded = forward_options(
-            GIT,
+            kind,
             "https://example.invalid/r",
             generate_git_sbom,
             {"max_download_bytes": 5},
         )
-    assert not forwarded
-    assert len(caplog.records) == 1
+    assert forwarded == {"max_download_bytes": 5}
+    assert not caplog.records
+    assert "max_download_bytes" not in INERT[kind]
 
 
 # --- options a download cannot use ----------------------------------------
@@ -264,10 +268,16 @@ def _warned(err: str, flag: str) -> list[str]:
             SDIST,
             {
                 "scan_model_usage": True,
+                "trust_model_files": True,
                 "max_model_extract_bytes": 5,
                 "project_dir": "p",
             },
-            ["--scan-model-usage", "--max-model-extract-bytes", "--project-dir"],
+            [
+                "--scan-model-usage",
+                "--trust-model-files",
+                "--max-model-extract-bytes",
+                "--project-dir",
+            ],
         ),
     ],
 )

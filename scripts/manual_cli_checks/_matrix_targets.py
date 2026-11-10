@@ -74,6 +74,13 @@ TARGET_CELLS: list[TargetCell] = [
         "refuses:[over-cap]",
         network=True,
     ),
+    TargetCell(
+        "project",
+        "git-url-over-cap",
+        (_GIT_URL, "--max-download-bytes", "1"),
+        "refuses:[over-cap]",
+        network=True,
+    ),
 ]
 
 

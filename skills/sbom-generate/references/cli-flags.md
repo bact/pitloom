@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -69,12 +69,16 @@ where they differ, and a flag with no effect on a target logs
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
   `RECORD` signature (see "Signed wheels" in `../SKILL.md`). Never add it
   unless the user agrees.
-- `--trust-model-files` -- on a built wheel or a Git URL's repository, also
-  read fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` models, whose
-  readers can crash, hang or exhaust memory on a hostile file (else listed
-  without metadata, one `INFO:`). Never add it unless the user states the
-  wheel or repository is trusted. Other targets and `embed-wheel
-  --project-dir` warn that it has no effect.
+- `--trust-model-files` -- on a built wheel (a PyPI URL's too) or a Git
+  URL's repository, also read fastText, GGUF, HDF5, ONNX and PyTorch
+  `.pt`/`.pth` models, whose readers can crash, hang or exhaust memory on a
+  hostile file (else listed without metadata, one `INFO:`). Never add it
+  unless the user states the wheel, release or repository is trusted. Other
+  targets (a PyPI URL's sdist among them) and `embed-wheel --project-dir`
+  warn that it has no effect.
+- `--max-download-bytes BYTES` -- a PyPI or Git URL target only: the largest
+  file downloaded, or the most disk a checkout takes (default 512 MiB; over
+  it, `[over-cap]` and no SBOM). Only when asked.
 - `--max-model-extract-bytes BYTES` -- on a built wheel, read a model file
   only up to BYTES (four times it per wheel; default 512 MiB); a larger one
   is listed without metadata. Only when asked.

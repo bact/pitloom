@@ -51,10 +51,11 @@ a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 checkout and the repository's build-time code is not run, as for
 `generate_git_sbom()`, with no further call (`with checkout.reading():` is
 optional and may be nested); blocks that overlap in time each keep their own
-confinement. Its *max_bytes*, and
-`generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
-`git.too-large`, once the checkout takes more disk than that (no limit by
-default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
+confinement. Its *max_bytes* (no limit by default) stops the fetch, with
+`git.too-large`, once the checkout takes more disk than that; the generators
+take `max_download_bytes=` instead (else `pitloom_config=`'s
+`max-download-bytes`, else 512 MiB, as for a PyPI URL; `over-cap` as
+`pitloom_code`). See [SBOM from a Git URL](git-urls.md).
 
 The wheel or the sdist of a release on PyPI is read through the URL of its
 project or release page, with `generate()`, `generate_wheel_sbom()`,
@@ -96,7 +97,10 @@ unchanged. `generate_pypi_sbom_with_download()` returns
 `generate_git_project_sbom()` refuse PyPI-family URLs (`git.url-invalid`, with
 `pypi-url-unusable` as `pitloom_code`); `generate()` names the library route in
 its hint. `offline=True` raises
-`pypi.offline` before any request. See [SBOM from a PyPI URL](pypi-urls.md).
+`pypi.offline` before any request. AI models in a downloaded wheel are gated
+as a Git URL's are (`reader-unsafe/remote`), and `trust_model_files=True`
+lifts the gate for a release you trust; an sdist's models are not scanned, so
+for `kind="sdist"` it warns that it has no effect. See [SBOM from a PyPI URL](pypi-urls.md).
 
 A URL can name an AI model instead: a `blob` or `raw` page of a model file, or
 a folder (or the repository) holding one. `generate()` and
@@ -127,9 +131,8 @@ The readers of fastText, HDF5 and ONNX files (C/C++ libraries), PyTorch
 file can make very slow or very large) are not run on a file from a Git URL,
 whether a model SBOM describes it or a project's build file list holds it
 (`"project"`, or `"auto"` with a project config): it is listed with its name,
-format and hash only, and one `INFO:` per SBOM says so. Keras, Safetensors,
+format and hash only, and one `INFO:` per SBOM says so, unless you pass
+`trust_model_files=True` for a repository you trust. Keras, Safetensors,
 NumPy, CRFsuite and PT2 files are read in full. `generate_project_sbom()` on
-a local directory reads every format. `check_url=` and `offline=` apply as for a project, and so does
-`max_clone_bytes=`, a parameter of `generate_git_sbom()` and
-`generate_git_project_sbom()` only (`generate()` has none); options a model
-SBOM cannot use warn once.
+a local directory reads every format. `check_url=`, `offline=` and `max_download_bytes=` apply as for a project;
+options a model SBOM cannot use warn once.

@@ -57,9 +57,18 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
 
     @contextmanager
     def fetch(
-        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+        url: str,
+        *,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        asked.update(url=url, offline=offline, trust_model_files=trust_model_files)
+        asked.update(
+            url=url,
+            offline=offline,
+            max_bytes=max_bytes,
+            trust_model_files=trust_model_files,
+        )
         if offline:
             raise RemoteSourceError("git.offline", f"no network for {url}")
         yield GitCheckout(
@@ -219,9 +228,13 @@ def test_a_failure_to_read_the_fetched_project_names_the_projects_below(
 
     @contextmanager
     def fetch(
-        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+        url: str,
+        *,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline, trust_model_files
+        _ = offline, max_bytes, trust_model_files
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
@@ -343,9 +356,13 @@ def test_a_gated_reader_runs_on_a_local_project_only(
 
     @contextmanager
     def fetch(
-        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+        url: str,
+        *,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline
+        _ = offline, max_bytes
         yield GitCheckout(
             str(folder),
             url,
@@ -390,9 +407,13 @@ def test_trust_model_files_runs_the_gated_readers_on_a_git_urls_project(
 
     @contextmanager
     def fetch(
-        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+        url: str,
+        *,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        _ = offline
+        _ = offline, max_bytes
         asked["trust_model_files"] = trust_model_files
         yield GitCheckout(
             str(folder),

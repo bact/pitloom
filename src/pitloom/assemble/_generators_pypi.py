@@ -33,12 +33,12 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
     require_model_extract_override,
+    resolve_download_cap,
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import INERT, PYPI_SDIST, PYPI_WHEEL, settle_inert
 from pitloom.core.internal_error import InternalError
-from pitloom.core.model_extract_limit import require_max_download_bytes
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.project import resolve_project_with_lockfile
@@ -241,11 +241,8 @@ def generate_pypi_sbom_with_download(
         raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert
-    cfg = resolve_standalone_config(
-        pitloom_config,
-        ConfigOverrides(offline=offline, max_download_bytes=max_download_bytes),
-    )
-    cap = require_max_download_bytes(cfg.max_download_bytes, "pitloom_config")
+    cap = resolve_download_cap(pitloom_config, max_download_bytes)
+    cfg = resolve_standalone_config(pitloom_config, ConfigOverrides(offline=offline))
     subject = url.strip()
     build_options.settle_not_applicable(subject, PYPI_BUILD_REASON)
     options: dict[str, Any] = {

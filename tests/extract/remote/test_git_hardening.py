@@ -454,7 +454,8 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
     runner = GitRunner(max_bytes=100_000)
     if stopped:
         with pytest.raises(
-            RemoteSourceError, match="larger than 100000 bytes"
+            RemoteSourceError,
+            match="larger than the 100000-byte max-download-bytes cap",
         ) as excinfo:
             runner.run(["clone"], "clone", echo=False, watch=str(watched))
         assert excinfo.value.code == "git.too-large"

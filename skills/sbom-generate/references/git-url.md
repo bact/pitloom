@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,6 +38,12 @@ URL is read by the host's conventions. Rules to state to the user:
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`WARNING: Git source: Cannot fetch <url>: network
   access is forbidden.`, then the `ERROR:`).
+- The checkout may take at most 512 MiB of disk (`--max-download-bytes
+  BYTES`, or `max-download-bytes` in a `--config` file; the setting that caps
+  a PyPI download). Over it the fetch stops: `ERROR: ...: the repository is
+  larger than the <limit>-byte max-download-bytes cap; git clone was stopped
+  [over-cap]`, no SBOM. Tell the user about the flag and what it costs (disk,
+  time); do not raise it for them (non-interactively, report only).
 - A page URL naming a file (`blob`, or `raw`: GitHub `.../raw/main/f`, GitLab
   `.../-/raw/main/f`, Codeberg/Gitea `.../raw/branch/main/f`, Bitbucket
   `.../raw/main/f`) reads the folder that holds it, unless the file is an AI

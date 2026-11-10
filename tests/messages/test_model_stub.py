@@ -103,6 +103,13 @@ def test_the_family_has_its_eight_codes() -> None:
             "[reader-unsafe/remote]",
         ),
         (
+            READER_UNSAFE_REMOTE,
+            "INFO: FILE=demo-1.0-py3-none-any.whl: AI models in these formats are "
+            "listed without metadata, their reader not being run on a downloaded "
+            "file: onnx; pass --trust-model-files for a release you trust "
+            "[reader-unsafe/remote]",
+        ),
+        (
             MODEL_UNREADABLE,
             "WARNING: FORMAT=onnx FILE=demo/c.onnx: failed to extract metadata; "
             "Failed to load ONNX model from 'demo/c.onnx': corrupt [model-unreadable]",
@@ -293,8 +300,9 @@ def test_a_coded_import_error_without_its_line_is_refused() -> None:
 
 def test_the_gate_line_names_the_flag_and_every_gated_format() -> None:
     flag = PARAM_TO_FLAG["trust_model_files"]
-    for message in (READER_UNSAFE, READER_UNSAFE_REMOTE):
-        (line,) = message.lines
+    lines = [*READER_UNSAFE.lines, *READER_UNSAFE_REMOTE.lines]
+    assert len(lines) == 3  # a wheel's, a Git URL's, a PyPI URL's
+    for line in lines:
         assert f"; pass {flag} for " in line.template
     for message in (READER_UNSAFE, READER_UNSAFE_REMOTE):
         summary = message.summary.lower()

@@ -51,6 +51,11 @@ for this skill:
   step 5 applies (ask first; non-interactive: use none and list them as "not
   used -- needs consent"). The project's own PyPI metadata that the SBOM
   already holds is not an outside source.
+- **A model stub in a wheel's SBOM** (`[reader-unsafe/remote]`, `INFO:
+  FILE=<file>: AI models in these formats are listed without metadata ...`):
+  Pitloom did not run the format's reader on a downloaded file. Report it as
+  a gap with that cause (`model-stub-diagnosis.md`); never add
+  `--trust-model-files` yourself, and do not infer what the file would give.
 - **A dependency's licence or originator from the PyPI JSON API** (a
   `Source: PyPI JSON API` entry on a dependency) is Pitloom's lookup for a
   dependency, not this record; leave it as it is.
