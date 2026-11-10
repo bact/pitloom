@@ -28,6 +28,7 @@ from pitloom.core.dataset_metadata import (
 )
 from pitloom.extract.dataset import read_dataset_card
 from tests._author_routes import CREATED
+from tests._license_graph import text_behind
 from tests._spdx3_validate import assert_spdx3_valid
 
 Graph = list[dict[str, Any]]
@@ -66,7 +67,7 @@ def _licence_links(graph: Graph) -> list[tuple[str, str, str]]:
         (
             by_id[r["from"]]["type"],
             r["relationshipType"],
-            by_id[r["to"][0]].get("name", ""),
+            text_behind(by_id, by_id[r["to"][0]]).get("name", ""),
         )
         for r in _of(graph, "Relationship")
         if r["relationshipType"].endswith("License")

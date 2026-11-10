@@ -38,6 +38,7 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import clear_resolution_cache
 from pitloom.extract._license_names import UNREAD_LISTED_NAMES
+from tests._license_graph import two_packages
 
 from .conftest import _make_ci
 
@@ -66,7 +67,10 @@ def test_get_or_create_license_element_names_it_short(value: str, name: str) -> 
     )
 
     assert element is not None
-    license_text = exporter.object_set.obj_by_id[element.spdx_id]
+    wrapper = exporter.object_set.obj_by_id[element.spdx_id]
+    assert isinstance(wrapper, spdx3.simplelicensing_LicenseExpression)
+    (entry,) = wrapper.simplelicensing_customIdToUri
+    license_text = exporter.object_set.obj_by_id[entry.value]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == name
     assert license_text.simplelicensing_licenseText == value
@@ -315,3 +319,26 @@ def _conflicts(exporter: Spdx3JsonExporter) -> list[object]:
         for o in exporter.object_set.objects
         if "conflict" in str(getattr(o, "statement", ""))
     ]
+
+
+@pytest.mark.parametrize("value", ["Acme custom terms", "MIT OR", "MIT"])
+def test_a_licence_relationship_targets_an_any_license_info(value: str) -> None:
+    """``hasDeclaredLicense``/``hasConcludedLicense`` accept only an
+    ``AnyLicenseInfo``: a text is reached through a ``LicenseExpression``
+    that maps its ``LicenseRef-`` to the text element."""
+    graph = two_packages([value])
+    by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
+    targets = [
+        by_id[t]
+        for e in graph
+        if e.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
+        for t in e["to"]
+    ]
+    assert targets
+    assert {t["type"] for t in targets} == {"simplelicensing_LicenseExpression"}
+    if value == "MIT":
+        return
+    (entry,) = targets[0]["simplelicensing_customIdToUri"]
+    assert entry["key"] == targets[0]["simplelicensing_licenseExpression"]
+    assert by_id[entry["value"]]["type"] == "simplelicensing_SimpleLicensingText"
+    assert by_id[entry["value"]]["simplelicensing_licenseText"] == value

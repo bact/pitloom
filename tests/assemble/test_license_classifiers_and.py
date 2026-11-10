@@ -39,11 +39,13 @@ from pitloom.extract.license_refs import classifier_expression, classifier_terms
 from tests._license_graph import (
     dependency_graph,
     graph_of,
+    license_elements,
     license_targets,
     two_packages,
 )
 from tests._spdx3_validate import assert_spdx3_valid
 
+EXPR = "simplelicensing_LicenseExpression"
 _MIT = "License :: OSI Approved :: MIT License"
 _APACHE = "License :: OSI Approved :: Apache Software License"
 #: "MIT License" is read as the id ``MIT``; "Apache Software License" names no
@@ -96,9 +98,7 @@ def test_one_warning_per_set_of_classifiers(caplog: pytest.LogCaptureFixture) ->
 def test_the_and_maps_each_term_to_its_names_text_element() -> None:
     graph = _SOURCES["dependency-installed"]([_MIT, _APACHE])
     by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
-    (expression,) = [
-        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
-    ]
+    (expression,) = [e for e in license_elements(graph) if e["type"] == EXPR]
     assert expression["simplelicensing_licenseExpression"] == _AND
     mapped = {
         entry["key"]: by_id[entry["value"]]["simplelicensing_licenseText"]
@@ -126,9 +126,7 @@ def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -
         [e for e in graph if e["type"] == "simplelicensing_SimpleLicensingText"]
     )
     assert sorted(texts) == ["Apache Software License"]
-    (expression,) = [
-        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
-    ]
+    (expression,) = [e for e in license_elements(graph) if e["type"] == EXPR]
     mapped = {e["value"] for e in expression["simplelicensing_customIdToUri"]}
     assert mapped == set(texts.values())
 

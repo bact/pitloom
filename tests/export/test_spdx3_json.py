@@ -300,11 +300,11 @@ def test_add_license_indexes_by_kind_and_value() -> None:
     """The same string as an expression and as a text are two entries."""
     exporter = Spdx3JsonExporter()
     exporter.add_license(_text("urn:x#Text-1", "MIT"))
-    assert exporter.find_license("text", "MIT") == "urn:x#Text-1"
+    assert exporter.find_license("text-body", "MIT") == "urn:x#Text-1"
     assert exporter.find_license("expression", "MIT") is None
     exporter.add_license(_expression("urn:x#Expr-1", "MIT"))
     assert exporter.find_license("expression", "MIT") == "urn:x#Expr-1"
-    assert exporter.find_license("text", "MIT") == "urn:x#Text-1"
+    assert exporter.find_license("text-body", "MIT") == "urn:x#Text-1"
 
 
 def test_add_license_without_a_value_is_not_indexed() -> None:
@@ -313,7 +313,7 @@ def test_add_license_without_a_value_is_not_indexed() -> None:
     exporter = Spdx3JsonExporter()
     license_text = _text("urn:x#Lic-1", None)
     exporter.add_license(license_text)
-    assert exporter.find_license("text", "MIT") is None
+    assert exporter.find_license("text-body", "MIT") is None
     assert license_text in exporter.object_set.objects
 
 

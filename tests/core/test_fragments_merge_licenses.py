@@ -238,13 +238,13 @@ def test_license_key_matches_what_a_build_indexes() -> None:
             spdx3.simplelicensing_SimpleLicensingText(
                 simplelicensing_licenseText="  MIT\n"
             ),
-            ("text", "MIT"),
+            ("text-body", "MIT"),
         ),
         (
             spdx3.simplelicensing_SimpleLicensingText(
                 simplelicensing_licenseText="Acme\n \nNo use."
             ),
-            ("text", "Acme\n\nNo use."),
+            ("text-body", "Acme\n\nNo use."),
         ),
     ],
     ids=["canonical", "not-an-expression", "text", "blank-space-line"],

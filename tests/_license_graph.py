@@ -24,6 +24,7 @@ from hatchling.plugin.manager import PluginManager
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed, deps_pypi
+from pitloom.assemble.spdx3._license_elements import TEXT_REF_PREFIX
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import _apply_license
 from pitloom.assemble.spdx3.document import build, build_deployed
@@ -45,9 +46,19 @@ LICENSE_TYPES = (
 )
 
 
+def _is_text_wrapper(element: dict[str, Any]) -> bool:
+    """Whether *element* is the ``LicenseExpression`` wrapping a text."""
+    return str(element.get("simplelicensing_licenseExpression") or "").startswith(
+        TEXT_REF_PREFIX
+    )
+
+
 def license_elements(graph: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Every licence element of *graph*, either kind."""
-    return [e for e in graph if e.get("type") in LICENSE_TYPES]
+    """Every licence element of *graph*, either kind; a text's wrapping
+    expression is plumbing, not counted (see :func:`license_targets`)."""
+    return [
+        e for e in graph if e.get("type") in LICENSE_TYPES and not _is_text_wrapper(e)
+    ]
 
 
 def license_value(element: dict[str, Any]) -> str | None:
@@ -61,7 +72,7 @@ def license_targets(graph: list[dict[str, Any]]) -> list[str]:
     """What each declared/concluded licence relationship points at, in graph
     order: an element's value, or ``NOASSERTION``/``NONE`` for an individual.
     A target that is neither raises, so a dangling one cannot pass."""
-    by_id = {e["spdxId"]: e for e in license_elements(graph)}
+    by_id = {e["spdxId"]: e for e in graph if e.get("type") in LICENSE_TYPES}
     out: list[str] = []
     for rel in graph:
         if rel.get("relationshipType") not in (
@@ -73,8 +84,22 @@ def license_targets(graph: list[dict[str, Any]]) -> list[str]:
             if target in INDIVIDUAL_BY_REFERENCE:
                 out.append(INDIVIDUAL_BY_REFERENCE[target].spdx_name)
             else:
-                out.append(str(license_value(by_id[target])))
+                out.append(str(license_value(text_behind(by_id, by_id[target]))))
     return out
+
+
+def text_behind(
+    by_id: dict[str, dict[str, Any]], element: dict[str, Any]
+) -> dict[str, Any]:
+    """The ``SimpleLicensingText`` a text-wrapping ``LicenseExpression`` maps
+    its ``LicenseRef-pitloom-text-`` to, else *element* itself."""
+    expression = element.get("simplelicensing_licenseExpression") or ""
+    if not expression.startswith(TEXT_REF_PREFIX):
+        return element
+    for entry in element.get("simplelicensing_customIdToUri", []):
+        if entry["key"] == expression:
+            return by_id[entry["value"]]
+    raise AssertionError(f"{expression} is not mapped to a text element")
 
 
 def license_values(graph: list[dict[str, Any]]) -> dict[str, str | None]:

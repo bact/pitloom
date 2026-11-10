@@ -478,7 +478,7 @@ class Spdx3JsonExporter:
                 license_element.simplelicensing_licenseExpression,
             )
         else:
-            kind = "text"
+            kind = "text-body"
             value = (license_element.simplelicensing_licenseText or "").strip()
         if value:
             self._license_index[(kind, value)] = require_spdx_id(license_element)

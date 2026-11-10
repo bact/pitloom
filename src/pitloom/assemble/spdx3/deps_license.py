@@ -91,6 +91,20 @@ def _build_license_relationship(
     return rel
 
 
+def _mapped_elements(
+    element: object, exporter: Spdx3JsonExporter
+) -> dict[str, spdx3.Element]:
+    """The elements a ``LicenseExpression`` maps a ``LicenseRef-`` to by
+    ``customIdToUri``: a text element holds the display text, so it is a
+    licence element too."""
+    found: dict[str, spdx3.Element] = {}
+    for entry in getattr(element, "simplelicensing_customIdToUri", None) or []:
+        mapped = exporter.object_set.find_by_id(entry.value)
+        if isinstance(mapped, spdx3.Element):
+            found[entry.value] = mapped
+    return found
+
+
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def add_license_relationships(
     license_id: str,
@@ -128,6 +142,7 @@ def add_license_relationships(
             element = exporter.object_set.find_by_id(target_id)
             if isinstance(element, spdx3.Element):
                 licenses[target_id] = element
+            licenses.update(_mapped_elements(element, exporter))
     return [licenses[key] for key in sorted(licenses)]
 
 

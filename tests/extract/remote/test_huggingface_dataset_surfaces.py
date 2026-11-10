@@ -30,7 +30,7 @@ from pitloom.assemble import generate_model_sbom
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from tests._author_routes import CREATED
-from tests._license_graph import license_elements, license_targets
+from tests._license_graph import LICENSE_TYPES, license_targets
 from tests.conformance.g7ai_shared import without_licence_database
 from tests.conformance.g7ai_surfaces import MODEL_SURFACES
 from tests.extract.remote.hf_patches._hf_patches_base import (
@@ -77,7 +77,9 @@ def _datasets(sbom: str) -> dict[str, dict[str, Any]]:
         out[element["name"]] = {
             "version": element.get("software_packageVersion"),
             "description": element.get("description"),
-            "licence": license_targets([*own, *license_elements(graph)]),
+            "licence": license_targets(
+                [*own, *(e for e in graph if e.get("type") in LICENSE_TYPES)]
+            ),
         }
     return out
 
