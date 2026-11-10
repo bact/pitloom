@@ -71,7 +71,7 @@ PARAM_TO_FLAG: dict[str, str] = {
     "extract_file_header": "--extract-file-header/--no-extract-file-header",
     "content_type": "--content-type/--no-content-type",
     "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
-    "trust_wheel_model": "--trust-wheel-model",
+    "trust_model_files": "--trust-model-files",
     "max_model_extract_bytes": "--max-model-extract-bytes",
     "max_download_bytes": "--max-download-bytes",
     "content_type_method": "--content-type-method",
@@ -149,6 +149,10 @@ _HOOK_NO_HARVEST = (
 )
 
 _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
+_NO_READER_GATE = (
+    "for this target (it lifts the reader gate of a built wheel or of a Git "
+    "URL's clone only)"
+)
 _PROJECT_IS_DIR = (
     "for a project directory target (its files are keyed below that directory)"
 )
@@ -167,8 +171,10 @@ _EMBED_PROJECT_MODELS = (
 
 _FILE_SCAN = ("extract_file_header", "content_type")
 #: The options that steer only the scan of AI model files inside a wheel.
-_WHEEL_MODEL_SCAN = ("trust_wheel_model", "max_model_extract_bytes")
-_NOT_A_WHEEL_ROW = dict.fromkeys(_WHEEL_MODEL_SCAN, _NOT_A_WHEEL)
+_WHEEL_MODEL_SCAN = ("trust_model_files", "max_model_extract_bytes")
+_NO_EXTRACT_ROW = {"max_model_extract_bytes": _NOT_A_WHEEL}
+_NO_GATE_ROW = {"trust_model_files": _NO_READER_GATE}
+_NOT_A_WHEEL_ROW = {**_NO_GATE_ROW, **_NO_EXTRACT_ROW}
 #: Options no wheel-embedded SBOM can use, however it is embedded
 #: (``embed-wheel`` or ``wheel --embed``).
 _EMBED_COMMON: dict[str, str] = {
@@ -176,8 +182,10 @@ _EMBED_COMMON: dict[str, str] = {
     "describe_relationship": _EMBED_NO_DESCRIBE,
     "update_id_registry": _NO_HARVEST,
 }
+#: A model file read on its own, local or in a Git URL's clone (the gate of
+#: the clone's file is lifted by ``trust_model_files``, so it is not here).
 _MODEL_FILE_ROW: dict[str, str] = {
-    **_NOT_A_WHEEL_ROW,
+    **_NO_EXTRACT_ROW,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "scan_model_usage": _MODEL_NO_USAGE,
@@ -210,7 +218,7 @@ _WHEEL_ROW: dict[str, str] = {
 #: :data:`INERT` but the download cap's entries.
 _ROWS: dict[str, dict[str, str]] = {
     PROJECT: {**_NOT_A_WHEEL_ROW, "project_dir": _PROJECT_IS_DIR},
-    GIT: {**_NOT_A_WHEEL_ROW, "project_dir": _GIT_PROJECT_DIR},
+    GIT: {**_NO_EXTRACT_ROW, "project_dir": _GIT_PROJECT_DIR},
     SDIST: _SDIST_ROW,
     WHEEL: _WHEEL_ROW,
     # A downloaded file is read as the local one; only the cap is its own.
@@ -226,6 +234,7 @@ _ROWS: dict[str, dict[str, str]] = {
     },
     MODEL_FILE: {
         **_MODEL_FILE_ROW,
+        **_NO_GATE_ROW,
         "offline": _MODEL_NO_NETWORK,
         "use_lockfile": _NO_LOCKFILE,
         "project_dir": _NOT_AN_ARCHIVE,
@@ -238,6 +247,7 @@ _ROWS: dict[str, dict[str, str]] = {
     },
     HF: {
         **_MODEL_FILE_ROW,
+        **_NO_GATE_ROW,
         "enrich": _HF_NO_LOCAL_ENRICH,
         "id_registry": _HF_NO_REGISTRY,
         "use_lockfile": _NO_LOCKFILE,
@@ -251,7 +261,7 @@ _ROWS: dict[str, dict[str, str]] = {
     },
     EMBED_PROJECT: {
         **_EMBED_COMMON,
-        "trust_wheel_model": _EMBED_PROJECT_MODELS,
+        "trust_model_files": _EMBED_PROJECT_MODELS,
         "max_model_extract_bytes": _EMBED_PROJECT_MODELS,
     },
     EMBED_STANDALONE: {

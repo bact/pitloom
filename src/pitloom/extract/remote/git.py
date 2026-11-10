@@ -35,7 +35,7 @@ import logging
 import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePath
 from typing import Final
 
@@ -114,6 +114,7 @@ class GitCheckout:
     subdir: str
     whole_repository: bool
     file: str = ""
+    trust_model_files: bool = False
 
     @contextmanager
     def explaining_failures(self) -> Iterator[None]:
@@ -150,7 +151,10 @@ class GitCheckout:
         is reported as in a temporary clone, out of whose :attr:`root`
         nothing is read
         (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
-        with reading_remote_clone(self.root), self.explaining_failures():
+        with (
+            reading_remote_clone(self.root, trust_model_files=self.trust_model_files),
+            self.explaining_failures(),
+        ):
             yield
 
 
@@ -161,6 +165,7 @@ def fetch_git_project(
     check_url: Callable[[str], None] | None = None,
     offline: bool | None = None,
     max_bytes: int | None = None,
+    trust_model_files: bool = False,
 ) -> Iterator[GitCheckout]:
     """Fetch the repository *url* names into a temporary directory
     (``pitloom-git-`` and eight random characters), removed on exit (no
@@ -174,6 +179,10 @@ def fetch_git_project(
     the model readers a wheel scan does not run are not run, and the
     repository's build-time code is not run. The mark is reset on every exit
     and belongs to the calling thread's context alone.
+
+    With *trust_model_files* the caller vouches for the repository's model
+    files: the readers a wheel scan does not run are run (the build-time code
+    is still not run). The default is to run none of them.
 
     *check_url* is called with the URL of every redirect target, without
     user information, before it is requested and raises for one that must not
@@ -204,7 +213,8 @@ def fetch_git_project(
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
             raise
-        with reading_remote_clone(checkout.root):
+        checkout = replace(checkout, trust_model_files=trust_model_files)
+        with reading_remote_clone(checkout.root, trust_model_files=trust_model_files):
             yield checkout
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -75,7 +75,7 @@ file-size guidance -- moved verbatim, no content changed.
   `action-selftest.yml` (`pitloom fragment validate`). Caching or vendoring
   the schema/context remains an alternative to retrying.
 - [ ] **Manual-check matrix: standalone `embed-wheel` on `gated-wheel`** --
-  add a cell for `--trust-wheel-model` in `scripts/manual_cli_checks/_matrix_plan.py`
+  add a cell for `--trust-model-files` in `scripts/manual_cli_checks/_matrix_plan.py`
   (today only `wheel` runs it live; the other cells are inert).
 
 ## CI workflow review (0.20.0)

@@ -365,6 +365,10 @@ def test_every_option_reaches_or_is_declared_inert(
     wiring-bug ``ValueError`` -- and each inert one warns exactly once."""
     callee = getattr(assemble, callee_name)
     options = dict.fromkeys(_caller_options(caller), object())
+    if kind == inert_options.GIT_MODEL:
+        # The fetch consumes it (it lifts the clone's gate); the model
+        # delegate never sees it.
+        del options["trust_model_files"]
     assert len(options) > 5  # non-vacuous
     with caplog.at_level("WARNING"):
         forwarded = forward_options(kind, "t", callee, options)
@@ -428,9 +432,9 @@ def test_the_standalone_embed_builder_reads_no_declared_inert_option() -> None:
     assert not read & set(inert_options.INERT[inert_options.EMBED_STANDALONE])
 
 
-def test_trust_wheel_model_with_a_project_dir_says_why() -> None:
+def test_trust_model_files_with_a_project_dir_says_why() -> None:
     """``embed-wheel --project-dir`` reads its models from the project; the
     reason must not claim the target reads no wheel."""
-    reason = INERT[inert_options.EMBED_PROJECT]["trust_wheel_model"]
+    reason = INERT[inert_options.EMBED_PROJECT]["trust_model_files"]
     assert "--project-dir" in reason
     assert "not the wheel" in reason

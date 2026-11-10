@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-09
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,9 +70,8 @@ refactor of `hdf5_config.py`.
   `hdf5-hang.h5` and `hdf5-segfault.h5` fixtures show a native reader can
   crash or hang the process, and a Git URL reaches Pitloom from the internet
   through Lumina. *Rejected:* run every reader (simpler; an internet file would
-  hit crash-prone readers); a flag to trust a download (a URL is not a thing
-  a user inspected; cloning and running on a local file is the same step with
-  the user's eyes on it).
+  hit crash-prone readers); a flag to trust a download (rejected here at
+  first, adopted in the 2026-11-10 revision below).
   *Revised (follow-up request): the project route is gated too.* D1 first
   covered the model route only (`read_model_file`); a Git URL read as a
   project still ran every reader on the models in the build file list. Now
@@ -84,8 +83,23 @@ refactor of `hdf5_config.py`.
   new parameter: every route into a clone (`generate_git_sbom`,
   `generate_git_project_sbom`, `generate()`, `loom project`/`loom generate
   <url>`) is gated; a local project, the Hatchling hook and `embed-wheel`
-  never run inside `reading()` and stay ungated. `--trust-wheel-model` does
-  not lift it (it is inert on a Git URL).
+  never run inside `reading()` and stay ungated.
+  *Revised 2026-11-10: a trust flag exists after all.* `--trust-wheel-model`
+  became `--trust-model-files` (library `trust_model_files`, Action input
+  `trust-model-files`) and lifts this gate too. The two reasons for rejecting
+  a flag did not hold: a downloaded wheel is no more inspected than a Git file,
+  and trust is a statement about the source, and "clone, then run on the local
+  copy" is not the same step: it also trusts the repository's own
+  `[tool.pitloom]` and build file list, drops the clone confinement (D11) and
+  loses the commit, URL and repository-relative names. The bit rides on the
+  clone mark (`reading_remote_clone(..., trust_model_files=)`,
+  `remote_clone_trusted()`, innermost block only), set by
+  `fetch_git_project(..., trust_model_files=)`; wheel and clone build their
+  gate through one `scanner_wheel.reader_gate()`. Kept: gated by default, no
+  `[tool.pitloom]` key, never forwarded by a service that takes URLs from the
+  internet; `--allow-build` stays inert on a Git URL (running a build backend
+  is code the repository chooses to run, reading a file is not). One flag,
+  not one per source: a run has one external target.
 - **D2 Commands.** `generate(url)` and `loom generate <url>` choose a project
   or a model. `loom model <url>` accepts a Git URL (model only; it used to
   refuse and name `loom project`). `loom project <url>` stays project-only;

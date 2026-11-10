@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,10 +29,11 @@ it free. Figures are approximate, from measurements on one machine.
   its largest model's, not the sum of its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
   bounded, only gated in wheels and for a model file or a project read from
-  a Git URL. With `--trust-wheel-model`, in a scan of a local project, or in
-  `loom model FILE` on a local file, a crafted file can use gigabytes (a 16 MiB ONNX measured
-  about 3 GB; a 308-byte fastText header reached 5 GB and kept climbing)
-  or crash or hang libhdf5.
+  a Git URL. Where the gate is off (`--trust-model-files` on a wheel or a
+  Git URL, a scan of a local project, or `loom model FILE` on a local file),
+  a crafted file can use gigabytes (a 16 MiB ONNX measured about 3 GB; a
+  308-byte fastText header reached 5 GB and kept climbing) or crash or hang
+  libhdf5.
 - **No Ctrl-C while a native parser runs.** A signal handler does not run
   inside native code, so interrupting waits for the parser; kill the
   process if it hangs.
@@ -40,7 +41,7 @@ it free. Figures are approximate, from measurements on one machine.
   directory, up to the budget (2 GiB by default), and removes it after.
 - **Planned.** Header-only readers that never pass a file to a native
   library are planned for a future release. They would let the gated
-  formats be read in wheels without `--trust-wheel-model` and replace
+  formats be read in wheels without `--trust-model-files` and replace
   several of the [caps](ai-model-scan-limits.md#size-and-count-caps).
 
 ## See also

@@ -86,7 +86,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "is not a valid project name",
         "is not a PEP 440 version",
     ),
-    "reader-unsafe": ("Pass --trust-wheel-model", "run on a downloaded file"),
+    "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
     "release-file-not-found": (
         "the release has no wheel",
         "no wheel matches this Python",

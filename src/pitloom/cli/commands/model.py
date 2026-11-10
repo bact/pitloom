@@ -66,6 +66,8 @@ def _write_model_sbom(
     if kind == GIT_MODEL:
         # The fetch consumed it: a file of the clone is read with no network.
         options.pop("offline", None)
+        # Consumed by the fetch too (run_remote): it lifts the clone's gate.
+        options.pop("trust_model_files", None)
     generate_model_sbom(
         source,
         output_path=output_path,

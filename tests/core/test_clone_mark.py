@@ -19,6 +19,7 @@ from pitloom.core.clone_mark import (
     in_remote_clone,
     reading_remote_clone,
     remote_clone_root,
+    remote_clone_trusted,
 )
 
 
@@ -49,3 +50,31 @@ def test_a_block_left_by_an_exception_unmarks() -> None:
         with reading_remote_clone("A"):
             raise LookupError
     assert not in_remote_clone() and remote_clone_root() is None
+
+
+def test_trust_is_off_by_default_and_outside_a_block() -> None:
+    assert not remote_clone_trusted()
+    with reading_remote_clone("A"):
+        assert in_remote_clone() and not remote_clone_trusted()
+
+
+def test_only_the_innermost_block_decides_the_trust() -> None:
+    """A trusted outer block does not trust an untrusted inner one, nor the
+    reverse; each exit restores the outer decision."""
+    with reading_remote_clone("A", trust_model_files=True):
+        assert remote_clone_trusted()
+        with reading_remote_clone("B"):
+            assert not remote_clone_trusted()
+        assert remote_clone_trusted()
+    with reading_remote_clone("A"):
+        with reading_remote_clone("B", trust_model_files=True):
+            assert remote_clone_trusted()
+        assert not remote_clone_trusted()
+    assert not remote_clone_trusted()
+
+
+def test_a_trusted_block_left_by_an_exception_is_no_longer_trusted() -> None:
+    with pytest.raises(LookupError):
+        with reading_remote_clone("A", trust_model_files=True):
+            raise LookupError
+    assert not remote_clone_trusted()

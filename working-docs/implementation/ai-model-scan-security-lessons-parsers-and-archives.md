@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -64,7 +64,7 @@ Lessons:
   a hung native parser.
 - **Response:** gate the native and amplifying readers (fastText, GGUF,
   HDF5, ONNX, PyTorch pickle) for wheels: list the model with format only,
-  plus one `INFO:`, unless the user passes `--trust-wheel-model`. No
+  plus one `INFO:`, unless the user passes `--trust-model-files`. No
   config key for the opt-in, because a config file can live in the
   untrusted tree. A local project scan is not gated (the user's own tree),
   which is documented as unsafe for an untrusted checkout; the same gate

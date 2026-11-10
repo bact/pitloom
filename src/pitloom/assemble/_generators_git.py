@@ -84,6 +84,7 @@ def generate_git_sbom(
     content_type_method: str | None = None,
     offline: bool | None = None,
     max_clone_bytes: int | None = None,
+    trust_model_files: bool | None = None,
     update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
@@ -105,7 +106,8 @@ def generate_git_sbom(
     A model file of a clone, and each model file in its project's build
     file list, is read as a local one, except that a format whose reader a
     hostile file could crash or hang (fastText, GGUF, HDF5, ONNX, PyTorch)
-    is listed without metadata, said in one ``INFO:`` per SBOM. A model
+    is listed without metadata, said in one ``INFO:`` per SBOM, unless
+    *trust_model_files* (see :func:`generate_git_project_sbom`). A model
     file's messages name it by its path in the repository; an option a
     model SBOM cannot use warns once.
 
@@ -129,7 +131,11 @@ def generate_git_sbom(
         # A relative path means the caller's directory, not the checkout's.
         id_registry = Path(id_registry).absolute()
     with fetch_git_project(
-        url, check_url=check_url, offline=offline, max_bytes=max_clone_bytes
+        url,
+        check_url=check_url,
+        offline=offline,
+        max_bytes=max_clone_bytes,
+        trust_model_files=trust_model_files is True,
     ) as checkout:
         with checkout.reading():
             target = resolve_git_target(checkout, sbom_kind, url)
@@ -203,6 +209,7 @@ def generate_git_project_sbom(
     content_type_method: str | None = None,
     offline: bool | None = None,
     max_clone_bytes: int | None = None,
+    trust_model_files: bool | None = None,
     update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
@@ -226,7 +233,16 @@ def generate_git_project_sbom(
     run (a build flag in *build_options* warns once and has no effect). With
     *offline* true nothing is fetched (``git.offline``). With *max_clone_bytes* the
     fetch is stopped once the checkout takes more disk than that
-    (``git.too-large``). When the folder
+    (``git.too-large``).
+
+    A model file of the repository in a format whose reader a hostile file
+    could crash or hang (fastText, GGUF, HDF5, ONNX, PyTorch) is listed
+    without metadata, with one ``INFO:`` (``reader-unsafe/remote``). With
+    *trust_model_files* the caller vouches for the repository's model files
+    and those readers run. Never set it from a request a third party can
+    make (a service that takes repository URLs): a hostile file can crash
+    or hang the process, and Ctrl-C cannot interrupt it. No configuration
+    file can set it. When the folder
     holds no Python project but folders below it do, the failure names them
     (``git.no-project``); when it holds files that may be AI models instead,
     the failure says to ask for a model SBOM (:func:`generate_git_sbom`).
@@ -254,6 +270,7 @@ def generate_git_project_sbom(
         content_type_method=content_type_method,
         offline=offline,
         max_clone_bytes=max_clone_bytes,
+        trust_model_files=trust_model_files,
         update_id_registry=update_id_registry,
         use_lockfile=use_lockfile,
         build_options=build_options,

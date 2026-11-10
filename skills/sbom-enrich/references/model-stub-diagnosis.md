@@ -44,7 +44,7 @@ table what the code leaves of the model:
 
 <!-- END GENERATED -->
 
-Relay the advice; never install an extra, add `--trust-wheel-model` or raise
+Relay the advice; never install an extra, add `--trust-model-files` or raise
 a cap yourself. `... identity unknown` is the wheel's own name and version,
 not a model: see `sbom-generate`'s known limitations ("Refused wheels and
 unknown identity").

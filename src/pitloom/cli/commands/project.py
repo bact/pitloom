@@ -83,6 +83,8 @@ def generate_project_from_args(
     if remote_url is not None:
         settled = settle_inert(GIT, remote_url, options)
         options = {k: v for k, v in options.items() if k not in settled}
+        # Consumed by the fetch (run_remote), not by the local project read.
+        options.pop("trust_model_files", None)
     kind = project_target_kind(project_dir)
     generate_project_sbom(
         project_dir,

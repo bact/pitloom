@@ -65,7 +65,7 @@ def generate_wheel_sbom(
     max_source_metadata_bytes: int | None = None,
     max_model_extract_bytes: int | None = None,
     scan_model_usage: bool | None = None,
-    trust_wheel_model: bool | None = None,
+    trust_model_files: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
@@ -112,7 +112,7 @@ def generate_wheel_sbom(
     members; a model beyond either limit is listed without metadata. Models
     in a format whose reader a hostile file can crash or hang (fastText,
     GGUF, HDF5, ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata
-    too, with one ``INFO:``, unless *trust_wheel_model* (for a wheel you
+    too, with one ``INFO:``, unless *trust_model_files* (for a wheel you
     trust only; it has no config key, so a config cannot opt in).
 
     ``extract_file_header``/``content_type``/``enrich`` have no parameter
@@ -150,7 +150,7 @@ def generate_wheel_sbom(
             max_source_metadata_bytes=max_source_metadata_bytes,
             max_model_extract_bytes=max_model_extract_bytes,
             scan_model_usage=scan_model_usage,
-            trust_wheel_model=trust_wheel_model,
+            trust_model_files=trust_model_files,
             pitloom_config=pitloom_config,
             project_dir=project_dir,
         )
@@ -168,7 +168,7 @@ def generate_wheel_sbom(
         max_source_metadata_bytes=max_source_metadata_bytes,
         max_model_extract_bytes=max_model_extract_bytes,
         scan_model_usage=scan_model_usage,
-        trust_wheel_model=trust_wheel_model,
+        trust_model_files=trust_model_files,
         pitloom_config=pitloom_config,
         project_dir=project_dir,
         check_url=check_url,
@@ -191,7 +191,7 @@ def generate_wheel_sbom_with_metadata(
     max_source_metadata_bytes: int | None = None,
     max_model_extract_bytes: int | None = None,
     scan_model_usage: bool | None = None,
-    trust_wheel_model: bool | None = None,
+    trust_model_files: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
@@ -258,7 +258,7 @@ def generate_wheel_sbom_with_metadata(
         scan_usage=cfg.scan_model_usage is True,
         usage_hint=lambda: cfg.scan_model_usage is None,
         max_bytes=cfg.max_model_extract_bytes,
-        trust=trust_wheel_model is True,
+        trust=trust_model_files is True,
     )
     phantom_deps = find_phantom_dependencies(project_files)
 

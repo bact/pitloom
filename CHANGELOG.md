@@ -26,6 +26,16 @@ and this project adheres to
 
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
   release URL; `--max-download-bytes` caps the download ([#468])
+- `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
+  also lifts the reader gate of a Git URL's model files ([#469])
+
+### Changed
+
+- **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
+  (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
+  to `trust-model-files`) ([#469])
+- The `reader-unsafe` and `reader-unsafe/remote` messages name
+  `--trust-model-files` and put the action after a `;` ([#469])
 
 ### Fixed
 
@@ -34,6 +44,7 @@ and this project adheres to
   failing the run ([#468])
 
 [#468]: https://github.com/bact/pitloom/pull/468
+[#469]: https://github.com/bact/pitloom/pull/469
 
 ## [0.23.4] - 2026-11-09
 

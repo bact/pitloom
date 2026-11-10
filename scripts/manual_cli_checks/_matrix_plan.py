@@ -66,7 +66,7 @@ COMMANDS: list[Command] = [
     ),
     Command("project", lambda fx, c: [str(fx.stage("project", c))], "output"),
     # The wheel holds a GGUF, which a wheel scan lists without metadata unless
-    # --trust-wheel-model.
+    # --trust-model-files.
     Command("wheel", lambda fx, c: [str(fx.stage("gated-wheel", c))], "output"),
     Command(
         "embed-wheel",
@@ -262,8 +262,8 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     ],
     # Live on `wheel`, whose fixture wheel holds a GGUF; inert on every other
     # cell (models read from a project directory, or no wheel at all).
-    "--trust-wheel-model": [
-        _v("--trust-wheel-model", "changes", "--trust-wheel-model")
+    "--trust-model-files": [
+        _v("--trust-model-files", "changes", "--trust-model-files")
     ],
     "--content-type-method": [
         _v(

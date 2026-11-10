@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,7 +34,7 @@ it executes third-party build-time code from the project being scanned
 -- so:
 
 - It's off by default and must be passed explicitly every time; like
-  `--trust-wheel-model` and `--allow-signed-wheel`, it has **no**
+  `--trust-model-files` and `--allow-signed-wheel`, it has **no**
   `[tool.pitloom]` config-file equivalent. A target project's own
   `pyproject.toml` must never be able to silently opt itself into code
   execution for whoever scans it.

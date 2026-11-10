@@ -45,7 +45,9 @@ def run_remote(
     The repository is untrusted: its own ``[tool.pitloom]`` is ignored (only
     ``--config`` applies) and its build backend never runs (each flag of
     *build_options* warns once). ``--offline`` (or ``offline`` in
-    ``--config``) forbids the fetch.
+    ``--config``) forbids the fetch. ``--trust-model-files`` runs the model
+    readers a hostile file could crash or hang on the repository's files;
+    no config key sets it.
     """
     # Imported here: these modules call run_remote (an import cycle).
     # pylint: disable-next=import-outside-toplevel,cyclic-import
@@ -59,7 +61,9 @@ def run_remote(
     if offline is None and explicit is not None:
         offline = explicit.offline
     settled = build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
-    with fetch_git_project(url, offline=offline) as checkout:
+    with fetch_git_project(
+        url, offline=offline, trust_model_files=args.trust_model_files is True
+    ) as checkout:
         with checkout.reading():
             target = resolve_git_target(checkout, mode, url)
             if target.model is not None:

@@ -62,7 +62,7 @@ def write_project(root: Path, *, hook: bool = False, gated: bool = False) -> Pat
     # A model plus a script naming it: an AIPackage and a usage reference.
     _write_model(root / "demo" / MODEL)
     if gated:
-        # A format a wheel scan leaves unread unless --trust-wheel-model.
+        # A format a wheel scan leaves unread unless --trust-model-files.
         (root / "demo" / GATED_MODEL).write_bytes(_GGUF)
     (root / "demo" / "load.py").write_text(f'MODEL = "{MODEL}"\n', encoding="utf-8")
     hook_table = "\n[tool.hatch.build.hooks.pitloom]\n" if hook else ""

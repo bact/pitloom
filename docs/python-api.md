@@ -125,11 +125,14 @@ Other arguments that mirror a CLI flag or config key:
   `generate_wheel_sbom()`; `ConfigOverrides.scan_model_usage` for
   `embed_wheel_sbom()`, with or without `project_dir=`): `--scan-model-usage`.
   Other targets warn that it has no effect.
-- `trust_wheel_model=True` (`generate()`, `generate_wheel_sbom()`;
-  `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()` without
-  `project_dir=`): `--trust-wheel-model`, for a wheel you trust only. It has no
-  config key, so a config cannot opt in. Other targets warn that it has no
-  effect.
+- `trust_model_files=True` (`generate()`, `generate_wheel_sbom()`,
+  `generate_git_sbom()`, `generate_git_project_sbom()`;
+  `ConfigOverrides.trust_model_files` for `embed_wheel_sbom()` without
+  `project_dir=`): `--trust-model-files`, for a wheel or Git repository you
+  trust only. It has no config key, so a config cannot opt in. Never set it
+  from a request a third party can make (a service that takes repository or
+  wheel URLs): a hostile model file can crash or hang the process. Other
+  targets warn that it has no effect.
 - `max_model_extract_bytes=` (`generate()`, `generate_wheel_sbom()`;
   `ConfigOverrides.max_model_extract_bytes` for `embed_wheel_sbom()` without
   `project_dir=`): `--max-model-extract-bytes`, the per-model ceiling of a

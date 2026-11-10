@@ -147,7 +147,7 @@ Steps:
    name ends `...~<hex>`, a CRFsuite/fastText model has `num_labels` but no
    `labels`, or `\uXXXX` appears in a name or description, read
    `references/model-stub-diagnosis.md` and tell the user the cause before
-   inferring what the file itself would give. Never add `--trust-wheel-model` or
+   inferring what the file itself would give. Never add `--trust-model-files` or
    raise a model-scan cap yourself; never write a cut name, dropped label or
    unescaped control back into a fragment.
 4. **Interactive session only -- ask the SBOM author about remaining gaps

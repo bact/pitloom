@@ -234,9 +234,13 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   file list of a project from a Git URL holds, is listed with its name,
   format and hash only, and one `INFO:` per SBOM says so. Keras, Safetensors
   (with its Rust library, read in full on purpose), NumPy, CRFsuite and PT2
-  files are read in full. To read the others, clone the repository (with Git
-  LFS, when it stores the model there) and run `loom model <file>` on a file
-  you trust, or `loom project <dir>` on a project you trust. The gate covers a
+  files are read in full. To read the others from a repository you trust, pass
+  `--trust-model-files` (library `trust_model_files=True`, Action input
+  `trust-model-files`): it lifts only this gate, and the repository's own
+  `[tool.pitloom]` is still ignored. Cloning the repository (with Git LFS,
+  when it stores the model there) and running `loom model <file>` or `loom
+  project <dir>` on the copy reads them too, but also trusts the
+  repository's configuration and build file list. The gate covers a
   folder read as a project too (`loom project`, or `loom generate` on a
   folder with `pyproject.toml`, `setup.cfg` or `setup.py`); a local project
   directory is not gated.
@@ -353,7 +357,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
 | `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
 | `INFO:` | `FILE=<file>: one of several AI model files`, then `ERROR:` `<url>: several AI model files (N files); name one file` | a folder holds several models (one line per file; `model-ambiguous`) |
-| `INFO:` | `AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; clone the repository and run on the file you trust` | a model in a format whose reader is not run on a download |
+| `INFO:` | `AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust` | a model in a format whose reader is not run on a download |
 | `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file` | neither a project nor a model (`project-or-model-not-found`) |
 | `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
 | `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |

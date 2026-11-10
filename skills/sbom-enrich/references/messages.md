@@ -979,15 +979,15 @@ A line may start with one prefix before its text:
   run. One line per scan names the formats met that no earlier line of the run
   named.
 - **Tell the user**: which formats in the wheel were not read, and why. If they
-  trust the wheel, they pass --trust-wheel-model (trust_wheel_model=True in the
-  library; the trust-wheel-model input of the GitHub Action, with embed-wheel
+  trust the wheel, they pass --trust-model-files (trust_model_files=True in the
+  library; the trust-model-files input of the GitHub Action, with embed-wheel
   and an empty project-path) and generate again; no config file can set it. Do
   not add the flag or generate again for them; ask first, and with nobody to
   ask, report it only.
 - **Lines**:
 
   ```text
-  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]
+  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>; pass --trust-model-files for a wheel you trust [reader-unsafe]
   ```
 
 ### `reader-unsafe/remote`
@@ -1002,15 +1002,16 @@ A line may start with one prefix before its text:
   format-only entry, named after its file), without its metadata, its reader not
   run.
 - **Tell the user**: which models from the Git URL were not read, and why. If
-  they trust the files, they clone the repository (with Git LFS when it stores
-  the models there) and run Pitloom on the local copy, loom model on the model
-  file or loom project on the project folder, which reads them in full. Do not
-  clone the repository or run Pitloom for them; ask first, and with nobody to
-  ask, report it only.
+  they trust the repository's model files, they pass --trust-model-files
+  (trust_model_files=True in the library; the trust-model-files input of the
+  GitHub Action) and generate again; no config file can set it. Running Pitloom
+  on a local clone reads them in full too, but also honours the repository's own
+  configuration and build file list. Do not add the flag or generate again for
+  them; ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
-  INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; clone the repository and run on the file you trust [reader-unsafe/remote]
+  INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust [reader-unsafe/remote]
   ```
 
 ### `release-file-not-found`

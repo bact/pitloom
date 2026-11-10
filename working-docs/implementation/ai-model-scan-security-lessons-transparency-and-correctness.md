@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -214,3 +214,42 @@ See also: [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
   `loom.run()` fragments, not static scan). In `mistral-inference`
   (`consolidated.safetensors`, 14 `.py` files), both `mamba.py` and
   `transformer.py` are classified as `read access`.
+
+## 3.12 An opt-in that lifts a gate: scope, name and trust (#469)
+
+The reader gate (fastText, GGUF, HDF5, ONNX, PyTorch: readers a hostile file
+can crash or hang) first had an opt-in for a built wheel only. A Git URL's
+model files were gated with none. #469 made one flag, `--trust-model-files`,
+lift both.
+
+- **Refusing the opt-in pushed users to a wider trust.** The advice for a
+  gated Git file was to clone the repository and run Pitloom on the copy.
+  That run also honours the repository's own `[tool.pitloom]` and build file
+  list, drops the clone confinement (nothing outside the clone is read) and
+  loses the commit, URL and repository-relative names. A flag that lifts the
+  reader gate and nothing else is the narrower trust. Do: before refusing an
+  opt-in, list what its workaround trusts.
+- **"The user did not inspect it" is not an argument against trusting.**
+  Nobody inspects a wheel or a GGUF file by eye; trust is a statement about
+  the source (my organisation's repository, my release). The hazard is the
+  same for both: a crash, a hang Ctrl-C cannot interrupt, unbounded memory.
+  Do: decide per hazard, not per transport.
+- **One flag per run, named for what the user vouches for.** A run has one
+  external target, so a flag per source (`--trust-wheel-model`,
+  `--trust-git-model`, ...) adds names to keep in step across the CLI, the
+  library, the Action, the skills, the message catalogue and the test matrix,
+  and no precision. `--trust-remote-model` is wrong for a local wheel;
+  `--trust-model-readers` is backwards, since the readers are what cannot be
+  trusted. Do: name the input the user vouches for.
+- **Keep the safe defaults of the opt-in.** Off by default; an explicit `True`
+  only (`None` and `False` both mean gated); no config-file key, because a
+  config can sit in the untrusted tree; and a service that takes URLs from
+  the internet must never forward it.
+- **A per-run bit rides on the scope mark that already exists.** The trust
+  bit is a field of the clone's context-variable block; only the innermost
+  block decides, so a trusted outer block never trusts an untrusted inner
+  one. One shared helper builds the gate for the wheel and the clone, so the
+  two cannot decide differently. Twenty hand-made mutants (always trusted,
+  never trusted, outermost wins, the bit dropped at each hand-off, `None`
+  read as `True` on each surface) were all caught by the tests.
+

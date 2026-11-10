@@ -53,7 +53,7 @@ def test_a_path_config_file_is_not_a_model_in_a_project(
 def test_path_config_files_are_not_models_in_a_wheel(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """No ``AIPackage``, no gate ``INFO`` urging ``--trust-wheel-model``, no
+    """No ``AIPackage``, no gate ``INFO`` urging ``--trust-model-files``, no
     usage hint."""
     wheel = write_model_wheel(tmp_path / "d", dict(_PATH_CONFIG))
     asked: list[bool] = []
