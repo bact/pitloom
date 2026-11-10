@@ -451,6 +451,21 @@ the move.
   listens on" are flakes.** Wait for the condition (a pid file, an event),
   assert the message rather than the duration, bind and close a socket for a
   free port (#317).
+- **Start the helper threads inside the `try` whose `except BaseException`
+  kills the child.** `_capture` started a timer and a reader thread before
+  it; a Ctrl-C in `Thread.start()` left git running (flaked on Ubuntu / 3.10,
+  #467). Regression test: a Thread subclass whose `start()` raises
+  `KeyboardInterrupt`, patched into the module under test; assert the child
+  is gone.
+- **`os.kill(pid, 0)` succeeds on a zombie**: use one shared "is it gone"
+  helper (`tests/_pid.py`: `/proc` state `Z` is gone; `tasklist` on Windows).
+  A plausible explanation of a flake is not a diagnosis until a test fails
+  without the fix.
+- **A skipped CI run must not remove the only full run of a leg**: with a
+  platform subset on PRs, skip shrinks the Windows and macOS matrix, never
+  empties it. A workflow that reads a PR label needs the `labeled` trigger in
+  every workflow gating on it, and a per-run concurrency group for unrelated
+  labels (#467).
 - **A POSIX-only fixture name or URL fails on one Windows leg.** `a@b:c` is not a
   file name there, and `file://D:\x` is not a URL (#317): skip with the reason,
   keep the behaviour covered on POSIX.

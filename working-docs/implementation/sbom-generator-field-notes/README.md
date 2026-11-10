@@ -116,6 +116,10 @@ the day it was added (2026-10-02 to 2026-11-06).
   open; the residual holes; 8 of 8 equal trees on one day, 0 of 4 code merges
   on the next; the markdown-only case left unbuilt (#415, merged; the skip
   itself not yet observed).
+- [ci-platform-subset-on-prs.md](ci-platform-subset-on-prs.md): Windows and
+  macOS run only the `platform` tests on a PR; a source-regex marker rule
+  and its fail-open gaps; label and skip hazards; a Ctrl-C flake that was a
+  thread-start race, not a zombie (#467).
 - [bug-ledger-needs-a-severity-scale.md](bug-ledger-needs-a-severity-scale.md):
   a 174-entry ledger over the size limit and without a harm scale; showing the
   split lost nothing; the ranking rule chosen (#417).
