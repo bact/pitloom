@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,6 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the
 data-and-semantics half of the same list),
+[recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md)
+(Windows-only CI findings),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short
 summary of both files).
 

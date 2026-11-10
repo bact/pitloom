@@ -286,9 +286,9 @@ def generate(
     ``INFO:`` names :func:`generate_pypi_sbom` with ``kind="sdist"`` for
     the sdist.
     *check_url* is called with every URL of the release lookup and the
-    download before it is requested (a dependency's licence lookup, with
-    *enrich*, does not pass through it); *max_download_bytes* caps the
-    file.
+    download before it is requested (the PyPI lookup of a dependency's
+    licence and originator, made unless *offline* is true, does not pass
+    through it); *max_download_bytes* caps the file.
 
     A target that is the ``http`` or ``https`` URL of a Git repository (or of
     one of its web pages) is fetched and read as a project, or as the model

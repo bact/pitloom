@@ -25,8 +25,8 @@ bytes received. A ``Content-Length`` the server declares never gates the read;
 it only tells a body cut short (a failed download).
 
 Every failure is a :class:`~pitloom.extract.remote.errors.RemoteSourceError`
-whose text is a catalogued line and whose ``pitloom_code`` is its code, but a
-404 or 410, which is :class:`NotFoundError` for the caller to name.
+whose text is a catalogued line and whose ``pitloom_code`` is its code; a 404
+or 410 is its subclass :class:`NotFoundError`, for the caller to name.
 """
 
 from __future__ import annotations
@@ -354,7 +354,8 @@ def _chunks(
             chunk = response.read1(CHUNK_BYTES)
         except (http.client.HTTPException, OSError, ValueError) as exc:
             raise _failed(url, exc, watch) from exc
-        # A socket shut at the deadline reads as the end of the body.
+        # A socket shut at the deadline reads as the end of the body on POSIX;
+        # on Windows the read waits for its timeout, which _failed names.
         if watch.fired.is_set():
             raise _timeout(url, watch)
         if not chunk:

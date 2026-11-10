@@ -91,7 +91,56 @@ Where the build differs from the design below:
    route still uses `TemporaryDirectory`, so it keeps the Windows cleanup
    exposure (a follow-up).
 10. **The temporary directory** is `pitloom-pypi-XXXXXXXX`, masked as
-   `<download>` by `mask_checkout`.
+   `<download>` by `mask_checkout`. It is made with `tempfile.mkdtemp` and
+   removed by `remove_temp_dir` (never raises; a leftover, such as a file still
+   held open on Windows, is one `WARNING:`), not `TemporaryDirectory`, whose
+   cleanup raises after the caller may have written its output.
+11. **`--allow-signed-wheel` is inert for a PyPI URL** (`WARNING: Options:
+    ... has no effect without --embed`), not "the existing rule applies
+    unchanged": `--embed` is refused for a URL (`pypi-url-unusable`), so no
+    wheel is ever rewritten.
+12. **Output file names follow the command**: `loom wheel <url>` writes
+    `<wheel file name>.spdx3.json`, `loom project <url>`
+    `<name>-<version>.spdx3.json` (or the `--config` `sbom-basename`), not one
+    rule for both.
+13. **The host family is recognised, not one host.** `is_pypi_url` takes
+    `http` and `https` URLs on `pypi.org`, `www.pypi.org`, any `*.pypi.org`
+    and `pypi.python.org` (any case, a trailing dot dropped), so each is
+    refused with a PyPI message (`pypi-url-invalid`) and never cloned.
+    Known hole, found 2026-11-10: a direct link to a file on
+    `files.pythonhosted.org` is not in the family, so it still reaches the Git
+    route and fails there (`Git source: Cannot fetch ...`); the user page says
+    so. Recognising it (refuse, or read it as a file link) is the "file links"
+    item under Deferred.
+14. **One hardened HTTP client** (`_http_fetch.py`, `_http_watch.py`): https
+    only, hosts allowlisted, no `Authorization`, no redirect handler of the
+    standard library (hops followed by hand, at most 5, each checked and said),
+    a byte cap on the bytes received (a `Content-Length` never gates a read,
+    it only tells a cut body), and an overall deadline made of a timer that
+    shuts every socket the fetch opened. The deadline does not cover the name
+    lookup, the connect, a proxy `CONNECT` or the TLS handshake (a socket joins
+    the watch when `connect()` returns); on Windows a shut socket does not end
+    a pending read, which then ends at the per-operation timeout.
+15. **Windows CI lessons** (PR #468's first Windows run): a test asserting
+    `recv() == b""` after `shutdown(SHUT_RDWR)` blocked to its timeout, and a
+    zero-second deadline read exactly 0 on the coarse Windows clock. Both are
+    in [recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md);
+    production already compared expiry as `<= 0`, the test did not.
+16. **The dependency lookup shares the constant** `PYPI_JSON_API`
+    (`Source: PyPI JSON API`, also the `Source` of a dependency's licence and
+    originator), and `deps_pypi` builds its URL with `pypi_json_url()`; it does
+    not pass through the caller's `check_url`.
+17. **Library entry**: `generate_pypi_sbom_with_download()` returns
+    `PypiSbom(sbom, download, metadata)`; `generate_pypi_sbom()` the SBOM
+    alone; `generate()`, `generate_wheel_sbom()` and `generate_project_sbom()`
+    take the URL string. `generate()` reads the wheel and says the library's
+    sdist route in one `INFO:`.
+18. **Surfaces**: the Hatchling hook does not apply. The GitHub Action is not
+    extended: its inputs name a project directory, a wheel pattern or a model,
+    not a URL. All three skills know the route (`sbom-generate`'s
+    `references/pypi-url.md`, `sbom-enrich`'s `references/pypi-url-base.md`,
+    a section in `sbom-validate`); see
+    [skills-trigger-coverage.md](skills-trigger-coverage.md).
 
 User-facing page: [pypi-urls.md](../../docs/pypi-urls.md).
 
@@ -145,7 +194,8 @@ compared the ecosystem's way, never as raw strings. Other indexes
 1. Ask the JSON API: `https://pypi.org/pypi/<name>/json` or
    `.../<name>/<version>/json`. Reuse the existing PyPI JSON lookup in
    `pitloom.assemble.spdx3.deps_pypi` (its `urlopen`/`json.loads` path already
-   restricts the URL scheme); do not write a second client.
+   restricts the URL scheme); do not write a second client. (Superseded by
+   amendment 3: one new client.)
 2. No version: take the latest release that is neither a pre-release nor
    yanked and has at least one usable file. Say it: `INFO: PYPI=<name>
    VERSION=<ver>: no version given; using the latest release`. If no such
@@ -189,7 +239,8 @@ tell why this wheel. Pinning another platform needs a flag, deferred.
 
 ### Picking the sdist (`loom project`)
 
-A release has at most one sdist, so there is no choice. No sdist: `ERROR:`
+A release has at most one sdist, so there is no choice (superseded by
+amendment 2: an old release can have two). No sdist: `ERROR:`
 pointing to `loom wheel <pypi-url>`. (The sdist is never an implicit fallback
 for `loom wheel`, nor the wheel for `loom project`: the two commands give
 different SBOM kinds, and a quiet swap would change the kind.)
@@ -214,8 +265,8 @@ The file is untrusted data.
 - **`--offline`** is an error for a PyPI URL, as for a Git URL.
 - **Temporary directory**: removed afterwards. Messages name the file by its
   PyPI filename and never the temporary path, so two runs print the same text.
-- **Signed wheel**: the existing `--allow-signed-wheel` rule applies unchanged
-  to a downloaded wheel (this iteration adds no flag).
+- **Signed wheel**: (superseded by amendment 11) `--allow-signed-wheel` has
+  no effect for a URL.
 
 ## What the SBOM says
 
@@ -230,7 +281,7 @@ The file is untrusted data.
   package file beyond `downloadLocation` and a hash; if the mapping stretches,
   add an entry to [sbom-format-gaps.md](../design/sbom-format-gaps.md) in the same
   change.
-- Output file name: the existing rule (`<name>-<version>.spdx3.json`); `-o -`
+- Output file name: as the local command writes it (amendment 12); `-o -`
   works as for the local file.
 - `--embed` (wheel) is **not** offered for a downloaded wheel: it would write
   into a temporary file. It is refused with a message, not ignored.

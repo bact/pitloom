@@ -10,7 +10,7 @@ description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
   wheel, installed environment, local AI model file (GGUF, ONNX,
   PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite), Hugging
-  Face model, Git URL (repo, folder, model file page) or PyPI URL.
+  Face model, Git URL (repo, folder, model page) or PyPI URL (wheel/sdist).
   Triggers:
   "generate/create/give me an SBOM/BOM", "software bill of materials",
   "dependency inventory", "AIBOM", "document this model's
@@ -26,12 +26,13 @@ description: >-
   sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.4 (pip, uvx or pipx).
-  AI model targets need pitloom[ai] (or a format extra such as
-  pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
-  pitloom[content-type]. Needs network access to install pitloom and for
-  PyPI and Hugging Face lookups (not with --offline). Not usable where
-  packages cannot be installed, e.g. Claude API code execution.
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.4 (>= 0.24.0 for a
+  PyPI URL; pip, uvx or pipx). AI model targets need pitloom[ai] (or a
+  format extra such as pitloom[gguf]); --allow-build needs pitloom[build];
+  --content-type needs pitloom[content-type]. Needs network access to
+  install pitloom and for PyPI and Hugging Face lookups (not with
+  --offline). Not usable where packages cannot be installed, e.g. Claude
+  API code execution.
 ---
 
 # Generate an SBOM with Pitloom
@@ -135,7 +136,7 @@ project|wheel|model|env|merge`; for the exact commands, read
 ### A Git URL
 
 `loom project <url>` / `loom generate <url> -o FILE` take an `http(s)` Git
-URL: the clone URL (recommend it), or a page naming a branch/tag/commit
+URL: the clone URL (best), or a page naming a branch/tag/commit
 and a folder. The repository is untrusted (its `[tool.pitloom]` is ignored,
 **`--allow-build` has no effect**); `ssh://`, `git@host:path` and `file://`
 are refused. A monorepo with no project at the root fails naming the projects
@@ -148,11 +149,12 @@ relay, never clone. For a refusal, redirect or model rule, read
 
 `loom wheel <url>` / `loom generate <url> -o FILE` take
 `https://pypi.org/project/<name>/[<version>/]` and read the wheel that fits the
-running Python and platform (Analyzed SBOM); `loom project <url>` reads the
-sdist (Source SBOM). **Run it only with `uvx --from "pitloom>=0.24.0"` or when
-`loom --version` is 0.24.0 or later**: older versions clone a `pypi.org` URL
-as Git. On an older `loom`, do not run it: report. For a refusal, a pick, an
-over-cap file or the provenance record, read `references/pypi-url.md`.
+running Python and platform (Analyzed SBOM; another platform can give another
+SBOM); `loom project <url>` reads the sdist (Source SBOM). **Run it only with
+`uvx --from "pitloom>=0.24.0"` or when `loom --version` is 0.24.0 or later**:
+older versions clone it as Git: on one, do not run it; report.
+For a refusal, a pick, an over-cap file, the provenance record or a follow-up
+(enrich, validate), read `references/pypi-url.md`.
 
 ## Lock files
 

@@ -330,8 +330,11 @@ declined or fixed entry with its outcome.
 - Pitloom today: one provenance record on the main package (the
   `pitloom/1` `fields` Annotation and the `comment`, as the provenance
   settings say), with `Value:` segments for the URLs, the digests, the
-  tags and the count, and `Evidence: measured_read` beside `Evidence:
-  declared` (`Source: PyPI JSON API`) for the two digests
+  tags and the count, `Evidence: measured_read` beside `Evidence:
+  declared` (`Source: PyPI JSON API`) for the two digests, and the release as
+  `Source: PyPI JSON API | Value: <version>` (`| Normalized-From: <spelling>`
+  when the URL spelled the version differently, `Method: latest-release` when
+  it named none)
 - Why imprecise: no property for the archive a package was read from as
   distinct from the package, for a digest's evidence level (see FG-10,
   FG-13) or for the reason a distribution was selected

@@ -6,6 +6,10 @@
 """Fetch a Git repository, or a folder of one, by URL into a temporary
 directory that Pitloom reads like a local project.
 
+See also: :mod:`pitloom.extract.remote.pypi` (the PyPI URL route, which a
+PyPI-family URL is sent to and never cloned: this module refuses it,
+``pypi-url-unusable``).
+
 The URL is a clone URL or the address of a repository page naming a branch,
 tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
 parse_git_page`). The server's redirect (GitLab's ``project`` to
@@ -166,7 +170,8 @@ def fetch_git_project(
     *check_url* is called with the URL of every redirect target, without
     user information, before it is requested and raises for one that must not
     be fetched; Pitloom does not check the URL it is given (the caller does,
-    as it knows its own policy).
+    as it knows its own policy; the PyPI route, unlike this one, passes its
+    first URLs to its check too).
     With *offline* true nothing is fetched. With *max_bytes* the fetch is
     stopped once the checkout (the ``.git`` directory included) takes more
     disk than that (``git.too-large``); ``None`` sets no limit.
@@ -183,6 +188,9 @@ def fetch_git_project(
     if max_bytes is not None and max_bytes <= 0:
         raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
     runner = GitRunner(max_bytes=max_bytes)
+    # TemporaryDirectory raises on exit when a file is still held open
+    # (Windows); the PyPI route's directory is removed by remove_temp_dir,
+    # which never raises.
     with tempfile.TemporaryDirectory(prefix=CHECKOUT_DIR_PREFIX) as work_dir:
         try:
             checkout = _prepare(url, work_dir, runner, check_url, offline)

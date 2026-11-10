@@ -61,10 +61,13 @@ Rules to state to the user:
   user's.
 - Only `https`, only `pypi.org` for the URL and API and
   `files.pythonhosted.org` for files. Every redirect hop is checked.
-  `http://`, a URL with a user name or password, another page of `pypi.org`
+  `http://`, a URL with a user name or password, another page of `pypi.org`,
   `pypi.python.org` and another index (`test.pypi.org`, any `*.pypi.org`) are
-  `[pypi-url-invalid]` with their own lines, never cloned as Git; a redirect or file URL on
-  another host is `[url-unsafe]`. Do not fetch the target for the user.
+  `[pypi-url-invalid]` with their own lines, never cloned as Git; a redirect
+  or file URL on another host is `[url-unsafe]`. A direct link to a file on
+  `files.pythonhosted.org` is not a PyPI URL to Pitloom: it is taken as any
+  other URL, i.e. for Git, and fails there. Do not fetch the target for the
+  user.
 - A SHA-256 that differs from the declared one is `[digest-invalid]`: nothing
   is read. Tell the user the file may have been altered; suggest running
   again, and reporting it to PyPI if it repeats.
@@ -87,15 +90,38 @@ Rules to state to the user:
 The SBOM is the local file's, plus one provenance annotation on the main
 package: the project page, the file's URL, the SHA-256 measured from the
 bytes (`Evidence: measured_read`) and the one PyPI declared (`Evidence:
-declared`), the version (a pinned URL: `Source: PyPI JSON API | Value: 1.0.0`, plus
-`| Normalized-From: 1.0` if the URL spelled it differently; an unpinned one:
-`Method: latest-release`), the
-status when it is a pre-release or yanked, and for a wheel its tags and how
-many other compatible wheels were skipped (`Method: running-environment`).
-SPDX 3 has no property for these, so they are provenance text (a gap Pitloom
-tracks for SPDX). Read them to explain why this wheel; never edit them. The
-declared requirements (`Requires-Dist`) are listed, not a resolved
-environment.
+declared`), the version (a pinned URL: `Source: PyPI JSON API | Value: 1.0.0`,
+plus `| Normalized-From: 1.0` if the URL spelled it differently; an unpinned
+one: `Method: latest-release`), the status when it is a pre-release or yanked,
+and for a wheel its tags and how many other compatible wheels were skipped
+(`Method: running-environment`). SPDX 3 has no property for these, so they are
+provenance text (a gap Pitloom tracks for SPDX): an `Annotation` on the main
+package (JSON, schema `https://pitloom.dev/provenance/fields/1`) and, with the
+default format, the same entries in the package's `comment` after `Metadata
+provenance:`. Read them to explain why this wheel; never edit them. The
+declared requirements (`Requires-Dist`) are listed, not a resolved environment.
+
+How to read the record to the user:
+
+- `sha256` (`measured_read`) is the digest of the bytes Pitloom received;
+  `sha256_declared` (`declared`) is what PyPI says it is. They are equal in
+  every SBOM that exists (a mismatch is refused), so equal values are the
+  normal case, not a finding. Neither is a hash property: the archive's digest
+  is only here (the main package's `verifiedUsing` is a Merkle root over a
+  wheel's payload files, and absent on an sdist).
+- `release_version` with `Method: latest-release` means the URL named no
+  version; `Normalized-From` means the URL's spelling differed (`1.0` for
+  `1.0.0`). `release_status` `prerelease` or `yanked` is a fact about the
+  release, not a defect of the SBOM; a yanked release is the user's choice to
+  rely on.
+- `wheel_tags` and `compatible_wheels_skipped` (`Method:
+  running-environment`) explain why this wheel: the pick follows the Python
+  and platform Pitloom ran on, so the SBOM of one URL differs per platform and
+  per Python. Say so when the SBOM is shared or compared, and do not call a
+  different payload on another platform a bug. An sdist SBOM does not depend
+  on the platform.
+- `download_location` and `project_url` are provenance text, not SPDX
+  `downloadLocation`.
 
 ## Messages to relay
 
@@ -105,3 +131,28 @@ means a file of the release was left out of the choice because PyPI's entry
 for it was not valid; it only narrows the choice, so report it. A network
 failure (`[download-network-failed]`, `[download-timeout]`) is for the user to
 retry; do not retry in a loop.
+
+## Follow-ups: enrich, validate and combined asks
+
+- **Validate** (`sbom-validate`): the SBOM is an ordinary SPDX 3 document;
+  `loom fragment validate FILE` applies. A pass says nothing about completeness.
+  `loom verify-wheel`, `validate-wheel` and `embed-wheel` take a local `.whl`
+  file only, not a PyPI URL; to check a wheel's own embedded SBOM the user must
+  have the wheel on disk (do not download it unasked).
+- **Enrich** (`sbom-enrich`): `--enrich` and the lock-file, header and
+  content-type flags have no effect on a PyPI URL (a `WARNING: Options:` line
+  each): do not add them. The base is a wheel or sdist SBOM, so a fragment is
+  never merged into it (`sbom-enrich`, "Where a fragment can be merged");
+  the downloaded file is gone, so prose from the project means fetching again,
+  which needs the user's consent.
+- **Combined asks** ("generate an SBOM for https://pypi.org/project/x/ and
+  validate it", "...and check it against CISA 2026"): generate with the
+  command the ask implies (wheel unless it says sdist), then `sbom-validate`;
+  for a named standard run `sbom-enrich`'s "Complete a standard's minimum
+  elements" up to the gap report and hand over any drafted fragment unmerged.
+  The reverse (asked to check or enrich "the SBOM of https://pypi.org/project/x/"
+  with no file): `sbom-enrich`/`sbom-validate` hand back here to generate first.
+- **Ask or fall back.** Which platform's wheel, whether to take the sdist after
+  `[release-file-not-found...]`, whether to rely on a yanked release, or
+  whether to raise `--max-download-bytes` are the user's call: ask; with nobody
+  to ask, report the line and the command it names, and run nothing else.

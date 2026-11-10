@@ -422,9 +422,10 @@ def fetch_pypi_file(
 ) -> Iterator[PypiDownload]:
     """Download the *kind* (:data:`WHEEL` or :data:`SDIST`) file of the
     release the PyPI URL *url* names into a temporary directory
-    (``pitloom-pypi-`` and eight random characters), removed on exit; one
-    that cannot be removed (a file still held open on Windows) is left
-    behind with one ``WARNING:``, never an error.
+    (``pitloom-pypi-`` and eight random characters), removed on exit
+    (no termination guard: Ctrl-C removes it, a process ended by SIGTERM or
+    SIGKILL leaves it); one that cannot be removed (a file still held open on
+    Windows) is left behind with one ``WARNING:``, never an error.
 
     *check_url* is called with every URL before it is requested (the JSON
     API's, the file's and each redirect target) and raises for one that must

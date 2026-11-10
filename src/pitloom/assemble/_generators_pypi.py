@@ -207,8 +207,9 @@ def generate_pypi_sbom_with_download(
 
     *check_url* is called with every URL of the release lookup and the
     download before it is requested (the JSON API's, the file's and each
-    redirect target), the caller's address policy; a dependency's licence
-    lookup (*enrich*) does not pass through it. *max_download_bytes* caps
+    redirect target), the caller's address policy; the PyPI lookup of a
+    dependency's licence and originator (made, as *offline* is never true
+    once a file is downloaded) does not pass through it. *max_download_bytes* caps
     the file: else *pitloom_config*'s ``max-download-bytes``, else 512 MiB.
     With *offline* (else *pitloom_config*'s ``offline``) true nothing is
     fetched (``pypi.offline``; an invalid *url* is ``pypi-url-invalid``

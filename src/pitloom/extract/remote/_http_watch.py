@@ -73,7 +73,9 @@ class Watch:
         self._timer.cancel()
 
     def remaining(self) -> float:
-        """Seconds left before the deadline."""
+        """Seconds left before the deadline. Read *expired* as ``<= 0``: the
+        Windows clock ticks in about 15.6 ms steps, so it can read exactly 0
+        at a zero-second deadline."""
         return self.deadline - time.monotonic()
 
     def add(self, sock: socket.socket | None) -> None:

@@ -58,6 +58,23 @@ loom model https://gitlab.com/group/project/-/tree/main/models
 # or `loom project <dir>` for what you trust
 ```
 
+## SBOM from a PyPI URL (pitloom 0.24.0 or later)
+
+```bash
+# The release's wheel for this Python and platform (Analyzed SBOM); a URL
+# without a version reads the latest release
+uvx --from "pitloom>=0.24.0" loom wheel https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+# The release's sdist (Source SBOM): the command, not the URL, picks the file
+uvx --from "pitloom>=0.24.0" loom project https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+# generate reads the wheel and needs -o
+uvx --from "pitloom>=0.24.0" loom generate https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+```
+
+Without `-o`, `wheel` writes `<wheel file name>.spdx3.json` and `project`
+`<name>-<version>.spdx3.json`. Then `sbom-validate` on the file;
+`--max-download-bytes`, `--embed` and the platform-dependent pick:
+`references/pypi-url.md`.
+
 ## Project SBOM with lock file (resolved transitive dependencies)
 
 ```bash

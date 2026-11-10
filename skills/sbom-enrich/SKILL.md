@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-08
+# Last-Modified: 2026-11-10
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -98,6 +98,14 @@ report the gaps, hand the drafted fragment(s) over unmerged, and say they were
 not merged. To put an enriched SBOM into a wheel, hand off to `sbom-generate`
 ("Embed an SBOM into a wheel"; a signed wheel needs the user's
 `--allow-signed-wheel`).
+
+**A base from a PyPI URL** (`loom wheel`, `project` or `generate` on a
+`pypi.org/project/` page, Pitloom 0.24.0 or later) is such an "other base": no
+`--enrich`, no merge, and the download is gone, so project prose means
+fetching it again, which step 5 gates (non-interactive: "not used -- needs
+consent"). Asked to enrich or check "the SBOM of <pypi-url>" with no file,
+hand off to `sbom-generate` first. Before a gap report or answer about such
+a base, read `references/pypi-url-base.md`.
 
 Steps:
 

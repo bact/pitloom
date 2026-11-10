@@ -66,7 +66,7 @@ from pitloom.assemble import generate, generate_pypi_sbom
 
 generate_pypi_sbom(
     "https://pypi.org/project/demo/1.0/",
-    kind="wheel",          # "wheel" (an Analyzed SBOM) or "sdist" (a Source SBOM)
+    kind="wheel",  # "wheel" (an Analyzed SBOM) or "sdist" (a Source SBOM)
     max_download_bytes=256 * 1024 * 1024,
     check_url=my_address_check,  # every URL of the lookup and download
     output_path=Path("sbom.spdx3.json"),
@@ -89,8 +89,8 @@ a `pitloom.extract.remote.RemoteSourceError` whose `code` (`pypi.*`) names it
 and whose `pitloom_code` is the catalogued code (see [Message
 codes](message-codes.md)). *check_url* is called with every URL of the release
 lookup and the download before it is requested (the JSON API's, the file's and
-each redirect target); a dependency's licence lookup (enrich) does not pass
-through it. It may raise any exception to refuse an address, and it reaches you
+each redirect target); the PyPI lookup of a dependency's licence and
+originator (made unless `offline` is true) does not pass through it. It may raise any exception to refuse an address, and it reaches you
 unchanged. `generate_pypi_sbom_with_download()` returns
 `PypiSbom(sbom, download, metadata)`. `generate_git_sbom()` and
 `generate_git_project_sbom()` refuse PyPI-family URLs (`git.url-invalid`, with

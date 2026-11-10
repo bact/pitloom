@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,6 +94,13 @@ from the server's own branches and tags, longest match first.
   model `<org>/<name>`: the file part is dropped and no model file is read.
   The `/resolve/` link of a Space or a dataset is taken as a repository and
   fails as `raw.githubusercontent.com` does: give the repository address.
+- A **PyPI** address is not a Git URL: `pypi.org`, `www.pypi.org`, any other
+  `*.pypi.org` host and `pypi.python.org` are never cloned. `loom wheel`,
+  `loom project` and `loom generate` read a project or release page there
+  (`https://pypi.org/project/<name>/`; see [SBOM from a PyPI URL](pypi-urls.md)),
+  and `loom model` and the library's Git functions refuse one with a message
+  naming the right call (`pypi-url-unusable`). A link to a file on `files.pythonhosted.org` is not
+  recognised as a PyPI URL and is cloned as a repository, which fails.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 

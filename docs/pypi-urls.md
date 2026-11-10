@@ -44,13 +44,17 @@ loom generate https://pypi.org/project/demo/ -o sbom.spdx3.json     # latest rel
   upgraded silently. A URL with a user name or password is refused.
 - A query or fragment is ignored, with one `INFO:` (`query-no-effect`).
 - Any other page of `pypi.org` (a user page, a search page), another index
-  (`test.pypi.org` or any other `*.pypi.org` host, a private index),
-  `pypi.python.org` (PyPI's old address) and a direct link to a file on
-  `files.pythonhosted.org` are not read; see [Not yet](#not-yet). Each is
-  refused with its own line and is never cloned as Git. A trailing dot
-  (`pypi.org.`) is accepted as `pypi.org`.
-- A PyPI URL is never given to Git: `pypi.org` is recognised before the Git
-  rules on every surface.
+  (`test.pypi.org` or any other `*.pypi.org` host) and `pypi.python.org`
+  (PyPI's old address) are not read; see [Not yet](#not-yet). Each is refused
+  with its own line and is never cloned as Git. A trailing dot (`pypi.org.`)
+  is accepted as `pypi.org`.
+- A PyPI URL is never given to Git: `pypi.org`, every `*.pypi.org` host and
+  `pypi.python.org` are recognised before the Git rules on every surface, and
+  the Git route refuses one itself (`pypi-url-unusable`). This is not so for a
+  direct link to a file on `files.pythonhosted.org`, which Pitloom does not
+  recognise as a PyPI URL: it is taken for any other URL, so for Git, and the
+  clone fails. A private index on a host of its own is no PyPI URL either; see
+  [SBOM from a Git URL](git-urls.md#which-urls) for what the Git route reads.
 
 With `--offline`, an invalid URL is reported first as `pypi-url-invalid`;
 a valid one is then refused for `--offline`.
@@ -94,9 +98,13 @@ The sdist is chosen by `loom project`: a release normally has one. Some old
 releases have several (`.zip` and `.tar.gz`); the `.tar.gz` is preferred and
 an `INFO:` says which was read.
 
-A wheel or sdist whose entry in the PyPI answer is not valid (a name that is not
-a bare ASCII file name, or is a Windows device name, a name that does not belong to the release, no SHA-256) is
-left out of the choice, with one `WARNING:` per file.
+A wheel or sdist whose entry in the PyPI answer is not valid (a name that is
+not a bare ASCII file name, or is a Windows device name, a name that does not
+belong to the release, no download URL, a name listed twice) is left out of the
+choice, with one `WARNING:` per file. A file with no valid SHA-256 stays a
+candidate: if it is the one picked, the run stops with
+[`pypi-response-invalid`](message-codes.md#pypi-response-invalid) and does not
+turn to the next file.
 
 ## Which release
 
@@ -171,7 +179,8 @@ run when you trust the project. The JSON API answer has its own fixed cap of
 64 MiB (and a nesting limit). Timeouts: 30 seconds per socket read, 2 minutes
 for the JSON answer, 30 minutes for the file. The deadline does not cover the
 name lookup, the connection, a proxy `CONNECT` or the TLS handshake; each is
-bounded by the per-operation timeout.
+bounded by the per-operation timeout. On Windows a read stalled on a
+connection ends at that timeout, not at the deadline.
 
 On any other target `--max-download-bytes` has no effect and says so once; see
 [Options with no effect](cli.md#options-with-no-effect).
@@ -182,8 +191,13 @@ The SBOM is what `loom wheel` or `loom project` writes for the same file on
 disk, plus **one provenance annotation on the main package** that says how the
 file was obtained. SPDX 3 has no property for "obtained from URL X, archive
 digest Y checked against Z, chosen because W", so the facts are carried as
-provenance strings (gap FG-15 in the format-gap ledger, proposed for SPDX). The
-fields of that record:
+provenance strings (gap FG-15 in the format-gap ledger, proposed for SPDX): an
+`Annotation` whose JSON `statement` holds one entry per field below, and, with
+the default `format = "both"`, the same entries in the package's `comment`
+after `Metadata provenance:`. Every entry survives `detail = "minimal"`. How
+provenance is written and what `Source`, `Method` and `Evidence` mean:
+[Metadata provenance](metadata-provenance.md#the-download-record-a-file-read-from-a-pypi-url).
+The fields of that record:
 
 | Field | Meaning |
 | :---- | :------ |
@@ -231,8 +245,8 @@ This is the first iteration. Not built:
   fails when the latest release has no sdist, even if an older one has; give
   the versioned URL.
 - `name==version` and bare-name targets, links to files on
-  `files.pythonhosted.org`, other indexes (`test.pypi.org`, a private index) and
-  credentials.
+  `files.pythonhosted.org` (not recognised as PyPI URLs), other indexes
+  (`test.pypi.org`, a private index) and credentials.
 - A download cache: every run downloads again.
 
 ## Messages
