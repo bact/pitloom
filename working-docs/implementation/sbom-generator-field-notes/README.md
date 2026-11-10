@@ -149,10 +149,6 @@ the day it was added (2026-10-02 to 2026-11-06).
   per session in a shared clone, fenced file ownership, a reviewer that
   reached the network through a subprocess, reviews after a scope growth,
   a merge that renames, a set-up proof stricter than its claim (#468).
-- [model-sbom-from-git-lessons.md](model-sbom-from-git-lessons.md): a
-  model SBOM from a Git URL: listing a clone's files runs its code, a gate
-  per route, five review rounds and what ended them, what CI showed that a
-  local run did not, a stale claim and a wrong commit identity (#464).
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
 

@@ -19,11 +19,6 @@ as raw material for a paper on building an SBOM generator for AI artefacts.
 Every number below was measured (peak resident memory under a watchdog,
 macOS, CPython 3.10 unless stated); "PLAUSIBLE" findings are left out.
 
-Later round: reading a model from a Git URL made the file list of an
-untrusted repository an attack surface of its own; see
-[model-sbom-from-git-lessons.md](sbom-generator-field-notes/model-sbom-from-git-lessons.md)
-section 1.
-
 ## 1. Setting
 
 - Pitloom generates SPDX 3 SBOMs for Python packages, including the AI
@@ -90,7 +85,7 @@ The findings, by class, are in three parts:
   in-process, 3.3 archives inside archives.
 - [ai-model-scan-security-lessons-runtime-and-output.md](ai-model-scan-security-lessons-runtime-and-output.md):
   3.4 Python runtime surprises, 3.5 logs and terminals are an output
-  channel, 3.6 determinism.
+  channel, 3.6 determinism, 3.13 a cloned repository's file list is code.
 - [ai-model-scan-security-lessons-transparency-and-correctness.md](ai-model-scan-security-lessons-transparency-and-correctness.md):
   3.7 transparency, 3.8 correctness bugs found on the way, 3.9 found while
   planning the next fixes, 3.10 Git LFS pointers, 3.11 static usage scanning,

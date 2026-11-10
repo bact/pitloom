@@ -13,7 +13,7 @@ See also: [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.m
 [recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md)
 (Windows-only findings), [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short summary),
-[sbom-generator-field-notes/model-sbom-from-git-lessons.md](sbom-generator-field-notes/model-sbom-from-git-lessons.md).
+[model-sbom-from-git.md](model-sbom-from-git.md) (the feature round).
 
 Failures that only a CI leg showed, because the local environment was on a
 different dependency release or interpreter patch version. Entries follow the
@@ -29,17 +29,16 @@ format of the platform list.
   floor's behaviour on purpose (say so in its docstring) or asserts only what
   holds for the whole range. Raising the floor in the same change, once the
   newer release is the one that is tested, keeps the floor honest.
-- **A parser's failure mode for hostile nesting depends on the interpreter
-  patch version, not only on the minor.** `b"[" * 100_000` made `json.loads`
-  report "nested too deeply" on Python 3.14.6 and "Expecting value" on
-  3.14.10 (the C parser's guard follows real stack use there); on 3.10 and
-  3.11 even a 1,000-deep valid document, built by `json.dumps` or read by
-  `json.loads`, raises `RecursionError` because nesting counts against
-  `sys.getrecursionlimit()`. Production code that catches the exception and
-  warns was right on every version; the tests were not. Assert a stable prefix
+- **The failure mode of a parser given hostile nesting changes with the
+  interpreter patch version, and on 3.10 and 3.11 even valid deep JSON fails.**
+  Extends the 3.14 finding of #270 in
+  [sbom-generator-field-notes/determinism-and-parsing.md](sbom-generator-field-notes/determinism-and-parsing.md).
+  `b"[" * 100_000` gave "nested too deeply" on Python 3.14.6 and "Expecting
+  value" on 3.14.10; a valid 1,000-deep document, written by `json.dumps` or
+  read by `json.loads`, raises `RecursionError` on 3.10 and 3.11, where
+  nesting counts against `sys.getrecursionlimit()`. Assert a stable prefix
   (`"is not valid JSON ("`), build a valid deep value only to a depth every
-  supported version accepts (about 300), and test the exact "too deep" wording
-  by forcing `RecursionError` with a stub on the module under test. Run
-  changed tests on the CI patch versions (read them from the log), and read
-  the cancelled legs: fail-fast hid the 3.10 and 3.11 results of the first
-  failure.
+  supported version accepts (about 300), and test the exact wording by
+  forcing `RecursionError` with a stub on the module under test. Take the
+  patch versions from the CI log, and read the cancelled legs: fail-fast hid
+  the 3.10 and 3.11 results of the first failure.
