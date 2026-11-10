@@ -19,7 +19,7 @@ See also: :mod:`pitloom.assemble.spdx3.deps_license` (relationships).
 from __future__ import annotations
 
 import hashlib
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -265,9 +265,8 @@ def _classifier_and(
             provenance_config,
             encoder,
         )
-        body = exporter.find_license(TEXT_BODY_KIND, name)
-        if body:
-            custom_ids.append((ref, body))
+        # Present: the call above made it or found it.
+        custom_ids.append((ref, cast(str, exporter.find_license(TEXT_BODY_KIND, name))))
     return _get_or_create(
         "expression",
         expression,

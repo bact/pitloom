@@ -12,6 +12,7 @@ to build declared/concluded license relationships for a dependency package.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -99,9 +100,10 @@ def _mapped_elements(
     licence element too."""
     found: dict[str, spdx3.Element] = {}
     for entry in getattr(element, "simplelicensing_customIdToUri", None) or []:
-        mapped = exporter.object_set.find_by_id(entry.value)
-        if isinstance(mapped, spdx3.Element):
-            found[entry.value] = mapped
+        # Present: this build wrote the mapping and the text it names.
+        found[entry.value] = cast(
+            spdx3.Element, exporter.object_set.find_by_id(entry.value)
+        )
     return found
 
 
