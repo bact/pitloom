@@ -38,12 +38,15 @@ import urllib.request
 from types import TracebackType
 from typing import Any, cast
 
-__all__ = ["Watch", "opener"]
+__all__ = ["Watch", "opener", "shut_socket"]
 
 
 class Watch:
     """The overall deadline of one fetch: at it, every socket the fetch
-    opened is shut down, so a blocked read returns at once."""
+    opened is shut down, so a blocked read returns at once on POSIX. Windows
+    does not end a read on a socket shut for reading; there the read ends at
+    its per-operation timeout, never longer than the time left when the
+    request began, and the read loop stops at the deadline."""
 
     def __init__(self, seconds: float) -> None:
         self.seconds = seconds
@@ -80,16 +83,16 @@ class Watch:
         with self._lock:
             self._sockets.append(sock)
             if self.fired.is_set():
-                _shut(sock)
+                shut_socket(sock)
 
     def _fire(self) -> None:
         with self._lock:
             self.fired.set()
             for sock in self._sockets:
-                _shut(sock)
+                shut_socket(sock)
 
 
-def _shut(sock: socket.socket) -> None:
+def shut_socket(sock: socket.socket) -> None:
     """Shut *sock* down for reading and writing, through the plain socket
     (a TLS socket's own ``shutdown`` drops its TLS state under a reader)."""
     try:

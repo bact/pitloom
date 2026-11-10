@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import socket
+import sys
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -29,7 +30,7 @@ from typing import cast
 import pytest
 
 from pitloom.core.internal_error import InternalError
-from pitloom.extract.remote import _http_fetch
+from pitloom.extract.remote import _http_fetch, _http_watch
 from pitloom.extract.remote._http_fetch import (
     MAX_REDIRECTS,
     NotFoundError,
@@ -49,6 +50,9 @@ from pitloom.messages import (
     URL_REFUSED,
 )
 from tests._fake_pypi_server import FakePypi, Route, redirect, serving, sha256_of
+
+#: Windows ends no ``recv`` on a socket shut for reading.
+_WINDOWS = sys.platform == "win32"
 
 pytestmark = pytest.mark.loopback
 
@@ -435,9 +439,24 @@ def test_a_file_slow_drip_stops_at_the_deadline(
     assert _code(info) == DOWNLOAD_TIMEOUT.code
 
 
-def test_the_deadline_shuts_a_socket_watched_late() -> None:
+def test_the_deadline_shuts_a_socket_watched_late(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A socket added after the deadline is shut at once; one never
-    connected (``None``, or one the system will not shut) is no error."""
+    connected (``None``, or one the system will not shut) is no error.
+
+    Shut is spied on every system; a read of the shut socket returning end of
+    stream is POSIX behaviour only (Windows does not end a ``recv`` on a
+    socket shut for reading, so it waits for the timeout).
+    """
+    shut: list[socket.socket] = []
+    real_shut = _http_watch.shut_socket
+
+    def spy(sock: socket.socket) -> None:
+        shut.append(sock)
+        real_shut(sock)
+
+    monkeypatch.setattr(_http_watch, "shut_socket", spy)
     with Watch(0.0) as watch:
         assert watch.fired.wait(5)
         watch.add(None)
@@ -445,8 +464,11 @@ def test_the_deadline_shuts_a_socket_watched_late() -> None:
         left.settimeout(5)
         with left, right, socket.socket() as unconnected:
             watch.add(left)
-            assert left.recv(1) == b""
+            assert shut == [left]
+            if not _WINDOWS:
+                assert left.recv(1) == b""
             watch.add(unconnected)
+            assert shut == [left, unconnected]
     assert watch.remaining() < 0
 
 

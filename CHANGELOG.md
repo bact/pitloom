@@ -25,9 +25,9 @@ and this project adheres to
 ### Added
 
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
-  release URL; `--max-download-bytes` caps the download ([#467])
+  release URL; `--max-download-bytes` caps the download ([#468])
 
-[#467]: https://github.com/bact/pitloom/pull/467
+[#468]: https://github.com/bact/pitloom/pull/468
 
 ## [0.23.4] - 2026-11-09
 
