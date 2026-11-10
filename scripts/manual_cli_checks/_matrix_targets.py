@@ -56,7 +56,7 @@ _FILE_LINK = (
 #: A small public model whose metadata files are a few kilobytes.
 _HF_MODEL = "openai-community/gpt2"
 #: Every route refuses offline mode with one code.
-_OFFLINE = "refuses:[network-unusable]"
+_OFFLINE = "refuses:[offline-unusable]"
 _INVALID = "refuses:[pypi-url-invalid]"
 
 TARGET_CELLS: list[TargetCell] = [

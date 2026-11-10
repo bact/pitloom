@@ -382,8 +382,8 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<url>",
-            "a URL as given (a PyPI page URL, or a request URL); in quotes, escaped, "
-            "when it holds a control character",
+            "a URL as given (a PyPI page URL, a request URL, or huggingface_hub's "
+            "HF_ENDPOINT); in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "use": Field(
@@ -414,9 +414,9 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<why>",
-            "why a redirect was refused, a file skipped, or a release yanked (`no "
-            "reason given` when PyPI gives none); on one line, in quotes, escaped, "
-            "when it holds a control character",
+            "why a redirect or an HF_ENDPOINT was refused, a file skipped, or a "
+            "release yanked (`no reason given` when PyPI gives none); on one line, "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
     }

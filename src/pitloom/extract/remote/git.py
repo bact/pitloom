@@ -68,8 +68,8 @@ from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
     GIT_PYPI_URL_LINE,
-    NETWORK_UNUSABLE,
     OFFLINE_LINE,
+    OFFLINE_UNUSABLE,
     PROJECT_NOT_FOUND,
     PYPI_URL_UNUSABLE,
     code_of,
@@ -201,7 +201,7 @@ def fetch_git_project(
             folder (a PyPI URL is ``git.url-invalid``, catalogued
             ``pypi-url-unusable``, checked before ``offline``), ``git`` is
             missing, ``offline`` is set (``git.offline``,
-            ``network-unusable``), git cannot reach the server
+            ``offline-unusable``), git cannot reach the server
             (``git.clone-failed``, ``download-network-failed``) or does not
             finish in time (``git.timeout``, ``download-timeout``), or the
             repository is larger than ``max_bytes`` (``over-cap``).
@@ -241,7 +241,7 @@ def _prepare(
         raise RemoteSourceError(
             "git.offline",
             OFFLINE_LINE.render({"url": shown}),
-            pitloom_code=NETWORK_UNUSABLE.code,
+            pitloom_code=OFFLINE_UNUSABLE.code,
         )
     page = _read_url(url, shown)
     clone_url, page, target = _resolve(runner, page, policy.check_url)

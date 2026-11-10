@@ -43,7 +43,7 @@ setuptools `cmdclass`, PDM hooks) is not run while its files are listed. A failu
 `git.not-found`, `git.output-too-large`, `git.too-large`). A condition every
 remote route shares carries its catalogued code as `pitloom_code`
 (`pitloom.messages.code_of(exc)`; see [Message codes](message-codes.md)):
-`over-cap` for the two size codes, `network-unusable` for `git.offline`,
+`over-cap` for the two size codes, `offline-unusable` for `git.offline`,
 `download-timeout` for `git.timeout`, and `download-network-failed` for a
 `git.clone-failed` whose cause is the network (git could not reach the
 server); any other `git.clone-failed` has none. *check_url* may raise any
@@ -103,7 +103,7 @@ unchanged. `generate_pypi_sbom_with_download()` returns
 `generate_git_project_sbom()` refuse PyPI-family URLs (`git.url-invalid`, with
 `pypi-url-unusable` as `pitloom_code`); `generate()` names the library route in
 its hint. `offline=True` (or `pitloom_config=`'s `offline`) raises
-`pypi.offline` (`network-unusable`) before any request. AI models in a downloaded wheel are gated
+`pypi.offline` (`offline-unusable`) before any request. AI models in a downloaded wheel are gated
 as a Git URL's are (`reader-unsafe/remote`), and `trust_model_files=True`
 lifts the gate for a release you trust; an sdist's models are not scanned, so
 for `kind="sdist"` it warns that it has no effect. See [SBOM from a PyPI URL](pypi-urls.md).

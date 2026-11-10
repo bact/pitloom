@@ -52,7 +52,7 @@ most one prefix from the table of prefixes.
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
-| [`network-unusable`](#network-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
+| [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
@@ -76,7 +76,9 @@ most one prefix from the table of prefixes.
 | [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
 | [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name). | 0.24.0 |
+| [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
 | [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
+| [`url-unsafe/hf-endpoint`](#url-unsafehf-endpoint) | WARNING | huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL, or one holding user information, a query or a fragment. The Hugging Face token must not be sent over plain http. | 0.24.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
 | [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
@@ -137,11 +139,11 @@ A line may start with one prefix before its text:
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
-| `<url>` | a URL as given (a PyPI page URL, or a request URL); in quotes, escaped, when it holds a control character |
+| `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
 | `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
-| `<why>` | why a redirect was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
+| `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
 
 ### `card-malformed`
 
@@ -769,7 +771,7 @@ A line may start with one prefix before its text:
   ERROR: '<path>': not an AI model file of a supported format [model-wrong-format]
   ```
 
-### `network-unusable`
+### `offline-unusable`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
   writes nothing for it (exit 1).
@@ -789,8 +791,8 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  ERROR: URL=<url>: network access is forbidden (offline mode); nothing fetched [network-unusable]
-  WARNING: URL=<url>: network access is forbidden (offline mode); <outcome> [network-unusable]
+  ERROR: URL=<url>: network access is forbidden (offline mode); nothing fetched [offline-unusable]
+  WARNING: URL=<url>: network access is forbidden (offline mode); <outcome> [offline-unusable]
   ```
 
 ### `over-cap`
@@ -1276,6 +1278,21 @@ A line may start with one prefix before its text:
   INFO: URL=<url>: redirects to <target>; followed [url-moved]
   ```
 
+### `url-moved/hf-endpoint`
+
+- **Level**: INFO.
+- **Means**: huggingface_hub's HF_ENDPOINT names a Hub other than
+  https://huggingface.co (a mirror, a private Hub).
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Fetched the Hugging Face files from it, the token sent to it
+  only.
+- **Nothing to do**: nothing to do: the line names where the files came from.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: the Hub HF_ENDPOINT names; Hugging Face files are fetched from it [url-moved/hf-endpoint]
+  ```
+
 ### `url-unsafe`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -1300,6 +1317,26 @@ A line may start with one prefix before its text:
   ERROR: FILE=<file>: download URL <target> is not on <hosts>; not fetched [url-unsafe]
   WARNING: URL=<url>: redirects to <target>; not followed (<why>); <outcome> [url-unsafe]
   WARNING: URL=<url>: more than <number> redirects; <outcome> [url-unsafe]
+  ```
+
+### `url-unsafe/hf-endpoint`
+
+- **Level**: WARNING.
+- **Means**: huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL,
+  or one holding user information, a query or a fragment. The Hugging Face token
+  must not be sent over plain http.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Fetched no file of the Hugging Face repository (config.json,
+  the card, a licence file) and read the rest; the SBOM lacks what those files
+  hold.
+- **Tell the user**: HF_ENDPOINT is not used for files, and why, as the line
+  says. They set it to an https URL without credentials, or unset it for
+  https://huggingface.co, and run again. Do not change it for them; ask first,
+  and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: URL=<url>: HF_ENDPOINT not used for files (<why>); no file of the repository fetched [url-unsafe/hf-endpoint]
   ```
 
 ### `usage-unparseable`

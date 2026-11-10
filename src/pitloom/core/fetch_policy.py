@@ -34,7 +34,7 @@ class RemoteFetchPolicy:
         max_bytes: The ``max-download-bytes`` cap: the most bytes of a file
             received, or of a checkout on disk.
         offline: Nothing is fetched; the route refuses
-            (``network-unusable``).
+            (``offline-unusable``).
         check_url: The caller's address policy, called with each URL it
             covers before it is requested; it raises for one that must not
             be fetched. Compared by identity.

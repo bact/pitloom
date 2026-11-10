@@ -30,7 +30,7 @@ where they differ, and a flag with no effect on a target logs
   `env`, `model`, `embed-wheel`; `generate` follows its target; `enrich` has
   none). On a local model file or folder it has no effect (a `WARNING:`); on a
   Hugging Face model, a Git URL or a PyPI URL it is an `ERROR:` ending
-  `[network-unusable]`, as nothing can be fetched.
+  `[offline-unusable]`, as nothing can be fetched.
 - `-v` / `--verbose` -- `INFO:` lines: every effective option and its source
   for `project`/`generate` on a project or sdist; the version, target and
   output path for `wheel`/`env`/`model`/`enrich`; a no-effect `WARNING:` on

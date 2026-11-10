@@ -237,7 +237,7 @@ def generate_git_project_sbom(
     unless the caller passes *pitloom_config*, and its build backend is never
     run (a build flag in *build_options* warns once and has no effect). With
     *offline* (else *pitloom_config*'s ``offline``) true nothing is fetched
-    (``git.offline``, ``network-unusable``). The fetch is stopped once the
+    (``git.offline``, ``offline-unusable``). The fetch is stopped once the
     checkout takes more disk than *max_download_bytes* (else
     *pitloom_config*'s ``max-download-bytes``, else 512 MiB;
     ``git.too-large``, ``over-cap``). The three resolve as every remote

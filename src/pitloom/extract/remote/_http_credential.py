@@ -14,12 +14,16 @@ https down to http.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Final
 from urllib.parse import urlsplit
 
-__all__ = ["Credential", "origin_of"]
+__all__ = ["DEFAULT_PORTS", "Credential", "origin_of"]
 
-_DEFAULT_PORTS = {"http": 80, "https": 443}
+#: The port of each scheme when a URL writes none.
+DEFAULT_PORTS: Final[Mapping[str, int]] = MappingProxyType({"http": 80, "https": 443})
 
 
 def origin_of(url: str) -> tuple[str, str, int] | None:
@@ -35,7 +39,7 @@ def origin_of(url: str) -> tuple[str, str, int] | None:
     host = (parts.hostname or "").lower()
     if not host:
         return None
-    return scheme, host, _DEFAULT_PORTS.get(scheme, 0) if port is None else port
+    return scheme, host, DEFAULT_PORTS.get(scheme, 0) if port is None else port
 
 
 @dataclass(frozen=True)

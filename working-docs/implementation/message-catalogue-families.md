@@ -250,10 +250,10 @@ answers M1 to M10):
 ## Remote fetch conditions shared by the routes (#468)
 
 `url-unsafe`, `download-network-failed`, `download-timeout`,
-`temp-dir-unusable` and the new `network-unusable` (offline mode) moved from
+`temp-dir-unusable` and the new `offline-unusable` (offline mode) moved from
 `_pypi.py` to `_remote_fetch.py`: one family per condition for the Git, PyPI
 and Hugging Face routes, each route keeping its own line where its subject
 or action differs (a git command, a Hugging Face file's `WARNING:` ending
-in what is not read). `network-unusable` takes `unusable` from the closed
-vocabulary (no word says "forbidden"). See
+in what is not read). `offline-unusable` names its cause, offline mode,
+and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 [remote-fetch-policy.md](remote-fetch-policy.md).

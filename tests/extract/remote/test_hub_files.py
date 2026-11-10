@@ -5,13 +5,14 @@
 
 """The Hugging Face route's file downloads
 (:mod:`pitloom.extract.remote._hub_files`): the ``max-download-bytes`` cap on
-the bytes received, a redirect only to an allowed host, the token sent to the
-Hub's origin only, the revision asked, offline mode, and the temporary
-directory removed.
+the bytes received, a redirect only to an allowed host (the Hub, or a host
+under the CDN's domain), the token sent to the Hub's origin only, the
+revision asked, offline mode, and the temporary directory removed.
 
 The Hub and its CDN are local servers (``loopback``, tests/_fake_hub.py).
 
-See also: tests/extract/remote/test_http_credential.py (the origin rule) and
+See also: tests/extract/remote/test_http_credential.py (the origin rule),
+tests/extract/remote/test_hub_files_endpoint.py (``HF_ENDPOINT``) and
 tests/extract/remote/test_huggingface_hub_route.py (the reader end to end).
 """
 
@@ -25,13 +26,20 @@ import pytest
 
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import _hub_files
-from pitloom.extract.remote._http_fetch import url_refusal
-from pitloom.extract.remote._hub_files import HubFiles, file_url, hub_files
+from pitloom.extract.remote._http_credential import Credential
+from pitloom.extract.remote._http_fetch import under_domain, url_refusal
+from pitloom.extract.remote._hub_files import (
+    DEFAULT_HUB_BASE,
+    HubFiles,
+    file_policy,
+    file_url,
+    hub_files,
+)
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     DOWNLOAD_FAILED,
-    NETWORK_UNUSABLE,
+    OFFLINE_UNUSABLE,
     OVER_CAP,
     URL_REFUSED,
 )
@@ -124,28 +132,85 @@ def test_the_revision_is_asked(fake: FakeHub, revision: str | None, asked: str) 
     assert fake.hub.seen == [f"/{_REPO}/resolve/{asked}/config.json"]
 
 
+#: The default Hub's file policy, with a token.
+_HUB_POLICY = file_policy(
+    DEFAULT_HUB_BASE,
+    Credential(_BEARER, ("https", "huggingface.co", 443)),
+    RemoteFetchPolicy(),
+)
+
+
 @pytest.mark.parametrize(
     ("url", "allowed"),
     [
         ("https://huggingface.co/o/m/resolve/main/config.json", True),
         ("https://huggingface.co/api/resolve-cache/models/o/m/1/x", True),
         ("https://us.aws.cdn.hf.co/xet-bridge-us/1/2?X-Xet-Cas-Uid=public", True),
+        ("https://eu.aws.cdn.hf.co/xet-bridge-eu/1/2", True),
+        ("https://ap-south-1.gcp.cdn.hf.co/x", True),
+        ("https://cdn.hf.co/x", True),
+        ("https://US.AWS.CDN.HF.CO./x", True),
+        ("https://cdn.hf.co.evil.example/x", False),
+        ("https://evilcdn.hf.co/x", False),
+        ("https://cdn-hf.co/x", False),
+        ("https://xcdn.hf.co/x", False),
+        ("https://cdn.hf.com/x", False),
+        ("https://us.cdn.hf.co../x", False),
+        ("https://.cdn.hf.co/x", False),
+        ("https://a..cdn.hf.co/x", False),
+        ("https://a_b.cdn.hf.co/x", False),
+        ("https://-a.cdn.hf.co/x", False),
         ("https://cdn-lfs.hf.co/x", False),
         ("https://hf.co/o/m/resolve/main/config.json", False),
+        ("http://us.aws.cdn.hf.co/x", False),
+        ("https://us.aws.cdn.hf.co:8443/x", False),
+        ("https://u:p@us.aws.cdn.hf.co/x", False),
         ("http://huggingface.co/o/m", False),
         ("https://huggingface.co:8443/o/m", False),
+        ("https://www.huggingface.co/o/m", False),
         ("https://huggingface.co.evil.example/o/m", False),
     ],
+    ids=lambda v: v if isinstance(v, str) else None,
 )
-def test_only_the_measured_hosts_are_fetched_from(url: str, allowed: bool) -> None:
-    """The Hub and the one CDN host it was measured to redirect a file to
-    (see working-docs/implementation/remote-fetch-policy.md); nothing else."""
-    assert (url_refusal(url, _hub_files.FILE_HOSTS) is None) is allowed
+def test_the_hub_and_hosts_under_the_cdn_domain_are_fetched_from(
+    url: str, allowed: bool
+) -> None:
+    """The Hub's own host, and on the default https port any host under
+    ``cdn.hf.co`` (the regional CDN, see
+    working-docs/implementation/remote-fetch-policy.md); nothing else."""
+    hosts, domains = _HUB_POLICY.hosts, _HUB_POLICY.domains
+    assert (hosts, domains) == (frozenset({"huggingface.co"}), frozenset({"cdn.hf.co"}))
+    assert (url_refusal(url, hosts, domains) is None) is allowed
+
+
+def test_a_refusal_names_the_hub_and_the_cdn_domain() -> None:
+    why = url_refusal("https://x.example/", _HUB_POLICY.hosts, _HUB_POLICY.domains)
+    assert why == "its host is not huggingface.co, cdn.hf.co or a name under it"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://us.aws.cdn.hf.co/xet-bridge-us/x",
+        "https://eu.aws.cdn.hf.co/xet-bridge-eu/x",
+        "https://cdn.hf.co/x",
+    ],
+)
+def test_no_token_goes_to_a_cdn_host(url: str) -> None:
+    assert url_refusal(url, _HUB_POLICY.hosts, _HUB_POLICY.domains) is None
+    credential = _HUB_POLICY.credential
+    assert credential is not None and credential.header_for(url) is None
+    assert credential.header_for("https://huggingface.co/o/m") == _BEARER
+
+
+def test_under_domain_strips_one_trailing_dot_only() -> None:
+    assert under_domain("a.cdn.hf.co.", "cdn.hf.co")
+    assert not under_domain("a.cdn.hf.co..", "cdn.hf.co")
 
 
 def test_a_dataset_file_is_asked_under_datasets() -> None:
     url = file_url("o/d", "README.md", revision=_SHA, repo_type="dataset")
-    assert url == f"{_hub_files.HUB_BASE}/datasets/o/d/resolve/{_SHA}/README.md"
+    assert url == f"{DEFAULT_HUB_BASE}/datasets/o/d/resolve/{_SHA}/README.md"
 
 
 def test_a_file_the_repository_does_not_hold_is_absent_silently(
@@ -234,7 +299,7 @@ def test_hf_hub_offline_fetches_nothing(
     serve_in_git(fake, _REPO, "config.json", b"{}", revision=_SHA)
     assert _read() is None
     assert not fake.hub.seen
-    assert _codes(caplog) == [NETWORK_UNUSABLE.code]
+    assert _codes(caplog) == [OFFLINE_UNUSABLE.code]
     assert "network access is forbidden" in caplog.text
 
 

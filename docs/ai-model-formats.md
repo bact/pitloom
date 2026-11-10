@@ -439,14 +439,22 @@ This reads the model card, `config.json`, `tokenizer_config.json`,
 `ai_AIPackage` as in the tables above.
 
 Those files (and a licence file, and each listed dataset's card) are
-downloaded at the revision the Hub's model information names, from
-`huggingface.co` and the Hub's CDN only, into a temporary directory removed
-afterwards; none goes to the `huggingface_hub` cache. Each is capped at
+downloaded at the revision the Hub's model information names, from the Hub
+(`huggingface.co`) and its CDN (`cdn.hf.co` or a host under it, https on the
+default port) only, into a temporary directory removed afterwards; none goes
+to the `huggingface_hub` cache. Each is capped at
 `--max-download-bytes` (`max-download-bytes`, 512 MiB by default), counted on
 the bytes received; a larger one is left out with a `WARNING:`
 ([`over-cap`](message-codes.md#over-cap)) and the rest is read. A Hugging
-Face token (`HF_TOKEN`, or the stored `hf auth login`) is sent to
-`huggingface.co` only, never to the CDN a file is redirected to. A file the
+Face token (`HF_TOKEN`, or the stored `hf auth login`) is sent to the Hub
+only, never to the CDN a file is redirected to. With `huggingface_hub`'s
+`HF_ENDPOINT` set to another Hub (a mirror), the files are asked of that Hub
+instead of `huggingface.co`, the token sent to it only, with an `INFO:`
+([`url-moved/hf-endpoint`](message-codes.md#url-movedhf-endpoint)); an
+`HF_ENDPOINT` that is not https (or holds credentials, a query or a fragment)
+is not used for files, so the token never goes over plain http: no file is
+downloaded, with one `WARNING:`
+([`url-unsafe/hf-endpoint`](message-codes.md#url-unsafehf-endpoint)). A file the
 repository does not hold is skipped silently; any other failed download (a
 gated or private repository read without access, a network failure, a
 timeout, a redirect elsewhere) leaves that file out with a `WARNING:`
@@ -454,7 +462,7 @@ carrying the code a Git or PyPI URL fails with
 ([`download-network-failed`](message-codes.md#download-network-failed),
 [`download-timeout`](message-codes.md#download-timeout),
 [`url-unsafe`](message-codes.md#url-unsafe)). `--offline` refuses the model
-([`network-unusable`](message-codes.md#network-unusable)), and with
+([`offline-unusable`](message-codes.md#offline-unusable)), and with
 `huggingface_hub`'s `HF_HUB_OFFLINE` set no file is downloaded (one
 `WARNING:` each). The Hub's model and dataset information and its file
 listing are `huggingface_hub` requests and pass through neither the cap nor

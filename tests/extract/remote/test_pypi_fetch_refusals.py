@@ -33,7 +33,7 @@ from pitloom.extract.remote.pypi import SDIST, WHEEL
 from pitloom.messages import (
     DIGEST_MISMATCH,
     DOWNLOAD_FAILED,
-    NETWORK_UNUSABLE,
+    OFFLINE_UNUSABLE,
     OVER_CAP,
     PYPI_RESPONSE_INVALID,
     PYPI_URL_INVALID,
@@ -97,7 +97,7 @@ def test_offline_refuses_before_any_request(
     fake: FakePypi, caplog: pytest.LogCaptureFixture
 ) -> None:
     error = _refused(f"{_PAGE}x/", caplog, offline=True)
-    assert (error.code, error.pitloom_code) == ("pypi.offline", NETWORK_UNUSABLE.code)
+    assert (error.code, error.pitloom_code) == ("pypi.offline", OFFLINE_UNUSABLE.code)
     assert str(error) == (
         f"URL={_PAGE}x/: network access is forbidden (offline mode); nothing fetched"
     )

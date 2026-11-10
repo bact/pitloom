@@ -18,13 +18,16 @@ tests/extract/remote/test_hub_files.py.
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import _http_fetch, _hub_files
+from pitloom.extract.remote._http_credential import Credential
 from tests._fake_pypi_server import FakePypi, Route, redirect, serving
 
 __all__ = [
@@ -96,13 +99,20 @@ def point_hub_at(
     token: str | None = TOKEN,
     offline: bool = False,
 ) -> None:
-    """Make the Hub route ask *fake* over plain http (only a test allows it),
-    with *token* as the signed-in user's and *offline* as
-    ``HF_HUB_OFFLINE``."""
-    monkeypatch.setattr(_hub_files, "HUB_BASE", fake.hub.base)
-    monkeypatch.setattr(
-        _hub_files, "FILE_HOSTS", frozenset({fake.hub.host, fake.cdn.host})
-    )
+    """Make the Hub route ask *fake* over plain http (only a test allows it)
+    as ``huggingface_hub``'s ``ENDPOINT``, its CDN allowed beside the hosts
+    under :data:`~pitloom.extract.remote._hub_files.CDN_DOMAINS`, with
+    *token* as the signed-in user's and *offline* as ``HF_HUB_OFFLINE``."""
+    real_policy = _hub_files.file_policy
+
+    def with_cdn(
+        base: str, credential: Credential | None, policy: RemoteFetchPolicy
+    ) -> _http_fetch.Policy:
+        allowed = real_policy(base, credential, policy)
+        return dataclasses.replace(allowed, hosts=allowed.hosts | {fake.cdn.host})
+
+    monkeypatch.setattr(_hub_files, "hub_endpoint", lambda: fake.hub.base)
+    monkeypatch.setattr(_hub_files, "file_policy", with_cdn)
     monkeypatch.setattr(_http_fetch, "ALLOWED_SCHEMES", frozenset({"http", "https"}))
     monkeypatch.setattr(_hub_files, "hub_token", lambda: token)
     monkeypatch.setattr(_hub_files, "hub_offline", lambda: offline)

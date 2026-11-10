@@ -67,7 +67,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "model-ambiguous": ("several AI model files",),
     "model-unreadable": ("failed to extract metadata",),
     "model-wrong-format": ("header is not ",),
-    "network-unusable": ("network access is forbidden",),
+    "offline-unusable": ("network access is forbidden",),
     "over-cap": (" cap;",),
     "parameter-count-invalid": ("parameter count not recorded",),
     "project-not-found": ("No pyproject.toml, setup.cfg, or setup.py found",),

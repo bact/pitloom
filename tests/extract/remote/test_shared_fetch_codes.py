@@ -5,7 +5,7 @@
 
 """Every remote route says a shared condition with the same catalogued code:
 over the cap (``over-cap``), a failed request (``download-network-failed``),
-a timeout (``download-timeout``) and offline mode (``network-unusable``),
+a timeout (``download-timeout``) and offline mode (``offline-unusable``),
 for a Git URL, a PyPI URL and a Hugging Face model alike. Git and PyPI
 raise it as the ``pitloom_code`` of a
 :class:`~pitloom.extract.remote.errors.RemoteSourceError`; Hugging Face says
@@ -40,7 +40,7 @@ from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
-    NETWORK_UNUSABLE,
+    OFFLINE_UNUSABLE,
     OVER_CAP,
     Message,
     trusted_message,
@@ -165,7 +165,7 @@ def test_a_git_checkout_over_the_cap_is_over_cap(
     assert error.code == "git.too-large" and _said_as(error, OVER_CAP)
 
 
-def test_git_offline_is_network_unusable() -> None:
+def test_git_offline_is_offline_unusable() -> None:
     def run() -> None:
         with fetch_git_project(
             "https://h.invalid/o/r", policy=RemoteFetchPolicy(offline=True)
@@ -173,7 +173,7 @@ def test_git_offline_is_network_unusable() -> None:
             pass  # pragma: no cover
 
     error = _raised(run)
-    assert error.code == "git.offline" and _said_as(error, NETWORK_UNUSABLE)
+    assert error.code == "git.offline" and _said_as(error, OFFLINE_UNUSABLE)
 
 
 # -- PyPI -----------------------------------------------------------------
@@ -226,9 +226,9 @@ def test_pypi_network_failure_is_download_network_failed(
     assert error.code == "pypi.download-failed" and _said_as(error, DOWNLOAD_FAILED)
 
 
-def test_pypi_offline_is_network_unusable() -> None:
+def test_pypi_offline_is_offline_unusable() -> None:
     error = _pypi_error(RemoteFetchPolicy(offline=True))
-    assert error.code == "pypi.offline" and _said_as(error, NETWORK_UNUSABLE)
+    assert error.code == "pypi.offline" and _said_as(error, OFFLINE_UNUSABLE)
 
 
 # -- Hugging Face -----------------------------------------------------------
@@ -274,9 +274,9 @@ def test_the_hub_says_each_condition_with_the_shared_code(
     assert trusted_message(printed) is message
 
 
-def test_hub_offline_is_network_unusable() -> None:
+def test_hub_offline_is_offline_unusable() -> None:
     error = _raised(
         lambda: read_huggingface("o/m", policy=RemoteFetchPolicy(offline=True))
     )
-    assert error.code == "huggingface.offline" and _said_as(error, NETWORK_UNUSABLE)
+    assert error.code == "huggingface.offline" and _said_as(error, OFFLINE_UNUSABLE)
     assert str(error).startswith("URL=https://huggingface.co/o/m: ")

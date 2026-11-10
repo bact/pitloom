@@ -337,7 +337,7 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` / `--no-offline` -- forbid network access (PyPI and Hugging
   Face lookups; a Git URL, a PyPI URL or a Hugging Face model target is an
-  error, [`network-unusable`](message-codes.md#network-unusable)), or, with
+  error, [`offline-unusable`](message-codes.md#offline-unusable)), or, with
   `--no-offline`, allow it over a config `offline = true`. Not on `enrich`.
 - `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
   (`wheel`, `project` and `generate` with that URL), the most disk a Git

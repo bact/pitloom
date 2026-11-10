@@ -37,7 +37,7 @@ URL is read by the host's conventions. Rules to state to the user:
   [config-unsafe/build-code]`, and the file list may miss what that code adds.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`ERROR: SBOM generation failed: URL=<url>: network
-  access is forbidden (offline mode); nothing fetched [network-unusable]`,
+  access is forbidden (offline mode); nothing fetched [offline-unusable]`,
   after the same text as a `WARNING: Git source:` line). The PyPI and
   Hugging Face routes refuse with the same code.
 - The checkout may take at most 512 MiB of disk (`--max-download-bytes

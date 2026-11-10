@@ -53,22 +53,49 @@ no CDN host. Probed with `curl`:
 | a missing repository | `401` (`Invalid username or password`) |
 | a missing file, or a missing revision | `404`, `X-Error-Code: EntryNotFound` |
 
-So `FILE_HOSTS` is `huggingface.co` and the one CDN host seen,
-`us.aws.cdn.hf.co`. A plain GET of the signed CDN URL serves a Xet file (the
-library falls back to it without `hf_xet`), so no Xet client is needed. The
-CDN host is regional: from another region the Hub may name another one, and
-such a file is refused (`url-unsafe` `WARNING:`, the file left out). No
-measured metadata file of the surveyed repositories left `huggingface.co`.
-`HF_ENDPOINT` is not followed for these files (the base is fixed); the API
-requests still follow it.
+The one CDN host seen was `us.aws.cdn.hf.co`. A plain GET of the signed CDN
+URL serves a Xet file (the library falls back to it without `hf_xet`), so no
+Xet client is needed. The CDN host is regional (the `xet-bridge-us` path
+names the region), so a file may be sent to another region's host: the
+allowlist (`_hub_files.file_policy`) is the Hub's own host plus any host
+under `cdn.hf.co` (`_hub_files.CDN_DOMAINS`), matched by
+`_http_fetch.under_domain` as a DNS suffix: lower case, one trailing dot
+dropped, every label a letter-digit-hyphen label, `cdn.hf.co` itself or
+`.cdn.hf.co` at the end, on the default https port only. Not `hf.co` broadly
+(`cdn-lfs.hf.co` and the rest stay refused), and no substring match
+(`evilcdn.hf.co`, `cdn.hf.co.evil.example` are refused; tested). No measured
+metadata file of the surveyed repositories left `huggingface.co`.
+
+### `HF_ENDPOINT`
+
+The Hub is `huggingface_hub.constants.ENDPOINT` (`_hub_files.hub_endpoint`),
+the value the library itself resolved from `HF_ENDPOINT` at import (or the
+staging Hub under `HUGGINGFACE_CO_STAGING`), so the files and the
+`model_info()` API calls go to one Hub; re-reading the variable could
+disagree with the library once it is imported. Its host (with its port when
+not 443) replaces `huggingface.co` in the allowlist, the resolve URL is
+built on it (a path prefix kept, as the library concatenates), the token
+goes to its origin only, and `cdn.hf.co` stays allowed. A Hub other than the
+default is one `INFO:` per read (`url-moved/hf-endpoint`).
+
+`huggingface_hub` 2.4.0 takes an `http://` endpoint as given and sends the
+token to it. Pitloom does not: an endpoint whose scheme is not in
+`_http_fetch.ALLOWED_SCHEMES` (https), or holding user information, a query
+or a fragment, is refused with one `WARNING:` per read
+(`url-unsafe/hf-endpoint`, the credentials masked) and no file is fetched;
+falling back to `huggingface.co` would contradict the user's choice of Hub.
+A plain-http mirror is a loopback or test setup, where losing the files is
+cheap; a token over http is not. The API calls still go wherever the library
+sends them.
 
 ### Token
 
 The token `huggingface_hub` would send (`HF_TOKEN`, else the stored login,
 none under `HF_HUB_DISABLE_IMPLICIT_TOKEN`; `huggingface_hub.get_token()`) is
-an `Authorization: Bearer` header sent only to a URL on the origin
-`https://huggingface.co:443`
-(`_http_credential.Credential.header_for`), the Git route's same-origin rule
+an `Authorization: Bearer` header sent only to a URL on the Hub's origin,
+`https://huggingface.co:443` or the `HF_ENDPOINT` one
+(`_hub_files.hub_credential`, `_http_credential.Credential.header_for`), the
+Git route's same-origin rule
 for user information: never to the CDN (another host), another port, or
 http. The `resolve-cache` hop is on the origin and keeps it, as a private or
 gated repository needs. A test asserts the fake CDN saw no `Authorization`.
@@ -76,11 +103,11 @@ gated repository needs. A test asserts the fake CDN saw no `Authorization`.
 ### Behaviour kept and changed
 
 - `--offline` (and the config's `offline`) still refuses the model before any
-  request, now `huggingface.offline` with `network-unusable`, raised by
+  request, now `huggingface.offline` with `offline-unusable`, raised by
   `read_huggingface(policy=...)` itself (it was a `ValueError` in
   `generate_model_sbom()`).
 - `HF_HUB_OFFLINE` was honoured by `hf_hub_download` (cache only); now no
-  file is downloaded and each is one `network-unusable` `WARNING:`. Nothing
+  file is downloaded and each is one `offline-unusable` `WARNING:`. Nothing
   is read from the `huggingface_hub` cache any more.
 - A file the repository does not hold (`404`) is absent, silently; it was a
   `DEBUG` line for the JSON files and a `WARNING:` for a missing model card.
@@ -124,11 +151,12 @@ subject or action differs (`messages/_remote_fetch.py`, moved out of
 | over the cap | `over-cap` | `CLONE_LINE` (`git.too-large`) | `DOWNLOAD_LINE` (`pypi.too-large`) | `KEY_LINE` `WARNING:` |
 | request failed | `download-network-failed` | `git <command> failed: <error>; nothing fetched` | `URL=<url>: <failure>; not read` | the same, `WARNING:`, `; <outcome>` |
 | timeout | `download-timeout` | `git <command> did not finish within <seconds> seconds; stopped` | `URL=...: no complete answer within ...; not read` | the same, `WARNING:` |
-| offline | `network-unusable` (new) | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | the same | the same (`ERROR`); `WARNING:` under `HF_HUB_OFFLINE` |
+| offline | `offline-unusable` (new) | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | the same | the same (`ERROR`); `WARNING:` under `HF_HUB_OFFLINE` |
 
-`network-unusable`: the closed vocabulary has no "offline" or "forbidden";
-`unusable` (the subject cannot be used here) fits the network with offline
-mode on, as `temp-dir-unusable` fits a directory that cannot take a file.
+`offline-unusable`: named by its cause, offline mode (the subject), with
+`unusable` from the closed condition vocabulary (it has no "forbidden"): the
+target cannot be used with offline mode on, as `temp-dir-unusable` names a
+directory that cannot take a file.
 `RemoteSourceError.code` keeps its route prefix (`git.*`, `pypi.*`,
 `huggingface.*`); `pitloom_code` is the shared code. A git failure is
 `download-network-failed` only when one of git's `fatal:`/`error:`/`remote:`

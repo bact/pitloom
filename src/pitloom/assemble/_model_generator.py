@@ -242,7 +242,7 @@ def generate_model_sbom(
     policy every remote route resolves
     (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`): with
     *offline* (else *pitloom_config*'s) true nothing is fetched
-    (``huggingface.offline``, ``network-unusable``); each file is capped at
+    (``huggingface.offline``, ``offline-unusable``); each file is capped at
     *max_download_bytes* (else *pitloom_config*'s ``max-download-bytes``,
     else 512 MiB); *check_url* is called with each file's URL and each
     redirect target before it is requested (a local file does not use it).

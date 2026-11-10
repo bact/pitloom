@@ -6,9 +6,10 @@
 """The conditions every remote route shares (a Git URL, a PyPI URL, a
 Hugging Face repository): a request that failed, timed out, was sent
 somewhere Pitloom does not fetch from or could not be saved, and offline
-mode, which forbids the fetch. One family per condition; each route keeps
-its own line where its subject or action differs. ``ERROR`` stops the read
-(Git, PyPI); ``WARNING`` leaves one Hugging Face file out.
+mode, which forbids the fetch; and ``huggingface_hub``'s ``HF_ENDPOINT``,
+the Hub a Hugging Face file is asked of. One family per condition; each
+route keeps its own line where its subject or action differs. ``ERROR``
+stops the read (Git, PyPI); ``WARNING`` leaves one Hugging Face file out.
 
 See also: :mod:`pitloom.messages._pypi` (the PyPI route's own conditions),
 :mod:`pitloom.messages._over_cap` (``over-cap``, the download cap's family),
@@ -50,6 +51,19 @@ FILE_HOST_REFUSED_LINE: Final = Line(
     template="FILE=%(file)s: download URL %(target)s is not on %(hosts)s; not fetched",
 )
 
+#: An ``HF_ENDPOINT`` no Hugging Face file is fetched from.
+ENDPOINT_REFUSED_LINE: Final = Line(
+    level="WARNING",
+    template="URL=%(url)s: HF_ENDPOINT not used for files (%(why)s); "
+    "no file of the repository fetched",
+)
+#: The Hub ``HF_ENDPOINT`` names, which Hugging Face files are fetched from.
+ENDPOINT_LINE: Final = Line(
+    level="INFO",
+    template="URL=%(url)s: the Hub HF_ENDPOINT names; Hugging Face files "
+    "are fetched from it",
+)
+
 #: A redirect or download URL Pitloom does not follow or fetch.
 URL_REFUSED: Final = Message(
     code="url-unsafe",
@@ -74,6 +88,42 @@ URL_REFUSED: Final = Message(
     "says. A mirror or proxy that redirects is not supported; they may "
     "download the file themselves and run Pitloom on it. Do not fetch the "
     "target for them; ask first, and with nobody to ask, report it only.",
+    since=_SINCE,
+)
+
+#: An ``HF_ENDPOINT`` Hugging Face files are not fetched from.
+ENDPOINT_REFUSED: Final = Message(
+    code="url-unsafe/hf-endpoint",
+    condition="unsafe",
+    lines=(ENDPOINT_REFUSED_LINE,),
+    summary="huggingface_hub's HF_ENDPOINT names a Hub that is not an https "
+    "URL, or one holding user information, a query or a fragment. The "
+    "Hugging Face token must not be sent over plain http.",
+    did="Fetched no file of the Hugging Face repository (config.json, the "
+    "card, a licence file) and read the rest; the SBOM lacks what those "
+    "files hold.",
+    effect="thinner",
+    actor="user",
+    advice="Tell the user HF_ENDPOINT is not used for files, and why, as the "
+    "line says. They set it to an https URL without credentials, or unset it "
+    "for https://huggingface.co, and run again. Do not change it for them; "
+    "ask first, and with nobody to ask, report it only.",
+    subject_key="URL",
+    since=_SINCE,
+)
+
+#: Hugging Face files fetched from the Hub ``HF_ENDPOINT`` names.
+ENDPOINT_MOVED: Final = Message(
+    code="url-moved/hf-endpoint",
+    condition="moved",
+    lines=(ENDPOINT_LINE,),
+    summary="huggingface_hub's HF_ENDPOINT names a Hub other than "
+    "https://huggingface.co (a mirror, a private Hub).",
+    did="Fetched the Hugging Face files from it, the token sent to it only.",
+    effect="none",
+    actor="none",
+    advice="nothing to do: the line names where the files came from.",
+    subject_key="URL",
     since=_SINCE,
 )
 
@@ -200,8 +250,8 @@ OFFLINE_WARNING_LINE: Final = Line(
 )
 
 #: A target that must be fetched, in offline mode.
-NETWORK_UNUSABLE: Final = Message(
-    code="network-unusable",
+OFFLINE_UNUSABLE: Final = Message(
+    code="offline-unusable",
     condition="unusable",
     lines=(OFFLINE_LINE, OFFLINE_WARNING_LINE),
     summary="Offline mode is on and the target must be fetched: a Git URL, "
@@ -224,8 +274,10 @@ NETWORK_UNUSABLE: Final = Message(
 
 ENTRIES: Final = (
     URL_REFUSED,
+    ENDPOINT_REFUSED,
+    ENDPOINT_MOVED,
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
     TEMP_DIR_UNUSABLE,
-    NETWORK_UNUSABLE,
+    OFFLINE_UNUSABLE,
 )

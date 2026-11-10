@@ -210,7 +210,7 @@ def generate_pypi_sbom_with_download(
     once a file is downloaded) does not pass through it. *max_download_bytes* caps
     the file: else *pitloom_config*'s ``max-download-bytes``, else 512 MiB.
     With *offline* (else *pitloom_config*'s ``offline``) true nothing is
-    fetched (``pypi.offline``, ``network-unusable``; an invalid *url* is
+    fetched (``pypi.offline``, ``offline-unusable``; an invalid *url* is
     ``pypi-url-invalid`` first). The three resolve as every remote route
     resolves them
     (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`).

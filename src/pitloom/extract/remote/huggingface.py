@@ -98,7 +98,7 @@ from pitloom.extract.remote.huggingface_field import (
     hub_revision,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import NETWORK_UNUSABLE, OFFLINE_LINE
+from pitloom.messages import OFFLINE_LINE, OFFLINE_UNUSABLE
 
 log = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ def read_huggingface(
             ``library-missing`` (``library-unusable`` when installed).
         ValueError: If *source* is not a valid Hugging Face URL or model ID.
         pitloom.extract.remote.errors.RemoteSourceError: The policy is
-            offline (``huggingface.offline``, ``network-unusable``).
+            offline (``huggingface.offline``, ``offline-unusable``).
         Exception: Whatever the policy's ``check_url`` raises, unchanged.
     """
     try:
@@ -218,7 +218,7 @@ def read_huggingface(
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
     if policy.offline:
         raise remote_error(
-            f"{ROUTE}.offline", NETWORK_UNUSABLE, OFFLINE_LINE, url=shown_url(hf_url)
+            f"{ROUTE}.offline", OFFLINE_UNUSABLE, OFFLINE_LINE, url=shown_url(hf_url)
         )
     log_hf_url_rewrite(source, model_id)
     with hub_files(policy) as hub:

@@ -16,7 +16,8 @@ whose per-hop check this follows).
 Every URL requested, the first and each redirect target, is checked before
 it is requested: its scheme is in :data:`ALLOWED_SCHEMES`, it has no user
 information, its host (and port, when it is not the scheme's default) is in
-the caller's allowlist, and the caller's ``check_url`` does not raise. The
+the caller's allowlist, or, on the default port, under one of its DNS domains
+(:func:`under_domain`), and the caller's ``check_url`` does not raise. The
 opener has no redirect, cookie, authentication, ``file:``, ``ftp:`` or
 ``data:`` handler: a redirect is followed here, at most
 :data:`MAX_REDIRECTS` times. An ``Authorization`` header is sent only with
@@ -43,6 +44,7 @@ import hashlib
 import http.client
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Collection, Iterator
@@ -54,7 +56,7 @@ from urllib.parse import urljoin, urlsplit
 from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.extract._extract_utils import json_nests_over
-from pitloom.extract.remote._http_credential import Credential
+from pitloom.extract.remote._http_credential import DEFAULT_PORTS, Credential
 from pitloom.extract.remote._http_errors import (
     CutShortError,
     NotFoundError,
@@ -96,6 +98,7 @@ __all__ = [
     "fetch_to_file",
     "remote_error",
     "shown_url",
+    "under_domain",
     "url_refusal",
 ]
 
@@ -131,28 +134,45 @@ JSON_USE: Final = "for the PyPI release metadata"
 
 _REDIRECT_CODES: Final = frozenset({301, 302, 303, 307, 308})
 _NOT_FOUND_CODES: Final = frozenset({404, 410})
-_DEFAULT_PORTS: Final = {"http": 80, "https": 443}
+#: One DNS label as a host name spells it (letters, digits, inner hyphens).
+_LABEL_RE: Final = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 
 
 @dataclass(frozen=True)
 class Policy:
     """Where a request may go: the hosts (``host``, or ``host:port`` for a
-    port that is not the scheme's default), and the caller's own check of
-    each URL, which raises for one that must not be fetched. *route* starts
-    each error's code and the ``User-Agent``; *credential*, when given, is
-    sent to its own origin only."""
+    port that is not the scheme's default), the DNS domains any host under
+    which is allowed on the default port (:func:`under_domain`), and the
+    caller's own check of each URL, which raises for one that must not be
+    fetched. *route* starts each error's code and the ``User-Agent``;
+    *credential*, when given, is sent to its own origin only."""
 
     hosts: frozenset[str]
     check_url: Callable[[str], None] | None = None
     route: str = "pypi"
     credential: Credential | None = None
+    domains: frozenset[str] = frozenset()
 
 
-def url_refusal(url: str, hosts: Collection[str]) -> str | None:
+def under_domain(host: str, domain: str) -> bool:
+    """Whether *host* (lower case) is *domain* or a name under it, after one
+    trailing dot (the root) is dropped: ``us.cdn.hf.co`` is under
+    ``cdn.hf.co``; ``evilcdn.hf.co``, ``cdn.hf.co.evil.example`` and a name
+    with an empty or non-host label are not."""
+    name = host[:-1] if host.endswith(".") else host
+    if not all(_LABEL_RE.fullmatch(label) for label in name.split(".")):
+        return False
+    return name == domain or name.endswith("." + domain)
+
+
+def url_refusal(
+    url: str, hosts: Collection[str], domains: Collection[str] = ()
+) -> str | None:
     """Why *url* is not requested, or ``None`` when it may be: its scheme
     is not in :data:`ALLOWED_SCHEMES`, it holds user information, or its host
-    (with its port when that is not the scheme's default) is not in *hosts*,
-    compared in lower case."""
+    (with its port when that is not the scheme's default) is not in *hosts*
+    and, on the default port, under none of *domains*, compared in lower
+    case."""
     try:
         parts = urlsplit(url)
         port = parts.port
@@ -164,11 +184,14 @@ def url_refusal(url: str, hosts: Collection[str]) -> str | None:
     if "@" in parts.netloc:
         return "it holds user information"
     host = (parts.hostname or "").lower()
-    if port is None or port == _DEFAULT_PORTS.get(scheme):
-        allowed = host in hosts
+    if port is None or port == DEFAULT_PORTS.get(scheme):
+        allowed = host in hosts or any(under_domain(host, d) for d in domains)
     else:
         allowed = f"{host}:{port}" in hosts
-    return None if host and allowed else f"its host is not {', '.join(sorted(hosts))}"
+    if host and allowed:
+        return None
+    named = [*sorted(hosts), *(f"{d} or a name under it" for d in sorted(domains))]
+    return f"its host is not {', '.join(named)}"
 
 
 def _headers(url: str, policy: Policy) -> dict[str, str]:
@@ -239,7 +262,7 @@ def _open(url: str, policy: Policy, watch: Watch) -> http.client.HTTPResponse:
             the request failed.
         Exception: Whatever *policy*'s ``check_url`` raises, unchanged.
     """
-    problem = url_refusal(url, policy.hosts)
+    problem = url_refusal(url, policy.hosts, policy.domains)
     if problem is not None:
         raise InternalError(f"not a URL to fetch: {shown_url(url)} ({problem})")
     _checked(url, policy)
@@ -250,7 +273,7 @@ def _open(url: str, policy: Policy, watch: Watch) -> http.client.HTTPResponse:
         if not isinstance(answer, str):
             return answer
         target = urljoin(current, answer)
-        why = url_refusal(target, policy.hosts)
+        why = url_refusal(target, policy.hosts, policy.domains)
         if why is not None:
             raise remote_error(
                 f"{policy.route}.url-refused",

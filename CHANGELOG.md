@@ -28,7 +28,8 @@ and this project adheres to
   release URL; `--max-download-bytes` caps the download, and a downloaded
   wheel's models are gated as a Git URL's ([#468])
 - A Hugging Face model's metadata files are capped by `--max-download-bytes`,
-  each redirect checked, the token sent to `huggingface.co` only ([#468])
+  fetched from the Hub (`HF_ENDPOINT` if https) or `*.cdn.hf.co`, the
+  token sent to the Hub only ([#468])
 - `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
   also lifts the reader gate of a Git URL's model files ([#469])
 
@@ -38,7 +39,7 @@ and this project adheres to
   `max_clone_bytes` renamed `max_download_bytes` ([#468])
 - **Breaking:** `fetch_git_project()` takes `policy=` (`RemoteFetchPolicy`)
   instead of `check_url=`, `offline=` and `max_bytes=` ([#468])
-- Git, PyPI and Hugging Face fetches share codes: `network-unusable`
+- Git, PyPI and Hugging Face fetches share codes: `offline-unusable`
   (`--offline`), `download-network-failed`, `download-timeout`, `over-cap`
   ([#468])
 - **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`

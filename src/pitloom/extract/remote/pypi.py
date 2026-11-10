@@ -81,12 +81,12 @@ from pitloom.messages import (
     LATEST_LINE,
     LATEST_PRERELEASE_LINE,
     LATEST_YANKED_LINE,
-    NETWORK_UNUSABLE,
     NO_COMPATIBLE_WHEEL_LINE,
     NO_DIGEST_LINE,
     NO_SDIST_LINE,
     NO_WHEEL_LINE,
     OFFLINE_LINE,
+    OFFLINE_UNUSABLE,
     PYPI_RESPONSE_INVALID,
     QUERY_NO_EFFECT,
     RELEASE_FILE_NOT_FOUND,
@@ -436,7 +436,7 @@ def fetch_pypi_file(
             policy's ``max_bytes`` is not positive.
         CodedValueError: ``pypi-url-invalid``, from
             :func:`~pitloom.extract.remote.pypi_url.parse_pypi_url`.
-        RemoteSourceError: ``pypi.offline`` (``network-unusable``) and every
+        RemoteSourceError: ``pypi.offline`` (``offline-unusable``) and every
             ``pypi.*`` failure, each with its catalogued ``pitloom_code``.
         Exception: Whatever ``check_url`` raises, unchanged.
     """
@@ -450,7 +450,7 @@ def fetch_pypi_file(
     if policy.offline:
         error = remote_error(
             "pypi.offline",
-            NETWORK_UNUSABLE,
+            OFFLINE_UNUSABLE,
             OFFLINE_LINE,
             url=shown_url(url.strip()),
         )

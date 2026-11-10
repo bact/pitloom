@@ -36,7 +36,7 @@ class RemoteSourceError(Exception):
     the message is for the user. *pitloom_code* is the catalogued code of
     the condition when it has one, shared by the routes: ``over-cap`` for
     ``git.too-large``, ``git.output-too-large`` and ``<route>.too-large``;
-    ``network-unusable`` for each ``.offline``; ``download-timeout`` for
+    ``offline-unusable`` for each ``.offline``; ``download-timeout`` for
     ``git.timeout``; ``download-network-failed`` for a ``git.clone-failed``
     whose cause is the network (no other); every ``pypi.*`` and
     ``huggingface.*`` code has one. It is read by

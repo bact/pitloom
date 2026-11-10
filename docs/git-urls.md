@@ -341,7 +341,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - `--offline` forbids the fetch: it is an error, not a fallback, for `loom
   project`, `loom model` and `loom generate` alike (`URL=<url>: network
   access is forbidden (offline mode); nothing fetched`,
-  [`network-unusable`](message-codes.md#network-unusable), the code a PyPI
+  [`offline-unusable`](message-codes.md#offline-unusable), the code a PyPI
   URL or a Hugging Face model refuses with too).
 - A clone that cannot reach the server (a name that does not resolve, a
   refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer)
