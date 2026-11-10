@@ -19,6 +19,7 @@ import logging
 import os
 import tempfile
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -367,9 +368,6 @@ def test_a_file_name_listed_twice_is_one_warning(
 class _FullDisk:
     """A download directory whose file cannot be written (a full disk)."""
 
-    def __init__(self, _where: object) -> None:
-        pass
-
     def __truediv__(self, _name: str) -> _FullDisk:
         return self
 
@@ -382,7 +380,13 @@ def test_a_file_that_cannot_be_saved_is_no_network_failure(
     fake: FakePypi, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     publish(fake, "x", {"1.0": [Dist(_ANY)]})
-    monkeypatch.setattr(pypi, "Path", _FullDisk)
+
+    @contextmanager
+    def full_disk(_prefix: str, *, log_prefix: str) -> Iterator[_FullDisk]:
+        del log_prefix
+        yield _FullDisk()
+
+    monkeypatch.setattr(pypi, "temp_dir", full_disk)
     error = _refused(f"{_PAGE}x/1.0/", caplog)
     assert (error.code, error.pitloom_code) == (
         "pypi.save-failed",

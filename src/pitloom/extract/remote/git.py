@@ -33,14 +33,15 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePath
+from typing import Final
 
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.path_confine import in_git_dir, is_inside
+from pitloom.core.temp_dirs import temp_dir
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
@@ -90,6 +91,10 @@ BLOB_LIMIT = "10m"
 #: ``log.info()`` format for a URL that names more than the clone URL.
 #: Arguments: the URL given, the repository cloned, what else it names.
 RESOLVED_INFO = "Git source: %s names repository %s%s"
+
+#: What starts a message about the checkout's directory, as every other
+#: message of the route starts.
+_LOG_PREFIX: Final = "Git source: "
 
 
 @dataclass(frozen=True)
@@ -157,8 +162,11 @@ def fetch_git_project(
     offline: bool | None = None,
     max_bytes: int | None = None,
 ) -> Iterator[GitCheckout]:
-    """Fetch the repository *url* names into a temporary directory, removed
-    on exit.
+    """Fetch the repository *url* names into a temporary directory
+    (``pitloom-git-`` and eight random characters), removed on exit (no
+    termination guard: Ctrl-C removes it, a process ended by SIGTERM or
+    SIGKILL leaves it); one that cannot be fully removed (a file still held
+    open on Windows) is left behind with one ``WARNING:``, never an error.
 
     Within the block, the reads are a temporary clone's
     (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
@@ -188,12 +196,10 @@ def fetch_git_project(
     if max_bytes is not None and max_bytes <= 0:
         raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
     runner = GitRunner(max_bytes=max_bytes)
-    # TemporaryDirectory raises on exit when a file is still held open
-    # (Windows); the PyPI route's directory is removed by remove_temp_dir,
-    # which never raises.
-    with tempfile.TemporaryDirectory(prefix=CHECKOUT_DIR_PREFIX) as work_dir:
+    # Each git call has ended (its process group too) before the removal.
+    with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
         try:
-            checkout = _prepare(url, work_dir, runner, check_url, offline)
+            checkout = _prepare(url, str(work), runner, check_url, offline)
         except Exception as exc:
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))

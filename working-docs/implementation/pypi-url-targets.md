@@ -87,14 +87,24 @@ Where the build differs from the design below:
 8. **PyPI is recognised before Git** on every surface (a PyPI URL passes
    `is_git_url`). `loom model <pypi-url>` is refused, naming `loom wheel` and
    `loom project`.
-9. **`PypiDownload.unpinned` was replaced by `requested_version`.** The Git
-   route still uses `TemporaryDirectory`, so it keeps the Windows cleanup
-   exposure (a follow-up).
+9. **`PypiDownload.unpinned` was replaced by `requested_version`.**
 10. **The temporary directory** is `pitloom-pypi-XXXXXXXX`, masked as
-   `<download>` by `mask_checkout`. It is made with `tempfile.mkdtemp` and
-   removed by `remove_temp_dir` (never raises; a leftover, such as a file still
-   held open on Windows, is one `WARNING:`), not `TemporaryDirectory`, whose
-   cleanup raises after the caller may have written its output.
+   `<download>` by `mask_checkout`. It is made and removed by
+   `core.temp_dirs.temp_dir` (`mkdtemp`, then `remove_temp_dir`: never raises;
+   a leftover, such as a file still held open on Windows, is one `WARNING:`),
+   not `TemporaryDirectory`, whose cleanup raises after the caller may have
+   written its output. The Git route's checkout (`pitloom-git-XXXXXXXX`) moved
+   to the same context manager in the same PR: before, the library route
+   could write its SBOM and then fail on the cleanup, while the CLI wrote
+   nothing. `rmtree_quietly` now retries once after making what is left
+   writable (links skipped), as `TemporaryDirectory` does, since a Git pack
+   file is read-only and Windows' rmtree leaves it. The Hatchling hook's
+   staging directory had the same exposure (its `finalize()` runs after the
+   wheel is written) and now uses `mkdtemp` and `remove_temp_dir` too. Left
+   as `TemporaryDirectory`: setuptools' `egg_base` in
+   `_models_wheel_setuptools.py` (removed before any output exists, so a
+   failure there fails every surface alike) and the build work directory
+   (`ignore_cleanup_errors=True` and a `WARNING:` already).
 11. **`--allow-signed-wheel` is inert for a PyPI URL** (`WARNING: Options:
     ... has no effect without --embed`), not "the existing rule applies
     unchanged": `--embed` is refused for a URL (`pypi-url-unusable`), so no

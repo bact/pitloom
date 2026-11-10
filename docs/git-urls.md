@@ -21,9 +21,11 @@ of a Git repository, or of one of its web pages, and Pitloom fetches the
 repository shallowly into a temporary directory, reads the Python project in it
 (or, for `loom model` and for `loom generate` on a folder with models and no
 project, an AI model file; see [Model files](#model-files)) and writes the
-SBOM. The directory is removed afterwards, and a message that would name
-it says `<checkout>` instead, so two runs print the same text. It needs the
-`git` program.
+SBOM. The directory is removed afterwards (one that cannot be fully removed,
+such as a file still held open on Windows, is one `WARNING:`, not an error:
+the SBOM is already written), and a message that would name it says
+`<checkout>` instead, so two runs print the same text. It needs the `git`
+program.
 
 ```bash
 loom project https://gitlab.com/group/project                  # the default branch

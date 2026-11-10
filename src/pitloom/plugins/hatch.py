@@ -36,6 +36,7 @@ from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin
 from pitloom.core.quote_source import quote_source
+from pitloom.core.temp_dirs import remove_temp_dir
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -48,6 +49,11 @@ from pitloom.messages import code_extra_of
 from pitloom.plugins._hatch_config import validate_config
 
 log = logging.getLogger(__name__)
+
+#: The name prefix of the directory the SBOM is staged in.
+_STAGING_PREFIX = "pitloom-hatch-"
+#: What starts a message about that directory.
+_LOG_PREFIX = "Pitloom: "
 
 
 #: The first Hatchling that reads build_data["sbom_files"], which this hook
@@ -212,17 +218,23 @@ def _default_sbom_basename(hatch_metadata: Any) -> str:
     return default_sbom_basename(name, version)
 
 
-def _stage_sbom_file(
-    sbom_json: str, sbom_filename: str
-) -> tuple[tempfile.TemporaryDirectory[str], Path]:
-    """Write the canonical SBOM to a temporary staging location."""
-    # Not used as a context manager: the directory must outlive initialize()
-    # and be cleaned up in finalize() after the wheel is packaged.
-    # pylint: disable=consider-using-with
+def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
+    """Write the canonical SBOM to a new temporary staging directory; return
+    the directory and the file.
 
-    staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115
-    staging_path = Path(staging_dir.name) / sbom_filename
-    write_text_lf(staging_path, sbom_json)
+    Not a context manager: the directory must outlive initialize() and be
+    removed in finalize(), after the wheel is packaged, by
+    :func:`~pitloom.core.temp_dirs.remove_temp_dir`, which never raises
+    (``TemporaryDirectory.cleanup()`` raises when a file is still held open
+    on Windows, failing a build whose wheel is already written).
+    """
+    staging_dir = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX))
+    staging_path = staging_dir / sbom_filename
+    try:
+        write_text_lf(staging_path, sbom_json)
+    except BaseException:
+        remove_temp_dir(staging_dir, _LOG_PREFIX)
+        raise
     return staging_dir, staging_path
 
 
@@ -299,7 +311,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._staging_dir: Path | None = None
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Generate the SBOM and register it for injection into the wheel.
@@ -439,7 +451,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             # rather than depend on finalize() being called after a failed
             # initialize(), which Hatchling's own hook contract doesn't
             # guarantee.
-            staging_dir.cleanup()
+            remove_temp_dir(staging_dir, _LOG_PREFIX)
             raise
 
         self._staging_dir = staging_dir
@@ -479,10 +491,11 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         build_data: dict[str, Any],
         artifact_path: str,
     ) -> None:
-        """Clean up the temporary staging directory."""
+        """Remove the temporary staging directory; one that cannot be fully
+        removed is one ``WARNING:``, never a failed build."""
         if self._staging_dir is not None:
-            self._staging_dir.cleanup()
-            self._staging_dir = None
+            staging_dir, self._staging_dir = self._staging_dir, None
+            remove_temp_dir(staging_dir, _LOG_PREFIX)
 
 
 @hookimpl

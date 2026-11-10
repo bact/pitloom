@@ -27,7 +27,6 @@ file name, never the temporary path.
 from __future__ import annotations
 
 import logging
-import tempfile
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -36,7 +35,7 @@ from typing import Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
-from pitloom.core.temp_dirs import remove_temp_dir
+from pitloom.core.temp_dirs import temp_dir
 from pitloom.core.url_masking import DOWNLOAD_DIR_PREFIX, sanitize_url_credentials
 from pitloom.extract.remote import pypi_url
 from pitloom.extract.remote._http_fetch import (
@@ -459,16 +458,11 @@ def fetch_pypi_file(
     if target.cut:
         emit(log, QUERY_NO_EFFECT, logging.INFO, url=shown_url(url.strip()))
     cap = DEFAULT_MAX_DOWNLOAD_BYTES if max_bytes is None else max_bytes
-    # Not TemporaryDirectory: its cleanup raises when a file is still held
-    # open (Windows), after the caller may have written its output.
-    work_dir = tempfile.mkdtemp(prefix=DOWNLOAD_DIR_PREFIX)
-    try:
+    with temp_dir(DOWNLOAD_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work_dir:
         try:
-            download = _download(target, kind, Path(work_dir), check_url, cap)
+            download = _download(target, kind, work_dir, check_url, cap)
         except Exception as exc:
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("%s", loggable(sanitize_url_credentials(str(exc))))
             raise
         yield download
-    finally:
-        remove_temp_dir(work_dir, _LOG_PREFIX)

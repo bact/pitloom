@@ -4,13 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Temporary directories whose removal is registered with a
-:class:`~pitloom.core.build_signals.TerminationGuard`, and the removal that
-never raises (:func:`remove_temp_dir`, also used by a PyPI download's
-directory).
+:class:`~pitloom.core.build_signals.TerminationGuard`, the directory a
+remote source is fetched into (:func:`temp_dir`), and the removal both use,
+which never raises (:func:`remove_temp_dir`).
 
 See also: :mod:`pitloom.core.build_signals` (the guard, signal
-behaviour) and :mod:`pitloom.core._models_wheel_build_and_read` (the
-build-and-read caller).
+behaviour), :mod:`pitloom.core._models_wheel_build_and_read` (the
+build-and-read caller), :mod:`pitloom.extract.remote.git` and
+:mod:`pitloom.extract.remote.pypi` (the remote sources).
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from pitloom.core.build_signals import TerminationGuard
@@ -42,6 +44,24 @@ def registered_temp_dir(
     remove = one_shot(functools.partial(remove_temp_dir, path, log_prefix))
     termination.add_cleanup(remove)
     return path, remove
+
+
+@contextmanager
+def temp_dir(prefix: str, *, log_prefix: str) -> Iterator[Path]:
+    """A new temporary directory named with *prefix* (``mkdtemp``'s eight
+    random characters after it), removed on exit by :func:`remove_temp_dir`:
+    one that cannot be fully removed (a file still held open on Windows) is
+    left behind with one ``WARNING:`` starting with *log_prefix*, never an
+    error, so a caller that wrote its output inside the block keeps it.
+
+    No termination guard: Ctrl-C removes it, a process ended by SIGTERM or
+    SIGKILL leaves it (:func:`registered_temp_dir` is the guarded one).
+    """
+    path = Path(tempfile.mkdtemp(prefix=prefix))
+    try:
+        yield path
+    finally:
+        remove_temp_dir(path, log_prefix)
 
 
 def one_shot(remove: Callable[[], None]) -> Callable[[], None]:
@@ -73,13 +93,36 @@ def remove_temp_dir(path: Path | str, log_prefix: str) -> None:
 
 
 def rmtree_quietly(path: Path, log_prefix: str) -> None:
-    """``shutil.rmtree(path, ignore_errors=True)``, which still raises
-    ``RecursionError`` on a tree deeper than the recursion limit (Python
-    3.10's rmtree recurses; the directory's creator controls its depth)."""
+    """``shutil.rmtree(path, ignore_errors=True)``, once more after what is
+    left is made writable (:func:`_make_writable`; a read-only file, such as
+    a Git pack file on Windows, is not removed otherwise, as
+    :class:`tempfile.TemporaryDirectory` knows). Never raises: rmtree still
+    raises ``RecursionError`` on a tree deeper than the recursion limit
+    (Python 3.10's rmtree recurses; the directory's creator controls its
+    depth)."""
     try:
         shutil.rmtree(path, ignore_errors=True)
+        if os.path.isdir(path) and not os.path.islink(path):
+            _make_writable(path)
+            shutil.rmtree(path, ignore_errors=True)
     except Exception as exc:  # pylint: disable=broad-exception-caught
         log.debug("%sremoving %s failed: %r", log_prefix, quote_source(path.name), exc)
+
+
+def _make_writable(path: Path) -> None:
+    """Give *path* and every directory below it owner read, write and search
+    permission, and every file owner read and write permission; a symbolic
+    link is left alone (``chmod`` would change its target). Top-down, so a
+    directory is opened once it can be. Each failure is passed over."""
+    with suppress(OSError):
+        os.chmod(path, 0o700)
+    for here, folders, files in os.walk(path):
+        for names, mode in ((folders, 0o700), (files, 0o600)):
+            for name in names:
+                entry = os.path.join(here, name)
+                if not os.path.islink(entry):
+                    with suppress(OSError):
+                        os.chmod(entry, mode)
 
 
 def warn_if_left_behind(path: Path, log_prefix: str) -> None:

@@ -27,6 +27,12 @@ and this project adheres to
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
   release URL; `--max-download-bytes` caps the download ([#468])
 
+### Fixed
+
+- A Git URL's temporary checkout or the Hatchling hook's staged SBOM that
+  cannot be fully removed (a file held open on Windows) warns instead of
+  failing the run ([#468])
+
 [#468]: https://github.com/bact/pitloom/pull/468
 
 ## [0.23.4] - 2026-11-09
