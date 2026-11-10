@@ -91,7 +91,7 @@ and ends in its code, which `messages.md` explains (what it means, what
 Pitloom did, what to tell the user):
 
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
-  in these formats are listed without metadata ...: onnx. Pass
+  in these formats are listed without metadata ...: onnx; pass
   --trust-model-files ...` per scan; `[reader-unsafe/remote]` for a model or
   project from a Git URL, one per SBOM), `[library-missing]`,
   `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;

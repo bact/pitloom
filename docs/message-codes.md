@@ -774,7 +774,7 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>. Pass --trust-model-files for a wheel you trust. [reader-unsafe]
+  INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: <formats>; pass --trust-model-files for a wheel you trust [reader-unsafe]
   ```
 
 ### `reader-unsafe/remote`
@@ -798,7 +798,7 @@ A line may start with one prefix before its text:
 - **Lines**:
 
   ```text
-  INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>. Pass --trust-model-files for a repository you trust. [reader-unsafe/remote]
+  INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust [reader-unsafe/remote]
   ```
 
 ### `target-ambiguous`

@@ -29,10 +29,11 @@ it free. Figures are approximate, from measurements on one machine.
   its largest model's, not the sum of its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
   bounded, only gated in wheels and for a model file or a project read from
-  a Git URL. With `--trust-model-files` (wheel or Git URL), in a scan of a local project, or in
-  `loom model FILE` on a local file, a crafted file can use gigabytes (a 16 MiB ONNX measured
-  about 3 GB; a 308-byte fastText header reached 5 GB and kept climbing)
-  or crash or hang libhdf5.
+  a Git URL. Where the gate is off (`--trust-model-files` on a wheel or a
+  Git URL, a scan of a local project, or `loom model FILE` on a local file),
+  a crafted file can use gigabytes (a 16 MiB ONNX measured about 3 GB; a
+  308-byte fastText header reached 5 GB and kept climbing) or crash or hang
+  libhdf5.
 - **No Ctrl-C while a native parser runs.** A signal handler does not run
   inside native code, so interrupting waits for the parser; kill the
   process if it hangs.

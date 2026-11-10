@@ -168,7 +168,7 @@ def test_a_batch_names_each_gated_format_once_across_its_wheels(
         for n, m in models.items()
     ]
     run_cli(["embed-wheel", *map(str, wheels), "--offline"], monkeypatch)
-    named = [re.search(r": ([a-z0-9, ]+)\. Pass ", line) for line in gate_infos(caplog)]
+    named = [re.search(r": ([a-z0-9, ]+); pass ", line) for line in gate_infos(caplog)]
     # Sorted, so that the order the wheels finish in does not matter.
     assert sorted(m.group(1) for m in named if m) == ["gguf", "onnx"]
     assert [_hyperparameters(_embedded(w)) for w in wheels] == [False] * 3

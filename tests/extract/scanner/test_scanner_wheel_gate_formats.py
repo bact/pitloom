@@ -133,7 +133,7 @@ def test_default_lists_every_gated_format_without_reading_it(
         if str(model.format_info.model_format) != "safetensors":
             assert not model.provenance  # format-only
     (info,) = gate_infos(caplog)  # seven gated models, one line
-    assert ": fasttext, gguf, hdf5, onnx, pytorch. " in info  # sorted, each once
+    assert ": fasttext, gguf, hdf5, onnx, pytorch; " in info  # sorted, each once
 
 
 def test_a_failed_scan_reports_no_gate_but_still_removes_its_scratch(
@@ -181,7 +181,7 @@ def test_a_successful_scan_reports_the_gate_after_removing_its_scratch(
         _scan(wheel)
     assert order == ["remove", "report"]
     (info,) = gate_infos(caplog)
-    assert ": onnx. " in info
+    assert ": onnx; " in info
 
 
 def test_trust_reads_every_gated_format(tmp_path: Path) -> None:
@@ -280,7 +280,7 @@ def test_a_project_scan_in_a_git_clone_is_gated(
         ("safetensors", True),
     ]
     (info,) = remote_gate_infos(caplog)  # seven gated models, one line
-    assert ": fasttext, gguf, hdf5, onnx, pytorch. " in info
+    assert ": fasttext, gguf, hdf5, onnx, pytorch; pass --trust-model-files " in info
     assert "--trust-model-files for a repository you trust" in info
     assert not gate_infos(caplog)  # not the wheel's line
 
@@ -317,9 +317,9 @@ def test_a_failed_project_scan_in_a_git_clone_reports_no_gate(
 @pytest.mark.parametrize(
     ("claimed", "named"),
     [
-        ({"gguf", "onnx"}, ": gguf, onnx. "),
-        ({"onnx"}, ": onnx. "),
-        ({"gguf"}, ": gguf. "),
+        ({"gguf", "onnx"}, ": gguf, onnx; "),
+        ({"onnx"}, ": onnx; "),
+        ({"gguf"}, ": gguf; "),
         (set(), None),
     ],
 )

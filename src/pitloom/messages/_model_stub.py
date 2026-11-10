@@ -120,7 +120,7 @@ READER_UNSAFE: Final = Message(
             level="INFO",
             template="AI models in a wheel in these formats are listed without "
             "metadata, their reader not being run on a wheel's files: "
-            "%(formats)s. Pass --trust-model-files for a wheel you trust.",
+            "%(formats)s; pass --trust-model-files for a wheel you trust",
         ),
     ),
     summary="A wheel holds AI models in formats whose reader Pitloom does not "
@@ -148,8 +148,8 @@ READER_UNSAFE_REMOTE: Final = Message(
             level="INFO",
             template="AI models from a Git URL in these formats are listed "
             "without metadata, their reader not being run on a downloaded "
-            "file: %(formats)s. Pass --trust-model-files for a repository "
-            "you trust.",
+            "file: %(formats)s; pass --trust-model-files for a repository "
+            "you trust",
         ),
     ),
     summary="A model file or a project's model files read from a Git URL are "

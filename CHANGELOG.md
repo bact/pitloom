@@ -32,6 +32,8 @@ and this project adheres to
 - **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
   (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
   to `trust-model-files`) ([#469])
+- The `reader-unsafe` and `reader-unsafe/remote` messages name
+  `--trust-model-files` and put the action after a `;` ([#469])
 
 [#469]: https://github.com/bact/pitloom/pull/469
 

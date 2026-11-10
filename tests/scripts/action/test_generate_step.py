@@ -341,8 +341,8 @@ _OVER_CAP = "FILE=LICENSE: larger than the 262144-byte license-detection cap; sk
 _UNREAD = "FILE=demo/secret.txt: could not read for file scanning; Permission denied"
 _GATE = (
     "AI models in a wheel in these formats are listed without metadata, their "
-    "reader not being run on a wheel's files: gguf, onnx. Pass "
-    "--trust-model-files for a wheel you trust."
+    "reader not being run on a wheel's files: gguf, onnx; pass "
+    "--trust-model-files for a wheel you trust"
 )
 
 

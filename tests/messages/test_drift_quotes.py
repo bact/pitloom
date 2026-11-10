@@ -62,7 +62,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "parameter-count-invalid": ("parameter count not recorded",),
     "project-not-found": ("No pyproject.toml, setup.cfg, or setup.py found",),
     "project-or-model-not-found": ("no Python project (pyproject.toml",),
-    "reader-unsafe": ("Pass --trust-model-files", "run on a downloaded file"),
+    "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
     "target-ambiguous": (
         "not an AI model file; reading its folder",
         "no Python project; reading this AI model file",

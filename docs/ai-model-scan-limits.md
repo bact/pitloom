@@ -206,7 +206,7 @@ is named once, in the first wheel that has it, and a later wheel with a
 different gated format gets its own line:
 
 ```text
-INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx. Pass --trust-model-files for a wheel you trust.
+INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx; pass --trust-model-files for a wheel you trust
 ```
 
 To read them, for a wheel you trust:
@@ -233,7 +233,7 @@ GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) file is listed with its name,
 format and hashes only, and one line per SBOM says so:
 
 ```text
-INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf. Pass --trust-model-files for a repository you trust.
+INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; pass --trust-model-files for a repository you trust
 ```
 
 To read them, for a repository you trust, use the same option as for a wheel:
