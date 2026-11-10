@@ -551,7 +551,7 @@ def test_ignored_option_warns_exactly_once_end_to_end(
     paths = _paths(tmp_path)
     paths["wheel2"] = str(_make_dummy_wheel(tmp_path / "dist2", "other", "2.0.0"))
     # The Hugging Face fetch is the only network step; stand in for it.
-    monkeypatch.setattr(_model_generator, "read_huggingface", lambda _s: object())
+    monkeypatch.setattr(_model_generator, "read_huggingface", lambda _s, **_k: object())
     monkeypatch.setattr(
         _model_generator, "build_model", lambda *_a, **_k: _FakeExporter()
     )

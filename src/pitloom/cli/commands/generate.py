@@ -12,8 +12,14 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import generate, target_is_git_url, target_resolves_to_project
+from pitloom.assemble import (
+    generate,
+    target_is_git_url,
+    target_is_pypi_url,
+    target_resolves_to_project,
+)
 from pitloom.cli.commands._remote import run_remote
+from pitloom.cli.commands._remote_pypi import run_pypi
 from pitloom.cli.commands.project import generate_project_from_args
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
@@ -36,6 +42,7 @@ from pitloom.cli.options_config import (
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.extract.model_target import AUTO
+from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.logging_config import print_error
 
 
@@ -59,6 +66,11 @@ def _run_generate_command(args: argparse.Namespace) -> int:
             "default)."
         )
         return 1
+
+    if target_is_pypi_url(args.target):
+        # A PyPI URL: its wheel, as `loom wheel <url>` reads it, then one
+        # INFO: naming `loom project <url>` for the sdist.
+        return run_pypi(args, str(args.target).strip(), WHEEL_FILE, hint=True)
 
     if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
         return 1
@@ -120,12 +132,12 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         default=".",
         help="Target path, sdist archive, .whl, model file, a folder holding "
         "one model file, HF URL, Git URL (of a project, or of a model file "
-        "or folder), or 'env'.",
+        "or folder), PyPI project or release URL (its wheel), or 'env'.",
     )
     add_offline_argument(
         gen_parser,
         "; effect depends on the resolved target -- "
-        "HF URL/ID or Git URL: error, no fetch attempted (no local fallback "
+        "HF URL/ID, Git URL or PyPI URL: error, no fetch attempted (no local fallback "
         "exists). "
         "project dir / .whl: skip PyPI lookup, no error (local metadata "
         "already covers what it can). "

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,7 +30,9 @@ without cloning it by hand. The remote targets still open, for symmetry:
 - **Private repositories and other transports**: a token for a private
   repository, `ssh://` and scp-style addresses (`git@github.com:owner/repo.git`).
 - **Remote packages/wheels**: `loom wheel <pypi-url>` and `loom project <pypi-url>`
-  (designed in [pypi-url-targets.md](pypi-url-targets.md)).
+  are built (0.24.0, iteration 1: see
+  [pypi-url-targets.md](../implementation/pypi-url-targets.md)); later
+  iterations are in the [roadmap](roadmap.md).
 - **Remote datasets**: `loom dataset <croissant-or-hub-url>`.
 
 ---

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,8 +36,22 @@ URL is read by the host's conventions. Rules to state to the user:
   downloaded repository is not run; <settings> ignored
   [config-unsafe/build-code]`, and the file list may miss what that code adds.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
-  and `loom generate` (`WARNING: Git source: Cannot fetch <url>: network
-  access is forbidden.`, then the `ERROR:`).
+  and `loom generate` (`ERROR: SBOM generation failed: URL=<url>: network
+  access is forbidden (offline mode); nothing fetched [offline-unusable]`,
+  after the same text as a `WARNING: Git source:` line). The PyPI and
+  Hugging Face routes refuse with the same code.
+- The checkout may take at most 512 MiB of disk (`--max-download-bytes
+  BYTES`, or `max-download-bytes` in a `--config` file; the setting that caps
+  a PyPI download). Over it the fetch stops: `ERROR: ...: the repository is
+  larger than the <limit>-byte max-download-bytes cap; git clone was stopped
+  [over-cap]`, no SBOM. Tell the user about the flag and what it costs (disk,
+  time); do not raise it for them (non-interactively, report only).
+- A clone that cannot reach the server ends `ERROR: ...: git clone failed:
+  <git's reason>; nothing fetched [download-network-failed]`, one that runs
+  out of time `... did not finish within <seconds> seconds; stopped
+  [download-timeout]`: the codes a PyPI or Hugging Face request that fails
+  the same way carries. Any other git failure (a repository, branch or
+  sign-in the server refused) carries no code; relay git's reason.
 - A page URL naming a file (`blob`, or `raw`: GitHub `.../raw/main/f`, GitLab
   `.../-/raw/main/f`, Codeberg/Gitea `.../raw/branch/main/f`, Bitbucket
   `.../raw/main/f`) reads the folder that holds it, unless the file is an AI

@@ -32,6 +32,7 @@ from pitloom.assemble import (
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote import RemoteSourceError
@@ -68,16 +69,14 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         seen.update(
             url=url,
-            check_url=check_url,
-            offline=offline,
-            max_bytes=max_bytes,
+            check_url=policy.check_url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
         folder, file = seen["folder"], seen.get("file", "")
@@ -195,7 +194,7 @@ def test_trust_model_files_runs_a_gated_reader_on_a_downloaded_file(
 def test_the_fetchs_own_options_reach_it_on_the_model_route(
     fetched: dict[str, object], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``check_url``, ``offline`` and ``max_clone_bytes`` reach the fetch;
+    """``check_url``, ``offline`` and ``max_download_bytes`` reach the fetch;
     ``offline`` is the fetch's alone, so a model read never says it has no
     effect."""
     model = _copy(AiModelFormat.KERAS, tmp_path / "c" / "models")
@@ -205,12 +204,13 @@ def test_the_fetchs_own_options_reach_it_on_the_model_route(
         """A caller's address check."""
 
     with caplog.at_level(logging.WARNING):
-        generate_git_sbom(_URL, check_url=check, offline=False, max_clone_bytes=77)
-        generate(_URL, check_url=check, offline=False)
+        generate_git_sbom(_URL, check_url=check, offline=False, max_download_bytes=77)
+        generate(_URL, check_url=check, offline=False, max_download_bytes=78)
     assert fetched["check_url"] is check and fetched["offline"] is False
+    assert fetched["max_bytes"] == 78  # not inert for a model at a Git URL
     assert not logged_warnings(caplog)
-    generate_git_sbom(_URL, max_clone_bytes=77)
-    assert fetched["max_bytes"] == 77
+    generate_git_sbom(_URL, max_download_bytes=77)
+    assert fetched.get("max_bytes") == 77
 
 
 def test_an_option_a_model_cannot_use_warns_once_with_the_models_reason(

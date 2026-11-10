@@ -40,8 +40,14 @@ from pitloom.extract.remote import (
     log_hf_url_rewrite,
     parse_hf_model_id,
 )
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
-from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
+from pitloom.messages import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
+    MODEL_URL_LINE,
+    PYPI_URL_UNUSABLE,
+)
 
 
 def _write_model_sbom(
@@ -60,8 +66,10 @@ def _write_model_sbom(
     if kind == GIT_MODEL:
         # The fetch consumed it: a file of the clone is read with no network.
         options.pop("offline", None)
-        # Consumed by the fetch too (run_remote): it lifts the clone's gate.
+        # Consumed by the fetch too (run_remote): it lifts the clone's gate,
+        # and the cap bounds the checkout.
         options.pop("trust_model_files", None)
+        options.pop("max_download_bytes", None)
     generate_model_sbom(
         source,
         output_path=output_path,
@@ -124,6 +132,12 @@ def _run_model_command(args: argparse.Namespace) -> int:
     """Generate an AI Model SBOM from a local file or folder, a Git URL or a
     Hugging Face repository."""
     target: str = args.target
+    if is_pypi_url(target):
+        print_error(
+            MODEL_URL_LINE.render({"url": sanitize_url(target.strip())}),
+            code=PYPI_URL_UNUSABLE.code,
+        )
+        return 1
     if is_git_url(target) and not Path(target).exists():
         # loom model has no --allow-build: no build flag to settle.
         return run_remote(args, target.strip(), MODEL, BuildOptions())

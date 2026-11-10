@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,7 +33,8 @@ Decided 2026-10-29 for #396 (the maintainer took the recommendations):
 4. The outcome after the semicolon stays free text (30 shapes in the suite);
    a closed outcome table is a wording PR.
 5. Coded now: the sdist's config file over its cap (`CodedValueError`), a Git
-   URL's checkout over `max_clone_bytes` (`git.too-large`) and a `git`
+   URL's checkout over `max_clone_bytes` (since renamed `max_download_bytes`;
+   `git.too-large`) and a `git`
    call's output over its cap (`git.output-too-large`); `RemoteSourceError`
    gained `pitloom_code`, its `code` and text unchanged (and became
    copyable and picklable). Deferred: the three `fetch_json` raises (a URL's
@@ -246,3 +247,14 @@ answers M1 to M10):
 7. `scanner_wheel` raises `MemberReadError`, an `OSError` whose text is the
    detail of the scanner's line (`DETAIL_EXC`, M10).
 8. 488 to 469 uncoded sites, 153 to 146 modules.
+
+## Remote fetch conditions shared by the routes (#468)
+
+`url-unsafe`, `download-network-failed`, `download-timeout`,
+`temp-dir-unusable` and the new `offline-unusable` (offline mode) moved from
+`_pypi.py` to `_remote_fetch.py`: one family per condition for the Git, PyPI
+and Hugging Face routes, each route keeping its own line where its subject
+or action differs (a git command, a Hugging Face file's `WARNING:` ending
+in what is not read). `offline-unusable` names its cause, offline mode,
+and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
+[remote-fetch-policy.md](remote-fetch-policy.md).

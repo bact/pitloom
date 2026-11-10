@@ -508,7 +508,7 @@ Also applies to: `openai/shap-e`, `apple/Sharp`, `FireRedTeam/FireRedVAD`,
 `qualcomm/HRNetPose`, `SAP/sap-rpt-1-oss` (gated with `.pt` format files, no config.json).
 
 **No model card, config accessible**
-`ModelCard.load()` raises an exception; `card_data = {}`.  Architecture and
+The card is absent (`404`), so `card_data = {}`.  Architecture and
 hyperparameters come from `config.json`; `usage.domains`, `hf.language`, and
 `license` are empty/None because these fields only exist in the card YAML.
 **Known gap**: tags in `model_info().tags` (which do carry domain and language

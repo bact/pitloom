@@ -13,7 +13,9 @@ gated (a Git URL's project is, whatever the flag), and the flag there warns
 once that it has no effect. There is no config key.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_gate_formats` (the
-gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind).
+gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind),
+:mod:`tests.assemble.test_trust_model_files_pypi` (a wheel downloaded from a
+PyPI URL).
 """
 
 from __future__ import annotations

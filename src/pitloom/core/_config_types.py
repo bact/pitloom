@@ -13,6 +13,7 @@ from typing import TypedDict
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.enrich_config import EnrichConfig
+from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
     ProvenanceConfig,
     require_max_source_metadata_bytes,
@@ -47,7 +48,9 @@ BOOL_KEYS: dict[str, frozenset[str]] = {
 }
 #: Every integer ``[tool.pitloom]`` key, as :data:`BOOL_KEYS`.
 INT_KEYS: dict[str, frozenset[str]] = {
-    "": frozenset({"max-dataset-hash-bytes", "max-model-extract-bytes"}),
+    "": frozenset(
+        {"max-dataset-hash-bytes", "max-download-bytes", "max-model-extract-bytes"}
+    ),
     "provenance": frozenset({"max-source-metadata-bytes", "max_source_metadata_bytes"}),
 }
 
@@ -177,6 +180,8 @@ class PitloomConfig:
     max_model_extract_bytes: int = DEFAULT_MAX_MODEL_EXTRACT_BYTES
     #: Ceiling on the bytes one loom dataset hash reads (``loom.Run`` only).
     max_dataset_hash_bytes: int = DEFAULT_MAX_DATASET_HASH_BYTES
+    #: Ceiling on a release file downloaded from PyPI (a PyPI URL target).
+    max_download_bytes: int = DEFAULT_MAX_DOWNLOAD_BYTES
     content_type_enabled: bool = False
     content_type_method: str = "auto"
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()

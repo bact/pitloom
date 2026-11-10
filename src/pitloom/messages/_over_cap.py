@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.messages._fields import render
+from pitloom.messages._templates import render
 from pitloom.messages._types import Line, Message
 
 #: What an input over a cap is, in every line and in an error's text.
@@ -95,10 +95,16 @@ CONFIG_MEMBER_LINE: Final = Line(
 SOURCE_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
 )
-#: A Git URL's checkout over the library caller's ``max_clone_bytes``.
+#: A file Pitloom downloads (from PyPI, or a Hugging Face file) over the
+#: download cap: it is not downloaded. A Hugging Face file is said as
+#: :data:`KEY_LINE` (``FILE=``), its outcome naming what was not read.
+DOWNLOAD_LINE: Final = Line(
+    level="ERROR", template=f"FILE=%(file)s: {REASON}; not downloaded"
+)
+#: A Git URL's checkout over the ``max-download-bytes`` cap.
 CLONE_LINE: Final = Line(
     level="ERROR",
-    template="the repository is larger than %(amount)s; git %(command)s was stopped",
+    template=f"the repository is {REASON}; git %(command)s was stopped",
 )
 #: A ``git`` call's output over its cap.
 GIT_OUTPUT_LINE: Final = Line(
@@ -114,6 +120,7 @@ OVER_CAP: Final = Message(
         MODEL_LINE,
         CONFIG_MEMBER_LINE,
         SOURCE_LINE,
+        DOWNLOAD_LINE,
         CLONE_LINE,
         GIT_OUTPUT_LINE,
     ),
@@ -129,9 +136,13 @@ OVER_CAP: Final = Message(
     "they trust and then generate again: max-model-extract-bytes (and with it "
     "the per-wheel model-scan budget, four times it) by "
     "--max-model-extract-bytes or its [tool.pitloom] key; "
+    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL, a "
+    "Git URL's checkout, or each metadata file of a Hugging Face repository) "
+    "by --max-download-bytes or its key (each Hugging Face file also has its "
+    "own fixed cap, Hub-JSON, model-card, license-detection or dataset-card, "
+    "which raising the setting does not lift); "
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
-    "generate or by the max_dataset_hash_bytes argument of loom.Run; a Git "
-    "URL's checkout by the max_clone_bytes argument of the library call. "
+    "generate or by the max_dataset_hash_bytes argument of loom.Run. "
     "Every other cap is fixed. Do not raise a cap or generate again for them; "
     "ask first, and with nobody to ask, report it only.",
 )

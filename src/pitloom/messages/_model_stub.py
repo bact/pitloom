@@ -137,35 +137,47 @@ READER_UNSAFE: Final = Message(
     f"file can set it. Do not add the flag or generate again for them; {_ASK}",
 )
 
-#: The formats whose reader is not run on a model file of a Git URL's
-#: temporary clone, named on its own or found in a project's build file
-#: list: one line per SBOM.
+#: The Git URL's line: a model file of its temporary clone, named on its own
+#: or found in a project's build file list. One line per SBOM.
+READER_UNSAFE_REMOTE_LINE: Final = Line(
+    level="INFO",
+    template="AI models from a Git URL in these formats are listed "
+    "without metadata, their reader not being run on a downloaded "
+    "file: %(formats)s; pass --trust-model-files for a repository "
+    "you trust",
+)
+
+#: The same for the models of a wheel downloaded from a PyPI URL, named by
+#: its file (so a call naming no file says the Git URL's line).
+READER_UNSAFE_PYPI_LINE: Final = Line(
+    level="INFO",
+    template="FILE=%(file)s: AI models in these formats are listed without "
+    "metadata, their reader not being run on a downloaded file: %(formats)s; "
+    "pass --trust-model-files for a release you trust",
+)
+
+#: The formats whose reader is not run on a downloaded model file: of a Git
+#: URL's temporary clone, or of a wheel downloaded from a PyPI URL.
 READER_UNSAFE_REMOTE: Final = Message(
     code="reader-unsafe/remote",
     condition="unsafe",
-    lines=(
-        Line(
-            level="INFO",
-            template="AI models from a Git URL in these formats are listed "
-            "without metadata, their reader not being run on a downloaded "
-            "file: %(formats)s; pass --trust-model-files for a repository "
-            "you trust",
-        ),
-    ),
-    summary="A model file or a project's model files read from a Git URL are "
-    "in a format whose reader Pitloom does not run on a downloaded file "
-    "(fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could "
-    "crash or hang it, or exhaust its memory.",
+    lines=(READER_UNSAFE_REMOTE_LINE, READER_UNSAFE_PYPI_LINE),
+    summary="A model file or a project's model files read from a Git URL, or "
+    "the models of a wheel downloaded from a PyPI URL, are in a format whose "
+    "reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, "
+    "ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or "
+    "exhaust its memory.",
     did=f"{_STUB}, its reader not run.",
     effect="thinner",
     actor="user",
-    advice="Tell the user which models from the Git URL were not read, and "
-    "why. If they trust the repository's model files, they pass "
-    "--trust-model-files (trust_model_files=True in the library; the "
-    "trust-model-files input of the GitHub Action) and generate again; no "
-    "config file can set it. Running Pitloom on a local clone reads them in "
-    "full too, but also honours the repository's own configuration and build "
-    f"file list. Do not add the flag or generate again for them; {_ASK}",
+    advice="Tell the user which models from the Git URL or the PyPI URL were "
+    "not read, and why. If they trust the repository's or the release's model "
+    "files, they pass --trust-model-files (trust_model_files=True in the "
+    "library; for a Git URL, the trust-model-files input of the GitHub "
+    "Action) and generate again; no config file can set it. For a Git URL, "
+    "running Pitloom on a local clone reads them in full too, but also "
+    "honours the repository's own configuration and build file list. Do not "
+    f"add the flag or generate again for them; {_ASK}",
     since="0.23.4",
 )
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,12 @@ missing directory.
   checkout's size while `git` runs (every 0.25 s) and kills it past the cap
   (`git.too-large`), and checks once more when the call ends; bandwidth is
   spent before it stops, but disk and memory are not. The CLI sets none, as
-  it sets no `check_url`.
+  it sets no `check_url`. *Revised 2026-11-10 (#468):* the cap is now the
+  `max-download-bytes` setting shared with the PyPI download, 512 MiB by
+  default on every surface (`--max-download-bytes`, `--config`, library
+  `max_download_bytes=`, which replaced `max_clone_bytes`); the over-cap line
+  names the setting. `fetch_git_project(max_bytes=)` stays unlimited by
+  default for a direct caller.
 
 ## Problems the tests found
 

@@ -7,12 +7,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.extract.remote._hub_files import HubFiles
 from pitloom.extract.remote.huggingface import read_huggingface
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
@@ -21,6 +25,9 @@ from pitloom.extract.remote.huggingface_fetch import (
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
+    fake_hub,
+    hub_failure,
+    patch_hub_fetch,
 )
 from tests.extract.remote.hf_patches._hf_patches_embeddings import (
     _patch_rad_dino,
@@ -191,8 +198,9 @@ def test_detect_license_from_hf_files_returns_none_on_empty_file(
     ):
         empty_file = tmp_path / "LICENSE"
         empty_file.write_text("", encoding="utf-8")
-        with patch("huggingface_hub.hf_hub_download", return_value=str(empty_file)):
-            detected_id, _ = _detect_license_from_hf_files("org/model")
+        detected_id, _ = _detect_license_from_hf_files(
+            fake_hub(empty_file), "org/model"
+        )
     assert detected_id is None
 
 
@@ -210,27 +218,37 @@ def test_list_license_files_in_repo_failure_logs_and_returns_empty(
     assert any("org/model" in r.message for r in caplog.records)
 
 
-def test_detect_license_from_hf_files_download_failure_logs_and_continues(
-    caplog: pytest.LogCaptureFixture,
+@pytest.mark.parametrize("failing", ["download", "read"])
+def test_detect_license_from_hf_files_failure_logs_and_continues(
+    failing: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    # A licence candidate is listed, but downloading/reading it fails --
-    # the loop must catch, log, and continue (returning (None, None) since
-    # no other candidates exist) rather than raising.
-    with patch(
-        "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
-        return_value=["LICENSE"],
+    """A licence candidate is listed, but downloading or reading it fails:
+    one ``WARNING:`` naming it, then the next candidate (none here)."""
+    licence = tmp_path / "LICENSE"
+    licence.write_text("MIT", encoding="utf-8")
+
+    def serve(repo_id: str, filename: str, **kw: Any) -> Path:
+        if failing == "download":
+            raise hub_failure(repo_id, filename, OSError("download failed"), **kw)
+        return licence
+
+    with (
+        patch(
+            "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
+            return_value=["LICENSE"],
+        ),
+        patch_hub_fetch(serve),
+        patch("pathlib.Path.open", side_effect=OSError("read failed"))
+        if failing == "read"
+        else contextlib.nullcontext(),
     ):
-        with patch(
-            "huggingface_hub.hf_hub_download",
-            side_effect=OSError("download failed"),
-        ):
-            with caplog.at_level(
-                logging.DEBUG, logger="pitloom.extract.remote.huggingface_fetch"
-            ):
-                detected_id, provenance = _detect_license_from_hf_files("org/model")
-    assert detected_id is None
-    assert provenance is None
-    assert any("LICENSE" in r.message for r in caplog.records)
+        hub = HubFiles(RemoteFetchPolicy(), tmp_path, None)
+        detected_id, provenance = _detect_license_from_hf_files(hub, "org/model", "1")
+    assert (detected_id, provenance) == (None, None)
+    (message,) = [
+        r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
+    ]
+    assert "LICENSE" in message and f"{failing} failed" in message
 
 
 def test_kokoro_license() -> None:
@@ -259,7 +277,7 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
             detected_mock,
         ):
             meta = read_huggingface("moonshotai/Kimi-K2.6")
-    detected_mock.assert_called_once_with("moonshotai/Kimi-K2.6", revision=None)
+    detected_mock.assert_called_once_with(ANY, "moonshotai/Kimi-K2.6", revision=None)
     assert meta.license == "MIT"
     assert meta.extra_data.get("hf.license_raw") == "other"
 

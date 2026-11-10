@@ -119,6 +119,8 @@ _ALLOWED = {
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
     "core/lfs_pointer.py:LFS_POINTER_MAX_BYTES": "a format rule: longer is content",
     "core/lfs_pointer.py:_MAX_SIZE": "a format rule: git-lfs states no more",
+    # extract/remote/pypi.py refuses with the configured value's Cap.
+    "core/model_extract_limit.py:DEFAULT_MAX_DOWNLOAD_BYTES": "a setting's default",
     "core/pep440.py:MAX_VERSION_NUMBER_DIGITS": (
         "over it: not a version, and the caller's own warning or a string compare"
     ),
@@ -141,6 +143,10 @@ _ALLOWED = {
     "extract/remote/_git_redirect.py:MAX_REDIRECTS": "over it: ERROR",
     "extract/remote/_git_redirect.py:PROBE_BUDGET_SECONDS": _NOT_INPUT,
     "extract/remote/_git_run.py:MAX_OUTPUT_BYTES": "over it: ERROR",
+    "extract/remote/_http_fetch.py:MAX_REDIRECTS": "over it: ERROR",
+    "extract/remote/pypi_select.py:_MAX_NAME": (
+        "a format rule: a longer name is no file name, refused with a WARNING"
+    ),
     "extract/remote/huggingface_field.py:_TOKENIZER_MAX_LEN_UNLIMITED": _NOT_INPUT,
     # A larger id number cannot be a mint's, so harvest reserves none for it.
     "id_registry/_counters.py:MAX_ID_NUMBER": "over it: ERROR",

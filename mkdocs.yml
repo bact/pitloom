@@ -19,6 +19,7 @@ nav:
   - Home: index.md
   - Command line: cli.md
   - SBOM from a Git URL: git-urls.md
+  - SBOM from a PyPI URL: pypi-urls.md
   - Wheel SBOMs (PEP 770): wheel-sbom.md
   - SBOM fragments: fragments.md
   - Loom ID registry: id-registry.md
@@ -30,6 +31,7 @@ nav:
   - AI model scan limits, known limitations: ai-model-scan-limits-known-limitations.md
   - Python API:
       - Guide: python-api.md
+      - Python API, remote targets: python-api-remote.md
       - API reference: api.md
   - Hatchling build hook: hatchling-build-hook.md
   - GitHub Action: github-action.md

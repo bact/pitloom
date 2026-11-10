@@ -58,6 +58,7 @@ from pitloom.core.provenance import ProvenanceConfig, provenance_note
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.extract.lock.common import is_same_version
+from pitloom.extract.remote.pypi_url import PYPI_JSON_API
 
 __all__ = [
     "_DOWNLOAD_LABELS",
@@ -134,7 +135,7 @@ def _enrich_from_pypi(
             repo_url=repo_url,
             provenance_config=provenance_config,
             encoder=encoder,
-            provenance_source=package_provenance_source("PyPI JSON API", dep_name),
+            provenance_source=package_provenance_source(PYPI_JSON_API, dep_name),
             offline=offline,
             content_type_method=content_type_method,
         ):
@@ -142,7 +143,7 @@ def _enrich_from_pypi(
 
     if "license" not in already_filled:
         license_id, license_source = _extract_pypi_license(
-            info, package_provenance_source("PyPI JSON API", dep_name)
+            info, package_provenance_source(PYPI_JSON_API, dep_name)
         )
         if _apply_license(
             license_id,

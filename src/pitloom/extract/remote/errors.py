@@ -20,11 +20,27 @@ class RemoteSourceError(Exception):
     vocabulary (``git.clone-failed``, ``git.timeout``, ``git.not-found``,
     ``git.offline``, ``git.url-invalid``, ``git.ref-not-found``,
     ``git.path-not-found``, ``git.too-many-redirects``,
-    ``git.output-too-large``, ``git.too-large``, ``git.no-project``, and any
+    ``git.output-too-large``, ``git.too-large``, ``git.no-project``; for a
+    PyPI URL ``pypi.offline``, ``pypi.url-refused``,
+    ``pypi.too-many-redirects``, ``pypi.project-not-found``,
+    ``pypi.release-not-found``, ``pypi.no-wheel``,
+    ``pypi.no-compatible-wheel``, ``pypi.no-sdist``,
+    ``pypi.response-invalid``, ``pypi.digest-mismatch``, ``pypi.too-large``,
+    ``pypi.save-failed``,
+    ``pypi.download-failed``, ``pypi.download-timeout``; for a Hugging Face
+    model ``huggingface.offline`` and, for one of its files,
+    ``huggingface.download-failed``, ``huggingface.download-timeout``,
+    ``huggingface.too-large``, ``huggingface.url-refused``,
+    ``huggingface.too-many-redirects``, ``huggingface.save-failed``; and any
     code a caller's own URL check raises through :class:`RemoteSourceError`);
     the message is for the user. *pitloom_code* is the catalogued code of
-    the condition when it has one (``over-cap`` for ``git.too-large`` and
-    ``git.output-too-large``), read by :func:`pitloom.messages.code_of`.
+    the condition when it has one, shared by the routes: ``over-cap`` for
+    ``git.too-large``, ``git.output-too-large`` and ``<route>.too-large``;
+    ``offline-unusable`` for each ``.offline``; ``download-timeout`` for
+    ``git.timeout``; ``download-network-failed`` for a ``git.clone-failed``
+    whose cause is the network (no other); every ``pypi.*`` and
+    ``huggingface.*`` code has one. It is read by
+    :func:`pitloom.messages.code_of`.
     """
 
     def __init__(
@@ -34,6 +50,10 @@ class RemoteSourceError(Exception):
         self.code = code
         #: The catalogued code of the condition, or ``None``.
         self.pitloom_code = pitloom_code
+        #: The catalogue entry and the values its line was written from,
+        #: when the error is one: a caller that goes on without the input
+        #: says it again as that entry's ``WARNING:`` line.
+        self.said: tuple[object, dict[str, object]] | None = None
 
     def __reduce__(
         self,

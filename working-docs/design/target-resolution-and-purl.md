@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,7 +27,7 @@ Pitloom has three kinds of remote target and will get more:
   SourceHut), built;
 - a Hugging Face model id or URL, built;
 - a PyPI package (`loom wheel <pypi-url>` and `loom project <pypi-url>`,
-  designed in [pypi-url-targets.md](pypi-url-targets.md)), and possibly
+  built in 0.24.0 (iteration 1), see [pypi-url-targets.md](../implementation/pypi-url-targets.md)), and possibly
   conda packages and MLflow models.
 
 Each is a string the user pastes. A [Package-URL](https://github.com/package-url/purl-spec)
@@ -143,7 +143,7 @@ refactor: ask before starting it.
   input: `loom project` a Git URL or a PyPI URL (the sdist), `loom wheel` a
   PyPI URL (the wheel), `loom model` a Hugging Face id or URL. The subcommand
   decides which file a PyPI URL fetches, never a silent fallback to the other
-  kind (see [pypi-url-targets.md](pypi-url-targets.md)). No `loom pypi`,
+  kind (see [pypi-url-targets.md](../implementation/pypi-url-targets.md)). No `loom pypi`,
   `loom conda` unless asked.
 
 ## Open questions

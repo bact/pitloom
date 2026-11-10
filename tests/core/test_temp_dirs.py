@@ -13,6 +13,10 @@ tests/core/test_build_signals.py (the guard itself).
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import stat
+import sys
 from pathlib import Path
 from unittest import mock
 
@@ -20,8 +24,11 @@ import pytest
 
 from pitloom.core import temp_dirs
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
-from pitloom.core.temp_dirs import one_shot, registered_temp_dir
+from pitloom.core.temp_dirs import one_shot, registered_temp_dir, temp_dir
+from tests._symlink import CAN_SYMLINK
 from tests.build_and_read_shared import use_sys_tmp
+
+_PREFIX = "Fetch: "
 
 
 @pytest.fixture(name="sys_tmp")
@@ -79,3 +86,172 @@ def test_leftover_warning_uses_given_log_prefix(
     )
     assert str(sys_tmp) not in caplog.text
     assert "Build:" not in caplog.text
+
+
+def test_temp_dir_is_removed_on_exit(sys_tmp: Path) -> None:
+    with temp_dir("t-", log_prefix=_PREFIX) as path:
+        assert path.is_dir() and path.parent == sys_tmp
+        assert path.name.startswith("t-")
+        (path / "f").write_bytes(b"x")
+    assert not os.path.lexists(path)
+
+
+def test_temp_dir_is_removed_when_the_block_fails(sys_tmp: Path) -> None:
+    made: list[Path] = []
+    with pytest.raises(RuntimeError, match="owner failed"):
+        with temp_dir("t-", log_prefix=_PREFIX) as path:
+            made.append(path)
+            raise RuntimeError("owner failed")
+    assert made[0].parent == sys_tmp and not os.path.lexists(made[0])
+
+
+def _deep_rmtree(*_args: object, **_kwargs: object) -> None:
+    """``shutil.rmtree`` raising past ``ignore_errors`` (Python 3.10, a tree
+    deeper than the recursion limit)."""
+    raise RecursionError("maximum recursion depth exceeded")
+
+
+@pytest.mark.parametrize("raises", [False, True], ids=["left-behind", "rmtree-raises"])
+def test_temp_dir_left_behind_warns_once_and_never_raises(
+    sys_tmp: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    raises: bool,
+) -> None:
+    """The block's result stands: one ``WARNING:`` names the directory, not
+    its path."""
+    if raises:
+        monkeypatch.setattr(temp_dirs, "rmtree", _deep_rmtree)
+    else:
+        monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda _path, _prefix: None)
+    with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
+        pass
+    assert path.is_dir()
+    assert [r.getMessage() for r in caplog.records] == [
+        f"{_PREFIX}could not fully remove temporary directory '{path.name}' "
+        "(in the system temp directory)"
+    ]
+    assert str(sys_tmp) not in caplog.text
+
+
+def _windows_rmtree(path: str | Path, ignore_errors: bool = False) -> None:
+    """``shutil.rmtree`` as on Windows, where a read-only file or folder
+    cannot be deleted: nothing is removed while one is at or below *path*."""
+    assert ignore_errors
+    for here, _folders, files in os.walk(path):
+        for entry in (here, *(os.path.join(here, name) for name in files)):
+            if not os.path.islink(entry) and not (
+                os.lstat(entry).st_mode & stat.S_IWUSR
+            ):
+                return
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def test_a_read_only_file_is_made_writable_and_removed(
+    sys_tmp: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A Git pack file is read-only; on Windows rmtree leaves it, so the
+    removal makes what is left writable and tries again, quietly. A
+    read-only folder, the directory itself included, too."""
+    monkeypatch.setattr(temp_dirs, "rmtree", _windows_rmtree)
+    with caplog.at_level(logging.WARNING), temp_dir("t-", log_prefix=_PREFIX) as path:
+        pack = path / ".git" / "objects" / "pack"
+        pack.mkdir(parents=True)
+        (pack / "pack-1.pack").write_bytes(b"x")
+        for read_only in (pack / "pack-1.pack", pack, path):
+            os.chmod(read_only, stat.S_IREAD | stat.S_IEXEC)
+    assert path.parent == sys_tmp and not os.path.lexists(path)
+    assert not caplog.records
+
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs symlink privilege")
+def test_making_writable_leaves_a_link_target_alone(tmp_path: Path) -> None:
+    """A link out of the directory keeps its target's mode: ``chmod``
+    follows a link."""
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"host file")
+    os.chmod(outside, stat.S_IREAD)
+    before = os.stat(outside).st_mode
+    inside = tmp_path / "t-dir"
+    (inside / "sub").mkdir(parents=True)
+    (inside / "sub" / "link").symlink_to(outside)
+    (inside / "ro").write_bytes(b"x")
+    os.chmod(inside / "ro", stat.S_IREAD)
+    temp_dirs._make_writable(inside)  # pylint: disable=protected-access
+    assert os.stat(outside).st_mode == before
+    assert os.stat(inside / "ro").st_mode & stat.S_IWUSR
+
+
+#: Whether a real junction can be made (``_winapi.CreateJunction``).
+_WINDOWS = sys.platform == "win32"
+
+
+def _fake_junction(monkeypatch: pytest.MonkeyPatch, junction: Path) -> list[str]:
+    """Make :mod:`pitloom.core.temp_dirs` see *junction*, a plain folder, as
+    Windows sees a junction: no symbolic link, a reparse point. Returns the
+    entries it looked at."""
+    real = os.lstat
+    seen: list[str] = []
+
+    # pylint: disable-next=too-few-public-methods
+    class _Junction:
+        st_mode = stat.S_IFDIR | 0o500
+        st_file_attributes = stat.FILE_ATTRIBUTE_REPARSE_POINT
+
+    def lstat(entry: str) -> object:
+        seen.append(os.path.basename(entry))
+        return _Junction() if Path(entry) == junction else real(entry)
+
+    monkeypatch.setattr(temp_dirs, "lstat", lstat)
+    return seen
+
+
+@pytest.mark.skipif(_WINDOWS, reason="POSIX modes; Windows has the real test")
+def test_making_writable_neither_changes_nor_enters_a_junction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``os.path.islink`` is false for a junction, and before Python 3.12
+    ``os.walk`` descends into one: what it leads to (anywhere on the disk)
+    keeps its mode."""
+    inside = tmp_path / "t-dir"
+    junction = inside / "junction"
+    (junction / "below").mkdir(parents=True)
+    (junction / "f").write_bytes(b"host file")
+    (inside / "ro").write_bytes(b"x")
+    for read_only in (junction / "f", inside / "ro"):
+        os.chmod(read_only, stat.S_IREAD)
+    os.chmod(junction, 0o500)
+    seen = _fake_junction(monkeypatch, junction)
+    temp_dirs._make_writable(inside)  # pylint: disable=protected-access
+    assert "junction" in seen and not {"below", "f"} & set(seen)
+    assert stat.S_IMODE(os.stat(junction).st_mode) == 0o500
+    assert not os.stat(junction / "f").st_mode & stat.S_IWUSR
+    assert os.stat(inside / "ro").st_mode & stat.S_IWUSR
+    os.chmod(junction, 0o700)
+
+
+def test_an_entry_that_cannot_be_looked_at_is_left_alone(tmp_path: Path) -> None:
+    gone = str(tmp_path / "gone")
+    assert temp_dirs._is_link(gone)  # pylint: disable=protected-access
+    assert not temp_dirs._is_link(str(tmp_path))  # pylint: disable=protected-access
+
+
+@pytest.mark.skipif(not _WINDOWS, reason="a junction is Windows'")
+def test_a_real_junction_is_left_alone(tmp_path: Path) -> None:  # pragma: no cover
+    import _winapi  # pylint: disable=import-outside-toplevel,import-error
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "f").write_bytes(b"host file")
+    os.chmod(outside / "f", stat.S_IREAD)
+    inside = tmp_path / "t-dir"
+    inside.mkdir()
+    _winapi.CreateJunction(  # type: ignore[attr-defined, unused-ignore]
+        str(outside), str(inside / "junction")
+    )
+    temp_dirs._make_writable(inside)  # pylint: disable=protected-access
+    assert not os.stat(outside / "f").st_mode & stat.S_IWUSR
+    temp_dirs.rmtree_quietly(inside, "")
+    assert (outside / "f").is_file()

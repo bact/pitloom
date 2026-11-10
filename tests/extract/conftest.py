@@ -87,6 +87,7 @@ def make_hook(
     )
     object.__setattr__(hook, "_BuildHookInterface__target_name", target_name)
     hook._staging_dir = None
+    hook._remove_staging = None
     return hook
 
 

@@ -30,7 +30,7 @@ from pitloom.messages import (
     code_of,
     trusted_message,
 )
-from pitloom.messages._fields import PLACEHOLDER
+from pitloom.messages._templates import PLACEHOLDER
 from tests._docs_scan import REPO_ROOT
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
@@ -41,10 +41,11 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
-    "amount": "512 MiB",
+    "answered": "other-project",
     "card": "model card",
     "command": "clone",
     "count": 2,
+    "declared": "b" * 64,
     "dir": "m/sub",
     "elements": ("model-architecture (written in ai_typeOfModel)",),
     "entry": "archive/data.pkl",
@@ -55,9 +56,11 @@ SAMPLES: dict[str, object] = {
     "files": "a.gguf, b.bin and 3 more",
     "format": "gguf",
     "formats": ["gguf", "onnx"],
+    "hosts": "files.pythonhosted.org",
     "key": "FIELD",
     "limit": 1024,
     "fields": ("type_of_model", "properties.tags (kept as raw string)"),
+    "measured": "a" * 64,
     "module": "h5py",
     "name": "a.txt",
     "number": 2,
@@ -69,11 +72,17 @@ SAMPLES: dict[str, object] = {
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
     "requirement": "pitloom[gguf]",
+    "seconds": 30,
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
+    "source": "the PyPI JSON API",
+    "target": "https://example.org/x.whl",
     "unit": "byte",
+    "url": "https://pypi.org/project/demo/1.0/",
     "use": "for file scanning",
     "value": "-1",
+    "version": "1.0",
+    "why": "not https",
 }
 
 

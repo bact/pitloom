@@ -198,6 +198,11 @@ Inputs (all optional):
 | `upload-artifact` | `true` | Upload the generated SBOM via `actions/upload-artifact`. |
 | `artifact-name` | `sbom` | Artifact name used when `upload-artifact` is `true`. |
 
+A Git URL's fetch, and a Hugging Face model's metadata files, are capped at
+512 MiB by default. The action has no input for the cap: set
+`max-download-bytes` in the `config` file (see
+[Configuration](configuration.md)).
+
 Output:
 
 | Output | Meaning |

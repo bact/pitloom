@@ -8,7 +8,9 @@ segment (``%2F``, ``%2f``, Azure DevOps' ``path=`` decoded twice:
 page form, nor into its ``.git`` directory (in any letter case, or as
 Windows reads ``.git.``, ``.git ``, ``GIT~1`` and ``.git::$DATA``); a
 branch named with an encoded ``/`` (Bitbucket's ``feature%2Fx``) is still
-read, as is a name that starts with ``.git`` (``.github``).
+read, as is a name that starts with ``.git`` (``.github``). A host that is
+not plain ASCII, or is percent-encoded, is refused before any git process
+starts (curl would map it to another host), and before ``offline``.
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_target_named` and
@@ -18,10 +20,18 @@ real checkout).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.extract.remote import git
+from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_url import parse_git_page
+from pitloom.messages import GIT_HOST_SPELLING_LINE, URL_HOST_SPELLING
+from tests._message_drift import raised_as
 
 #: Encoded paths that leave, or start outside, the checkout.
 _ESCAPES = {
@@ -135,3 +145,70 @@ def test_an_encoded_slash_between_plain_names_is_kept(
 def test_a_name_that_only_starts_or_ends_with_git_is_kept(name: str) -> None:
     page = parse_git_page(f"https://h.example/o/r/blob/main/{name}/m.gguf")
     assert page.rest == ("main", name, "m.gguf")
+
+
+@pytest.fixture(name="no_git")
+def _no_git(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
+    """Fail on any git command or redirect probe; the calls are listed."""
+    calls: list[str] = []
+
+    def boom(*args: object, **_kwargs: object) -> None:
+        calls.append(repr(args))
+        raise AssertionError("git started")
+
+    monkeypatch.setattr(git, "resolve_git_url", boom)
+    monkeypatch.setattr(GitRunner, "run", boom)
+    yield calls
+    assert not calls
+
+
+def _refusal(url: str, offline: bool) -> RemoteSourceError:
+    policy = RemoteFetchPolicy(offline=offline)
+    with pytest.raises(RemoteSourceError) as excinfo:
+        with fetch_git_project(url, policy=policy):
+            pytest.fail("not fetched")  # pragma: no cover
+    return excinfo.value
+
+
+@pytest.mark.parametrize("offline", [False, True], ids=["online", "offline"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github\u3002com/o/r",
+        "https://github\uff0ecom/o/r",
+        "https://huggingface\uff61co/spaces/o/s",
+        "https://gith%75b.com/o/r",
+        "https://github.com%2E/o/r",
+        "https://b\u00fccher.example/o/r",
+    ],
+    ids=["ideographic", "full-width", "half-width", "encoded", "encoded-dot", "idn"],
+)
+@pytest.mark.usefixtures("no_git")
+def test_a_host_not_typed_in_ascii_is_refused_unfetched(
+    url: str, offline: bool
+) -> None:
+    error = _refusal(url, offline)
+    assert error.code == "git.url-invalid"
+    assert raised_as(error, URL_HOST_SPELLING)
+    assert str(error) == GIT_HOST_SPELLING_LINE.render({"url": url})
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ssh://h/r.git",
+        "git://h/r.git",
+        "https://h/o/r/tree/main/..%2F..%2Fx",
+        "https://[::1/o/r",
+    ],
+    ids=["ssh", "git", "escape", "unparseable"],
+)
+@pytest.mark.usefixtures("no_git")
+def test_an_invalid_url_is_refused_before_offline(url: str) -> None:
+    """As on the PyPI and Hugging Face routes: the URL is read first."""
+    assert _refusal(url, offline=True).code == "git.url-invalid"
+
+
+@pytest.mark.usefixtures("no_git")
+def test_an_international_host_in_its_xn_form_passes() -> None:
+    assert _refusal("https://xn--bcher-kva.example/o/r", True).code == "git.offline"

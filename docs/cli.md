@@ -14,6 +14,8 @@ they run the same tool.
 
 See also: [SBOM from a Git URL](git-urls.md) for `loom project <url>` and
 `loom model <url>`,
+[SBOM from a PyPI URL](pypi-urls.md) for `loom wheel <url>`,
+`loom project <url>` and `loom generate <url>` on a PyPI project page,
 [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
 [SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which
 hold the `embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment`
@@ -85,6 +87,24 @@ phantom dependencies):
 ```bash
 loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
+
+Or give the URL of a **PyPI project or release page**: Pitloom downloads the
+wheel that fits the running Python and platform, checks its SHA-256 against the
+one PyPI declares, and reads it as a local wheel:
+
+```bash
+loom wheel https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json    # that release's wheel
+loom project https://pypi.org/project/demo/1.0/                     # that release's sdist
+loom generate https://pypi.org/project/demo/ -o sbom.spdx3.json     # latest release, wheel
+loom wheel https://pypi.org/project/huge/1.0/ --max-download-bytes 2147483648
+```
+
+`loom wheel` and `loom generate` read the wheel (an Analyzed SBOM, which
+depends on where it is built); `loom project` reads the sdist (a Source SBOM).
+No command falls back to the other kind. The file is untrusted: nothing in it
+is run, its own `[tool.pitloom]` is ignored (`--config FILE` applies),
+`--offline` is an error and `--embed` is refused. See [SBOM from a PyPI
+URL](pypi-urls.md).
 
 To embed SBOMs in wheels, check them, or recompute a package hash, see
 [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md).
@@ -316,8 +336,21 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
 - `--pretty` -- indent the JSON (default: compact). Only whitespace between
   tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` / `--no-offline` -- forbid network access (PyPI and Hugging
-  Face lookups; a Git URL target is an error), or, with `--no-offline`, allow
-  it over a config `offline = true`. Not on `enrich`.
+  Face lookups; a Git URL, a PyPI URL or a Hugging Face model target is an
+  error, [`offline-unusable`](message-codes.md#offline-unusable)), or, with
+  `--no-offline`, allow it over a config `offline = true`. Not on `enrich`.
+- `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
+  (`wheel`, `project` and `generate` with that URL), the most disk a Git
+  URL's checkout may take (`project`, `model` and `generate` with that URL),
+  and each metadata file of a Hugging Face model, under that file's own cap
+  (16 MiB JSON, 1 MiB card, 256 KiB licence) (`model` and `generate`); beats
+  `--config`'s `max-download-bytes` (512 MiB by default).
+  Over it is an `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no
+  SBOM is written; a Hugging Face file over it is left out with a
+  `WARNING:` and the rest is read. A
+  positive integer: `0` or a negative value exits 2, even where it has no
+  effect. Raise it for one run only when you trust the project. See [SBOM from
+  a PyPI URL](pypi-urls.md#size-limit).
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
   other targets never read a lock file) and `enrich` (for `--project-dir`
   document identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
@@ -398,21 +431,23 @@ Options: <target>: <flag> has no effect <reason>` and is dropped, never silently
 
 | Target | Options that warn |
 | --- | --- |
-| project directory | `--trust-model-files`, `--max-model-extract-bytes`, `--project-dir` |
+| project directory | `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--project-dir` |
 | remote Git repository | `--max-model-extract-bytes`, `--project-dir` |
-| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile` |
-| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
-| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile`, `--project-dir` |
-| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
+| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--use-lockfile` |
+| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--max-download-bytes`, `--use-lockfile` |
+| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--max-download-bytes`, `--update-id-registry` |
+| wheel at a PyPI URL | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile`, `--project-dir` |
+| sdist at a PyPI URL | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile`, `--project-dir` |
+| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--use-lockfile`, `--project-dir` |
+| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
 | model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
 | Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
-| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
-| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
-| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-model-files`, `--max-model-extract-bytes`, `--update-id-registry` |
-| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
+| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
+| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
+| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--update-id-registry` |
+| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--max-download-bytes`, `--update-id-registry` |
 | Hatchling build hook | `--describe-relationship`, `--update-id-registry` |
-| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
+| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--max-download-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` also covers its `--no-flag` form where one exists (e.g.
 `--no-enrich`); the warning names both, e.g. `--enrich/--no-enrich`.
@@ -454,8 +489,8 @@ Without `-o`, an SBOM is written to the current directory:
 
 | Command | File name |
 | --- | --- |
-| `project` (also a Git URL) | `<name>-<version>.spdx3.json`; `<name>.spdx3.json` when the project has no version; `sbom.spdx3.json` when it has no name or the name is not a safe file name (`con`). A character no file name may hold (a path separator, `:`, a control character, whitespace) becomes `_`. `[tool.pitloom] sbom-basename` replaces the base name. |
-| `wheel` | `<wheel file name>.spdx3.json`, e.g. `demo-1.0-py3-none-any.whl.spdx3.json`; with `--embed`, no file unless `-o` is given |
+| `project` (also a Git or PyPI URL) | `<name>-<version>.spdx3.json`; `<name>.spdx3.json` when the project has no version; `sbom.spdx3.json` when it has no name or the name is not a safe file name (`con`). A character no file name may hold (a path separator, `:`, a control character, whitespace) becomes `_`. `[tool.pitloom] sbom-basename` replaces the base name. |
+| `wheel` (also a PyPI URL) | `<wheel file name>.spdx3.json`, e.g. `demo-1.0-py3-none-any.whl.spdx3.json`; with `--embed`, no file unless `-o` is given |
 | `model` | `<model file name>.spdx3.json`; for a Hugging Face model, the last segment of its ID plus `.spdx3.json` |
 | `enrich` | `<model file name>.enrich.spdx3.json` |
 | `env` | `deployed-environment.spdx3.json` |

@@ -3,15 +3,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Validation of the byte ceilings ``max-model-extract-bytes`` and
-``max-dataset-hash-bytes``.
+"""Validation of the byte ceilings ``max-model-extract-bytes``,
+``max-dataset-hash-bytes`` and ``max-download-bytes``, and the default of the
+last.
 
 One validator for the config reader and for each consumer, which also
 receives the value from a library caller's
 :class:`~pitloom.core.config.PitloomConfig`, never parsed.
 
 See also: :mod:`pitloom.core._config_parse_scan`,
-:mod:`pitloom.extract.scanner_wheel` and :mod:`pitloom._loom_active_run`.
+:mod:`pitloom.extract.scanner_wheel`, :mod:`pitloom._loom_active_run` and
+:mod:`pitloom.extract.remote.pypi` and :mod:`pitloom.extract.remote.git`
+(the downloads the last one caps).
 """
 
 from __future__ import annotations
@@ -19,15 +22,23 @@ from __future__ import annotations
 import operator
 
 __all__ = [
+    "DEFAULT_MAX_DOWNLOAD_BYTES",
     "MAX_DATASET_HASH_BYTES_KEY",
+    "MAX_DOWNLOAD_BYTES_KEY",
     "MAX_MODEL_EXTRACT_BYTES_KEY",
     "require_max_dataset_hash_bytes",
+    "require_max_download_bytes",
     "require_max_model_extract_bytes",
     "require_positive_ceiling",
 ]
 
 MAX_MODEL_EXTRACT_BYTES_KEY = "max-model-extract-bytes"
 MAX_DATASET_HASH_BYTES_KEY = "max-dataset-hash-bytes"
+MAX_DOWNLOAD_BYTES_KEY = "max-download-bytes"
+
+#: Default ``max-download-bytes``: the most bytes of a release file fetched
+#: from PyPI, and of disk a Git URL's checkout takes, 512 MiB.
+DEFAULT_MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024
 
 
 def require_positive_ceiling(value: object, label: str) -> int:
@@ -75,3 +86,10 @@ def require_max_dataset_hash_bytes(
     return require_positive_ceiling(
         value, f"{table_path} {MAX_DATASET_HASH_BYTES_KEY!r}"
     )
+
+
+def require_max_download_bytes(
+    value: object, table_path: str = "[tool.pitloom]"
+) -> int:
+    """``max-download-bytes`` (see :func:`require_positive_ceiling`)."""
+    return require_positive_ceiling(value, f"{table_path} {MAX_DOWNLOAD_BYTES_KEY!r}")

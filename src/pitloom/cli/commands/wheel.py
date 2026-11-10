@@ -18,6 +18,7 @@ from pitloom.assemble import (
     generate_wheel_sbom_with_metadata,
 )
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
+from pitloom.cli.commands._remote_pypi import refuse_embed_of_pypi_url, run_pypi
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -42,10 +43,28 @@ from pitloom.core.inert_options import (
 )
 from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import sanitize_url
 from pitloom.embed import embed_filename, refuse_unembeddable_wheel
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.wheel import wheel_identity
 from pitloom.logging_config import print_error
+
+
+def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
+    """``loom wheel`` on a PyPI URL: ``--embed`` is refused (the wheel is a
+    temporary file), else the release's wheel is downloaded and read."""
+    if getattr(args, "embed", False):
+        return refuse_embed_of_pypi_url(url)
+    if args.allow_signed_wheel:
+        warn_no_effect(
+            INERT_LOG_PREFIX,
+            sanitize_url(url.strip()),
+            ("--allow-signed-wheel",),
+            "without --embed",
+        )
+    return run_pypi(args, url, WHEEL_FILE)
 
 
 @cli_error_handler("wheel command failed")
@@ -61,6 +80,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     duplicated -- only SBOM *content* generation differs by design.
     """
     target: str = args.target
+    if is_pypi_url(target):
+        return _run_pypi_wheel(args, target)
     if refuse_non_wheel(Path(target)):
         return 1
     # Absolute, not resolved: the file name is judged as given.
@@ -142,12 +163,17 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     wheel_parser = subparsers.add_parser(
         "wheel",
         parents=[parent_parser],
-        help="Generate an Analyzed SBOM from a built wheel (.whl).",
+        help="Generate an Analyzed SBOM from a built wheel (.whl) or a PyPI URL.",
     )
     wheel_parser.add_argument(
         "target",
         type=str,
-        help="Path to the built .whl file.",
+        help="Path to the built .whl file, or the https URL of a PyPI project "
+        "or release page (https://pypi.org/project/NAME/[VERSION/]): the "
+        "release's wheel that best matches this Python and platform is "
+        "downloaded, its SHA-256 checked against the one PyPI declares, and "
+        "read as a local wheel is (its own [tool.pitloom] is not read; "
+        "--config applies). Not combinable with --embed.",
     )
     wheel_parser.add_argument(
         "--embed",
@@ -158,6 +184,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     add_archive_project_dir_argument(wheel_parser)
     add_offline_argument(
         wheel_parser,
-        " -- skip PyPI lookup, no error (local metadata already covers what it can).",
+        " -- skip PyPI lookup, no error (local metadata already covers what it "
+        "can). A PyPI URL: error, nothing is fetched.",
     )
     wheel_parser.set_defaults(func=_run_wheel_command)

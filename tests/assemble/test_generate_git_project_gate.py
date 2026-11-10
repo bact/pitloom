@@ -41,6 +41,7 @@ from pitloom.assemble import (
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from tests._model_fixtures import (
@@ -67,12 +68,10 @@ def _project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        del check_url, offline, max_bytes  # the fetch's own; not this test's
+        del policy  # the fetch's own; not this test's
         yield GitCheckout(
             folder=str(folder),
             repo_url=url,

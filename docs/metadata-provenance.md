@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -118,6 +118,8 @@ value, not just where it read it from:
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 | `tensor_element_sum` | An AI model's parameter count: the sum of the element counts of its tensors, derived by Pitloom (GGUF `tensor_infos`, Safetensors header shapes, ONNX `graph.initializer` and `graph.sparse_initializer`) or computed by the Hugging Face Hub (`safetensors.total`, `gguf.total`). All stored tensors count: [what that means](ai-model-formats.md#what-the-count-counts). |
 | `comma_list` | An ONNX model's originators, split on commas because the `model_author` property is a comma-separated list; set only when the text has a comma. A name that holds a comma (`Doe, Jane`) is split too. |
+| `latest-release` | The version of a file read from a PyPI URL that named none: the release PyPI lists as the latest (see [the download record](#the-download-record-a-file-read-from-a-pypi-url)). |
+| `running-environment` | The wheel read from a PyPI URL was picked for the Python and platform Pitloom ran on, not named by the URL. |
 | `repository_owner` | A Hugging Face model's originator and supplier (`originators`, `supplier`): the owner of the Hub repository (`model_info` `author`), which the Hub does not say is the model's author. |
 
 A field with **no** `method` -- just a `source` -- was read verbatim from
@@ -176,6 +178,35 @@ directory; the [Python API](python-api.md#tracking-decorator)):
 
 With `detail = "minimal"` (the default), an entry that has an `Evidence`
 segment is kept, even from a source that is otherwise left out.
+
+## The download record: a file read from a PyPI URL
+
+A wheel or sdist that Pitloom downloaded from a PyPI URL
+([SBOM from a PyPI URL](pypi-urls.md)) carries one more provenance record, on
+the main package, written last so that no other id changes. SPDX 3 has no
+property for it (gap FG-15), so each fact is a provenance entry; its keys are
+`project_url`, `download_location`, `sha256`, `sha256_declared`,
+`release_version`, `release_status` (only for a pre-release or a yanked
+release), `wheel_tags` and `compatible_wheels_skipped` (wheels only). They
+read, for example:
+
+```text
+sha256: Source: downloaded file | File: demo-1.0-py3-none-any.whl | Value: <64 hex digits> | Evidence: measured_read
+sha256_declared: Source: PyPI JSON API | File: demo-1.0-py3-none-any.whl | Value: <64 hex digits> | Evidence: declared
+release_version: Source: PyPI JSON API | Value: 1.0.0 | Normalized-From: 1.0
+```
+
+- `Value` carries a fact no SPDX property holds (a URL, a digest, a version, a
+  count); it is part of the entry's text, built through the same escaping as
+  every other segment, so text from the index cannot add a segment.
+- `Evidence: measured_read` is written out here (an entry elsewhere leaves it
+  out): the digest of the bytes Pitloom received. `Evidence: declared` is the
+  digest the PyPI JSON API gave for the file; Pitloom compared the two and
+  refuses the download when they differ, so they are equal in every SBOM.
+- `Normalized-From` is the version as the URL spelled it, when PyPI lists the
+  release under an equal PEP 440 spelling (`1.0` for `1.0.0`).
+- No entry names a manifest as its `Source`, so `detail = "minimal"` leaves
+  every one in.
 
 ## How a dependency-version source is chosen
 
