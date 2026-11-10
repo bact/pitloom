@@ -29,7 +29,10 @@ def _pickled(exc: RemoteSourceError) -> RemoteSourceError:
     return again
 
 
-_CLONE = "the repository is larger than 1 KiB; git clone was stopped"
+_CLONE = (
+    "the repository is larger than the 1024-byte max-download-bytes cap; "
+    "git clone was stopped"
+)
 
 
 def _set(exc: RemoteSourceError) -> RemoteSourceError:

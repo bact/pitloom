@@ -44,6 +44,8 @@ _ROW_KINDS = {
     "remote Git repository": inert_options.GIT,
     "sdist archive": inert_options.SDIST,
     "wheel": inert_options.WHEEL,
+    "wheel at a PyPI URL": inert_options.PYPI_WHEEL,
+    "sdist at a PyPI URL": inert_options.PYPI_SDIST,
     "installed environment": inert_options.ENV,
     "local model file": inert_options.MODEL_FILE,
     "model file at a Git URL": inert_options.GIT_MODEL,
@@ -364,9 +366,9 @@ def test_every_option_reaches_or_is_declared_inert(
     callee = getattr(assemble, callee_name)
     options = dict.fromkeys(_caller_options(caller), object())
     if kind == inert_options.GIT_MODEL:
-        # The fetch consumes it (it lifts the clone's gate); the model
-        # delegate never sees it.
-        del options["trust_model_files"]
+        # The fetch consumes them (one lifts the clone's gate, the other
+        # caps it); the model delegate never sees them.
+        del options["trust_model_files"], options["max_download_bytes"]
     assert len(options) > 5  # non-vacuous
     with caplog.at_level("WARNING"):
         forwarded = forward_options(kind, "t", callee, options)
@@ -394,12 +396,13 @@ def test_generate_options_cover_every_cli_option() -> None:
 #: ``settle_inert`` before it acts), so they are declared for the kind
 #: without being stale. Every other accepted option must not be declared.
 _SETTLES_ITSELF = {
-    "generate_model_sbom": {"offline", "enrich", "id_registry"},
+    "generate_model_sbom": {"offline", "enrich", "id_registry", "max_download_bytes"},
     "generate_project_sbom": {
         *inert_options.INERT[inert_options.SDIST],
         *inert_options.INERT[inert_options.PROJECT],
     }
     - {"max_model_extract_bytes"},
+    "generate_wheel_sbom": {"max_download_bytes"},
 }
 
 

@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [Command line](cli.md) for `loom project`, `loom model` and
 `loom generate`,
-[Python API](python-api.md) for `generate()`, `generate_git_sbom()` and
+[Python API: remote targets](python-api-remote.md) for `generate()`, `generate_git_sbom()` and
 `generate_git_project_sbom()`,
 [AI model formats](ai-model-formats.md) for what is read from each model file,
 [Building a project (`--allow-build`)](allow-build.md) for why a downloaded
@@ -21,9 +21,11 @@ of a Git repository, or of one of its web pages, and Pitloom fetches the
 repository shallowly into a temporary directory, reads the Python project in it
 (or, for `loom model` and for `loom generate` on a folder with models and no
 project, an AI model file; see [Model files](#model-files)) and writes the
-SBOM. The directory is removed afterwards, and a message that would name
-it says `<checkout>` instead, so two runs print the same text. It needs the
-`git` program.
+SBOM. The directory is removed afterwards (one that cannot be fully removed,
+such as a file still held open on Windows, is one `WARNING:`, not an error:
+the SBOM is already written), and a message that would name it says
+`<checkout>` instead, so two runs print the same text. It needs the `git`
+program.
 
 ```bash
 loom project https://gitlab.com/group/project                  # the default branch
@@ -94,6 +96,19 @@ from the server's own branches and tags, longest match first.
   model `<org>/<name>`: the file part is dropped and no model file is read.
   The `/resolve/` link of a Space or a dataset is taken as a repository and
   fails as `raw.githubusercontent.com` does: give the repository address.
+- A **PyPI** address is not a Git URL: `pypi.org`, `www.pypi.org`, any other
+  `*.pypi.org` host and `pypi.python.org` are never cloned. `loom wheel`,
+  `loom project` and `loom generate` read a project or release page there
+  (`https://pypi.org/project/<name>/`; see [SBOM from a PyPI URL](pypi-urls.md)),
+  and `loom model` and the library's Git functions refuse one with a message
+  naming the right call (`pypi-url-unusable`). A link to a file on
+  `files.pythonhosted.org` is a PyPI URL too: never cloned, and refused by
+  `loom wheel` and `loom project` with the release page to give instead.
+- A host is written in plain ASCII (an international name in its `xn--`
+  form): a host with a non-ASCII character or a percent-encoding is refused
+  before git runs
+  ([`url-unsafe/host-spelling`](message-codes.md#url-unsafehost-spelling)),
+  since git would resolve it to a host the URL's text does not spell.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 
@@ -298,13 +313,16 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   lfs, then run on the directory`. Run `loom project` on that directory for
   the content. Most model repositories on Hugging Face, and many on GitLab
   and Codeberg, keep their weights in LFS.
-- **No size limit by default.** The command line sets none, so a very large
-  repository is fetched in full: the 10 MiB filter leaves out only large blobs
-  the checkout does not need, and a large file in the checked-out tree (a model
-  of 12 MiB, say) is fetched. The library API can stop a fetch once the checkout
-  takes more disk than a limit you give (`max_clone_bytes=`, error code
-  `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
-  [Python API](python-api.md).
+- **512 MiB of disk by default.** The fetch is stopped once the checkout
+  takes more disk than `--max-download-bytes BYTES` (`[tool.pitloom]
+  max-download-bytes` from `--config`, library `max_download_bytes=`; the
+  setting that caps a [PyPI download](pypi-urls.md#size-limit)): `ERROR: the
+  repository is larger than the <limit>-byte max-download-bytes cap; git clone
+  was stopped`, error code `git.too-large`, message code
+  [`over-cap`](message-codes.md#over-cap), and no SBOM. The 10 MiB filter
+  leaves out only large blobs the checkout does not need; a large file in the
+  checked-out tree (a model of 12 MiB, say) is fetched and counts. Raise the
+  cap for one run when you trust the repository.
 - A cloned project's build file list (Hatchling `force-include`, setuptools
   `package-dir`, `packages.find.where` or `package-data` with an absolute or
   `..` path, say) keeps only files inside the repository. Such an entry is
@@ -326,7 +344,22 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - A relative `--id-registry` is relative to where you run `loom`, not to the
   checkout.
 - `--offline` forbids the fetch: it is an error, not a fallback, for `loom
-  project`, `loom model` and `loom generate` alike.
+  project`, `loom model` and `loom generate` alike (`URL=<url>: network
+  access is forbidden (offline mode); nothing fetched`,
+  [`offline-unusable`](message-codes.md#offline-unusable), the code a PyPI
+  URL or a Hugging Face model refuses with too).
+- A clone that cannot reach the server (a name that does not resolve, a
+  refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer)
+  ends `git <command> failed: <git's reason>; nothing fetched`
+  ([`download-network-failed`](message-codes.md#download-network-failed));
+  one that runs out of time, `git <command> did not finish within <seconds>
+  seconds; stopped`
+  ([`download-timeout`](message-codes.md#download-timeout)): the codes a
+  PyPI or Hugging Face request that fails the same way carries. Any other
+  git failure (a repository, branch or sign-in the server refused) carries no
+  code; its message is git's own. Network failures are told from other git
+  failures by git's own `fatal:` and `error:` lines (git runs with
+  `LC_ALL=C`), never by a name, URL or server text inside them.
 - An empty repository is an error that says so.
 - The output file is named from the project (or the model file), as for a
   local one, and written to the current directory. `-o -` writes the SBOM to

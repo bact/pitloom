@@ -95,6 +95,7 @@ Works with remote resources too:
 
 ```bash
 loom project https://gitlab.com/group/project
+loom wheel https://pypi.org/project/pitloom/0.23.4/            # The wheel PyPI holds for this Python
 loom model https://github.com/org/repo/blob/main/m.keras
 loom model https://huggingface.co/Qwen/Qwen3.8-27B            # Or just Qwen/Qwen3.8-27B
 ```
@@ -120,6 +121,7 @@ loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 
 See [Command line](docs/cli.md) for per-command detail,
 [SBOM from a Git URL](docs/git-urls.md) for repository URLs,
+[SBOM from a PyPI URL](docs/pypi-urls.md) for PyPI project pages,
 [Wheel SBOMs](docs/wheel-sbom.md) for `embed-wheel`, `verify-wheel` and
 `validate-wheel`, and [SBOM fragments](docs/fragments.md) for merging.
 

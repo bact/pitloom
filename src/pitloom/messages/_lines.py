@@ -24,8 +24,8 @@ from typing import Final
 
 from pitloom.logging_config import CODE_PATTERN
 from pitloom.messages._catalogue import MESSAGES
-from pitloom.messages._fields import template_pattern
 from pitloom.messages._frames import FRAMES
+from pitloom.messages._templates import template_pattern
 from pitloom.messages._types import Message
 
 #: A printed line with a code: groups level, text and code.

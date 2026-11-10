@@ -22,10 +22,11 @@ import logging
 from pitloom.cli.commands.utils import _print_sbom_output_path
 from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
+from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.inert_options import GIT_MODEL
 from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
-from pitloom.messages import CONFIG_UNSAFE, emit
+from pitloom.messages import CONFIG_UNSAFE, CONFIG_UNSAFE_REMOTE_LINE, emit
 
 __all__ = ["run_remote"]
 
@@ -45,9 +46,10 @@ def run_remote(
     The repository is untrusted: its own ``[tool.pitloom]`` is ignored (only
     ``--config`` applies) and its build backend never runs (each flag of
     *build_options* warns once). ``--offline`` (or ``offline`` in
-    ``--config``) forbids the fetch. ``--trust-model-files`` runs the model
-    readers a hostile file could crash or hang on the repository's files;
-    no config key sets it.
+    ``--config``) forbids the fetch, and ``--max-download-bytes`` (else
+    ``--config``'s, else 512 MiB) caps the checkout. ``--trust-model-files``
+    runs the model readers a hostile file could crash or hang on the
+    repository's files; no config key sets it.
     """
     # Imported here: these modules call run_remote (an import cycle).
     # pylint: disable-next=import-outside-toplevel,cyclic-import
@@ -57,12 +59,12 @@ def run_remote(
     from pitloom.cli.commands.project import generate_project_from_args
 
     explicit = load_explicit_config(args)
-    offline = args.offline
-    if offline is None and explicit is not None:
-        offline = explicit.offline
+    policy = resolve_fetch_policy(
+        explicit, offline=args.offline, max_download_bytes=args.max_download_bytes
+    )
     settled = build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     with fetch_git_project(
-        url, offline=offline, trust_model_files=args.trust_model_files is True
+        url, policy=policy, trust_model_files=args.trust_model_files is True
     ) as checkout:
         with checkout.reading():
             target = resolve_git_target(checkout, mode, url)
@@ -76,7 +78,9 @@ def run_remote(
                 )
             else:
                 if explicit is None:
-                    emit(log, CONFIG_UNSAFE, logging.INFO)
+                    emit(
+                        log, CONFIG_UNSAFE, logging.INFO, line=CONFIG_UNSAFE_REMOTE_LINE
+                    )
                 output = generate_project_from_args(
                     args, target.folder, settled, remote_url=url
                 )

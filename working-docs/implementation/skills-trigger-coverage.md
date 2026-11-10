@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -267,6 +267,55 @@ drift is silent.
   recipes in `references/examples.md` were checked against `loom model
   --help`, and the local ones (`loom model DIR`, `loom generate FILE.dat`)
   were run on the GGUF fixture.
+
+- **PyPI URL targets (2026-11-10, PR #468).** No subcommand was added
+  (`add_parser(` lists the same twelve); `loom wheel`, `loom project` and
+  `loom generate` take a `https://pypi.org/project/<name>/[<version>/]` URL
+  and `loom model` refuses one. `sbom-generate`'s description already named a
+  "PyPI URL"; it now reads "PyPI URL (wheel/sdist)" so that "SBOM for
+  https://pypi.org/project/requests/", "SBOM of the requests wheel from PyPI"
+  and "sdist SBOM from PyPI" match on both words (1012 to 1021 of 1024
+  characters, YAML parsed; the room came from "model file page" to "model
+  page"). Its `compatibility` says 0.24.0 for a PyPI URL (the rest stays
+  0.23.4: the floor of the other targets), and the body keeps 16,376 of the
+  16,384-byte ratchet by holding one paragraph and moving the rest to
+  `references/pypi-url.md` (refusals, the pick, over-cap, how to read the
+  provenance record, follow-ups and the combined asks) and a recipe in
+  `references/examples.md`. `sbom-enrich` (1005) and `sbom-validate` (999)
+  descriptions are unchanged: the asks "enrich/validate the SBOM of
+  <pypi-url>" with no file are `sbom-generate`'s to start (it hands off), and
+  a file is a file. Their bodies gained a paragraph each (enrich: a PyPI base
+  is an "other base", so no merge, no `--enrich`, outside sources gated; plus
+  `references/pypi-url-base.md`; validate: an ordinary document, the record is
+  nothing to fix, `verify-wheel`/`validate-wheel`/`embed-wheel` take a local
+  `.whl` only). Hand-offs both ways are in `pypi-url.md` ("Follow-ups") with a
+  non-interactive fallback for each question (which platform, the sdist after
+  `[release-file-not-found...]`, relying on a yanked release, raising
+  `--max-download-bytes`: report the line and the command, run nothing). The
+  platform-dependent pick is stated in the body, the reference and the enrich
+  reference. Drift found in the first draft of the skill reference and fixed:
+  a sentence that read as if `files.pythonhosted.org` file links were refused
+  as PyPI URLs (0.23.4 and earlier took them for Git and failed; the tree
+  refuses them as `pypi-url-invalid`), and the
+  provenance record described without where it lives (an `Annotation` plus
+  the `Metadata provenance:` comment). Checked on 2026-11-10 against the tree:
+  `loom wheel|project|generate` with `--offline`, `--embed`, `--allow-build`,
+  `--allow-signed-wheel`, a `test.pypi.org` URL, an `http` URL, a user page
+  and `--max-download-bytes 0`; `loom model <url>`; `verify-wheel`,
+  `validate-wheel`, `embed-wheel`, `merge` and `enrich` given the URL (each a
+  plain "not found"-style `ERROR:`); an SBOM made from a local server standing
+  in for PyPI passed `loom fragment validate` (the legitimate input on which
+  the validate paragraph must do nothing). The live download was later run
+  for real: `loom wheel` and `loom project` on `six` 1.16.0, and the
+  network-marked manual matrix cells (PyPI and a pinned GitHub tag), all
+  passing.
+  *Revised later on 2026-11-10 (after the #469/#470 merge):* a downloaded
+  wheel's gated models now say `[reader-unsafe/remote]` (its PyPI line names
+  the file), `--trust-model-files` lifts it, and a Git URL's fetch shares
+  `--max-download-bytes` (512 MiB). No description or `SKILL.md` body changed
+  (the asks are the same; `sbom-generate`'s body stays at 16,376 bytes); the
+  references carry it: `pypi-url.md`, `git-url.md`, `cli-flags.md`,
+  `known-limitations.md` and `sbom-enrich`'s `pypi-url-base.md`.
 
 ## Portability across clients (2026-09-29, PR #235)
 

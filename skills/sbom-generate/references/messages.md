@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,11 +30,15 @@ most one prefix from the table of prefixes.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
-| [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the repository chooses, and the repository is untrusted. | 0.23.4 |
+| [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
+| [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
+| [`digest-invalid`](#digest-invalid) | ERROR | The SHA-256 of the file Pitloom downloaded differs from the one PyPI declares for it: the download is corrupt or was altered on the way. | 0.24.0 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
+| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
+| [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
+| [`file-ambiguous`](#file-ambiguous) | INFO | The release has several wheels that fit the Python and platform Pitloom runs on, or several sdists, or (loom generate, generate()) both a wheel and an sdist; Pitloom chose one. | 0.24.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
@@ -53,15 +57,34 @@ most one prefix from the table of prefixes.
 | [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`model-unreadable`](#model-unreadable) | WARNING | A file whose header is a model format's could not be read: its reader failed (a truncated or corrupt file, a format version the reader does not know), or the file declares more than it can hold. | 0.22.0 |
 | [`model-wrong-format`](#model-wrong-format) | ERROR, WARNING | A file named as an AI model is not one: its header is not the format its suffix names, it is empty, or (a file named on its own) it is no model of a supported format. | 0.22.0 |
+| [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
+| [`pypi-response-invalid`](#pypi-response-invalid) | ERROR, WARNING | The answer of the PyPI JSON API is not one Pitloom reads: it is for another project, lacks a field it needs, or declares no SHA-256 digest for the file. A file of a release whose entry is not valid is left out of the choice, with a warning. | 0.24.0 |
+| [`pypi-url-invalid`](#pypi-url-invalid) | ERROR | A URL on a PyPI host is not one Pitloom reads: it is not a project or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/), is not https, holds a user name or password, is on another index (test.pypi.org) or PyPI's old address (pypi.python.org), is a link to a file (files.pythonhosted.org), or names a project or version that is not valid. | 0.24.0 |
+| [`pypi-url-unusable`](#pypi-url-unusable) | ERROR | A PyPI URL was given to a command or option that cannot use it: loom wheel --embed (it would write into a temporary copy of the wheel), loom model or generate_model_sbom() (a release is not a model), or a library call that fetches a Git repository (generate_git_sbom(), generate_git_project_sbom(), fetch_git_project()). | 0.24.0 |
+| [`query-no-effect`](#query-no-effect) | INFO | The PyPI URL given holds a query or a fragment (a tab of the page), which names no project or release. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
-| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
+| [`reader-unsafe/remote`](#reader-unsaferemote) | INFO | A model file or a project's model files read from a Git URL, or the models of a wheel downloaded from a PyPI URL, are in a format whose reader Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.23.4 |
+| [`release-file-not-found`](#release-file-not-found) | ERROR | The release the URL names has no wheel for 'loom wheel' to read. | 0.24.0 |
+| [`release-file-not-found/compatible-wheel`](#release-file-not-foundcompatible-wheel) | ERROR | The release the URL names has wheels, but none whose tags this Python and platform accept. | 0.24.0 |
+| [`release-file-not-found/sdist`](#release-file-not-foundsdist) | ERROR | The release the URL names has no sdist for 'loom project' to read. | 0.24.0 |
+| [`release-not-found`](#release-not-found) | ERROR | PyPI does not hold the project or the release the URL names, or (for a URL without a version) no release of the project has a wheel or sdist with a SHA-256 digest to read. | 0.24.0 |
+| [`release-unpinned`](#release-unpinned) | INFO | The URL names a project without a version, so Pitloom chose the latest stable release that is not yanked. | 0.24.0 |
+| [`release-unpinned/prerelease`](#release-unpinnedprerelease) | INFO | The URL names a project without a version and no stable release is left that is not yanked, so Pitloom chose the newest pre-release that is not yanked. | 0.24.0 |
+| [`release-unpinned/yanked`](#release-unpinnedyanked) | INFO | The URL names a project without a version and every release is yanked, so Pitloom chose the newest one. | 0.24.0 |
+| [`release-unusable`](#release-unusable) | INFO | The file Pitloom reads is yanked: its maintainers withdrew it, with the reason shown. Either the URL names a release whose files are yanked, or every file of the kind asked for that matches this environment is yanked (the release itself still has files that are not). | 0.24.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
+| [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
+| [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name). | 0.24.0 |
+| [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
+| [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
+| [`url-unsafe/hf-endpoint`](#url-unsafehf-endpoint) | WARNING | huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL, or one holding user information, a query or a fragment. The Hugging Face token must not be sent over plain http. | 0.24.0 |
+| [`url-unsafe/host-spelling`](#url-unsafehost-spelling) | ERROR | A Git URL's host holds a non-ASCII character (a full-width or ideographic dot, a full-width letter, an international name not in its xn-- form) or a percent-encoding. git (through curl) maps it to another host than the URL's text names, past every check that reads that text (a PyPI host is never cloned). | 0.24.0 |
 | [`usage-unparseable`](#usage-unparseable) | WARNING | A Python file that names an AI model file could not be parsed as Python of the version Pitloom runs on: it has a syntax error, it uses syntax a newer Python added (the line names this Python's version), it holds a null byte, or it nests too deeply to read. | 0.22.1 |
 | [`usage-unparseable/mention`](#usage-unparseablemention) | INFO | The text of a Python file that could not be parsed names an AI model file: it may use it, but only a parsed file says how. | 0.22.1 |
 | [`usage-unusable`](#usage-unusable) | WARNING | A file whose extension is .py in other letter case (.PY) was not read for model usage: Python imports only a lower-case .py file. | 0.22.1 |
@@ -85,10 +108,11 @@ A line may start with one prefix before its text:
 
 | Value | What it is |
 | --- | --- |
-| `<amount>` | a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`) |
+| `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
+| `<declared>` | the SHA-256 a source declares, in hex |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
@@ -100,8 +124,10 @@ A line may start with one prefix before its text:
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
+| `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<limit>` | the cap, in its unit |
+| `<sha256>` | the SHA-256 of the bytes read, in hex |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<number>` | a whole number: a count, or a length in characters |
@@ -113,24 +139,32 @@ A line may start with one prefix before its text:
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
+| `<seconds>` | the time allowed, in whole seconds |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
+| `<source>` | what declared a digest (`the PyPI JSON API`) |
+| `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
+| `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
 | `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
+| `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
+| `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
 
 ### `card-malformed`
 
 - **Level**: WARNING.
 - **Means**: The YAML frontmatter at the top of a card (the block between two
   --- lines) does not parse: a model card beside a local model, a dataset's own
-  card, or a Hugging Face dataset card a Hub model lists. The line gives what
-  the parser reported.
+  card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model
+  lists. The line gives what the parser reported.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Used nothing of the frontmatter and went on: a model card
-  sets no license or datasets; a dataset card no license, license_name,
-  license_link, version, tags or pretty_name; a Hugging Face dataset card no
-  license or keywords (its description is still read from the card's text).
+  beside a local model sets no license or datasets; a Hugging Face model card
+  also no tags, base_model, library_name, language, pipeline_tag or model-index;
+  a dataset card no license, license_name, license_link, version, tags or
+  pretty_name; a Hugging Face dataset card no license or keywords (the
+  description is still read from the card's text).
 - **Tell the user**: which card's frontmatter is not valid YAML and what the
   parser reported, as the line says. They fix the card and generate again; a
   Hugging Face dataset card only its maintainers can fix. Do not edit the card
@@ -144,9 +178,10 @@ A line may start with one prefix before its text:
 ### `config-unsafe`
 
 - **Level**: INFO.
-- **Means**: The [tool.pitloom] settings of a project fetched from a Git URL, if
-  it has any, are not applied: they could point Pitloom at files, a registry or
-  the network as the repository chooses, and the repository is untrusted.
+- **Means**: The [tool.pitloom] settings of a project fetched from a Git URL, or
+  of an sdist downloaded from a PyPI URL, if it has any, are not applied: they
+  could point Pitloom at files, a registry or the network as the project
+  chooses, and the project is untrusted.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Did not apply them: the run uses Pitloom's defaults, or the
   settings of --config (pitloom_config= in the library) when given, which also
@@ -157,6 +192,7 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: Git source: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
+  INFO: FILE=<file>: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
   ```
 
 ### `config-unsafe/build-code`
@@ -185,6 +221,25 @@ A line may start with one prefix before its text:
   WARNING: FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]
   ```
 
+### `digest-invalid`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The SHA-256 of the file Pitloom downloaded differs from the one
+  PyPI declares for it: the download is corrupt or was altered on the way.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Did not read the file, and wrote no SBOM. The error code is
+  pypi.digest-mismatch.
+- **Tell the user**: the downloaded file does not match the digest PyPI
+  declares, so Pitloom did not read it, and that the file may have been altered.
+  They may run again; if it repeats, report it to PyPI. Do not read the file by
+  other means; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: SHA-256 <sha256> does not match <declared> declared by <source>; not read [digest-invalid]
+  ```
+
 ### `dir-unlistable`
 
 - **Level**: WARNING.
@@ -207,6 +262,56 @@ A line may start with one prefix before its text:
   WARNING: DIR=<dir>: could not list <use>; <failure> [dir-unlistable]
   ```
 
+### `download-network-failed`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A request to a remote source failed. PyPI or Hugging Face: an HTTP
+  status other than 404 (a 401 or 403 for a private or gated repository read
+  without access), a refused or reset connection, a name that did not resolve,
+  or an answer cut short. Git: git could not reach the repository (a name that
+  did not resolve, a refused, reset or timed-out connection, a TLS failure, an
+  HTTP 5xx answer); a git failure with any other cause carries no code.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM (the error: pypi.download-failed,
+  git.clone-failed); for a Hugging Face file, left that file out and read the
+  rest (the warning).
+- **Tell the user**: the request failed, with the reason the line gives. They
+  check the network and run again; for a private or gated Hugging Face
+  repository (HTTP 401 or 403) they sign in with an account that has access
+  (HF_TOKEN, or 'hf auth login'). Do not retry in a loop or sign in for them;
+  ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: <failure>; not read [download-network-failed]
+  ERROR: git <command> failed: <error>; nothing fetched [download-network-failed]
+  WARNING: URL=<url>: <failure>; <outcome> [download-network-failed]
+  ```
+
+### `download-timeout`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A request to PyPI, to the host that serves a file or to the Hugging
+  Face Hub, or the git calls that fetch a repository, did not finish within the
+  time Pitloom allows.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Stopped the request and wrote no SBOM (the error:
+  pypi.download-timeout, git.timeout); for a Hugging Face file, left that file
+  out and read the rest (the warning).
+- **Tell the user**: the request timed out. They check the network and run
+  again, or fetch the file or repository themselves and run Pitloom on the local
+  copy. Do not retry in a loop; ask first, and with nobody to ask, report it
+  only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: no complete answer within <seconds> seconds; not read [download-timeout]
+  ERROR: git <command> did not finish within <seconds> seconds; stopped [download-timeout]
+  WARNING: URL=<url>: no complete answer within <seconds> seconds; <outcome> [download-timeout]
+  ```
+
 ### `field-not-recordable`
 
 - **Level**: INFO.
@@ -222,6 +327,30 @@ A line may start with one prefix before its text:
 
   ```text
   INFO: FORMAT=<format> FILE=<file>: no SPDX 3.0.1 property: <elements> [field-not-recordable]
+  ```
+
+### `file-ambiguous`
+
+- **Level**: INFO.
+- **Means**: The release has several wheels that fit the Python and platform
+  Pitloom runs on, or several sdists, or (loom generate, generate()) both a
+  wheel and an sdist; Pitloom chose one.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the best-ranked wheel (the tag order of the running
+  environment), the one sdist named, or, for loom generate and generate(), the
+  wheel.
+- **Tell the user**: which file was read, as the line names it, and that the
+  choice follows the running environment. A different wheel is read by running
+  Pitloom on that platform, or on a downloaded file; the sdist by the loom
+  project command (or generate_pypi_sbom() call) the line gives. Do not run
+  again for another file; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: PYPI=<name> VERSION=<version>: <number> wheels match this environment; using <file>, the best-ranked [file-ambiguous]
+  INFO: PYPI=<name> VERSION=<version>: <number> sdists; using <file> [file-ambiguous]
+  INFO: PYPI=<name>: loom generate reads the wheel; 'loom project <url>' reads the sdist [file-ambiguous]
+  INFO: PYPI=<name>: generate() reads the wheel; generate_pypi_sbom('<url>', kind='sdist') reads the sdist [file-ambiguous]
   ```
 
 ### `file-unreadable`
@@ -650,6 +779,30 @@ A line may start with one prefix before its text:
   ERROR: '<path>': not an AI model file of a supported format [model-wrong-format]
   ```
 
+### `offline-unusable`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: Offline mode is on and the target must be fetched: a Git URL, a
+  PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline
+  key of --config, or offline=True; for a file of a Hugging Face repository also
+  huggingface_hub's own HF_HUB_OFFLINE.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Fetched nothing and wrote no SBOM (the error: git.offline,
+  pypi.offline, huggingface.offline); for a Hugging Face file under
+  HF_HUB_OFFLINE, left that file out and read the rest (the warning).
+- **Tell the user**: the target must be fetched and offline mode forbids it.
+  They run again without offline mode (no --offline, offline = false in the
+  config, HF_HUB_OFFLINE unset), or fetch the repository or file themselves and
+  run Pitloom on the local copy. Do not turn offline mode off for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: network access is forbidden (offline mode); nothing fetched [offline-unusable]
+  WARNING: URL=<url>: network access is forbidden (offline mode); <outcome> [offline-unusable]
+  ```
+
 ### `over-cap`
 
 - **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
@@ -664,11 +817,15 @@ A line may start with one prefix before its text:
   it. Three caps are settings, which they can raise for an input they trust and
   then generate again: max-model-extract-bytes (and with it the per-wheel
   model-scan budget, four times it) by --max-model-extract-bytes or its
-  [tool.pitloom] key; max-dataset-hash-bytes by its key, by
-  --max-dataset-hash-bytes of loom id generate or by the max_dataset_hash_bytes
-  argument of loom.Run; a Git URL's checkout by the max_clone_bytes argument of
-  the library call. Every other cap is fixed. Do not raise a cap or generate
-  again for them; ask first, and with nobody to ask, report it only.
+  [tool.pitloom] key; max-download-bytes (a wheel or sdist downloaded from a
+  PyPI URL, a Git URL's checkout, or each metadata file of a Hugging Face
+  repository) by --max-download-bytes or its key (each Hugging Face file also
+  has its own fixed cap, Hub-JSON, model-card, license-detection or
+  dataset-card, which raising the setting does not lift); max-dataset-hash-bytes
+  by its key, by --max-dataset-hash-bytes of loom id generate or by the
+  max_dataset_hash_bytes argument of loom.Run. Every other cap is fixed. Do not
+  raise a cap or generate again for them; ask first, and with nobody to ask,
+  report it only.
 - **Lines**:
 
   ```text
@@ -676,7 +833,8 @@ A line may start with one prefix before its text:
   WARNING: FORMAT=<format> FILE=<file>: larger than the <limit>-<unit> <cap> cap; <outcome> [over-cap]
   ERROR: config file '<path>': larger than the <limit>-<unit> <cap> cap; not read [over-cap]
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
-  ERROR: the repository is larger than <amount>; git <command> was stopped [over-cap]
+  ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap; not downloaded [over-cap]
+  ERROR: the repository is larger than the <limit>-<unit> <cap> cap; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
   ```
 
@@ -759,6 +917,101 @@ A line may start with one prefix before its text:
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file [project-or-model-not-found]
   ```
 
+### `pypi-response-invalid`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: The answer of the PyPI JSON API is not one Pitloom reads: it is for
+  another project, lacks a field it needs, or declares no SHA-256 digest for the
+  file. A file of a release whose entry is not valid is left out of the choice,
+  with a warning.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Did not download the file and wrote no SBOM (an error), or
+  left the file out and chose among the rest (the warning). The error code is
+  pypi.response-invalid.
+- **Tell the user**: PyPI's answer was not usable, as the line says. Without a
+  digest Pitloom cannot check the download, so it reads nothing. They may run
+  again later; if it repeats, the project's release is malformed on PyPI. A
+  skipped file only narrows the choice; report it only. Do not read the file by
+  other means; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: PyPI declares no SHA-256 digest; not downloaded [pypi-response-invalid]
+  ERROR: PYPI=<name>: PyPI answered for project <answered>; not read [pypi-response-invalid]
+  ERROR: PYPI=<name>: the PyPI JSON API answer has no valid <field>; not read [pypi-response-invalid]
+  WARNING: PYPI=<name> FILE=<file>: <why>; skipped [pypi-response-invalid]
+  ```
+
+### `pypi-url-invalid`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A URL on a PyPI host is not one Pitloom reads: it is not a project
+  or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/),
+  is not https, holds a user name or password, is on another index
+  (test.pypi.org) or PyPI's old address (pypi.python.org), is a link to a file
+  (files.pythonhosted.org), or names a project or version that is not valid.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM, and sent no request.
+- **Tell the user**: which part of the URL was refused, as the line says, and
+  that Pitloom reads https://pypi.org/project/<name>/ or
+  https://pypi.org/project/<name>/<version>/ only. They correct the URL and run
+  again; a release on another index is read by downloading the file and running
+  Pitloom on it. Do not guess another URL; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: not a PyPI project or release page; give https://pypi.org/project/<name>/ or .../<name>/<version>/ [pypi-url-invalid]
+  ERROR: URL=<url>: PyPI is read over https only; give the https:// URL [pypi-url-invalid]
+  ERROR: URL=<url>: holds user information; a PyPI URL is read without credentials [pypi-url-invalid]
+  ERROR: URL=<url>: only pypi.org is read; another index is not supported yet [pypi-url-invalid]
+  ERROR: URL=<url>: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/ [pypi-url-invalid]
+  ERROR: URL=<url>: a file link is not read yet; give the project or release page https://pypi.org/project/<name>/<version>/ [pypi-url-invalid]
+  ERROR: URL=<url>: <name> is not a valid project name [pypi-url-invalid]
+  ERROR: URL=<url>: <version> is not a PEP 440 version [pypi-url-invalid]
+  ```
+
+### `pypi-url-unusable`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A PyPI URL was given to a command or option that cannot use it:
+  loom wheel --embed (it would write into a temporary copy of the wheel), loom
+  model or generate_model_sbom() (a release is not a model), or a library call
+  that fetches a Git repository (generate_git_sbom(),
+  generate_git_project_sbom(), fetch_git_project()).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Fetched nothing and wrote no SBOM.
+- **Tell the user**: which command or option cannot take the URL. For --embed
+  they download the wheel and run 'loom wheel FILE --embed'; for a model they
+  use 'loom wheel URL' or 'loom project URL'; from Python, generate_pypi_sbom()
+  (or generate()) instead of the Git or model call. Do not download or embed for
+  them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched [pypi-url-unusable]
+  ERROR: URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched [pypi-url-unusable]
+  ERROR: URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched [pypi-url-unusable]
+  ```
+
+### `query-no-effect`
+
+- **Level**: INFO.
+- **Means**: The PyPI URL given holds a query or a fragment (a tab of the page),
+  which names no project or release.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the URL without them.
+- **Nothing to do**: nothing to do: the project and release are read from the
+  path.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: the query and fragment have no effect; cut [query-no-effect]
+  ```
+
 ### `reader-unsafe`
 
 - **Level**: INFO.
@@ -785,25 +1038,172 @@ A line may start with one prefix before its text:
 ### `reader-unsafe/remote`
 
 - **Level**: INFO.
-- **Means**: A model file or a project's model files read from a Git URL are in
-  a format whose reader Pitloom does not run on a downloaded file (fastText,
-  GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang
-  it, or exhaust its memory.
+- **Means**: A model file or a project's model files read from a Git URL, or the
+  models of a wheel downloaded from a PyPI URL, are in a format whose reader
+  Pitloom does not run on a downloaded file (fastText, GGUF, HDF5, ONNX, PyTorch
+  .pt and .pth): a hostile file could crash or hang it, or exhaust its memory.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Listed the model by its file, format and hashes only (a
   format-only entry, named after its file), without its metadata, its reader not
   run.
-- **Tell the user**: which models from the Git URL were not read, and why. If
-  they trust the repository's model files, they pass --trust-model-files
-  (trust_model_files=True in the library; the trust-model-files input of the
-  GitHub Action) and generate again; no config file can set it. Running Pitloom
-  on a local clone reads them in full too, but also honours the repository's own
-  configuration and build file list. Do not add the flag or generate again for
-  them; ask first, and with nobody to ask, report it only.
+- **Tell the user**: which models from the Git URL or the PyPI URL were not
+  read, and why. If they trust the repository's or the release's model files,
+  they pass --trust-model-files (trust_model_files=True in the library; for a
+  Git URL, the trust-model-files input of the GitHub Action) and generate again;
+  no config file can set it. For a Git URL, running Pitloom on a local clone
+  reads them in full too, but also honours the repository's own configuration
+  and build file list. Do not add the flag or generate again for them; ask
+  first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust [reader-unsafe/remote]
+  INFO: FILE=<file>: AI models in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a release you trust [reader-unsafe/remote]
+  ```
+
+### `release-file-not-found`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The release the URL names has no wheel for 'loom wheel' to read.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. The error code is pypi.no-wheel.
+- **Tell the user**: the release has no wheel, and that the command in the line
+  reads its sdist. Offer it. Do not run it for them; with nobody to ask, report
+  it only.
+- **Lines**:
+
+  ```text
+  ERROR: PYPI=<name> VERSION=<version>: the release has no wheel; 'loom project <url>' reads its sdist [release-file-not-found]
+  ```
+
+### `release-file-not-found/compatible-wheel`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The release the URL names has wheels, but none whose tags this
+  Python and platform accept.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. The error code is pypi.no-compatible-wheel.
+- **Tell the user**: no wheel of the release matches the Python and platform
+  Pitloom runs on, naming the wheels the line lists, and that the command in the
+  line reads the sdist instead. They may also run Pitloom on the platform of the
+  wheel they want. Offer the sdist command. Do not run it for them. With nobody
+  to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: PYPI=<name> VERSION=<version>: no wheel matches this Python and platform (wheels: <files>); 'loom project <url>' reads its sdist [release-file-not-found/compatible-wheel]
+  ```
+
+### `release-file-not-found/sdist`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The release the URL names has no sdist for 'loom project' to read.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. The error code is pypi.no-sdist.
+- **Tell the user**: the release has no sdist, and that the command in the line
+  reads a wheel. Offer it. Do not run it for them; with nobody to ask, report it
+  only.
+- **Lines**:
+
+  ```text
+  ERROR: PYPI=<name> VERSION=<version>: the release has no sdist; 'loom wheel <url>' reads a wheel [release-file-not-found/sdist]
+  ```
+
+### `release-not-found`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: PyPI does not hold the project or the release the URL names, or
+  (for a URL without a version) no release of the project has a wheel or sdist
+  with a SHA-256 digest to read.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM. The error code is pypi.project-not-found or
+  pypi.release-not-found.
+- **Tell the user**: which project or release PyPI does not hold. They check the
+  spelling of the name and the version, and that the project is not deleted, and
+  run again. Do not guess another name or version; ask first, and with nobody to
+  ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: PYPI=<name>: no such project on PyPI [release-not-found]
+  ERROR: PYPI=<name> VERSION=<version>: no such release on PyPI [release-not-found]
+  ERROR: PYPI=<name>: no release has a wheel or sdist with a SHA-256 digest [release-not-found]
+  ```
+
+### `release-unpinned`
+
+- **Level**: INFO.
+- **Means**: The URL names a project without a version, so Pitloom chose the
+  latest stable release that is not yanked.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the latest release.
+- **Tell the user**: which release was read, as the line names it, and that the
+  URL named no version. For a repeatable result they give the version in the URL
+  (https://pypi.org/project/<name>/<version>/). Do not run again with another
+  version; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: PYPI=<name> VERSION=<version>: no version given; using the latest release [release-unpinned]
+  ```
+
+### `release-unpinned/prerelease`
+
+- **Level**: INFO.
+- **Means**: The URL names a project without a version and no stable release is
+  left that is not yanked, so Pitloom chose the newest pre-release that is not
+  yanked.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the newest pre-release.
+- **Tell the user**: which release was read, as the line names it, and that the
+  URL named no version. For a repeatable result they give the version in the URL
+  (https://pypi.org/project/<name>/<version>/). Do not run again with another
+  version; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  INFO: PYPI=<name> VERSION=<version>: no version given and no stable release that is not yanked; using the newest pre-release [release-unpinned/prerelease]
+  ```
+
+### `release-unpinned/yanked`
+
+- **Level**: INFO.
+- **Means**: The URL names a project without a version and every release is
+  yanked, so Pitloom chose the newest one.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Read the newest release, which its maintainers withdrew.
+- **Tell the user**: every release of the project is yanked, so the newest was
+  read although its maintainers withdrew it, with the reason the line gives.
+  Whether to rely on the SBOM is their decision. Do not read another release for
+  them; report it only.
+- **Lines**:
+
+  ```text
+  INFO: PYPI=<name> VERSION=<version>: no version given and every release is yanked; using the newest (yanked: <why>) [release-unpinned/yanked]
+  ```
+
+### `release-unusable`
+
+- **Level**: INFO.
+- **Means**: The file Pitloom reads is yanked: its maintainers withdrew it, with
+  the reason shown. Either the URL names a release whose files are yanked, or
+  every file of the kind asked for that matches this environment is yanked (the
+  release itself still has files that are not).
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read the yanked file: a yanked file is passed over only while
+  one that is not yanked fits.
+- **Tell the user**: the file is yanked and why, as the line says, and that no
+  file of that release fitting the request is not yanked. Whether to rely on it
+  is their decision. Do not read another release or file for them; report it
+  only.
+- **Lines**:
+
+  ```text
+  INFO: PYPI=<name> VERSION=<version> FILE=<file>: the file is yanked (<why>); reading it anyway [release-unusable]
   ```
 
 ### `target-ambiguous`
@@ -825,6 +1225,29 @@ A line may start with one prefix before its text:
   INFO: FILE=<file>: not an AI model file; reading its folder [target-ambiguous]
   INFO: FILE=<file>: no Python project; reading this AI model file [target-ambiguous]
   INFO: FILE=<file>: the one AI model file; reading it [target-ambiguous]
+  ```
+
+### `temp-dir-unusable`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A file downloaded from PyPI or a Hugging Face repository could not
+  be written to the temporary directory: the disk is full, the path is too long
+  (Windows), or the directory cannot be written to.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Stopped the download and wrote no SBOM (the error:
+  pypi.save-failed); for a Hugging Face file, left that file out and read the
+  rest (the warning).
+- **Tell the user**: the download could not be saved locally, with the reason
+  the line gives; the network is not the cause. They free disk space, or set
+  TMPDIR (TEMP on Windows) to a writable directory with a short path, and run
+  again. Do not change their temporary directory for them; ask first, and with
+  nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: could not be saved in the temporary directory (<failure>); not downloaded [temp-dir-unusable]
+  WARNING: FILE=<file>: could not be saved in the temporary directory (<failure>); <outcome> [temp-dir-unusable]
   ```
 
 ### `text-malformed`
@@ -849,6 +1272,105 @@ A line may start with one prefix before its text:
   ```text
   WARNING: FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
   WARNING: FORMAT=<format> FILE=<file>: lone surrogates written as \uXXXX [text-malformed]
+  ```
+
+### `url-moved`
+
+- **Level**: INFO.
+- **Means**: PyPI, or the host serving a file, redirected a request to another
+  URL on a host Pitloom reads PyPI from (a renamed project, a normalised name).
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Checked the target and followed it.
+- **Nothing to do**: nothing to do: the line names where the answer came from.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: redirects to <target>; followed [url-moved]
+  ```
+
+### `url-moved/hf-endpoint`
+
+- **Level**: INFO.
+- **Means**: huggingface_hub's HF_ENDPOINT names a Hub other than
+  https://huggingface.co (a mirror, a private Hub).
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Fetched the Hugging Face files from it, the token sent to it
+  only.
+- **Nothing to do**: nothing to do: the line names where the files came from.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: the Hub HF_ENDPOINT names; Hugging Face files are fetched from it [url-moved/hf-endpoint]
+  ```
+
+### `url-unsafe`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: Pitloom would have to send a request somewhere it does not: a
+  redirect to a URL that is not https or not on a host it reads PyPI or a
+  Hugging Face file from, more redirects than it follows, or a file whose
+  download URL PyPI gives on another host.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Did not follow the redirect or fetch the file, and wrote no
+  SBOM (the error); for a Hugging Face file, left that file out and read the
+  rest (the warning).
+- **Tell the user**: which URL was not followed and why, as the line says. A
+  mirror or proxy that redirects is not supported; they may download the file
+  themselves and run Pitloom on it. Do not fetch the target for them; ask first,
+  and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: redirects to <target>; not followed (<why>) [url-unsafe]
+  ERROR: URL=<url>: more than <number> redirects; not followed [url-unsafe]
+  ERROR: FILE=<file>: download URL <target> is not on <hosts>; not fetched [url-unsafe]
+  WARNING: URL=<url>: redirects to <target>; not followed (<why>); <outcome> [url-unsafe]
+  WARNING: URL=<url>: more than <number> redirects; <outcome> [url-unsafe]
+  ```
+
+### `url-unsafe/hf-endpoint`
+
+- **Level**: WARNING.
+- **Means**: huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL,
+  or one holding user information, a query or a fragment. The Hugging Face token
+  must not be sent over plain http.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Sent no request to the Hub (huggingface_hub would send the
+  token to the same endpoint): no file of the Hugging Face repository
+  (config.json, the card, a licence file), no model_info(), dataset_info() or
+  file listing. The model keeps its id and Hub URL only; the SBOM lacks
+  everything else the Hub states.
+- **Tell the user**: HF_ENDPOINT is not used, and why, as the line says. They
+  set it to an https URL without credentials, or unset it for
+  https://huggingface.co, and run again. Do not change it for them; ask first,
+  and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: URL=<url>: HF_ENDPOINT not used (<why>); nothing asked of the Hub [url-unsafe/hf-endpoint]
+  ```
+
+### `url-unsafe/host-spelling`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A Git URL's host holds a non-ASCII character (a full-width or
+  ideographic dot, a full-width letter, an international name not in its xn--
+  form) or a percent-encoding. git (through curl) maps it to another host than
+  the URL's text names, past every check that reads that text (a PyPI host is
+  never cloned).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Started no git process, fetched nothing and wrote no SBOM
+  (git.url-invalid).
+- **Tell the user**: the host must be written as it is resolved. They write it
+  in ASCII, an international domain name in its xn-- (punycode) form, and run
+  again. Do not rewrite the URL for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: the host is not plain ASCII or is percent-encoded, which git would resolve to a host the URL does not spell; write it in ASCII (an international name in its xn-- form); nothing fetched [url-unsafe/host-spelling]
   ```
 
 ### `usage-unparseable`

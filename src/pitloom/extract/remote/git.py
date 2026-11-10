@@ -6,6 +6,10 @@
 """Fetch a Git repository, or a folder of one, by URL into a temporary
 directory that Pitloom reads like a local project.
 
+See also: :mod:`pitloom.extract.remote.pypi` (the PyPI URL route, which a
+PyPI-family URL is sent to and never cloned: this module refuses it,
+``pypi-url-unusable``).
+
 The URL is a clone URL or the address of a repository page naming a branch,
 tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
 parse_git_page`). The server's redirect (GitLab's ``project`` to
@@ -29,14 +33,17 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath
+from typing import Final
+from urllib.parse import urlsplit
 
 from pitloom.core.clone_mark import reading_remote_clone
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.path_confine import in_git_dir, is_inside
+from pitloom.core.temp_dirs import temp_dir
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
@@ -58,8 +65,18 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
-from pitloom.messages import PROJECT_NOT_FOUND, code_of
+from pitloom.messages import (
+    GIT_HOST_SPELLING_LINE,
+    GIT_PYPI_URL_LINE,
+    OFFLINE_LINE,
+    OFFLINE_UNUSABLE,
+    PROJECT_NOT_FOUND,
+    PYPI_URL_UNUSABLE,
+    URL_HOST_SPELLING,
+    code_of,
+)
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +97,10 @@ BLOB_LIMIT = "10m"
 #: ``log.info()`` format for a URL that names more than the clone URL.
 #: Arguments: the URL given, the repository cloned, what else it names.
 RESOLVED_INFO = "Git source: %s names repository %s%s"
+
+#: What starts a message about the checkout's directory, as every other
+#: message of the route starts.
+_LOG_PREFIX: Final = "Git source: "
 
 
 @dataclass(frozen=True)
@@ -147,13 +168,14 @@ class GitCheckout:
 def fetch_git_project(
     url: str,
     *,
-    check_url: Callable[[str], None] | None = None,
-    offline: bool | None = None,
-    max_bytes: int | None = None,
+    policy: RemoteFetchPolicy = RemoteFetchPolicy(),
     trust_model_files: bool = False,
 ) -> Iterator[GitCheckout]:
-    """Fetch the repository *url* names into a temporary directory, removed
-    on exit.
+    """Fetch the repository *url* names into a temporary directory
+    (``pitloom-git-`` and eight random characters), removed on exit (no
+    termination guard: Ctrl-C removes it, a process ended by SIGTERM or
+    SIGKILL leaves it); one that cannot be fully removed (a file still held
+    open on Windows) is left behind with one ``WARNING:``, never an error.
 
     Within the block, the reads are a temporary clone's
     (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
@@ -166,27 +188,32 @@ def fetch_git_project(
     files: the readers a wheel scan does not run are run (the build-time code
     is still not run). The default is to run none of them.
 
-    *check_url* is called with the URL of every redirect target, without
-    user information, before it is requested and raises for one that must not
-    be fetched; Pitloom does not check the URL it is given (the caller does,
-    as it knows its own policy).
-    With *offline* true nothing is fetched. With *max_bytes* the fetch is
-    stopped once the checkout (the ``.git`` directory included) takes more
-    disk than that (``git.too-large``); ``None`` sets no limit.
+    *policy* (:func:`~pitloom.core.config_cascade.resolve_fetch_policy`)
+    says what the fetch may do. Its ``check_url`` is called with the URL of
+    every redirect target, without user information, before it is requested
+    and raises for one that must not be fetched; Pitloom does not check the
+    URL it is given (the caller does, as it knows its own policy; the PyPI
+    route, unlike this one, passes its first URLs to its check too). With
+    ``offline`` nothing is fetched. The fetch is stopped once the checkout
+    (the ``.git`` directory included) takes more disk than ``max_bytes``
+    (``git.too-large``).
 
     Raises:
-        ValueError: *max_bytes* is not a positive integer.
         RemoteSourceError: the URL names no fetchable repository, ref or
-            folder, ``git`` is missing, *offline* is set (``git.offline``),
-            or the repository is larger than *max_bytes*.
-        Exception: whatever *check_url* raises, unchanged.
+            folder (``git.url-invalid``, checked before ``offline``; a
+            PyPI URL is catalogued ``pypi-url-unusable``), ``git`` is
+            missing, ``offline`` is set (``git.offline``,
+            ``offline-unusable``), git cannot reach the server
+            (``git.clone-failed``, ``download-network-failed``) or does not
+            finish in time (``git.timeout``, ``download-timeout``), or the
+            repository is larger than ``max_bytes`` (``over-cap``).
+        Exception: whatever ``check_url`` raises, unchanged.
     """
-    if max_bytes is not None and max_bytes <= 0:
-        raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
-    runner = GitRunner(max_bytes=max_bytes)
-    with tempfile.TemporaryDirectory(prefix=CHECKOUT_DIR_PREFIX) as work_dir:
+    runner = GitRunner(max_bytes=policy.max_bytes)
+    # Each git call has ended (its process group too) before the removal.
+    with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
         try:
-            checkout = _prepare(url, work_dir, runner, check_url, offline)
+            checkout = _prepare(url, str(work), runner, policy)
         except Exception as exc:
             # A refusal is said here, so a caller that only logs shows it.
             log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
@@ -197,20 +224,27 @@ def fetch_git_project(
 
 
 def _prepare(
-    url: str,
-    work_dir: str,
-    runner: GitRunner,
-    check_url: Callable[[str], None] | None,
-    offline: bool | None,
+    url: str, work_dir: str, runner: GitRunner, policy: RemoteFetchPolicy
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
     shown = loggable(sanitize_url(url))
-    if offline:
+    if is_pypi_url(url):
+        # PyPI is no Git host: refused, never cloned.
         raise RemoteSourceError(
-            "git.offline", f"Cannot fetch {shown}: network access is forbidden."
+            "git.url-invalid",
+            GIT_PYPI_URL_LINE.render({"url": shown}),
+            pitloom_code=PYPI_URL_UNUSABLE.code,
         )
+    # The URL is read first, as the PyPI and Hugging Face routes read theirs:
+    # an invalid one is ``git.url-invalid`` offline too.
     page = _read_url(url, shown)
-    clone_url, page, target = _resolve(runner, page, check_url)
+    if policy.offline:
+        raise RemoteSourceError(
+            "git.offline",
+            OFFLINE_LINE.render({"url": shown}),
+            pitloom_code=OFFLINE_UNUSABLE.code,
+        )
+    clone_url, page, target = _resolve(runner, page, policy.check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
     _forget_credentials(runner, clone_url, work_dir)
@@ -233,8 +267,9 @@ def _read_url(url: str, shown: str) -> GitPage:
     """The page *url* names.
 
     Raises:
-        RemoteSourceError: ``git.url-invalid``, a scheme other than http(s) or
-            a path that leaves the checkout.
+        RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
+            a host that is not plain ASCII (:func:`_host_as_typed`,
+            ``url-unsafe/host-spelling``) or a path that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
         raise RemoteSourceError(
@@ -242,7 +277,25 @@ def _read_url(url: str, shown: str) -> GitPage:
             f"Cannot fetch {shown}: only http and https URLs are fetched "
             "(not ssh, git, file or scp-style addresses).",
         )
+    if not _host_as_typed(url.strip()):
+        raise RemoteSourceError(
+            "git.url-invalid",
+            GIT_HOST_SPELLING_LINE.render({"url": shown}),
+            pitloom_code=URL_HOST_SPELLING.code,
+        )
     return parse_git_page(url)
+
+
+def _host_as_typed(url: str) -> bool:
+    """Whether the host of *url* is plain ASCII, not percent-encoded: curl
+    maps any other spelling (``pypi%2Eorg``, a full-width dot) to a host
+    the URL's text does not name, which no check of that text (a PyPI host
+    is never cloned) would see.
+
+    *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
+    ``urlsplit`` refuses never reaches here."""
+    host = urlsplit(url).hostname or ""
+    return host.isascii() and "%" not in host
 
 
 def _resolve(

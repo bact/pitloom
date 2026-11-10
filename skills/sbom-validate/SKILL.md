@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-08
+# Last-Modified: 2026-11-10
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -204,6 +204,23 @@ already embedded. With `--sbom FILE --validate` an SPDX 3 file is validated
 first: one that fails is refused and the wheel is not written. If the user
 asked for `embed-wheel --allow-build`, always pass an explicit
 `--build-timeout` (see `sbom-generate`'s "Choosing `--build-timeout`").
+
+## An SBOM generated from a PyPI URL
+
+`loom wheel`, `project` or `generate` on a `pypi.org/project/` page (Pitloom
+0.24.0 or later) writes an ordinary SPDX 3 file: `loom fragment validate
+<sbom-file>` applies, and a clean generated file passes. Its provenance record
+on the main package (`project_url`, `sha256`, `sha256_declared`,
+`release_version`, `wheel_tags` and the like, as an `Annotation` and as
+`Metadata provenance:` comment text) is nothing to fix; equal `sha256` and
+`sha256_declared` are the normal case. `verify-wheel`, `validate-wheel` and
+`embed-wheel` take a local `.whl` file, never a URL (`ERROR: not a .whl file`):
+a wheel's own embedded SBOM is a different document from the one Pitloom writes
+for the URL, and checking it needs the wheel on disk (do not download it
+unasked; non-interactive: report that). Asked to validate "the SBOM of
+<pypi-url>" with no file, hand off to `sbom-generate` first (the ask names the
+URL, so generating is fine; add no flag), then validate its output. Detail
+and the combined asks: `sbom-generate`'s "A PyPI URL".
 
 ## Report the result
 

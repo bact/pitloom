@@ -1,0 +1,255 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""What a PyPI URL names: a project, and maybe one of its releases.
+
+See also: :mod:`pitloom.extract.remote.pypi` (the resolver that reads it) and
+:mod:`pitloom.extract.remote.git_url` (the Git URL, which a PyPI URL is never
+taken for).
+
+Two forms are read, on ``pypi.org`` (or ``www.pypi.org``, any case, a
+trailing dot dropped): ``https://pypi.org/project/<name>/`` and
+``https://pypi.org/project/<name>/<version>/``, the trailing slash optional
+and each segment percent-decoded. The host is read as a resolver reads it
+(percent-decoded, mapped by IDNA: ``pypi%2Eorg`` and ``pypi\u3002org``, with
+an ideographic dot, are ``pypi.org``), so that no spelling of a PyPI host is
+taken for a Git host and cloned. A query or fragment is cut. The name must
+be a valid PEP 508 name, compared by its PEP 503 form; the version must parse
+as PEP 440. Anything else on the host, ``http:``, user information or a port
+that is not 443 is refused. A URL on another host of the PyPI family (any
+``*.pypi.org`` such as ``test.pypi.org``, ``pypi.python.org``, or
+``files.pythonhosted.org``, whose file links are not read yet) is a PyPI URL
+too, so that it is refused with a PyPI message and never fetched as a Git
+repository.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+import unicodedata
+from dataclasses import dataclass
+from typing import Final
+from urllib.parse import quote, unquote, urlsplit
+
+from packaging.utils import canonicalize_name
+
+from pitloom.core.pep440 import parse_version
+from pitloom.core.url_masking import sanitize_url
+from pitloom.logging_config import loggable
+from pitloom.messages import (
+    PYPI_FILE_LINK_LINE,
+    PYPI_INDEX_LINE,
+    PYPI_NAME_INVALID_LINE,
+    PYPI_OLD_HOST_LINE,
+    PYPI_URL_CREDENTIALS_LINE,
+    PYPI_URL_FORM_LINE,
+    PYPI_URL_INVALID,
+    PYPI_URL_SCHEME_LINE,
+    PYPI_VERSION_INVALID_LINE,
+    CodedValueError,
+    Line,
+)
+
+log = logging.getLogger(__name__)
+
+__all__ = [
+    "API_BASE",
+    "FILE_HOSTS",
+    "PYPI_JSON_API",
+    "PYPI_PROJECT_HOSTS",
+    "PypiTarget",
+    "is_pypi_url",
+    "parse_pypi_url",
+    "project_page_url",
+    "pypi_json_url",
+]
+
+#: The hosts of a PyPI project page Pitloom reads.
+PYPI_PROJECT_HOSTS: Final = frozenset({"pypi.org", "www.pypi.org"})
+#: PyPI's old host: a PyPI URL, refused with the form to give instead.
+_OLD_HOST: Final = "pypi.python.org"
+#: The domain of every other host of the PyPI family (``test.pypi.org``):
+#: a PyPI URL, refused as another index.
+_FAMILY_DOMAIN: Final = ".pypi.org"
+#: The host PyPI serves release files from: a direct link to one is a PyPI
+#: URL, refused as a file link.
+_FILE_HOST: Final = "files.pythonhosted.org"
+
+#: The JSON API as provenance names it: the ``Source`` of what it declares
+#: (a download's digest and release, a dependency's licence and originator).
+PYPI_JSON_API: Final = "PyPI JSON API"
+
+#: The base of the PyPI JSON API (a test points it at a local server).
+API_BASE: str = "https://pypi.org/pypi/"
+
+#: The hosts a release file is downloaded from (a test adds a local one).
+FILE_HOSTS: frozenset[str] = frozenset({_FILE_HOST})
+
+#: The project page a :class:`PypiTarget` is written as.
+_PROJECT_PAGE: Final = "https://pypi.org/project/"
+
+#: A valid project name (PEP 508).
+#: ASCII only: with IGNORECASE alone, ``\u212a`` (Kelvin) would match ``k``
+#: and ``\u017f`` (long s) ``s``.
+_NAME_RE: Final = re.compile(
+    r"[A-Z0-9](?:[A-Z0-9._-]*[A-Z0-9])?", re.IGNORECASE | re.ASCII
+)
+
+
+@dataclass(frozen=True)
+class PypiTarget:
+    """A PyPI project URL, read.
+
+    ``name`` and ``version`` are as the URL gives them (percent-decoded);
+    ``canonical`` is the name's PEP 503 form; ``project_url`` is the page
+    written canonically (``https://pypi.org/project/<canonical>/`` and the
+    version segment when given); ``cut`` says a query or fragment was cut.
+    """
+
+    name: str
+    canonical: str
+    version: str | None
+    project_url: str
+    cut: bool = False
+
+
+def _host(hostname: str | None) -> str:
+    """*hostname* (``urlsplit``'s) as a resolver reads it: percent-decoded,
+    mapped by IDNA (a full-width or ideographic dot is a dot, a full-width
+    letter its ASCII one, a soft hyphen nothing), lower-cased and without
+    its trailing dots (a fully qualified name); empty for none. A host IDNA
+    cannot map (an empty label) is NFKC-normalised instead."""
+    host = unquote(hostname or "")
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        host = unicodedata.normalize("NFKC", host).replace("\u3002", ".")
+    return host.lower().rstrip(".")
+
+
+#: The line refusing each host of the PyPI family that is neither one of
+#: :data:`PYPI_PROJECT_HOSTS` nor another index.
+_HOST_LINES: Final = {_OLD_HOST: PYPI_OLD_HOST_LINE, _FILE_HOST: PYPI_FILE_LINK_LINE}
+
+
+def _in_family(host: str) -> bool:
+    """Whether *host* (:func:`_host`'s form) is a host of the PyPI family:
+    :data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org``, ``pypi.python.org`` or
+    ``files.pythonhosted.org``."""
+    return (
+        host in PYPI_PROJECT_HOSTS
+        or host.endswith(_FAMILY_DOMAIN)
+        or host in _HOST_LINES
+    )
+
+
+def is_pypi_url(text: str) -> bool:
+    """Whether *text* is an ``http`` or ``https`` URL on a host of the PyPI
+    family (:data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org`` such as
+    ``test.pypi.org``, ``pypi.python.org`` or the file host
+    ``files.pythonhosted.org``; any case, a trailing dot dropped, the host
+    percent-decoded and mapped by IDNA as a resolver maps it): ``http``
+    and the hosts :func:`parse_pypi_url` refuses too, so that each is refused
+    with a PyPI message and never taken for a Git URL. Never raises."""
+    stripped = text.strip()
+    if not stripped.lower().startswith(("http://", "https://")):
+        return False
+    try:
+        hostname = urlsplit(stripped).hostname
+    except ValueError:
+        return False
+    return _in_family(_host(hostname))
+
+
+def pypi_json_url(name: str, version: str | None) -> str:
+    """The JSON API URL of project *name*, or of its release *version*:
+    :data:`API_BASE`, then each segment quoted whole (a ``/`` in it too)."""
+    path = quote(name, safe="")
+    if version is not None:
+        path += "/" + quote(version, safe="")
+    return f"{API_BASE}{path}/json"
+
+
+def project_page_url(canonical: str, version: str | None) -> str:
+    """The project page URL of *canonical*, of its *version* when given."""
+    page = f"{_PROJECT_PAGE}{quote(canonical, safe='')}/"
+    return page + (f"{quote(version, safe='')}/" if version is not None else "")
+
+
+def _refuse(text: str, line: Line, **values: str) -> CodedValueError:
+    """The error for *text* refused with *line*, logged first (a rejected
+    input is said as well as raised)."""
+    error = CodedValueError(
+        PYPI_URL_INVALID, line=line, url=loggable(sanitize_url(text)), **values
+    )
+    log.warning("%s", error)
+    return error
+
+
+def _segments(path: str) -> list[str] | None:
+    """The segments of *path* after ``/project/``, one trailing slash
+    dropped, or ``None`` for any other path or an empty segment."""
+    if not path.startswith("/project/"):
+        return None
+    rest = path[len("/project/") :]
+    rest = rest[:-1] if rest.endswith("/") else rest
+    segments = rest.split("/")
+    if not 1 <= len(segments) <= 2 or "" in segments:
+        return None
+    return [unquote(segment) for segment in segments]
+
+
+def parse_pypi_url(text: str) -> PypiTarget:
+    """The project, and the release when given, the PyPI URL *text* names.
+
+    Raises:
+        CodedValueError: ``pypi-url-invalid``: not https, user information,
+            another host of the PyPI family (``test.pypi.org``,
+            ``pypi.python.org``, a file link on ``files.pythonhosted.org``)
+            or any other host, a port other than 443, a
+            path that is not a project or release page, a name that is not
+            a valid PEP 508 name or a version that is not PEP 440. The
+            refusal is logged as a ``WARNING:`` too.
+    """
+    stripped = text.strip()
+    try:
+        parts = urlsplit(stripped)
+        port = parts.port
+    except ValueError:
+        raise _refuse(stripped, PYPI_URL_FORM_LINE) from None
+    scheme = parts.scheme.lower()
+    if scheme == "http":
+        raise _refuse(stripped, PYPI_URL_SCHEME_LINE)
+    if "@" in parts.netloc:
+        raise _refuse(stripped, PYPI_URL_CREDENTIALS_LINE)
+    host = _host(parts.hostname)
+    if host not in PYPI_PROJECT_HOSTS and _in_family(host):
+        raise _refuse(stripped, _HOST_LINES.get(host, PYPI_INDEX_LINE))
+    segments = _segments(parts.path)
+    if (
+        scheme != "https"
+        or host not in PYPI_PROJECT_HOSTS
+        or port not in (None, 443)
+        or segments is None
+    ):
+        raise _refuse(stripped, PYPI_URL_FORM_LINE)
+    name = segments[0]
+    if _NAME_RE.fullmatch(name) is None:
+        raise _refuse(stripped, PYPI_NAME_INVALID_LINE, name=loggable(name))
+    version = segments[1] if len(segments) == 2 else None
+    # packaging allows white space around a version; a URL does not.
+    if version is not None and (
+        version != version.strip() or parse_version(version) is None
+    ):
+        raise _refuse(stripped, PYPI_VERSION_INVALID_LINE, version=loggable(version))
+    canonical = canonicalize_name(name)
+    return PypiTarget(
+        name=name,
+        canonical=canonical,
+        version=version,
+        project_url=project_page_url(canonical, version),
+        cut=bool(parts.query or parts.fragment),
+    )

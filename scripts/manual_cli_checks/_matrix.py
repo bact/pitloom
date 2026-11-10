@@ -23,7 +23,10 @@ traceback, every stderr line tagged, no network attempt. Groups:
 - ``offline``: ``--offline``/``--no-offline``/none -- zero attempts
   with ``--offline``, graceful degradation when the network is blocked;
 - ``opt``: every other option's one-factor variants;
-- ``parity``: ``generate`` against the dedicated subcommand.
+- ``parity``: ``generate`` against the dedicated subcommand;
+- ``target``: a command on a remote target (a Git or PyPI URL), refused
+  before any request or, with ``--network``, fetched
+  (``_matrix_targets.py``).
 
 See also: ``_matrix_run.py`` (running a cell), ``_sequences.py``
 (commands run in order, with side effects).
@@ -49,6 +52,7 @@ from _harness import (
 )
 from _matrix_plan import COMMANDS, NETWORK_VARIANTS, Command, Variant, plan_for
 from _matrix_run import DATETIME_2, Matrix, cli_surface, created, normalise, universal
+from _matrix_targets import target_checks
 
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 
@@ -367,6 +371,7 @@ def register(checks: list[Check]) -> None:
                 label = label.replace("=", " ", 1)
             title = f"{command.name}: {label}"
             checks.append(Check(f"M/{slug}/{suffix}", title, func, network))
+    checks.extend(target_checks())
     by_name = {c.name: c for c in COMMANDS}
     for name in ("project", "wheel", "model", "env"):
         checks.append(

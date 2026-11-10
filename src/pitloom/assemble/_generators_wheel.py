@@ -11,26 +11,38 @@ See also:
 - :mod:`pitloom.assemble._generators` for the project/sdist generator.
 - :mod:`pitloom.assemble._generators_env` for the installed-environment
   generator, which resolves its settings the same way.
+- :mod:`pitloom.assemble._generators_pypi` for a wheel named by a PyPI URL,
+  which it delegates to and which reads the download here.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom._sbom_io import write_sbom_output
+from pitloom.assemble._generators_pypi import generate_pypi_sbom
 from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
+from pitloom.core.acquisition import Acquisition
 from pitloom.core.config import PitloomConfig
-from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
+from pitloom.core.config_cascade import (
+    ConfigOverrides,
+    require_download_override,
+    resolve_standalone_config,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.inert_options import WHEEL, settle_inert
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.binary import find_phantom_dependencies
+from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel, wheel_document_identity
 from pitloom.id_registry import IdRegistry, registry_copy, resolve_registry
@@ -56,8 +68,20 @@ def generate_wheel_sbom(
     trust_model_files: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
+    check_url: Callable[[str], None] | None = None,
+    max_download_bytes: int | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
+
+    *wheel_path* may be a PyPI project or release URL (a ``str``; a
+    :class:`~pathlib.Path` is always a local file): the release's wheel that
+    best matches the running environment is downloaded and read
+    (:func:`~pitloom.assemble.generate_pypi_sbom`): *check_url* is called
+    with every URL of the release lookup and the download before it is
+    requested (a dependency's licence lookup does not pass through it), and
+    *max_download_bytes* caps the file. For a local wheel *check_url* is not used
+    and *max_download_bytes* has no effect (one ``WARNING:``; an invalid
+    value raises all the same).
 
     A wheel has no ``[tool.pitloom]`` of its own, and none is borrowed: not
     from the current directory, not from beside the wheel -- either may
@@ -105,7 +129,31 @@ def generate_wheel_sbom(
             integer of at least 1.
         FileNotFoundError: *project_dir* is given and is not a directory.
         OSError: *wheel_path* cannot be opened (missing, permission denied).
+        pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's
+            wheel could not be fetched or verified (``pypi.*``).
     """
+    if isinstance(wheel_path, str) and is_pypi_url(wheel_path):
+        return generate_pypi_sbom(
+            wheel_path,
+            kind=WHEEL_FILE,
+            check_url=check_url,
+            max_download_bytes=max_download_bytes,
+            output_path=output_path,
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
+            id_registry=id_registry,
+            provenance=provenance,
+            offline=offline,
+            content_type_method=content_type_method,
+            update_id_registry=update_id_registry,
+            max_source_metadata_bytes=max_source_metadata_bytes,
+            max_model_extract_bytes=max_model_extract_bytes,
+            scan_model_usage=scan_model_usage,
+            trust_model_files=trust_model_files,
+            pitloom_config=pitloom_config,
+            project_dir=project_dir,
+        )
     return generate_wheel_sbom_with_metadata(
         wheel_path,
         output_path=output_path,
@@ -123,6 +171,8 @@ def generate_wheel_sbom(
         trust_model_files=trust_model_files,
         pitloom_config=pitloom_config,
         project_dir=project_dir,
+        check_url=check_url,
+        max_download_bytes=max_download_bytes,
     )[0]
 
 
@@ -144,10 +194,25 @@ def generate_wheel_sbom_with_metadata(
     trust_model_files: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
+    check_url: Callable[[str], None] | None = None,
+    max_download_bytes: int | None = None,
+    acquisition: Acquisition | None = None,
 ) -> tuple[str, ProjectMetadata]:
     """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
     the wheel, for a caller that goes on to use the wheel's declared identity
     (it need not read ``METADATA`` again, and warn about it twice).
+
+    *wheel_path* is a local wheel only (a PyPI URL is read by
+    :func:`generate_wheel_sbom`): *check_url* is not used and
+    *max_download_bytes* has no effect (one ``WARNING:``; an invalid value
+    raises all the same). Both are accepted so that a caller forwarding
+    :func:`generate_wheel_sbom`'s options can call this instead.
+
+    *acquisition* records how the wheel was downloaded (set by
+    :func:`~pitloom.assemble.generate_pypi_sbom`); it adds one provenance
+    record on the main package, and the gated models' ``INFO:`` is the one
+    for a download (``reader-unsafe/remote``, naming the file), not a local
+    wheel's; *trust_model_files* lifts the gate the same way.
 
     Raises:
         ValueError: The wheel is refused as a whole
@@ -159,6 +224,10 @@ def generate_wheel_sbom_with_metadata(
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
+    del check_url  # nothing is fetched for a local wheel
+    if max_download_bytes is not None:
+        require_download_override(max_download_bytes)  # even if inert
+        settle_inert(WHEEL, wheel_path, {"max_download_bytes": max_download_bytes})
     wheel_path_obj = Path(wheel_path)
     cfg = resolve_standalone_config(
         pitloom_config,
@@ -192,6 +261,8 @@ def generate_wheel_sbom_with_metadata(
         usage_hint=lambda: cfg.scan_model_usage is None,
         max_bytes=cfg.max_model_extract_bytes,
         trust=trust_model_files is True,
+        # A download is untrusted remote input: its line names the file.
+        downloaded_as=None if acquisition is None else acquisition.filename,
     )
     phantom_deps = find_phantom_dependencies(project_files)
 
@@ -200,6 +271,7 @@ def generate_wheel_sbom_with_metadata(
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
+        acquisition=acquisition,
         **wheel_document_identity(project_metadata, wheel_path_obj, origin_dir),
     )
     exporter = build(

@@ -54,10 +54,18 @@ def test_lists_unique_check_ids(scripts_dir: Path) -> None:
 
 def test_matrix_plan_covers_the_cli_and_fast_checks_pass(scripts_dir: Path) -> None:
     result = _run(
-        scripts_dir, "--only", "M/completeness,1,B7,M/project/debug/*", "-j", "4", "-v"
+        scripts_dir,
+        "--only",
+        "M/completeness,1,B7,M/project/debug/*,M/*/target/*",
+        "-j",
+        "4",
+        "-v",
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASS  M/completeness" in result.stdout
+    # The remote targets' refusals run offline; their fetches need --network.
+    assert "PASS  M/project/target/file-link" in result.stdout
+    assert "SKIP  M/project/target/git-url " in result.stdout
     assert " 0 fail" in result.stdout.splitlines()[-1]
 
 
@@ -67,7 +75,14 @@ def test_matrix_plan_covers_the_cli_and_fast_checks_pass(scripts_dir: Path) -> N
 # first on `sys.path` (as running `python scripts/manual_cli_checks`
 # does). Load them that way here too, restoring `sys.path`/`sys.modules`
 # afterwards so this doesn't leak into other tests.
-_MATRIX_SIBLINGS = ("_matrix", "_matrix_run", "_matrix_plan", "_harness", "_fixtures")
+_MATRIX_SIBLINGS = (
+    "_matrix",
+    "_matrix_run",
+    "_matrix_plan",
+    "_matrix_targets",
+    "_harness",
+    "_fixtures",
+)
 
 
 @dataclass(frozen=True)
@@ -76,6 +91,7 @@ class _MatrixEnv:
 
     matrix: ModuleType
     harness: ModuleType
+    targets: ModuleType
 
 
 @pytest.fixture(name="matrix_env")
@@ -87,7 +103,9 @@ def matrix_env_fixture(scripts_dir: Path) -> Iterator[_MatrixEnv]:
     previous = {name: sys.modules.pop(name, None) for name in _MATRIX_SIBLINGS}
     try:
         yield _MatrixEnv(
-            importlib.import_module("_matrix"), importlib.import_module("_harness")
+            importlib.import_module("_matrix"),
+            importlib.import_module("_harness"),
+            importlib.import_module("_matrix_targets"),
         )
     finally:
         for name in _MATRIX_SIBLINGS:
@@ -158,6 +176,87 @@ def test_completeness_needs_a_subcommand_to_actually_run_the_group(
     else:
         with pytest.raises(matrix_env.harness.CheckFailed, match=r"loom: --debug"):
             run(ctx)
+
+
+_REFUSAL = "ERROR: wheel command failed: refused [x]\n"
+_BLOCKED = "NETGUARD: blocked connect\n"
+
+
+@pytest.mark.parametrize(
+    ("expectation", "network", "returncode", "stderr", "writes", "passes"),
+    [
+        ("refuses:[x]", False, 1, _REFUSAL, False, True),
+        ("refuses:[x]", False, 0, _REFUSAL, False, False),
+        ("refuses:[x]", False, 1, "ERROR: refused [y]\n", False, False),
+        ("refuses:[x]", False, 1, _REFUSAL, True, False),
+        ("refuses:[x]", False, 1, _BLOCKED + _REFUSAL, False, False),
+        ("refuses:[x]", True, 1, _BLOCKED + _REFUSAL, False, True),
+        ("writes", True, 0, "", True, True),
+        ("writes", True, 1, "", True, False),
+        ("writes", True, 0, "", False, False),
+        ("written", True, 0, "", True, False),
+    ],
+    ids=[
+        "refused",
+        "exit-0",
+        "other-text",
+        "wrote",
+        "network-attempt",
+        "network-cell",
+        "writes",
+        "writes-exit-1",
+        "nothing-written",
+        "unknown-expectation",
+    ],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_target_cell_checks_exit_text_output_and_network(
+    matrix_env: _MatrixEnv,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    expectation: str,
+    network: bool,
+    returncode: int,
+    stderr: str,
+    writes: bool,
+    passes: bool,
+) -> None:
+    """A target cell (``_matrix_targets.py``) passes only when the run did
+    what the cell expects, behind the network guard unless it is a network
+    cell; ``loom`` itself is stood in for."""
+    targets, harness = matrix_env.targets, matrix_env.harness
+    guards: list[str] = []
+
+    def run_loom(*args: str, cwd: Path, bootstrap: str) -> object:
+        guards.append(bootstrap)
+        if writes:
+            (cwd / "out.json").write_text('{"@graph": [{}]}', encoding="utf-8")
+        return harness.Result(list(args), returncode, "", stderr, 0.0)
+
+    monkeypatch.setattr(targets, "run_loom", run_loom)
+    cell = targets.TargetCell("wheel", "t", ("https://x/",), expectation, network)
+    run = targets.cell_target(cell)
+    ctx = harness.Context(work=tmp_path, network=network, verbose=False)
+    if passes:
+        run(ctx)
+    else:
+        with pytest.raises(harness.CheckFailed):
+            run(ctx)
+    assert guards in ([], ["" if network else harness.NETGUARD])
+
+
+def test_every_target_cell_is_registered_with_a_known_expectation(
+    matrix_env: _MatrixEnv,
+) -> None:
+    """Every cell's expectation is one the runner knows, its id unique, and
+    a cell without the network is a refusal (nothing to fetch)."""
+    targets = matrix_env.targets
+    cells = targets.TARGET_CELLS
+    assert {c.expect.partition(":")[0] for c in cells} <= set(targets.EXPECTATIONS)
+    assert all(c.network or c.expect.startswith("refuses:") for c in cells)
+    checks = list(targets.target_checks())
+    assert len({c.check_id for c in checks}) == len(cells)
+    assert [c.network for c in checks] == [c.network for c in cells]
 
 
 def test_child_env_makes_pythonpath_absolute(

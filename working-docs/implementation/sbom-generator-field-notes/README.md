@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,6 +63,11 @@ the day it was added (2026-10-02 to 2026-11-06).
   GitLab's 301, page-URL syntax per platform, ref versus folder, measured
   platforms; git-lfs, forged log lines and symlinks from an untrusted
   repository; where the logic should live; rejections said once; test traps.
+- [pypi-url-sources.md](pypi-url-sources.md): an SBOM from a PyPI URL: the
+  measured and the declared digest as two entries; the package hash is not the
+  archive hash; a wheel picked for the asking machine; release first, file
+  second; a recogniser for a family of hosts (a file-host link still goes to
+  Git); a deadline made of a socket shutdown (#468).
 - [evidence-levels-and-provenance-of-absence.md](evidence-levels-and-provenance-of-absence.md):
   caps bound reading, never reporting; five evidence levels; recording why a
   value is missing; a record count in a bytes property.

@@ -18,6 +18,7 @@ import pytest
 
 from pitloom.core._config_parse_scan import (
     _read_max_dataset_hash_bytes,
+    _read_max_download_bytes,
     _read_max_model_extract_bytes,
     _read_scan_model_usage,
 )
@@ -74,8 +75,14 @@ _CEILINGS = [
         "max_dataset_hash_bytes",
         4 * 1024 * 1024 * 1024,
     ),
+    (
+        _read_max_download_bytes,
+        "max-download-bytes",
+        "max_download_bytes",
+        512 * 1024 * 1024,
+    ),
 ]
-_CEILING_IDS = ["model-extract", "dataset-hash"]
+_CEILING_IDS = ["model-extract", "dataset-hash", "download"]
 
 
 @pytest.mark.parametrize(

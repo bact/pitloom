@@ -28,7 +28,10 @@ from pitloom.core._config_types import (
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.model_extract_limit import (
+    DEFAULT_MAX_DOWNLOAD_BYTES,
+    MAX_DOWNLOAD_BYTES_KEY,
     require_max_dataset_hash_bytes,
+    require_max_download_bytes,
     require_max_model_extract_bytes,
 )
 from pitloom.core.provenance import require_max_source_metadata_bytes
@@ -95,6 +98,14 @@ def _read_max_dataset_hash_bytes(pitloom_data: dict[str, Any]) -> int:
     (see :func:`~pitloom.core.model_extract_limit.require_max_dataset_hash_bytes`)."""
     return require_max_dataset_hash_bytes(
         pitloom_data.get("max-dataset-hash-bytes", DEFAULT_MAX_DATASET_HASH_BYTES)
+    )
+
+
+def _read_max_download_bytes(pitloom_data: dict[str, Any]) -> int:
+    """Read ``[tool.pitloom] max-download-bytes``, a positive integer
+    (see :func:`~pitloom.core.model_extract_limit.require_max_download_bytes`)."""
+    return require_max_download_bytes(
+        pitloom_data.get(MAX_DOWNLOAD_BYTES_KEY, DEFAULT_MAX_DOWNLOAD_BYTES)
     )
 
 

@@ -73,6 +73,9 @@ _SENTINELS: dict[str, Any] = {
     "build_options": BuildOptions(timeout=4321),
     # Archive-only (wheel, sdist).
     "project_dir": Path("sentinel-project"),
+    # A PyPI URL only (the wheel and project generators delegate one).
+    "check_url": print,
+    "max_download_bytes": 4323,
 }
 
 
@@ -181,7 +184,8 @@ def _model_folder_target(tmp_path: Path) -> str:
 
 # (target builder, delegate attribute, the real delegate, parameters that
 # generate() deliberately does not forward). generate() never pre-supplies
-# project_metadata; generate_project_sbom() reads it from the target, and
+# project_metadata or an acquisition record; generate_project_sbom() reads the
+# metadata from the target (a download sets the record itself), and
 # a model file is named in messages as given (no shown=). The first
 # positional parameter of each delegate is the target itself.
 _BRANCHES = [
@@ -189,7 +193,7 @@ _BRANCHES = [
         _project_target,
         "generate_project_sbom",
         generate_project_sbom,
-        {"project_target", "project_metadata"},
+        {"project_target", "project_metadata", "acquisition"},
         id="project",
     ),
     pytest.param(

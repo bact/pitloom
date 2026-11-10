@@ -10,34 +10,35 @@ description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
   wheel, installed environment, local AI model file (GGUF, ONNX,
   PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite), Hugging
-  Face model or Git URL (repo, folder or model file page).
+  Face model, Git URL (repo, folder, model page) or PyPI URL (wheel/sdist).
   Triggers:
   "generate/create/give me an SBOM/BOM", "software bill of materials",
   "dependency inventory", "AIBOM", "document this model's
-  provenance". Also combined asks (then hand off to
+  provenance". Combined asks (hand off to
   sbom-enrich): "generate SBOM and enrich it", "complete/full SBOM", "SBOM
   meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements". PEP 770 wheel
-  embedding ("embed the SBOM in this wheel", "put the SBOM in dist/*.whl",
+  embedding ("embed the SBOM in this wheel", "SBOM into dist/*.whl",
   "signed wheel / RECORD.jws", "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
-  taking too long"), stable ids ("pin ids", "keep ids stable", "create or
-  update an ID registry", "loom id generate/import") and the usage scan
+  taking too long"), stable ids ("pin ids", "keep ids stable", "create or update
+  an ID registry", "loom id generate/import") and the usage scan
   ("which files use this model"). Checking: sbom-validate; enriching:
   sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.23.4 (pip, uvx or pipx).
-  AI model targets need pitloom[ai] (or a format extra such as
-  pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
-  pitloom[content-type]. Needs network access to install pitloom and for
-  PyPI and Hugging Face lookups (not with --offline). Not usable where
-  packages cannot be installed, e.g. Claude API code execution.
+  Requires a shell, Python 3.10+ and pitloom >= 0.23.4 (>= 0.24.0 for a
+  PyPI URL; pip, uvx or pipx). AI model targets need pitloom[ai] (or a
+  format extra such as pitloom[gguf]); --allow-build needs pitloom[build];
+  --content-type needs pitloom[content-type]. Needs network access to
+  install pitloom and for PyPI and Hugging Face lookups (not with
+  --offline). Not usable where packages cannot be installed, e.g. Claude
+  API code execution.
 ---
 
 # Generate an SBOM with Pitloom
 
 Pitloom generates SPDX 3 JSON SBOMs for Python projects, sdists, wheels,
-AI/ML model files and Python environments. This skill drives its CLI
+AI/ML model files and environments. This skill drives its CLI
 (`loom` / `pitloom`) and hands off to its siblings `sbom-enrich` and
 `sbom-validate` (install all three).
 
@@ -45,7 +46,7 @@ Triggers on natural-language requests (see the description), or explicitly
 with `/sbom-generate [target]` (`/pitloom:sbom-generate` via the Claude Code
 plugin; `$sbom-generate` in Codex). `target` is optional: a project
 directory, sdist/wheel path, local model file or folder, Hugging Face model
-ID or `http(s)` Git URL (default: the current directory). For more recipes
+ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For more recipes
 (multiple creators, a capped real build), read `references/examples.md`.
 
 ## Hard rules
@@ -60,7 +61,7 @@ ID or `http(s)` Git URL (default: the current directory). For more recipes
   the project's own PEP 517 build backend, i.e. third-party build-time
   code. Mention it as an option; don't decide to use it yourself.
 - **Never create, edit or pass an ID registry the user did not name** in an
-  unasked run. Asked to pin ids, create or update one: "Pinning element ids".
+  unasked run. Asked to pin ids or create one: "Pinning element ids".
   `sbom-enrich` never does this: it hands the request to this skill.
 - **Scan stderr after every `loom` call** (see "Check stderr").
 
@@ -68,9 +69,8 @@ ID or `http(s)` Git URL (default: the current directory). For more recipes
 
 - Python >= 3.10 and **pitloom >= 0.23.4** (it requires LicenseID 0.8.4,
   which reads `Apache Software License 2.0` and similar names as
-  `Apache-2.0`, and does not warn about a missing licence database for a
-  declared licence name; the licence readings, message codes and LicenseID
-  preflight below are those of 0.23.4):
+  `Apache-2.0` and does not warn about a missing licence database for a
+  declared licence name; the readings, codes and preflight below are 0.23.4's):
   `pip install "pitloom>=0.23.4"`, or run ephemeral via `uvx`/`pipx`. Extras
   take the floor after the extra: `"pitloom[ai]>=0.23.4"`.
 - AI model targets, and any project or wheel that ships model files, need
@@ -80,7 +80,7 @@ ID or `http(s)` Git URL (default: the current directory). For more recipes
   <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
   `--allow-build` needs `build`; `--content-type` needs `content-type`.
 - **Prepare the licence database before the first `loom` run** of a session
-  that reads licences (project, wheel, sdist, model, Git URL): run
+  that reads licences (project, wheel, sdist, model, URL): run
   `licenseid update --source packaged` (ephemeral: `uvx --from
   "licenseid>=0.8.4,<0.9" licenseid update --source packaged`; one command
   per line in PowerShell). No network, skips when current, safe to repeat. Do
@@ -94,8 +94,8 @@ ID or `http(s)` Git URL (default: the current directory). For more recipes
 
 ## Run without installing anything persistent
 
-Prefer an ephemeral run so the user's environment is not polluted. Snippets
-are POSIX shell; on Windows use `python` or `py` for `python3` and PowerShell
+Prefer an ephemeral run, to leave the user's environment alone. Snippets are
+POSIX shell; on Windows use `python` or `py` for `python3` and PowerShell
 equivalents (PowerShell 5.1 has no `&&`: one command per line):
 
 ```bash
@@ -110,10 +110,10 @@ pip install "pitloom>=0.23.4"
 loom generate <target> -o sbom.spdx3.json
 ```
 
-These fetch the newest release matching the spec, not the user's installed
-`loom`. Where the version matters (a merge or re-run must reproduce a base
-SBOM's ids), pin the installed one: `"pitloom==X.Y.Z"`, the number `loom
---version` prints (`Pitloom X.Y.Z`).
+These fetch the newest matching release, not the user's installed `loom`.
+Where the version matters (a merge or re-run reproducing a base SBOM's ids),
+pin it: `"pitloom==X.Y.Z"` (`loom --version` prints `Pitloom
+X.Y.Z`).
 
 ## Smart entry point: `loom generate`
 
@@ -130,23 +130,31 @@ loom generate https://gitlab.com/group/project -o sbom.spdx3.json  # Git URL
 ```
 
 For CI/CD and sandboxed runners, use the explicit subcommands `loom
-project|wheel|model|env|merge`; when you need the exact commands, read
+project|wheel|model|env|merge`; for the exact commands, read
 `references/examples.md`.
 
 ### A Git URL
 
 `loom project <url>` / `loom generate <url> -o FILE` take an `http(s)` Git
-URL: the repository's clone URL (recommend this one), or a page naming a
-branch/tag/commit and a folder when only that is wanted. The repository is
-untrusted (its `[tool.pitloom]` is ignored, **`--allow-build` has no
-effect**), `ssh://`/`git@host:path`/`file://` are refused; read the `INFO:`
-lines for each redirect and the branch and folder used. A monorepo with no
-project at the root fails naming the projects below it: ask which one
-(non-interactively, report the list). A Git URL may name an AI model file or
-folder (0.23.4+): `loom generate`/`loom model <url>` writes its SBOM; several
-models: ask which file (non-interactively, report the list); formats listed
-unread, in a model or project (`[reader-unsafe/remote]`): relay, never clone.
-To explain a refusal, redirect or model rule, read `references/git-url.md`.
+URL: the clone URL (best), or a page naming a branch/tag/commit
+and a folder. The repository is untrusted (its `[tool.pitloom]` is ignored,
+**`--allow-build` has no effect**); `ssh://`, `git@host:path` and `file://`
+are refused. A monorepo with no project at the root fails naming the projects
+below it: ask which (non-interactively, report the list). A model file or
+folder URL gives a model SBOM; formats listed unread (`[reader-unsafe/remote]`):
+relay, never clone. For a refusal, redirect or model rule, read
+`references/git-url.md`.
+
+### A PyPI URL (0.24.0 and later)
+
+`loom wheel <url>` / `loom generate <url> -o FILE` take
+`https://pypi.org/project/<name>/[<version>/]` and read the wheel that fits the
+running Python and platform (Analyzed SBOM; another platform can give another
+SBOM); `loom project <url>` reads the sdist (Source SBOM). **Run it only with
+`uvx --from "pitloom>=0.24.0"` or when `loom --version` is 0.24.0 or later**:
+older versions clone it as Git: on one, do not run it; report.
+For a refusal, a pick, an over-cap file, the provenance record or a follow-up
+(enrich, validate), read `references/pypi-url.md`.
 
 ## Lock files
 
@@ -174,10 +182,10 @@ else the config's, else `loom-id-registry.json` in the project root. A
 rejected version 3 or 2 file: ask before deleting it (its pins are lost;
 non-interactive: stop and report the `ERROR:`).
 
-**Before generating:** a declared registry is used: tell the user which file,
-and that a `project`/`wheel`/`env`/`generate` run may add new ids to it
-(`--no-update-id-registry` stops that). None declared and ids must stay
-stable: ask, or, non-interactively, use none and report how to pin. Read
+**Before generating:** a declared registry is used: name the file, and say a
+run may add new ids to it (`--no-update-id-registry` stops that). None
+declared and ids must stay stable: ask (non-interactively, use none and
+report how to pin). Read
 `references/id-registry.md` before creating a registry, using the `loom.run`
 SDK, or reporting a registry line as a problem.
 
@@ -192,9 +200,8 @@ loom embed-wheel dist/*.whl --project-dir .
 ```
 
 `--project-dir` makes `embed-wheel` rescan the source project (never inferred
-from the current directory): pass it whenever the user has a project
-directory; omit it only for a standalone wheel. The `.whl` is changed in
-place. For `--sbom FILE`, `wheel --embed`, `--output`, `--sbom-basename`,
+from the current directory): pass it whenever the user has one; omit it only
+for a standalone wheel. The `.whl` is changed in place. For `--sbom FILE`, `wheel --embed`, `--output`, `--sbom-basename`,
 `--allow-build` or `--verify --validate` (a pass adds no line; a failure
 prints `ERROR:` and exits 1 after the rewrite), read
 `references/embed-wheel.md`. Checking an embedded wheel later: `sbom-validate`.
@@ -204,15 +211,14 @@ once `RECORD` is rewritten, so Pitloom refuses the wheel (`ERROR:`, exit 1,
 untouched). Check first: `unzip -l <wheel> | grep 'RECORD\.'` (no output and
 exit 1 means no signature). If found, **before** embedding read
 `references/known-limitations.md` ("Signed wheels: what to tell the user"),
-explain it in terms of their wheel, and ask before adding
-`--allow-signed-wheel` (never unasked; non-interactive: don't add it, report
-the refusal and the command to re-run). No signature file: embed without
-asking.
+explain it for their wheel, and ask before adding `--allow-signed-wheel`
+(non-interactive: don't; report the refusal and the command to re-run). No
+signature file: embed without asking.
 
-A non-ZIP or unreadable wheel is refused with one `ERROR:` (exit 1, nothing
-written); a missing `METADATA` only warns (`identity unknown`). If either
-line appears, report it and read `references/known-limitations.md` ("Refused
-wheels and unknown identity").
+A non-ZIP or unreadable wheel is refused (`ERROR:`, nothing written); a
+missing `METADATA` only warns (`identity unknown`). If either line appears,
+report it and read `references/known-limitations.md` ("Refused wheels and
+unknown identity").
 
 ## Flags: what to add, what to leave out
 
@@ -233,34 +239,32 @@ for one, or a `WARNING: Options:` line names one, read
 
 ## Combine with enrichment or a named standard
 
-A request may ask for generation plus more; plain "generate an SBOM" just
-runs the base command.
+Plain "generate an SBOM" just runs the base command; a request may ask for more.
 
 - **Light** ("...and enrich it", "with enrichment"): `loom generate <target>
   --enrich -o sbom.spdx3.json` (Pitloom's own local pass: no prose, no
   network).
 - **Strong** ("complete", "full SBOM", "as much detail as possible"):
-  generate with `--enrich`, then invoke `sbom-enrich` on the result for the
+  generate with `--enrich`, then run `sbom-enrich` on the result for the
   agentic pass (README/model-card prose, inferred licences and datasets;
-  costs more, outside sources consent-gated). Not for a bare "generate an
-  SBOM".
+  costs more, outside sources consent-gated).
 - **Named standard** (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM for AI 2026,
   BSI TR-03183-2; "meets NTIA requirements", "with CISA 2026 minimum
   elements"): generate with `--enrich`, then run `sbom-enrich`'s "Complete a
   standard's minimum elements" on the result.
 
 `--enrich` applies only to a project directory or local model file; for any
-other target skip it and go straight to the `sbom-enrich` hand-off.
-Registered fragments merge only into a project-directory SBOM, so for any
+other target (a Git or PyPI URL included) skip it and go to the `sbom-enrich`
+hand-off. Fragments merge only into a project-directory SBOM, so for any
 other target the hand-off ends with an unmerged fragment (`sbom-enrich`,
 "Where a fragment can be merged").
 
 ## Validate the result
 
-Run the `sbom-validate` skill on the output: a schema/SHACL check catches a
-missing required property or a wrong relationship type. The `@graph` check in
-`references/examples.md` is only a fallback when `pitloom[validate]` cannot be
-installed; it is not a substitute.
+Run `sbom-validate` on the output: a schema/SHACL check catches a missing
+required property or a wrong relationship type. The `@graph` check in
+`references/examples.md` is a fallback only when `pitloom[validate]` cannot be
+installed.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
@@ -281,8 +285,7 @@ expected), `references/id-registry.md`. When a line ends in a `[code]`
 (`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
 means and what to tell the user; relay its advice, never run the fix. A
 `[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
-read is left out: never change permissions or ownership, or move files,
-yourself.
+read is left out: never change permissions, ownership or files yourself.
 
 ## Known limitations -- say so, don't paper over it
 
@@ -313,16 +316,16 @@ but isn't. For the wording and bounds of any case, read
   header contradicts its suffix is no model (`[model-wrong-format]`, no
   `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse it (`ERROR:`,
   exit 1).
-- **Model producer, parameter count** exist for some formats only (absence is
-  no failure); **a name ending `...~<hex>`, missing labels or `\u202e` in
+- **Model producer, parameter count** exist for some formats only (no failure
+  when absent); **a name ending `...~<hex>`, missing labels or `\u202e` in
   text** are Pitloom's caps and escapes (one `WARNING: FORMAT=<fmt>
   FILE=<path>:` each; the original is in the model file).
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`, `maturin`,
-  `scikit-build-core`, `meson-python`) falls back to a heuristic with a
-  `WARNING:` that the file list can be incomplete. Say so upfront.
-  `--allow-build` closes the gap but is subject to the hard rule.
+  `scikit-build-core`, `meson-python`) gets a heuristic and a `WARNING:` that
+  the file list can be incomplete: say so upfront. `--allow-build` closes the
+  gap but is subject to the hard rule.
 
 ### Choosing `--build-timeout`
 

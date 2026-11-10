@@ -17,22 +17,20 @@ description), the topic-grouped hf_patches/_hf_patches_*.py submodules for the
 shared mock-HF-API helpers used by the higher-level tests.
 """
 
-# Fake huggingface_hub objects expose only the attributes the code reads.
-# pylint: disable=too-few-public-methods
-
 from __future__ import annotations
 
 import json
 import logging
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import create_autospec, patch
 
 import pytest
-from huggingface_hub import ModelCard
 from huggingface_hub.hf_api import ModelInfo
 
+from pitloom.enrich.readme import MODEL_CARD_CAP
 from pitloom.extract.remote._card_description import card_description
+from pitloom.extract.remote._hub_files import HUB_JSON_CAP, FileKind, HubFiles
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
     _list_license_files_in_repo,
@@ -44,23 +42,13 @@ from pitloom.extract.remote.huggingface_fetch import (
 _LOGGER_NAME = "pitloom.extract.remote.huggingface_fetch"
 
 
-class _FakeCardData:
-    """Minimal stand-in for huggingface_hub.ModelCardData."""
-
-    def __init__(self, data: dict[str, Any] | None) -> None:
-        self._data = data
-
-    def to_dict(self) -> dict[str, Any]:
-        return self._data or {}
-
-
-class _FakeCard:
-    """Minimal stand-in for huggingface_hub.ModelCard."""
-
-    def __init__(self, text: str | None, data: _FakeCardData | None) -> None:
-        self.text = text
-        self.content = text  # the whole card, as ``ModelCard.content`` is
-        self.data = data
+def _hub(path: Path | None = None) -> Any:
+    """A :class:`HubFiles` whose every read gives *path* (``None``: the
+    repository does not hold the file)."""
+    hub = create_autospec(HubFiles, instance=True)
+    hub.asks_hub = True
+    hub.read.return_value = path
+    return hub
 
 
 def _model_info(**api_json: Any) -> ModelInfo:
@@ -86,9 +74,15 @@ def test_safe_load_json_with_pinned_revision_succeeds_without_warning(
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps({"model_type": "mistral"}), encoding="utf-8")
 
-    with patch("huggingface_hub.hf_hub_download", return_value=str(config_file)):
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = _safe_load_json("org/model", "config.json", revision="deadbeef")
+    hub = _hub(config_file)
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        result = _safe_load_json(hub, "org/model", "config.json", revision="deadbeef")
+    hub.read.assert_called_once_with(
+        "org/model",
+        "config.json",
+        revision="deadbeef",
+        kind=FileKind(HUB_JSON_CAP, "config.json not read"),
+    )
 
     assert result == {"model_type": "mistral"}
     assert not any("pinned revision" in r.message for r in caplog.records)
@@ -102,9 +96,8 @@ def test_safe_load_json_without_revision_warns_and_succeeds(
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps({"a": 1}), encoding="utf-8")
 
-    with patch("huggingface_hub.hf_hub_download", return_value=str(config_file)):
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = _safe_load_json("org/model", "config.json")
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        result = _safe_load_json(_hub(config_file), "org/model", "config.json")
 
     assert result == {"a": 1}
     assert any("pinned revision" in r.message for r in caplog.records)
@@ -115,32 +108,71 @@ def test_safe_load_json_without_revision_warns_and_succeeds(
 # ---------------------------------------------------------------------------
 
 
-def test_load_model_card_success_with_data() -> None:
-    fake_card = _FakeCard("Model card body.", _FakeCardData({"license": "mit"}))
-    with patch("huggingface_hub.ModelCard.load", return_value=fake_card):
-        text, data = _load_model_card("org/model")
-    assert text == "Model card body."
-    assert data == {"license": "mit"}
+def _card(tmp_path: Path, text: bytes) -> tuple[str | None, dict[str, Any]]:
+    """:func:`_load_model_card` of a downloaded card holding *text*."""
+    card = tmp_path / "README.md"
+    card.write_bytes(text)
+    hub = _hub(card)
+    got = _load_model_card(hub, "org/model", "1")
+    hub.read.assert_called_once_with(
+        "org/model",
+        "README.md",
+        revision="1",
+        kind=FileKind(MODEL_CARD_CAP, "model card not read"),
+    )
+    return got
 
 
-def test_load_model_card_returns_the_whole_card_so_a_description_is_found() -> None:
-    """The card body alone (``ModelCard.text``) has no front matter; the
-    description helper still finds a description."""
-    real = ModelCard("---\nlicense: mit\n---\n\n# Title\n\nA small test model.\n")
-    with patch("huggingface_hub.ModelCard.load", return_value=real):
-        text, data = _load_model_card("org/model")
-    assert text is not None and text.startswith("---")
+def test_load_model_card_returns_the_whole_card_so_a_description_is_found(
+    tmp_path: Path,
+) -> None:
+    """The whole card, front matter included, as the file holds it (a BOM
+    dropped); the description helper still finds a description."""
+    raw = b"\xef\xbb\xbf---\nlicense: mit\n---\n\n# Title\n\nA small test model.\n"
+    text, data = _card(tmp_path, raw)
+    assert text is not None and text == raw[3:].decode()
     assert data == {"license": "mit"}
     assert card_description(text) == "A small test model."
 
 
-def test_load_model_card_success_falsy_data_and_text() -> None:
-    # card.data is None and card.text is empty -> data becomes {}, text None.
-    fake_card = _FakeCard("", None)
-    with patch("huggingface_hub.ModelCard.load", return_value=fake_card):
-        text, data = _load_model_card("org/model")
-    assert text is None
-    assert data == {}
+@pytest.mark.parametrize(
+    ("raw", "data"),
+    [
+        (b"", {}),
+        (b"# Card\n", {}),
+        (b"---\n- a list\n---\nx\n", {}),
+        (b"---\ntags: one\n---\n", {"tags": ["one"]}),
+        (b"---\ntags: [a, b, a, 3, 3]\n---\n", {"tags": ["a", "b", 3]}),
+        (b"---\ntags: {a: 1}\n---\n", {"tags": {"a": 1}}),
+        # As the file states it: ``huggingface_hub``'s card data rebuilt the
+        # model-index (and refused the whole card for a malformed one).
+        (b"---\nmodel-index: [{x: 1}]\n---\n", {"model-index": [{"x": 1}]}),
+    ],
+    ids=["empty", "no-frontmatter", "no-mapping", "tag", "tags", "odd-tags", "index"],
+)
+def test_a_model_card_s_frontmatter_is_as_the_file_states_it(
+    tmp_path: Path, raw: bytes, data: dict[str, Any]
+) -> None:
+    text, got = _card(tmp_path, raw)
+    assert got == data
+    assert text == (raw.decode() or None)
+
+
+def test_a_model_card_with_malformed_yaml_keeps_its_text(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """One ``card-malformed`` ``WARNING:`` naming the model; the card's text
+    (and so its description) is kept."""
+    text, data = _card(tmp_path, b"---\nlicense: [\n---\n\nA model.\n")
+    assert not data and text is not None and card_description(text) == "A model."
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert record.getMessage().startswith(
+        "FILE=org/model: model card frontmatter is not valid YAML; "
+    )
+
+
+def test_a_model_card_absent_or_not_fetched_is_empty() -> None:
+    assert _load_model_card(_hub(None), "org/model") == (None, {})
 
 
 # ---------------------------------------------------------------------------
@@ -268,15 +300,14 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
         "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
         return_value=["LICENSE"],
     ):
-        with patch("huggingface_hub.hf_hub_download", return_value=str(license_file)):
-            with patch(
-                "pitloom.extract._license_text_match.detect_license_from_text",
-                return_value="MIT",
-            ):
-                with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                    detected_id, provenance = _detect_license_from_hf_files(
-                        "org/model", revision="deadbeef"
-                    )
+        with patch(
+            "pitloom.extract._license_text_match.detect_license_from_text",
+            return_value="MIT",
+        ):
+            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+                detected_id, provenance = _detect_license_from_hf_files(
+                    _hub(license_file), "org/model", revision="deadbeef"
+                )
 
     assert detected_id == "MIT"
     assert provenance == (
@@ -299,42 +330,53 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
         "pitloom.extract.remote.huggingface_fetch._list_license_files_in_repo",
         return_value=["LICENSE", "COPYING"],
     ):
-        with patch("huggingface_hub.hf_hub_download", return_value=str(license_file)):
-            with patch(
-                "pitloom.extract._license_text_match.detect_license_from_text",
-                return_value=None,
-            ):
-                detected_id, provenance = _detect_license_from_hf_files("org/model")
+        with patch(
+            "pitloom.extract._license_text_match.detect_license_from_text",
+            return_value=None,
+        ):
+            hub = _hub(license_file)
+            detected_id, provenance = _detect_license_from_hf_files(hub, "org/model")
+        assert hub.read.call_count == 2
 
     assert detected_id is None
     assert provenance is None
 
 
-def test_safe_load_json_download_failure_logs_and_returns_none(
+@pytest.mark.parametrize(
+    ("content", "said"),
+    [(None, False), (b"{not json", True), (b"[1, 2]", False)],
+    ids=["absent", "not-json", "not-an-object"],
+)
+def test_safe_load_json_without_an_object_returns_none(
+    tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
+    content: bytes | None,
+    said: bool,
 ) -> None:
-    with patch("huggingface_hub.hf_hub_download", side_effect=OSError("network down")):
-        with caplog.at_level(
-            logging.DEBUG, logger="pitloom.extract.remote.huggingface_fetch"
-        ):
-            result = _safe_load_json("org/model", "config.json")
+    """No file (the download warned, or the repository holds none), a file
+    that is not JSON (said at ``DEBUG``) or JSON that is no object: ``None``,
+    and no ``WARNING:`` of its own."""
+    path = None
+    if content is not None:
+        path = tmp_path / "config.json"
+        path.write_bytes(content)
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
+        result = _safe_load_json(_hub(path), "org/model", "config.json", "1")
     assert result is None
-    assert any("config.json" in r.message for r in caplog.records)
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("config.json" in r.getMessage() for r in caplog.records) is said
 
 
 def test_load_model_card_failure_logs_and_returns_empty(
-    caplog: pytest.LogCaptureFixture,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with patch(
-        "huggingface_hub.ModelCard.load", side_effect=OSError("card fetch failed")
-    ):
-        with caplog.at_level(
-            logging.DEBUG, logger="pitloom.extract.remote.huggingface_fetch"
-        ):
-            text, data = _load_model_card("org/model")
-    assert text is None
-    assert data == {}
-    assert any("org/model" in r.message for r in caplog.records)
+    """A card that cannot be read (a directory here): one ``WARNING:``
+    naming the model, not the temporary path."""
+    text, data = _load_model_card(_hub(tmp_path), "org/model")
+    assert (text, data) == (None, {})
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert "FILE=org/model" in record.getMessage()
+    assert str(tmp_path) not in record.getMessage()
 
 
 def test_load_model_info_failure_logs_and_returns_empty(
@@ -359,15 +401,20 @@ _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
 @pytest.mark.parametrize(
     ("patched", "call"),
     [
-        ("huggingface_hub.ModelCard.load", lambda: _load_model_card("o/m")),
+        (
+            "pitloom.extract.remote.huggingface_fetch.read_card",
+            lambda: _load_model_card(_hub(Path("README.md")), "o/m"),
+        ),
         ("huggingface_hub.model_info", lambda: _load_model_info("o/m")),
         ("huggingface_hub.list_repo_files", lambda: _list_license_files_in_repo("o/m")),
         (
-            "huggingface_hub.hf_hub_download",
-            lambda: _detect_license_from_hf_files("o/m", revision="1"),
+            "pathlib.Path.open",
+            lambda: _detect_license_from_hf_files(
+                _hub(Path("LICENSE")), "o/m", revision="1"
+            ),
         ),
     ],
-    ids=["model-card", "model-info", "list-files", "download"],
+    ids=["model-card", "model-info", "list-files", "license-file"],
 )
 def test_a_hub_error_is_logged_on_one_escaped_line(
     patched: str, call: Any, caplog: pytest.LogCaptureFixture

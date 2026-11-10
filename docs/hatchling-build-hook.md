@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,6 +95,13 @@ with an `ERROR: SBOM generation failed: <reason>` line (once, whatever the
 cause: an invalid setting, a missing `required = true` fragment, a malformed
 `SOURCE_DATE_EPOCH`), and a disabled hook logs `INFO: Pitloom build hook:
 disabled; skipping SBOM generation.`
+
+The hook writes its SBOM into a temporary staging directory, removed when
+the build finishes, and also when Hatchling never calls the hook's
+`finalize()` (`--hooks-only`, a failed build). A staging directory that
+cannot be fully removed (a file
+still held open on Windows, for example) is one `WARNING:` naming it, and the
+build still succeeds.
 
 The hook skips, with one `INFO:`, a build that is not a wheel (an sdist) and
 the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not

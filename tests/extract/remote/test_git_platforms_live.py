@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote._git_redirect import PROBE_FAILED_INFO
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -361,7 +362,11 @@ def test_a_platforms_url_is_fetched(
             # Only entering is retried, after a transient 5xx from the host;
             # a failed attempt has removed its own temporary directory.
             checkout = retry_on_transient_server_error(
-                lambda: stack.enter_context(fetch_git_project(url, max_bytes=_LIVE_CAP))
+                lambda: stack.enter_context(
+                    fetch_git_project(
+                        url, policy=RemoteFetchPolicy(max_bytes=_LIVE_CAP)
+                    )
+                )
             )
             assert checkout.ref == ref and checkout.subdir == folder
             assert (Path(checkout.folder) / expected).exists()

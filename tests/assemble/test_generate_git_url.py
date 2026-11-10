@@ -16,7 +16,7 @@ import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -31,6 +31,8 @@ from pitloom.assemble import (
 )
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
+from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
@@ -55,16 +57,14 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     def fetch(
         url: str,
         *,
-        check_url: object = None,
-        offline: bool | None = None,
-        max_bytes: int | None = None,
+        policy: RemoteFetchPolicy = RemoteFetchPolicy(),
         trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         seen.update(
             url=url,
-            check_url=check_url,
-            offline=offline,
-            max_bytes=max_bytes,
+            check_url=policy.check_url,
+            offline=policy.offline,
+            max_bytes=policy.max_bytes,
             trust_model_files=trust_model_files,
         )
         yield GitCheckout(
@@ -139,12 +139,43 @@ def test_generate_passes_the_address_check_and_offline_to_the_fetch(
     assert seen["check_url"] is check and seen["offline"] is False
 
 
-@pytest.mark.parametrize("given", [1234, None])
-def test_the_clone_size_cap_reaches_the_fetch(
-    seen: dict[str, object], given: int | None
+@pytest.mark.parametrize(
+    ("given", "configured", "expected"),
+    [
+        (None, None, DEFAULT_MAX_DOWNLOAD_BYTES),
+        (None, 1000, 1000),
+        (2000, 1000, 2000),
+        (2000, None, 2000),
+    ],
+    ids=["default", "config", "argument-beats-config", "argument"],
+)
+@pytest.mark.parametrize("call", [generate_git_project_sbom, generate])
+def test_the_download_cap_cascades_to_the_fetch(
+    seen: dict[str, object],
+    call: Callable[..., str],
+    given: int | None,
+    configured: int | None,
+    expected: int,
 ) -> None:
-    generate_git_project_sbom(_URL, max_clone_bytes=given)
-    assert seen["max_bytes"] == given
+    """``max_download_bytes`` > the explicit config's > 512 MiB, never
+    unlimited, on every library route to a Git URL."""
+    config = (
+        None if configured is None else PitloomConfig(max_download_bytes=configured)
+    )
+    call(_URL, max_download_bytes=given, pitloom_config=config)
+    assert seen["max_bytes"] == expected
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, 1.5], ids=repr)
+@pytest.mark.parametrize("call", [generate_git_project_sbom, generate])
+def test_an_invalid_download_cap_is_refused_before_the_fetch(
+    seen: dict[str, object], call: Callable[..., str], bad: object
+) -> None:
+    with pytest.raises(ValueError, match="max.download.bytes"):
+        call(_URL, max_download_bytes=bad)
+    with pytest.raises(ValueError, match="max.download.bytes"):
+        call(_URL, pitloom_config=PitloomConfig(max_download_bytes=cast(int, bad)))
+    assert "max_bytes" not in seen
 
 
 def test_an_option_a_remote_repository_cannot_use_warns_once(

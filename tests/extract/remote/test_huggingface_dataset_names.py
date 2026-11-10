@@ -32,6 +32,7 @@ from tests._unreadable import deny
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
+    fake_hub,
 )
 
 _SHA = "89abcdef0123456789abcdef0123456789abcdef"
@@ -142,11 +143,8 @@ def test_a_card_read_warning_names_the_dataset_not_the_cache_path(
     card.parent.mkdir()
     card.write_bytes(body)
     denied = deny(card, "open", monkeypatch) if said.endswith("denied") else None
-    with (
-        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
-        denied or contextlib.nullcontext(),
-    ):
-        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    with denied or contextlib.nullcontext():
+        assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (None, {})
     (message,) = _card_warnings(caplog)
     assert message == said
     assert str(tmp_path) not in message and "snapshots" not in message
@@ -158,39 +156,41 @@ def test_a_malformed_card_is_named_by_its_kind_and_dataset(
     """The card's text is kept, its frontmatter used for nothing."""
     card = tmp_path / "README.md"
     card.write_bytes(b"---\nlicense: [mit\n---\nText.\n")
-    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
-        assert _load_dataset_card("o/d", _SHA) == (
-            "---\nlicense: [mit\n---\nText.\n",
-            {},
-        )
+    assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (
+        "---\nlicense: [mit\n---\nText.\n",
+        {},
+    )
     (message,) = _card_warnings(caplog)
     said = "FILE=o/d: Hugging Face dataset card frontmatter is not valid YAML; "
     # The parser's own text ends the line.
     assert message.startswith(said) and str(tmp_path) not in message
 
 
-def test_a_card_gone_from_the_cache_is_absent_and_quiet(
+def test_a_card_gone_from_the_download_is_absent_and_quiet(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Absent data is quiet: no card is read, and nothing is said."""
     card = tmp_path / "snapshots" / "README.md"
-    with patch("huggingface_hub.hf_hub_download", return_value=str(card)):
-        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    assert _load_dataset_card(fake_hub(card), "o/d", _SHA) == (None, {})
     assert not _card_warnings(caplog)
 
 
-def test_a_download_failure_quoting_the_cache_path_is_given_by_reason() -> None:
-    caplog_error = PermissionError(13, "Permission denied", _CACHE)
-    with patch("huggingface_hub.hf_hub_download", side_effect=caplog_error):
-        with patch.object(hub_dataset.log, "warning") as warn:
-            assert _load_dataset_card("o/d", _SHA) == (None, {})
+def test_a_read_failure_quoting_the_temporary_path_is_given_by_reason() -> None:
+    error = PermissionError(13, "Permission denied", _CACHE)
+    with (
+        patch.object(hub_dataset, "read_card", side_effect=error),
+        patch.object(hub_dataset.log, "warning") as warn,
+    ):
+        assert _load_dataset_card(fake_hub(Path(_CACHE)), "o/d", _SHA) == (None, {})
     (call,) = warn.call_args_list
     assert call.args[1:] == ("o/d", "Permission denied")
     assert _CACHE not in str(call)
 
 
 def test_a_failure_without_a_path_keeps_its_message() -> None:
-    with patch("huggingface_hub.hf_hub_download", side_effect=OSError("503 for o/d")):
-        with patch.object(hub_dataset.log, "warning") as warn:
-            _load_dataset_card("o/d", _SHA)
-    assert warn.call_args.args[1:] == ("o/d", "503 for o/d")
+    with (
+        patch.object(hub_dataset, "read_card", side_effect=OSError("odd for o/d")),
+        patch.object(hub_dataset.log, "warning") as warn,
+    ):
+        _load_dataset_card(fake_hub(Path("README.md")), "o/d", _SHA)
+    assert warn.call_args.args[1:] == ("o/d", "odd for o/d")

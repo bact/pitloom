@@ -15,11 +15,11 @@ Invariant: one confirmed model file (its header agrees with a model format)
 gives exactly one entry, whatever its read outcome. A read that fails (a
 parse error, a bound, a missing library, a gate) keeps a format-only
 entry and one catalogued line saying why (``model-unreadable``,
-``library-missing``, ``over-cap``; a gate's ``reader-unsafe``, of a wheel or
-a Git URL's clone, is one ``INFO:`` per scan); it is never dropped, so the
-entry set does not depend on the order of the files, the budget or the
-installed libraries. A file that is not a confirmed model gives no entry
-(:class:`~pitloom.extract.ai_model.NotAModel`).
+``library-missing``, ``over-cap``; a gate's ``reader-unsafe``, of a wheel,
+a Git URL's clone or a wheel downloaded from a PyPI URL, is one ``INFO:`` per
+scan); it is never dropped, so the entry set does not depend on the order of
+the files, the budget or the installed libraries. A file that is not a
+confirmed model gives no entry (:class:`~pitloom.extract.ai_model.NotAModel`).
 
 See also: :mod:`pitloom.extract.scanner_project`,
 :mod:`pitloom.extract.scanner_wheel` and :mod:`pitloom.extract._scanner_messages`.
@@ -129,20 +129,27 @@ class ReaderGate:
             producer makes it claim a once-per-run slot for the format.
         met: The gated formats met so far.
         message: The ``reader-unsafe`` entry :meth:`report` says: a
-            wheel's (the default) or a Git URL's (``reader-unsafe/remote``).
+            wheel's (the default) or a download's (``reader-unsafe/remote``).
+        file: The downloaded wheel its line names, which picks the PyPI
+            URL's line of ``reader-unsafe/remote``; ``None`` for the others.
     """
 
     formats: frozenset[AiModelFormat]
     announce: Callable[[AiModelFormat], bool]
     met: set[AiModelFormat] = field(default_factory=set)
     message: Message = READER_UNSAFE
+    file: str | None = None
 
     def report(self) -> None:
         """Log one :attr:`message` line naming the gated formats met
         (sorted) that *announce* allows; nothing when it allows none."""
         named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
-        if named:
+        if not named:
+            return
+        if self.file is None:
             emit(log, self.message, logging.INFO, formats=named)
+        else:
+            emit(log, self.message, logging.INFO, file=self.file, formats=named)
 
 
 @dataclass(frozen=True)

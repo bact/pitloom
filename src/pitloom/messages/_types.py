@@ -19,8 +19,8 @@ from types import MappingProxyType
 from typing import Final
 
 from pitloom.logging_config import CODE_LIKE_END, CODE_PATTERN
-from pitloom.messages._fields import (
-    FIELDS,
+from pitloom.messages._fields import FIELDS
+from pitloom.messages._templates import (
     PLACEHOLDER,
     render,
     shown,

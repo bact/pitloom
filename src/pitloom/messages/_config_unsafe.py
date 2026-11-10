@@ -4,12 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``config-unsafe``: the ``[tool.pitloom]`` settings of a project fetched
-from a Git URL, which Pitloom does not apply: the repository is untrusted;
+from a Git URL, or of an sdist downloaded from a PyPI URL, which Pitloom does
+not apply: the project is untrusted;
 ``config-unsafe/build-code``: the settings of its build configuration that
 would have a file discovery run the repository's own code.
 
 See also: :func:`pitloom.assemble.generate_git_project_sbom` and
 :mod:`pitloom.cli.commands._remote` (the two routes that say the first),
+:mod:`pitloom.assemble._generators_pypi` (its PyPI line),
 :func:`pitloom.core._models_wheel_clone.warn_build_code_ignored` (the second).
 """
 
@@ -26,14 +28,22 @@ CONFIG_UNSAFE_REMOTE_LINE: Final = Line(
     "ignored (untrusted); --config or pitloom_config= applies",
 )
 
+#: The same for an sdist downloaded from a PyPI URL, named by its file (so
+#: a call naming no file says the Git line).
+CONFIG_UNSAFE_PYPI_LINE: Final = Line(
+    level="INFO",
+    template="FILE=%(file)s: the downloaded sdist's own [tool.pitloom] settings "
+    "are ignored (untrusted); --config or pitloom_config= applies",
+)
+
 CONFIG_UNSAFE: Final = Message(
     code="config-unsafe",
     condition="unsafe",
-    lines=(CONFIG_UNSAFE_REMOTE_LINE,),
+    lines=(CONFIG_UNSAFE_REMOTE_LINE, CONFIG_UNSAFE_PYPI_LINE),
     summary="The [tool.pitloom] settings of a project fetched from a Git URL, "
-    "if it has any, are not applied: they could point Pitloom at files, a "
-    "registry or the network as the repository chooses, and the repository "
-    "is untrusted.",
+    "or of an sdist downloaded from a PyPI URL, if it has any, are not "
+    "applied: they could point Pitloom at files, a registry or the network "
+    "as the project chooses, and the project is untrusted.",
     did="Did not apply them: the run uses Pitloom's defaults, or the settings "
     "of --config (pitloom_config= in the library) when given, which also "
     "silences this line.",

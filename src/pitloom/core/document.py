@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from pitloom.core.acquisition import Acquisition
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.project import FilesOrigin, PhantomDependency, ProjectMetadata
@@ -47,6 +48,9 @@ class DocumentModel:
             (:func:`~pitloom.core.models.archive_base_name`).
         files_origin: How the file list was produced (see
             :class:`~pitloom.core.project.FilesOrigin`).
+        acquisition: How the archive described was downloaded (see
+            :class:`~pitloom.core.acquisition.Acquisition`); ``None`` for a
+            local target.
     """
 
     project: ProjectMetadata
@@ -56,3 +60,4 @@ class DocumentModel:
     identity_known: bool = True
     identity_seed: str | None = None
     files_origin: FilesOrigin = FilesOrigin()
+    acquisition: Acquisition | None = None

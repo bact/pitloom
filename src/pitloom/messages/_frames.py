@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from pitloom.messages._fields import render, shown, template_names
+from pitloom.messages._templates import render, shown, template_names
 from pitloom.messages._types import LEVELS, template_problem
 
 

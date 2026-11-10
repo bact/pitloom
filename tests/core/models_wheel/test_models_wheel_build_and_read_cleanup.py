@@ -401,11 +401,14 @@ def test_build_and_read_wheel_signal_during_extraction_acts_at_once(
             ), path
     else:
         assert left_at_raise == [[]]
+    calls = [Path(c.args[0]) for c in rmtree.call_args_list]
+    if sys.platform == "win32":
+        # A directory still held open gets a second rmtree after being
+        # made writable (temp_dirs.rmtree_quietly): one removal of it,
+        # two calls. Each directory is still removed, by its own path.
+        calls = list(dict.fromkeys(calls))
     removed = sorted(
-        p
-        for c in rmtree.call_args_list
-        for p in TEMP_PREFIXES
-        if Path(c.args[0]).name.startswith(p)
+        p for path in calls for p in TEMP_PREFIXES if path.name.startswith(p)
     )
     assert removed == sorted(TEMP_PREFIXES)
     assert "Build: received SIGTERM after the build" in caplog.text
