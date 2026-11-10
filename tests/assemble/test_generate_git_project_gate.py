@@ -70,6 +70,7 @@ def _project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         check_url: object = None,
         offline: bool | None = None,
         max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
         del check_url, offline, max_bytes  # the fetch's own; not this test's
         yield GitCheckout(
@@ -79,6 +80,7 @@ def _project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             commit="c",
             subdir="proj",
             whole_repository=False,
+            trust_model_files=trust_model_files,
         )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
@@ -142,7 +144,7 @@ def test_a_gated_reader_never_runs_on_a_git_urls_project(
         f for f in FORMATS if f not in WHEEL_GATED_FORMATS and has_reader_library(f)
     ]
     (note,) = remote_gate_infos(caplog)  # five gated models, one line
-    assert f": {', '.join(_GATED_NAMES)}; " in note
+    assert f": {', '.join(_GATED_NAMES)}; pass --trust-model-files " in note
     assert set(remote) == set(local) == {fixture_path(f).name for f in FORMATS}
     for fmt in FORMATS:
         name = fixture_path(fmt).name
@@ -154,6 +156,43 @@ def test_a_gated_reader_never_runs_on_a_git_urls_project(
                 assert "Field:" in json.dumps(local[name]), fmt
         else:
             assert remote[name] == local[name], fmt
+
+
+@pytest.mark.parametrize("route", list(_ROUTES), ids=list(_ROUTES))
+def test_trust_model_files_runs_every_reader_on_a_git_urls_project(
+    route: str,
+    project: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the option the project is read as the same project read locally:
+    every reader with its library runs, nothing says ``reader-unsafe/remote``,
+    and the models equal the local read's. Not setting it, or ``False``, keeps
+    the gate."""
+    trusted_routes: dict[str, Callable[..., str]] = {
+        "git-sbom": lambda **kw: generate_git_sbom(
+            _URL, sbom_kind="project", creation_metadata=_FIXED, **kw
+        ),
+        "git-project": lambda **kw: generate_git_project_sbom(
+            _URL, creation_metadata=_FIXED, **kw
+        ),
+        "generate": lambda **kw: generate(_URL, creation_metadata=_FIXED, **kw),
+    }
+    local = _models_by_file(_local(project))
+    read = spy_readers(monkeypatch)
+    with caplog.at_level(logging.INFO):
+        trusted = _models_by_file(trusted_routes[route](trust_model_files=True))
+    assert sorted(fmt for fmt, _ in read) == [
+        f for f in FORMATS if has_reader_library(f)
+    ]
+    assert not remote_gate_infos(caplog)
+    assert trusted == local
+    read.clear()
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        trusted_routes[route](trust_model_files=False)
+    assert not {fmt for fmt, _ in read} & WHEEL_GATED_FORMATS
+    assert len(remote_gate_infos(caplog)) == 1
 
 
 def test_a_local_project_reads_every_format(

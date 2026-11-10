@@ -91,8 +91,8 @@ and ends in its code, which `messages.md` explains (what it means, what
 Pitloom did, what to tell the user):
 
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
-  in these formats are listed without metadata ...: onnx. Pass
-  --trust-wheel-model ...` per scan; `[reader-unsafe/remote]` for a model or
+  in these formats are listed without metadata ...: onnx; pass
+  --trust-model-files ...` per scan; `[reader-unsafe/remote]` for a model or
   project from a Git URL, one per SBOM), `[library-missing]`,
   `[model-unreadable]` or `[over-cap]` (`... max-model-extract-bytes cap;
   metadata not read` is the 512 MiB ceiling of a wheel scan, `WARNING: ...
@@ -106,7 +106,7 @@ Pitloom did, what to tell the user):
   reads or downloads the content.
 
 You explain and relay the advice; you never run the fix, install an extra,
-add `--trust-wheel-model` or raise a cap.
+add `--trust-model-files` or raise a cap.
 
 A model whose read fails is a stub, never dropped, with the same `WARNING:`
 from a scan and from `loom model FILE` (exit 0). Beyond that:
@@ -164,8 +164,8 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   its producer); neither value is read from PyTorch classic, Keras, HDF5,
   NumPy, fastText and CRFsuite; a Safetensors file
   with no `modelspec.author` has no producer; a Safetensors shard counts its
-  own file only. In a wheel, a GGUF or ONNX model gets neither without
-  `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
+  own file only. In a wheel or a Git URL's repository, a GGUF or ONNX
+  model gets neither without `--trust-model-files` (the gate leaves it a stub); PT2 and Safetensors are
   read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
   hostile or malformed shape, or a count over 10^15, gives no count
   (`... parameter count not recorded`, `[parameter-count-invalid]` or
@@ -232,7 +232,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   further line, except one over the ceiling or missing its library, which
   adds its own.
 - The same input gives the same SBOM for the same settings;
-  `--trust-wheel-model`, `--max-model-extract-bytes`, `--scan-model-usage`,
+  `--trust-model-files`, `--max-model-extract-bytes`, `--scan-model-usage`,
   `--allow-build` and (for `loom.Run` and `loom id generate` with `-e`)
   `max-dataset-hash-bytes` each change
   what is recorded, so do not compare SBOMs made with different ones. The

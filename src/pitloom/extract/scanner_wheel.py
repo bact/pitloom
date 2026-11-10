@@ -55,7 +55,7 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import READER_UNSAFE, Cap, Message, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -73,13 +73,14 @@ class MemberReadError(OSError):
 
 
 #: Formats whose reader is not run on a wheel's files unless the caller
-#: trusts the wheel (``--trust-wheel-model``): a native parser (fastText,
+#: trusts the model files (``--trust-model-files``): a native parser (fastText,
 #: HDF5, ONNX), a pickle parser (PyTorch ``.pt``/``.pth``, through
 #: fickling) or a per-element Python loop (GGUF) that a hostile file can
 #: crash, hang or exhaust memory in. Add a
 #: format here to gate it; nothing else changes. A project scan is gated
 #: in a Git URL's temporary clone only
-#: (:func:`pitloom.extract.scanner_project.remote_reader_gate`).
+#: (:func:`pitloom.extract.scanner_project.remote_reader_gate`), by the same
+#: :func:`reader_gate`.
 WHEEL_GATED_FORMATS = frozenset(
     {
         AiModelFormat.FASTTEXT,
@@ -89,6 +90,24 @@ WHEEL_GATED_FORMATS = frozenset(
         AiModelFormat.PYTORCH,
     }
 )
+
+
+def reader_gate(
+    *,
+    trusted: bool,
+    announce: Callable[[AiModelFormat], bool],
+    message: Message = READER_UNSAFE,
+) -> ReaderGate | None:
+    """The gate of the formats in :data:`WHEEL_GATED_FORMATS` for a wheel
+    scan and a Git URL's clone alike: ``None`` (every format read) when the
+    user vouches for the model files (*trusted*, ``--trust-model-files``),
+    else a :class:`~pitloom.extract.scanner.ReaderGate` saying *message*.
+    *announce* is the gate's own (see
+    :class:`~pitloom.extract.scanner.ReaderGate`)."""
+    if trusted:
+        return None
+    return ReaderGate(WHEEL_GATED_FORMATS, announce, message=message)
+
 
 #: The wheel's overall extraction budget, in multiples of the per-model ceiling.
 BUDGET_FACTOR = 4
@@ -329,7 +348,7 @@ def scan_wheel_for_ai_models(
         own = matching if len(matching) == 1 else ()
         members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)
-        gate = None if trust else ReaderGate(WHEEL_GATED_FORMATS, gate_hint)
+        gate = reader_gate(trusted=trust, announce=gate_hint)
         try:
             models = scan_ai_models(
                 _wheel_candidates(zf, members, scratch, gate),

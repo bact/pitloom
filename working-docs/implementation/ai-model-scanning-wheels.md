@@ -1,12 +1,16 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # AI model scanning: wheels and usage
+
+Note: the opt-in was `--trust-wheel-model` when built; it is now
+`--trust-model-files` and also lifts the Git URL gate
+([model-sbom-from-git.md](model-sbom-from-git.md), D1 revised 2026-11-10).
 
 See also: [ai-model-scanning.md](ai-model-scanning.md) (the scanner design
 and the map of these parts),
@@ -141,7 +145,7 @@ Hatchling hook scans its project directory, never a wheel.
   `--config`/`pitloom_config=` key, else the default; the Action input
   appends the flag. It follows `max-source-metadata-bytes` (one
   `ConfigOverrides` field, one `apply_overrides` line, an embed batch
-  validates once before its inert warning), but with `trust_wheel_model`'s
+  validates once before its inert warning), but with `trust_model_files`'s
   INERT rows: every non-wheel kind warns. `generate()` validates it before
   dispatching, so a bad value is an error on an inert target too; the project
   generator takes no such parameter, and its callers settle it with
@@ -181,7 +185,7 @@ Hatchling hook scans its project directory, never a wheel.
   leaving the lock held for good (3 of 3 runs of a reproducer hung there).
   Accepted cost: when that happens the logger or `sys.stderr` may stay as
   the interrupt found it; the process is ending on that interrupt.
-- **Unsafe readers are gated** (security; `--trust-wheel-model`). A reader that
+- **Unsafe readers are gated** (security; `--trust-model-files`). A reader that
   calls a native library in Pitloom's process is an unbounded CPU/memory (or
   crash) surface no byte ceiling covers, and a signal handler does not run under
   native code, so Ctrl-C cannot interrupt it: fastText (a hostile 308-byte
@@ -198,8 +202,8 @@ Hatchling hook scans its project directory, never a wheel.
   a per-batch slot named only the first wheel's formats). `WHEEL_GATED_FORMATS`
   (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
   `ReaderGate` on each `ModelCandidate`, so a project producer could use it.
-  `--trust-wheel-model` (`trust_wheel_model=`;
-  `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()`) lifts the gate:
+  `--trust-model-files` (`trust_model_files=`;
+  `ConfigOverrides.trust_model_files` for `embed_wheel_sbom()`) lifts the gate:
   a plain opt-in like `--allow-build`, `store_true` with a `None` default so the
   inert-option machinery can tell "not given" from "given", and no config key,
   since a config can live in the untrusted tree. Live on wheel, `wheel --embed`

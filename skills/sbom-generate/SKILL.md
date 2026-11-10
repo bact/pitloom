@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-09
+# Last-Modified: 2026-11-10
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -220,8 +220,8 @@ Never add these unless the request or the user calls for it:
 
 - `--allow-build` (hard rule above) and `--allow-signed-wheel` ("Signed
   wheels"): only with the user's agreement.
-- `--trust-wheel-model`: only when the user states the wheel is trusted (its
-  readers can crash, hang or exhaust memory on a hostile model file).
+- `--trust-model-files`: only when the user states the wheel or Git
+  repository is trusted (its readers can crash or hang on a hostile file).
 - `--scan-model-usage`: only when asked which code loads a model.
 - `--content-type`: only when the request implies wanting MIME data.
 - `--enrich`: only for a project directory or local model file (see below).
@@ -308,7 +308,7 @@ but isn't. For the wording and bounds of any case, read
   ends in the cause's code (`[reader-unsafe]`, `[library-missing]`,
   `[library-unusable]`, `[model-unreadable]`, `[over-cap]`); when
   one does, read `references/messages.md` and relay its advice to the user.
-  Never install an extra, raise a ceiling or add `--trust-wheel-model` on your
+  Never install an extra, raise a ceiling or add `--trust-model-files` on your
   own. A failed read leaves a stub with a `WARNING:` (exit 0); a file whose
   header contradicts its suffix is no model (`[model-wrong-format]`, no
   `ai_AIPackage`), and `loom model FILE`/`loom enrich` refuse it (`ERROR:`,

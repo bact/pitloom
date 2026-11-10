@@ -25,7 +25,11 @@ import pytest
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
+from pitloom.core.clone_mark import (
+    in_remote_clone,
+    remote_clone_root,
+    remote_clone_trusted,
+)
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote import fetch_git_project, git_url
@@ -130,6 +134,39 @@ def test_a_library_caller_reads_the_checkout_confined(
     codes = _codes(caplog)
     assert codes.count("file-unreadable/outside-repository") == 1
     assert codes.count("reader-unsafe/remote") == 1
+
+
+@pytest.mark.parametrize("nested", [False, True], ids=["fetch", "and-reading"])
+def test_trust_model_files_runs_the_readers_and_keeps_the_confinement(
+    hostile: tuple[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    nested: bool,
+) -> None:
+    """The caller vouches for the model files: the gated reader runs and no
+    ``reader-unsafe/remote`` is said, but the clone is still confined (a host
+    file the build configuration names is not read, nor hashed)."""
+    url, secret = hostile
+    read = spy_readers(monkeypatch)
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        with fetch_git_project(url, trust_model_files=True) as checkout:
+            assert checkout.trust_model_files and remote_clone_trusted()
+            if nested:  # the checkout's own mark carries the bit too
+                with checkout.reading():
+                    assert remote_clone_trusted()
+            text = generate_project_sbom(
+                Path(checkout.folder),
+                creation_metadata=_FIXED,
+                pitloom_config=PitloomConfig(),
+                extract_file_header=True,
+            )
+    assert not remote_clone_trusted() and not in_remote_clone()
+    assert hashlib.sha256(secret.read_bytes()).hexdigest() not in text
+    assert "HOSTSECRET" not in text
+    assert [fmt for fmt, _ in read] == [AiModelFormat.HDF5]
+    codes = _codes(caplog)
+    assert codes.count("file-unreadable/outside-repository") == 1
+    assert "reader-unsafe/remote" not in codes
 
 
 def test_the_mark_is_off_after_the_block_raises(hostile: tuple[str, Path]) -> None:

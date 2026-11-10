@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-24
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -203,7 +203,7 @@ Not covered, by design, until the metadata-only readers
   1.7 GB above baseline, a 15.7 MB one at 0.8 GB, the bound's worst case).
 - **Native readers.** libhdf5, protobuf (ONNX) and fastText are gated in a
   wheel, not bounded; a project scan runs them on the user's own tree.
-  Under `--trust-wheel-model` a hostile wheel can crash or hang them
+  Under `--trust-model-files` a hostile wheel can crash or hang them
   (measured: a 16 MiB ONNX of empty inputs peaked at 3 GB; of two 8 KiB
   HDF5 files mutated from a valid `.h5`, one segfaults and one never
   returns).

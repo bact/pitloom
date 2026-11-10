@@ -104,10 +104,11 @@ generate <url>`. Rules to state:
   SBOM): their readers (a C/C++ library, a pickle parser, GGUF's parsing
   loop) are not run on a download. Keras, Safetensors (its Rust library, on
   purpose), NumPy, CRFsuite and PT2 are read in full. Offer, never do
-  unasked, cloning the repository (with Git LFS) and running
-  `loom model <file>` on a file, or `loom project <dir>` on a project, the
-  user trusts: a local directory is not gated (non-interactively, report
-  only).
+  unasked, generating again with `--trust-model-files` for a repository the
+  user trusts (it lifts only this gate; the repository's own configuration is
+  still ignored). Cloning and running `loom model <file>` or `loom project
+  <dir>` on the copy reads them too but trusts the repository's configuration
+  as well (non-interactively, report only).
 - The output goes to `-o`, or for `loom model` to the current directory as
   `<file name>.spdx3.json`; never into the clone. No temporary path is in it.
 - A Hugging Face model address is read through the Hub (card and

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-09
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,7 +67,7 @@ URL.
 Build it only with all of the following:
 
 1. **An explicit opt-in flag** (CLI, library and Action alike; no
-   `[tool.pitloom]` key, as for `--trust-wheel-model`): a config file in a
+   `[tool.pitloom]` key, as for `--trust-model-files`): a config file in a
    repository must not be able to switch it on.
 2. **Pitloom's own client** (`urllib` through the existing URL helpers), not
    `huggingface_hub`'s file download.

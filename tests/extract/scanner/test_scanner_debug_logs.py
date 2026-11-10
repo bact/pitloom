@@ -53,7 +53,7 @@ def test_debug_scan_of_hostile_names_forges_no_line(
             "-o",
             str(tmp_path / "out.json"),
             "--scan-model-usage",
-            "--trust-wheel-model",
+            "--trust-model-files",
         ],
         monkeypatch,
     )
