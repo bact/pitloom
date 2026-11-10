@@ -6,14 +6,15 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: Windows-only CI findings (from PR #468)
+# Recurring bug patterns: Windows-only CI findings (from PRs #468 and #464)
 
 See also: [recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md)
 (the main platform, concurrency, test-harness and CI list, at its size
 limit), [recurring-bug-patterns.md](recurring-bug-patterns.md),
 [CLAUDE.md](../../CLAUDE.md) ("Recurring bug patterns" -- the short summary),
 [pypi-url-targets.md](pypi-url-targets.md) (the feature whose tests found
-these).
+the first), [recurring-bug-patterns-ci-matrix.md](recurring-bug-patterns-ci-matrix.md)
+(findings of dependency and interpreter versions).
 
 Findings that only the `windows-latest` leg of CI showed. Entries follow the
 format of the platform list; new Windows findings of the same kind go here
@@ -65,3 +66,19 @@ until this file is large enough to be merged back on a split of that list.
   the others, which keep the production value), and make that case's server
   slow by a wide margin (a drip far longer than the deadline). Surfaced by
   PR #468 (`tests/extract/remote/test_shared_fetch_codes.py`).
+- **`os.path.realpath` does not raise for a NUL on Windows, and `isabs` is
+  true for `"/a\0b"` there.** A guard that dropped an unreadable `sys.path`
+  entry by catching `ValueError`/`OSError` from `realpath` kept `"/a\0b"` on
+  Windows 3.11 (the test row passed on Linux, where `realpath` raises
+  `ValueError`). Check `"\0" in path` before `isabs` and `realpath`, and keep
+  the `except` for what is left (a link loop). The `except` then cannot be
+  reached on Linux: stub the module's `os` in one test to cover it, not the
+  shared stdlib. Surfaced by PR #464
+  (`tests/core/models_wheel/test_models_wheel_guard.py`).
+- **A deadline checked with a strict `>` against `time.monotonic()` is not
+  past after one call on a runner whose clock ticks in 15.6 ms steps.** A test
+  that set the cap to `0.0` and made one `time.sleep(0.001)` call expected the
+  stop at once; on Windows the clock had not moved, so nothing was raised
+  (`DID NOT RAISE`). Production (a 60 s cap) is unaffected. Give the test a
+  small cap (0.05 s) and poll in a loop bounded by a generous give-up time, so
+  it passes at any tick size. Surfaced by PR #464 (same file).
