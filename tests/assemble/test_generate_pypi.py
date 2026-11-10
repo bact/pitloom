@@ -37,6 +37,7 @@ from pitloom.assemble import (
     target_resolves_to_project,
 )
 from pitloom.core.config import PitloomConfig
+from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
 from pitloom.id_registry import IdRegistry
@@ -341,3 +342,14 @@ def test_the_download_variant_returns_the_sbom_and_what_was_read(
     )
     assert (sdist.metadata.name, sdist.metadata.version) == (NAME, VERSION)
     assert sdist.download.filename == SDIST_NAME
+
+
+@pytest.mark.parametrize("call", [generate_pypi_sbom, generate_pypi_sbom_with_download])
+def test_an_unknown_kind_is_a_programming_error(
+    fake: FakePypi, call: Callable[..., object]
+) -> None:
+    """Only a wheel or an sdist is fetched: any other kind raises before a
+    request, and the server is never asked."""
+    with pytest.raises(InternalError, match="kind must be"):
+        call(URL, kind="model", creation_metadata=CREATION)
+    assert not fake.seen

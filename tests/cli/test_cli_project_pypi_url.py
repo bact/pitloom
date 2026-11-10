@@ -12,6 +12,7 @@ refusals), tests/cli/_pypi_cli.py (the helpers).
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import json
 from collections.abc import Iterator
@@ -20,9 +21,10 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import PypiSbom, generate_pypi_sbom
-from pitloom.cli.commands._remote_pypi import _default_output
+from pitloom.cli.commands._remote_pypi import _default_output, run_pypi
 from pitloom.core import temp_dirs
 from pitloom.core.config import PitloomConfig
+from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.remote.pypi import SDIST, PypiDownload
 from tests._fake_pypi_server import FakePypi
@@ -143,3 +145,10 @@ def test_a_download_dir_left_behind_is_a_warning_not_a_failure(
     assert warnings[0].startswith(
         "WARNING: PyPI source: could not fully remove temporary directory "
     )
+
+
+def test_run_pypi_refuses_an_unknown_kind() -> None:
+    """The CLI route reads a wheel or an sdist only; any other kind is a
+    programming error, raised before the arguments are read."""
+    with pytest.raises(InternalError, match="kind must be"):
+        run_pypi(argparse.Namespace(), URL, "model")
