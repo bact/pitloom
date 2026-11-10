@@ -176,14 +176,9 @@ Steps:
    `spdxId` from the base SBOM, and restate a base element exactly (`spdxId`
    and `name`) to add to it: a stale id silently adds a second `ai_AIPackage`
    that still validates. A `hasDeclaredLicense`/`hasConcludedLicense`
-   relationship has a typed range: `from` a `software_SoftwareArtifact` (a
-   package, file or snippet, so an `ai_AIPackage` or `dataset_DatasetPackage`
-   too), `to` a `simplelicensing_AnyLicenseInfo` (a `LicenseExpression`, or an
-   `expandedlicensing_*` licence or individual), **never** a
-   `SimpleLicensingText` or any other element. Licence text that is no SPDX
-   expression goes in a `SimpleLicensingText` reached through a
-   `LicenseExpression` of one `LicenseRef-` that `customIdToUri` maps to it
-   (read `references/examples.md` when you write such a licence). **The deterministic result wins by default:** do not
+   `to` must be an `AnyLicenseInfo` or one of its subclasses (a
+   `LicenseExpression`, never a bare `SimpleLicensingText`) and its `from` a package, file or snippet: read
+   `references/examples.md` when you write one. **The deterministic result wins by default:** do not
    re-propose a different value for a field step 2 set. **Override** only when
    prose clearly contradicts it (e.g. a stale frontmatter `license:`): record
    *both* values and your reason in that entry's provenance comment (the

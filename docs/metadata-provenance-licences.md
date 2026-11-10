@@ -103,7 +103,7 @@ came from:
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
 | A single-line value [LicenseID](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`), or several of them joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
-| Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks, and a `LicenseExpression` of one `LicenseRef-pitloom-text-<hash>` whose `customIdToUri` maps it to the text; the relationship targets the expression, as a relationship accepts only an `AnyLicenseInfo` |
+| Anything else (a licence text, `BSD`, `MIT -`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks, and a `LicenseExpression` of one `LicenseRef-pitloom-text-<hash>` whose `customIdToUri` maps it to the text; the relationship targets the expression, as a relationship accepts only an `AnyLicenseInfo` or one of its subclasses |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |

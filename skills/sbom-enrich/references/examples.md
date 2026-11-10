@@ -147,7 +147,8 @@ model by a `Relationship`, so the override is a pair of `@graph` entries, with
 
 A licence relationship accepts only these ends: `from` a
 `software_SoftwareArtifact` (package, file or snippet), `to` a
-`simplelicensing_AnyLicenseInfo` such as the `LicenseExpression` above. Text
+`simplelicensing_AnyLicenseInfo` or one of its subclasses, such as the
+`LicenseExpression` above. Text
 that is no SPDX expression is not a `to` itself: put it in a
 `simplelicensing_SimpleLicensingText` and point the relationship at a
 `LicenseExpression` whose `simplelicensing_licenseExpression` is one

@@ -66,8 +66,8 @@ the package's id and `"to": ["expandedlicensing_NoAssertionLicense"]`. No
 licence element is created, and never a `SimpleLicensingText` reading
 "NOASSERTION". Pitloom itself writes no licence relationship for a licence
 nobody stated. Whatever licence relationship you write, keep its ends in range:
-`from` a package, file or snippet, `to` an `AnyLicenseInfo` (see
-`examples.md`), never a bare `SimpleLicensingText`.
+`from` a package, file or snippet, `to` an `AnyLicenseInfo` or one of its
+subclasses (see `examples.md`), never a bare `SimpleLicensingText`.
 
 ## Cross-check with the checker
 

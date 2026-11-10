@@ -68,7 +68,7 @@ and this project adheres to
   `generate(check_url=)` reaches a Hugging Face model's downloads ([#468])
 - A licence text is reached through a `LicenseExpression` mapped to the text
   element, as `hasDeclaredLicense`/`hasConcludedLicense` accept only an
-  `AnyLicenseInfo` ([#471])
+  `AnyLicenseInfo` or a subclass ([#471])
 
 [#468]: https://github.com/bact/pitloom/pull/468
 [#469]: https://github.com/bact/pitloom/pull/469
