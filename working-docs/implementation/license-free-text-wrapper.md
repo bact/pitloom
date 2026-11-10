@@ -26,7 +26,9 @@ where two of 1,000 different texts share one with odds near 3 in 10^14 (32
 digits were built first, then shortened). The text is indexed as `text-body`,
 the expression as an expression. An existing expression of that
 `LicenseRef-` counts as the wrapper only when it maps to a text: a user's own
-expression spelled so does not.
+expression spelled so does not. The merge unifies a wrapper by ref only when
+the ref carries the `LicenseRef-loom-text-` prefix; two fragments that each
+map a ref of another spelling to a different text stay apart.
 
 The `License ::` classifier AND maps each `LicenseRef-loom-classifier-` term to
 the text element directly, so a wrapper is made only for a text a relationship

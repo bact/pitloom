@@ -193,7 +193,9 @@ order and counts are in
   (ruling 2026-11-11): #468 (`fetch_git_project(policy=)`), #469
   (`--trust-model-files`), #471 (a licence text is reached through a
   `LicenseExpression`; `LicenseRef-pitloom-classifier-` is now
-  `LicenseRef-loom-classifier-`).
+  `LicenseRef-loom-classifier-`). #471 merged 2026-11-11; the wrapper, the
+  one provenance copy and the merge-time end-type check are recorded in
+  [license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md).
 - [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
   `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
 - [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
