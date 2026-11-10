@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -189,6 +189,11 @@ Moved from 0.23.0 by the ruling of 2026-11-04. Each item is its own PR; the
 order and counts are in
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
+- [x] **Breaking changes already merged, so the next release is 0.24.0**
+  (ruling 2026-11-11): #468 (`fetch_git_project(policy=)`), #469
+  (`--trust-model-files`), #471 (a licence text is reached through a
+  `LicenseExpression`; `LicenseRef-pitloom-classifier-` is now
+  `LicenseRef-loom-classifier-`).
 - [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
   `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
 - [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
@@ -483,6 +488,12 @@ Recorded findings; each is fixable on its own.
   including the [0.20.0 CI workflow review](testing-ci-followups.md#ci-workflow-review-0200).
 - **Diagnostics and logging**: see
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
+- **Fragment `customIdToUri` integrity** (#471 review): the dangling check
+  reads only ids in the main document's namespace, so under `loom merge` a
+  wrapper mapping to a missing id or to a non-text merges silently. Also, the
+  model path escapes display controls in place on a shared text after the
+  `LicenseRef-loom-text-` hash was taken from the raw text. See
+  [license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md).
 - **Remote fetches (Git, PyPI, Hugging Face)**: what #468 leaves, e.g. Hub API
   calls outside the fetch policy, `huggingface_hub`'s own log lines. See
   [pypi-url-targets.md](../implementation/pypi-url-targets.md#leftovers-after-pr-468-2026-11-10).

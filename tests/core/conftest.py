@@ -44,7 +44,7 @@ from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     IdRegistry,
 )
-from tests._license_graph import license_value
+from tests._license_graph import license_value, text_behind
 
 _FRAGMENTS_DIR = Path(__file__).parent.parent / "fixtures" / "fragments"
 
@@ -339,6 +339,8 @@ def _check_license_relationships(
         and e.get("spdxId") == license_spdx_id
     ]
     assert len(license_elems) == 1
+    by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
+    license_elems = [text_behind(by_id, license_elems[0])]
     # A valid id is recorded in its SPDX case ("mit" -> "MIT") as an
     # expression; anything else stays text as written.
     spdx_case = _SPDX_CASE.get(license_id.lower())

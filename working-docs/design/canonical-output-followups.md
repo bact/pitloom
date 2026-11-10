@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -346,7 +346,7 @@ origin; KB is [known-bugs.md](known-bugs.md).
   or a trove classifier name to its id, or keep it as text?
 - **Why it matters:** ONNX `model_license` `MIT License` (#292) and a card's
   `mit` are two elements; names differing only in case give two
-  `LicenseRef-pitloom-classifier-` terms.
+  `LicenseRef-loom-classifier-` terms.
 - **Options:** map a List name at classification, raw in `Normalized-From`
   (LicenseID `get_license_by_name()`); keep text, equal only when
   compared (today); classifier names need new LicenseID data

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,7 +136,7 @@ value not read, that it was not and why.
 | `BSD-3` (`license.text`) | `BSD-3-Clause` | `Normalized-From`, `Method`, `Resolution-1: ... (alias_name)`, `Tool` |
 | `Apache2 OR Foo` | text | none; `WARNING:` on stderr only |
 | `Acme-Terms` | text | none; `WARNING:` on stderr only |
-| classifiers `MIT License` and `Python Software Foundation License` | `MIT AND LicenseRef-pitloom-classifier-...` | `Field: project.classifiers` only; the reading of `MIT License` is on stderr only |
+| classifiers `MIT License` and `Python Software Foundation License` | `MIT AND LicenseRef-loom-classifier-...` | `Field: project.classifiers` only; the reading of `MIT License` is on stderr only |
 | one classifier `GNU General Public License v3 or later (GPLv3+)` | `GPL-3.0-or-later` | `Normalized-From`, `Method`, `Resolution-1: ... (trove_name)`, `Tool` |
 | `LICENSE` file, MIT text, no `license` | `MIT` | `Source: LICENSE | Method: licenseid_detection | Tool` |
 

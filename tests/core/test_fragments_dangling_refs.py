@@ -314,8 +314,11 @@ def test_merging_a_fragment_that_references_an_individual_succeeds(
     tmp_path: Path, form: str, compact: str, iri: str
 ) -> None:
     """Both JSON spellings of an individual merge, and the relationship to
-    it is kept (not dropped, which would pass vacuously)."""
-    exporter = merged_fragment(tmp_path, compact if form == "compact" else iri)
+    it is kept (not dropped, which would pass vacuously). ``dependsOn``: a
+    licence relationship takes only a licence individual."""
+    exporter = merged_fragment(
+        tmp_path, compact if form == "compact" else iri, "dependsOn"
+    )
     ends = [
         t
         for o in exporter.object_set.objects

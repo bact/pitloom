@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,7 +65,9 @@ For a licence the user says is unknown, write a `Relationship` with
 the package's id and `"to": ["expandedlicensing_NoAssertionLicense"]`. No
 licence element is created, and never a `SimpleLicensingText` reading
 "NOASSERTION". Pitloom itself writes no licence relationship for a licence
-nobody stated.
+nobody stated. Whatever licence relationship you write, keep its ends in range:
+`from` a package, file or snippet, `to` an `AnyLicenseInfo` or one of its
+subclasses (see `examples.md`), never a bare `SimpleLicensingText`.
 
 ## Cross-check with the checker
 

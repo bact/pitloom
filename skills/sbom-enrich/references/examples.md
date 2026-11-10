@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -144,6 +144,25 @@ model by a `Relationship`, so the override is a pair of `@graph` entries, with
   "type": "Relationship"
 }
 ```
+
+A licence relationship accepts only these ends: `from` a
+`software_SoftwareArtifact` (package, file or snippet), `to` a
+`simplelicensing_AnyLicenseInfo` or one of its subclasses, such as the
+`LicenseExpression` above. Text
+that is no SPDX expression is not a `to` itself: put it in a
+`simplelicensing_SimpleLicensingText` and point the relationship at a
+`LicenseExpression` whose `simplelicensing_licenseExpression` is one
+`LicenseRef-...` and whose `simplelicensing_customIdToUri` maps that key to the
+text element's `spdxId`.
+
+The merge enforces this. A wrong end logs one of `WARNING: RELATIONSHIP=<name>:
+a licence relationship goes to <target>, which is not an AnyLicenseInfo; point
+it at a LicenseExpression [license-relationship-invalid]` or `WARNING:
+RELATIONSHIP=<name>: a licence relationship starts at <target>, which is not a
+package, file or snippet; start it at one [license-relationship-invalid]`, then
+`ERROR: Fragment merge left a licence relationship of the wrong type; fix the
+fragment [license-relationship-invalid]`. Fix the fragment you drafted;
+regenerating the base does not help.
 
 If the base already has an `MIT` expression, the merge keeps the base's
 element (an `Annotation` records the unification), so the override note

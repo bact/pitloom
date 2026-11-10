@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-10
+# Last-Modified: 2026-11-11
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -33,13 +33,17 @@ compatibility: >-
 
 A syntactically valid JSON file (or a file that merely contains a
 `@graph` array) can still fail the SPDX 3 spec: a missing required
-property, a relationship pointing at the wrong type, an `spdxId` that
+property, a malformed relationship, an `spdxId` that
 doesn't match its own `ExternalMap` entry. This skill runs
 [`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) -- schema
 (JSON Schema) plus shape (SHACL) validation, with SPDX-3-aware handling of
 `ExternalMap`-declared IDs that plain `pyshacl`/`check-jsonschema` gets
 wrong. It works on any SPDX 3 JSON document, not just Pitloom's own
 output: a hand-authored fragment, a merged SBOM, a third-party file.
+
+It does not check the ends of a licence relationship: a `hasDeclaredLicense`
+to a bare `SimpleLicensingText` (not an `AnyLicenseInfo`) still validates.
+Pitloom's fragment merge rejects it (`license-relationship-invalid`).
 
 Part of a trio with `sbom-generate` and `sbom-enrich` (install all three):
 it refers to sections of `sbom-generate`.

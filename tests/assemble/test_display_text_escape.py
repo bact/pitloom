@@ -32,6 +32,7 @@ from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
+from tests._license_graph import text_behind
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
 from tests.id_registry.surfaces_base import demo_project
@@ -90,7 +91,10 @@ def _shown(sbom: str) -> dict[str, Any]:
         for t in e.get("to", [])
         if t in licences
     ]
-    return {**_ai_package(sbom), "@license": [licences[t] for t in targets]}
+    return {
+        **_ai_package(sbom),
+        "@license": [text_behind(licences, licences[t]) for t in targets],
+    }
 
 
 def _escape_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
