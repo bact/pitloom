@@ -17,7 +17,9 @@ wide, mutation testing),
 [ci-cost-and-two-gate-policy.md](ci-cost-and-two-gate-policy.md) (the
 two-gate rule and the CI measurement, 2026-10-30),
 [agent-work-lessons-oct30.md](agent-work-lessons-oct30.md) (stale premises,
-unpushed work, a patch-coverage gap).
+unpushed work, a patch-coverage gap),
+[agent-work-lessons-nov10.md](agent-work-lessons-nov10.md) (area-split
+reviews after green CI, a reviewer's subprocess on the network).
 
 How the work behind #276 (licence typing, ten numbered review rounds),
 #282, #283 and #284 was reviewed and tested, for a paper's method

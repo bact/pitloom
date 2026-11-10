@@ -213,11 +213,13 @@ target cannot be used with offline mode on, as `temp-dir-unusable` names a
 directory that cannot take a file.
 `RemoteSourceError.code` keeps its route prefix (`git.*`, `pypi.*`,
 `huggingface.*`); `pitloom_code` is the shared code. A git failure is
-`download-network-failed` only when one of git's `fatal:`/`error:`/`remote:`
-lines matches a transport failure (`_git_run._NETWORK_FAILURE`: a name that
-does not resolve, a refused, reset or timed-out connection, TLS, an empty
-reply, `RPC failed; curl N`, an HTTP 5xx); a repository, ref or sign-in the
-server refused, or an HTTP 4xx, keeps no code (tested both ways). The
+`download-network-failed` only when one of git's own `fatal:`/`error:`
+lines (never a `remote:` line, which is the server's text; quoted spans and
+URLs removed first; under `LC_ALL=C`) matches a transport failure
+(`_git_run._NETWORK_FAILURE`: a name that does not resolve, a refused,
+reset or timed-out connection, TLS, an empty reply, `RPC failed; curl N`,
+an HTTP 5xx); a repository, ref or sign-in the server refused, or an HTTP
+4xx, keeps no code (tested both ways). The
 `warn_instead` helper says a catalogued fetch error again as its family's
 `WARNING:` line for a caller that reads on (the Hugging Face route).
 

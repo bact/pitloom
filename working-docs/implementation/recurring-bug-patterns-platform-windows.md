@@ -55,3 +55,13 @@ until this file is large enough to be merged back on a split of that list.
   path there (`dict.fromkeys(calls)`), and keep the exact one-call count where
   the removal is known to succeed. Surfaced by PR #468
   (`tests/core/models_wheel/test_models_wheel_build_and_read_cleanup.py`).
+- **A short deadline shared by every case of a parametrised test turns the
+  slow cases into timeouts on Windows.** A loopback round trip on a Windows
+  runner can take longer than on Linux or macOS. A test that set a 0.3 s
+  fetch deadline for all three cases (over the cap, an HTTP 503, a slow
+  drip) passed elsewhere and, on Windows, reported the over-cap and 503
+  cases as timeouts, so the asserted code was wrong. Give the short deadline
+  only to the case that tests the timeout (a `deadline` parameter, `None` for
+  the others, which keep the production value), and make that case's server
+  slow by a wide margin (a drip far longer than the deadline). Surfaced by
+  PR #468 (`tests/extract/remote/test_shared_fetch_codes.py`).
