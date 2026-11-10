@@ -142,10 +142,11 @@ def test_a_refused_endpoint_is_asked_nothing_not_even_by_huggingface_hub(
         monkeypatch.setattr(constants, "ENDPOINT", endpoint.base)
         monkeypatch.setattr(hf_api.api, "endpoint", endpoint.base)
         # The set-up routes huggingface_hub's own requests to the endpoint,
-        # token and all.
+        # token and all (the library may make another request around it,
+        # with or without the token, depending on its version and settings).
         with pytest.raises(HfHubHTTPError):
             huggingface_hub.model_info("o/probe")
-        assert [h.get("authorization") for h in endpoint.headers] == [_BEARER]
+        assert _BEARER in [h.get("authorization") for h in endpoint.headers]
         endpoint.seen.clear()
         with patch(
             "pitloom.extract.remote.huggingface._extract_datasets",
