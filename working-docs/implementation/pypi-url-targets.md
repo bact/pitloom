@@ -351,6 +351,50 @@ code), used by every surface (AGENTS.md "usage surfaces"):
 - A no-download mode reading `requires_dist` from the JSON API alone: not
   planned, since the file's own metadata is the better source.
 
+## Leftovers after PR #468 (2026-11-10)
+
+Found while building or reviewing iteration 1 and left out of its scope; none
+blocks it.
+
+- **Deadline holes**: the name lookup, the TCP connect, a proxy `CONNECT`
+  tunnel and the TLS handshake run before the socket joins the overall
+  deadline (`_http_watch.Watch`), each bounded only by the per-operation
+  timeout. Closing it needs `HTTPConnection._create_connection`, a private
+  API.
+- **Unpinned pick ignores the kind and the platform**: with no version, the
+  latest release is chosen before its files are looked at, so `loom project`
+  fails with `release-file-not-found/sdist` when that release has wheels only,
+  and `loom wheel` with `.../compatible-wheel` when only an older release
+  matches (pip would go back). The user gives the version today.
+- **Refusal printed twice**: a refused PyPI or Git URL logs a `WARNING:`
+  echoing the error, then the coded `ERROR:`; the Git route did so first.
+- **`--offline` refusal has no code**: no catalogue family fits "network
+  access is forbidden" (the Git route has the same gap).
+- **Reader exceptions to a library caller**: masking of the temporary path
+  (`mask_checkout`) happens in logging and `print_error` only, so an exception
+  a wheel or sdist reader raises to a library caller may still name the
+  `pitloom-pypi-`/`pitloom-git-` directory (as on the Git route).
+- **Hatchling hook leftover name**: its "could not fully remove" warning names
+  the real `pitloom-hatch-XXXXXXXX` directory, unmasked, as the build work
+  directory's warning does.
+- **Windows junctions**: `rmtree_quietly`'s writable retry skips symbolic
+  links but not junctions (`os.path.islink` is false for one); neither a
+  checkout nor a download holds one.
+- **`verify-wheel`, `validate-wheel`, `embed-wheel` given a URL** print `not a
+  .whl file: 'https:/pypi.org/...'`: the `Path` collapses `//`. They should
+  say a URL is not read there.
+- **GitHub Action**: its inputs name a directory, a wheel pattern or a model,
+  not a URL; a PyPI (or Git) URL input is not offered.
+- **Size limits**: `skills/sbom-generate/SKILL.md` body is 16,380 of 16,384
+  bytes (the next addition moves text to `references/`);
+  `core/_config_parse.py` is 505 lines; `docs/cli.md` and
+  `working-docs/design/roadmap.md` were over the ~30 KB limit before this PR.
+- **CLAUDE.md one-liners proposed**, for "Tests, platform and CI": Windows
+  ends no `recv` on a socket shut for reading (spy the shutdown, keep the
+  end-of-stream read POSIX-only); Windows' monotonic clock ticks about every
+  15.6 ms, so compare a deadline's expiry as `<= 0`. Detail in
+  [recurring-bug-patterns-platform-windows.md](recurring-bug-patterns-platform-windows.md).
+
 ## Decisions on the first open questions (2026-11-07)
 
 1. **Only pre-releases or only yanked files**: generate the SBOM and say so with
