@@ -356,11 +356,11 @@ code), used by every surface (AGENTS.md "usage surfaces"):
 Found while building or reviewing iteration 1 and left out of its scope; none
 blocks it.
 
-- **Deadline holes**: the name lookup, the TCP connect, a proxy `CONNECT`
-  tunnel and the TLS handshake run before the socket joins the overall
-  deadline (`_http_watch.Watch`), each bounded only by the per-operation
-  timeout. Closing it needs `HTTPConnection._create_connection`, a private
-  API.
+- **Connection setup and the overall time limit**: connection setup (name
+  lookup, connect, proxy tunnel, TLS handshake) is bounded by the
+  per-operation timeout rather than by the fetch's overall time limit, so a
+  fetch can run somewhat past its budget, never indefinitely. Covering setup
+  too would rely on a private `http.client` method.
 - **Unpinned pick ignores the kind and the platform**: with no version, the
   latest release is chosen before its files are looked at, so `loom project`
   fails with `release-file-not-found/sdist` when that release has wheels only,
@@ -370,10 +370,11 @@ blocks it.
   echoing the error, then the coded `ERROR:`; the Git route did so first.
 - **`--offline` refusal has no code**: no catalogue family fits "network
   access is forbidden" (the Git route has the same gap).
-- **Reader exceptions to a library caller**: masking of the temporary path
-  (`mask_checkout`) happens in logging and `print_error` only, so an exception
-  a wheel or sdist reader raises to a library caller may still name the
-  `pitloom-pypi-`/`pitloom-git-` directory (as on the Git route).
+- **Temporary directory name in library exceptions**: the CLI and log output
+  show a placeholder for the temporary directory; an exception passed
+  straight to a library caller may still carry the local directory name, as
+  on the Git route. A caller that shows exception text can apply
+  `mask_checkout`.
 - **Hatchling hook leftover name**: its "could not fully remove" warning names
   the real `pitloom-hatch-XXXXXXXX` directory, unmasked, as the build work
   directory's warning does.

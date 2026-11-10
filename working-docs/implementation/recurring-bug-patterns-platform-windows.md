@@ -45,3 +45,13 @@ until this file is large enough to be merged back on a split of that list.
   assert a strict ordering between two clock reads on any code path a Windows
   runner runs; if strictness is needed, build a larger gap than the clock's
   tick. Surfaced by PR #468 (same test file).
+- **A cleanup that retries counts twice on Windows.** `rmtree_quietly`
+  (`pitloom.core.temp_dirs`) makes a directory writable and calls
+  `shutil.rmtree` again when the first pass leaves it. On Linux and macOS
+  the first pass succeeds; on Windows a file still held open (an interrupted
+  extraction) makes it fail, so a spy on `shutil.rmtree` sees two calls for
+  one removal. A test asserting "each directory removed once" by counting
+  `rmtree` calls then fails on Windows only. Count removals per directory
+  path there (`dict.fromkeys(calls)`), and keep the exact one-call count where
+  the removal is known to succeed. Surfaced by PR #468
+  (`tests/core/models_wheel/test_models_wheel_build_and_read_cleanup.py`).
