@@ -290,11 +290,11 @@ def _host_as_typed(url: str) -> bool:
     """Whether the host of *url* is plain ASCII, not percent-encoded: curl
     maps any other spelling (``pypi%2Eorg``, a full-width dot) to a host
     the URL's text does not name, which no check of that text (a PyPI host
-    is never cloned) would see."""
-    try:
-        host = urlsplit(url).hostname or ""
-    except ValueError:
-        return False
+    is never cloned) would see.
+
+    *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
+    ``urlsplit`` refuses never reaches here."""
+    host = urlsplit(url).hostname or ""
     return host.isascii() and "%" not in host
 
 

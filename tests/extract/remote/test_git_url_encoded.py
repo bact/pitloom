@@ -195,8 +195,13 @@ def test_a_host_not_typed_in_ascii_is_refused_unfetched(
 
 @pytest.mark.parametrize(
     "url",
-    ["ssh://h/r.git", "git://h/r.git", "https://h/o/r/tree/main/..%2F..%2Fx"],
-    ids=["ssh", "git", "escape"],
+    [
+        "ssh://h/r.git",
+        "git://h/r.git",
+        "https://h/o/r/tree/main/..%2F..%2Fx",
+        "https://[::1/o/r",
+    ],
+    ids=["ssh", "git", "escape", "unparseable"],
 )
 @pytest.mark.usefixtures("no_git")
 def test_an_invalid_url_is_refused_before_offline(url: str) -> None:
