@@ -21,7 +21,7 @@ from pitloom.messages import (
     _input_not_found,
     _json_malformed,
     _lfs_pointer,
-    _license_range,
+    _license_relationship_invalid,
     _model_field,
     _model_stub,
     _over_cap,
@@ -76,6 +76,6 @@ MESSAGES: Final = _by_code(
         *_pypi.ENTRIES,
         *_remote_fetch.ENTRIES,
         *_pypi_info.ENTRIES,
-        *_license_range.ENTRIES,
+        *_license_relationship_invalid.ENTRIES,
     )
 )

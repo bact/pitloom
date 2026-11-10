@@ -30,7 +30,11 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.license_individuals import INDIVIDUAL_BY_KIND
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.export.spdx3_json import (
+    Spdx3JsonExporter,
+    is_text_wrapper,
+    require_spdx_id,
+)
 from pitloom.extract._license import (
     classify_license,
     empty_blank_lines,
@@ -56,6 +60,10 @@ def _without_blank_ends(text: str) -> str:
 #: ``AnyLicenseInfo``): the ``LicenseExpression`` wrapping it, indexed as an
 #: expression of its ``LicenseRef-`` (:func:`text_ref`), is what they target.
 TEXT_BODY_KIND = "text-body"
+
+#: Index kind of the ``LicenseExpression`` wrapping a text (see
+#: :func:`pitloom.export.spdx3_json.is_text_wrapper`).
+TEXT_WRAPPER_KIND = "text-ref"
 
 #: Prefix of the ``LicenseRef-`` a text's wrapping expression is named by.
 TEXT_REF_PREFIX = "LicenseRef-loom-text-"
@@ -113,6 +121,11 @@ def license_key(
         text = element.simplelicensing_licenseText or ""
         return TEXT_BODY_KIND, empty_blank_lines(text).strip()
     value = (element.simplelicensing_licenseExpression or "").strip()
+    if is_text_wrapper(element):
+        # Only a ref Pitloom derived from the text (its hash) names the text;
+        # a ref of another spelling may map to a different text per fragment,
+        # so its blank value keeps the wrapper apart.
+        return TEXT_WRAPPER_KIND, value if value.startswith(TEXT_REF_PREFIX) else ""
     if classifier_terms(value):
         return "expression", value
     classified = classify_license(value, warn=False)
@@ -172,6 +185,44 @@ def _get_or_create_expression(
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _get_or_create_text_body(
+    value: str,
+    verbatim: str | None,
+    provenance: str,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    provenance_config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> str:
+    """The id of the ``SimpleLicensingText`` of *value* (as *verbatim*, else
+    *value*), made, with its name and provenance, unless one exists. It is
+    indexed by its stripped text."""
+    existing = exporter.find_license(TEXT_BODY_KIND, value.strip())
+    if existing:
+        return existing
+    text = spdx3.simplelicensing_SimpleLicensingText(
+        spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
+        creationInfo=creation_info,
+    )
+    text.simplelicensing_licenseText = value if verbatim is None else verbatim
+    text.name = _element_name(value)
+    exporter.add_license(text)
+    emit_provenance(
+        subject=text,
+        provenance={"license": provenance},
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+    return require_spdx_id(text)
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _get_or_create_text(
     value: str,
     verbatim: str | None,
@@ -184,43 +235,36 @@ def _get_or_create_text(
     provenance_config: ProvenanceConfig | None,
     encoder: ProvenanceEncoder | None,
 ) -> LicenseElement:
-    """A licence text as two elements, made unless they exist: the
-    ``SimpleLicensingText`` holding it (as *verbatim*, else *value*) and a
-    ``LicenseExpression`` (an ``AnyLicenseInfo``, so a relationship may
-    target it) of one ``LicenseRef-`` that ``customIdToUri`` maps to the
-    text. The returned id is the expression's; the text's is
-    ``exporter.require_license(TEXT_BODY_KIND, value)``."""
+    """The ``LicenseExpression`` a relationship targets for a licence text
+    (an ``AnyLicenseInfo``; a ``SimpleLicensingText`` is not one): one
+    ``LicenseRef-`` that ``customIdToUri`` maps to the text, made, with the
+    text (:func:`_get_or_create_text_body`), unless they exist. A user's own
+    expression spelled as that ``LicenseRef-`` is another element (kind
+    ``"expression"``)."""
     ref = text_ref(value)
-    existing = exporter.find_license("expression", ref)
-    if existing:
-        return LicenseElement(existing, value, provenance, False, noted)
-    text = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
+    found = exporter.find_license(TEXT_WRAPPER_KIND, ref)
+    if found is not None:
+        return LicenseElement(found, value, provenance, False, noted)
+    text_id = _get_or_create_text_body(
+        value,
+        verbatim,
+        provenance,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config,
+        encoder,
     )
-    text.simplelicensing_licenseText = value if verbatim is None else verbatim
-    text.name = _element_name(value)
-    exporter.add_license(text)
     wrapper = spdx3.simplelicensing_LicenseExpression(
         spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
         creationInfo=creation_info,
     )
     wrapper.simplelicensing_licenseExpression = ref
     wrapper.simplelicensing_customIdToUri = [
-        spdx3.DictionaryEntry(key=ref, value=require_spdx_id(text))
+        spdx3.DictionaryEntry(key=ref, value=text_id)
     ]
     exporter.add_license(wrapper)
-    # The text carries the name and the provenance; the wrapper is plumbing.
-    emit_provenance(
-        subject=text,
-        provenance={"license": provenance},
-        creation_info=creation_info,
-        doc_name=doc_name,
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        provenance_config=provenance_config,
-        encoder=encoder,
-    )
     return LicenseElement(require_spdx_id(wrapper), value, provenance, True, noted)
 
 
@@ -245,11 +289,10 @@ def _classifier_and(
     for ref, name in terms:
         if not name:
             continue
-        _get_or_create_text(
-            name,
+        text_id = _get_or_create_text_body(
+            _without_blank_ends(name),
             None,
             provenance,
-            False,
             creation_info,
             doc_name,
             doc_uuid,
@@ -257,7 +300,7 @@ def _classifier_and(
             provenance_config,
             encoder,
         )
-        custom_ids.append((ref, exporter.require_license(TEXT_BODY_KIND, name)))
+        custom_ids.append((ref, text_id))
     return _get_or_create_expression(
         expression,
         provenance,

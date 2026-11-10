@@ -103,7 +103,7 @@ def classifier_terms(expression: str) -> list[tuple[str, str | None]] | None:
         if not term.startswith(CLASSIFIER_REF_PREFIX):
             return None
         name = _decoded(term[len(CLASSIFIER_REF_PREFIX) :])
-        if not name:
+        if not (name or "").strip():
             return None
         found.append((term, name))
     return found if any(name for _, name in found) else None

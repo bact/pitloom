@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,11 +53,14 @@ and this project adheres to
   to `trust-model-files`) ([#469])
 - The `reader-unsafe` and `reader-unsafe/remote` messages name
   `--trust-model-files` and put the action after a `;` ([#469])
+- **Breaking:** a licence that is no SPDX expression is reached through a
+  `LicenseExpression` of one `LicenseRef-loom-text-<hash>` mapped to its text
+  ([#471])
 - **Breaking:** the `LicenseRef-pitloom-classifier-` terms of several
   `License ::` classifiers are now `LicenseRef-loom-classifier-` ([#471])
-- A fragment merge fails when a `hasDeclaredLicense`/`hasConcludedLicense` does
-  not go from a package, file or snippet to an `AnyLicenseInfo` or a subclass,
-  e.g. to a bare `SimpleLicensingText` ([#471])
+- A fragment merge fails on a `hasDeclaredLicense`/`hasConcludedLicense` whose
+  ends are of the wrong type, e.g. a bare `SimpleLicensingText`
+  (`license-relationship-invalid`) ([#471])
 
 ### Fixed
 
@@ -71,9 +74,6 @@ and this project adheres to
   Hub request sends the token over http ([#468])
 - `generate_git_sbom()` honours `pitloom_config`'s `offline`, and
   `generate(check_url=)` reaches a Hugging Face model's downloads ([#468])
-- A licence text is reached through a `LicenseExpression` mapped to the text
-  element, as `hasDeclaredLicense`/`hasConcludedLicense` accept only an
-  `AnyLicenseInfo` or a subclass; `check_sbom_license.py` reads it ([#471])
 
 [#468]: https://github.com/bact/pitloom/pull/468
 [#469]: https://github.com/bact/pitloom/pull/469

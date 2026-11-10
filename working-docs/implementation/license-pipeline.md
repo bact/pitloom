@@ -367,29 +367,11 @@ For a package with a licence the JSON-LD graph contains, for example:
 A source that said `NOASSERTION` gives only the relationship, with
 `"to": ["expandedlicensing_NoAssertionLicense"]`.
 
-### Free-text licences: a wrapper, and one provenance copy (#471)
+### Free-text licences
 
-`hasDeclaredLicense` and `hasConcludedLicense` accept only an
-`AnyLicenseInfo` or a subclass at `to`, and a `SimpleLicensingText` is a
-plain `Element`. A licence that is no SPDX expression is therefore two
-elements: the `SimpleLicensingText` (text, `name`) and a
-`simplelicensing_LicenseExpression` of one `LicenseRef-<prefix>-text-<hash>`
-whose `customIdToUri` maps that key to the text's `spdxId`. The relationship
-targets the expression. The hash is of the stripped text, so one text is one
-pair; the text is indexed as `text-body`, the expression as an expression.
-The hash is the first 16 hex digits (64 bits) of the SHA-256: a ref must be
-unique only within one document, where two of 1,000 different texts share
-one with odds near 3 in 10^14 (32 digits were built first, then shortened).
-
-**Provenance lives on the text only.** The wrapper is plumbing and has no
-`name` and no provenance `Annotation`: a second copy would state the same
-fact twice and could drift. A reader that starts from the relationship's
-target follows `customIdToUri` to the text for its provenance. Rejected: the
-same `Annotation` on both elements.
-
-The fragment merge rejects a licence relationship whose ends are of the wrong
-type (`_fragments_license_ranges.py`), so a fragment of any origin keeps to
-this shape.
+A licence that is no SPDX expression is a `SimpleLicensingText` plus the
+`LicenseExpression` a relationship targets. See
+[license-free-text-wrapper.md](license-free-text-wrapper.md).
 
 ## License files are not listed (PEP 639)
 

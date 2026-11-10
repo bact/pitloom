@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -652,11 +652,12 @@ A line may start with one prefix before its text:
   ERROR ends the run.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM.
-- **Tell the user**: which relationship and which end the lines name. They fix
-  the fragment (a fragment written by an agent or by hand, or by an older
-  Pitloom that pointed a relationship at a bare text) and merge again.
-  Regenerating the base SBOM does not help. Do not rewrite the fragment for
-  them; ask first, and with nobody to ask, report it only.
+- **Tell the user**: which relationship and which end the lines name. Do not
+  rewrite a fragment you did not draft in this session (one by hand, or from an
+  older Pitloom that pointed a relationship at a bare text); ask first, and with
+  nobody to ask, report it only. One you drafted here: fix it (point its to at a
+  LicenseExpression, or its from at a package, file or snippet) and merge again;
+  regenerating the base SBOM does not help.
 - **Lines**:
 
   ```text

@@ -28,6 +28,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import _fragments_refs
 from pitloom.assemble.spdx3._fragments_refs import _find_dangling_references
+from pitloom.assemble.spdx3._license_elements import TEXT_REF_PREFIX
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -131,6 +132,21 @@ def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -
     assert mapped == set(texts.values())
 
 
+def test_an_and_of_classifiers_makes_no_wrapper_for_a_text_nothing_targets() -> None:
+    """The AND maps its terms to the text elements directly: a wrapper
+    (``LicenseRef-loom-text-``) is made only for a text a relationship
+    targets."""
+    graph = two_packages([_AND])
+    assert [
+        e
+        for e in graph
+        if str(e.get("simplelicensing_licenseExpression", "")).startswith(
+            TEXT_REF_PREFIX
+        )
+    ] == []
+    assert len([e for e in graph if e["type"] == EXPR]) == 1
+
+
 def test_a_project_with_several_classifiers(tmp_path: Path) -> None:
     """End to end: the AND, a text element per name, simpleLicensing."""
     (tmp_path / "pyproject.toml").write_text(
@@ -202,6 +218,8 @@ def test_names_read_as_one_id_are_one_term() -> None:
         "LicenseRef-loom-classifier-a+ AND LicenseRef-loom-classifier-b",
         "LicenseRef-loom-classifier- AND LicenseRef-loom-classifier-b",
         "LicenseRef-x AND LicenseRef-y",  # a user's own references
+        "LicenseRef-loom-classifier-- AND MIT",  # a name of one space
+        "LicenseRef-loom-classifier-.09 AND MIT",  # a name of one tab
     ],
 )
 def test_other_expressions_are_not_classifier_terms(expression: str) -> None:

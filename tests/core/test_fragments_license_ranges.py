@@ -13,6 +13,7 @@ See also: :mod:`pitloom.assemble.spdx3._fragments_license_ranges`.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,9 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_license_ranges import (
+    find_license_range_violations,
+)
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -46,7 +50,7 @@ def _merge(tmp_path: Path, rel_type: str, source: str, target: str) -> None:
         {"type": "software_Package", "spdxId": _PKG, "name": "p"},
         license_node(_EXPR, "expression", "MIT"),
         license_node(_TEXT, "text", "Acme terms"),
-        text_wrapper_node(_WRAPPER, _TEXT),
+        text_wrapper_node(_WRAPPER, _TEXT, "Acme terms"),
         {
             "type": "Relationship",
             "spdxId": f"{_NS}#R",
@@ -86,8 +90,18 @@ def test_a_licence_relationship_in_range_merges(
 @pytest.mark.parametrize("rel_type", ["hasDeclaredLicense", "hasConcludedLicense"])
 @pytest.mark.parametrize(
     ("source", "target", "end"),
-    [(_PKG, _TEXT, "to"), (_AGENT, _EXPR, "from")],
-    ids=["to-is-a-bare-text", "from-is-no-artifact"],
+    [
+        (_PKG, _TEXT, "to"),
+        (_AGENT, _EXPR, "from"),
+        (_PKG, "NoAssertionElement", "to"),
+        (_NO_ASSERTION, _EXPR, "from"),
+    ],
+    ids=[
+        "to-is-a-bare-text",
+        "from-is-no-artifact",
+        "to-is-a-non-licence-individual",
+        "from-is-a-licence-individual",
+    ],
 )
 def test_a_licence_relationship_out_of_range_is_rejected(
     tmp_path: Path,
@@ -108,7 +122,11 @@ def test_a_licence_relationship_out_of_range_is_rejected(
     verb = {"to": "goes to", "from": "starts at"}[end]
     assert record.getMessage().startswith(f"RELATIONSHIP={_NS}#R: a licence ")
     wrong = target if end == "to" else source
-    assert f"relationship {verb} {wrong}, " in record.getMessage()
+    # A named individual is written as its full IRI; keep the id's last
+    # segment, which the other end of the relationship never shares.
+    tail = wrong.rsplit("/", 1)[-1].rsplit("_", 1)[-1]
+    assert f"{verb} " in record.getMessage()
+    assert re.search(rf"{verb} \S*{re.escape(tail)}, which", record.getMessage())
 
 
 def test_a_dangling_end_is_the_dangling_check_not_this_one(tmp_path: Path) -> None:
@@ -132,3 +150,33 @@ def test_in_range_ends_are_the_documented_types() -> None:
     assert issubclass(spdx3.software_Package, spdx3.software_SoftwareArtifact)
     ends: Any = (spdx3.ai_AIPackage, spdx3.dataset_DatasetPackage, spdx3.software_File)
     assert all(issubclass(e, spdx3.software_SoftwareArtifact) for e in ends)
+
+
+def test_violations_come_in_a_fixed_order() -> None:
+    """The graph is a set: the lines must not follow its order."""
+    package = spdx3.software_Package(spdxId=_PKG, name="p")
+    ci = spdx3.CreationInfo(
+        _id="_:ci",
+        specVersion="3.0.1",
+        created=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        createdBy=["https://spdx.org/agent1"],
+    )
+    text = spdx3.simplelicensing_SimpleLicensingText(
+        spdxId=_TEXT, creationInfo=ci, simplelicensing_licenseText="t"
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_package(package)
+    exporter.add_license(text)
+    for i in range(8):
+        exporter.add_relationship(
+            spdx3.Relationship(
+                spdxId=f"{_NS}#R{i}",
+                creationInfo=ci,
+                from_=_PKG,
+                to=[_TEXT],
+                relationshipType=spdx3.RelationshipType.hasDeclaredLicense,
+            )
+        )
+    found = find_license_range_violations(exporter)
+    assert [rel for rel, *_ in found] == [f"{_NS}#R{i}" for i in range(8)]

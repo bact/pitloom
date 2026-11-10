@@ -19,7 +19,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._sbom_io import write_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.file_hash import HexDigests
-from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
@@ -48,6 +47,18 @@ _GRAPH_TYPE_PRIORITY: dict[str, int] = {
     "Bom": 2,
     "software_Sbom": 3,
 }
+
+
+def is_text_wrapper(element: spdx3.simplelicensing_LicenseExpression) -> bool:
+    """Whether *element* is the ``LicenseExpression`` wrapping a licence text:
+    its expression is one ``LicenseRef-`` that its ``customIdToUri`` maps.
+    A user's own expression spelled the same maps nothing, so it is none, and
+    the two are kept apart (kinds ``"text-ref"`` and ``"expression"``)."""
+    expression = element.simplelicensing_licenseExpression
+    entries: list[Any] = list(element.simplelicensing_customIdToUri or [])
+    return bool(expression) and any(
+        isinstance(e, spdx3.DictionaryEntry) and e.key == expression for e in entries
+    )
 
 
 def require_spdx_id(element: spdx3.Element) -> str:
@@ -299,6 +310,19 @@ def _build_id_to_name_map(graph: list[dict[str, Any]]) -> dict[str, str]:
         spdx_id = el.get("spdxId") or el.get("@id")
         if spdx_id:
             id_to_name[spdx_id] = _resolve_element_name(el, spdx_id)
+    for el in graph:
+        # A text's wrapper (one ``LicenseRef-`` mapped to the text) is named
+        # as the text is, not by its opaque reference.
+        expression = el.get("simplelicensing_licenseExpression")
+        mapped = [
+            entry["value"]
+            for entry in el.get("simplelicensing_customIdToUri") or []
+            if isinstance(entry, dict)
+            and entry.get("key") == expression
+            and entry.get("value") in id_to_name
+        ]
+        if mapped:
+            id_to_name[el["spdxId"]] = id_to_name[mapped[0]]
     return id_to_name
 
 
@@ -365,7 +389,8 @@ class Spdx3JsonExporter:
     def __init__(self) -> None:
         self.object_set = spdx3.SHACLObjectSet()
         # Maps (kind, value) -> spdxId for licence deduplication: kind is
-        # "expression" or "text", so the same string as each stays apart.
+        # "expression", "text-body" or "text-ref", so the same string as each
+        # stays apart.
         self._license_index: dict[tuple[str, str], str] = {}
         # Maps an agent_key() -> spdxId, for deduplicating Agents built
         # from external metadata (e.g. two dependencies sharing an author).
@@ -442,23 +467,16 @@ class Spdx3JsonExporter:
     def find_license(self, kind: str, value: str) -> str | None:
         """Return the spdxId of an existing licence element of *kind*
         (``"expression"`` for a ``LicenseExpression``, ``"text-body"`` for a
-        ``SimpleLicensingText``) holding *value*, or ``None``.
+        ``SimpleLicensingText``, ``"text-ref"`` for the ``LicenseExpression``
+        wrapping one: see :func:`is_text_wrapper`) holding *value*, or
+        ``None``.
 
         Args:
-            kind: ``"expression"`` or ``"text-body"``.
+            kind: ``"expression"``, ``"text-body"`` or ``"text-ref"``.
             value: The expression, or the text stripped (a text is indexed
                 by its stripped form, though stored as written).
         """
         return self._license_index.get((kind, value))
-
-    def require_license(self, kind: str, value: str) -> str:
-        """:meth:`find_license` for an element the caller has just made or
-        found; raises :class:`~pitloom.core.internal_error.InternalError`
-        if it is not there, a bug in the caller."""
-        found = self._license_index.get((kind, value))
-        if found is None:
-            raise InternalError(f"no {kind} licence element for {value!r}")
-        return found
 
     def add_license(
         self,
@@ -484,7 +502,7 @@ class Spdx3JsonExporter:
             return
         if isinstance(license_element, spdx3.simplelicensing_LicenseExpression):
             kind, value = (
-                "expression",
+                "text-ref" if is_text_wrapper(license_element) else "expression",
                 license_element.simplelicensing_licenseExpression,
             )
         else:

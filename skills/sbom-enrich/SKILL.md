@@ -175,11 +175,11 @@ Steps:
    OS. A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
    `spdxId` from the base SBOM, and restate a base element exactly (`spdxId`
    and `name`) to add to it: a stale id silently adds a second `ai_AIPackage`
-   that still validates. A `hasDeclaredLicense`/`hasConcludedLicense`
-   `to` must be an `AnyLicenseInfo` or one of its subclasses (a
-   `LicenseExpression`, never a bare `SimpleLicensingText`) and its `from` a package, file or snippet: read
-   `references/examples.md` when you write one. **The deterministic result wins by default:** do not
-   re-propose a different value for a field step 2 set. **Override** only when
+   that still validates. A `hasDeclaredLicense`/`hasConcludedLicense` `to`
+   must be an `AnyLicenseInfo` or one of its subclasses (a `LicenseExpression`,
+   never a bare `SimpleLicensingText`) and its `from` a package, file or
+   snippet: read `references/examples.md` when you write one. **The
+   deterministic result wins by default:** do not re-propose a different value for a field step 2 set. **Override** only when
    prose clearly contradicts it (e.g. a stale frontmatter `license:`): record
    *both* values and your reason in that entry's provenance comment (the
    `Overrides:`/`Reason:` form is in `references/provenance-roles.md`) and say

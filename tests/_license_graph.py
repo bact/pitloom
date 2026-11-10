@@ -24,7 +24,7 @@ from hatchling.plugin.manager import PluginManager
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed, deps_pypi
-from pitloom.assemble.spdx3._license_elements import TEXT_REF_PREFIX
+from pitloom.assemble.spdx3._license_elements import text_ref
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import _apply_license
 from pitloom.assemble.spdx3.document import build, build_deployed
@@ -47,9 +47,13 @@ LICENSE_TYPES = (
 
 
 def _is_text_wrapper(element: dict[str, Any]) -> bool:
-    """Whether *element* is the ``LicenseExpression`` wrapping a text."""
-    return str(element.get("simplelicensing_licenseExpression") or "").startswith(
-        TEXT_REF_PREFIX
+    """Whether *element* is the ``LicenseExpression`` wrapping a text: its
+    expression is one ``LicenseRef-`` that ``customIdToUri`` maps (a user's
+    own expression spelled so maps nothing)."""
+    expression = element.get("simplelicensing_licenseExpression")
+    return element.get("type") == "simplelicensing_LicenseExpression" and any(
+        entry["key"] == expression
+        for entry in element.get("simplelicensing_customIdToUri") or []
     )
 
 
@@ -91,15 +95,15 @@ def license_targets(graph: list[dict[str, Any]]) -> list[str]:
 def text_behind(
     by_id: dict[str, dict[str, Any]], element: dict[str, Any]
 ) -> dict[str, Any]:
-    """The ``SimpleLicensingText`` a text-wrapping ``LicenseExpression`` maps
-    its ``LicenseRef-loom-text-`` to, else *element* itself."""
-    expression = element.get("simplelicensing_licenseExpression") or ""
-    if not expression.startswith(TEXT_REF_PREFIX):
+    """The ``SimpleLicensingText`` a text's wrapping ``LicenseExpression``
+    maps its ``LicenseRef-`` to, else *element* itself."""
+    if not _is_text_wrapper(element):
         return element
-    for entry in element.get("simplelicensing_customIdToUri", []):
-        if entry["key"] == expression:
-            return by_id[entry["value"]]
-    raise AssertionError(f"{expression} is not mapped to a text element")
+    expression = element["simplelicensing_licenseExpression"]
+    (entry,) = [
+        e for e in element["simplelicensing_customIdToUri"] if e["key"] == expression
+    ]
+    return by_id[entry["value"]]
 
 
 def license_values(graph: list[dict[str, Any]]) -> dict[str, str | None]:
@@ -276,9 +280,13 @@ def fragment_graph(
 
 
 def licensed_package(
-    name: str, target: str, ns: str = _FRAGMENT_NS
+    name: str,
+    target: str,
+    ns: str = _FRAGMENT_NS,
+    rel_type: str = "hasDeclaredLicense",
 ) -> list[dict[str, Any]]:
-    """Package *name* of a fragment declaring licence *target*."""
+    """Package *name* of a fragment with a *rel_type* relationship to
+    *target* (declaring it as its licence by default)."""
     return [
         {"type": "software_Package", "spdxId": f"{ns}#{name}", "name": name},
         {
@@ -286,7 +294,7 @@ def licensed_package(
             "spdxId": f"{ns}#R-{name}",
             "from": f"{ns}#{name}",
             "to": [target],
-            "relationshipType": "hasDeclaredLicense",
+            "relationshipType": rel_type,
         },
     ]
 
@@ -306,10 +314,11 @@ def license_node(spdx_id: str, kind: str, value: str) -> dict[str, Any]:
     }
 
 
-def text_wrapper_node(spdx_id: str, text_id: str) -> dict[str, Any]:
+def text_wrapper_node(spdx_id: str, text_id: str, text: str) -> dict[str, Any]:
     """The ``LicenseExpression`` a relationship targets to reach the
-    ``SimpleLicensingText`` *text_id*: one ``LicenseRef-`` mapped to it."""
-    ref = TEXT_REF_PREFIX + text_id.rsplit("#", 1)[-1]
+    ``SimpleLicensingText`` *text_id* holding *text*: the ``LicenseRef-`` a
+    build gives that text, mapped to it."""
+    ref = text_ref(text)
     return {
         "type": "simplelicensing_LicenseExpression",
         "spdxId": spdx_id,
@@ -327,13 +336,15 @@ def write_fragment(path: Path, document: dict[str, Any]) -> Path:
     return path
 
 
-def merged_fragment(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
+def merged_fragment(
+    tmp_path: Path, target: str | None, rel_type: str = "hasDeclaredLicense"
+) -> Spdx3JsonExporter:
     """A licence-free base document merged with a fragment whose package has
-    a ``hasDeclaredLicense`` relationship to *target* (none when ``None``)."""
+    a *rel_type* relationship to *target* (none when ``None``)."""
     elements = (
         [{"type": "software_Package", "spdxId": f"{_FRAGMENT_NS}#P", "name": "p"}]
         if target is None
-        else licensed_package("P", target)
+        else licensed_package("P", target, rel_type=rel_type)
     )
     write_fragment(tmp_path / "f.spdx3.json", fragment_graph(elements))
     ci = spdx3.CreationInfo(

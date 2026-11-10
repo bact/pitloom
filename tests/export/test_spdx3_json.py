@@ -25,12 +25,13 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.file_hash import HexDigests
-from pitloom.core.internal_error import InternalError
 from pitloom.export.hashes import file_digests_of, sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     _annotate_relationships,
+    _build_id_to_name_map,
     file_hashes,
+    is_text_wrapper,
     require_spdx_id,
     sha256_hash,
     sha512_hash,
@@ -308,14 +309,6 @@ def test_add_license_indexes_by_kind_and_value() -> None:
     assert exporter.find_license("text-body", "MIT") == "urn:x#Text-1"
 
 
-def test_require_license_returns_the_id_or_raises() -> None:
-    exporter = Spdx3JsonExporter()
-    exporter.add_license(_text("urn:x#Text-1", "MIT"))
-    assert exporter.require_license("text-body", "MIT") == "urn:x#Text-1"
-    with pytest.raises(InternalError, match="no expression licence"):
-        exporter.require_license("expression", "MIT")
-
-
 def test_add_license_without_a_value_is_not_indexed() -> None:
     """A licence element with no text (falsy) is added to the object set
     but never registered in the lookup index."""
@@ -495,4 +488,64 @@ def test_sha256_of(hashes: list[spdx3.Hash] | None, expected: str | None) -> Non
     assert sha256_of(element) == expected
     assert file_digests_of(element) == (
         None if expected is None else HexDigests(expected)
+    )
+
+
+def test_a_text_wrapper_is_named_as_its_text() -> None:
+    """A relationship description names the text, not the opaque
+    ``LicenseRef-``."""
+    ref = "LicenseRef-loom-text-0123456789abcdef"
+    graph: list[dict[str, Any]] = [
+        {
+            "spdxId": "urn:x#T",
+            "type": "simplelicensing_SimpleLicensingText",
+            "name": "Acme terms",
+            "simplelicensing_licenseText": "Acme terms v1",
+        },
+        {
+            "spdxId": "urn:x#W",
+            "type": "simplelicensing_LicenseExpression",
+            "simplelicensing_licenseExpression": ref,
+            "simplelicensing_customIdToUri": [
+                {"key": ref, "value": "urn:x#T"},
+                {"key": "LicenseRef-other", "value": "urn:x#Missing"},
+            ],
+        },
+        {
+            "spdxId": "urn:x#E",
+            "type": "simplelicensing_LicenseExpression",
+            "simplelicensing_licenseExpression": "MIT",
+        },
+    ]
+    names = _build_id_to_name_map(graph)
+    assert names["urn:x#W"] == "Acme terms"
+    assert names["urn:x#E"] == "MIT"
+
+
+@pytest.mark.parametrize(
+    ("expression", "mapped", "expected"),
+    [
+        ("LicenseRef-a", ["LicenseRef-a"], True),
+        ("LicenseRef-a", [], False),
+        ("LicenseRef-a", ["LicenseRef-b"], False),
+        ("LicenseRef-a AND MIT", ["LicenseRef-a"], False),
+        ("", [""], False),
+    ],
+    ids=["wrapper", "user-expression", "other-key", "and-expression", "blank"],
+)
+def test_is_text_wrapper(expression: str, mapped: list[str], expected: bool) -> None:
+    element = spdx3.simplelicensing_LicenseExpression(
+        spdxId="urn:x#E",
+        creationInfo=_creation_info(),
+        simplelicensing_licenseExpression=expression,
+        simplelicensing_customIdToUri=[
+            spdx3.DictionaryEntry(key=k, value="urn:x#T") for k in mapped
+        ],
+    )
+    assert is_text_wrapper(element) is expected
+    exporter = Spdx3JsonExporter()
+    exporter.add_license(element)
+    kind = "text-ref" if expected else "expression"
+    assert exporter.find_license(kind, expression) == (
+        "urn:x#E" if expression else None
     )

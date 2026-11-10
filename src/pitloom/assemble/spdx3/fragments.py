@@ -74,9 +74,9 @@ from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.logging_config import configure_logging
 from pitloom.messages import (
-    FROM_LINE,
-    LICENSE_RANGE,
-    TO_LINE,
+    LICENSE_RELATIONSHIP_FROM_LINE,
+    LICENSE_RELATIONSHIP_INVALID,
+    LICENSE_RELATIONSHIP_TO_LINE,
     CodedValueError,
     emit,
 )
@@ -214,14 +214,16 @@ def _raise_on_license_range_violations(exporter: Spdx3JsonExporter) -> None:
     for rel_id, end, target_id, _ in violations:
         emit(
             log,
-            LICENSE_RANGE,
+            LICENSE_RELATIONSHIP_INVALID,
             logging.WARNING,
-            line=TO_LINE if end == "to" else FROM_LINE,
+            line=LICENSE_RELATIONSHIP_TO_LINE
+            if end == "to"
+            else LICENSE_RELATIONSHIP_FROM_LINE,
             name=rel_id,
             target=target_id,
         )
     if violations:
-        raise FragmentLicenseRangeError(LICENSE_RANGE)
+        raise FragmentLicenseRangeError(LICENSE_RELATIONSHIP_INVALID)
 
 
 def _update_profile_conformance(

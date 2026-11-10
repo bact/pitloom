@@ -488,6 +488,12 @@ Recorded findings; each is fixable on its own.
   including the [0.20.0 CI workflow review](testing-ci-followups.md#ci-workflow-review-0200).
 - **Diagnostics and logging**: see
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
+- **Fragment `customIdToUri` integrity** (#471 review): the dangling check
+  reads only ids in the main document's namespace, so under `loom merge` a
+  wrapper mapping to a missing id or to a non-text merges silently. Also, the
+  model path escapes display controls in place on a shared text after the
+  `LicenseRef-loom-text-` hash was taken from the raw text. See
+  [license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md).
 - **Remote fetches (Git, PyPI, Hugging Face)**: what #468 leaves, e.g. Hub API
   calls outside the fetch policy, `huggingface_hub`'s own log lines. See
   [pypi-url-targets.md](../implementation/pypi-url-targets.md#leftovers-after-pr-468-2026-11-10).
