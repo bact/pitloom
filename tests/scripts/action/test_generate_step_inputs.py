@@ -43,7 +43,7 @@ def test_every_variable_the_script_reads_comes_from_its_input(
     action = yaml.safe_load(action_yml.read_text(encoding="utf-8"))
     (step,) = [s for s in action["runs"]["steps"] if s.get("id") == "generate"]
     read = set(re.findall(r"\$\{(PL_[A-Z_]+)", _generate_script(action_yml)))
-    assert {"PL_MAX_MODEL_EXTRACT_BYTES", "PL_TRUST_WHEEL_MODEL"} <= read
+    assert {"PL_MAX_MODEL_EXTRACT_BYTES", "PL_TRUST_MODEL_FILES"} <= read
     for name in read:
         given = name.removeprefix("PL_").lower().replace("_", "-")
         assert step["env"].get(name) == f"${{{{ inputs.{given} }}}}", name

@@ -324,7 +324,7 @@ def _generate_embed_sbom_json(
             cfg,
             creation_metadata or cfg.creation_metadata,
             resolve_registry(id_registry, cfg.id_registry, Path.cwd()),
-            (file_cache, overrides.trust_wheel_model is True),
+            (file_cache, overrides.trust_model_files is True),
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
 
@@ -385,7 +385,7 @@ def _build_sbom_standalone_wheel(
 
     *batch*: the :class:`~pitloom.embed.EmbedFileCache` (``None`` outside a
     batch) and whether the wheel's models are read with every reader
-    (``--trust-wheel-model``).
+    (``--trust-model-files``).
 
     *cfg* holds only explicit settings (an explicitly named config and the
     per-run overrides); nothing is borrowed from the current directory. The

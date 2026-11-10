@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``--trust-wheel-model`` on every surface that reads a built wheel.
+"""``--trust-model-files`` on every surface that reads a built wheel.
 
 By default a fastText model in a wheel is listed without metadata (its native
 loader is never called) and one ``INFO:`` per run names the flag; with the
-flag (``trust_wheel_model=True``; for ``embed_wheel_sbom()`` the
+flag (``trust_model_files=True``; for ``embed_wheel_sbom()`` the
 ``ConfigOverrides`` field) the loader runs. A local project scan is not
 gated (a Git URL's project is, whatever the flag), and the flag there warns
 once that it has no effect. There is no config key.
@@ -40,7 +40,7 @@ from tests.extract.scanner.test_scanner_wheel_gate_formats import (
 from tests.warning_helpers import count_naming, logged_warnings
 
 _MEMBER = "demo/sentimentdemo.bin"
-_FLAG = "--trust-wheel-model"
+_FLAG = "--trust-model-files"
 _Runner = Callable[[Path, pytest.MonkeyPatch, bool], str]  # -> SBOM json
 
 
@@ -80,16 +80,16 @@ def _cli_generate(tmp: Path, mp: pytest.MonkeyPatch, trust: bool) -> str:
 
 
 def _lib_generate(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
-    return generate(_wheel(tmp / "d"), offline=True, trust_wheel_model=trust)
+    return generate(_wheel(tmp / "d"), offline=True, trust_model_files=trust)
 
 
 def _lib_wheel(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
-    return generate_wheel_sbom(_wheel(tmp / "d"), offline=True, trust_wheel_model=trust)
+    return generate_wheel_sbom(_wheel(tmp / "d"), offline=True, trust_model_files=trust)
 
 
 def _lib_embed(tmp: Path, _mp: pytest.MonkeyPatch, trust: bool) -> str:
     wheel = _wheel(tmp / "d")
-    overrides = ConfigOverrides(offline=True, trust_wheel_model=trust or None)
+    overrides = ConfigOverrides(offline=True, trust_model_files=trust or None)
     embed_wheel_sbom(wheel, overrides=overrides)
     return _embedded(wheel)
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -25,6 +25,7 @@ from pitloom.assemble import (
     _generators_git,
     generate,
     generate_git_project_sbom,
+    generate_git_sbom,
     target_is_git_url,
     target_resolves_to_project,
 )
@@ -57,9 +58,18 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         check_url: object = None,
         offline: bool | None = None,
         max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        seen.update(url=url, check_url=check_url, offline=offline, max_bytes=max_bytes)
-        yield GitCheckout(str(folder), url, None, "c", "", True)
+        seen.update(
+            url=url,
+            check_url=check_url,
+            offline=offline,
+            max_bytes=max_bytes,
+            trust_model_files=trust_model_files,
+        )
+        yield GitCheckout(
+            str(folder), url, None, "c", "", True, trust_model_files=trust_model_files
+        )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
     return seen
@@ -140,21 +150,38 @@ def test_the_clone_size_cap_reaches_the_fetch(
 def test_an_option_a_remote_repository_cannot_use_warns_once(
     seen: dict[str, object], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``trust_wheel_model`` and ``project_dir`` have no effect on a remote
+    """``max_model_extract_bytes`` and ``project_dir`` have no effect on a remote
     repository, and a build flag never runs its backend: each is one
     ``WARNING:``, never a silent drop."""
     with caplog.at_level(logging.WARNING):
         generate(
             _URL,
-            trust_wheel_model=True,
+            max_model_extract_bytes=1024,
             project_dir=tmp_path,
             build_options=BuildOptions(allow=True),
         )
     text = "\n".join(r.getMessage() for r in caplog.records)
-    assert text.count("--trust-wheel-model has no effect for this target") == 1
+    assert text.count("--max-model-extract-bytes has no effect for this target") == 1
     assert text.count("--project-dir has no effect for a remote repository") == 1
     assert text.count("--allow-build has no effect for a remote repository") == 1
     assert seen["url"] == _URL
+
+
+@pytest.mark.parametrize("given", [True, False, None])
+@pytest.mark.parametrize(
+    "route", ["generate", "generate_git_sbom", "generate_git_project_sbom"]
+)
+def test_trust_model_files_reaches_the_fetch_on_every_route(
+    seen: dict[str, object], route: str, given: bool | None
+) -> None:
+    """Only an explicit ``True`` vouches for the repository's model files."""
+    routes: dict[str, Callable[..., str]] = {
+        "generate": generate,
+        "generate_git_sbom": generate_git_sbom,
+        "generate_git_project_sbom": generate_git_project_sbom,
+    }
+    routes[route](_URL, trust_model_files=given)
+    assert seen["trust_model_files"] is (given is True)
 
 
 def test_a_relative_id_registry_means_the_callers_directory(

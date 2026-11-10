@@ -56,11 +56,21 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     asked: dict[str, object] = {}
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        asked["url"], asked["offline"] = url, offline
+    def fetch(
+        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+    ) -> Iterator[GitCheckout]:
+        asked.update(url=url, offline=offline, trust_model_files=trust_model_files)
         if offline:
             raise RemoteSourceError("git.offline", f"no network for {url}")
-        yield GitCheckout(str(folder), url, "main", "c0ffee", "svc", False)
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c0ffee",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     asked["folder"] = folder
@@ -208,8 +218,10 @@ def test_a_failure_to_read_the_fetched_project_names_the_projects_below(
     (folder / "services" / "a" / "setup.py").write_text("", encoding="utf-8")
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        _ = offline
+    def fetch(
+        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+    ) -> Iterator[GitCheckout]:
+        _ = offline, trust_model_files
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
@@ -330,9 +342,19 @@ def test_a_gated_reader_runs_on_a_local_project_only(
     )
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
+    def fetch(
+        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+    ) -> Iterator[GitCheckout]:
         _ = offline
-        yield GitCheckout(str(folder), url, "main", "c", "svc", False)
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     read = spy_readers(monkeypatch)
@@ -348,3 +370,48 @@ def test_a_gated_reader_runs_on_a_local_project_only(
     else:
         assert gated == {f for f in WHEEL_GATED_FORMATS if has_reader_library(f)}
         assert not notes
+
+
+@pytest.mark.parametrize("command", ["project", "generate"])
+def test_trust_model_files_runs_the_gated_readers_on_a_git_urls_project(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--trust-model-files`` on a Git URL is the user's word for the
+    repository's model files: every reader runs, as in the local directory, no
+    ``reader-unsafe/remote`` line, and no "has no effect" warning (the fetch
+    consumes it, the local project read never sees it)."""
+    folder = write_model_project(
+        tmp_path / "checkout", [fixture_path(f) for f in FORMATS]
+    )
+    asked: dict[str, object] = {}
+
+    @contextmanager
+    def fetch(
+        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+    ) -> Iterator[GitCheckout]:
+        _ = offline
+        asked["trust_model_files"] = trust_model_files
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "svc",
+            False,
+            trust_model_files=trust_model_files,
+        )
+
+    monkeypatch.setattr(_remote, "fetch_git_project", fetch)
+    read = spy_readers(monkeypatch)
+    out = str(tmp_path / "o.json")
+    args = (command, _URL, "-o", out, "--trust-model-files")
+    assert _run(monkeypatch, tmp_path, *args) == 0
+    err = capsys.readouterr().err
+    assert asked["trust_model_files"] is True
+    assert {fmt for fmt, _ in read} & WHEEL_GATED_FORMATS == {
+        f for f in WHEEL_GATED_FORMATS if has_reader_library(f)
+    }
+    assert "[reader-unsafe/" not in err and "has no effect" not in err

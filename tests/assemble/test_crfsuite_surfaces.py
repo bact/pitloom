@@ -5,7 +5,7 @@
 
 """A CRFsuite model on every surface: the same entry and the same warning.
 
-``loom project``, ``loom wheel`` (without ``--trust-wheel-model``: CRFsuite
+``loom project``, ``loom wheel`` (without ``--trust-model-files``: CRFsuite
 is not a gated format), ``loom model`` and the library API give one model
 the same name, type and description; a truncated copy gives the same single
 ``WARNING:`` on each. Ids across ``loom id generate`` are in
@@ -85,7 +85,7 @@ def test_a_wheel_scan_reads_a_crfsuite_model_without_trust(
     assert models[0].format_info.file_path_relative == f"demo/{name}"
     assert models[0].properties["num_labels"]  # read, not a format-only stub
     assert not logged_warnings(caplog)
-    assert not [r for r in caplog.records if "trust-wheel-model" in r.getMessage()]
+    assert not [r for r in caplog.records if "trust-model-files" in r.getMessage()]
 
 
 def test_every_surface_gives_a_model_the_same_name_type_and_description(

@@ -48,12 +48,23 @@ def _fetched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, objec
     asked: dict[str, object] = {"folder": folder, "file": _NAME}
 
     @contextmanager
-    def fetch(url: str, *, offline: bool | None = None) -> Iterator[GitCheckout]:
-        asked["url"], asked["offline"] = url, offline
+    def fetch(
+        url: str, *, offline: bool | None = None, trust_model_files: bool = False
+    ) -> Iterator[GitCheckout]:
+        asked.update(url=url, offline=offline, trust_model_files=trust_model_files)
         if offline:
             raise RemoteSourceError("git.offline", "network access is forbidden")
         file = str(asked["file"])
-        yield GitCheckout(str(folder), url, "main", "c", "models", False, file)
+        yield GitCheckout(
+            str(folder),
+            url,
+            "main",
+            "c",
+            "models",
+            False,
+            file,
+            trust_model_files=trust_model_files,
+        )
 
     monkeypatch.setattr(_remote, "fetch_git_project", fetch)
     return asked
@@ -209,3 +220,20 @@ def test_model_command_on_a_folder_of_two_models_names_them(
     err = capsys.readouterr().err
     assert err.count("one of several AI model files") == 2
     assert "[model-ambiguous]" in err.splitlines()[-1]
+
+
+@pytest.mark.parametrize("given", [True, False])
+def test_trust_model_files_reaches_the_fetch_of_a_model_url(
+    given: bool,
+    fetched: dict[str, object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The flag is the fetch's, not the model delegate's: it reaches the
+    fetch only when given, and never warns "has no effect"."""
+    fetched["file"] = ""
+    flags = ["--trust-model-files"] if given else []
+    assert _run(monkeypatch, tmp_path / "work", "model", _URL, *flags) == 0
+    assert fetched["trust_model_files"] is given
+    assert "has no effect" not in capsys.readouterr().err

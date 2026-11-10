@@ -95,7 +95,7 @@ def generate_project_sbom(
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
     scan_model_usage: bool | None = None,
-    trust_wheel_model: bool | None = None,
+    trust_model_files: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
@@ -134,8 +134,8 @@ def generate_project_sbom(
 
     For an sdist archive, ``extract_file_header``, ``content_type``,
     ``enrich``, ``scan_model_usage``, ``use_lockfile`` and
-    ``trust_wheel_model`` have no effect, and for a directory
-    ``trust_wheel_model`` has none; each warns when given (see
+    ``trust_model_files`` have no effect, and for a directory
+    ``trust_model_files`` has none; each warns when given (see
     :data:`pitloom.core.inert_options.INERT`). ``max_model_extract_bytes``
     is no parameter here: a caller forwarding it settles it with
     :func:`~pitloom.core.inert_options.forward_options` and
@@ -171,7 +171,7 @@ def generate_project_sbom(
                 "enrich": enrich,
                 "extract_file_header": extract_file_header,
                 "scan_model_usage": scan_model_usage,
-                "trust_wheel_model": trust_wheel_model,
+                "trust_model_files": trust_model_files,
                 "content_type": content_type,
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
@@ -187,7 +187,7 @@ def generate_project_sbom(
         settle_inert(
             PROJECT,
             target_path,
-            {"trust_wheel_model": trust_wheel_model, "project_dir": project_dir},
+            {"trust_model_files": trust_model_files, "project_dir": project_dir},
         )
 
     if project_metadata is None or pitloom_config is None:

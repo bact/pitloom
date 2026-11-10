@@ -71,8 +71,15 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         check_url: object = None,
         offline: bool | None = None,
         max_bytes: int | None = None,
+        trust_model_files: bool = False,
     ) -> Iterator[GitCheckout]:
-        seen.update(url=url, check_url=check_url, offline=offline, max_bytes=max_bytes)
+        seen.update(
+            url=url,
+            check_url=check_url,
+            offline=offline,
+            max_bytes=max_bytes,
+            trust_model_files=trust_model_files,
+        )
         folder, file = seen["folder"], seen.get("file", "")
         yield GitCheckout(
             folder=str(folder),
@@ -82,6 +89,7 @@ def _fetched(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
             subdir="models",
             whole_repository=False,
             file=str(file),
+            trust_model_files=trust_model_files,
         )
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
@@ -149,6 +157,39 @@ def test_a_native_library_reader_never_runs_on_a_downloaded_file(
     if not gated:
         assert sbom == outside
     assert f"FILE=models/{model.name}" in caplog.text  # the folder's one model
+
+
+@pytest.mark.parametrize(
+    "fmt",
+    [f for f in FORMATS if f in WHEEL_GATED_FORMATS],
+    ids=[f.value for f in FORMATS if f in WHEEL_GATED_FORMATS],
+)
+def test_trust_model_files_runs_a_gated_reader_on_a_downloaded_file(
+    fmt: AiModelFormat,
+    fetched: dict[str, object],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The caller vouches for the repository: the gated reader runs, as on a
+    local file, and nothing says ``reader-unsafe/remote``. The same SBOM
+    without the option is the format-only entry (the test above)."""
+    outside = generate_model_sbom(
+        _copy(fmt, tmp_path / "local"), creation_metadata=_FIXED
+    )
+    model = _copy(fmt, tmp_path / "clone" / "models")
+    fetched.update(folder=model.parent, file="")
+    read = spy_readers(monkeypatch, (fmt,))
+    with caplog.at_level(logging.INFO):
+        sbom = generate_git_sbom(_URL, creation_metadata=_FIXED, trust_model_files=True)
+    assert fetched["trust_model_files"] is True
+    assert read == ([(fmt, model)] if has_reader_library(fmt) else [])
+    assert not [
+        r
+        for r in caplog.records
+        if getattr(r, CODE_ATTR, None) == READER_UNSAFE_REMOTE.code
+    ]
+    assert sbom == outside
 
 
 def test_the_fetchs_own_options_reach_it_on_the_model_route(

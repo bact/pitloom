@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -366,12 +366,13 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed`: embed into a
   wheel with a `RECORD` signature by removing the signature. See [Signed
   wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent.
-- `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
-  `embed-wheel` without `--project-dir`), also read the AI model formats that
-  are otherwise listed without metadata in a wheel, because a hostile file can
-  crash, hang or exhaust memory in their readers. Use it only for a wheel you
-  trust. With `embed-wheel --project-dir` the models are read from the
-  project, not the wheel. No config key, so no config file can opt in. Which
+- `--trust-model-files` -- on a built wheel (`wheel`, `wheel --embed`,
+  `embed-wheel` without `--project-dir`) or a Git URL's repository (`project`,
+  `model`, `generate`), also read the AI model formats that are otherwise
+  listed without metadata there, because a hostile file can crash, hang or
+  exhaust memory in their readers. Use it only for files you trust. With
+  `embed-wheel --project-dir` the models are read from the project, not the
+  wheel. No config key, so no config file can opt in. Which
   formats, and why: [Formats gated in
   wheels](ai-model-scan-limits.md#formats-gated-in-wheels); see also [Settings
   that change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
@@ -397,21 +398,21 @@ Options: <target>: <flag> has no effect <reason>` and is dropped, never silently
 
 | Target | Options that warn |
 | --- | --- |
-| project directory | `--trust-wheel-model`, `--max-model-extract-bytes`, `--project-dir` |
-| remote Git repository | `--trust-wheel-model`, `--max-model-extract-bytes`, `--project-dir` |
-| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--use-lockfile` |
+| project directory | `--trust-model-files`, `--max-model-extract-bytes`, `--project-dir` |
+| remote Git repository | `--max-model-extract-bytes`, `--project-dir` |
+| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile` |
 | wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
 | wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
-| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--use-lockfile`, `--project-dir` |
-| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
-| model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
-| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
-| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
-| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--update-id-registry` |
+| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--use-lockfile`, `--project-dir` |
+| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
+| model file at a Git URL | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
+| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
+| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
+| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-model-files`, `--max-model-extract-bytes`, `--update-id-registry` |
 | embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
 | Hatchling build hook | `--describe-relationship`, `--update-id-registry` |
-| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
+| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-model-files`, `--max-model-extract-bytes`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` also covers its `--no-flag` form where one exists (e.g.
 `--no-enrich`); the warning names both, e.g. `--enrich/--no-enrich`.

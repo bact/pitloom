@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,7 +42,7 @@ recommendations, D1 to D12.
 | Code | Condition | Meaning (short) |
 | --- | --- | --- |
 | `library-missing` | `missing` | an optional library the step imports is not installed |
-| `reader-unsafe` | `unsafe` | a wheel's model formats whose reader is not run on a wheel's files (`--trust-wheel-model` lifts it) |
+| `reader-unsafe` | `unsafe` | a wheel's model formats whose reader is not run on a wheel's files (`--trust-model-files` lifts it) |
 | `model-unreadable` | `unreadable` | a reader failed, or a bound check refused the file |
 | `model-wrong-format` | `wrong-format` | not an AI model file of a supported format |
 | `parameter-count-invalid` | `invalid` | a tensor dimension or a stated count is not a non-negative integer; no count recorded |

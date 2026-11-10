@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,21 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.23.4...HEAD>
+
+## [Unreleased]
+
+### Added
+
+- `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
+  also lifts the reader gate of a Git URL's model files ([#469])
+
+### Changed
+
+- **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
+  (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
+  to `trust-model-files`) ([#469])
+
+[#469]: https://github.com/bact/pitloom/pull/469
 
 ## [0.23.4] - 2026-11-09
 

@@ -125,7 +125,7 @@ def test_a_wheel_scan_names_its_gated_formats_once(tmp_path: Path) -> None:
     (line,) = [ln for ln, code in coded_lines(done.stderr).items() if code]
     assert line.startswith("INFO: AI models in a wheel in these formats ")
     assert line.endswith(
-        ": gguf, onnx. Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]"
+        ": gguf, onnx. Pass --trust-model-files for a wheel you trust. [reader-unsafe]"
     )
 
 

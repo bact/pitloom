@@ -168,17 +168,16 @@ def test_build_input_matrix(
     ],
 )
 @pytest.mark.parametrize("value", ["", "false", "true"])
-def test_trust_wheel_model_input(
+def test_trust_model_files_input(
     generate: Callable[..., _Result],
     tmp_path: Path,
     mode: str,
     project_path: str,
     value: str,
 ) -> None:
-    """``trust-wheel-model`` is passed on in embed-wheel mode without
-    ``--project-dir`` only, and only when ``"true"``; set where it has no
-    effect it warns instead of being dropped quietly, and is never passed."""
-    env = {"PL_TRUST_WHEEL_MODEL": value, "PL_PROJECT_PATH": project_path}
+    """``trust-model-files`` is passed on in every mode, and only when
+    ``"true"``; where it has no effect loom says so, not the step."""
+    env = {"PL_TRUST_MODEL_FILES": value, "PL_PROJECT_PATH": project_path}
     if mode == "embed-wheel":
         _make_wheel(tmp_path / "p-1.whl")
         env.update(PL_EMBED_WHEEL=str(tmp_path / "*.whl"), LOOM_STDOUT=EMBED_STDOUT)
@@ -189,16 +188,11 @@ def test_trust_wheel_model_input(
 
     assert result.returncode == 0
     assert result.loom_args[0] == mode
-    given = value == "true"
-    live = mode == "embed-wheel" and not project_path
-    assert ("--trust-wheel-model" in result.loom_args) == (given and live)
+    assert ("--trust-model-files" in result.loom_args) == (value == "true")
     assert ("--project-dir" in result.loom_args) == (
         mode == "embed-wheel" and bool(project_path)
     )
-    warning = "::warning::trust-wheel-model has no effect"
-    assert result.output.count(warning) == (given and not live)
-    if given and mode == "embed-wheel" and project_path:
-        assert "project-path set" in result.output
+    assert "::warning::trust-model-files" not in result.output
 
 
 def test_build_inputs_follow_the_mode_actually_chosen(
@@ -348,7 +342,7 @@ _UNREAD = "FILE=demo/secret.txt: could not read for file scanning; Permission de
 _GATE = (
     "AI models in a wheel in these formats are listed without metadata, their "
     "reader not being run on a wheel's files: gguf, onnx. Pass "
-    "--trust-wheel-model for a wheel you trust."
+    "--trust-model-files for a wheel you trust."
 )
 
 

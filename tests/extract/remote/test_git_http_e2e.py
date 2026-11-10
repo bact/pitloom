@@ -337,7 +337,8 @@ def test_an_option_a_remote_repository_cannot_use_is_said_as_the_library_says_it
     done = _loom(
         "project",
         base + "/g/p",
-        "--trust-wheel-model",
+        "--max-model-extract-bytes",
+        "1024",
         "--project-dir",
         str(tmp_path),
         "-o",
@@ -347,7 +348,9 @@ def test_an_option_a_remote_repository_cannot_use_is_said_as_the_library_says_it
     assert done.returncode == 0, done.stderr
     warnings = [ln for ln in done.stderr.splitlines() if ln.startswith("WARNING:")]
     assert warnings and not any("pitloom-git-" in ln for ln in warnings)
-    assert f"Options: {base}/g/p: --trust-wheel-model has no effect" in done.stderr
+    assert (
+        f"Options: {base}/g/p: --max-model-extract-bytes has no effect" in done.stderr
+    )
     assert "--project-dir has no effect for a remote repository" in done.stderr
 
 

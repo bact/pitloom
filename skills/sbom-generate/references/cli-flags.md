@@ -69,11 +69,12 @@ where they differ, and a flag with no effect on a target logs
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
   `RECORD` signature (see "Signed wheels" in `../SKILL.md`). Never add it
   unless the user agrees.
-- `--trust-wheel-model` -- on a built wheel, also read fastText, GGUF, HDF5,
-  ONNX and PyTorch `.pt`/`.pth` models, whose readers can crash, hang or
-  exhaust memory on a hostile file (else listed without metadata, one
-  `INFO:`). Never add it unless the user states the wheel is trusted. Other
-  targets and `embed-wheel --project-dir` warn that it has no effect.
+- `--trust-model-files` -- on a built wheel or a Git URL's repository, also
+  read fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` models, whose
+  readers can crash, hang or exhaust memory on a hostile file (else listed
+  without metadata, one `INFO:`). Never add it unless the user states the
+  wheel or repository is trusted. Other targets and `embed-wheel
+  --project-dir` warn that it has no effect.
 - `--max-model-extract-bytes BYTES` -- on a built wheel, read a model file
   only up to BYTES (four times it per wheel; default 512 MiB); a larger one
   is listed without metadata. Only when asked.

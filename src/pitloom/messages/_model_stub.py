@@ -120,7 +120,7 @@ READER_UNSAFE: Final = Message(
             level="INFO",
             template="AI models in a wheel in these formats are listed without "
             "metadata, their reader not being run on a wheel's files: "
-            "%(formats)s. Pass --trust-wheel-model for a wheel you trust.",
+            "%(formats)s. Pass --trust-model-files for a wheel you trust.",
         ),
     ),
     summary="A wheel holds AI models in formats whose reader Pitloom does not "
@@ -131,8 +131,8 @@ READER_UNSAFE: Final = Message(
     effect="thinner",
     actor="user",
     advice="Tell the user which formats in the wheel were not read, and why. If "
-    "they trust the wheel, they pass --trust-wheel-model (trust_wheel_model="
-    "True in the library; the trust-wheel-model input of the GitHub Action, "
+    "they trust the wheel, they pass --trust-model-files (trust_model_files="
+    "True in the library; the trust-model-files input of the GitHub Action, "
     "with embed-wheel and an empty project-path) and generate again; no config "
     f"file can set it. Do not add the flag or generate again for them; {_ASK}",
 )
@@ -148,8 +148,8 @@ READER_UNSAFE_REMOTE: Final = Message(
             level="INFO",
             template="AI models from a Git URL in these formats are listed "
             "without metadata, their reader not being run on a downloaded "
-            "file: %(formats)s; clone the repository and run on the file you "
-            "trust",
+            "file: %(formats)s. Pass --trust-model-files for a repository "
+            "you trust.",
         ),
     ),
     summary="A model file or a project's model files read from a Git URL are "
@@ -160,11 +160,12 @@ READER_UNSAFE_REMOTE: Final = Message(
     effect="thinner",
     actor="user",
     advice="Tell the user which models from the Git URL were not read, and "
-    "why. If they trust the files, they clone the repository (with Git LFS "
-    "when it stores the models there) and run Pitloom on the local copy, loom "
-    "model on the model file or loom project on the project folder, which "
-    "reads them in full. Do not clone the repository or run Pitloom for "
-    f"them; {_ASK}",
+    "why. If they trust the repository's model files, they pass "
+    "--trust-model-files (trust_model_files=True in the library; the "
+    "trust-model-files input of the GitHub Action) and generate again; no "
+    "config file can set it. Running Pitloom on a local clone reads them in "
+    "full too, but also honours the repository's own configuration and build "
+    f"file list. Do not add the flag or generate again for them; {_ASK}",
     since="0.23.4",
 )
 

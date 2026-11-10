@@ -93,13 +93,13 @@ def test_the_family_has_its_eight_codes() -> None:
             READER_UNSAFE,
             "INFO: AI models in a wheel in these formats are listed without "
             "metadata, their reader not being run on a wheel's files: gguf, onnx. "
-            "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]",
+            "Pass --trust-model-files for a wheel you trust. [reader-unsafe]",
         ),
         (
             READER_UNSAFE_REMOTE,
             "INFO: AI models from a Git URL in these formats are listed without "
             "metadata, their reader not being run on a downloaded file: gguf, "
-            "hdf5; clone the repository and run on the file you trust "
+            "hdf5. Pass --trust-model-files for a repository you trust. "
             "[reader-unsafe/remote]",
         ),
         (
@@ -174,11 +174,11 @@ def test_a_printed_line_is_trusted_as_its_entry(message: Message, line: str) -> 
         # formats that are not lower-case names, comma-separated
         "INFO: AI models in a wheel in these formats are listed without "
         "metadata, their reader not being run on a wheel's files: GGUF;onnx. "
-        "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe]",
+        "Pass --trust-model-files for a wheel you trust. [reader-unsafe]",
         # the wheel's line under the Git URL's code
         "INFO: AI models in a wheel in these formats are listed without "
         "metadata, their reader not being run on a wheel's files: gguf. "
-        "Pass --trust-wheel-model for a wheel you trust. [reader-unsafe/remote]",
+        "Pass --trust-model-files for a wheel you trust. [reader-unsafe/remote]",
         # another level, another code
         "INFO: FORMAT=gguf FILE=t.gguf: header is not gguf; not listed as an AI "
         "model [model-wrong-format]",
@@ -237,7 +237,7 @@ def test_a_value_out_of_shape_is_refused_when_said(
 def test_the_formats_are_written_comma_separated() -> None:
     line = READER_UNSAFE.lines[0]
     rendered = line.render({"formats": ("fasttext", "gguf", "pytorch")})
-    assert ": fasttext, gguf, pytorch. Pass --trust-wheel-model " in rendered
+    assert ": fasttext, gguf, pytorch. Pass --trust-model-files " in rendered
 
 
 def test_a_closed_field_may_repeat_a_free_one_may_not() -> None:
@@ -293,7 +293,7 @@ def test_a_coded_import_error_without_its_line_is_refused() -> None:
 
 def test_the_gate_line_names_the_flag_and_every_gated_format() -> None:
     (line,) = READER_UNSAFE.lines
-    assert f" Pass {PARAM_TO_FLAG['trust_wheel_model']} for " in line.template
+    assert f" Pass {PARAM_TO_FLAG['trust_model_files']} for " in line.template
     for message in (READER_UNSAFE, READER_UNSAFE_REMOTE):
         summary = message.summary.lower()
         assert all(str(fmt) in summary for fmt in WHEEL_GATED_FORMATS)

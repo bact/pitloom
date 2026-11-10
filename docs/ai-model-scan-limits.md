@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,7 +28,7 @@ the project or wheel. A cap reads as every cap Pitloom applies does:
 
 | What you see | Cause | Section |
 | :----------- | :---- | :------ |
-| An `ai_AIPackage` named after its file (`weights` for `weights.gguf`) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-wheel-model` | [Formats gated in wheels](#formats-gated-in-wheels) |
+| An `ai_AIPackage` named after its file (`weights` for `weights.gguf`) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-model-files` | [Formats gated in wheels](#formats-gated-in-wheels) |
 | Same, plus `WARNING: ... max-model-extract-bytes cap; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: FILE=<wheel>: larger than the N-byte per-wheel model-scan budget cap; ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
@@ -171,7 +171,7 @@ changes the models' entries, except where you asked for the change yourself:
 
 | Setting | What changes | Message |
 | :------ | :----------- | :------ |
-| `--trust-wheel-model` | Models of the gated formats in a wheel are read, not listed as stubs | Without it, one `INFO:` naming the formats not read (each format once per run) |
+| `--trust-model-files` | Models of the gated formats in a wheel or a Git URL's repository are read, not listed as stubs | Without it, one `INFO:` naming the formats not read (each format once per run) |
 | `--max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
 | `--scan-model-usage` | `hasDataFile` edges from `.py` files to models exist or not | Without the setting given, one `INFO:` naming the flag |
 | `--allow-build` | The file list comes from a real build, so the models found, and their paths, can differ from the static list | None when the build succeeds; a `WARNING:` and the static list when it fails. See [Building a project](allow-build.md) |
@@ -206,16 +206,16 @@ is named once, in the first wheel that has it, and a later wheel with a
 different gated format gets its own line:
 
 ```text
-INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx. Pass --trust-wheel-model for a wheel you trust.
+INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx. Pass --trust-model-files for a wheel you trust.
 ```
 
 To read them, for a wheel you trust:
 
 | Surface | How |
 | :------ | :-- |
-| CLI | `--trust-wheel-model` on `wheel`, `wheel --embed` or `embed-wheel` without `--project-dir` |
-| Python API | `trust_wheel_model=True` on `generate()` or `generate_wheel_sbom()`; `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()` without `project_dir=` |
-| GitHub Action | Input `trust-wheel-model: "true"`, with `embed-wheel` and `project-path: ""` only; elsewhere it warns that it has no effect ([GitHub Action](github-action.md#configuration)) |
+| CLI | `--trust-model-files` on `wheel`, `wheel --embed` or `embed-wheel` without `--project-dir` (and, for a Git URL, on `project`, `model` or `generate`: [below](#formats-gated-for-a-git-url)) |
+| Python API | `trust_model_files=True` on `generate()` or `generate_wheel_sbom()`; `ConfigOverrides.trust_model_files` for `embed_wheel_sbom()` without `project_dir=` |
+| GitHub Action | Input `trust-model-files: "true"`, with `embed-wheel` and `project-path: ""` (or a Git URL); elsewhere Pitloom warns that it has no effect ([GitHub Action](github-action.md#configuration)) |
 
 There is no `[tool.pitloom]` key, on purpose: a config file can sit in the
 untrusted tree, so it must not be able to switch the protection off. On any
@@ -233,12 +233,18 @@ GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) file is listed with its name,
 format and hashes only, and one line per SBOM says so:
 
 ```text
-INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf; clone the repository and run on the file you trust
+INFO: AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: gguf. Pass --trust-model-files for a repository you trust.
 ```
 
-There is no flag to read them from a Git URL; clone the repository (with Git
-LFS when it holds the model there) and run `loom model <file>` on the file, or
-`loom project <dir>` on the project. Keras v3, Safetensors, NumPy, PT2 and
+To read them, for a repository you trust, use the same option as for a wheel:
+`--trust-model-files` on `project`, `model` or `generate` with the URL,
+`trust_model_files=True` on `generate()`, `generate_git_sbom()` or
+`generate_git_project_sbom()`, or the Action input `trust-model-files: "true"`
+with a Git URL as `project-path` or `model`. It lifts only this gate: the
+repository's own `[tool.pitloom]` is still ignored and its build backend is
+still not run. Cloning the repository and running `loom model <file>` or `loom
+project <dir>` on the copy reads them too, but also trusts the repository's
+configuration and build file list. Keras v3, Safetensors, NumPy, PT2 and
 CRFsuite files are read in full, with the caps above.
 
 ## What is a model
@@ -361,7 +367,7 @@ that are only gated, no Ctrl-C inside one, disk use) is on
   and the display escape combine, and how to read a value back.
 - [Configuration](configuration.md) -- `max-model-extract-bytes`,
   `scan-model-usage`, `max-source-metadata-bytes`.
-- [Command line](cli.md) -- `--trust-wheel-model`, `--max-model-extract-bytes`,
+- [Command line](cli.md) -- `--trust-model-files`, `--max-model-extract-bytes`,
   `--scan-model-usage`.
-- [Python API](python-api.md) -- `trust_wheel_model=`, `max_model_extract_bytes=`.
-- [GitHub Action](github-action.md) -- the `trust-wheel-model` input.
+- [Python API](python-api.md) -- `trust_model_files=`, `max_model_extract_bytes=`.
+- [GitHub Action](github-action.md) -- the `trust-model-files` input.
