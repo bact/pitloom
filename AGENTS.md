@@ -134,7 +134,7 @@ Tests, platform and CI:
 - **A `skipif` condition runs at import time on every platform**: use one short-circuited module constant; same for POSIX-only names in decorators and `parametrize`.
 - **A hardcoded POSIX path in a test skips the "absolute" branch on Windows**: build it from `tempfile.gettempdir()`.
 - **A test making case-variant paths probes the file system first** (`mkdir Probe`, test `probe`, skip, then create).
-- **A bit-for-bit POSIX permission assertion fails on Windows**: spy `os.chmod` arguments; assert the real mode on POSIX.
+- **A bit-for-bit POSIX permission assertion is unwinnable on Windows**: spy `os.chmod` arguments; assert the real mode on POSIX.
 - **`Path.write_text("x\n")` writes CRLF on Windows**: `write_bytes` when a digest is asserted.
 - **`Path.exists()`/`is_file()` swallow only some errnos** (`PermissionError` propagates on 3.10-3.13, `False` on 3.14): use `os.path.isfile`/`isdir` for "never raises"; gate a test by version, plus a version-independent probe.
 - **A textual "under the project" check misses on a case-insensitive file system**: fall back to a `(st_dev, st_ino)` ancestor match (`st_ino == 0` = no identity).
