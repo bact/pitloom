@@ -7,8 +7,9 @@
 catalogue writes each one, and the shape the written text always has, which
 is what a reader trusts a line by.
 
-See also: :mod:`pitloom.messages._types` (the templates) and
-:mod:`pitloom.messages._lines` (reading a line back).
+See also: :mod:`pitloom.messages._types` (the templates),
+:mod:`pitloom.messages._lines` (reading a line back), and
+:mod:`pitloom.messages._templates` (rendering a template from its fields).
 """
 
 from __future__ import annotations
@@ -133,6 +134,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<amount>",
             "a size in bytes, or in whole KiB, MiB or GiB (`512 MiB`)",
         ),
+        "answered": Field(
+            r".+",
+            free_text,
+            "<answered>",
+            "the project name PyPI answered for, as its answer gives it; in quotes, "
+            "escaped, when it holds a control character",
+            free=True,
+        ),
         "card": Field(
             "|".join(re.escape(kind) for kind in CARD_KINDS),
             plain_text,
@@ -151,6 +160,9 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<count>",
             "the number of files in brackets, `(N files)`, after a space when "
             "there are two or more; else nothing",
+        ),
+        "declared": Field(
+            r"[0-9a-f]{64}", str, "<declared>", "the SHA-256 a source declares, in hex"
         ),
         "dir": Field(
             r".+",
@@ -236,6 +248,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<formats>",
             "model formats, comma-separated (`gguf, onnx`)",
         ),
+        "hosts": Field(
+            r".+",
+            free_text,
+            "<hosts>",
+            "the hosts Pitloom fetches PyPI files from, comma-separated "
+            "(`files.pythonhosted.org`)",
+            free=True,
+        ),
         "key": Field(
             "|".join(sorted(CAP_KEYS)),
             plain_text,
@@ -245,6 +265,9 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "limit": Field(
             r"0|[1-9][0-9]*", number_text, "<limit>", "the cap, in its unit"
+        ),
+        "measured": Field(
+            r"[0-9a-f]{64}", str, "<sha256>", "the SHA-256 of the bytes read, in hex"
         ),
         "module": Field(
             r"[a-z][a-z0-9_]*",
@@ -320,6 +343,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
             "`pitloom[ai]` installs every model reader",
         ),
+        "seconds": Field(
+            r"0|[1-9][0-9]*",
+            number_text,
+            "<seconds>",
+            "the time allowed, in whole seconds",
+        ),
         "settings": Field(
             rf"{_SETTING}(?:, {_SETTING})*",
             joined,
@@ -334,11 +363,34 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<size>",
             "a size in bytes (`1 byte`, `N bytes`)",
         ),
+        "source": Field(
+            r".+",
+            free_text,
+            "<source>",
+            "what declared a digest (`the PyPI JSON API`)",
+            free=True,
+        ),
+        "target": Field(
+            r".+",
+            free_text,
+            "<target>",
+            "a URL a redirect or a file points to, as given; in quotes, escaped, when "
+            "it holds a control character",
+            free=True,
+        ),
         "unit": Field(
             "|".join(sorted(CAP_UNITS)),
             plain_text,
             "<unit>",
             "what the cap counts, singular (`byte`, `entry`, `level`)",
+        ),
+        "url": Field(
+            r".+",
+            free_text,
+            "<url>",
+            "a URL as given (a PyPI page URL, or a request URL); in quotes, escaped, "
+            "when it holds a control character",
+            free=True,
         ),
         "use": Field(
             "|".join(re.escape(use) for use in READ_USES),
@@ -356,78 +408,22 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "control character",
             free=True,
         ),
+        "version": Field(
+            r".+",
+            free_text,
+            "<version>",
+            "a release version as the URL or PyPI gives it; in quotes, escaped, when "
+            "it holds a control character",
+            free=True,
+        ),
+        "why": Field(
+            r".+",
+            free_text,
+            "<why>",
+            "why a redirect was refused, a file skipped, or a release yanked (`no "
+            "reason given` when PyPI gives none); on one line, in quotes, escaped, "
+            "when it holds a control character",
+            free=True,
+        ),
     }
 )
-
-#: A name in a template.
-PLACEHOLDER: Final = re.compile(r"%\(([a-z_]+)\)s")
-
-
-def template_names(template: str) -> tuple[str, ...]:
-    """The names *template* uses, in order.
-
-    A field of a closed shape may stand twice (``header is not
-    %(format)s`` after ``FORMAT=%(format)s``), printing the one value both
-    times; a free one may not.
-
-    Raises:
-        ValueError: A name is not in :data:`FIELDS`, a free one is used
-            twice, or a ``%`` is not part of a name.
-    """
-    names = tuple(PLACEHOLDER.findall(template))
-    unknown = sorted(set(names) - set(FIELDS))
-    if unknown:
-        raise ValueError(f"{template!r}: unknown field {unknown[0]!r}")
-    repeated = sorted({n for n in names if FIELDS[n].free and names.count(n) > 1})
-    if repeated:
-        raise ValueError(f"{template!r}: free field {repeated[0]!r} named twice")
-    if "%" in PLACEHOLDER.sub("", template):
-        raise ValueError(f"{template!r}: a '%' that names no field")
-    return names
-
-
-def template_pattern(template: str) -> str:
-    """*template* as a regular expression: its text literal, each name its
-    field's :attr:`~Field.pattern`."""
-    parts: list[str] = []
-    end = 0
-    for found in PLACEHOLDER.finditer(template):
-        parts.append(re.escape(template[end : found.start()]))
-        parts.append(f"(?:{FIELDS[found.group(1)].pattern})")
-        end = found.end()
-    parts.append(re.escape(template[end:]))
-    return "".join(parts)
-
-
-def written(template: str, values: Mapping[str, object]) -> dict[str, str]:
-    """Each value of *values* written by its field, for *template*.
-
-    Raises:
-        ValueError: *values* names other fields than *template*, or a
-            written value does not have its field's shape.
-    """
-    names = template_names(template)
-    if set(values) != set(names):
-        raise ValueError(
-            f"{template!r} takes {sorted(set(names))}, not {sorted(values)}"
-        )
-    texts: dict[str, str] = {}
-    for name in dict.fromkeys(names):
-        text = FIELDS[name].write(values[name])
-        if re.fullmatch(FIELDS[name].pattern, text) is None:
-            raise ValueError(f"{name}={text!r} is not a {name}")
-        texts[name] = text
-    return texts
-
-
-def shown(template: str) -> str:
-    """*template* as the reference shows it, each name its field's
-    :attr:`~Field.shown` (``<file>``)."""
-    return PLACEHOLDER.sub(lambda found: FIELDS[found.group(1)].shown, template)
-
-
-def render(template: str, values: Mapping[str, object]) -> str:
-    """*template* with each name replaced by its value, as written by its
-    field (:func:`written`)."""
-    texts = written(template, values)
-    return PLACEHOLDER.sub(lambda found: texts[found.group(1)], template)

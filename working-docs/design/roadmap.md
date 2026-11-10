@@ -378,15 +378,15 @@ unless the linked doc says so.
 - [ ] **Forge APIs and private repositories** (tokens, `ssh://`, forge archive
   tarballs, forge licence and VCS provenance). Git URLs are built (0.21.0). See
   [remote-source-ingestion.md](remote-source-ingestion.md).
-- [ ] **PyPI URL targets** (`loom wheel <pypi-url>` picks the wheel matching
-  the running environment, `loom project <pypi-url>` the sdist); iteration 1
-  has no flags and no prompts; first consumer Lumina. See
-  [pypi-url-targets.md](pypi-url-targets.md).
+- [x] **PyPI URL targets, iteration 1** (built, 0.24.0): `loom wheel <pypi-url>`
+  reads the wheel matching the running environment, `loom project <pypi-url>`
+  the sdist; adds `--max-download-bytes`. See
+  [pypi-url-targets.md](../implementation/pypi-url-targets.md).
 - [ ] **PyPI URL targets, later iterations**: `--wheel-tag`/`--filename` first
   (Lumina needs it), `--list`, `--all-wheels` (one SBOM per wheel), `--choose`
   (interactive, TTY only), `name==version` and `files.pythonhosted.org`
   targets, other indexes and credentials, a download cache. See
-  [pypi-url-targets.md](pypi-url-targets.md#deferred-after-iteration-1).
+  [pypi-url-targets.md](../implementation/pypi-url-targets.md#deferred-after-iteration-1).
 - [ ] **VEX output format** (CSAF v2.0 vs OpenVEX), after the OSV lookup.
   See [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
 - [ ] **Author strings: NLP / named-entity recognition** (candidate): span

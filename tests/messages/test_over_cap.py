@@ -43,8 +43,8 @@ from pitloom.messages import (
     trusted_message,
     warn_over_cap,
 )
-from pitloom.messages._fields import render
 from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, REASON
+from pitloom.messages._templates import render
 
 _LOG = logging.getLogger("pitloom.test_over_cap")
 _NAME = Cap(1024, "character", "name")

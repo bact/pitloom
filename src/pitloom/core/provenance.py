@@ -121,6 +121,8 @@ def escape_provenance_comment_part(text: str, *, field: bool = False) -> str:
 #: the string. ``Source`` is :func:`provenance_source`'s (one per string);
 #: ``Evidence`` and ``Reason`` are
 #: :func:`pitloom.core.evidence.evidence_segment`'s, a fixed vocabulary.
+#: ``Value`` carries a fact no SPDX property holds (a downloaded archive's
+#: URL or digest, :mod:`pitloom.assemble.spdx3.provenance_acquisition`).
 PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
     {
         "Deprecated-License-Id",
@@ -132,6 +134,7 @@ PROVENANCE_SEGMENT_KEYS: frozenset[str] = frozenset(
         "Package",
         "Role",
         "Tool",
+        "Value",
     }
 )
 

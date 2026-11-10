@@ -15,6 +15,7 @@ import pytest
 from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.model_extract_limit import (
     require_max_dataset_hash_bytes,
+    require_max_download_bytes,
     require_max_model_extract_bytes,
     require_positive_ceiling,
 )
@@ -57,8 +58,9 @@ def test_ceiling_rejects_and_labels(
     [
         (require_max_model_extract_bytes, "max-model-extract-bytes"),
         (require_max_dataset_hash_bytes, "max-dataset-hash-bytes"),
+        (require_max_download_bytes, "max-download-bytes"),
     ],
-    ids=["model", "dataset"],
+    ids=["model", "dataset", "download"],
 )
 def test_named_wrappers_label_table_and_key(require: object, key: str) -> None:
     assert require(np.int64(5)) == 5  # type: ignore[operator]

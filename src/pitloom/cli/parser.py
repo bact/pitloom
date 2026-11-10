@@ -192,6 +192,19 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         ),
     )
     parent.add_argument(
+        "--max-download-bytes",
+        type=positive_byte_ceiling,
+        default=None,
+        metavar="BYTES",
+        help=(
+            "Download at most this many bytes of a file a PyPI URL names; a "
+            "larger one is refused. A positive integer: 0 and negative "
+            "values are errors. PyPI URL targets only. Defers to "
+            "[tool.pitloom] max-download-bytes (512 MiB by default) when "
+            "omitted."
+        ),
+    )
+    parent.add_argument(
         "--content-type",
         action=argparse.BooleanOptionalAction,
         default=None,

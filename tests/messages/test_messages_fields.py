@@ -22,7 +22,7 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
-from pitloom.messages._fields import render
+from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
 _BACKSLASHED = Path("C:\\d\\")

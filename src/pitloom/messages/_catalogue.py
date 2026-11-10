@@ -24,6 +24,8 @@ from pitloom.messages import (
     _model_field,
     _model_stub,
     _over_cap,
+    _pypi,
+    _pypi_info,
     _sbom_target,
     _text_malformed,
     _usage_unparseable,
@@ -69,5 +71,7 @@ MESSAGES: Final = _by_code(
         *_sbom_target.ENTRIES,
         *_input_not_found.ENTRIES,
         *_config_unsafe.ENTRIES,
+        *_pypi.ENTRIES,
+        *_pypi_info.ENTRIES,
     )
 )

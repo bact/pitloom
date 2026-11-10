@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,15 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.23.4...HEAD>
+
+## [Unreleased]
+
+### Added
+
+- `loom wheel`, `loom project` and `loom generate` read a PyPI project or
+  release URL; `--max-download-bytes` caps the download ([#467])
+
+[#467]: https://github.com/bact/pitloom/pull/467
 
 ## [0.23.4] - 2026-11-09
 

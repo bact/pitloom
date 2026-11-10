@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [Command line](cli.md) for `loom project`, `loom model` and
 `loom generate`,
-[Python API](python-api.md) for `generate()`, `generate_git_sbom()` and
+[Python API: remote targets](python-api-remote.md) for `generate()`, `generate_git_sbom()` and
 `generate_git_project_sbom()`,
 [AI model formats](ai-model-formats.md) for what is read from each model file,
 [Building a project (`--allow-build`)](allow-build.md) for why a downloaded
@@ -300,7 +300,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   of 12 MiB, say) is fetched. The library API can stop a fetch once the checkout
   takes more disk than a limit you give (`max_clone_bytes=`, error code
   `git.too-large`, message code [`over-cap`](message-codes.md#over-cap)):
-  [Python API](python-api.md).
+  [Python API: remote targets](python-api-remote.md).
 - A cloned project's build file list (Hatchling `force-include`, setuptools
   `package-dir`, `packages.find.where` or `package-data` with an absolute or
   `..` path, say) keeps only files inside the repository. Such an entry is

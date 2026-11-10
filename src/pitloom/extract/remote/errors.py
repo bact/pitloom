@@ -20,11 +20,19 @@ class RemoteSourceError(Exception):
     vocabulary (``git.clone-failed``, ``git.timeout``, ``git.not-found``,
     ``git.offline``, ``git.url-invalid``, ``git.ref-not-found``,
     ``git.path-not-found``, ``git.too-many-redirects``,
-    ``git.output-too-large``, ``git.too-large``, ``git.no-project``, and any
-    code a caller's own URL check raises through :class:`RemoteSourceError`);
-    the message is for the user. *pitloom_code* is the catalogued code of
-    the condition when it has one (``over-cap`` for ``git.too-large`` and
-    ``git.output-too-large``), read by :func:`pitloom.messages.code_of`.
+    ``git.output-too-large``, ``git.too-large``, ``git.no-project``; for a
+    PyPI URL ``pypi.offline``, ``pypi.url-refused``,
+    ``pypi.too-many-redirects``, ``pypi.project-not-found``,
+    ``pypi.release-not-found``, ``pypi.no-wheel``,
+    ``pypi.no-compatible-wheel``, ``pypi.no-sdist``,
+    ``pypi.response-invalid``, ``pypi.digest-mismatch``, ``pypi.too-large``,
+    ``pypi.save-failed``,
+    ``pypi.download-failed``, ``pypi.download-timeout``; and any code a
+    caller's own URL check raises through :class:`RemoteSourceError`); the
+    message is for the user. *pitloom_code* is the catalogued code of the
+    condition when it has one (``over-cap`` for ``git.too-large``,
+    ``git.output-too-large`` and ``pypi.too-large``; every ``pypi.*`` code
+    but ``pypi.offline``), read by :func:`pitloom.messages.code_of`.
     """
 
     def __init__(

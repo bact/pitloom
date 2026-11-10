@@ -44,6 +44,8 @@ _ROW_KINDS = {
     "remote Git repository": inert_options.GIT,
     "sdist archive": inert_options.SDIST,
     "wheel": inert_options.WHEEL,
+    "wheel at a PyPI URL": inert_options.PYPI_WHEEL,
+    "sdist at a PyPI URL": inert_options.PYPI_SDIST,
     "installed environment": inert_options.ENV,
     "local model file": inert_options.MODEL_FILE,
     "model file at a Git URL": inert_options.GIT_MODEL,
@@ -396,6 +398,7 @@ _SETTLES_ITSELF = {
         *inert_options.INERT[inert_options.PROJECT],
     }
     - {"max_model_extract_bytes"},
+    "generate_wheel_sbom": {"max_download_bytes"},
 }
 
 

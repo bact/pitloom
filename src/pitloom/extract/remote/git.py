@@ -58,8 +58,14 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
-from pitloom.messages import PROJECT_NOT_FOUND, code_of
+from pitloom.messages import (
+    GIT_PYPI_URL_LINE,
+    PROJECT_NOT_FOUND,
+    PYPI_URL_UNUSABLE,
+    code_of,
+)
 
 log = logging.getLogger(__name__)
 
@@ -168,8 +174,10 @@ def fetch_git_project(
     Raises:
         ValueError: *max_bytes* is not a positive integer.
         RemoteSourceError: the URL names no fetchable repository, ref or
-            folder, ``git`` is missing, *offline* is set (``git.offline``),
-            or the repository is larger than *max_bytes*.
+            folder (a PyPI URL is ``git.url-invalid``, catalogued
+            ``pypi-url-unusable``, checked before *offline*), ``git`` is
+            missing, *offline* is set (``git.offline``), or the repository
+            is larger than *max_bytes*.
         Exception: whatever *check_url* raises, unchanged.
     """
     if max_bytes is not None and max_bytes <= 0:
@@ -195,6 +203,13 @@ def _prepare(
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
     shown = loggable(sanitize_url(url))
+    if is_pypi_url(url):
+        # PyPI is no Git host: refused, never cloned.
+        raise RemoteSourceError(
+            "git.url-invalid",
+            GIT_PYPI_URL_LINE.render({"url": shown}),
+            pitloom_code=PYPI_URL_UNUSABLE.code,
+        )
     if offline:
         raise RemoteSourceError(
             "git.offline", f"Cannot fetch {shown}: network access is forbidden."

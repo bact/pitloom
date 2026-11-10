@@ -60,6 +60,7 @@ __all__ = [
     "ConfigOverrides",
     "apply_overrides",
     "load_config_file",
+    "require_download_override",
     "require_model_extract_override",
     "resolve_standalone_config",
 ]
@@ -92,6 +93,11 @@ class ConfigOverrides:
             other embed warns. Checked by
             :func:`require_model_extract_override` even there: at least 1,
             else ``ValueError``.
+        max_download_bytes: ``--max-download-bytes``: the most bytes of
+            a release file a PyPI URL target downloads. Only a PyPI URL
+            target reads it; any other target warns. Checked by
+            :func:`require_download_override`: at least 1, else
+            ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
@@ -126,6 +132,7 @@ class ConfigOverrides:
     update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
     max_model_extract_bytes: int | None = None
+    max_download_bytes: int | None = None
     trust_wheel_model: bool | None = None
     build_options: BuildOptions = BuildOptions()
 
@@ -138,6 +145,16 @@ def require_model_extract_override(value: object) -> int:
         ValueError: *value* is not an integer of at least 1.
     """
     return require_positive_ceiling(value, "max_model_extract_bytes")
+
+
+def require_download_override(value: object) -> int:
+    """A ``max_download_bytes`` keyword or override, checked by
+    :func:`~pitloom.core.model_extract_limit.require_positive_ceiling`.
+
+    Raises:
+        ValueError: *value* is not an integer of at least 1.
+    """
+    return require_positive_ceiling(value, "max_download_bytes")
 
 
 def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
@@ -247,6 +264,10 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
     if overrides.max_model_extract_bytes is not None:
         changes["max_model_extract_bytes"] = require_model_extract_override(
             overrides.max_model_extract_bytes
+        )
+    if overrides.max_download_bytes is not None:
+        changes["max_download_bytes"] = require_download_override(
+            overrides.max_download_bytes
         )
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)

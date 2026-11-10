@@ -9,7 +9,8 @@ generators it dispatches to.
 See also:
 - :mod:`pitloom.assemble._generators` for the project/sdist generator.
 - :mod:`pitloom.assemble._generators_git` for the remote Git repository
-  generator.
+  generator, and :mod:`pitloom.assemble._generators_pypi` for the wheel or
+  sdist of a release named by a PyPI URL.
 - :mod:`pitloom.assemble._generators_wheel` /
   :mod:`pitloom.assemble._generators_env` for the wheel and environment
   generators, and :mod:`pitloom.assemble._generators_shared` for what they share.
@@ -31,6 +32,11 @@ from pitloom.assemble._generators_git import (
     generate_git_sbom,
 )
 from pitloom.assemble._generators_merge import generate_merged_sbom
+from pitloom.assemble._generators_pypi import (
+    PypiSbom,
+    generate_pypi_sbom,
+    generate_pypi_sbom_with_download,
+)
 from pitloom.assemble._generators_wheel import (
     generate_wheel_sbom,
     generate_wheel_sbom_with_metadata,
@@ -45,6 +51,7 @@ from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import (
     ConfigOverrides,
+    require_download_override,
     require_model_extract_override,
 )
 from pitloom.core.creation import CreationMetadata
@@ -75,6 +82,9 @@ from pitloom.extract.remote import (
     is_huggingface_source,
     is_unfetchable_remote,
 )
+from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
+from pitloom.extract.remote.pypi import sdist_hint
+from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 
@@ -84,6 +94,7 @@ __all__ = [
     "EmbeddedSbomLocation",
     "FragmentMergeError",
     "ProvenanceConfig",
+    "PypiSbom",
     "RECOMMENDED_EXTENSIONS",
     "VALIDATED_FORMATS",
     "detect_sbom_format",
@@ -98,30 +109,39 @@ __all__ = [
     "generate_merged_sbom",
     "generate_model_sbom",
     "generate_project_sbom",
+    "generate_pypi_sbom",
+    "generate_pypi_sbom_with_download",
     "generate_wheel_sbom",
     "generate_wheel_sbom_with_metadata",
     "merge_fragments",
     "project_document_id",
     "target_is_git_url",
+    "target_is_pypi_url",
     "target_resolves_to_project",
 ]
 
 
 def _classify_target(target: Path | str) -> str:
-    """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``, ``"git"`` (a
-    remote Git repository URL), ``"model_file"`` (a model by its suffix or
-    content: :func:`~pitloom.extract.model_target.is_model_file_target`),
+    """Classify *target* into ``"env"``, ``"pypi"`` (a PyPI project or
+    release URL, ``http`` too, so that it is refused as one), ``"wheel"``,
+    ``"hf"``, ``"git"`` (a remote Git repository URL), ``"model_file"`` (a
+    model by its suffix or content:
+    :func:`~pitloom.extract.model_target.is_model_file_target`),
     ``"model_folder"`` (a directory with no project config, read for its one
     model file), or ``"project"`` (a project directory, an sdist archive, or
     a path that does not exist).
 
     The one classification behind :func:`generate`'s dispatch,
-    :func:`target_is_git_url` and :func:`target_resolves_to_project`.
-    Silent: a CLI run asks it more than once.
+    :func:`target_is_pypi_url`, :func:`target_is_git_url` and
+    :func:`target_resolves_to_project`. A PyPI URL is asked before a Git
+    one, which it would also pass for. Silent: a CLI run asks it more than
+    once.
     """
     target_str = str(target).strip()
     if target_str.lower() in ("env", "environment", "--env"):
         return "env"
+    if is_pypi_url(target_str):
+        return "pypi"
     if looks_like_wheel_path(target_str):
         return "wheel"
     if is_huggingface_source(target_str):
@@ -139,6 +159,13 @@ def _local_kind(target: str) -> str:
     if os.path.isdir(target) and not has_project_config(target):
         return "model_folder"
     return "project"
+
+
+def target_is_pypi_url(target: Path | str) -> bool:
+    """Return whether :func:`generate` reads *target* as a PyPI project or
+    release URL (:func:`generate_pypi_sbom`), which a CLI command routes to
+    its PyPI download before any Git or local-path handling."""
+    return _classify_target(target) == "pypi"
 
 
 def target_is_git_url(target: Path | str) -> bool:
@@ -179,6 +206,37 @@ def _model_file_of(target: str) -> Path:
     return Path(target) if found.model is None else found.model.path
 
 
+def _generate_remote(
+    classification: str,
+    target: str,
+    options: dict[str, Any],
+    build_options: BuildOptions,
+    check_url: Callable[[str], None] | None,
+) -> str:
+    """:func:`generate` for a ``"pypi"`` or ``"git"`` *target*: a PyPI URL
+    is read as ``loom wheel`` reads it, then one ``INFO:`` names the
+    library's sdist route; a Git URL as :func:`generate_git_sbom` reads
+    it."""
+    if classification == "pypi":
+        # Every option is one generate_pypi_sbom() accepts and settles.
+        sbom = generate_pypi_sbom(
+            target,
+            kind=WHEEL_FILE,
+            **options,
+            build_options=build_options,
+            check_url=check_url,
+        )
+        sdist_hint(target, library=True)
+        return sbom
+    return generate_git_sbom(
+        target,
+        sbom_kind=AUTO,
+        **forward_options(GIT, target, generate_git_sbom, options),
+        build_options=build_options,
+        check_url=check_url,
+    )
+
+
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
 def generate(
     target: Path | str = ".",
@@ -204,27 +262,40 @@ def generate(
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
+    max_download_bytes: int | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
     ``build_options`` (see :class:`~pitloom.core.build_options.BuildOptions`)
     takes effect for a project directory target only. Env, wheel, model and
     Hugging Face targets log one ``WARNING:`` per given build flag here,
-    before dispatching; a Git URL and an sdist archive are settled by
-    :func:`generate_git_project_sbom` and :func:`generate_project_sbom`.
+    before dispatching; a Git URL, a PyPI URL and an sdist archive are
+    settled by :func:`generate_git_project_sbom`, :func:`generate_pypi_sbom`
+    and :func:`generate_project_sbom`.
 
     *project_dir* (the project directory an sdist or a wheel was built
     from, for its registry keys) reaches the sdist and wheel delegates; any
     other target warns that it has no effect. So does
-    *max_model_extract_bytes* on any target but a wheel; an invalid value
-    raises ``ValueError`` whatever the target.
+    *max_model_extract_bytes* on any target but a wheel, and
+    *max_download_bytes* on any target but a PyPI URL; an invalid value of
+    either raises ``ValueError`` whatever the target.
+
+    A PyPI project or release URL is read as ``loom wheel`` reads it: the
+    release's wheel that best matches the running environment is
+    downloaded, verified and read (:func:`generate_pypi_sbom`), then one
+    ``INFO:`` names :func:`generate_pypi_sbom` with ``kind="sdist"`` for
+    the sdist.
+    *check_url* is called with every URL of the release lookup and the
+    download before it is requested (a dependency's licence lookup, with
+    *enrich*, does not pass through it); *max_download_bytes* caps the
+    file.
 
     A target that is the ``http`` or ``https`` URL of a Git repository (or of
     one of its web pages) is fetched and read as a project, or as the model
     file it names or its folder's one model file
     (:func:`generate_git_sbom`); *check_url* is its address policy,
-    called with every redirect target before it is requested, and no other
-    target uses it. A local directory with no project config is read for its
+    called with every redirect target before it is requested. A local
+    target does not use it. A local directory with no project config is read for its
     one model file; one with no model file either is refused
     (``project-or-model-not-found``).
     """
@@ -233,10 +304,12 @@ def generate(
     configure_logging()
     if max_model_extract_bytes is not None:
         require_model_extract_override(max_model_extract_bytes)  # even if inert
+    if max_download_bytes is not None:
+        require_download_override(max_download_bytes)  # even if inert
     target_str = str(target).strip()
     classification = _classify_target(target_str)
 
-    if classification not in ("project", "git"):
+    if classification not in ("project", "git", "pypi"):
         # Warns once and resets to defaults, as every
         # settle_not_applicable() call does.
         build_options = build_options.settle_not_applicable(
@@ -263,9 +336,14 @@ def generate(
         "pitloom_config": pitloom_config,
         "use_lockfile": use_lockfile,
         "project_dir": project_dir,
+        "max_download_bytes": max_download_bytes,
     }
     # Each delegate gets what it accepts; an option it does not accept is
     # settled here, once, with the target kind's reason.
+    if classification in ("pypi", "git"):
+        return _generate_remote(
+            classification, target_str, options, build_options, check_url
+        )
     if classification == "env":
         return generate_env_sbom(
             **forward_options(ENV, target_str, generate_env_sbom, options)
@@ -274,6 +352,7 @@ def generate(
         return generate_wheel_sbom(
             target_str,
             **forward_options(WHEEL, target_str, generate_wheel_sbom, options),
+            check_url=check_url,
         )
     if classification == "hf":
         return generate_model_sbom(
@@ -285,18 +364,11 @@ def generate(
             MODEL_FILE, target_str, generate_model_sbom, options
         )
         return generate_model_sbom(_model_file_of(target_str), **forwarded)
-    if classification == "git":
-        return generate_git_sbom(
-            target_str,
-            sbom_kind=AUTO,
-            **forward_options(GIT, target_str, generate_git_sbom, options),
-            build_options=build_options,
-            check_url=check_url,
-        )
     project_target = Path(target_str)
     kind = project_target_kind(project_target)
     return generate_project_sbom(
         project_target,
         **forward_options(kind, project_target, generate_project_sbom, options),
         build_options=build_options,
+        check_url=check_url,
     )

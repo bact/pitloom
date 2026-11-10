@@ -30,7 +30,7 @@ without cloning it by hand. The remote targets still open, for symmetry:
 - **Private repositories and other transports**: a token for a private
   repository, `ssh://` and scp-style addresses (`git@github.com:owner/repo.git`).
 - **Remote packages/wheels**: `loom wheel <pypi-url>` and `loom project <pypi-url>`
-  (designed in [pypi-url-targets.md](pypi-url-targets.md)).
+  (built in 0.24.0, iteration 1: see [pypi-url-targets.md](../implementation/pypi-url-targets.md)).
 - **Remote datasets**: `loom dataset <croissant-or-hub-url>`.
 
 ---

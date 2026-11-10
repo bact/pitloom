@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ page -- it installs the exact same three `SKILL.md` files described here.
 Pitloom ships three Skills:
 
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project (a directory
-  or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or
+  or a Git URL), a wheel or sdist (also from a PyPI URL), or AI/ML model file. Also embeds a generated (or
   pre-existing) SBOM directly into a built wheel per PEP 770's
   `.dist-info/sboms/` convention. Asked to pin ids, it creates or updates a
   [Loom ID registry](id-registry.md) with `loom id generate`/`import`.
@@ -227,7 +227,7 @@ the Skill needs to run, above). It has no `argument-hint`: that key is
 outside the Agent Skills specification, and claude.ai and the Skills API
 reject it. Each Skill's body says what argument it takes instead --
 `sbom-generate` accepts a project directory, sdist, wheel, model file,
-Hugging Face model ID or Git URL, while the other two need an existing SBOM
+Hugging Face model ID, Git URL or PyPI URL, while the other two need an existing SBOM
 file path. Nothing else needs configuring to use the Skills as-is.
 
 ## See also

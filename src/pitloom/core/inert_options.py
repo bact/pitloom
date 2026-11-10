@@ -49,6 +49,9 @@ ENV = "env"
 GIT = "git"
 #: An AI model file at a Git URL (the file it names, or its folder's one).
 GIT_MODEL = "git_model"
+#: The wheel, or the sdist, of a release named by a PyPI URL.
+PYPI_WHEEL = "pypi_wheel"
+PYPI_SDIST = "pypi_sdist"
 MODEL_FILE = "model_file"
 HF = "hf"
 ENRICH = "enrich"
@@ -70,6 +73,7 @@ PARAM_TO_FLAG: dict[str, str] = {
     "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
     "trust_wheel_model": "--trust-wheel-model",
     "max_model_extract_bytes": "--max-model-extract-bytes",
+    "max_download_bytes": "--max-download-bytes",
     "content_type_method": "--content-type-method",
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
@@ -149,6 +153,10 @@ _PROJECT_IS_DIR = (
     "for a project directory target (its files are keyed below that directory)"
 )
 _GIT_PROJECT_DIR = "for a remote repository (its checkout is the project directory)"
+_PYPI_PROJECT_DIR = (
+    "for a PyPI URL target (the file was not built from a directory here)"
+)
+_NOT_A_DOWNLOAD = "for this target (only a PyPI URL target downloads a file)"
 _NOT_AN_ARCHIVE = (
     "for this target (it keys the files of an sdist or a wheel below their "
     "project directory only)"
@@ -186,22 +194,28 @@ _ENRICH_ROW: dict[str, str] = {
     "update_id_registry": _NO_HARVEST,
 }
 
-#: Target kind -> {parameter: reason it has no effect there}.
-INERT: dict[str, dict[str, str]] = {
+_SDIST_ROW: dict[str, str] = {
+    **_NOT_A_WHEEL_ROW,
+    **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
+    "enrich": _SDIST_NO_ENRICH,
+    "scan_model_usage": _SDIST_NO_MODELS,
+    "use_lockfile": _SDIST_NO_LOCKFILE,
+}
+_WHEEL_ROW: dict[str, str] = {
+    **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
+    "enrich": _WHEEL_NO_ENRICH,
+    "use_lockfile": _NO_LOCKFILE,
+}
+
+#: :data:`INERT` but the download cap's entries.
+_ROWS: dict[str, dict[str, str]] = {
     PROJECT: {**_NOT_A_WHEEL_ROW, "project_dir": _PROJECT_IS_DIR},
     GIT: {**_NOT_A_WHEEL_ROW, "project_dir": _GIT_PROJECT_DIR},
-    SDIST: {
-        **_NOT_A_WHEEL_ROW,
-        **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
-        "enrich": _SDIST_NO_ENRICH,
-        "scan_model_usage": _SDIST_NO_MODELS,
-        "use_lockfile": _SDIST_NO_LOCKFILE,
-    },
-    WHEEL: {
-        **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
-        "enrich": _WHEEL_NO_ENRICH,
-        "use_lockfile": _NO_LOCKFILE,
-    },
+    SDIST: _SDIST_ROW,
+    WHEEL: _WHEEL_ROW,
+    # A downloaded file is read as the local one; only the cap is its own.
+    PYPI_WHEEL: {**_WHEEL_ROW, "project_dir": _PYPI_PROJECT_DIR},
+    PYPI_SDIST: {**_SDIST_ROW, "project_dir": _PYPI_PROJECT_DIR},
     ENV: {
         **_NOT_A_WHEEL_ROW,
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
@@ -267,6 +281,19 @@ INERT: dict[str, dict[str, str]] = {
     },
 }
 
+
+#: Target kind -> {parameter: reason it has no effect there}. Only a PyPI
+#: URL target downloads a file: the download cap is inert for every other
+#: but the hook, which has no flag and settles only
+#: :func:`configured_options` (no cap among them).
+INERT: dict[str, dict[str, str]] = {
+    kind: (
+        row
+        if kind in (PYPI_WHEEL, PYPI_SDIST, HOOK)
+        else {**row, "max_download_bytes": _NOT_A_DOWNLOAD}
+    )
+    for kind, row in _ROWS.items()
+}
 
 #: The parameters of :data:`_EMBED_COMMON`, for a caller that embeds by
 #: another route than :func:`pitloom.embed.embed_wheel_sbom`.
@@ -409,6 +436,8 @@ __all__ = [
     "MODEL_FILE",
     "PARAM_TO_FLAG",
     "PROJECT",
+    "PYPI_SDIST",
+    "PYPI_WHEEL",
     "SDIST",
     "WHEEL",
     "configured_options",

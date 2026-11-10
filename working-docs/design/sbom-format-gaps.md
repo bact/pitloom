@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -312,3 +312,33 @@ declined or fixed entry with its outcome.
   `tests/core/generator/test_generator_model.py`
 - Status: noted
 - Date: 2026-10-31
+
+### FG-15 No property says how a package's archive was obtained and verified
+
+- Format and version: SPDX 3.0.1, Core and Software profiles
+- Element or property: the main `software_Package`; nearest are
+  `software_downloadLocation` (a URL, with no digest or how it was chosen)
+  and `verifiedUsing` (here the Merkle root over the package's files, not a
+  hash of the archive)
+- Fact to record: for a wheel or sdist downloaded from a PyPI URL: the
+  release page and the file URL it was obtained from, the archive's file
+  name, its SHA-256 measured from the bytes and the SHA-256 the index
+  declared that it was verified against, why this file was chosen (the
+  wheel best matching the running environment, with how many other
+  compatible wheels were skipped; the latest release when the URL named
+  none), and the release's status (a pre-release, yanked and why)
+- Pitloom today: one provenance record on the main package (the
+  `pitloom/1` `fields` Annotation and the `comment`, as the provenance
+  settings say), with `Value:` segments for the URLs, the digests, the
+  tags and the count, and `Evidence: measured_read` beside `Evidence:
+  declared` (`Source: PyPI JSON API`) for the two digests
+- Why imprecise: no property for the archive a package was read from as
+  distinct from the package, for a digest's evidence level (see FG-10,
+  FG-13) or for the reason a distribution was selected
+- Proposal: a distribution-artifact element or property on a package
+  (an archive with its own location, hashes and their source), and a
+  selection-reason or acquisition property, to SPDX 3.1 [maintainer to add
+  link and wording]
+- Evidence: `tests/assemble/test_generate_pypi_provenance.py`
+- Status: noted
+- Date: 2026-11-10

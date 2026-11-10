@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
-from pitloom.messages._fields import render
+from pitloom.messages._templates import render
 from pitloom.messages._types import Line, Message
 
 #: What an input over a cap is, in every line and in an error's text.
@@ -95,6 +95,11 @@ CONFIG_MEMBER_LINE: Final = Line(
 SOURCE_LINE: Final = Line(
     level="ERROR", template=f"FILE=%(file)s: {REASON} %(use)s; not read"
 )
+#: A file Pitloom downloads (from PyPI) over the download cap: it is not
+#: downloaded.
+DOWNLOAD_LINE: Final = Line(
+    level="ERROR", template=f"FILE=%(file)s: {REASON}; not downloaded"
+)
 #: A Git URL's checkout over the library caller's ``max_clone_bytes``.
 CLONE_LINE: Final = Line(
     level="ERROR",
@@ -114,6 +119,7 @@ OVER_CAP: Final = Message(
         MODEL_LINE,
         CONFIG_MEMBER_LINE,
         SOURCE_LINE,
+        DOWNLOAD_LINE,
         CLONE_LINE,
         GIT_OUTPUT_LINE,
     ),
@@ -125,10 +131,12 @@ OVER_CAP: Final = Message(
     effect="thinner",
     actor="user",
     advice="Tell the user which input was over which cap and what the SBOM "
-    "lacks for it. Three caps are settings, which they can raise for an input "
+    "lacks for it. Four caps are settings, which they can raise for an input "
     "they trust and then generate again: max-model-extract-bytes (and with it "
     "the per-wheel model-scan budget, four times it) by "
     "--max-model-extract-bytes or its [tool.pitloom] key; "
+    "max-download-bytes (a wheel or sdist downloaded from a PyPI URL) by "
+    "--max-download-bytes or its key; "
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
     "generate or by the max_dataset_hash_bytes argument of loom.Run; a Git "
     "URL's checkout by the max_clone_bytes argument of the library call. "

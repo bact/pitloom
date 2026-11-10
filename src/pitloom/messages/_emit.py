@@ -22,8 +22,8 @@ from collections.abc import Callable, Mapping
 
 from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
-from pitloom.messages._fields import written
 from pitloom.messages._lines import says
+from pitloom.messages._templates import written
 from pitloom.messages._types import Line, Message
 
 

@@ -3,11 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Masking of credentials in a URL and of the temporary Git checkout in a text.
+"""Masking of credentials in a URL, and of the temporary Git checkout and
+PyPI download directory in a text.
 
-See also: :mod:`pitloom.logging_config` (its ``escape_controls`` masks the
-checkout in every logged line) and :mod:`pitloom.extract.remote.git` (the Git
-URL ingestion that makes the checkout).
+See also: :mod:`pitloom.logging_config` (its ``escape_controls`` masks both
+directories in every logged line), :mod:`pitloom.extract.remote.git` (the Git
+URL ingestion that makes the checkout) and :mod:`pitloom.extract.remote.pypi`
+(the PyPI URL ingestion that makes the download directory).
 
 The contract, for every function here:
 
@@ -20,7 +22,8 @@ The contract, for every function here:
 * :func:`sanitize_url_credentials` masks URLs inside free text, which ends
   at white space; :func:`sanitize_url` is for a text that is one URL.
   :func:`mask_checkout` writes the checkout directory as
-  :data:`CHECKOUT_PLACEHOLDER` so two runs read the same.
+  :data:`CHECKOUT_PLACEHOLDER`, and the download directory as
+  :data:`DOWNLOAD_PLACEHOLDER`, so two runs read the same.
 """
 
 from __future__ import annotations
@@ -32,6 +35,8 @@ from urllib.parse import unquote
 __all__ = [
     "CHECKOUT_DIR_PREFIX",
     "CHECKOUT_PLACEHOLDER",
+    "DOWNLOAD_DIR_PREFIX",
+    "DOWNLOAD_PLACEHOLDER",
     "mask_checkout",
     "sanitize_url",
     "sanitize_url_credentials",
@@ -126,10 +131,22 @@ def url_without_credentials(url: str) -> str:
 CHECKOUT_DIR_PREFIX = "pitloom-git-"
 #: What a message shows for that directory, so two runs read the same.
 CHECKOUT_PLACEHOLDER = "<checkout>"
+#: The name prefix of the temporary directory a PyPI release file is
+#: downloaded into.
+DOWNLOAD_DIR_PREFIX = "pitloom-pypi-"
+#: What a message shows for that directory.
+DOWNLOAD_PLACEHOLDER = "<download>"
+#: Each prefix and what a message shows for its directory.
+_PLACEHOLDERS = {
+    CHECKOUT_DIR_PREFIX: CHECKOUT_PLACEHOLDER,
+    DOWNLOAD_DIR_PREFIX: DOWNLOAD_PLACEHOLDER,
+}
 #: ``tempfile.mkdtemp`` appends eight characters of ``[a-z0-9_]``: a directory
 #: of another name (a worktree called ``pitloom-git-fix``) is not the checkout.
-_CHECKOUT_DIR = re.compile(
-    re.escape(CHECKOUT_DIR_PREFIX) + r"[a-z0-9_]{8}(?![a-z0-9_])"
+_TEMP_DIR = re.compile(
+    "("
+    + "|".join(re.escape(prefix) for prefix in _PLACEHOLDERS)
+    + r")[a-z0-9_]{8}(?![a-z0-9_])"
 )
 #: A word of a message: a run without a space, quote, bracket, backtick, ``=``,
 #: ``,`` or ``;`` (where a path ends in a message that quotes, brackets or
@@ -139,26 +156,67 @@ _WORD = re.compile(r"[^\s'\"`()\[\]<>=,;]+")
 _SCP_ADDRESS = re.compile(r"[\w.+-]+@[\w.-]+:")
 
 
-def _mask_word(found: re.Match[str]) -> str:
-    word = found.group(0)
-    if (
-        CHECKOUT_DIR_PREFIX not in word
-        or "://" in word
-        or _SCP_ADDRESS.match(word) is not None
-    ):
-        return word
-    last = deque(_CHECKOUT_DIR.finditer(word), maxlen=1)
-    return CHECKOUT_PLACEHOLDER + word[last[0].end() :] if last else word
+#: Where a path in a message cannot go on: a quote, a bracket, a backtick,
+#: ``=``, ``,``, ``;`` or a line break (a space can be inside a path).
+_PATH_ENDS = "'\"`()[]<>=,;\n\r\t\v\f"
+#: The root of an absolute path: a Windows drive, a UNC share or ``/``.
+_ROOT_TEXT = r"[A-Za-z]:[\\/]|\\\\|/"
+_ROOT_HERE = re.compile(_ROOT_TEXT)
+#: Such a root at the start of a word (after a space or at the start).
+_ROOT = re.compile(rf"(?:(?<= )|^)(?:{_ROOT_TEXT})")
+
+
+def _has_prefix(text: str) -> bool:
+    return any(prefix in text for prefix in _PLACEHOLDERS)
+
+
+def _masked_word(word: str) -> str | None:
+    """*word* with its last temporary directory and all before it written
+    as the placeholder, or ``None`` when it holds none or is an address."""
+    if not _has_prefix(word) or "://" in word or _SCP_ADDRESS.match(word) is not None:
+        return None
+    last = deque(_TEMP_DIR.finditer(word), maxlen=1)
+    if not last:
+        return None
+    return _PLACEHOLDERS[last[0].group(1)] + word[last[0].end() :]
+
+
+def _path_start(text: str, low: int, word_start: int) -> int:
+    """Where the path holding the word at *word_start* starts: the word
+    itself when it starts at a root, else the last root before it on the
+    same stretch of text (back over spaces: ``C:\\Users\\John Smith\\...``),
+    not before *low* or a character of :data:`_PATH_ENDS`."""
+    if _ROOT_HERE.match(text, word_start) is not None:
+        return word_start
+    stretch = max((text.rfind(c, low, word_start) for c in _PATH_ENDS), default=-1)
+    low = max(low, stretch + 1)
+    roots = deque(_ROOT.finditer(text[low:word_start]), maxlen=1)
+    return low + roots[0].start() if roots else word_start
 
 
 def mask_checkout(text: str) -> str:
     """*text* with the temporary checkout of a Git URL written as
-    ``<checkout>``: each word that is a path holding the directory
-    (``pitloom-git-`` and its eight random characters) becomes ``<checkout>``
-    and what follows the directory, so a path below it keeps its tail
-    (``<checkout>/setup.cfg``). A word that is an address (``https://host/o/
-    pitloom-git-abcdefgh``, ``git@host:o/pitloom-git-abcdefgh``) is kept. One
-    pass over the words; text without the prefix is returned as it is."""
-    if CHECKOUT_DIR_PREFIX not in text:
+    ``<checkout>``, and the temporary download directory of a PyPI URL as
+    ``<download>``: each path holding the directory (``pitloom-git-`` or
+    ``pitloom-pypi-`` and its eight random characters) becomes the
+    placeholder and what follows the directory, so a path below it keeps its
+    tail (``<checkout>/setup.cfg``, ``<download>/x.whl``). A path is read
+    back from the word holding the directory to its root, over spaces
+    (``C:\\Users\\John Smith\\AppData\\...``), up to a quote, bracket, ``=``
+    or line break. A word that is an address
+    (``https://host/o/pitloom-git-abcdefgh``, ``git@host:o/pitloom-git-
+    abcdefgh``) is kept. One pass over the words; text without a prefix is
+    returned as it is."""
+    if not _has_prefix(text):
         return text
-    return _WORD.sub(_mask_word, text)
+    parts: list[str] = []
+    done = 0
+    for word in _WORD.finditer(text):
+        masked = _masked_word(word.group(0))
+        if masked is None:
+            continue
+        start = _path_start(text, done, word.start())
+        parts += (text[done:start], masked)
+        done = word.end()
+    parts.append(text[done:])
+    return "".join(parts)

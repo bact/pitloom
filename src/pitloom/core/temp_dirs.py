@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Temporary directories whose removal is registered with a
-:class:`~pitloom.core.build_signals.TerminationGuard`.
+:class:`~pitloom.core.build_signals.TerminationGuard`, and the removal that
+never raises (:func:`remove_temp_dir`, also used by a PyPI download's
+directory).
 
 See also: :mod:`pitloom.core.build_signals` (the guard, signal
 behaviour) and :mod:`pitloom.core._models_wheel_build_and_read` (the
@@ -37,7 +39,7 @@ def registered_temp_dir(
     *log_prefix* (e.g. ``"Build: "``) starts the removal's log messages.
     """
     path = Path(tempfile.mkdtemp(prefix=prefix))
-    remove = one_shot(functools.partial(_remove_temp_dir, path, log_prefix))
+    remove = one_shot(functools.partial(remove_temp_dir, path, log_prefix))
     termination.add_cleanup(remove)
     return path, remove
 
@@ -63,10 +65,11 @@ def one_shot(remove: Callable[[], None]) -> Callable[[], None]:
     return cleanup
 
 
-def _remove_temp_dir(path: Path, log_prefix: str) -> None:
-    """Remove *path*, with a ``WARNING:`` if anything survives."""
-    rmtree_quietly(path, log_prefix)
-    warn_if_left_behind(path, log_prefix)
+def remove_temp_dir(path: Path | str, log_prefix: str) -> None:
+    """Remove *path*, with a ``WARNING:`` (starting with *log_prefix*) if
+    anything survives. Never raises."""
+    rmtree_quietly(Path(path), log_prefix)
+    warn_if_left_behind(Path(path), log_prefix)
 
 
 def rmtree_quietly(path: Path, log_prefix: str) -> None:

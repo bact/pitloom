@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-07
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,22 +8,92 @@ SPDX-License-Identifier: CC0-1.0
 
 # PyPI URL targets: `loom wheel <pypi-url>` and `loom project <pypi-url>`
 
-See also: [roadmap.md](roadmap.md) (the summary bullet),
-[remote-source-ingestion.md](remote-source-ingestion.md) (the wider remote
-plan; its PyPI section is superseded by this page),
+See also: [roadmap.md](../design/roadmap.md) (the summary bullets),
+[remote-source-ingestion.md](../design/remote-source-ingestion.md) (the wider
+remote plan; its PyPI section is superseded by this page),
+[pypi-urls.md](../../docs/pypi-urls.md) (the user-facing page),
 [git-urls.md](../../docs/git-urls.md) (the built Git URL target this mirrors),
-[message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the codes
-used below), and [evidence-levels.md](evidence-levels.md) (how the download is
-recorded).
+[message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
+(the codes used below), [evidence-levels.md](../design/evidence-levels.md) (how
+the download is recorded) and [sbom-format-gaps.md](../design/sbom-format-gaps.md)
+(FG-15, the provenance record).
 
-Status: design, 2026-11-07. Nothing built. The first iteration is deliberately
-small: **no new flags and no prompts**. Hand-tested on one small package
+Status: **built (iteration 1), 2026-11-10**, for 0.24.0. The design below is
+kept as it was decided on 2026-11-07; [Amendments](#amendments-at-build-time-2026-11-10)
+lists where the build departs from it, and wins where they differ. The first
+iteration was meant to be small: **no prompts**, and (as designed) no new
+flags; one flag was added (see the amendments). Hand-tested on one small package
 (2026-10-20): `loom project <sdist>` and `loom wheel <wheel>` each wrote an SBOM
 that `sbomcheck` read, so the work is the fetch, pick and verify steps, not the
 readers.
 
 First consumer: Lumina's *Generate & check* page (a PyPI URL beside a Git or
 Hugging Face one), which would call this resolver rather than carry its own.
+
+## Amendments at build time (2026-11-10)
+
+Where the build differs from the design below:
+
+1. **One new flag, `--max-download-bytes BYTES`** (user decision, 2026-11-09;
+   the design said "no new flags"). Config key `max-download-bytes` (only via
+   `--config` for a remote target, since a downloaded project's own config is
+   never read), library `max_download_bytes=`; default 512 MiB; a positive
+   integer, validated on every surface even where it has no effect, and an
+   inert option (one `WARNING: Options:`) on every target but a PyPI URL.
+   Over the cap: `ERROR:` `over-cap` (`DOWNLOAD_LINE`), no SBOM. The size PyPI
+   declares never gates the read; the bytes received do. The design's
+   "reuse the existing archive limits" was dropped: those bound what is read
+   from an archive, not the archive.
+2. **Several sdists in one old release**: the design said "at most one". Old
+   releases can carry a `.zip` and a `.tar.gz`; the `.tar.gz` is preferred,
+   then the file name, with an `INFO:` (`file-ambiguous`, `SDIST_PICK_LINE`).
+3. **`check_url` on every URL**, not on redirect hops only: the JSON API URL,
+   the file URL and each hop are given to the caller's check before the
+   request (the Lumina address guard). `fetch_json` was not reused: it
+   follows redirects unchecked; one hardened client
+   (`extract/remote/_http_fetch.py`) serves the JSON API and the file, and
+   `deps_pypi` builds its URL with the shared `pypi_json_url()`.
+4. **The SBOM record is one provenance Annotation on the main package**, not
+   native SPDX elements (user decision, 2026-11-09): the PyPI project URL, the
+   file URL, the SHA-256 measured from the bytes and the declared one it
+   matched (`Evidence: measured_read` / `declared`), the release version
+   (pinned: `Source: PyPI JSON API | Value: 1.0.0`, plus
+   `| Normalized-From: 1.0` when the URL spelled it differently; unpinned:
+   `Method: latest-release`), the release status and yank
+   reason, and for a wheel its tags and the number of other compatible wheels
+   skipped (`Method: running-environment`). Built only through
+   `provenance_source`/`provenance_segment`/`evidence_segment`. Rejected: the
+   archive as a `software_File` with `hasDistributionArtifact` (structural
+   drift from the local SBOM; a local wheel would want it too). The gap is
+   FG-15 in [sbom-format-gaps.md](../design/sbom-format-gaps.md).
+5. **JSON API answer cap**: 64 MiB and a nesting limit (the plan said 16 MiB);
+   socket timeout 30 s, 2 minutes for the JSON answer, 30 minutes for the
+   file; at most 5 redirects.
+6. **An unpinned URL ignores the kind and the platform when it picks the
+   release**: the release is chosen first (stable and unyanked, then
+   pre-release, then yanked; it counts when it has a wheel or an sdist with a
+   SHA-256), the file second. `loom project <pypi-url>` therefore fails with
+   `release-file-not-found/sdist` when the latest release has no sdist even
+   if an older one has; the workaround is the versioned URL. Making the pick
+   look at the command is a later-iteration item.
+7. **New catalogue families** (`since` 0.24.0): `pypi-url-invalid`,
+   `url-unsafe`, `url-moved`, `query-no-effect`, `release-not-found`,
+   `release-file-not-found` (with `/compatible-wheel` and `/sdist`),
+   `digest-invalid`, `pypi-response-invalid`, `download-network-failed`,
+   `download-timeout`, `temp-dir-unusable`, `release-unpinned` (with
+   `/prerelease` and `/yanked`), `release-unusable` (a yanked file) and
+   `file-ambiguous`; errors are `RemoteSourceError` codes `pypi.*`, each with
+   its `pitloom_code`.
+8. **PyPI is recognised before Git** on every surface (a PyPI URL passes
+   `is_git_url`). `loom model <pypi-url>` is refused, naming `loom wheel` and
+   `loom project`.
+9. **`PypiDownload.unpinned` was replaced by `requested_version`.** The Git
+   route still uses `TemporaryDirectory`, so it keeps the Windows cleanup
+   exposure (a follow-up).
+10. **The temporary directory** is `pitloom-pypi-XXXXXXXX`, masked as
+   `<download>` by `mask_checkout`.
+
+User-facing page: [pypi-urls.md](../../docs/pypi-urls.md).
 
 ## Decision
 
@@ -158,7 +228,7 @@ The file is untrusted data.
   these precisely goes in the gaps ledger below.
 - The format has no property for "obtained from this URL" with a digest for a
   package file beyond `downloadLocation` and a hash; if the mapping stretches,
-  add an entry to [sbom-format-gaps.md](sbom-format-gaps.md) in the same
+  add an entry to [sbom-format-gaps.md](../design/sbom-format-gaps.md) in the same
   change.
 - Output file name: the existing rule (`<name>-<version>.spdx3.json`); `-o -`
   works as for the local file.
@@ -215,9 +285,9 @@ code), used by every surface (AGENTS.md "usage surfaces"):
   answer.
 - `name==version` and bare-name targets; `files.pythonhosted.org` file links;
   other indexes and credentials (shares the token rules in
-  [remote-source-ingestion.md](remote-source-ingestion.md)); a download cache.
+  [remote-source-ingestion.md](../design/remote-source-ingestion.md)); a download cache.
 - A private index with credentials (the token rules in
-  [remote-source-ingestion.md](remote-source-ingestion.md)).
+  [remote-source-ingestion.md](../design/remote-source-ingestion.md)).
 - A no-download mode reading `requires_dist` from the JSON API alone: not
   planned, since the file's own metadata is the better source.
 
@@ -238,4 +308,4 @@ code), used by every surface (AGENTS.md "usage surfaces"):
 None left for iteration 1. For later iterations: whether extras are on or off by
 default for a downloaded release, and whether a download cache is per user
 (`~/.cache/pitloom/remote/<hash>`) or ephemeral (the same question as in
-[remote-source-ingestion.md](remote-source-ingestion.md)).
+[remote-source-ingestion.md](../design/remote-source-ingestion.md)).

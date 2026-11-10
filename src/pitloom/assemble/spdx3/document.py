@@ -65,6 +65,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
     resolve_encoder,
 )
+from pitloom.assemble.spdx3.provenance_acquisition import acquisition_provenance
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import (
     _clear_doc_counters,
@@ -125,6 +126,21 @@ def _with_recorded_keys(
     return exporter
 
 
+def _add_creation_bundle(
+    exporter: Spdx3JsonExporter,
+    creation_info: spdx3.CreationInfo,
+    agents: list[spdx3.Agent],
+    tools: list[spdx3.Tool],
+) -> None:
+    """Add the creation info, its creator agents and its tools to
+    *exporter*."""
+    exporter.add_creation_info(creation_info)
+    for agent in agents:
+        exporter.add_agent(agent)
+    for tool in tools:
+        exporter.object_set.add(tool)
+
+
 def _prepared(doc: DocumentModel) -> DocumentModel:
     """*doc* with canonical dependencies, its Git LFS pointers reported (once
     per document: every surface builds through here)."""
@@ -166,7 +182,10 @@ def build(
     *content_type_method* reaches each dependency's originator enrichment.
     *identity_info_due* is called before the unknown-identity ``INFO:``
     (given with a *registry*) and returns whether to log it, so a batch logs
-    it once.
+    it once. ``doc.acquisition`` (a downloaded archive) adds one provenance
+    record on the main package
+    (:func:`~pitloom.assemble.spdx3.provenance_acquisition.acquisition_provenance`),
+    written last so that no other element's id changes for it.
     """
     doc = _prepared(doc)
     metadata = doc.project
@@ -222,11 +241,7 @@ def build(
     # --- Creation info, creator agents, and creation tools ---
     spdx_ci, agents, tools = build_creation_bundle(doc, doc_uuid)
 
-    exporter.add_creation_info(spdx_ci)
-    for agent in agents:
-        exporter.add_agent(agent)
-    for tool in tools:
-        exporter.object_set.add(tool)
+    _add_creation_bundle(exporter, spdx_ci, agents, tools)
 
     # --- Main package ---
     main_package = build_main_package(
@@ -405,6 +420,21 @@ def build(
         exporter,
         offline=offline,
     )
+
+    # --- How a downloaded archive was obtained: after every other element,
+    # so the record shifts no other id and a local file's SBOM is the same
+    # but for it ---
+    if doc.acquisition is not None:
+        emit_provenance(
+            subject=main_package,
+            provenance=acquisition_provenance(doc.acquisition),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=prov_cfg,
+            encoder=encoder,
+        )
 
     apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
     # Last: after every lookup and record_key of this build.
