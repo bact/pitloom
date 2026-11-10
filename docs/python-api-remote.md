@@ -46,20 +46,29 @@ remote route shares carries its catalogued code as `pitloom_code`
 `over-cap` for the two size codes, `offline-unusable` for `git.offline`,
 `download-timeout` for `git.timeout`, and `download-network-failed` for a
 `git.clone-failed` whose cause is the network (git could not reach the
-server); any other `git.clone-failed` has none. *check_url* may raise any
+server, told by git's own `fatal:` and `error:` lines, never by a name, URL
+or server text in them; git runs with `LC_ALL=C`); any other
+`git.clone-failed` has none. *check_url* may raise any
 exception to refuse an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`
 (its `policy=` takes a `pitloom.core.fetch_policy.RemoteFetchPolicy`, made by
 `pitloom.core.config_cascade.resolve_fetch_policy()` as every surface makes
-it),
+it;
+it is checked when built: a `max_bytes` that is not an integer of at least 1
+(a `bool` or a `float` is none) raises `ValueError`, and an `offline` that is
+not a `bool` or a `check_url` that is not callable raises
+`pitloom.core.internal_error.InternalError`, a `ValueError` subclass),
 a context manager yielding a `GitCheckout` (`folder` is the directory to read,
 `commit` the commit checked out). Reads inside the block are confined to the
 checkout and the repository's build-time code is not run, as for
 `generate_git_sbom()`, with no further call (`with checkout.reading():` is
 optional and may be nested); blocks that overlap in time each keep their own
-confinement. The policy's `max_bytes` (512 MiB by default) stops the fetch,
-with `git.too-large`, once the checkout takes more disk than that; the
-generators take `max_download_bytes=` instead (else `pitloom_config=`'s
+confinement. `fetch_git_project()` and `fetch_pypi_file()` check the URL
+before `offline`, and `fetch_git_project()` refuses a host that is not written
+in plain ASCII or is percent-encoded (`git.url-invalid`, catalogued
+`url-unsafe/host-spelling`). The policy's `max_bytes` (512 MiB by default)
+stops the fetch, with `git.too-large`, once the checkout takes more disk than
+that; the generators take `max_download_bytes=` instead (else `pitloom_config=`'s
 `max-download-bytes`, else 512 MiB, as for a PyPI URL; `over-cap` as
 `pitloom_code`), and `offline=` (else `pitloom_config=`'s `offline`). See [SBOM from a Git URL](git-urls.md).
 

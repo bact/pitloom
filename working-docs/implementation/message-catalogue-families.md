@@ -33,7 +33,8 @@ Decided 2026-10-29 for #396 (the maintainer took the recommendations):
 4. The outcome after the semicolon stays free text (30 shapes in the suite);
    a closed outcome table is a wording PR.
 5. Coded now: the sdist's config file over its cap (`CodedValueError`), a Git
-   URL's checkout over `max_clone_bytes` (`git.too-large`) and a `git`
+   URL's checkout over `max_clone_bytes` (since renamed `max_download_bytes`;
+   `git.too-large`) and a `git`
    call's output over its cap (`git.output-too-large`); `RemoteSourceError`
    gained `pitloom_code`, its `code` and text unchanged (and became
    copyable and picklable). Deferred: the three `fetch_json` raises (a URL's

@@ -27,8 +27,9 @@ and this project adheres to
 - `loom wheel`, `loom project` and `loom generate` read a PyPI project or
   release URL; `--max-download-bytes` caps the download, and a downloaded
   wheel's models are gated as a Git URL's ([#468])
-- A Hugging Face model's metadata files are capped by `--max-download-bytes`,
-  fetched from the Hub (`HF_ENDPOINT` if https) or `*.cdn.hf.co`, the
+- A Hugging Face model's metadata files are capped by `--max-download-bytes`
+  and per file (JSON 16 MiB, card 1 MiB, licence 256 KiB, 120 s), fetched from
+  the Hub (`HF_ENDPOINT` if https) or `cdn.hf.co` and its subdomains, the
   token sent to the Hub only ([#468])
 - `--trust-model-files` (`trust_model_files`, Action input `trust-model-files`)
   also lifts the reader gate of a Git URL's model files ([#469])
@@ -42,6 +43,11 @@ and this project adheres to
 - Git, PyPI and Hugging Face fetches share codes: `offline-unusable`
   (`--offline`), `download-network-failed`, `download-timeout`, `over-cap`
   ([#468])
+- A Git URL host not written in ASCII is refused (`url-unsafe/host-spelling`);
+  percent-encoded and IDNA spellings of a PyPI host are PyPI URLs ([#468])
+- `RemoteFetchPolicy` is validated when built ([#468])
+- A Hub model card is read as its YAML states it (raw `model-index`); malformed
+  YAML is `card-malformed` and the card text is kept ([#468])
 - **Breaking:** `--trust-wheel-model` renamed `--trust-model-files`
   (`trust_wheel_model` to `trust_model_files`, Action input `trust-wheel-model`
   to `trust-model-files`) ([#469])
@@ -52,7 +58,12 @@ and this project adheres to
 
 - A Git URL's temporary checkout or the Hatchling hook's staged SBOM that
   cannot be fully removed (a file held open on Windows) warns instead of
-  failing the run ([#468])
+  failing the run; the hook's staging directory is also removed after
+  `--hooks-only` or a failed build ([#468])
+- Git URL network failures are coded from git's own error lines only, with git
+  run under `LC_ALL=C` ([#468])
+- A refused `HF_ENDPOINT` (http or with credentials) is asked nothing, so no
+  Hub request sends the token over http ([#468])
 - `generate_git_sbom()` honours `pitloom_config`'s `offline`, and
   `generate(check_url=)` reaches a Hugging Face model's downloads ([#468])
 

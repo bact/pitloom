@@ -142,11 +142,13 @@ Other arguments that mirror a CLI flag or config key:
   every target.
 - `max_download_bytes=` (`generate()`, `generate_wheel_sbom()`,
   `generate_project_sbom()`, `generate_pypi_sbom()`, `generate_git_sbom()`,
-  `generate_git_project_sbom()`): `--max-download-bytes`, the cap on a file
-  downloaded from a PyPI URL and on the disk a Git URL's checkout takes (512
-  MiB by default); it wins over `pitloom_config=`'s `max-download-bytes`. Other targets warn that it has no effect; a value that
-  is not an integer of at least 1 (`True` included) raises `ValueError` on
-  every target.
+  `generate_git_project_sbom()`, `generate_model_sbom()`):
+  `--max-download-bytes`, the cap on a file downloaded from a PyPI URL, on
+  the disk a Git URL's checkout takes, and on each metadata file of a
+  Hugging Face model (512 MiB by default); it wins over `pitloom_config=`'s
+  `max-download-bytes`. Other targets warn that it has no effect; a value
+  that is not an integer of at least 1 (`True` included) raises `ValueError`
+  on every target.
 - `id_registry=`: `--id-registry`; see [Loom ID
   registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an

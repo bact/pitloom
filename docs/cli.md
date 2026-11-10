@@ -342,8 +342,9 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
 - `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
   (`wheel`, `project` and `generate` with that URL), the most disk a Git
   URL's checkout may take (`project`, `model` and `generate` with that URL),
-  and the largest metadata file of a Hugging Face model (`model` and
-  `generate`); beats `--config`'s `max-download-bytes` (512 MiB by default).
+  and each metadata file of a Hugging Face model, under that file's own cap
+  (16 MiB JSON, 1 MiB card, 256 KiB licence) (`model` and `generate`); beats
+  `--config`'s `max-download-bytes` (512 MiB by default).
   Over it is an `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no
   SBOM is written; a Hugging Face file over it is left out with a
   `WARNING:` and the rest is read. A

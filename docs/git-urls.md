@@ -104,6 +104,11 @@ from the server's own branches and tags, longest match first.
   naming the right call (`pypi-url-unusable`). A link to a file on
   `files.pythonhosted.org` is a PyPI URL too: never cloned, and refused by
   `loom wheel` and `loom project` with the release page to give instead.
+- A host is written in plain ASCII (an international name in its `xn--`
+  form): a host with a non-ASCII character or a percent-encoding is refused
+  before git runs
+  ([`url-unsafe/host-spelling`](message-codes.md#url-unsafehost-spelling)),
+  since git would resolve it to a host the URL's text does not spell.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 
@@ -352,7 +357,9 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   ([`download-timeout`](message-codes.md#download-timeout)): the codes a
   PyPI or Hugging Face request that fails the same way carries. Any other
   git failure (a repository, branch or sign-in the server refused) carries no
-  code; its message is git's own.
+  code; its message is git's own. Network failures are told from other git
+  failures by git's own `fatal:` and `error:` lines (git runs with
+  `LC_ALL=C`), never by a name, URL or server text inside them.
 - An empty repository is an error that says so.
 - The output file is named from the project (or the model file), as for a
   local one, and written to the current directory. `-o -` writes the SBOM to

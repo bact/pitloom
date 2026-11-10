@@ -49,7 +49,10 @@ loom generate https://pypi.org/project/demo/ -o sbom.spdx3.json     # latest rel
   `files.pythonhosted.org` are not read; see [Not yet](#not-yet). Each is
   refused with its own line and is never cloned as Git; a file link's line
   names the release page to give instead. A trailing dot (`pypi.org.`) is
-  accepted as `pypi.org`.
+  accepted as `pypi.org`. A host is read as a resolver maps it, so
+  `pypi%2Eorg` and a `pypi.org` written with an ideographic or full-width dot
+  are `pypi.org`, and such a spelling of another PyPI-family host is refused
+  like its ASCII form.
 - A PyPI URL is never given to Git: `pypi.org`, every `*.pypi.org` host,
   `pypi.python.org` and `files.pythonhosted.org` are recognised before the
   Git rules on every surface, and the Git route refuses one itself
@@ -71,7 +74,8 @@ a valid one is then refused for `--offline`.
 There is **no fallback between kinds**: `loom wheel` never takes the sdist and
 `loom project` never takes a wheel, because the SBOM kind would change without
 a word. `loom generate` cannot ask for the sdist; use `loom project <url>`.
-`loom model <url>` refuses a PyPI URL and names the two commands above. With
+`loom model <url>` refuses a PyPI URL and names the two commands above, as
+does `generate_model_sbom()` (`pypi-url-unusable`). With
 `generate()` and the wheel and project functions of the library, the URL is
 given as a string; see [Python API: remote targets](python-api-remote.md).
 

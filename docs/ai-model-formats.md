@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -442,19 +442,26 @@ Those files (and a licence file, and each listed dataset's card) are
 downloaded at the revision the Hub's model information names, from the Hub
 (`huggingface.co`) and its CDN (`cdn.hf.co` or a host under it, https on the
 default port) only, into a temporary directory removed afterwards; none goes
-to the `huggingface_hub` cache. Each is capped at
-`--max-download-bytes` (`max-download-bytes`, 512 MiB by default), counted on
-the bytes received; a larger one is left out with a `WARNING:`
-([`over-cap`](message-codes.md#over-cap)) and the rest is read. A Hugging
+to the `huggingface_hub` cache. Each is capped at the smaller of
+`--max-download-bytes` (`max-download-bytes`, 512 MiB by default) and its own
+cap (`config.json`, `tokenizer_config.json` and `generation_config.json`
+16 MiB; a model or dataset card 1 MiB; a licence file 256 KiB), counted on
+the bytes received, and read within 120 s per file; a file over the cap or
+the time is left out with a `WARNING:` naming the cap
+([`over-cap`](message-codes.md#over-cap)) and the rest is read. A local card
+over 1 MiB still has its frontmatter read when that closes within the first
+MiB; a Hub card over 1 MiB is not downloaded. A Hugging
 Face token (`HF_TOKEN`, or the stored `hf auth login`) is sent to the Hub
 only, never to the CDN a file is redirected to. With `huggingface_hub`'s
 `HF_ENDPOINT` set to another Hub (a mirror), the files are asked of that Hub
 instead of `huggingface.co`, the token sent to it only, with an `INFO:`
 ([`url-moved/hf-endpoint`](message-codes.md#url-movedhf-endpoint)); an
 `HF_ENDPOINT` that is not https (or holds credentials, a query or a fragment)
-is not used for files, so the token never goes over plain http: no file is
-downloaded, with one `WARNING:`
-([`url-unsafe/hf-endpoint`](message-codes.md#url-unsafehf-endpoint)). A file the
+is refused, so the token never goes over plain http: nothing is asked of the
+Hub (no file, no model or dataset information, no file listing), the SBOM
+holds the model's id and URL only, with one `WARNING:`
+([`url-unsafe/hf-endpoint`](message-codes.md#url-unsafehf-endpoint)).
+`https://HuggingFace.co/` and the port 443 count as the default Hub. A file the
 repository does not hold is skipped silently; any other failed download (a
 gated or private repository read without access, a network failure, a
 timeout, a redirect elsewhere) leaves that file out with a `WARNING:`

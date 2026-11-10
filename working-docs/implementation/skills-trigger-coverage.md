@@ -277,7 +277,7 @@ drift is silent.
   and "sdist SBOM from PyPI" match on both words (1012 to 1021 of 1024
   characters, YAML parsed; the room came from "model file page" to "model
   page"). Its `compatibility` says 0.24.0 for a PyPI URL (the rest stays
-  0.23.4: the floor of the other targets), and the body keeps 16,380 of the
+  0.23.4: the floor of the other targets), and the body keeps 16,376 of the
   16,384-byte ratchet by holding one paragraph and moving the rest to
   `references/pypi-url.md` (refusals, the pick, over-cap, how to read the
   provenance record, follow-ups and the combined asks) and a recipe in
@@ -295,7 +295,8 @@ drift is silent.
   platform-dependent pick is stated in the body, the reference and the enrich
   reference. Drift found in the first draft of the skill reference and fixed:
   a sentence that read as if `files.pythonhosted.org` file links were refused
-  as PyPI URLs (they are taken for Git and fail; probed 2026-11-10), and the
+  as PyPI URLs (0.23.4 and earlier took them for Git and failed; the tree
+  refuses them as `pypi-url-invalid`), and the
   provenance record described without where it lives (an `Annotation` plus
   the `Metadata provenance:` comment). Checked on 2026-11-10 against the tree:
   `loom wheel|project|generate` with `--offline`, `--embed`, `--allow-build`,

@@ -452,6 +452,9 @@ blocks it.
   scanned for AI models. If one ever is, a downloaded sdist must go through
   the download gate (amendment 19); the drift-guard test covers the wheel
   only.
+- **A Git server's redirect to a host not written in ASCII** is decided by
+  the caller's `check_url` only; `_git_redirect.py` could reuse the
+  host-spelling check (`url-unsafe/host-spelling`) that the starting URL gets.
 - **The GitHub Action's `trust-model-files` text** lists where the flag has
   no effect; a PyPI URL's sdist is not named, as the Action takes no PyPI
   URL.

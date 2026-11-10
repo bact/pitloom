@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,7 +25,7 @@ most one prefix from the table of prefixes.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
+| [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`digest-invalid`](#digest-invalid) | ERROR | The SHA-256 of the file Pitloom downloaded differs from the one PyPI declares for it: the download is corrupt or was altered on the way. | 0.24.0 |
@@ -151,13 +151,15 @@ A line may start with one prefix before its text:
 - **Level**: WARNING.
 - **Means**: The YAML frontmatter at the top of a card (the block between two
   --- lines) does not parse: a model card beside a local model, a dataset's own
-  card, or a Hugging Face dataset card a Hub model lists. The line gives what
-  the parser reported.
+  card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model
+  lists. The line gives what the parser reported.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Used nothing of the frontmatter and went on: a model card
-  sets no license or datasets; a dataset card no license, license_name,
-  license_link, version, tags or pretty_name; a Hugging Face dataset card no
-  license or keywords (its description is still read from the card's text).
+  beside a local model sets no license or datasets; a Hugging Face model card
+  also no tags, base_model, library_name, language, pipeline_tag or model-index;
+  a dataset card no license, license_name, license_link, version, tags or
+  pretty_name; a Hugging Face dataset card no license or keywords (the
+  description is still read from the card's text).
 - **Tell the user**: which card's frontmatter is not valid YAML and what the
   parser reported, as the line says. They fix the card and generate again; a
   Hugging Face dataset card only its maintainers can fix. Do not edit the card
@@ -812,8 +814,10 @@ A line may start with one prefix before its text:
   model-scan budget, four times it) by --max-model-extract-bytes or its
   [tool.pitloom] key; max-download-bytes (a wheel or sdist downloaded from a
   PyPI URL, a Git URL's checkout, or each metadata file of a Hugging Face
-  repository) by --max-download-bytes or its key; max-dataset-hash-bytes by its
-  key, by --max-dataset-hash-bytes of loom id generate or by the
+  repository) by --max-download-bytes or its key (each Hugging Face file also
+  has its own fixed cap, Hub-JSON, model-card, license-detection or
+  dataset-card, which raising the setting does not lift); max-dataset-hash-bytes
+  by its key, by --max-dataset-hash-bytes of loom id generate or by the
   max_dataset_hash_bytes argument of loom.Run. Every other cap is fixed. Do not
   raise a cap or generate again for them; ask first, and with nobody to ask,
   report it only.

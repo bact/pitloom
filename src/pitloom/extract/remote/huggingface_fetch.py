@@ -71,6 +71,8 @@ _CARD_FIELDS_SKIPPED = field_loss_suffix(
     "base_model",
     "library_name",
     "language",
+    "pipeline_tag",
+    "model-index",
 )
 
 #: A Hub model card: the model repository's ``README.md``, read as a local
