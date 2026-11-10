@@ -19,6 +19,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._sbom_io import write_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.internal_error import InternalError
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
@@ -440,15 +441,24 @@ class Spdx3JsonExporter:
 
     def find_license(self, kind: str, value: str) -> str | None:
         """Return the spdxId of an existing licence element of *kind*
-        (``"expression"`` for a ``LicenseExpression``, ``"text"`` for a
+        (``"expression"`` for a ``LicenseExpression``, ``"text-body"`` for a
         ``SimpleLicensingText``) holding *value*, or ``None``.
 
         Args:
-            kind: ``"expression"`` or ``"text"``.
+            kind: ``"expression"`` or ``"text-body"``.
             value: The expression, or the text stripped (a text is indexed
                 by its stripped form, though stored as written).
         """
         return self._license_index.get((kind, value))
+
+    def require_license(self, kind: str, value: str) -> str:
+        """:meth:`find_license` for an element the caller has just made or
+        found; raises :class:`~pitloom.core.internal_error.InternalError`
+        if it is not there, a bug in the caller."""
+        found = self._license_index.get((kind, value))
+        if found is None:
+            raise InternalError(f"no {kind} licence element for {value!r}")
+        return found
 
     def add_license(
         self,

@@ -167,6 +167,51 @@ def test_bad_sbom_fails(module: ModuleType, mutate: Callable[..., None]) -> None
         module.check_sbom_license(sbom, "Apache-2.0")
 
 
+_REF = "LicenseRef-loom-text-x"
+
+
+def _via_wrapper(mapping: list[Any]) -> dict[str, Any]:
+    """An SBOM whose licence text is reached through a ``LicenseExpression``
+    of one ``LicenseRef-``, with *mapping* as its ``customIdToUri``."""
+    sbom = _sbom()
+    _graph(sbom).append(
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "spdxId": "urn:x#License-W",
+            "simplelicensing_licenseExpression": _REF,
+            "simplelicensing_customIdToUri": mapping,
+        }
+    )
+    for rel in _graph(sbom)[3:5]:
+        rel["to"] = ["urn:x#License-W"]
+    return sbom
+
+
+def test_a_text_is_read_through_its_expression(module: ModuleType) -> None:
+    sbom = _via_wrapper([{"key": _REF, "value": "urn:x#License-1"}])
+    module.check_sbom_license(sbom, "Apache-2.0")
+    with pytest.raises(module.SbomLicenseError, match="Apache-2.0"):
+        module.check_sbom_license(sbom, _REF)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        [],
+        [{"key": "LicenseRef-other", "value": "urn:x#License-1"}],
+        [{"key": _REF, "value": "urn:x#Missing"}],
+        ["urn:x#License-1"],
+    ],
+    ids=["none", "other-key", "missing-text", "entry-not-a-dict"],
+)
+def test_an_unmapped_expression_is_read_as_itself(
+    module: ModuleType, mapping: list[Any]
+) -> None:
+    """No text behind the expression: the licence is the ``LicenseRef-``."""
+    with pytest.raises(module.SbomLicenseError, match=_REF):
+        module.check_sbom_license(_via_wrapper(mapping), "Apache-2.0")
+
+
 def test_wrong_expected_license_fails(module: ModuleType) -> None:
     with pytest.raises(module.SbomLicenseError, match="hasDeclaredLicense"):
         module.check_sbom_license(_sbom(), "MIT")

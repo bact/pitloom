@@ -85,6 +85,12 @@ from pitloom.messages._lfs_pointer import (
     LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
 )
+from pitloom.messages._license_range import (
+    FROM_LINE,
+    LICENSE_RANGE,
+    RANGE_ERROR_LINE,
+    TO_LINE,
+)
 from pitloom.messages._lines import LINE_RE, LONGEST_LINE, says, trusted_message
 from pitloom.messages._model_field import (
     ATTRIBUTE_LINE,
@@ -333,9 +339,13 @@ __all__ = [
     "HANDLER_FRAMES",
     "HYPERPARAMETER_CONFLICT",
     "INPUT_NOT_FOUND",
+    "FROM_LINE",
     "JSON_MALFORMED",
     "KERAS_MEMBER_LINE",
+    "LICENSE_RANGE",
     "LATEST_LINE",
+    "RANGE_ERROR_LINE",
+    "TO_LINE",
     "LATEST_PRERELEASE_LINE",
     "LATEST_YANKED_LINE",
     "LEVELS",

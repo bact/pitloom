@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Several ``License ::`` classifiers are one ``LicenseExpression``, the AND
-of ``LicenseRef-pitloom-classifier-`` terms, whose ``customIdToUri`` maps
+of ``LicenseRef-loom-classifier-`` terms, whose ``customIdToUri`` maps
 each term to the text element of its licence name; identical for the main
 package and for a dependency's installed copy or PyPI record.
 
@@ -50,7 +50,7 @@ _MIT = "License :: OSI Approved :: MIT License"
 _APACHE = "License :: OSI Approved :: Apache Software License"
 #: "MIT License" is read as the id ``MIT``; "Apache Software License" names no
 #: one id, so it stays a ``LicenseRef-`` term.
-_AND = "LicenseRef-pitloom-classifier-Apache-Software-License AND MIT"
+_AND = "LicenseRef-loom-classifier-Apache-Software-License AND MIT"
 
 
 _SOURCES: dict[str, Callable[[list[str]], Any]] = {
@@ -193,14 +193,14 @@ def test_names_read_as_one_id_are_one_term() -> None:
 @pytest.mark.parametrize(
     "expression",
     [
-        "LicenseRef-pitloom-classifier-MIT-License",  # one term: not an AND
+        "LicenseRef-loom-classifier-MIT-License",  # one term: not an AND
         "MIT AND ISC",  # no classifier term
-        "LicenseRef-pitloom-classifier-MIT OR ISC AND MIT",  # a compound id term
-        "LicenseRef-pitloom-classifier-a.2f AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-a.ZZ AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-.FF AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier-a+ AND LicenseRef-pitloom-classifier-b",
-        "LicenseRef-pitloom-classifier- AND LicenseRef-pitloom-classifier-b",
+        "LicenseRef-loom-classifier-MIT OR ISC AND MIT",  # a compound id term
+        "LicenseRef-loom-classifier-a.2f AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-a.ZZ AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-.FF AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier-a+ AND LicenseRef-loom-classifier-b",
+        "LicenseRef-loom-classifier- AND LicenseRef-loom-classifier-b",
         "LicenseRef-x AND LicenseRef-y",  # a user's own references
     ],
 )

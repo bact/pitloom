@@ -12,7 +12,6 @@ to build declared/concluded license relationships for a dependency package.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -98,13 +97,9 @@ def _mapped_elements(
     """The elements a ``LicenseExpression`` maps a ``LicenseRef-`` to by
     ``customIdToUri``: a text element holds the display text, so it is a
     licence element too."""
-    found: dict[str, spdx3.Element] = {}
-    for entry in getattr(element, "simplelicensing_customIdToUri", None) or []:
-        # Present: this build wrote the mapping and the text it names.
-        found[entry.value] = cast(
-            spdx3.Element, exporter.object_set.find_by_id(entry.value)
-        )
-    return found
+    entries = getattr(element, "simplelicensing_customIdToUri", None) or []
+    mapped = (exporter.object_set.find_by_id(entry.value) for entry in entries)
+    return {require_spdx_id(m): m for m in mapped if isinstance(m, spdx3.Element)}
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments

@@ -25,6 +25,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.file_hash import HexDigests
+from pitloom.core.internal_error import InternalError
 from pitloom.export.hashes import file_digests_of, sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
@@ -305,6 +306,14 @@ def test_add_license_indexes_by_kind_and_value() -> None:
     exporter.add_license(_expression("urn:x#Expr-1", "MIT"))
     assert exporter.find_license("expression", "MIT") == "urn:x#Expr-1"
     assert exporter.find_license("text-body", "MIT") == "urn:x#Text-1"
+
+
+def test_require_license_returns_the_id_or_raises() -> None:
+    exporter = Spdx3JsonExporter()
+    exporter.add_license(_text("urn:x#Text-1", "MIT"))
+    assert exporter.require_license("text-body", "MIT") == "urn:x#Text-1"
+    with pytest.raises(InternalError, match="no expression licence"):
+        exporter.require_license("expression", "MIT")
 
 
 def test_add_license_without_a_value_is_not_indexed() -> None:

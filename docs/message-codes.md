@@ -46,6 +46,7 @@ most one prefix from the table of prefixes.
 | [`lfs-pointer/shipped`](#lfs-pointershipped) | WARNING | A built wheel or sdist holds Git LFS pointer files where the content belongs: it was built from a checkout without the LFS content. | 0.22.0 |
 | [`library-missing`](#library-missing) | ERROR, WARNING | A library Pitloom needs for a step is not installed: an optional extra for a model reader, the Hugging Face Hub, SPDX 3 validation, --allow-build or magika content types. | 0.22.0 |
 | [`library-unusable`](#library-unusable) | ERROR, WARNING | A library Pitloom needs for a step is installed but fails to import: a broken or partial install, a library it needs in turn missing, or a build for another Python or platform. | 0.23.0 |
+| [`license-relationship-invalid`](#license-relationship-invalid) | ERROR, WARNING | After a fragment merge, a hasDeclaredLicense or hasConcludedLicense relationship has an end of the wrong type: it starts at something that is no package, file or snippet, or goes to something that is no AnyLicenseInfo or subclass (a LicenseExpression, an expandedlicensing licence or a named individual such as NoAssertionLicense). A SimpleLicensingText is not one: a licence text is reached through a LicenseExpression of one LicenseRef- that its customIdToUri maps to the text. One WARNING names each wrong end, then the ERROR ends the run. | 0.24.0 |
 | [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
 | [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
@@ -630,6 +631,33 @@ A line may start with one prefix before its text:
   WARNING: FORMAT=<format> FILE=<file>: required library failed to import: <error>; reinstall <requirement> [library-unusable]
   ERROR: required library failed to import: <module>: <error>; reinstall <requirement> [library-unusable]
   WARNING: required library failed to import: <module>: <error>; content types from file extensions; reinstall <requirement> [library-unusable]
+  ```
+
+### `license-relationship-invalid`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: After a fragment merge, a hasDeclaredLicense or hasConcludedLicense
+  relationship has an end of the wrong type: it starts at something that is no
+  package, file or snippet, or goes to something that is no AnyLicenseInfo or
+  subclass (a LicenseExpression, an expandedlicensing licence or a named
+  individual such as NoAssertionLicense). A SimpleLicensingText is not one: a
+  licence text is reached through a LicenseExpression of one LicenseRef- that
+  its customIdToUri maps to the text. One WARNING names each wrong end, then the
+  ERROR ends the run.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM.
+- **Tell the user**: which relationship and which end the lines name. They fix
+  the fragment (a fragment written by an agent or by hand, or by an older
+  Pitloom that pointed a relationship at a bare text) and merge again.
+  Regenerating the base SBOM does not help. Do not rewrite the fragment for
+  them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: RELATIONSHIP=<name>: a licence relationship goes to <target>, which is not an AnyLicenseInfo; point it at a LicenseExpression [license-relationship-invalid]
+  WARNING: RELATIONSHIP=<name>: a licence relationship starts at <target>, which is not a package, file or snippet; start it at one [license-relationship-invalid]
+  ERROR: Fragment merge left a licence relationship of the wrong type; fix the fragment [license-relationship-invalid]
   ```
 
 ### `model-ambiguous`

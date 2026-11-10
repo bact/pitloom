@@ -29,6 +29,9 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._fragments_ids import mint_extra_id
+from pitloom.assemble.spdx3._fragments_license_ranges import (
+    find_license_range_violations,
+)
 from pitloom.assemble.spdx3._fragments_props import (
     _KEYED_DICT_PROPS,
     _SKIP_MERGE_PROPS,
@@ -70,6 +73,13 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.logging_config import configure_logging
+from pitloom.messages import (
+    FROM_LINE,
+    LICENSE_RANGE,
+    TO_LINE,
+    CodedValueError,
+    emit,
+)
 
 log = logging.getLogger(__name__)
 
@@ -112,6 +122,7 @@ __all__ = [
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
+    "FragmentLicenseRangeError",
     "FragmentMergeError",
     "fragment_files",
     "merge_fragments",
@@ -124,6 +135,12 @@ class FragmentMergeError(ValueError):
     that resolves to neither an object in the merged graph nor a declared
     external reference. Merging must not silently succeed in that case; see
     :func:`_raise_on_dangling_references`."""
+
+
+class FragmentLicenseRangeError(CodedValueError, FragmentMergeError):
+    """A merged licence relationship has an end of the wrong type (the
+    ``license-relationship-invalid`` message); a :class:`FragmentMergeError`,
+    so a caller that catches one catches this too."""
 
 
 def _fragment_is_missing(fragment_path: Path) -> bool:
@@ -184,6 +201,27 @@ def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
             "regenerate the base SBOM, then re-run enrichment, before "
             "merging again"
         )
+
+
+def _raise_on_license_range_violations(exporter: Spdx3JsonExporter) -> None:
+    """Log one ``WARNING:`` per end of a ``hasDeclaredLicense`` or
+    ``hasConcludedLicense`` relationship of the wrong type, then raise
+    :class:`FragmentLicenseRangeError` if any were found: ``from`` must be a
+    package, file or snippet, ``to`` an ``AnyLicenseInfo`` or a subclass
+    (a ``SimpleLicensingText`` is not one; see
+    :mod:`pitloom.assemble.spdx3._fragments_license_ranges`)."""
+    violations = find_license_range_violations(exporter)
+    for rel_id, end, target_id, _ in violations:
+        emit(
+            log,
+            LICENSE_RANGE,
+            logging.WARNING,
+            line=TO_LINE if end == "to" else FROM_LINE,
+            name=rel_id,
+            target=target_id,
+        )
+    if violations:
+        raise FragmentLicenseRangeError(LICENSE_RANGE)
 
 
 def _update_profile_conformance(
@@ -419,8 +457,10 @@ def merge_fragments(
     Raises :class:`FragmentMergeError` if any ``required=True`` fragment
     (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
     be read or is the document itself, or if the merge leaves the graph
-    referentially broken (see :func:`_raise_on_dangling_references`) -- the
-    latter is skipped when *fragments* is empty or none of it could be
+    referentially broken (see :func:`_raise_on_dangling_references`) or has a
+    licence relationship end of the wrong type (see
+    :func:`_raise_on_license_range_violations`) -- the
+    latter two are skipped when *fragments* is empty or none of it could be
     ingested, since there is then nothing new whose references could be
     dangling.
     """
@@ -483,4 +523,5 @@ def merge_fragments(
 
     if loaded_fragments:
         _raise_on_dangling_references(exporter)
+        _raise_on_license_range_violations(exporter)
     return len(loaded_fragments)

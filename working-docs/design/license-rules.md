@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-08
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -291,7 +291,7 @@ Today's model is two candidates at most, for the main package only.
   deprecated `GPL-2.0` stays as written. A nested mixed AND/OR may keep
   more than one spelling (the library's absorption is not confluent).
 - **Several classifiers**: one `LicenseExpression`, the AND of
-  `LicenseRef-pitloom-classifier-<name>` terms sorted by classifier, with
+  `LicenseRef-loom-classifier-<name>` terms sorted by classifier, with
   `customIdToUri` to each name's text element; one `WARNING:` per set.
 - **Text**: equal when equal after `str.strip()`. The element stores the
   first-seen text less leading blank lines/spaces/tabs and final line

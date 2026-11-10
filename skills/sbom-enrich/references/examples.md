@@ -155,6 +155,15 @@ that is no SPDX expression is not a `to` itself: put it in a
 `LicenseRef-...` and whose `simplelicensing_customIdToUri` maps that key to the
 text element's `spdxId`.
 
+The merge enforces this. A wrong end logs one of `WARNING: RELATIONSHIP=<name>:
+a licence relationship goes to <target>, which is not an AnyLicenseInfo; point
+it at a LicenseExpression [license-relationship-invalid]` or `WARNING:
+RELATIONSHIP=<name>: a licence relationship starts at <target>, which is not a
+package, file or snippet; start it at one [license-relationship-invalid]`, then
+`ERROR: Fragment merge left a licence relationship of the wrong type; fix the
+fragment [license-relationship-invalid]`. Fix the fragment; regenerating the
+base does not help.
+
 If the base already has an `MIT` expression, the merge keeps the base's
 element (an `Annotation` records the unification), so the override note
 survives on the relationship's `comment`, not the shared licence.

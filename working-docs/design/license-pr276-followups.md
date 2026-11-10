@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,7 +57,7 @@ resolution) and may change direction there. Group C is housekeeping.
   only; a dangling target in an imported fragment's namespace passes.
 - **`_classifier_and` orphan texts:** it resolves term texts before
   checking whether the expression exists, and looks them up unstripped,
-  so hand-typed `LicenseRef-pitloom-classifier-` input can leave text
+  so hand-typed `LicenseRef-loom-classifier-` input can leave text
   elements nothing references. Not reachable from real classifiers.
 - **setuptools config reading** (version files, `description = file:`,
   dynamic fallbacks, `attr:` gaps, untagged setuptools output):

@@ -92,7 +92,7 @@ def text_behind(
     by_id: dict[str, dict[str, Any]], element: dict[str, Any]
 ) -> dict[str, Any]:
     """The ``SimpleLicensingText`` a text-wrapping ``LicenseExpression`` maps
-    its ``LicenseRef-pitloom-text-`` to, else *element* itself."""
+    its ``LicenseRef-loom-text-`` to, else *element* itself."""
     expression = element.get("simplelicensing_licenseExpression") or ""
     if not expression.startswith(TEXT_REF_PREFIX):
         return element
@@ -303,6 +303,20 @@ def license_node(spdx_id: str, kind: str, value: str) -> dict[str, Any]:
         "type": "simplelicensing_SimpleLicensingText",
         "spdxId": spdx_id,
         "simplelicensing_licenseText": value,
+    }
+
+
+def text_wrapper_node(spdx_id: str, text_id: str) -> dict[str, Any]:
+    """The ``LicenseExpression`` a relationship targets to reach the
+    ``SimpleLicensingText`` *text_id*: one ``LicenseRef-`` mapped to it."""
+    ref = TEXT_REF_PREFIX + text_id.rsplit("#", 1)[-1]
+    return {
+        "type": "simplelicensing_LicenseExpression",
+        "spdxId": spdx_id,
+        "simplelicensing_licenseExpression": ref,
+        "simplelicensing_customIdToUri": [
+            {"type": "DictionaryEntry", "key": ref, "value": text_id}
+        ],
     }
 
 

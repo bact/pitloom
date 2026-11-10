@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -189,6 +189,11 @@ Moved from 0.23.0 by the ruling of 2026-11-04. Each item is its own PR; the
 order and counts are in
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
+- [x] **Breaking changes already merged, so the next release is 0.24.0**
+  (ruling 2026-11-11): #468 (`fetch_git_project(policy=)`), #469
+  (`--trust-model-files`), #471 (a licence text is reached through a
+  `LicenseExpression`; `LicenseRef-pitloom-classifier-` is now
+  `LicenseRef-loom-classifier-`).
 - [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
   `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
 - [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families

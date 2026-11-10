@@ -41,6 +41,7 @@ from tests._license_graph import (
     license_targets,
     license_values,
     licensed_package,
+    text_wrapper_node,
     write_fragment,
 )
 
@@ -75,8 +76,12 @@ def _fragment(*licences: tuple[str, str, str], ns: str = _NS) -> dict[str, Any]:
     """A fragment with one package per ``(id, kind, value)`` licence."""
     elements: list[dict[str, Any]] = []
     for name, kind, value in licences:
-        elements.append(license_node(f"{ns}#{name}", kind, value))
-        elements.extend(licensed_package(f"P{name}", f"{ns}#{name}", ns))
+        target = f"{ns}#{name}"
+        elements.append(license_node(target, kind, value))
+        if kind == "text":
+            target = f"{ns}#{name}-ref"
+            elements.append(text_wrapper_node(target, f"{ns}#{name}"))
+        elements.extend(licensed_package(f"P{name}", target, ns))
     return fragment_graph(elements, ns)
 
 

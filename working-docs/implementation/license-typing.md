@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -190,7 +190,7 @@ Several licence classifiers are one `LicenseExpression`: the AND of terms,
 sorted by classifier and without repeats, so Hatchling sorting them and the
 source not doing so give one value. A name LicenseID reads as one id
 (`MIT License`, #359) is that id; any other is a
-`LicenseRef-pitloom-classifier-<name>` term (no `Resolution-1` note: the
+`LicenseRef-loom-classifier-<name>` term (no `Resolution-1` note: the
 `INFO:` line and the `WARNING:` name them). `customIdToUri` maps each such
 term to the `SimpleLicensingText` of its name as written (the element any other use of that text shares). The
 name is encoded reversibly as an idstring (letters and digits kept, a space
@@ -202,7 +202,7 @@ PyPI record; it builds the expression directly, without the parser or the
 first classifier in source order (Hatchling's sort made the directory and
 its wheel differ) and the sorted-first one alone (drops a stated licence).
 A user's own expression spelled exactly like this form is read as one; any
-other `LicenseRef-pitloom-classifier-` spelling is left alone. Against a
+other `LicenseRef-loom-classifier-` spelling is left alone. Against a
 detected id an AND is a conflict unless equal: the name match below is
 for one name. A `customIdToUri` target in the document's own namespace
 that names no element is a dangling reference at fragment merge.

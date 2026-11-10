@@ -88,6 +88,19 @@ def _root_package(graph: list[Any]) -> str:
     return str(roots[0])
 
 
+def _text_behind(by_id: dict[str, Any], element: dict[str, Any]) -> dict[str, Any]:
+    """The ``SimpleLicensingText`` a ``LicenseExpression`` of one
+    ``LicenseRef-`` maps to by ``customIdToUri`` (how a relationship reaches
+    a text), else *element*."""
+    expression = element.get("simplelicensing_licenseExpression")
+    for entry in element.get("simplelicensing_customIdToUri") or []:
+        if isinstance(entry, dict) and entry.get("key") == expression:
+            mapped = by_id.get(entry.get("value"))
+            if isinstance(mapped, dict):
+                return mapped
+    return element
+
+
 def _license_texts(graph: list[Any], root: str, relationship_type: str) -> list[str]:
     by_id = {
         e["spdxId"]: e
@@ -113,6 +126,7 @@ def _license_texts(graph: list[Any], root: str, relationship_type: str) -> list[
             texts.append(INDIVIDUAL_BY_REFERENCE[target].spdx_name)
             continue
         element = by_id.get(target, {}) if isinstance(target, str) else {}
+        element = _text_behind(by_id, element)
         text = next((element[k] for k in _LICENSE_TEXT_KEYS if k in element), None)
         if not isinstance(text, str):
             raise SbomLicenseError(
