@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-29
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,3 +120,29 @@ See also: [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
   files in reverse tar order gave `PKG-INFO` `File-2` in one SBOM and
   `File-7` in the other (open; see
   [id-registry-followups.md](../design/id-registry-followups.md)).
+
+## 3.13 A cloned repository's file list is code (#464, 2026-11-09)
+
+Reading a model from a Git URL added a threat the wheel scan did not have:
+listing a project's files asks its build backend, and for a repository from a
+URL that is the repository's own code. What ran or leaked, found over five
+review rounds: Hatchling metadata hooks, setuptools `cmdclass` and
+`setup.cfg` `[global]`, PDM hooks, the working directory or the clone on
+`sys.path`, the URL's credentials left in the clone's `.git/config`, a
+`force-include` entry or an encoded slash naming a file outside the clone,
+and two folder links to `.` making every walk endless. Decisions and fixes:
+[model-sbom-from-git.md](model-sbom-from-git.md), D7 to D11.
+
+- **The file list and the project metadata are an attack surface of their
+  own**, apart from the model parsers of 3.1 and 3.2. Fix by confinement, not
+  trust: an import-path guard, links removed after the checkout, credentials
+  scrubbed, build entries outside the clone dropped, and a 60 s cap.
+- **The cap is cooperative.** It is a profile hook (`sys.setprofile`); it
+  cannot stop a call blocked in C, and a library that swallows
+  `BaseException` could outlive it. An exception raised into the thread from
+  a timer was rejected: it escapes `try` blocks on Python 3.13.
+- **Check a claimed hole in code before reporting it.** A plan's note that a
+  committed symlink could make the scan read a file outside the clone was
+  already closed (`_drop_outside_links`); it was repeated to the maintainer
+  before being checked.
+
