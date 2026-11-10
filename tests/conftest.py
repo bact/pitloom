@@ -265,9 +265,10 @@ def offline_spdx3_validate(monkeypatch: pytest.MonkeyPatch) -> None:
     use_offline_model(monkeypatch)
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Mark the OS-dependent test files ``platform`` (tests/_platform.py)."""
     root = Path(__file__).parent
     for item in items:
-        if is_platform_file(Path(str(item.path)), root):
+        if is_platform_file(item.path, root):
             item.add_marker(pytest.mark.platform)

@@ -227,7 +227,7 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 - **Runtime warnings are test failures** (`filterwarnings = ["error"]`): an unavoidable third-party warning gets a narrow module/category-qualified `ignore::` entry with a comment, never a blanket one.
 - **Drift-guard test for two independent implementations of one operation**: assert both agree on one shared fixture rather than merging them.
 - **Adversarial edge cases pay most on tri-state (None/empty/absent) and cascade/tie-break logic**: per new field or merge path, one test per boundary (declared-but-empty vs absent, equivalent spellings, a tie-break, malformed input).
-- **OS coverage in CI**: Linux runs every test; on a pull request Windows and macOS run only `-m platform` (files in `cli/`, `scripts/` or using OS-dependent APIs; rule in `tests/_platform.py`, ~36%). A push to `main`, or the PR label `test-all-os`, runs all. A test needing the OS but missing the pattern adds `pytestmark = pytest.mark.platform`.
+- **OS coverage in CI**: Linux runs every test; on a pull request Windows and macOS run only `-m platform` (files in `cli/`, `scripts/` or using OS-dependent APIs; rule in `tests/_platform.py`, ~60%). A push to `main`, or the PR label `test-all-os`, runs all. A test needing the OS but missing the pattern adds `pytestmark = pytest.mark.platform`.
 - **Test tiers, two gates per PR** ([policy](working-docs/implementation/testing-and-review-policy.md)):
   - Tier 1, editing and between gates: touched tests (`-k`, `--lf`) and linters, an SBOM/stderr/`--json` diff vs main.
   - Gate A, before the first push: full suite (`-n 4` max), every CI linter (pyrefly too), each new regression test failing on the base tree, branch coverage of changed files.

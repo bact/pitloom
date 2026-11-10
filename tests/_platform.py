@@ -30,14 +30,40 @@ OS_USE: Final[re.Pattern[str]] = re.compile(
     r"\.chmod\(|symlink_to|hardlink_to|signal\.|TextIOWrapper|capfd|"
     r"Path\.home|monkeypatch\.setenv\(\"(?:HOME|USERPROFILE|TMP|TEMP|XDG)|"
     r"sys\.platform|os\.name|posix_only|skipif|PureWindowsPath|ntpath|"
-    r"realpath|st_ino|fcntl|msvcrt|normpath|os\.sep|tempfile"
+    r"realpath|st_ino|fcntl|msvcrt|normpath|os\.sep|tempfile|"
+    r"is_absolute|PermissionError|is_symlink|islink|lexists|"
+    r"[A-Za-z]:\\\\|\\\\\\\\"
 )
+# `from tests.x import` / `import tests.x`: a helper that matches taints its users.
+_TESTS_IMPORT: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(?:from|import)\s+tests\.([\w.]+)", re.MULTILINE
+)
+
+
+def _uses_os(path: Path, tests_root: Path, seen: frozenset[Path]) -> bool:
+    """Whether the file, or a ``tests.*`` module it imports, uses the OS."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if OS_USE.search(text):
+        return True
+    for dotted in _TESTS_IMPORT.findall(text):
+        base = tests_root.joinpath(*dotted.split("."))
+        for helper in (base.with_suffix(".py"), base / "__init__.py"):
+            if helper.is_file() and helper not in seen:
+                if _uses_os(helper, tests_root, seen | {path, helper}):
+                    return True
+    return False
 
 
 @cache
 def is_platform_file(path: Path, tests_root: Path) -> bool:
-    """Return whether the test file at ``path`` runs on every OS in CI."""
-    parts = path.relative_to(tests_root).parts
+    """Return whether the test file at ``path`` runs on every OS in CI.
+
+    A file outside ``tests_root`` fails open (True): it runs everywhere.
+    """
+    try:
+        parts = path.relative_to(tests_root).parts
+    except ValueError:
+        return True
     if len(parts) > 1 and parts[0] in PLATFORM_DIRS:
         return True
-    return OS_USE.search(path.read_text(encoding="utf-8", errors="replace")) is not None
+    return _uses_os(path, tests_root, frozenset({path}))
