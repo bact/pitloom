@@ -253,11 +253,13 @@ def _hub_code(
 
 @pytest.mark.loopback
 @pytest.mark.parametrize(
-    ("route", "policy", "message"),
+    ("route", "policy", "deadline", "message"),
     [
-        (Route(body=b"x" * 101), RemoteFetchPolicy(max_bytes=100), OVER_CAP),
-        (Route(status=503), RemoteFetchPolicy(), DOWNLOAD_FAILED),
-        (Route(body=b"x" * 10, drip=0.1), RemoteFetchPolicy(), DOWNLOAD_TIMEOUT),
+        (Route(body=b"x" * 101), RemoteFetchPolicy(max_bytes=100), None, OVER_CAP),
+        (Route(status=503), RemoteFetchPolicy(), None, DOWNLOAD_FAILED),
+        # Only the timeout case shortens the deadline: a slow loopback round
+        # trip (Windows CI) must not turn the other cases into a timeout.
+        (Route(body=b"x" * 10, drip=0.1), RemoteFetchPolicy(), 0.3, DOWNLOAD_TIMEOUT),
     ],
     ids=["over-cap", "network-failed", "timeout"],
 )
@@ -266,9 +268,11 @@ def test_the_hub_says_each_condition_with_the_shared_code(
     caplog: pytest.LogCaptureFixture,
     route: Route,
     policy: RemoteFetchPolicy,
+    deadline: float | None,
     message: Message,
 ) -> None:
-    monkeypatch.setattr(_http_fetch, "FILE_DEADLINE_SECONDS", 0.3)
+    if deadline is not None:
+        monkeypatch.setattr(_http_fetch, "FILE_DEADLINE_SECONDS", deadline)
     assert _hub_code(monkeypatch, caplog, route, policy) == [message.code]
     printed = f"WARNING: {caplog.records[-1].getMessage()} [{message.code}]"
     assert trusted_message(printed) is message
