@@ -42,6 +42,7 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.messages import OVER_CAP
 from tests._message_drift import raised_as
+from tests._pid import wait_pid_gone
 
 posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="a shell script stands in for git"
@@ -140,14 +141,6 @@ def test_git_stderr_is_capped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert len(str(excinfo.value)) <= 1100
 
 
-def _alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    return True
-
-
 @posix_only
 def test_ctrl_c_kills_what_git_started(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -178,10 +171,7 @@ def test_ctrl_c_kills_what_git_started(
         signal.signal(signal.SIGUSR1, previous)
         presser.join()
     pid = int(pid_file.read_text(encoding="utf-8"))
-    deadline = time.monotonic() + 30
-    while _alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert not _alive(pid)
+    assert wait_pid_gone(pid, 30), f"git's helper {pid} survived the interrupt"
 
 
 def test_a_message_never_carries_the_credentials_of_the_url() -> None:
