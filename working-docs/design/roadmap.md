@@ -483,6 +483,9 @@ Recorded findings; each is fixable on its own.
   including the [0.20.0 CI workflow review](testing-ci-followups.md#ci-workflow-review-0200).
 - **Diagnostics and logging**: see
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
+- **Remote fetches (Git, PyPI, Hugging Face)**: what #468 leaves, e.g. Hub API
+  calls outside the fetch policy, `huggingface_hub`'s own log lines. See
+  [pypi-url-targets.md](../implementation/pypi-url-targets.md#leftovers-after-pr-468-2026-11-10).
 
 ## Medium-term
 

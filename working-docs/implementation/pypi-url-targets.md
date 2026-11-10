@@ -412,8 +412,21 @@ blocks it.
   matches (pip would go back). The user gives the version today.
 - **Refusal printed twice**: a refused PyPI or Git URL logs a `WARNING:`
   echoing the error, then the coded `ERROR:`; the Git route did so first.
-- **`--offline` refusal has no code**: no catalogue family fits "network
-  access is forbidden" (the Git route has the same gap).
+- **Hub API calls outside the fetch policy**: `model_info()`,
+  `dataset_info()` and the file listing on the Hugging Face route are still
+  `huggingface_hub` requests, so `max-download-bytes` and `check_url` reach
+  the metadata files but not these calls. See
+  [remote-fetch-policy.md](remote-fetch-policy.md).
+- **`huggingface_hub`'s own log lines and `HF_ENDPOINT`**: Pitloom refuses an
+  endpoint holding user information for its own file fetches and masks it in
+  its own messages, but the library's API requests still use the endpoint as
+  set, and a retry line the library logs can show it as given. Those lines are
+  the library's, outside Pitloom's masking. Keep credentials out of
+  `HF_ENDPOINT` (use `HF_TOKEN`); a Pitloom-side filter on the library's
+  logger is a possible follow-up.
+- **Git redirect refusals uncatalogued**: a refused redirect on the Git
+  route and `git.too-many-redirects` carry no catalogue code; `url-unsafe`
+  would fit, as on the PyPI and Hugging Face routes.
 - **Temporary directory name in library exceptions**: the CLI and log output
   show a placeholder for the temporary directory; an exception passed
   straight to a library caller may still carry the local directory name, as
