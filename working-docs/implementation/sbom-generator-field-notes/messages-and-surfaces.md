@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -188,3 +188,33 @@ say).
   1,598 to 951, 933 and 926 characters (#235).
   Do: enforce the spec's hard numbers in a test, and leave real headroom
   on any self-imposed ratchet.
+- **Count the catalogue before copying a sibling's shape.** A new message
+  copied the wheel message's `...: gguf, onnx. Pass --flag ...`; the written
+  shape is `CONDITION; action`, and 42 of the 44 templates used the
+  semicolon. The older wheel message was the outlier, and copying it would
+  have made it a convention. Both were fixed together (#469). Do: script over
+  the templates before calling a sibling "the convention", and fix the
+  outlier when you touch it, so no bad example is left to follow.
+- **`since` is the release that first prints a code, not a wording
+  version.** A review flagged the unchanged `since` of a reworded message;
+  the field's own comment says "the release that first prints the code".
+  Wording changes go in the CHANGELOG, the generated reference and the text
+  the skills quote, which the drift tests pin. Do: read a field's contract
+  before treating a review note as a defect.
+- **A test helper that finds a message by a phrase breaks when a second
+  message shares it.** The wheel gate line was found by the flag's name; once
+  the Git message named the same flag, the helper matched both. Do: select
+  log records by catalogue code, never by wording.
+- **An option consumed by a fetch is neither forwarded nor inert.** When the
+  flag began to lift the Git gate, the declared-inert table dropped it for
+  the Git kinds, and the contract test that gives every option to every
+  delegate raised its wiring-bug error for the model delegate, which never
+  sees it: the fetch consumes it. The CLI now pops it after settling. Do:
+  give a fetch-consumed option its own step, and keep the contract test
+  enumerating every option.
+- **Renaming a GitHub Action input drops the old one silently.** A workflow
+  still passing `trust-wheel-model: "true"` gets only GitHub's generic
+  "unexpected input" note and runs with the gate on, while the CLI exits 2.
+  The protection stays on, which is the right direction to fail. Do: for an
+  option that lifts a protection, make the failure keep the protection, and
+  say the rename in the CHANGELOG.
