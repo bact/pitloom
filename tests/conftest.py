@@ -31,6 +31,7 @@ from tests._network import (  # noqa: F401
     pytest_make_collect_report,
     pytest_runtest_makereport,
 )
+from tests._platform import is_platform_file
 from tests._spdx3_validate import use_offline_model
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -262,3 +263,11 @@ def _block_network_access(
 def offline_spdx3_validate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run ``spdx3_validate.validate`` against the vendored model, no network."""
     use_offline_model(monkeypatch)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark the OS-dependent test files ``platform`` (tests/_platform.py)."""
+    root = Path(__file__).parent
+    for item in items:
+        if is_platform_file(Path(str(item.path)), root):
+            item.add_marker(pytest.mark.platform)
