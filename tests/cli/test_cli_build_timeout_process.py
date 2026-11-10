@@ -20,10 +20,10 @@ import sys
 import textwrap
 from pathlib import Path
 
+from tests._pid import wait_pid_gone
 from tests.build_and_read_shared import pitloom_subprocess_env
 from tests.core.models_wheel.test_models_wheel_build_subprocess_e2e import (
     _SLOW_BACKEND,
-    _wait_pid_gone,
 )
 
 _TAGS = ("ERROR: ", "WARNING: ", "INFO: ")
@@ -97,7 +97,7 @@ def test_loom_project_build_timeout_falls_back_and_cleans_up(tmp_path: Path) -> 
     assert build_tmp.resolve().parent.parent == sys_tmp.resolve()
     pid = int((project / "backend.pid").read_text(encoding="ascii"))
     if sys.platform != "win32":  # os.kill() on Windows terminates, not probes
-        assert _wait_pid_gone(pid), f"backend process {pid} survived the timeout"
+        assert wait_pid_gone(pid), f"backend process {pid} survived the timeout"
         # ...and nothing at all is left there (Windows may keep a
         # just-killed build's temp dir, as documented).
         assert not list(sys_tmp.iterdir())
