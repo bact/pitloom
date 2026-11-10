@@ -54,6 +54,12 @@ PYPI_OLD_HOST_LINE: Final = Line(
     template="URL=%(url)s: pypi.python.org is PyPI's old address; give "
     "https://pypi.org/project/<name>/",
 )
+#: The URL is a direct link to a file on PyPI's file host.
+PYPI_FILE_LINK_LINE: Final = Line(
+    level="ERROR",
+    template="URL=%(url)s: a file link is not read yet; give the project or "
+    "release page https://pypi.org/project/<name>/<version>/",
+)
 #: The version in the URL is not a PEP 440 version.
 PYPI_VERSION_INVALID_LINE: Final = Line(
     level="ERROR", template="URL=%(url)s: %(version)s is not a PEP 440 version"
@@ -69,6 +75,7 @@ PYPI_URL_INVALID: Final = Message(
         PYPI_URL_CREDENTIALS_LINE,
         PYPI_INDEX_LINE,
         PYPI_OLD_HOST_LINE,
+        PYPI_FILE_LINK_LINE,
         PYPI_NAME_INVALID_LINE,
         PYPI_VERSION_INVALID_LINE,
     ),
@@ -76,7 +83,8 @@ PYPI_URL_INVALID: Final = Message(
     "project or release page (https://pypi.org/project/<name>/ or "
     ".../<name>/<version>/), is not https, holds a user name or password, is "
     "on another index (test.pypi.org) or PyPI's old address "
-    "(pypi.python.org), or names a project or version that is not valid.",
+    "(pypi.python.org), is a link to a file (files.pythonhosted.org), or "
+    "names a project or version that is not valid.",
     did="Wrote no SBOM, and sent no request.",
     effect="not-written",
     actor="user",

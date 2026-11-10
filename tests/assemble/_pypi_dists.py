@@ -31,7 +31,12 @@ from packaging.tags import Tag
 
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote import pypi_select
-from pitloom.messages import PYPI_INDEX_LINE, PYPI_OLD_HOST_LINE, Line
+from pitloom.messages import (
+    PYPI_FILE_LINK_LINE,
+    PYPI_INDEX_LINE,
+    PYPI_OLD_HOST_LINE,
+    Line,
+)
 from tests._fake_pypi_server import Dist, FakePypi, point_at, publish, serving
 
 NAME = "demo"
@@ -54,8 +59,13 @@ REFUSED: list[tuple[str, Line]] = [
     (f"https://test.pypi.org/project/{NAME}/", PYPI_INDEX_LINE),
     (f"https://TEST.pypi.org./project/{NAME}/{VERSION}/", PYPI_INDEX_LINE),
     (f"https://pypi.python.org/pypi/{NAME}", PYPI_OLD_HOST_LINE),
+    (
+        f"https://files.pythonhosted.org/packages/ab/cd/{WHEEL_NAME}",
+        PYPI_FILE_LINK_LINE,
+    ),
+    (f"https://Files.PythonHosted.org./packages/{SDIST_NAME}", PYPI_FILE_LINK_LINE),
 ]
-REFUSED_IDS = ["test-index", "test-index-dot", "old-host"]
+REFUSED_IDS = ["test-index", "test-index-dot", "old-host", "file-link", "file-link-dot"]
 
 
 def wheel_bytes(name: str = NAME, version: str = VERSION) -> bytes:

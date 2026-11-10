@@ -118,7 +118,12 @@ def test_generate_names_the_library_sdist_route(
 
 @pytest.mark.parametrize(
     "target",
-    [URL, "https://pypi.org/project/demo/", "http://PyPI.org/project/demo/"],
+    [
+        URL,
+        "https://pypi.org/project/demo/",
+        "http://PyPI.org/project/demo/",
+        "https://files.pythonhosted.org/x.whl",
+    ],
 )
 def test_a_pypi_url_is_classified_before_a_git_url(target: str) -> None:
     assert target_is_pypi_url(target)
@@ -128,7 +133,7 @@ def test_a_pypi_url_is_classified_before_a_git_url(target: str) -> None:
 
 @pytest.mark.parametrize(
     "target",
-    ["https://files.pythonhosted.org/x.whl", "https://github.com/o/r", "."],
+    ["https://pythonhosted.org/x.whl", "https://github.com/o/r", "."],
 )
 def test_other_targets_are_no_pypi_url(target: str) -> None:
     assert not target_is_pypi_url(target)

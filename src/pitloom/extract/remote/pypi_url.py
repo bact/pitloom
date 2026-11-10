@@ -16,9 +16,10 @@ and each segment percent-decoded. A query or fragment is cut. The name must
 be a valid PEP 508 name, compared by its PEP 503 form; the version must parse
 as PEP 440. Anything else on the host, ``http:``, user information or a port
 that is not 443 is refused. A URL on another host of the PyPI family (any
-``*.pypi.org`` such as ``test.pypi.org``, or ``pypi.python.org``) is a PyPI
-URL too, so that it is refused with a PyPI message and never fetched as a
-Git repository.
+``*.pypi.org`` such as ``test.pypi.org``, ``pypi.python.org``, or
+``files.pythonhosted.org``, whose file links are not read yet) is a PyPI URL
+too, so that it is refused with a PyPI message and never fetched as a Git
+repository.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ from pitloom.core.pep440 import parse_version
 from pitloom.core.url_masking import sanitize_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    PYPI_FILE_LINK_LINE,
     PYPI_INDEX_LINE,
     PYPI_NAME_INVALID_LINE,
     PYPI_OLD_HOST_LINE,
@@ -68,6 +70,9 @@ _OLD_HOST: Final = "pypi.python.org"
 #: The domain of every other host of the PyPI family (``test.pypi.org``):
 #: a PyPI URL, refused as another index.
 _FAMILY_DOMAIN: Final = ".pypi.org"
+#: The host PyPI serves release files from: a direct link to one is a PyPI
+#: URL, refused as a file link.
+_FILE_HOST: Final = "files.pythonhosted.org"
 
 #: The JSON API as provenance names it: the ``Source`` of what it declares
 #: (a download's digest and release, a dependency's licence and originator).
@@ -77,7 +82,7 @@ PYPI_JSON_API: Final = "PyPI JSON API"
 API_BASE: str = "https://pypi.org/pypi/"
 
 #: The hosts a release file is downloaded from (a test adds a local one).
-FILE_HOSTS: frozenset[str] = frozenset({"files.pythonhosted.org"})
+FILE_HOSTS: frozenset[str] = frozenset({_FILE_HOST})
 
 #: The project page a :class:`PypiTarget` is written as.
 _PROJECT_PAGE: Final = "https://pypi.org/project/"
@@ -113,21 +118,29 @@ def _host(hostname: str | None) -> str:
     return (hostname or "").rstrip(".")
 
 
+#: The line refusing each host of the PyPI family that is neither one of
+#: :data:`PYPI_PROJECT_HOSTS` nor another index.
+_HOST_LINES: Final = {_OLD_HOST: PYPI_OLD_HOST_LINE, _FILE_HOST: PYPI_FILE_LINK_LINE}
+
+
 def _in_family(host: str) -> bool:
     """Whether *host* (:func:`_host`'s form) is a host of the PyPI family:
-    :data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org`` or ``pypi.python.org``."""
+    :data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org``, ``pypi.python.org`` or
+    ``files.pythonhosted.org``."""
     return (
-        host in PYPI_PROJECT_HOSTS or host.endswith(_FAMILY_DOMAIN) or host == _OLD_HOST
+        host in PYPI_PROJECT_HOSTS
+        or host.endswith(_FAMILY_DOMAIN)
+        or host in _HOST_LINES
     )
 
 
 def is_pypi_url(text: str) -> bool:
     """Whether *text* is an ``http`` or ``https`` URL on a host of the PyPI
     family (:data:`PYPI_PROJECT_HOSTS`, any ``*.pypi.org`` such as
-    ``test.pypi.org``, or ``pypi.python.org``; any case, a trailing dot
-    dropped): ``http`` and the hosts :func:`parse_pypi_url` refuses too, so
-    that each is refused with a PyPI message and never taken for a Git URL.
-    Never raises."""
+    ``test.pypi.org``, ``pypi.python.org`` or the file host
+    ``files.pythonhosted.org``; any case, a trailing dot dropped): ``http``
+    and the hosts :func:`parse_pypi_url` refuses too, so that each is refused
+    with a PyPI message and never taken for a Git URL. Never raises."""
     stripped = text.strip()
     if not stripped.lower().startswith(("http://", "https://")):
         return False
@@ -182,7 +195,8 @@ def parse_pypi_url(text: str) -> PypiTarget:
     Raises:
         CodedValueError: ``pypi-url-invalid``: not https, user information,
             another host of the PyPI family (``test.pypi.org``,
-            ``pypi.python.org``) or any other host, a port other than 443, a
+            ``pypi.python.org``, a file link on ``files.pythonhosted.org``)
+            or any other host, a port other than 443, a
             path that is not a project or release page, a name that is not
             a valid PEP 508 name or a version that is not PEP 440. The
             refusal is logged as a ``WARNING:`` too.
@@ -200,8 +214,7 @@ def parse_pypi_url(text: str) -> PypiTarget:
         raise _refuse(stripped, PYPI_URL_CREDENTIALS_LINE)
     host = _host(parts.hostname)
     if host not in PYPI_PROJECT_HOSTS and _in_family(host):
-        line = PYPI_OLD_HOST_LINE if host == _OLD_HOST else PYPI_INDEX_LINE
-        raise _refuse(stripped, line)
+        raise _refuse(stripped, _HOST_LINES.get(host, PYPI_INDEX_LINE))
     segments = _segments(parts.path)
     if (
         scheme != "https"

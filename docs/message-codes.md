@@ -58,7 +58,7 @@ most one prefix from the table of prefixes.
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
 | [`pypi-response-invalid`](#pypi-response-invalid) | ERROR, WARNING | The answer of the PyPI JSON API is not one Pitloom reads: it is for another project, lacks a field it needs, or declares no SHA-256 digest for the file. A file of a release whose entry is not valid is left out of the choice, with a warning. | 0.24.0 |
-| [`pypi-url-invalid`](#pypi-url-invalid) | ERROR | A URL on a PyPI host is not one Pitloom reads: it is not a project or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/), is not https, holds a user name or password, is on another index (test.pypi.org) or PyPI's old address (pypi.python.org), or names a project or version that is not valid. | 0.24.0 |
+| [`pypi-url-invalid`](#pypi-url-invalid) | ERROR | A URL on a PyPI host is not one Pitloom reads: it is not a project or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/), is not https, holds a user name or password, is on another index (test.pypi.org) or PyPI's old address (pypi.python.org), is a link to a file (files.pythonhosted.org), or names a project or version that is not valid. | 0.24.0 |
 | [`pypi-url-unusable`](#pypi-url-unusable) | ERROR | A PyPI URL was given to a command or option that cannot use it: loom wheel --embed (it would write into a temporary copy of the wheel), loom model (a release is not a model), or a library call that fetches a Git repository (generate_git_sbom(), generate_git_project_sbom(), fetch_git_project()). | 0.24.0 |
 | [`query-no-effect`](#query-no-effect) | INFO | The PyPI URL given holds a query or a fragment (a tab of the page), which names no project or release. | 0.24.0 |
 | [`reader-unsafe`](#reader-unsafe) | INFO | A wheel holds AI models in formats whose reader Pitloom does not run on a wheel's files (fastText, GGUF, HDF5, ONNX, PyTorch .pt and .pth): a hostile file could crash or hang it, or exhaust its memory. | 0.22.0 |
@@ -900,8 +900,8 @@ A line may start with one prefix before its text:
 - **Means**: A URL on a PyPI host is not one Pitloom reads: it is not a project
   or release page (https://pypi.org/project/<name>/ or .../<name>/<version>/),
   is not https, holds a user name or password, is on another index
-  (test.pypi.org) or PyPI's old address (pypi.python.org), or names a project or
-  version that is not valid.
+  (test.pypi.org) or PyPI's old address (pypi.python.org), is a link to a file
+  (files.pythonhosted.org), or names a project or version that is not valid.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM, and sent no request.
 - **Tell the user**: which part of the URL was refused, as the line says, and
@@ -918,6 +918,7 @@ A line may start with one prefix before its text:
   ERROR: URL=<url>: holds user information; a PyPI URL is read without credentials [pypi-url-invalid]
   ERROR: URL=<url>: only pypi.org is read; another index is not supported yet [pypi-url-invalid]
   ERROR: URL=<url>: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/ [pypi-url-invalid]
+  ERROR: URL=<url>: a file link is not read yet; give the project or release page https://pypi.org/project/<name>/<version>/ [pypi-url-invalid]
   ERROR: URL=<url>: <name> is not a valid project name [pypi-url-invalid]
   ERROR: URL=<url>: <version> is not a PEP 440 version [pypi-url-invalid]
   ```

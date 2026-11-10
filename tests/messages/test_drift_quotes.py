@@ -82,6 +82,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "holds user information",
         "only pypi.org is read",
         "is PyPI's old address",
+        "a file link is not read yet",
         "is not a valid project name",
         "is not a PEP 440 version",
     ),

@@ -44,17 +44,18 @@ loom generate https://pypi.org/project/demo/ -o sbom.spdx3.json     # latest rel
   upgraded silently. A URL with a user name or password is refused.
 - A query or fragment is ignored, with one `INFO:` (`query-no-effect`).
 - Any other page of `pypi.org` (a user page, a search page), another index
-  (`test.pypi.org` or any other `*.pypi.org` host) and `pypi.python.org`
-  (PyPI's old address) are not read; see [Not yet](#not-yet). Each is refused
-  with its own line and is never cloned as Git. A trailing dot (`pypi.org.`)
-  is accepted as `pypi.org`.
-- A PyPI URL is never given to Git: `pypi.org`, every `*.pypi.org` host and
-  `pypi.python.org` are recognised before the Git rules on every surface, and
-  the Git route refuses one itself (`pypi-url-unusable`). This is not so for a
-  direct link to a file on `files.pythonhosted.org`, which Pitloom does not
-  recognise as a PyPI URL: it is taken for any other URL, so for Git, and the
-  clone fails. A private index on a host of its own is no PyPI URL either; see
-  [SBOM from a Git URL](git-urls.md#which-urls) for what the Git route reads.
+  (`test.pypi.org` or any other `*.pypi.org` host), `pypi.python.org`
+  (PyPI's old address) and a direct link to a file on
+  `files.pythonhosted.org` are not read; see [Not yet](#not-yet). Each is
+  refused with its own line and is never cloned as Git; a file link's line
+  names the release page to give instead. A trailing dot (`pypi.org.`) is
+  accepted as `pypi.org`.
+- A PyPI URL is never given to Git: `pypi.org`, every `*.pypi.org` host,
+  `pypi.python.org` and `files.pythonhosted.org` are recognised before the
+  Git rules on every surface, and the Git route refuses one itself
+  (`pypi-url-unusable`). A private index on a host of its own is no PyPI URL;
+  see [SBOM from a Git URL](git-urls.md#which-urls) for what the Git route
+  reads.
 
 With `--offline`, an invalid URL is reported first as `pypi-url-invalid`;
 a valid one is then refused for `--offline`.
@@ -245,8 +246,8 @@ This is the first iteration. Not built:
   fails when the latest release has no sdist, even if an older one has; give
   the versioned URL.
 - `name==version` and bare-name targets, links to files on
-  `files.pythonhosted.org` (not recognised as PyPI URLs), other indexes
-  (`test.pypi.org`, a private index) and credentials.
+  `files.pythonhosted.org` (refused, naming the release page to give), other
+  indexes (`test.pypi.org`, a private index) and credentials.
 - A download cache: every run downloads again.
 
 ## Messages
@@ -309,6 +310,7 @@ code):
 
 - `URL=<url>: only pypi.org is read; another index is not supported yet` `[pypi-url-invalid]`
 - `URL=<url>: pypi.python.org is PyPI's old address; give https://pypi.org/project/<name>/` `[pypi-url-invalid]`
+- `URL=<url>: a file link is not read yet; give the project or release page https://pypi.org/project/<name>/<version>/` `[pypi-url-invalid]`
 - `URL=<url>: a PyPI page is not a Git repository; generate_pypi_sbom(), 'loom wheel' or 'loom project' reads it; nothing fetched` `[pypi-url-unusable]` (the library Git route)
 - `INFO: PYPI=<name>: generate() reads the wheel; generate_pypi_sbom('<url>', kind='sdist') reads the sdist` `[file-ambiguous]` (library `generate()`; the CLI line names `loom project <url>`)
 

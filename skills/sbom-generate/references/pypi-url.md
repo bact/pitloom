@@ -65,9 +65,11 @@ Rules to state to the user:
   `pypi.python.org` and another index (`test.pypi.org`, any `*.pypi.org`) are
   `[pypi-url-invalid]` with their own lines, never cloned as Git; a redirect
   or file URL on another host is `[url-unsafe]`. A direct link to a file on
-  `files.pythonhosted.org` is not a PyPI URL to Pitloom: it is taken as any
-  other URL, i.e. for Git, and fails there. Do not fetch the target for the
-  user.
+  `files.pythonhosted.org` is refused too (`URL=<url>: a file link is not
+  read yet; give the project or release page
+  https://pypi.org/project/<name>/<version>/` `[pypi-url-invalid]`): offer
+  the release page the file belongs to (the name and version in the file
+  name), and ask before running it. Do not fetch the target for the user.
 - A SHA-256 that differs from the declared one is `[digest-invalid]`: nothing
   is read. Tell the user the file may have been altered; suggest running
   again, and reporting it to PyPI if it repeats.

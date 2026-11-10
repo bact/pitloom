@@ -114,14 +114,13 @@ Where the build differs from the design below:
     `<name>-<version>.spdx3.json` (or the `--config` `sbom-basename`), not one
     rule for both.
 13. **The host family is recognised, not one host.** `is_pypi_url` takes
-    `http` and `https` URLs on `pypi.org`, `www.pypi.org`, any `*.pypi.org`
-    and `pypi.python.org` (any case, a trailing dot dropped), so each is
-    refused with a PyPI message (`pypi-url-invalid`) and never cloned.
-    Known hole, found 2026-11-10: a direct link to a file on
-    `files.pythonhosted.org` is not in the family, so it still reaches the Git
-    route and fails there (`Git source: Cannot fetch ...`); the user page says
-    so. Recognising it (refuse, or read it as a file link) is the "file links"
-    item under Deferred.
+    `http` and `https` URLs on `pypi.org`, `www.pypi.org`, any `*.pypi.org`,
+    `pypi.python.org` and `files.pythonhosted.org` (any case, a trailing dot
+    dropped), so each is refused with a PyPI message (`pypi-url-invalid`) and
+    never cloned. The file host joined the family on 2026-11-10: before, a
+    direct file link reached the Git route and failed there. It is refused
+    (`PYPI_FILE_LINK_LINE`, naming the release page to give); reading it as
+    a file link is still the "file links" item under Deferred.
 14. **One hardened HTTP client** (`_http_fetch.py`, `_http_watch.py`): https
     only, hosts allowlisted, no `Authorization`, no redirect handler of the
     standard library (hops followed by hand, at most 5, each checked and said),

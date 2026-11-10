@@ -101,8 +101,9 @@ from the server's own branches and tags, longest match first.
   `loom project` and `loom generate` read a project or release page there
   (`https://pypi.org/project/<name>/`; see [SBOM from a PyPI URL](pypi-urls.md)),
   and `loom model` and the library's Git functions refuse one with a message
-  naming the right call (`pypi-url-unusable`). A link to a file on `files.pythonhosted.org` is not
-  recognised as a PyPI URL and is cloned as a repository, which fails.
+  naming the right call (`pypi-url-unusable`). A link to a file on
+  `files.pythonhosted.org` is a PyPI URL too: never cloned, and refused by
+  `loom wheel` and `loom project` with the release page to give instead.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 
