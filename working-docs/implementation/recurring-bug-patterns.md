@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -363,3 +363,18 @@ shape described, not just the module where each was first found.
   fragility finding, run the actual import in a fresh interpreter (both
   orders) -- it's faster and more conclusive than manually tracing which
   module's `__init__.py` reaches which line first.
+
+## An unvalidated relationship end, and a ref keyed on its spelling (#471)
+
+- **A schema check may not cover a relationship's end types.** Pitloom pointed
+  `hasDeclaredLicense` at a plain `Element`; its tests and `spdx3-validate`
+  (SHACL 3.0.1) passed. Test the end types from the specification's bindings,
+  and check them at the fragment merge, where graphs of any origin enter.
+- **Keying a merge on an identifier's spelling unifies what only the spelling
+  shares.** Two fragments each mapped `LicenseRef-custom` to a different text
+  and the merge kept one, so a package declared the wrong licence. Unify on a
+  ref only when its spelling proves it was derived from the content (the
+  `LicenseRef-loom-text-<16 hex>` prefix); keep any other ref apart.
+- **A fix added in a review round is itself reviewed in the next.** Round 3
+  found the shared-ref bug in code round 2 had added; review the delta of
+  each round, not only the original diff.

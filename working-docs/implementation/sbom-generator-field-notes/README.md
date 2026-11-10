@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -164,3 +164,7 @@ the day it was added (2026-10-02 to 2026-11-06).
    type of each value, not only the presence of each key.
 5. Absent data is silent; a failed read is one message, worded once, on
    every surface.
+- [licence-text-wrapper-lessons.md](licence-text-wrapper-lessons.md): a
+  validator that does not check a relationship's end types; a wrapper whose
+  ref is derived from content (and the shared-ref merge bug); one copy of a
+  fact; review rounds that find the last round's fixes (#471).
