@@ -469,7 +469,9 @@ def test_the_deadline_shuts_a_socket_watched_late(
                 assert left.recv(1) == b""
             watch.add(unconnected)
             assert shut == [left, unconnected]
-    assert watch.remaining() < 0
+    # Expired is <= 0, as the fetch reads it: a coarse clock (Windows) can
+    # still read exactly 0 for a zero-second deadline.
+    assert watch.remaining() <= 0
 
 
 def test_a_spent_deadline_requests_nothing(
