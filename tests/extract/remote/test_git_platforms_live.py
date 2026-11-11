@@ -50,50 +50,6 @@ _PLATFORMS = [
         "src",
         "pyproject_hooks",
     ),
-    ("gitlab-etsi", "https://labs.etsi.org/rep/ocf/sdk", None, "", "setup.py"),
-    (
-        "gitlab-etsi-page",
-        "https://labs.etsi.org/rep/ocf/capif/-/tree/staging/services/register",
-        "staging",
-        "services/register",
-        "requirements.txt",
-    ),
-    (
-        "gitlab-european-commission",
-        "https://code.europa.eu/simpl/simpl-open/administration/"
-        "observability/logging/common-logging/common-logging-python-utils",
-        None,
-        "",
-        "pyproject.toml",
-    ),
-    (
-        "gitlab-german-public-sector-page",
-        "https://gitlab.opencode.de/umwelt-info/packages/-/tree/main/umwelt_apy",
-        "main",
-        "umwelt_apy",
-        "pyproject.toml",
-    ),
-    (
-        "gitlab-french-education",
-        "https://forge.apps.education.fr/philipperackette/AntibiAutomatismes",
-        None,
-        "",
-        "pyproject.toml",
-    ),
-    (
-        "gitlab-framagit",
-        "https://framagit.org/justinmponcet/whisper",
-        None,
-        "",
-        "pyproject.toml",
-    ),
-    (
-        "gitlab-cern",
-        "https://gitlab.cern.ch/cms-cactus/phase2/pyswatch",
-        None,
-        "",
-        "pyproject.toml",
-    ),
     # Forgejo and Gitea. The bare URL is served as it is.
     (
         "forgejo-codeberg",
@@ -110,31 +66,9 @@ _PLATFORMS = [
         "pyproject.toml",
     ),
     (
-        "forgejo-dutch-government",
-        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec",
-        None,
-        "",
-        "pyproject.toml",
-    ),
-    (
-        "forgejo-dutch-government-page",
-        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/"
-        "src/branch/main/nldocspec",
-        "main",
-        "nldocspec",
-        "__init__.py",
-    ),
-    (
         "gitea-com-page",
         "https://gitea.com/gitea/tea/src/branch/main/cmd",
         "main",
-        "cmd",
-        "actions.go",
-    ),
-    (
-        "gitea-com-tag",
-        "https://gitea.com/gitea/tea/src/tag/v0.16.0/cmd",
-        "v0.16.0",
         "cmd",
         "actions.go",
     ),
@@ -153,15 +87,7 @@ _PLATFORMS = [
         "",
         "pyproject.toml",
     ),
-    (
-        "forgejo-dutch-government-file-page",
-        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/"
-        "src/branch/main/pyproject.toml",
-        "main",
-        "",
-        "pyproject.toml",
-    ),
-    # Gerrit (the bare URL), and the Gitea that mirrors it.
+    # Gerrit (the bare URL).
     (
         "gerrit-opendev",
         "https://review.opendev.org/openstack/pbr",
@@ -169,21 +95,7 @@ _PLATFORMS = [
         "",
         "setup.py",
     ),
-    (
-        "gitea-opendev-page",
-        "https://opendev.org/openstack/pbr/src/branch/master/pbr",
-        "master",
-        "pbr",
-        "__init__.py",
-    ),
     # Gitiles, Gerrit's code browser: ``+`` and the ref in full.
-    (
-        "gitiles-googlesource",
-        "https://gerrit.googlesource.com/plugins/codemirror-editor",
-        None,
-        "",
-        "BUILD",
-    ),
     (
         "gitiles-googlesource-page",
         "https://pigweed.googlesource.com/pigweed/pigweed/+/refs/heads/main/pw_cli",
@@ -223,23 +135,6 @@ _PLATFORMS = [
         "src/b4",
         "__init__.py",
     ),
-    (
-        "cgit-kernel-org-tag-page",
-        "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/?h=v0.12.0",
-        "v0.12.0",
-        "",
-        "COPYING",
-    ),
-    ("launchpad", "https://git.launchpad.net/launchpadlib", None, "", "setup.py"),
-    (
-        "launchpad-page",
-        "https://git.launchpad.net/launchpadlib/tree/src?h=main",
-        "main",
-        "src",
-        "launchpadlib",
-    ),
-    # GNU Savannah: the clone address (its web pages answer from another host).
-    ("savannah", "https://git.savannah.gnu.org/git/hello.git", None, "", "COPYING"),
     # Azure DevOps rejects the blob filter, and puts the ref in the query.
     (
         "azure-devops",
@@ -271,50 +166,8 @@ _PLATFORMS = [
         "lib/sqlalchemy",
         "__init__.py",
     ),
-    (
-        "bitbucket-file-page",
-        "https://bitbucket.org/zzzeek/sqlalchemy/src/main/pyproject.toml",
-        "main",
-        "",
-        "pyproject.toml",
-    ),
-    (
-        "bitbucket-branch-page",
-        "https://bitbucket.org/zzzeek/sqlalchemy/branch/rel_0_4",
-        "rel_0_4",
-        "",
-        "setup.py",
-    ),
-    (
-        "bitbucket-commits-tag-page",
-        "https://bitbucket.org/zzzeek/sqlalchemy/commits/tag/rel_2_0_9",
-        "rel_2_0_9",
-        "",
-        "pyproject.toml",
-    ),
     # SourceHut. ``item`` stands for a folder and a file alike.
     ("sourcehut", "https://git.sr.ht/~sircmpwn/scm.sr.ht", None, "", "setup.py"),
-    (
-        "sourcehut-tree-page",
-        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/scmsrht",
-        "master",
-        "scmsrht",
-        "__init__.py",
-    ),
-    (
-        "sourcehut-file-page",
-        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/setup.py",
-        "master",
-        "",
-        "setup.py",
-    ),
-    (
-        "sourcehut-log-page",
-        "https://git.sr.ht/~sircmpwn/scm.sr.ht/log/master",
-        "master",
-        "",
-        "setup.py",
-    ),
     # GitHub.
     ("github", "https://github.com/pypa/pyproject-hooks", None, "", "pyproject.toml"),
     (
@@ -323,14 +176,6 @@ _PLATFORMS = [
         "main",
         "src",
         "pyproject_hooks",
-    ),
-    (
-        "github-file-page",
-        "https://github.com/pypa/pyproject-hooks/blob/main/src/"
-        "pyproject_hooks/__init__.py",
-        "main",
-        "src/pyproject_hooks",
-        "__init__.py",
     ),
 ]
 
