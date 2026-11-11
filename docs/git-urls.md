@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -121,36 +121,29 @@ network access):
 | Platform | Server | Forms fetched |
 | :------- | :----- | :------------ |
 | GitLab | `gitlab.com` | bare URL (redirected to `.git`), `/-/tree/` page |
-| GitLab | `labs.etsi.org/rep` (ETSI) | bare URL, `/-/tree/<branch>/<folder>` page |
-| GitLab | `code.europa.eu` (European Commission) | bare URL |
-| GitLab | `gitlab.opencode.de` (German public sector) | `/-/tree/<branch>/<folder>` page |
-| GitLab | `forge.apps.education.fr` (French education) | bare URL |
-| GitLab | `framagit.org` | bare URL |
-| GitLab | `gitlab.cern.ch` (CERN) | bare URL |
 | Forgejo | `codeberg.org` | bare URL, `/src/branch/` page, file page, `/src/tag/` page |
-| Forgejo | `code.overheid.nl` (Dutch government) | bare URL, `/src/branch/<branch>/<folder>` page, file page |
 | Gerrit | `review.opendev.org` | bare URL |
-| Gitea | `opendev.org` | `/src/branch/<branch>/<folder>` page |
-| Gitiles | `gerrit.googlesource.com`, `pigweed.googlesource.com` | bare URL, `/+/refs/heads/<branch>/<folder>` page |
-| cgit | `git.kernel.org` | bare URL, `/tree/<folder>?h=<branch>` and `?h=<tag>` pages |
-| cgit | `git.launchpad.net` (Launchpad) | bare URL, `/tree/<folder>?h=<branch>` page |
-| GNU Savannah | `git.savannah.gnu.org` | the `/git/<project>.git` clone URL |
+| Gitiles | `pigweed.googlesource.com` | `/+/refs/heads/<branch>/<folder>` page |
+| cgit | `git.kernel.org` | bare URL, `/tree/<folder>?h=<branch>` page |
 | Azure DevOps | `dev.azure.com` | bare URL, `?path=<folder>&version=GB<branch>` page |
 | Hugging Face Space | `huggingface.co/spaces/...` | bare URL, `/tree/<branch>` page |
-| Gitea | `gitea.com` | `/src/branch/<branch>/<folder>`, `/src/tag/<tag>/<folder>` pages |
-| GitHub | `github.com` | bare URL, `/tree/` page, `/blob/` page |
+| Gitea | `gitea.com` | `/src/branch/<branch>/<folder>` page |
+| GitHub | `github.com` | bare URL, `/tree/` page |
 
-Also checked, with a narrower scope:
+Also fetched by hand on 2026-10-23, and not repeated by the live tests (they
+keep one or two cases per platform, so an unrelated host's outage cannot block
+a release):
 
 - **Bitbucket Cloud** (`bitbucket.org`, 2026-10-23, `zzzeek/sqlalchemy`): the
-  bare URL, `/src/<branch>/<folder>`, a file page, `/branch/<ref>` and
-  `/commits/tag/<ref>` are fetched. A repository that does not exist answers
+  bare URL and `/src/<branch>/<folder>` are in the live tests; a file page,
+  `/branch/<ref>` and `/commits/tag/<ref>` were fetched by hand. A repository that does not exist answers
   like one that needs a sign-in. Bitbucket serves a path below the repository
   as the default branch, so Pitloom reads these page forms itself (`/branch/x`,
   `/commits/<sha>`) rather than let a URL it did not recognise fetch the
   default branch without a word.
-- **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL,
-  `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
+- **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL is in
+  the live tests; `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>`
+  were fetched by hand.
 - **Azure DevOps** (2026-10-23, `mseng/PipelineTools`): the server answers
   `--filter=blob:limit` with HTTP 400. Pitloom asks again without the filter
   (an `INFO:` says so), also for a tag or commit page; a size cap, where one is
@@ -160,7 +153,10 @@ Also checked, with a narrower scope:
 - **Gogs**: not tried live (the public demo, `try.gogs.io`, holds no
   repository with commits). Its page form, `…/src/<ref>/<folder>`, is the one
   Bitbucket uses and is parsed.
-- **Self-hosted GitLab with a URL prefix** is the ETSI row above. A Gitea under
+- **Self-hosted GitLab with a URL prefix**: `labs.etsi.org/rep` (ETSI),
+  `code.europa.eu`, `gitlab.opencode.de`, `forge.apps.education.fr`,
+  `framagit.org` and `gitlab.cern.ch` were fetched by hand like `gitlab.com`;
+  so was `code.overheid.nl` (Forgejo). A Gitea under
   a prefix was not found to try; the repository is the path before the marker,
   so a prefix does not matter to the parser.
 
