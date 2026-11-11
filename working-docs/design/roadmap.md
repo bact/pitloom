@@ -24,19 +24,22 @@ lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
-shipped up to 0.23.4 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
+shipped up to 0.24.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
 0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
 on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3
-#461 on 2026-11-09, 0.23.4 #462, #464 and #465 on 2026-11-09), including their
+#461 on 2026-11-09, 0.23.4 #462, #464 and #465 on 2026-11-09, 0.24.0 #468, #469 and #471 on
+2026-11-11), including their
 release-plan items.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
-1.0. No date for 1.0 until 0.24.0 lands. 0.23.1 to 0.23.4, patches for
-LicenseID 0.7.2, 0.7.3, 0.8.1 and 0.8.4, came between 0.23.0 and 0.24.0.
+1.0. 0.24.0 shipped 2026-11-11 with the breaking changes only; the catalogue
+and provenance work planned for it is under "After 0.24.0" below, its release
+not decided. No date for 1.0. 0.23.1 to 0.23.4, patches for LicenseID 0.7.2,
+0.7.3, 0.8.1 and 0.8.4, came between 0.23.0 and 0.24.0.
 
 ### 0.21.0
 
@@ -183,19 +186,27 @@ a model SBOM, and a Keras v3 model gives more fields (#464); the skills require
 `pitloom>=0.23.4`. See
 [roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0234-prs-462-464-465).
 
-### 0.24.0: message catalogue and licence provenance
+### 0.24.0: PyPI URLs, remote-fetch policy and valid licence output
 
-Moved from 0.23.0 by the ruling of 2026-11-04. Each item is its own PR; the
-order and counts are in
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+**Released 2026-11-11** (v0.24.0), cut for its breaking changes (ruling
+2026-11-11). See [CHANGELOG.md](../../CHANGELOG.md) and
+[release-checklist.md](../implementation/release-checklist.md). Highlights:
+PyPI project and release URLs as targets and one fetch policy for Git, PyPI and
+Hugging Face (#468); `--trust-wheel-model` renamed `--trust-model-files`, also
+lifting the Git URL reader gate (#469); a licence text reached through a
+`LicenseExpression`, `LicenseRef-loom-text-<hash>` and
+`LicenseRef-loom-classifier-` (#471, see
+[license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md)).
+The skills require `pitloom>=0.24.0`. See
+[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0240-prs-468-469-471).
 
-- [x] **Breaking changes already merged, so the next release is 0.24.0**
-  (ruling 2026-11-11): #468 (`fetch_git_project(policy=)`), #469
-  (`--trust-model-files`), #471 (a licence text is reached through a
-  `LicenseExpression`; `LicenseRef-pitloom-classifier-` is now
-  `LicenseRef-loom-classifier-`). #471 merged 2026-11-11; the wrapper, the
-  one provenance copy and the merge-time end-type check are recorded in
-  [license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md).
+### After 0.24.0: message catalogue and licence provenance
+
+Planned for 0.24.0 (ruling of 2026-11-04), not built when it was cut; the
+release is not decided. Several design docs still say "0.24.0" for these items
+and need the new target once it is set. Each item is its own PR; the order and
+counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
+
 - [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
   `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
 - [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
@@ -362,7 +373,7 @@ unless the linked doc says so.
   [#154](https://github.com/bact/pitloom/issues/154),
   [#110](https://github.com/bact/pitloom/issues/110).
   **Decided 2026-11-05:** no provenance annotation by default; a flag asks
-  for it (see the flags item in 0.24.0).
+  for it (see the flags item under After 0.24.0).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one. See
   [dataset-splits.md](dataset-splits.md).
