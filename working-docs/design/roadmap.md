@@ -228,7 +228,9 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   Hatchling hook, skills, a `_matrix_plan.py` entry and a CHANGELOG "Changed"
   note. Tests, manual checks and sweeps run with provenance on (one shared
   test default); default-off is asserted on each surface (CLI, library, hook,
-  Action).
+  Action). Plan written 2026-11-11, **deferred** (too large; no release set;
+  0.25.0 recommended over 0.24.1): see
+  [provenance-off-by-default.md](provenance-off-by-default.md).
 - [ ] **Action builds the LicenseID database** (to decide): the Action
   installs only Pitloom, so a fresh runner matches no `LICENSE` text (a
   declared licence is still read). `pitloom-install.sh` could run
