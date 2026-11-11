@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -332,3 +332,28 @@ Cut early (maintainer ruling 2026-11-04).
   ([hub-model-file-range-read.md](../design/hub-model-file-range-read.md)),
   recursive model discovery, the commit and URL in the SBOM. See
   [model-sbom-from-git.md](model-sbom-from-git.md).
+
+## Shipped in 0.24.0 (PRs #468, #469, #471)
+
+- [x] **PyPI URL targets and one remote-fetch policy** (#468): `loom wheel`,
+  `loom project` and `loom generate` read a PyPI project or release URL (the
+  wheel that fits the running Python and platform, or the sdist);
+  `--max-download-bytes` caps every download (`max_clone_bytes` renamed;
+  a Git URL defaults to 512 MiB); `RemoteFetchPolicy` replaces
+  `check_url=`, `offline=` and `max_bytes=` on `fetch_git_project()`. Git,
+  PyPI and Hugging Face share the `offline-unusable`, `download-network-failed`,
+  `download-timeout` and `over-cap` codes; a Hub file read is capped and sent
+  to the Hub or `cdn.hf.co` only. See
+  [pypi-url-targets.md](pypi-url-targets.md) and
+  [remote-fetch-policy.md](remote-fetch-policy.md).
+- [x] **`--trust-model-files`** (#469): renamed from `--trust-wheel-model`
+  (`trust_model_files`, Action input `trust-model-files`); also lifts the
+  reader gate of a Git URL's model files.
+- [x] **A licence text through a `LicenseExpression`** (#471): the declared and
+  concluded licence relationships accept only `AnyLicenseInfo`, so a free-text
+  licence is a `LicenseExpression` of one `LicenseRef-loom-text-<hash>` mapped
+  to its text; classifier refs are `LicenseRef-loom-classifier-`; a merge fails
+  on a licence relationship with wrong end types
+  (`license-relationship-invalid`). See
+  [license-free-text-wrapper.md](license-free-text-wrapper.md).
+

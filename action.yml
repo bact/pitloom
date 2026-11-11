@@ -207,7 +207,7 @@ inputs:
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.23.4" or
+      Pitloom version or version specifier to install, e.g. "0.24.0" or
       ">=0.23,<1.0". Empty (default) installs the version of the ref this
       action is pinned to; fails if that version is not on PyPI.
     required: false
