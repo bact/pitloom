@@ -46,7 +46,13 @@ from pitloom.extract.remote import (
 from pitloom.extract.remote._git_folder import checkout_folder, checkout_has_file
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.remote.git_target import resolve_git_target
-from pitloom.messages import NO_SBOM_TARGET, CodedValueError, code_of
+from pitloom.messages import (
+    CodedValueError,
+    code_of,
+)
+from pitloom.messages.targets import (
+    NO_SBOM_TARGET,
+)
 from tests._git_http_server import git
 from tests._model_fixtures import fixture_path, spy_readers
 

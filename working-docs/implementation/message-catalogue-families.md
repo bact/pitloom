@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -173,7 +173,7 @@ answers H1 to H9):
 
 1. **Three new codes**, all `since="0.23.0"`, condition `malformed`:
    `text-malformed` (effect `weaker`; helper
-   `pitloom.messages.warn_lone_surrogates`, which takes the name raw and
+   `pitloom.messages.files.warn_lone_surrogates`, which takes the name raw and
    escapes it),
    `card-malformed` (named by document, with a closed `card` field, the
    kinds of `CARD_KINDS`) and `json-malformed` (named by format, R4;

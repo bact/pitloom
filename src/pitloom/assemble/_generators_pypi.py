@@ -44,7 +44,13 @@ from pitloom.extract.remote.pypi import SDIST, WHEEL, PypiDownload, fetch_pypi_f
 from pitloom.extract.remote.pypi_url import PYPI_JSON_API
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import CONFIG_UNSAFE, CONFIG_UNSAFE_PYPI_LINE, emit
+from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+    CONFIG_UNSAFE_PYPI_LINE,
+)
 
 log = logging.getLogger(__name__)
 

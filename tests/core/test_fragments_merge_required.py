@@ -20,29 +20,35 @@ import pytest
 
 from pitloom.assemble.spdx3.fragments import (
     FragmentMergeError,
-    _missing_fragment_message,
     merge_fragments,
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.messages.targets import (
+    REQUIRED_FRAGMENT_LINE,
+)
 
 
 def test_required_fragment_missing_raises_and_warns(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A required=True fragment that's missing on disk must raise
-    FragmentMergeError naming its path, and log a WARNING matching
-    _missing_fragment_message(..., required=True) first -- both the
-    warning and the raise are part of the contract."""
+    FragmentMergeError naming its path, and log the required fragment's
+    WARNING (``input-not-found/fragment``) first -- both the warning and
+    the raise are part of the contract."""
     exporter = Spdx3JsonExporter()
     frag = FragmentConfig(path="missing-required.spdx3.json", required=True)
-    expected_warning = _missing_fragment_message(tmp_path / frag.path, required=True)
+    expected_warning = REQUIRED_FRAGMENT_LINE.render({"path": tmp_path / frag.path})
 
     with caplog.at_level("WARNING", logger="pitloom.assemble.spdx3.fragments"):
         with pytest.raises(FragmentMergeError, match="missing-required.spdx3.json"):
             merge_fragments(tmp_path, [frag], exporter)
 
-    assert any(r.message == expected_warning for r in caplog.records)
+    assert any(
+        r.message == expected_warning
+        and getattr(r, "pitloom_code", None) == "input-not-found/fragment"
+        for r in caplog.records
+    )
 
 
 def test_required_fragment_unparseable_raises(

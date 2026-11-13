@@ -47,9 +47,11 @@ from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import field_loss_suffix
 from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.files import (
     CARD_MALFORMED,
     Cap,
-    emit,
     warn_dir_unlistable,
     warn_file_unreadable,
     warn_lone_surrogates,
@@ -68,7 +70,7 @@ _MODEL_CARD_STEMS = ("README.md", "MODEL_CARD.md")
 #: ``model-index`` of evaluation results included), so 1 MiB holds any
 #: real frontmatter while a crafted multi-gigabyte card is never read whole.
 MODEL_CARD_MAX_BYTES = 1024 * 1024
-#: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.messages.warn_over_cap`
+#: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.messages.files.warn_over_cap`
 #: names it, once per card and process (each model in a directory reads it).
 MODEL_CARD_CAP = Cap(MODEL_CARD_MAX_BYTES, "byte", "model-card")
 

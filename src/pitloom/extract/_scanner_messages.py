@@ -24,13 +24,15 @@ from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
 from pitloom.logging_config import escape_controls, loggable, one_line
 from pitloom.messages import (
+    code_of,
+    emit,
+)
+from pitloom.messages.models import (
     LFS_POINTER_MALFORMED,
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
     MODEL_UNREADABLE,
     MODEL_WRONG_FORMAT,
-    code_of,
-    emit,
 )
 
 if TYPE_CHECKING:

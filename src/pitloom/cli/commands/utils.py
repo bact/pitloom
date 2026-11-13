@@ -36,7 +36,18 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import LIBRARY_MISSING, LIBRARY_UNUSABLE, code_of
+from pitloom.messages import (
+    code_of,
+)
+from pitloom.messages.models import (
+    LIBRARY_MISSING,
+    LIBRARY_UNUSABLE,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    NO_WHEEL_MATCH_LINE,
+    say_input_not_found,
+)
 
 
 def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
@@ -106,7 +117,10 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 had_error = True
                 continue
             if not matched:
-                print_error(f"no wheel files matched: {quote_source(pattern)}")
+                print_error(
+                    NO_WHEEL_MATCH_LINE.render({"path": pattern}),
+                    code=INPUT_NOT_FOUND.code,
+                )
                 had_error = True
                 continue
             wheel_paths.extend(matched)
@@ -116,7 +130,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 continue
             p = _given(pattern)
             if not p.exists():
-                print_error(f"wheel file not found: {quote_source(p)}")
+                say_input_not_found("wheel file", p)
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -145,7 +159,7 @@ def report_error_line(exc: Exception) -> None:
 
 
 def refuse_non_wheel(path: Path) -> bool:
-    """Print the one ``ERROR: not a .whl file: <path>`` line and return
+    """Print the one ``ERROR: FILE=<path>: not a .whl file`` line and return
     ``True`` where *path* is not a wheel by name
     (:func:`~pitloom.core.wheel_dist_info.require_wheel_path`), the same line
     on every command that takes a wheel."""

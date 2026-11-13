@@ -109,6 +109,7 @@ def test_a_step_whose_library_is_broken_stops_with_its_code(
 ) -> None:
     """Before anything is fetched or read: no network."""
     _project(tmp_path / "proj")
+    (tmp_path / "f.json").write_text("{}", encoding="utf-8")  # a file that is there
     site = _broken(tmp_path / "site", module)
     done = run_loom(args, tmp_path, path=[site])
     assert done.returncode == 1, done.stderr

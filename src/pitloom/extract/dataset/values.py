@@ -28,7 +28,10 @@ from urllib.parse import urlsplit
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
 from pitloom.core.dataset_metadata import is_placeholder
 from pitloom.logging_config import loggable
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 

@@ -26,13 +26,15 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
 from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.files import (
     JSON_MALFORMED,
     NOT_JSON_LINE,
     NOT_OBJECT_LINE,
     OVER_CAP,
     SOURCE_LINE,
     Cap,
-    CodedValueError,
     file_unreadable_error,
 )
 

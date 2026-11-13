@@ -41,9 +41,15 @@ from typing import Any
 
 #: The catalogue package: its sites are the mechanism, not messages.
 MECHANISM = "src/pitloom/messages/"
-#: Exception classes whose text is the DETAIL of a wrapper's line.
+#: Exception classes whose text is the DETAIL of a wrapper's line. An
+#: ``argparse`` type or action error is the detail of the parser's own line
+#: (``argument --x: <detail>``), which ``_LoomParser.error`` codes.
 DETAIL_EXC = frozenset(
     {
+        "ArgumentError",
+        "ArgumentTypeError",
+        "argparse.ArgumentError",
+        "argparse.ArgumentTypeError",
         "Malformed",
         "UnsupportedVersion",
         "LimitExceeded",

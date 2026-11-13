@@ -71,16 +71,20 @@ from pitloom.extract.ai_model.limits import (
 from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import CODE_ATTR, loggable
 from pitloom.messages import (
-    READER_UNSAFE,
     RELAY_FRAME,
-    USAGE_UNUSABLE,
-    Cap,
     Message,
     emit,
-    over_cap_of,
     relay_extra,
+)
+from pitloom.messages.files import (
+    Cap,
+    over_cap_of,
     warn_file_unreadable,
     warn_over_cap,
+)
+from pitloom.messages.models import (
+    READER_UNSAFE,
+    USAGE_UNUSABLE,
 )
 
 log = logging.getLogger(__name__)

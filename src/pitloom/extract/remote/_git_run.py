@@ -33,15 +33,17 @@ from pitloom.extract.remote import git_url
 from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import (
+from pitloom.messages.files import (
     CLONE_LINE,
+    GIT_OUTPUT_LINE,
+    OVER_CAP,
+    Cap,
+)
+from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
     GIT_NETWORK_FAILED_LINE,
-    GIT_OUTPUT_LINE,
     GIT_TIMEOUT_LINE,
-    OVER_CAP,
-    Cap,
 )
 
 log = logging.getLogger(__name__)

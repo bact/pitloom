@@ -51,6 +51,9 @@ from pitloom.extract.project.setup_cfg_interpolation import (
     section_declares_key,
 )
 from pitloom.logging_config import one_line
+from pitloom.messages.targets import (
+    input_not_found,
+)
 
 
 class _NoProjectNameError(ValueError):
@@ -246,9 +249,7 @@ def read_setup_cfg_options(
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not os.path.isfile(setup_cfg_path):
-        raise FileNotFoundError(
-            f"setup.cfg not found at {quote_source(setup_cfg_path)}"
-        )
+        raise input_not_found("setup.cfg", setup_cfg_path)
     cfg = configparser.ConfigParser()
     try:
         # opened here, not read(): read() skips a file it cannot open.

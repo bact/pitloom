@@ -39,7 +39,12 @@ from pitloom.extract.scanner import (
 )
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import LFS_POINTER_MALFORMED, emit
+from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.models import (
+    LFS_POINTER_MALFORMED,
+)
 from tests._wheel_models import write_model_wheel
 from tests.warning_helpers import logged_warnings
 

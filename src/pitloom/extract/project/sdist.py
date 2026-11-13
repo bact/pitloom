@@ -55,11 +55,16 @@ from pitloom.extract.project.poetry import (
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
 from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
     Cap,
-    CodedValueError,
     warn_over_cap,
+)
+from pitloom.messages.targets import (
+    input_not_found,
 )
 
 log = logging.getLogger(__name__)
@@ -332,7 +337,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
             (``<archive>:pyproject.toml``).
     """
     if not sdist_path.exists():
-        raise FileNotFoundError(f"Sdist archive not found: {quote_source(sdist_path)}")
+        raise input_not_found("sdist archive", sdist_path)
 
     # The archive as given, as load_config_file() names a --config file.
     name = str(sdist_path)

@@ -77,7 +77,8 @@ def test_a_project_dir_that_is_not_a_directory_is_refused(
     argv = ["id", "import", "first.json", "-o", "r.json", "--project-dir", "absent"]
     assert _run(monkeypatch, *argv) == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom id import: --project-dir 'absent' is not a directory" in err
+    assert "ERROR: loom id import: project directory not found: '" in err
+    assert "absent' [input-not-found]" in err
 
 
 @pytest.mark.usefixtures("above")

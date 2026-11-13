@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-13
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (decision I) and [message-catalogue-migration-plan.md](../design/message-catalogue-migration-plan.md)
-(catalogue PR 4).
+(catalogue PR 4); frames for PRs 5 to 18:
+[message-frames-forward.md](../design/message-frames-forward.md).
 
 ## What was built
 
@@ -35,8 +36,11 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
   own errors pass their frame explicitly (`_LoomParser.error`), so one line
   never carries two.
 - `cli_error_handler` is a bare decorator; it names no text.
-- A test forbids `log.error` in the command line code, which would skip the
-  frame; `print_error` is the one way.
+- An `ERROR` record logged with `log.error` is framed by the formatter of
+  `configure_logging` from the same `ContextVar`, so it reads as
+  `print_error`'s line (`tests/messages/test_frames.py`); no test forbids
+  `log.error` in the command line code (`cli/commands/verify_wheel.py:103`
+  uses it). `print_error` stays the preferred way.
 
 ## Decisions and paths rejected
 
@@ -48,7 +52,13 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
 - `interrupted` stays an uncoded line (framed); a code for it needs an
   exit-130 rule the generated reference's ERROR text does not state.
 - The `Build:` and `Git source:` WARNING sub-prefixes are not frames yet:
-  they need a WARNING line on each family they relay (PRs 13 and 14).
+  they need a WARNING line on each family they relay (PRs 13 and 14), and a
+  frame restricted to the families it may precede
+  ([message-frames-forward.md](../design/message-frames-forward.md)).
+- `option-no-effect` keeps the literal prefix in its two templates
+  (`Options: `, `Build: `); its helpers take `build: bool`, not a prefix
+  string. PR 14 turns `Build: ` into a frame and collapses the two templates
+  into one, same code and same text.
 - Ratchet: the two relays are out of scope by the shape of their code, not by
   a variable's name (`scripts/message_inventory/_relay.py`): the handler's
   `print_error(str(e) or type(e).__name__, code=code_of(e))` in an

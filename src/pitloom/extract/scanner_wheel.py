@@ -56,11 +56,15 @@ from pitloom.extract.scanner import (
     scan_ai_models,
 )
 from pitloom.messages import (
+    Message,
+)
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
+from pitloom.messages.models import (
     READER_UNSAFE,
     READER_UNSAFE_REMOTE,
-    Cap,
-    Message,
-    warn_over_cap,
 )
 
 log = logging.getLogger(__name__)

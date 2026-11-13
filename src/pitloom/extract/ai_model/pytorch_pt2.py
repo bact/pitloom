@@ -42,14 +42,16 @@ from pitloom.extract.ai_model.archive_member import (
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.logging_config import one_line
 from pitloom.messages import (
+    Line,
+    emit,
+)
+from pitloom.messages.model_fields import (
     MODEL_FIELD_UNREADABLE,
     PT2_EXTRA_LINE,
     PT2_GRAPH_LINE,
     PT2_META_LINE,
     PT2_TAGS_LINE,
     PT2_VERSION_LINE,
-    Line,
-    emit,
 )
 
 log = logging.getLogger(__name__)

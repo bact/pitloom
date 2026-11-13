@@ -82,6 +82,12 @@ FILE_UNREADABLE: Final = Message(
     subject_key="FILE",
 )
 
+#: A file that must be UTF-8 where the read raises (an SBOM to embed).
+NOT_UTF8_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s",
+)
+
 FILE_UNREADABLE_NOT_UTF8: Final = Message(
     code="file-unreadable/not-utf8",
     condition="unreadable",
@@ -95,12 +101,15 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
             template="FILE=%(file)s: could not read for %(field)s; not UTF-8: "
             "%(failure)s",
         ),
+        NOT_UTF8_ERROR_LINE,
     ),
     summary="A text file Pitloom read is not UTF-8, the encoding it must be "
-    "in: a requirements file or a file a setup.cfg directive lists, or a "
-    "Python file read for the model usage scan.",
+    "in: a requirements file or a file a setup.cfg directive lists, a "
+    "Python file read for the model usage scan, or an SBOM given to embed "
+    "(an ERROR:).",
     did="Went on without what the file holds: the field is not set from it, "
-    "or the usage scan records no model reference from it.",
+    "or the usage scan records no model reference from it. For an SBOM, "
+    "wrote nothing: no wheel is changed.",
     effect="thinner",
     actor="user",
     advice="Tell the user which file is not UTF-8 and what the decoder "

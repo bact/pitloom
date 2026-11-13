@@ -29,7 +29,9 @@ from pitloom.extract.remote import (
 )
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote.git import RESOLVED_INFO
-from pitloom.messages import OVER_CAP
+from pitloom.messages.files import (
+    OVER_CAP,
+)
 from tests._message_drift import raised_as
 
 pytestmark = [

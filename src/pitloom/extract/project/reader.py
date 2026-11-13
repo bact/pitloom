@@ -41,9 +41,12 @@ from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.project.setuptools import read_setuptools
 from pitloom.messages import (
+    CodedFileNotFoundError,
+)
+from pitloom.messages.targets import (
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_LINE,
-    CodedFileNotFoundError,
+    input_not_found,
 )
 
 log = logging.getLogger(__name__)
@@ -173,7 +176,7 @@ def read_project(
         ValueError: If config is malformed.
     """
     if not project_path.exists():
-        raise FileNotFoundError(f"Project path not found: {quote_source(project_path)}")
+        raise input_not_found("project path", project_path)
 
     if is_sdist_archive(project_path):
         contents = read_sdist(project_path, read_config=read_config)

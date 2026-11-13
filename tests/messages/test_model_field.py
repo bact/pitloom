@@ -38,15 +38,17 @@ from pitloom.extract.ai_model.keras_training_config import parse_training_config
 from pitloom.extract.ai_model.unrecordable import UNRECORDABLE, log_unrecordable
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
-    FIELD_NOT_RECORDABLE,
-    MODEL_FIELD_CONFLICT,
-    MODEL_FIELD_UNREADABLE,
     RELAY_FRAME,
     Line,
     relay_extra,
     trusted_message,
 )
 from pitloom.messages._model_field import ENTRIES
+from pitloom.messages.model_fields import (
+    FIELD_NOT_RECORDABLE,
+    MODEL_FIELD_CONFLICT,
+    MODEL_FIELD_UNREADABLE,
+)
 from tests._message_drift import SAMPLES
 from tests.extract.ai_model.gguf_builders import UINT8, UINT32, array, gguf_file, kv
 from tests.extract.ai_model.zip_builders import dated_zip

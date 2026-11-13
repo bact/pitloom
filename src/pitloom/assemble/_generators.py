@@ -47,7 +47,7 @@ from pitloom.core.inert_options import (
     settle_inert,
 )
 from pitloom.core.models import get_wheel_files
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
@@ -185,7 +185,6 @@ def generate_project_sbom(
     if isinstance(project_target, str) and is_pypi_url(project_target):
         if project_metadata is not None:
             warn_no_effect(
-                INERT_LOG_PREFIX,
                 project_target,
                 ("project_metadata",),
                 "for a PyPI URL target (the metadata is read from the downloaded "

@@ -38,7 +38,6 @@ from pitloom.core.creation import (
 )
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
@@ -46,7 +45,11 @@ from pitloom.extract.project import (
     sdist_config_source,
 )
 from pitloom.logging_config import print_error
-from pitloom.messages import PROJECT_NOT_FOUND, PROJECT_NOT_FOUND_LINE
+from pitloom.messages.targets import (
+    PROJECT_NOT_FOUND,
+    PROJECT_NOT_FOUND_LINE,
+    say_input_not_found,
+)
 
 #: An ``http(s):`` URL a path normalisation turned into a path (``https:/h``,
 #: ``https:\\h`` on Windows).
@@ -104,7 +107,7 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
         # one) reaches here as a path under the current directory.
         text = str(project_dir)
         shown = sanitize_url(text) if _URL_AS_PATH.search(text) else text
-        print_error(f"project directory not found: {quote_source(shown)}")
+        say_input_not_found("project directory", shown)
         return None, None
 
     if project_dir.is_file():

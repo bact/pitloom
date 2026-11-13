@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 
 if TYPE_CHECKING:
     from pitloom.core.config import PitloomConfig
@@ -351,7 +351,6 @@ def settle_inert(
     ]
     for param in inert:
         warn_no_effect(
-            INERT_LOG_PREFIX,
             subject,
             (PARAM_TO_FLAG[param],),
             row[param],

@@ -26,7 +26,13 @@ from pitloom.extract._usage_ast import find_usages
 from pitloom.extract._usage_match import UsageModel
 from pitloom.extract._usage_parse import PARSE_ERRORS, parse_python, python_version
 from pitloom.logging_config import loggable
-from pitloom.messages import USAGE_UNPARSEABLE, USAGE_UNPARSEABLE_MENTION, emit
+from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.models import (
+    USAGE_UNPARSEABLE,
+    USAGE_UNPARSEABLE_MENTION,
+)
 
 if TYPE_CHECKING:
     from pitloom.extract.scanner import UsageSource

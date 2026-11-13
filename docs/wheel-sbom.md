@@ -60,9 +60,13 @@ is built from the same metadata. An external SBOM is embedded verbatim, byte
 for byte (line endings included; `-o` writes the same bytes), and may list
 `.dist-info` files. It must be UTF-8: other bytes are an `ERROR:`, and a
 UTF-8 byte order mark is dropped with a `WARNING:` (RFC 8259 section 8.1). A
-file that is not valid JSON (an empty one included), not a JSON object, or
-named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say) is an
-`ERROR:` and exit 1, and no wheel is written. A JSON object in another format
+file that is not valid JSON (an empty one included) or not a JSON object
+(`FILE=<file>: not valid JSON for the SBOM; <failure> [json-malformed]`), or
+named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say:
+`FILE=<file>: named .spdx3.json but not SPDX 3 JSON-LD [sbom-wrong-format]`)
+is an `ERROR:` and exit 1, and no wheel is written. So is one that
+`spdx3-validate` refuses
+(`FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]`). A JSON object in another format
 under another name is embedded, with a `WARNING:` that its name and version
 cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
 whatever it is called or holds.

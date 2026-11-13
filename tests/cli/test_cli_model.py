@@ -359,7 +359,10 @@ def test_model_command_invalid_hf_target(
         m.setattr(sys, "argv", ["loom", "model", "hf://invalid"])
         assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom model: not a valid Hugging Face URL or model ID" in err
+    assert (
+        "ERROR: loom model: URL=hf://invalid: not a valid Hugging Face URL or "
+        "model ID [hf-url-invalid]"
+    ) in err.splitlines()
 
 
 def test_env_command_verbose(

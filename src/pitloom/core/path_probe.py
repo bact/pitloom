@@ -14,8 +14,8 @@ presence checks (:mod:`pitloom.assemble.spdx3.fragments`,
 failure identically.
 
 A present path that cannot be read or listed is reported through the
-catalogue (:func:`pitloom.messages.warn_file_unreadable`,
-:func:`pitloom.messages.warn_dir_unlistable`), which refuses an absent one.
+catalogue (:func:`pitloom.messages.files.warn_file_unreadable`,
+:func:`pitloom.messages.files.warn_dir_unlistable`), which refuses an absent one.
 """
 
 from __future__ import annotations

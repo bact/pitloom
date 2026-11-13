@@ -38,7 +38,6 @@ from pitloom.core.inert_options import (
     project_target_kind,
     settle_inert,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import PROJECT
 from pitloom.extract.remote import (
@@ -49,6 +48,10 @@ from pitloom.extract.remote import (
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
+from pitloom.messages.targets import (
+    HUB_MODEL_NOT_PROJECT_LINE,
+    TARGET_WRONG_FORMAT,
+)
 
 
 def generate_project_from_args(
@@ -134,9 +137,11 @@ def _run_project_command(args: argparse.Namespace) -> int:
     URL."""
     if isinstance(args.project_dir, str):
         if _is_hub_model_url(args.project_dir):
-            shown = quote_source(sanitize_url(args.project_dir))
             print_error(
-                f"{shown} is a Hugging Face model, not a project: use 'loom model'."
+                HUB_MODEL_NOT_PROJECT_LINE.render(
+                    {"url": sanitize_url(args.project_dir)}
+                ),
+                code=TARGET_WRONG_FORMAT.code,
             )
             return 1
         if is_pypi_url(args.project_dir):

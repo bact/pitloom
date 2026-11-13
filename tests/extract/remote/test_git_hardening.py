@@ -42,7 +42,9 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     split_ref,
 )
-from pitloom.messages import OVER_CAP
+from pitloom.messages.files import (
+    OVER_CAP,
+)
 from tests._message_drift import raised_as
 from tests._pid import wait_pid_gone
 

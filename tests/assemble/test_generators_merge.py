@@ -36,7 +36,7 @@ def _document(graph: list[dict[str, Any]]) -> dict[str, Any]:
     ("make", "error", "match"),
     [
         (lambda d: d / "missing", FileNotFoundError, "fragments directory not found"),
-        (lambda d: d, ValueError, "no JSON fragment files found"),
+        (lambda d: d, ValueError, "no JSON fragment file in"),
     ],
     ids=["missing", "empty"],
 )

@@ -25,15 +25,17 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import NotRegularFileError, OutsideRootError
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    READ_USES,
+    Message,
+    code_of,
+    trusted_message,
+)
+from pitloom.messages.files import (
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
-    READ_USES,
-    Message,
-    code_of,
     file_unreadable_error,
-    trusted_message,
     warn_dir_unlistable,
     warn_file_unreadable,
 )
@@ -148,19 +150,27 @@ def test_a_read_that_raises_says_one_purpose(purpose: dict[str, str]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("exc", "match"),
+    ("exc", "match", "purpose"),
     [
-        (FileNotFoundError(errno.ENOENT, "No such file", _ABS), "absent"),
-        (_DECODE, "no ERROR line"),
-        (OutsideRootError(), "no ERROR line"),
+        (FileNotFoundError(errno.ENOENT, "No such file", _ABS), "absent", {}),
+        (OutsideRootError(), "no ERROR line", {}),
+        (_DECODE, "read for a use", {"model_format": "gguf"}),
     ],
-    ids=["absent", "not-utf8", "outside"],
+    ids=["absent", "outside", "not-utf8-header"],
 )
 def test_a_read_that_raises_is_never_absent_or_a_warning_only(
-    exc: BaseException, match: str
+    exc: BaseException, match: str, purpose: dict[str, str]
 ) -> None:
+    purpose = purpose or {"use": "for the Croissant document"}
     with pytest.raises(InternalError, match=match):
-        file_unreadable_error(exc, file="c.json", use="for the Croissant document")
+        file_unreadable_error(exc, file="c.json", **purpose)
+
+
+def test_a_text_not_utf8_that_raises_says_its_variant() -> None:
+    error = file_unreadable_error(_DECODE, file="a\nb.json", use="for the SBOM")
+    text = f"FILE='a\\nb.json': could not read for the SBOM; not UTF-8: {_DECODE}"
+    assert str(error) == text and code_of(error) == "file-unreadable/not-utf8"
+    assert trusted_message(f"ERROR: {text} [file-unreadable/not-utf8]") is not None
 
 
 def test_a_header_read_names_the_format_first(

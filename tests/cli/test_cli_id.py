@@ -106,7 +106,7 @@ def test_id_generate_no_paths(
     result = __main__.main()
     assert result == 1
     assert (
-        "ERROR: loom id generate: no source/data directories found"
+        "ERROR: loom id generate: no source or data directory under"
         in capsys.readouterr().err
     )
 

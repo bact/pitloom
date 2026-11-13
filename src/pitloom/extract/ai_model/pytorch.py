@@ -39,13 +39,17 @@ from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.stderr_capture import capture_stderr
 from pitloom.logging_config import one_line
 from pitloom.messages import (
+    Line,
+    emit,
+)
+from pitloom.messages.files import (
+    Cap,
+)
+from pitloom.messages.model_fields import (
     FICKLING_PARSE_LINE,
     FICKLING_WALK_LINE,
     MODEL_FIELD_UNREADABLE,
     PICKLE_MEMBER_LINE,
-    Cap,
-    Line,
-    emit,
 )
 
 log = logging.getLogger(__name__)

@@ -140,10 +140,13 @@ class IdRegistry:
     def load(cls, path: str | os.PathLike[str]) -> IdRegistry:
         """Load a registry from *path*.
 
-        Every failure raises one ``ValueError`` via
-        :func:`~pitloom.id_registry._types.registry_file_error`; it never
-        returns ``None``. Whether a registry exists at all is decided
-        upstream, by :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        A file that is not there (or not a file) raises
+        :class:`~pitloom.messages.CodedFileNotFoundError`
+        (``input-not-found``); every other failure raises one ``ValueError``
+        via :func:`~pitloom.id_registry._types.registry_file_error`; it never
+        returns ``None``. Whether a registry
+        exists at all is decided upstream, by
+        :func:`~pitloom.id_registry.resolve.resolve_registry`.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
@@ -181,6 +184,7 @@ class IdRegistry:
         file at :attr:`path` yet, the registry is left as it is.
 
         Raises:
+            FileNotFoundError: the file is no longer there, or not a file.
             ValueError: the file cannot be loaded.
         """
         base = self._on_disk or {}

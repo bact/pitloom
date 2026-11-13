@@ -38,12 +38,16 @@ from pitloom.extract.remote.huggingface import read_huggingface
 from pitloom.extract.remote.pypi import WHEEL, fetch_pypi_file
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    Message,
+    trusted_message,
+)
+from pitloom.messages.files import (
+    OVER_CAP,
+)
+from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
     OFFLINE_UNUSABLE,
-    OVER_CAP,
-    Message,
-    trusted_message,
 )
 from tests._fake_hub import hub_and_cdn, point_hub_at, serve_in_git
 from tests._fake_pypi_server import Dist, Route, point_at, publish, serving

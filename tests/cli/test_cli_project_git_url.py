@@ -30,7 +30,12 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
-from pitloom.messages import CONFIG_UNSAFE, trusted_message
+from pitloom.messages import (
+    trusted_message,
+)
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+)
 from tests._model_fixtures import (
     FORMATS,
     fixture_path,
@@ -325,8 +330,10 @@ def test_a_hugging_face_model_is_no_project(
     assert _run(monkeypatch, tmp_path, "project", url) == 1
     lines = capsys.readouterr().err.strip().splitlines()
     assert len(lines) == 1
-    assert lines[0].startswith("ERROR: ")
-    assert "is a Hugging Face model, not a project: use 'loom model'" in lines[0]
+    assert lines[0] == (
+        f"ERROR: loom project: URL={url}: a Hugging Face model, not a project; "
+        "use 'loom model' [target-wrong-format]"
+    )
     assert "url" not in fetched
 
 

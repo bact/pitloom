@@ -48,6 +48,9 @@ from pitloom.id_registry._types import (
     registry_file_error,
     unencodable_message,
 )
+from pitloom.messages.targets import (
+    input_not_found,
+)
 
 __all__ = [
     "RegistryFileContents",
@@ -95,7 +98,7 @@ def _read_json(path: Path) -> Any:
     """The JSON value in the file *path*; a duplicate object key, as every
     other failure, is the registry file error."""
     if not os.path.isfile(path):
-        raise registry_file_error(path, "not found or not a file")
+        raise input_not_found("ID registry file", path)
     try:
         with open(path, "rb") as f:
             raw = f.read()
@@ -113,7 +116,9 @@ def _read_json(path: Path) -> Any:
 def read_registry_file(path: Path) -> RegistryFileContents:
     """Read and validate the registry file at *path*.
 
-    Every failure raises one ``ValueError`` built by
+    A file that is not there or not a file raises
+    :class:`~pitloom.messages.CodedFileNotFoundError` (``input-not-found``);
+    every other failure raises one ``ValueError`` built by
     :func:`~pitloom.id_registry._types.registry_file_error`. The version is
     checked before the key set, so a version 2 or 3 file gets the version
     message, not an "unknown key" one, and is left as it is.

@@ -24,6 +24,12 @@ from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
+from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.options import (
+    OPTION_INVALID,
+)
 
 if TYPE_CHECKING:
     from pitloom.extract._file_headers import FileHeaderMetadata
@@ -302,9 +308,7 @@ _ECHO_LIMIT = 10**12
 
 
 def _out_of_range(shown: str) -> ValueError:
-    return ValueError(
-        f"build timeout must be 1-{MAX_BUILD_TIMEOUT_SECONDS} seconds, got {shown}"
-    )
+    return CodedValueError(OPTION_INVALID, limit=MAX_BUILD_TIMEOUT_SECONDS, value=shown)
 
 
 def validate_build_timeout(value: object) -> int:

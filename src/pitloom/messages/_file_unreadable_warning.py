@@ -28,6 +28,7 @@ from pitloom.messages._file_unreadable import (
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
     HEADER_ERROR_LINE,
+    NOT_UTF8_ERROR_LINE,
 )
 from pitloom.messages._types import Message
 
@@ -140,20 +141,29 @@ def file_unreadable_error(
     """The error to raise for the file *file* (as the line names it) that
     *exc* stopped Pitloom reading for exactly one of: *use* (one of
     :data:`~pitloom.messages._fields.READ_USES`) or *model_format* (the
-    header read to confirm a model of that format), ``file-unreadable``:
-    what *exc* reports, never its text. The caller raises it ``from exc``.
+    header read to confirm a model of that format), ``file-unreadable``
+    (``file-unreadable/not-utf8`` for a :class:`UnicodeDecodeError`, with
+    *use* only): what *exc* reports, never its text. The caller raises it
+    ``from exc``.
 
     Raises:
         pitloom.core.internal_error.InternalError: *exc* says the file is
-            absent, or is one only a ``WARNING:`` says (a text not UTF-8, a
-            path out of the project), or not exactly one of *use* and
-            *model_format* is given.
+            absent, or is a path out of the project (only a ``WARNING:``
+            says it), or not exactly one of *use* and *model_format* is
+            given, or a text not UTF-8 is given *model_format*.
     """
     _refuse_absent(exc)
-    if _entry(exc) is not FILE_UNREADABLE:
+    entry = _entry(exc)
+    if entry is FILE_UNREADABLE_OUTSIDE:
         raise InternalError(f"no ERROR line for {type(exc).__name__}")
     if (use is None) == (model_format is None):
         raise InternalError("one of use and model_format")
+    if entry is FILE_UNREADABLE_NOT_UTF8:
+        if use is None:
+            raise InternalError("a text not UTF-8 is read for a use")
+        return CodedValueError(
+            entry, line=NOT_UTF8_ERROR_LINE, file=file, use=use, failure=exc
+        )
     if model_format is not None:
         return CodedValueError(
             FILE_UNREADABLE,

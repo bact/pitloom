@@ -125,7 +125,9 @@ def test_cli_refuses_an_uppercase_extension(
 
     assert _run(_cli(command, wheel), monkeypatch) == 1
 
-    assert capsys.readouterr().err == _err(command, f"not a .whl file: '{wheel}'")
+    assert capsys.readouterr().err == _err(
+        command, f"FILE={wheel}: not a .whl file [target-wrong-format]"
+    )
     assert wheel.read_bytes() == before
     assert [p.name for p in tmp_path.iterdir()] == ["up"]
 
@@ -185,7 +187,9 @@ def test_cli_refuses_a_symlink_named_uppercase(
 
     assert _run(_cli(command, alias), monkeypatch) == 1
 
-    assert capsys.readouterr().err == _err(command, f"not a .whl file: '{alias}'")
+    assert capsys.readouterr().err == _err(
+        command, f"FILE={alias}: not a .whl file [target-wrong-format]"
+    )
 
 
 @pytest.mark.parametrize("command", ["wheel", "generate", "embed-wheel"])
@@ -199,7 +203,9 @@ def test_cli_judges_the_name_before_whether_the_file_exists(
 
     assert _run(_cli(command, "nothere.WHL"), monkeypatch) == 1
 
-    assert capsys.readouterr().err == _err(command, "not a .whl file: 'nothere.WHL'")
+    assert capsys.readouterr().err == _err(
+        command, "FILE=nothere.WHL: not a .whl file [target-wrong-format]"
+    )
 
 
 @pytest.mark.parametrize("command", sorted(_CLI))
@@ -303,9 +309,12 @@ def test_wheel_name_helpers(name: str, strict: bool, routed: bool) -> None:
 @pytest.mark.parametrize(
     ("hits", "err"),
     [
-        (["{up}"], "not a .whl file: '{up}'"),
-        (["{lo}", "{up}"], "not a .whl file: '{up}'"),  # nothing runs
-        (["{txt}"], "no wheel files matched: 'dist/*'"),
+        (["{up}"], "FILE={up}: not a .whl file [target-wrong-format]"),
+        (
+            ["{lo}", "{up}"],
+            "FILE={up}: not a .whl file [target-wrong-format]",
+        ),  # nothing runs
+        (["{txt}"], "no wheel file matches 'dist/*' [input-not-found]"),
     ],
 )
 def test_cli_glob_hit_that_only_differs_in_case_fails_the_batch(

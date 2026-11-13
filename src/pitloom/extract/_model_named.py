@@ -29,12 +29,16 @@ from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_erro
 from pitloom.extract.scanner import read_model_candidate, sniff_model_format
 from pitloom.extract.scanner_project import local_model_candidate, remote_reader_gate
 from pitloom.messages import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-    MODEL_WRONG_FORMAT,
-    NOT_A_MODEL_LINE,
     CodedFileNotFoundError,
     CodedValueError,
+)
+from pitloom.messages.models import (
+    MODEL_WRONG_FORMAT,
+    NOT_A_MODEL_LINE,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
 )
 
 __all__ = [

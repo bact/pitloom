@@ -39,7 +39,9 @@ from pitloom.extract.scanner import ReaderGate
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import READER_UNSAFE
+from pitloom.messages.models import (
+    READER_UNSAFE,
+)
 from tests._model_fixtures import remote_gate_infos
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 

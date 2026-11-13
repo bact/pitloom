@@ -35,7 +35,12 @@ from pitloom.extract.model_target import (
     require_model_file,
     resolve_sbom_target,
 )
-from pitloom.messages import MODEL_WRONG_FORMAT, code_of
+from pitloom.messages import (
+    code_of,
+)
+from pitloom.messages.models import (
+    MODEL_WRONG_FORMAT,
+)
 from tests._model_fixtures import fixture_path
 from tests._symlink import CAN_SYMLINK
 

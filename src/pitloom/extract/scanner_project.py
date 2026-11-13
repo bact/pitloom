@@ -33,7 +33,9 @@ from pitloom.extract.scanner import (
     scan_ai_models,
 )
 from pitloom.extract.scanner_wheel import reader_gate
-from pitloom.messages import READER_UNSAFE_REMOTE
+from pitloom.messages.models import (
+    READER_UNSAFE_REMOTE,
+)
 
 
 def remote_reader_gate() -> ReaderGate | None:

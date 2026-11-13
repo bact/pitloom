@@ -23,14 +23,18 @@ from pitloom.extract.remote._http_watch import Watch
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    Line,
+    Message,
+    emit,
+)
+from pitloom.messages.files import (
+    OVER_CAP,
+)
+from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_FAILED_LINE,
     DOWNLOAD_TIMEOUT,
     DOWNLOAD_TIMEOUT_LINE,
-    OVER_CAP,
-    Line,
-    Message,
-    emit,
 )
 
 __all__ = [

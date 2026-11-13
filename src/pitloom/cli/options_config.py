@@ -36,7 +36,7 @@ from pitloom.cli.options_resolve import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 
 #: Shared flags whose ``argparse`` dest is also the library parameter name.
 #: ``offline`` and ``use_lockfile`` are per-command (absent on some), so
@@ -148,7 +148,7 @@ def warn_verbose_no_effect(
     command path that prints no verbose details. ``-v`` is CLI-only, so it
     is not an :data:`~pitloom.core.inert_options.INERT` parameter."""
     if getattr(args, "verbose", False):
-        warn_no_effect(INERT_LOG_PREFIX, subject, ("-v/--verbose",), reason)
+        warn_no_effect(subject, ("-v/--verbose",), reason)
 
 
 def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:

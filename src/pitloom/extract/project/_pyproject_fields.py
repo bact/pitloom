@@ -22,7 +22,9 @@ from pyproject_metadata import StandardMetadata
 from pitloom.core.path_confine import OutsideRootError, open_inside
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract.authors import collapse_whitespace
-from pitloom.messages import warn_file_unreadable
+from pitloom.messages.files import (
+    warn_file_unreadable,
+)
 
 log = logging.getLogger(__name__)
 

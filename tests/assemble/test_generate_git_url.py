@@ -37,7 +37,9 @@ from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import CONFIG_UNSAFE
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+)
 
 _URL = "https://gitlab.example.org/g/p"
 

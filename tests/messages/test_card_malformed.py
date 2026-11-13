@@ -39,9 +39,11 @@ from pitloom.extract.remote.huggingface_dataset import HUB_DATASET_CARD
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     CARD_KINDS,
-    CARD_MALFORMED,
     READ_USES,
     trusted_message,
+)
+from pitloom.messages.files import (
+    CARD_MALFORMED,
 )
 from tests._message_drift import record_problem
 from tests._unreadable import deny

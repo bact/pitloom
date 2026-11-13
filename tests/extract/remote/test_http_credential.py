@@ -25,7 +25,10 @@ from pitloom.extract.remote._http_credential import Credential, origin_of
 from pitloom.extract.remote._http_errors import remote_error, warn_instead
 from pitloom.extract.remote._hub_files import hub_offline, hub_token
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import DIGEST_MISMATCH, DIGEST_MISMATCH_LINE
+from pitloom.messages.pypi import (
+    DIGEST_MISMATCH,
+    DIGEST_MISMATCH_LINE,
+)
 
 _HUB = Credential("Bearer t", ("https", "huggingface.co", 443))
 

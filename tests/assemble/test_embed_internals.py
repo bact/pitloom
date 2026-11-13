@@ -111,7 +111,7 @@ def test_update_record_lines_empty_rows() -> None:
 def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
     """Test embed_sbom_in_wheel raises FileNotFoundError for missing wheel."""
     missing_wheel = tmp_path / "does_not_exist.whl"
-    with pytest.raises(FileNotFoundError, match="Wheel file not found"):
+    with pytest.raises(FileNotFoundError, match="wheel file not found"):
         embed_sbom_in_wheel(missing_wheel, "{}")
 
 

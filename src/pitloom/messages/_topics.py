@@ -10,7 +10,9 @@ The reference (``docs/message-codes*.md`` and the skills'
 one page per topic, so no page nears the size limit. A family maps to exactly
 one topic, and a family is never split across pages: its anchors stay together
 and a code's page is derivable from the code. A catalogue PR that adds a family
-adds it to :data:`FAMILY_TOPICS`; a test fails until it does. Moving a family
+adds it to :data:`FAMILY_TOPICS` and exports its entries, lines and helpers
+from the topic's public module (``pitloom.messages.<topic>``, a hyphen spelt
+``_``); a test fails until it does both. Moving a family
 to another page changes its anchors: rewrite the links to it in the same PR.
 
 The mapping is per family, not a field of :class:`~pitloom.messages.Message`,
@@ -31,6 +33,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "models": "AI models",
         "model-fields": "Model fields",
         "targets": "Targets",
+        "options": "Options",
         "files": "Files and text",
         "pypi": "PyPI",
         "network": "Network",
@@ -60,11 +63,21 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
         ),
         "targets": (
             "config-unsafe",
+            "hf-url-invalid",
             "input-not-found",
             "model-ambiguous",
             "project-not-found",
             "project-or-model-not-found",
+            "sbom-invalid",
+            "sbom-wrong-format",
             "target-ambiguous",
+            "target-wrong-format",
+        ),
+        "options": (
+            "option-conflict",
+            "option-invalid",
+            "option-missing",
+            "option-no-effect",
         ),
         "files": (
             "card-malformed",

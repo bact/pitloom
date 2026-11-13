@@ -117,9 +117,10 @@ def resolve_registry(
     :func:`~pitloom.core.config_cascade.load_config_file`, or a CLI flag
     made absolute against cwd) is used as given.
 
-    Raises ``ValueError`` (via :meth:`IdRegistry.load`) when the resolved
-    path does not load -- a declared registry is always meant to load;
-    this function never swallows that failure.
+    Raises ``FileNotFoundError`` (via :meth:`IdRegistry.load`) when the
+    resolved path is not a file, ``ValueError`` when it does not load -- a
+    declared registry is always meant to load; this function never
+    swallows that failure.
     """
     source = id_registry if id_registry is not None else configured
     if source is None:

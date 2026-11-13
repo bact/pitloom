@@ -23,7 +23,6 @@ from pitloom.assemble import project_document_id
 from pitloom.assemble.spdx3.fragments import (
     _find_fragment_document_id,
     _fragment_read_failure_message,
-    _missing_fragment_message,
     _same_document_message,
 )
 from pitloom.cli.commands.utils import (
@@ -35,7 +34,11 @@ from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable, print_error
+from pitloom.logging_config import loggable
+from pitloom.messages.targets import (
+    say_input_not_found,
+    warn_fragment_not_found,
+)
 
 log = logging.getLogger(__name__)
 
@@ -51,8 +54,7 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
     paths: list[Path] = args.paths
     not_files = [p for p in paths if not p.is_file()]
     for p in not_files:
-        kind = "directory" if p.is_dir() else "file not found"
-        print_error(f"{kind}: {quote_source(p)}")
+        say_input_not_found("SBOM file", p)
 
     if not dependency_ok or not_files:
         return 1
@@ -228,7 +230,7 @@ def _report_fragment(
         exists = True
         mtime = stat_result.st_mtime
     if not exists:
-        log.warning(_missing_fragment_message(fragment_path, required=frag.required))
+        warn_fragment_not_found(log, fragment_path, required=frag.required)
         raw, read_ok, elements, doc_id = None, False, None, None
     else:
         raw, read_ok, elements, doc_id = _fragment_read_status(

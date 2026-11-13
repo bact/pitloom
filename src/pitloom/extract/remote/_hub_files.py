@@ -71,12 +71,16 @@ from pitloom.extract.remote._http_fetch import (
 )
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.files import (
+    Cap,
+)
+from pitloom.messages.network import (
     ENDPOINT_MOVED,
     ENDPOINT_REFUSED,
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
-    Cap,
-    emit,
 )
 
 log = logging.getLogger(__name__)

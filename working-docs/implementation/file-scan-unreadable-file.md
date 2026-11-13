@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,7 +40,7 @@ permission, emptied the SBOM's entire file set with nothing on stderr.
   for an `--allow-build` file in a temporary directory, via
   `project_relative_or_fallback()`.
 - **One wording for every per-file read failure.** The catalogue's
-  `file-unreadable` (`pitloom.messages.warn_file_unreadable`, #408; until
+  `file-unreadable` (`pitloom.messages.files.warn_file_unreadable`, #408; until
   then `path_probe.UNREADABLE_FILE_WARNING`) is shared by this scan and
   the AI model header read and usage scan (`extract/scanner.py`); each
   passes only what the read was for, and the exception, whose

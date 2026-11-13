@@ -52,7 +52,8 @@ _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 #: Calls that take a path and quote it inside, or only count paths. The
 #: catalogue's coded exceptions (CodedValueError, CodedImportError,
 #: CodedFileNotFoundError) write each value through its field (a ``path`` in
-#: quotes, a ``file`` through loggable), as does ``Line.render``;
+#: quotes, a ``file`` through loggable), as do ``Line.render`` and the
+#: catalogue helpers (``input_not_found``, ``file_unreadable_error``);
 #: ``refusal_error`` says the refusal through CodedValueError, else quoted.
 _QUOTING_CALLS = frozenset(
     {
@@ -60,7 +61,10 @@ _QUOTING_CALLS = frozenset(
         "CodedImportError",
         "CodedValueError",
         "_interpolation_error",
-        "_missing_fragment_message",
+        "file_unreadable_error",
+        "input_not_found",
+        "_import_failure_text",
+        "NotAWheelError",
         "_fragment_read_failure_message",
         "_same_document_message",
         "failed_to_save_message",

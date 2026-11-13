@@ -52,7 +52,7 @@ def test_resolve_registry_error(tmp_path: Path) -> None:
         resolve_registry(invalid_file, None, tmp_path)
 
     missing_file = tmp_path / "missing.json"
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(FileNotFoundError, match="ID registry file not found"):
         resolve_registry(missing_file, None, tmp_path)
 
 

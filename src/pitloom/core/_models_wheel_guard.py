@@ -51,7 +51,11 @@ from pitloom.core._models_wheel_clone import clone_root
 from pitloom.core._models_wheel_types import DiscoveryTimeoutError
 from pitloom.core.clone_mark import in_remote_clone
 from pitloom.core.path_confine import is_inside
-from pitloom.messages import OVER_CAP, Cap, warn_over_cap
+from pitloom.messages.files import (
+    OVER_CAP,
+    Cap,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 

@@ -28,7 +28,12 @@ from pitloom.extract.ai_model.reader_requirements import (
     missing_library,
     require_library,
 )
-from pitloom.messages import LIBRARY_MISSING, code_of
+from pitloom.messages import (
+    code_of,
+)
+from pitloom.messages.models import (
+    LIBRARY_MISSING,
+)
 from tests._message_drift import raised_as
 
 _FAKE = "pitloom_fake_lib"

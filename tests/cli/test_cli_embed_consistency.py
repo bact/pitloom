@@ -94,7 +94,7 @@ def test_external_sbom_options_warn_with_the_external_reason(
 
     named = [w for w in stderr_warnings(capsys.readouterr().err) if flag in w]
     assert len(named) == 1
-    assert named[0].endswith(EXTERNAL_SBOM_REASON)
+    assert named[0].endswith(f"{EXTERNAL_SBOM_REASON} [option-no-effect]")
 
 
 @pytest.mark.parametrize(
@@ -170,7 +170,9 @@ def test_embed_external_sbom_does_not_read_config_or_project(
 
     err = capsys.readouterr().err
     named = [w for w in stderr_warnings(err) if f" {flag} has no effect" in w]
-    assert len(named) == 1 and named[0].endswith(EXTERNAL_SBOM_REASON)
+    assert len(named) == 1 and named[0].endswith(
+        f"{EXTERNAL_SBOM_REASON} [option-no-effect]"
+    )
     assert "ERROR:" not in err
     # Non-vacuous: without --sbom the same missing path is an error.
     assert _loom(

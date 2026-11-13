@@ -15,9 +15,13 @@ from typing import Any
 from pitloom.assemble import generate_merged_sbom
 from pitloom.assemble.spdx3.fragments import fragment_files
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    NO_FRAGMENT_FILE_LINE,
+    say_input_not_found,
+)
 
 log = logging.getLogger(__name__)
 
@@ -27,12 +31,15 @@ def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
     fragments_dir: Path = args.fragments_dir.resolve()
     if not fragments_dir.exists():
-        print_error(f"fragments directory not found: {quote_source(fragments_dir)}")
+        say_input_not_found("fragments directory", fragments_dir)
         return 1
 
     files = fragment_files(fragments_dir)
     if not files:
-        print_error(f"no JSON fragment files found in {quote_source(fragments_dir)}")
+        print_error(
+            NO_FRAGMENT_FILE_LINE.render({"path": fragments_dir}),
+            code=INPUT_NOT_FOUND.code,
+        )
         return 1
 
     output_path: Path = args.output

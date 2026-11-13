@@ -33,7 +33,10 @@ from packaging.markers import InvalidMarker, Marker
 from packaging.requirements import InvalidRequirement, Requirement
 
 from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 

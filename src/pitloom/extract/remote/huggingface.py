@@ -73,7 +73,6 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.optional_libraries import HUB, import_failed
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote._http_errors import remote_error, shown_url
@@ -98,7 +97,16 @@ from pitloom.extract.remote.huggingface_field import (
     hub_revision,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import OFFLINE_LINE, OFFLINE_UNUSABLE
+from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.network import (
+    OFFLINE_LINE,
+    OFFLINE_UNUSABLE,
+)
+from pitloom.messages.targets import (
+    HF_URL_INVALID,
+)
 
 log = logging.getLogger(__name__)
 
@@ -216,9 +224,7 @@ def read_huggingface(
 
     model_id = parse_hf_model_id(source)
     if model_id is None:
-        raise ValueError(
-            f"Not a valid Hugging Face URL or model ID: {quote_source(source)}"
-        )
+        raise CodedValueError(HF_URL_INVALID, url=sanitize_url(source))
 
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
     if policy.offline:

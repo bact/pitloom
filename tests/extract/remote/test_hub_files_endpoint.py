@@ -44,7 +44,10 @@ from pitloom.extract.remote._hub_files import (
     hub_files,
 )
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import ENDPOINT_MOVED, ENDPOINT_REFUSED
+from pitloom.messages.network import (
+    ENDPOINT_MOVED,
+    ENDPOINT_REFUSED,
+)
 from tests._fake_hub import (
     TOKEN,
     FakeHub,

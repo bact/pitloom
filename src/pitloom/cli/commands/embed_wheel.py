@@ -55,9 +55,16 @@ from pitloom.core.build_options import (
     NO_PROJECT_DIR_REASON,
     BuildOptions,
 )
-from pitloom.core.quote_source import quote_source
 from pitloom.embed import EmbedFileCache
 from pitloom.logging_config import loggable, print_error
+from pitloom.messages.options import (
+    CANNOT_BE_USED_LINE,
+    OPTION_CONFLICT,
+)
+from pitloom.messages.targets import (
+    SBOM_INVALID,
+    SBOM_NOT_VALID_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +140,7 @@ def _given_sbom_is_valid(args: argparse.Namespace) -> bool:
         return False
     if validate_sbom_data(data, loggable(args.sbom.name)):
         return True
-    print_error(f"--sbom {quote_source(args.sbom)} is not valid; no wheel was written")
+    print_error(SBOM_NOT_VALID_LINE.render({"file": args.sbom}), code=SBOM_INVALID.code)
     return False
 
 
@@ -180,7 +187,12 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         return 1
 
     if len(unique_wheels) > 1 and args.output is not None:
-        print_error("--output cannot be used when embedding multiple wheels")
+        print_error(
+            CANNOT_BE_USED_LINE.render(
+                {"option": "--output", "when": "when embedding multiple wheels"}
+            ),
+            code=OPTION_CONFLICT.code,
+        )
         return 1
 
     build_options = _settled_build_options(args)

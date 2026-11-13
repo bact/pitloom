@@ -26,7 +26,9 @@ from pitloom.extract.ai_model.formats import (
     pickle_walk,
 )
 from pitloom.extract.ai_model.limits import ModelOverCap
-from pitloom.messages import Cap
+from pitloom.messages.files import (
+    Cap,
+)
 
 #: Most opcodes of the pickle fickling is given. A model's ``data.pkl`` holds
 #: thousands to a few hundred thousand.

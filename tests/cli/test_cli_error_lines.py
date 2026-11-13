@@ -23,12 +23,16 @@ from pitloom.cli.parser import command_frame
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import error_frame
 from pitloom.messages import (
-    CONFIG_MEMBER_LINE,
-    LFS_POINTER_MALFORMED,
-    OVER_CAP,
     CodedValueError,
     Message,
     trusted_message,
+)
+from pitloom.messages.files import (
+    CONFIG_MEMBER_LINE,
+    OVER_CAP,
+)
+from pitloom.messages.models import (
+    LFS_POINTER_MALFORMED,
 )
 
 _HOSTILE = "a\nWARNING: forged"

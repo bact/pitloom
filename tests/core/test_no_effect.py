@@ -33,7 +33,7 @@ def test_the_subject_is_masked_and_on_one_line(
     caplog: pytest.LogCaptureFixture, subject: str, shown: str
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        warn_no_effect("Build: ", subject, ("--allow-build",), "for a repository")
+        warn_no_effect(subject, ("--allow-build",), "for a repository", build=True)
     assert [r.getMessage() for r in caplog.records] == [
         f"Build: {shown}: --allow-build has no effect for a repository"
     ]

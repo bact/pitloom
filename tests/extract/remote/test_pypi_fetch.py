@@ -35,7 +35,7 @@ from pitloom.extract.remote.pypi import (
     sdist_hint,
 )
 from pitloom.logging_config import configure_logging
-from pitloom.messages import (
+from pitloom.messages.pypi import (
     FILE_AMBIGUOUS,
     RELEASE_UNPINNED,
     RELEASE_UNPINNED_PRERELEASE,

@@ -63,20 +63,26 @@ from pitloom.extract.scanner_project import (
     remote_reader_gate,
 )
 from pitloom.messages import (
+    CodedValueError,
+    emit,
+)
+from pitloom.messages.files import (
+    Cap,
+    file_unreadable_error,
+    warn_over_cap,
+)
+from pitloom.messages.models import (
+    MODEL_WRONG_FORMAT,
+    NOT_A_MODEL_LINE,
+)
+from pitloom.messages.targets import (
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,
-    MODEL_WRONG_FORMAT,
     NAMED_NOT_A_MODEL_LINE,
     NO_PROJECT_ONE_MODEL_LINE,
     NO_SBOM_TARGET,
-    NOT_A_MODEL_LINE,
     ONE_MODEL_LINE,
     TARGET_AMBIGUOUS,
-    Cap,
-    CodedValueError,
-    emit,
-    file_unreadable_error,
-    warn_over_cap,
 )
 
 __all__ = [

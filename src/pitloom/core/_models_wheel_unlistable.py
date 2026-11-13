@@ -35,7 +35,7 @@ cannot see.
 
 See also: :mod:`pitloom.core._models_wheel` (the caller),
 :mod:`pitloom.core.path_probe` (shared classification) and
-:func:`pitloom.messages.warn_dir_unlistable` (the wording).
+:func:`pitloom.messages.files.warn_dir_unlistable` (the wording).
 """
 
 from __future__ import annotations
@@ -51,7 +51,9 @@ from pathlib import Path, PurePath
 
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.messages import warn_dir_unlistable
+from pitloom.messages.files import (
+    warn_dir_unlistable,
+)
 
 __all__ = ["warn_unlistable_dirs"]
 

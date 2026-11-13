@@ -23,7 +23,11 @@ from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.messages import Cap, warn_file_unreadable, warn_over_cap
+from pitloom.messages.files import (
+    Cap,
+    warn_file_unreadable,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +44,7 @@ CODEMETA_JSON = "codemeta.json"
 #: larger one is skipped with one ``WARNING:`` (:data:`LICENSE_FILE_CAP`).
 LICENSE_FILE_MAX_BYTES = 256 * 1024
 #: :data:`LICENSE_FILE_MAX_BYTES` as every reader of a licence source warns
-#: of it: through :func:`~pitloom.messages.warn_over_cap`, with
+#: of it: through :func:`~pitloom.messages.files.warn_over_cap`, with
 #: ``once=True`` (one run reads a project more than once: a lock-file
 #: re-read, a declared and a concluded licence, always alike).
 LICENSE_FILE_CAP = Cap(LICENSE_FILE_MAX_BYTES, "byte", "license-detection")

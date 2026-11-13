@@ -48,11 +48,15 @@ from pitloom.extract.model_target import (
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    code_of,
+)
+from pitloom.messages.files import (
+    Cap,
+    over_cap_of,
+)
+from pitloom.messages.models import (
     LFS_CLONE_ERROR_LINE,
     LFS_PULL_ERROR_LINE,
-    Cap,
-    code_of,
-    over_cap_of,
 )
 from tests._lfs import lfs_pointer_bytes
 from tests._model_fixtures import FORMAT_FIXTURES, FORMATS, NEEDS_SUFFIX, fixture_path

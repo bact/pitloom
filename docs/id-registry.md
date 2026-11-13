@@ -120,8 +120,8 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- `--project-dir` must be an existing directory, else `ERROR: loom id <command>: --project-dir
-  '<p>' is not a directory` (exit 1). Each `PATH` must resolve inside it, else
+- `--project-dir` must be an existing directory, else `ERROR: loom id <command>: project directory not found: '<p>' is not a directory
+  [input-not-found]` (exit 1). Each `PATH` must resolve inside it, else
   `ERROR: loom id <command>: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
@@ -304,9 +304,10 @@ resolves against the project directory for a project directory target
 current directory for any other target, an sdist included. The CLI makes
 `--id-registry` absolute against the current directory first, so there
 it always means the file under the current directory. A declared
-registry file that's missing, unreadable or invalid raises `ValueError`
-(`"ID registry file '<path>': <reason>"`) rather than being silently
-skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
+registry file that's missing (or not a file) raises `FileNotFoundError`
+(`ID registry file not found: '<path>'`); one that's unreadable or
+invalid raises `ValueError` (`"ID registry file '<path>': <reason>"`).
+Neither is silently skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
 directory.
@@ -318,7 +319,9 @@ harvest and `id import` skip such an element with a `WARNING:`. `generate()`
 raises `ID registry: '<path>' is outside the project root '<root>'` for a path
 outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
-`ERROR: loom id import: failed to import SBOM '<path>': @graph is not a list`.
+`ERROR: loom id import: FILE=<path>: SBOM @graph is not a list [sbom-invalid]`;
+any other failure without a code is
+`ERROR: loom id import: failed to import SBOM '<path>': <reason>`.
 
 ## In CI
 

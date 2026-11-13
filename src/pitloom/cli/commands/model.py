@@ -30,7 +30,6 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.inert_options import GIT_MODEL, HF, MODEL_FILE, forward_options
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import MODEL, model_path_of
 from pitloom.extract.remote import (
@@ -42,11 +41,15 @@ from pitloom.extract.remote import (
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
-from pitloom.messages import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
+from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
+)
+from pitloom.messages.targets import (
+    HF_URL_INVALID,
+    HF_URL_LINE,
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
 )
 
 
@@ -113,8 +116,8 @@ def _run_hf_model(args: argparse.Namespace, target: str) -> int:
     model_id = parse_hf_model_id(target)
     if model_id is None:
         print_error(
-            "not a valid Hugging Face URL or model ID: "
-            f"{quote_source(sanitize_url(target))}"
+            HF_URL_LINE.render({"url": sanitize_url(target)}),
+            code=HF_URL_INVALID.code,
         )
         return 1
     log_hf_url_rewrite(target, model_id)

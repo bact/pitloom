@@ -25,7 +25,9 @@ from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.logging_config import one_line
-from pitloom.messages import warn_file_unreadable
+from pitloom.messages.files import (
+    warn_file_unreadable,
+)
 
 log = logging.getLogger(__name__)
 

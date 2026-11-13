@@ -43,7 +43,13 @@ import pytest
 from pitloom.assemble import generate, generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import DIR_UNLISTABLE, FILE_UNREADABLE, trusted_message
+from pitloom.messages import (
+    trusted_message,
+)
+from pitloom.messages.files import (
+    DIR_UNLISTABLE,
+    FILE_UNREADABLE,
+)
 from tests._unreadable import ALL_MODES, POSIX_NON_ROOT, deny, unlistable
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import run_cli

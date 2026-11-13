@@ -71,10 +71,19 @@ from pitloom.extract.remote.pypi_url import (
 )
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.network import (
+    FILE_HOST_REFUSED_LINE,
+    OFFLINE_LINE,
+    OFFLINE_UNUSABLE,
+    QUERY_NO_EFFECT,
+    URL_REFUSED,
+)
+from pitloom.messages.pypi import (
     DIGEST_MISMATCH,
     DIGEST_MISMATCH_LINE,
     FILE_AMBIGUOUS,
-    FILE_HOST_REFUSED_LINE,
     FILE_SKIPPED_LINE,
     GENERATE_WHEEL_LIBRARY_LINE,
     GENERATE_WHEEL_LINE,
@@ -85,10 +94,7 @@ from pitloom.messages import (
     NO_DIGEST_LINE,
     NO_SDIST_LINE,
     NO_WHEEL_LINE,
-    OFFLINE_LINE,
-    OFFLINE_UNUSABLE,
     PYPI_RESPONSE_INVALID,
-    QUERY_NO_EFFECT,
     RELEASE_FILE_NOT_FOUND,
     RELEASE_FILE_NOT_FOUND_COMPATIBLE,
     RELEASE_FILE_NOT_FOUND_SDIST,
@@ -97,10 +103,8 @@ from pitloom.messages import (
     RELEASE_UNPINNED_YANKED,
     RELEASE_YANKED,
     SDIST_PICK_LINE,
-    URL_REFUSED,
     WHEEL_PICK_LINE,
     YANKED_LINE,
-    emit,
 )
 
 log = logging.getLogger(__name__)

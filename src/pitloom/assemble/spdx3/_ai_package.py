@@ -56,7 +56,15 @@ from pitloom.export.spdx3_json import (
 )
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.logging_config import loggable
-from pitloom.messages import HYPERPARAMETER_CONFLICT, emit, warn_over_cap
+from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.files import (
+    warn_over_cap,
+)
+from pitloom.messages.model_fields import (
+    HYPERPARAMETER_CONFLICT,
+)
 
 log = logging.getLogger(__name__)
 

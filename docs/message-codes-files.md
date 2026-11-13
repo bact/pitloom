@@ -23,7 +23,7 @@ values.
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`dir-unlistable`](#dir-unlistable) | WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. | 0.22.0 |
 | [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). | 0.22.0 |
-| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, or a Python file read for the model usage scan. | 0.22.0 |
+| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan, or an SBOM given to embed (an ERROR:). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
 | [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read (a Croissant file) does not parse, or its top level is not an object. | 0.23.0 |
@@ -115,13 +115,15 @@ values.
 
 ### `file-unreadable/not-utf8`
 
-- **Level**: WARNING.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: A text file Pitloom read is not UTF-8, the encoding it must be in:
-  a requirements file or a file a setup.cfg directive lists, or a Python file
-  read for the model usage scan.
+  a requirements file or a file a setup.cfg directive lists, a Python file read
+  for the model usage scan, or an SBOM given to embed (an ERROR:).
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Went on without what the file holds: the field is not set
-  from it, or the usage scan records no model reference from it.
+  from it, or the usage scan records no model reference from it. For an SBOM,
+  wrote nothing: no wheel is changed.
 - **Tell the user**: which file is not UTF-8 and what the decoder reported, as
   the line says. They save it as UTF-8 and generate again. Do not convert, edit
   or replace the file for them; ask first, and with nobody to ask, report it
@@ -131,6 +133,7 @@ values.
   ```text
   WARNING: FILE=<file>: could not read <use>; not UTF-8: <failure> [file-unreadable/not-utf8]
   WARNING: FILE=<file>: could not read for <field>; not UTF-8: <failure> [file-unreadable/not-utf8]
+  ERROR: FILE=<file>: could not read <use>; not UTF-8: <failure> [file-unreadable/not-utf8]
   ```
 
 ### `file-unreadable/outside-project`

@@ -58,6 +58,9 @@ from pitloom.core.model_extract_limit import (
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
+from pitloom.messages.targets import (
+    input_not_found,
+)
 
 log = logging.getLogger(__name__)
 
@@ -191,9 +194,7 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         OSError: the file cannot be read.
     """
     if not os.path.isfile(path):
-        raise FileNotFoundError(
-            f"config file not found or not a file: {quote_source(path)}"
-        )
+        raise input_not_found("config file", path)
     try:
         data = load_toml_file(Path(path))
         cfg = parse_pitloom_config(data, source=str(path))

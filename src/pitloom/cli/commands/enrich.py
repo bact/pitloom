@@ -26,7 +26,10 @@ from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
-from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
+)
 
 log = logging.getLogger(__name__)
 

@@ -27,6 +27,12 @@ from pitloom.cli.options import (
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.messages import (
+    trusted_message,
+)
+from pitloom.messages.options import (
+    OPTION_INVALID,
+)
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -85,30 +91,29 @@ def test_creator_type_invalid_choice_rejected_by_argparse(
     assert "invalid choice" in capsys.readouterr().err
 
 
-def test_creator_type_before_creator_name_errors(
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [("--creator-type", "organization"), ("--creator-email", "a@example.com")],
+    ids=["type", "email"],
+)
+def test_creator_detail_before_creator_name_errors(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    option: str,
+    value: str,
 ) -> None:
-    """--creator-type before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(
-        sys, "argv", ["loom", "project", ".", "--creator-type", "organization"]
-    )
-    with pytest.raises(SystemExit):
+    """A creator's type or email before any --creator-name is argparse's
+    error, coded ``option-invalid`` and trusted."""
+    monkeypatch.setattr(sys, "argv", ["loom", "project", ".", option, value])
+    with pytest.raises(SystemExit) as caught:
         __main__.main()
-    assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
-
-
-def test_creator_email_before_creator_name_errors(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """--creator-email before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(
-        sys, "argv", ["loom", "project", ".", "--creator-email", "a@example.com"]
+    assert caught.value.code == 2
+    line = (
+        f"ERROR: loom project: argument {option}: must come after a "
+        "--creator-name [option-invalid]"
     )
-    with pytest.raises(SystemExit):
-        __main__.main()
-    assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
+    assert line in capsys.readouterr().err.splitlines()
+    assert trusted_message(line) is OPTION_INVALID
 
 
 def test_resolve_project_paths_not_found(

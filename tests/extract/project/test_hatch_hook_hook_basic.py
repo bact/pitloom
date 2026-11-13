@@ -32,10 +32,12 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.temp_dirs import remove_temp_dir
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.messages import (
-    LFS_POINTER,
-    LFS_PULL_ERROR_LINE,
     CodedValueError,
     trusted_message,
+)
+from pitloom.messages.models import (
+    LFS_POINTER,
+    LFS_PULL_ERROR_LINE,
 )
 from pitloom.plugins import hatch
 from pitloom.plugins.hatch import PitloomBuildHook

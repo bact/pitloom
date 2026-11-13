@@ -31,7 +31,10 @@ from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import warn_dir_unlistable, warn_file_unreadable
+from pitloom.messages.files import (
+    warn_dir_unlistable,
+    warn_file_unreadable,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 

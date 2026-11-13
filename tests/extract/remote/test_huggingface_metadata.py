@@ -218,8 +218,9 @@ def test_read_huggingface_missing_card_does_not_raise() -> None:
 
 
 def test_read_huggingface_invalid_source_raises() -> None:
-    with pytest.raises(ValueError, match="Not a valid Hugging Face"):
+    with pytest.raises(ValueError, match="not a valid Hugging Face") as caught:
         read_huggingface("/path/to/not/a/hf/model")
+    assert getattr(caught.value, "pitloom_code", None) == "hf-url-invalid"
 
 
 def test_read_huggingface_no_huggingface_hub_raises() -> None:

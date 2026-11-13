@@ -218,7 +218,7 @@ on the main package (`project_url`, `sha256`, `sha256_declared`,
 `release_version`, `wheel_tags` and the like, as an `Annotation` and as
 `Metadata provenance:` comment text) is nothing to fix; equal `sha256` and
 `sha256_declared` are the normal case. `verify-wheel`, `validate-wheel` and
-`embed-wheel` take a local `.whl` file, never a URL (`ERROR: loom <command>: not a .whl file`):
+`embed-wheel` take a local `.whl` file, never a URL (`ERROR: loom <command>: FILE=<file>: not a .whl file [target-wrong-format]`):
 a wheel's own embedded SBOM is a different document from the one Pitloom writes
 for the URL, and checking it needs the wheel on disk (do not download it
 unasked; non-interactive: report that). Asked to validate "the SBOM of

@@ -30,7 +30,10 @@ from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_url import parse_git_page
-from pitloom.messages import GIT_HOST_SPELLING_LINE, URL_HOST_SPELLING
+from pitloom.messages.network import (
+    GIT_HOST_SPELLING_LINE,
+    URL_HOST_SPELLING,
+)
 from tests._message_drift import raised_as
 
 #: Encoded paths that leave, or start outside, the checkout.

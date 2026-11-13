@@ -140,6 +140,7 @@ READ_USES: Final = (
     "for the model card",
     "for the model hash",
     "for the PyPI release metadata",
+    "for the SBOM",
     "for the script hash",
     "for usage scanning",
 )
@@ -147,6 +148,24 @@ READ_USES: Final = (
 #: The kinds of card whose YAML frontmatter Pitloom reads, as a
 #: ``card-malformed`` line names one: a closed table.
 CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
+
+#: What an ``input-not-found`` line names the missing path as: a closed table.
+INPUT_KINDS: Final = (
+    "config file",
+    "fragments directory",
+    "ID registry file",
+    "project directory",
+    "project path",
+    "pyproject.toml",
+    "SBOM file",
+    "sdist archive",
+    "setup.cfg",
+    "setup.py",
+    "wheel file",
+)
+
+#: The configuration tables a line names (``set id-registry in <table>``).
+CONFIG_TABLES: Final = ("[tool.pitloom]", "[tool:pitloom]")
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -279,6 +298,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "(`files.pythonhosted.org`)",
             free=True,
         ),
+        "input": Field(
+            "|".join(re.escape(kind) for kind in INPUT_KINDS),
+            plain_text,
+            "<input>",
+            "what the path was named as: "
+            + ", ".join(f"`{kind}`" for kind in INPUT_KINDS),
+        ),
         "key": Field(
             "|".join(sorted(CAP_KEYS)),
             plain_text,
@@ -315,6 +341,15 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "oid": Field(
             r"[0-9a-f]{64}", str, "<oid>", "the SHA-256 the pointer states, in hex"
+        ),
+        "option": Field(
+            r"\S+",
+            plain_text,
+            "<option>",
+            "a command-line option as the command names it (`--allow-build`, "
+            "`-o/--output`, `--pretty/--no-pretty`), a positional argument as "
+            "argparse names it (`command`), or a library parameter "
+            "(`project_metadata`)",
         ),
         "outcome": Field(
             r".+",
@@ -393,6 +428,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "what declared a digest (`the PyPI JSON API`)",
             free=True,
         ),
+        "table": Field(
+            "|".join(re.escape(table) for table in CONFIG_TABLES),
+            plain_text,
+            "<table>",
+            "the configuration table: "
+            + " or ".join(f"`{table}`" for table in CONFIG_TABLES),
+        ),
         "target": Field(
             r".+",
             free_text,
@@ -437,6 +479,15 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<version>",
             "a release version as the URL or PyPI gives it; in quotes, escaped, when "
             "it holds a control character",
+            free=True,
+        ),
+        "when": Field(
+            r"(?:for|in|when|with|without) .+",
+            free_text,
+            "<when>",
+            "the case the option has no effect in, or cannot be used in "
+            "(`without --allow-build`, `for a remote repository (...)`, `when "
+            "embedding multiple wheels`)",
             free=True,
         ),
         "why": Field(

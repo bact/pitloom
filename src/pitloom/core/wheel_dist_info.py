@@ -41,7 +41,17 @@ from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
+from pitloom.messages.targets import (
+    NOT_A_WHEEL_LINE,
+    TARGET_WRONG_FORMAT,
+)
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +103,11 @@ class WheelRefused(ValueError):
     """A wheel Pitloom refuses as a whole, with one clean line."""
 
 
+class NotAWheelError(WheelRefused, CodedValueError):
+    """A file given as a wheel that is not named ``.whl``
+    (``target-wrong-format``)."""
+
+
 #: The one extension a wheel file carries. ``pip`` and
 #: :func:`packaging.utils.parse_wheel_filename` both require exactly this
 #: spelling, so ``x.WHL`` is not a wheel.
@@ -125,7 +140,7 @@ def require_wheel_path(path: Path | str) -> None:
     The one rule every surface that takes a wheel applies, with one message.
     """
     if not is_wheel_path(path):
-        raise WheelRefused(f"not a {WHEEL_SUFFIX} file: {quote_source(path)}")
+        raise NotAWheelError(TARGET_WRONG_FORMAT, line=NOT_A_WHEEL_LINE, file=path)
 
 
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:

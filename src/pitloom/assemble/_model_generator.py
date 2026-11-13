@@ -58,10 +58,14 @@ from pitloom.id_registry import (
 )
 from pitloom.logging_config import configure_logging, loggable
 from pitloom.messages import (
+    CodedValueError,
+)
+from pitloom.messages.files import (
+    warn_file_unreadable,
+)
+from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
-    CodedValueError,
-    warn_file_unreadable,
 )
 
 log = logging.getLogger(__name__)

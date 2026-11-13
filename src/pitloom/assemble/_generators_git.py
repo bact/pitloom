@@ -29,7 +29,7 @@ from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.model_target import AUTO, MODEL, PROJECT
@@ -37,7 +37,13 @@ from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import CONFIG_UNSAFE, CONFIG_UNSAFE_REMOTE_LINE, emit
+from pitloom.messages import (
+    emit,
+)
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+    CONFIG_UNSAFE_REMOTE_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +59,6 @@ def _git_model_sbom(
     project_metadata = options.pop("project_metadata")
     if project_metadata is not None:
         warn_no_effect(
-            INERT_LOG_PREFIX,
             url,
             ("project_metadata",),
             "for an AI model file (it is not a Python project)",

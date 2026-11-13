@@ -38,7 +38,17 @@ from pitloom.core.creation import (
     Creator,
 )
 from pitloom.logging_config import print_error
-from pitloom.messages import COMMAND_FRAME, TOP_FRAME
+from pitloom.messages import (
+    COMMAND_FRAME,
+    TOP_FRAME,
+)
+from pitloom.messages.options import (
+    usage_code,
+)
+
+#: Why a creator's type or email given before its name is refused; argparse
+#: words the line (``argument --creator-type: ...``, ``option-invalid``).
+_AFTER_CREATOR_NAME: Final = "must come after a --creator-name"
 
 
 class _CreatorNameAction(argparse.Action):
@@ -68,8 +78,7 @@ class _CreatorTypeAction(argparse.Action):
     ) -> None:
         creators: list[Creator] | None = getattr(namespace, self.dest)
         if creators is None or len(creators) == 0:
-            parser.error(f"{option_string} must come after a --creator-name")
-            return  # type: ignore[unreachable]
+            raise argparse.ArgumentError(self, _AFTER_CREATOR_NAME)
         creators[-1] = Creator(
             name=creators[-1].name,
             type=values,
@@ -89,8 +98,7 @@ class _CreatorEmailAction(argparse.Action):
     ) -> None:
         creators: list[Creator] | None = getattr(namespace, self.dest)
         if creators is None or len(creators) == 0:
-            parser.error(f"{option_string} must come after a --creator-name")
-            return  # type: ignore[unreachable]
+            raise argparse.ArgumentError(self, _AFTER_CREATOR_NAME)
         creators[-1] = Creator(
             name=creators[-1].name,
             type=creators[-1].type,
@@ -124,12 +132,14 @@ class _LoomParser(argparse.ArgumentParser):
     Action and every other reader find the reason. Sub-parsers are of this
     class too (``add_subparsers`` uses its parent's). The line carries the
     frame of the command whose parser refused (``loom generate: ``), also
-    before a subcommand is chosen (``loom: ``)."""
+    before a subcommand is chosen (``loom: ``), and the code of the refusal
+    when its wording is catalogued (``option-invalid``, ``option-missing``;
+    :func:`~pitloom.messages.options.usage_code`)."""
 
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         command = self.prog.removeprefix("loom").strip()
-        print_error(message, frame=command_frame(command))
+        print_error(message, code=usage_code(message), frame=command_frame(command))
         self.exit(2)
 
 

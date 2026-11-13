@@ -19,7 +19,9 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.messages import warn_lone_surrogates
+from pitloom.messages.files import (
+    warn_lone_surrogates,
+)
 
 log = logging.getLogger(__name__)
 

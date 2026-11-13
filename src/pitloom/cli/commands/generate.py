@@ -44,6 +44,10 @@ from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.extract.model_target import AUTO
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.logging_config import print_error
+from pitloom.messages.options import (
+    OPTION_MISSING,
+    OUTPUT_REQUIRED_LINE,
+)
 
 
 @cli_error_handler
@@ -58,13 +62,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     more transparent than picking a name the user didn't ask for.
     """
     if args.output is None:
-        print_error(
-            "-o/--output is required "
-            "(the target-detection dispatch has no single natural default "
-            "filename -- pass -o FILE, or use 'loom project'/'loom wheel'/"
-            "'loom model'/'loom env' directly for that target type's own "
-            "default)."
-        )
+        print_error(OUTPUT_REQUIRED_LINE.render({}), code=OPTION_MISSING.code)
         return 1
 
     if target_is_pypi_url(args.target):
