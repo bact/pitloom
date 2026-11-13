@@ -41,6 +41,7 @@ from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     MODEL_FILE_NOT_FOUND_LINE,
     input_not_found,
+    say_input_not_found,
     warn_fragment_not_found,
 )
 from tests._message_drift import raised_as
@@ -195,3 +196,35 @@ def test_a_missing_fragment_is_one_coded_warning(
         ),
     ]
     assert "\n" not in said[0][0]
+
+
+@pytest.mark.parametrize(
+    ("kind", "there", "path"),
+    [
+        ("wheel file", None, "x y.whl"),
+        ("wheel file", "dir", "x y.whl"),
+        ("project directory", "file", "x y"),
+        ("project path", None, "x\ny"),
+        ("SBOM file", None, "https://u:p@h/s.json"),
+    ],
+    ids=["absent", "not-a-file", "not-a-dir", "escaped", "url"],
+)
+def test_the_printed_line_is_the_raised_text(
+    kind: str,
+    there: str | None,
+    path: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """One probe and one formatter: the command line prints, with the code,
+    exactly what the library raises, a URL's credentials masked in both."""
+    monkeypatch.chdir(tmp_path)
+    if there == "dir":
+        Path(path).mkdir()
+    elif there == "file":
+        Path(path).write_bytes(b"")
+    say_input_not_found(kind, path)
+    raised = input_not_found(kind, path)
+    assert capsys.readouterr().err == f"ERROR: {raised} [input-not-found]\n"
+    assert "u:p" not in str(raised)

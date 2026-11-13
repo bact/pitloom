@@ -22,16 +22,12 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import (
-    record_dict_field_provenance,
-)
+from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import (
-    emit,
-)
+from pitloom.messages import emit
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,

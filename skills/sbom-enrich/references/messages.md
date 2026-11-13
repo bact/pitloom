@@ -121,6 +121,7 @@ A line may start with one prefix before its text:
 | Value | What it is |
 | --- | --- |
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
+| `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
@@ -146,12 +147,14 @@ A line may start with one prefix before its text:
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
+| `<other>` | the option given before, which the one named first cannot be given with, as argparse names it (`--pretty`) |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
+| `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<seconds>` | the time allowed, in whole seconds |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |

@@ -31,9 +31,7 @@ from packaging.tags import Tag
 
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote import pypi_select
-from pitloom.messages import (
-    Line,
-)
+from pitloom.messages import Line
 from pitloom.messages.pypi import (
     PYPI_FILE_LINK_LINE,
     PYPI_INDEX_LINE,

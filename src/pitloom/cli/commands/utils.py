@@ -29,6 +29,7 @@ from pitloom.core.optional_libraries import (
     not_installed,
 )
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import masked_given_path
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
     is_wheel_path,
@@ -36,9 +37,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import (
-    code_of,
-)
+from pitloom.messages import code_of
 from pitloom.messages.models import (
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
@@ -118,7 +117,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 continue
             if not matched:
                 print_error(
-                    NO_WHEEL_MATCH_LINE.render({"path": pattern}),
+                    NO_WHEEL_MATCH_LINE.render({"path": masked_given_path(pattern)}),
                     code=INPUT_NOT_FOUND.code,
                 )
                 had_error = True
@@ -130,7 +129,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 continue
             p = _given(pattern)
             if not p.exists():
-                say_input_not_found("wheel file", p)
+                say_input_not_found("wheel file", Path(pattern))
                 had_error = True
                 continue
             wheel_paths.append(p)

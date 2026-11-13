@@ -20,9 +20,7 @@ from pitloom.messages import (
     Message,
     trusted_message,
 )
-from pitloom.messages.files import (
-    OVER_CAP,
-)
+from pitloom.messages.files import OVER_CAP
 from pitloom.messages.models import (
     LFS_POINTER,
     LFS_POINTER_MALFORMED,

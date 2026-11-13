@@ -13,9 +13,7 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetReference
-from pitloom.extract.remote.huggingface import (
-    read_huggingface,
-)
+from pitloom.extract.remote.huggingface import read_huggingface
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,

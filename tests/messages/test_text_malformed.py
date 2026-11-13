@@ -24,9 +24,7 @@ from pitloom import __main__
 from pitloom.assemble import generate_model_sbom
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
 from pitloom.logging_config import CODE_ATTR, loggable
-from pitloom.messages import (
-    trusted_message,
-)
+from pitloom.messages import trusted_message
 from pitloom.messages.files import (
     TEXT_MALFORMED,
     warn_lone_surrogates,

@@ -132,15 +132,26 @@ def test_a_valid_spdx3_file_still_embeds(tmp_path: Path) -> None:
     assert arcname.endswith(".spdx3.json")
 
 
-@pytest.mark.parametrize("kind", ["directory", "missing"])
-def test_a_directory_or_missing_file_is_an_os_error(tmp_path: Path, kind: str) -> None:
+@pytest.mark.parametrize(
+    ("kind", "error", "code"),
+    [
+        ("directory", ValueError, "file-unreadable"),
+        ("missing", FileNotFoundError, "input-not-found"),
+    ],
+)
+def test_a_directory_or_missing_file_is_coded(
+    tmp_path: Path, kind: str, error: type[Exception], code: str
+) -> None:
+    """The codes ``loom id import`` gives the same file."""
     wheel = _make_dummy_wheel(tmp_path, "extpkg", "1.0.0")
     before = wheel.read_bytes()
     target = tmp_path / "x.spdx3.json"
     if kind == "directory":
         target.mkdir()
 
-    with pytest.raises(OSError):
+    with pytest.raises(error) as caught:
         embed_wheel_sbom(wheel, sbom_path=target)
+
+    assert code_of(caught.value) == code
 
     assert wheel.read_bytes() == before

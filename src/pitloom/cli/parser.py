@@ -37,14 +37,13 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     Creator,
 )
+from pitloom.core.url_masking import sanitize_url_credentials
 from pitloom.logging_config import print_error
 from pitloom.messages import (
     COMMAND_FRAME,
     TOP_FRAME,
 )
-from pitloom.messages.options import (
-    usage_code,
-)
+from pitloom.messages.options import usage_code
 
 #: Why a creator's type or email given before its name is refused; argparse
 #: words the line (``argument --creator-type: ...``, ``option-invalid``).
@@ -139,7 +138,13 @@ class _LoomParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         command = self.prog.removeprefix("loom").strip()
-        print_error(message, code=usage_code(message), frame=command_frame(command))
+        # A URL typed where no argument takes it is named without its
+        # credentials.
+        print_error(
+            sanitize_url_credentials(message),
+            code=usage_code(message),
+            frame=command_frame(command),
+        )
         self.exit(2)
 
 

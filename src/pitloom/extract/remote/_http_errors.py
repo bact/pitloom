@@ -27,9 +27,7 @@ from pitloom.messages import (
     Message,
     emit,
 )
-from pitloom.messages.files import (
-    OVER_CAP,
-)
+from pitloom.messages.files import OVER_CAP
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_FAILED_LINE,

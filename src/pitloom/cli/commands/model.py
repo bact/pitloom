@@ -12,9 +12,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    generate_model_sbom,
-)
+from pitloom.assemble import generate_model_sbom
 from pitloom.cli.commands._remote import run_remote
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
@@ -30,7 +28,7 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.inert_options import GIT_MODEL, HF, MODEL_FILE, forward_options
-from pitloom.core.url_masking import sanitize_url
+from pitloom.core.url_masking import masked_given_path, sanitize_url
 from pitloom.extract.model_target import MODEL, model_path_of
 from pitloom.extract.remote import (
     is_git_url,
@@ -152,11 +150,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
     # file as the user wrote it.
     opened_path = existing_model_path(Path(target))
     if opened_path is None:
-        # A URL that is no source we read (user information in a Hugging
-        # Face one) is named as given, cleaned, not as a path under the cwd.
-        shown = sanitize_url(target) if "://" in target else Path(target).resolve()
+        # Named as given; a URL that is no source we read (user information
+        # in a Hugging Face one) with its credentials masked.
         print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": shown}),
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": masked_given_path(target)}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1

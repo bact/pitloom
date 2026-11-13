@@ -30,12 +30,8 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
-from pitloom.messages import (
-    trusted_message,
-)
-from pitloom.messages.targets import (
-    CONFIG_UNSAFE,
-)
+from pitloom.messages import trusted_message
+from pitloom.messages.targets import CONFIG_UNSAFE
 from tests._model_fixtures import (
     FORMATS,
     fixture_path,

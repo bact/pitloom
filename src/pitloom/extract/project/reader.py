@@ -40,9 +40,7 @@ from pitloom.extract.project.installed import (
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.project.setuptools import read_setuptools
-from pitloom.messages import (
-    CodedFileNotFoundError,
-)
+from pitloom.messages import CodedFileNotFoundError
 from pitloom.messages.targets import (
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_LINE,

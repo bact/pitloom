@@ -27,12 +27,8 @@ from pitloom.cli.options import (
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
-from pitloom.messages import (
-    trusted_message,
-)
-from pitloom.messages.options import (
-    OPTION_INVALID,
-)
+from pitloom.messages import trusted_message
+from pitloom.messages.options import OPTION_INVALID
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (

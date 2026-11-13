@@ -67,9 +67,7 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
-from pitloom.messages import (
-    code_of,
-)
+from pitloom.messages import code_of
 from pitloom.messages.network import (
     GIT_HOST_SPELLING_LINE,
     OFFLINE_LINE,
@@ -80,9 +78,7 @@ from pitloom.messages.pypi import (
     GIT_PYPI_URL_LINE,
     PYPI_URL_UNUSABLE,
 )
-from pitloom.messages.targets import (
-    PROJECT_NOT_FOUND,
-)
+from pitloom.messages.targets import PROJECT_NOT_FOUND
 
 log = logging.getLogger(__name__)
 

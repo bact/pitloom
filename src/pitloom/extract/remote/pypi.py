@@ -70,9 +70,7 @@ from pitloom.extract.remote.pypi_url import (
     project_page_url,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import (
-    emit,
-)
+from pitloom.messages import emit
 from pitloom.messages.network import (
     FILE_HOST_REFUSED_LINE,
     OFFLINE_LINE,

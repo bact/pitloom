@@ -45,6 +45,7 @@ from pitloom.core.config_cascade import (
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.given_file import read_given_bytes
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
     EMBED_SBOM,
@@ -73,9 +74,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages.files import (
-    file_unreadable_error,
-)
+from pitloom.messages.files import SBOM_USE, file_unreadable_error
 
 log = logging.getLogger(__name__)
 
@@ -87,11 +86,14 @@ def _read_external_sbom(sbom_path: Path | str) -> str:
     ``WARNING:`` (RFC 8259 section 8.1: JSON text must not carry one).
 
     Raises:
-        ValueError: The file is not valid UTF-8 or JSON, is not a JSON object,
+        pitloom.messages.CodedFileNotFoundError: Nothing is there
+            (``input-not-found``).
+        ValueError: The file cannot be read (``file-unreadable``), is not
+            valid UTF-8 or JSON, is not a JSON object,
             or is named ``.spdx3.json`` and is not SPDX 3 JSON-LD
             (:func:`~pitloom._sbom_format.refuse_unusable_given_sbom`).
     """
-    raw = Path(sbom_path).read_bytes()
+    raw = read_given_bytes(sbom_path, kind="SBOM file", use=SBOM_USE)
     if raw.startswith(codecs.BOM_UTF8):
         log.warning(
             "SBOM %s: byte order mark dropped (JSON text must not have one)",
@@ -101,7 +103,7 @@ def _read_external_sbom(sbom_path: Path | str) -> str:
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise file_unreadable_error(exc, file=sbom_path, use="for the SBOM") from exc
+        raise file_unreadable_error(exc, file=sbom_path, use=SBOM_USE) from exc
     refuse_unusable_given_sbom(sbom_path, text)
     return text
 

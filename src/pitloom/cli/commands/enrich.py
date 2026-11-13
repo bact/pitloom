@@ -12,9 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    enrich_model,
-)
+from pitloom.assemble import enrich_model
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -24,6 +22,7 @@ from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
+from pitloom.core.url_masking import masked_given_path
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
 from pitloom.messages.targets import (
@@ -45,7 +44,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     opened_path = existing_model_path(given_path)
     if opened_path is None:
         print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": model_path}),
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": masked_given_path(target)}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1

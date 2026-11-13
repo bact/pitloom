@@ -35,12 +35,8 @@ from pitloom import __main__
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.core import wheel_dist_info
 from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
-from pitloom.messages import (
-    trusted_message,
-)
-from pitloom.messages.files import (
-    OVER_CAP,
-)
+from pitloom.messages import trusted_message
+from pitloom.messages.files import OVER_CAP
 from tests._wheel_damage import (
     METADATA,
     central_name_damaged_wheel,

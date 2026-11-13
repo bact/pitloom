@@ -50,9 +50,7 @@ from pitloom.messages.files import (
     OVER_CAP,
     Cap,
 )
-from pitloom.messages.network import (
-    DOWNLOAD_TIMEOUT,
-)
+from pitloom.messages.network import DOWNLOAD_TIMEOUT
 from tests._fake_hub import FakeHub, hub_and_cdn, point_hub_at, serve_in_git
 from tests._fake_pypi_server import Route
 

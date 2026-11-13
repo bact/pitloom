@@ -49,9 +49,7 @@ from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.optional_libraries import MAGIKA, import_failed, not_installed
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
-from pitloom.messages import (
-    emit,
-)
+from pitloom.messages import emit
 from pitloom.messages.models import (
     LIBRARY_UNUSABLE,
     LIBRARY_UNUSABLE_CONTENT_LINE,

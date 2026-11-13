@@ -54,9 +54,7 @@ from pitloom.core.project import (
     project_relative_or_fallback,
 )
 from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
-from pitloom.messages.files import (
-    warn_file_unreadable,
-)
+from pitloom.messages.files import warn_file_unreadable
 
 log = logging.getLogger(__name__)
 

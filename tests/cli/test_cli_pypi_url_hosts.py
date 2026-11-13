@@ -23,9 +23,7 @@ import pytest
 
 from pitloom.extract.remote import git, pypi
 from pitloom.extract.remote._git_run import GitRunner
-from pitloom.messages import (
-    Line,
-)
+from pitloom.messages import Line
 from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_INVALID,

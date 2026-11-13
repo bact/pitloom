@@ -22,7 +22,7 @@ values.
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.24.1 |
-| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration or SBOM file on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for. The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.24.1. | 0.23.4 |
+| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for. The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.24.1. | 0.23.4 |
 | [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.24.1 |
 | [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
 | [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
@@ -102,18 +102,20 @@ values.
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: A path named for Pitloom to read does not exist: a model file,
-  wheel, sdist, project directory, configuration or SBOM file on disk (or
-  something else is there: the line says it is not a file, or not a directory),
-  the file or folder a Git URL names in the repository at its branch (a symbolic
-  link there is not followed, so it counts as absent: its line says it is a
-  link), or a pattern or directory that holds nothing of what was asked for. The
-  lines for a model file and for a Git URL's file or folder print since 0.23.4,
-  the others since 0.24.1.
+  wheel, sdist, project directory, configuration, ID registry or SBOM file on
+  disk (or something else is there: the line says it is not a file, or not a
+  directory), the file or folder a Git URL names in the repository at its branch
+  (a symbolic link there is not followed, so it counts as absent: its line says
+  it is a link), or a pattern or directory that holds nothing of what was asked
+  for. The lines for a model file and for a Git URL's file or folder print since
+  0.23.4, the others since 0.24.1.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote no SBOM: the command exits 1, the library raises
-  FileNotFoundError carrying the code, or ValueError carrying it for a fragments
-  directory that holds no JSON file. A Git URL's error code is
-  git.path-not-found.
+- **Pitloom did**: Wrote nothing: no SBOM is written; for 'loom id', the ID
+  registry is not written; for 'loom embed-wheel', no wheel is changed; a check
+  ('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') checks
+  nothing. The command exits 1, the library raises FileNotFoundError carrying
+  the code, or ValueError carrying it for a fragments directory that holds no
+  JSON file. A Git URL's error code is git.path-not-found.
 - **Tell the user**: which path was not found, as the line names it (for a Git
   URL, a path in the repository). They check the path, or the URL's branch and
   path, and run again. Do not guess another path or branch and run for them; ask

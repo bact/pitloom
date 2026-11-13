@@ -58,9 +58,7 @@ from pitloom.core.model_extract_limit import (
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger(__name__)
 

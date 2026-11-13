@@ -28,6 +28,7 @@ from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     DOWNLOAD_DIR_PREFIX,
     mask_checkout,
+    masked_given_path,
     sanitize_url,
     sanitize_url_credentials,
     url_without_credentials,
@@ -345,6 +346,67 @@ def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) ->
     """``https://u:p@h`` becomes ``https:/u:p@h`` (POSIX) or ``https:\\u:p@h``
     (Windows) when it is read as a path."""
     assert "SECRET" not in sanitize_url(path)
+
+
+@pytest.mark.parametrize(
+    ("given", "shown"),
+    [
+        ("https:/user:SECRET@h/x", "https://***:***@h/x"),
+        ("https:/h/x?token=SECRET", "https://h/x?token=***"),
+        (
+            "/cwd/https:/h/x?a=1&access_token=SECRET",
+            "/cwd/https://h/x?a=1&access_token=***",
+        ),
+        ("https:/h/x#access_token=SECRET", "https://h/x#access_token=***"),
+        ("https:\\\\h\\x?token=SECRET", "https://h/x?token=***"),
+        (r"D:\a\https:\u:SECRET@h\x", r"D:\a\https://***:***@h/x"),
+        (
+            "ftp:/u:SECRET@h/x-1-py3-none-any.whl",
+            "ftp://***:***@h/x-1-py3-none-any.whl",
+        ),
+        ("git+https:/h/r?private_token=SECRET", "git+https://h/r?private_token=***"),
+        ("ssh:/u:SECRET@h/r", "ssh://***:***@h/r"),
+        ("HTTPS:/h/x?token=SECRET", "HTTPS://h/x?token=***"),
+        # Nothing to mask: the text as given, separators and all.
+        ("https:/h/x?q=1", "https:/h/x?q=1"),
+        (r"https:\h\x", r"https:\h\x"),
+        (r"C:\dir\x?token=SECRET", r"C:\dir\x?token=SECRET"),
+        ("a:/x?token=SECRET", "a:/x?token=SECRET"),
+        ("dir/x.whl", "dir/x.whl"),
+    ],
+    ids=[
+        "userinfo",
+        "query-token",
+        "access-token-after-amp",
+        "fragment-token",
+        "windows-backslashes",
+        "windows-under-a-drive",
+        "ftp",
+        "git-plus-https",
+        "ssh",
+        "upper-case-scheme",
+        "nothing-to-mask",
+        "nothing-to-mask-windows",
+        "windows-drive-is-no-scheme",
+        "one-letter-is-no-scheme",
+        "plain-path",
+    ],
+)
+def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
+    """``Path`` collapses ``//`` to ``/`` (and Windows writes ``\\``):
+    the URL is read back with ``://`` so its query and userinfo are masked,
+    any scheme of two or more characters; a drive letter is not a scheme."""
+    assert masked_given_path(given) == shown
+
+
+@pytest.mark.parametrize("make", [Path, PureWindowsPath], ids=["native", "windows"])
+def test_a_url_through_a_path_is_masked(
+    make: type[Path] | type[PureWindowsPath],
+) -> None:
+    """What argparse's ``Path`` makes of a URL is masked on every platform."""
+    given = str(make("https://h/x?token=SECRET&f=x-1-py3-none-any.whl"))
+    assert "//" not in given
+    assert "SECRET" not in masked_given_path(given)
 
 
 _FIRST_IMPORT = """

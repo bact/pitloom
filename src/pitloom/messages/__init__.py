@@ -49,16 +49,15 @@ from pitloom.messages._emit import (
     emit,
     relay_extra,
 )
-from pitloom.messages._field_writers import size_text
-from pitloom.messages._fields import (
+from pitloom.messages._field_tables import (
     CARD_KINDS,
     CONFIG_TABLES,
-    FIELDS,
     INPUT_KINDS,
     LOOM_COMMANDS,
     READ_USES,
-    Field,
 )
+from pitloom.messages._field_writers import size_text
+from pitloom.messages._fields import FIELDS, Field
 from pitloom.messages._frames import (
     COMMAND_FRAME,
     FRAMES,

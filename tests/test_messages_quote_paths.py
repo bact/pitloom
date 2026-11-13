@@ -89,8 +89,9 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_read.py", "table_path"),
         ("core/model_extract_limit.py", "table_path"),
         ("core/_config_parse_scan.py", "pattern"),
-        # A URL shown with repr().
+        # A URL shown with repr(), its credentials masked.
         ("_loom_dataset_meta.py", "location"),
+        ("_loom_dataset_meta.py", "masked_given_path"),
     }
 )
 

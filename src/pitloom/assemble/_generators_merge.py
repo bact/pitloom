@@ -24,9 +24,7 @@ from pitloom.assemble.spdx3._fragments_envelope import (
 from pitloom.assemble.spdx3.fragments import fragment_files, merge_fragments
 from pitloom.core.config import FragmentConfig
 from pitloom.logging_config import configure_logging
-from pitloom.messages import (
-    CodedValueError,
-)
+from pitloom.messages import CodedValueError
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_FRAGMENT_FILE_LINE,

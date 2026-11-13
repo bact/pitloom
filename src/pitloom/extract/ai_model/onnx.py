@@ -28,19 +28,13 @@ from pitloom.core.model_originators import (
 )
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import (
-    record_dict_field_provenance,
-)
+from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import (
-    emit,
-)
-from pitloom.messages.files import (
-    warn_over_cap,
-)
+from pitloom.messages import emit
+from pitloom.messages.files import warn_over_cap
 from pitloom.messages.model_fields import (
     MODEL_FIELD_CONFLICT,
     ONNX_REPEATED_LINE,

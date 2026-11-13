@@ -54,18 +54,14 @@ from pitloom.extract.project.poetry import (
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
-from pitloom.messages import (
-    CodedValueError,
-)
+from pitloom.messages import CodedValueError
 from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
     Cap,
     warn_over_cap,
 )
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger(__name__)
 

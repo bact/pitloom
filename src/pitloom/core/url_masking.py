@@ -38,7 +38,9 @@ __all__ = [
     "DOWNLOAD_DIR_PREFIX",
     "DOWNLOAD_PLACEHOLDER",
     "HUB_DIR_PREFIX",
+    "URL_AS_PATH_RE",
     "mask_checkout",
+    "masked_given_path",
     "sanitize_url",
     "sanitize_url_credentials",
 ]
@@ -118,6 +120,37 @@ def sanitize_url(url: str) -> str:
     """:func:`sanitize_url_credentials` for a text that is one URL: the
     userinfo is redacted whole even when it holds a newline or a space."""
     return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
+
+
+#: A URL in a path as given, also as ``Path`` collapses its ``//``
+#: (``https:/host``) or a Windows ``Path`` writes it (``https:\\host``): a
+#: whole scheme of two or more characters (so a Windows drive ``C:\\`` is
+#: not one), ``:`` and ``/`` or ``\\``.
+URL_AS_PATH_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]+:[/\\]")
+
+
+def _restored_url(url: str) -> str:
+    """*url*, which starts at a :data:`URL_AS_PATH_RE` match, with ``://``
+    after its scheme and ``/`` for every ``\\``: the shape
+    :func:`sanitize_url` reads a userinfo and a query from."""
+    scheme, _, rest = url.partition(":")
+    return f"{scheme}://" + rest.lstrip("/\\").replace("\\", "/")
+
+
+def masked_given_path(text: str) -> str:
+    """*text*, a path as given, with a URL in it masked (:func:`sanitize_url`
+    from the URL on): a URL Pitloom does not read reaches a path check as a
+    path, and a line names it without its credentials. The URL is read with
+    ``://`` after its scheme and ``/`` for ``\\`` whatever a path made of
+    them; *text* is returned as it is when the URL holds nothing to mask."""
+    found = URL_AS_PATH_RE.search(text)
+    if found is None:
+        return text
+    restored = _restored_url(text[found.start() :])
+    masked = sanitize_url(restored)
+    if masked == restored:
+        return text
+    return text[: found.start()] + masked
 
 
 def url_without_credentials(url: str) -> str:

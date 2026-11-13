@@ -31,9 +31,7 @@ from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
 )
-from pitloom.messages.models import (
-    LFS_POINTER_MALFORMED,
-)
+from pitloom.messages.models import LFS_POINTER_MALFORMED
 
 _HOSTILE = "a\nWARNING: forged"
 

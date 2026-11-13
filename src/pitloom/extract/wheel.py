@@ -42,9 +42,7 @@ from pitloom.extract._license_detect import (
 )
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-from pitloom.messages.files import (
-    warn_archive_member_over_cap,
-)
+from pitloom.messages.files import warn_archive_member_over_cap
 
 log = logging.getLogger(__name__)
 

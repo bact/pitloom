@@ -13,12 +13,8 @@ tests/cli/test_cli_project_git_url.py (the command line).
 
 from __future__ import annotations
 
-from pitloom.messages import (
-    trusted_message,
-)
-from pitloom.messages.targets import (
-    CONFIG_UNSAFE,
-)
+from pitloom.messages import trusted_message
+from pitloom.messages.targets import CONFIG_UNSAFE
 
 
 def test_each_line_is_trusted_as_its_entry_and_changes_nothing() -> None:

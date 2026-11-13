@@ -12,9 +12,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    generate_project_sbom,
-)
+from pitloom.assemble import generate_project_sbom
 from pitloom.cli.commands._remote import run_remote
 from pitloom.cli.commands._remote_pypi import run_pypi
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler

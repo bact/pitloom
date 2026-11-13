@@ -50,9 +50,7 @@ from pitloom.messages import (
     CodedValueError,
     code_of,
 )
-from pitloom.messages.targets import (
-    NO_SBOM_TARGET,
-)
+from pitloom.messages.targets import NO_SBOM_TARGET
 from tests._git_http_server import git
 from tests._model_fixtures import fixture_path, spy_readers
 

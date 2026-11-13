@@ -27,7 +27,7 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
 - `pitloom.messages._frames`: `COMMAND_FRAME` (`loom %(subcommand)s: `),
   `TOP_FRAME`, `HOOK_FRAME` and the relay frame; `FRAMES` is the table
   `trusted_message` reads, so a framed line is trusted and a forged one is
-  not. `LOOM_COMMANDS` (in `_fields.py`) lists the 16 command paths, held to
+  not. `LOOM_COMMANDS` (in `_field_tables.py`) lists the 16 command paths, held to
   the parser's `prog` values by `tests/messages/test_frames.py`.
 - `pitloom.logging_config`: `print_error` prepends the frame of the open
   `error_frame()` (a `ContextVar`); `__main__.main()` and `console_main()`
@@ -55,8 +55,10 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
   they need a WARNING line on each family they relay (PRs 13 and 14), and a
   frame restricted to the families it may precede
   ([message-frames-forward.md](../design/message-frames-forward.md)).
-- `option-no-effect` keeps the literal prefix in its two templates
-  (`Options: `, `Build: `); its helpers take `build: bool`, not a prefix
+- `option-no-effect` builds its two templates from `OPTIONS_PREFIX` and
+  `BUILD_PREFIX` (`messages/_options.py`); `core.no_effect.INERT_LOG_PREFIX`
+  and `core._models_wheel_types.BUILD_LOG_PREFIX` are the same objects, so
+  no second spelling exists. Its helpers take `build: bool`, not a prefix
   string. PR 14 turns `Build: ` into a frame and collapses the two templates
   into one, same code and same text.
 - Ratchet: the two relays are out of scope by the shape of their code, not by
@@ -72,5 +74,9 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
   uncoded site; the hook's failure line (`%s%s`) leaves one. Rejected: a
   `{e}`/`{message}` template exemption, which would have exempted any new
   `log.warning(f"{message}")` in the tree.
+- A path in an `input-not-found` line is named as the user gave it (the
+  argument as typed, the configured value) whenever the caller has that
+  spelling; a resolved or absolute form is used only for the check (the
+  docstring of `messages._input_not_found_say.input_not_found`).
 - An exception with empty text is said by its class name
   (`ERROR: loom model: RuntimeError`), so the line never stops at the frame.

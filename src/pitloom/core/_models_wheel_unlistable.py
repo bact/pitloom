@@ -51,9 +51,7 @@ from pathlib import Path, PurePath
 
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.messages.files import (
-    warn_dir_unlistable,
-)
+from pitloom.messages.files import warn_dir_unlistable
 
 __all__ = ["warn_unlistable_dirs"]
 

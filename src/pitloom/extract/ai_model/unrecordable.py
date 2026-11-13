@@ -20,12 +20,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from pitloom.core.ai_metadata import AiModelMetadata
-from pitloom.messages import (
-    emit,
-)
-from pitloom.messages.model_fields import (
-    FIELD_NOT_RECORDABLE,
-)
+from pitloom.messages import emit
+from pitloom.messages.model_fields import FIELD_NOT_RECORDABLE
 
 _log = logging.getLogger(__name__)
 

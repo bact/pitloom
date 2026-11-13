@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The option families: argparse's refusals carry ``option-invalid`` or
-``option-missing`` only when their wording is catalogued; an option with no
+"""The option families: argparse's refusals carry ``option-invalid``,
+``option-conflict`` or ``option-missing`` only when their wording is
+catalogued; an option with no
 effect is one coded line at its level and prefix; a build timeout out of
 range is ``option-invalid`` on the command line and in the library.
 
@@ -14,15 +15,17 @@ tests/assemble/test_embed_cli.py (``option-conflict``).
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 
 import pytest
 
 from pitloom import __main__
+from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.internal_error import InternalError
-from pitloom.core.no_effect import warn_no_effect
+from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     Message,
@@ -30,9 +33,12 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages.options import (
+    BUILD_PREFIX,
+    OPTION_CONFLICT,
     OPTION_INVALID,
     OPTION_MISSING,
     OPTION_NO_EFFECT,
+    OPTIONS_PREFIX,
     usage_code,
     warn_option_no_effect,
 )
@@ -45,7 +51,10 @@ _LOG = logging.getLogger("pitloom.test")
 @pytest.mark.parametrize(
     ("text", "code"),
     [
-        ("argument -o/--output: expected one argument", "option-invalid"),
+        ("argument -o/--output: expected one argument", "option-missing"),
+        ("argument --n: expected 2 arguments", "option-missing"),
+        ("argument --n: expected at least one argument", "option-missing"),
+        ("argument --b: not allowed with argument --a", "option-conflict"),
         ("argument command: invalid choice: 'x'\n(choose)", "option-invalid"),
         ("unrecognized arguments: --bogus", "option-invalid"),
         (
@@ -54,16 +63,23 @@ _LOG = logging.getLogger("pitloom.test")
         ),
         ("the following arguments are required: command", "option-missing"),
         ("argument : no name", None),
+        ("argument -o: expected a value", None),
+        ("argument --b: not allowed with argument", None),
         ("expected one argument", None),
         ("", None),
     ],
     ids=[
-        "argument",
+        "missing-value",
+        "missing-values",
+        "missing-at-least",
+        "conflict",
         "newline",
         "unknown",
         "ambiguous",
         "required",
         "noname",
+        "expected-other",
+        "conflict-no-other",
         "bare",
         "empty",
     ],
@@ -81,8 +97,23 @@ def test_usage_code_codes_only_catalogued_wording(text: str, code: str | None) -
             OPTION_MISSING,
         ),
         (
+            ["wheel"],
+            "ERROR: loom wheel: the following arguments are required: target",
+            OPTION_MISSING,
+        ),
+        (
+            ["wheel", "-o"],
+            "ERROR: loom wheel: argument -o/--output: expected one argument",
+            OPTION_MISSING,
+        ),
+        (
             ["nosuch"],
             "ERROR: loom: argument command: invalid choice: 'nosuch'",
+            OPTION_INVALID,
+        ),
+        (
+            ["wheel", "x.whl", "--bogus"],
+            "ERROR: loom: unrecognized arguments: --bogus",
             OPTION_INVALID,
         ),
         (
@@ -92,7 +123,7 @@ def test_usage_code_codes_only_catalogued_wording(text: str, code: str | None) -
             OPTION_INVALID,
         ),
     ],
-    ids=["missing", "choice", "timeout"],
+    ids=["missing", "required", "no-value", "choice", "unknown", "timeout"],
 )
 def test_the_parser_line_is_framed_coded_and_trusted(
     argv: list[str],
@@ -111,6 +142,24 @@ def test_the_parser_line_is_framed_coded_and_trusted(
     assert len(errors) == 1 and errors[0].startswith(line)
     assert errors[0].endswith(f" [{entry.code}]")
     assert trusted_message(errors[0]) is entry
+
+
+def test_argparse_conflict_wording_is_option_conflict() -> None:
+    """No command has a mutually exclusive group yet: the wording comes
+    from this interpreter's argparse, so a later one's change shows here."""
+    parser = argparse.ArgumentParser(exit_on_error=False)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--a", action="store_true")
+    group.add_argument("--b", action="store_true")
+    with pytest.raises(argparse.ArgumentError) as caught:
+        parser.parse_args(["--a", "--b"])
+    assert usage_code(str(caught.value)) == OPTION_CONFLICT.code
+
+
+def test_the_prefix_constants_are_the_templates_leading_text() -> None:
+    assert INERT_LOG_PREFIX is OPTIONS_PREFIX and BUILD_LOG_PREFIX is BUILD_PREFIX
+    leads = {ln.template.split("%")[0] for ln in OPTION_NO_EFFECT.lines}
+    assert leads == {OPTIONS_PREFIX, BUILD_PREFIX} == {"Options: ", "Build: "}
 
 
 @pytest.mark.parametrize("timeout", [0, 604801], ids=["low", "high"])

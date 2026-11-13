@@ -33,9 +33,7 @@ from pitloom.messages import (
     CodedValueError,
     code_of,
 )
-from pitloom.messages.targets import (
-    NO_SBOM_TARGET,
-)
+from pitloom.messages.targets import NO_SBOM_TARGET
 from tests._model_fixtures import fixture_path
 
 _FIXED = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")

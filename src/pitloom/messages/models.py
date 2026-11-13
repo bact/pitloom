@@ -48,9 +48,7 @@ from pitloom.messages._usage_unparseable import (
     USAGE_UNPARSEABLE,
     USAGE_UNPARSEABLE_MENTION,
 )
-from pitloom.messages._usage_unusable import (
-    USAGE_UNUSABLE,
-)
+from pitloom.messages._usage_unusable import USAGE_UNUSABLE
 
 __all__ = [
     "EMPTY_LINE",

@@ -21,12 +21,8 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     tensor_element_sum,
 )
-from pitloom.messages import (
-    emit,
-)
-from pitloom.messages.files import (
-    warn_over_cap,
-)
+from pitloom.messages import emit
+from pitloom.messages.files import warn_over_cap
 from pitloom.messages.model_fields import (
     PARAMETER_COUNT_INVALID,
     PARAMETER_COUNT_SKIPPED,

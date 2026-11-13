@@ -42,9 +42,7 @@ from pitloom.messages import (
     READ_USES,
     trusted_message,
 )
-from pitloom.messages.files import (
-    CARD_MALFORMED,
-)
+from pitloom.messages.files import CARD_MALFORMED
 from tests._message_drift import record_problem
 from tests._unreadable import deny
 from tests.extract.conftest import (

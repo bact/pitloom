@@ -24,23 +24,19 @@ from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
-from pitloom.messages import (
-    CodedValueError,
-)
-from pitloom.messages.options import (
-    OPTION_INVALID,
-)
+from pitloom.messages import CodedValueError
+from pitloom.messages.options import BUILD_PREFIX, OPTION_INVALID
 
 if TYPE_CHECKING:
     from pitloom.extract._file_headers import FileHeaderMetadata
 
-BUILD_LOG_PREFIX = "Build: "
-"""Shared ``WARNING:`` sub-prefix for every ``--allow-build``/build-and-
-read-related log message (AGENTS.md's "CLI output" convention: a shared,
-literal sub-prefix so a subsystem's own messages are easy to grep/compare
-as a group, matching the existing ``"ID registry: "`` precedent). One
-constant instead of a hand-copied literal at each call site -- see
-AGENTS.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
+BUILD_LOG_PREFIX = BUILD_PREFIX
+"""Shared ``WARNING:`` sub-prefix for every ``--allow-build``/build-and-read-
+related log message: the catalogue's
+:data:`pitloom.messages.options.BUILD_PREFIX`, which ``option-no-effect``'s
+build line is built from, so no second spelling exists. A shared, literal
+sub-prefix keeps a subsystem's messages easy to grep as a group (AGENTS.md's
+"CLI output" convention, as ``"ID registry: "``)."""
 
 
 #: Whether :func:`warn_discovery_failed` ran on this thread since the last

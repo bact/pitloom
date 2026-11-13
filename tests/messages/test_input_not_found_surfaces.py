@@ -28,9 +28,7 @@ from pitloom.extract.project.setuptools_cfg import read_setup_cfg
 from pitloom.extract.project.setuptools_py import read_setup_py
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import (
-    INPUT_KINDS,
-)
+from pitloom.messages import INPUT_KINDS
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     TARGET_WRONG_FORMAT,
@@ -149,3 +147,122 @@ def test_a_wheel_pattern_that_matches_nothing_is_coded(
     assert cli == (
         f"ERROR: loom verify-wheel: no wheel file matches '{pattern}' [input-not-found]"
     )
+
+
+_WHL = "gone-1.0-py3-none-any.whl"
+
+
+@pytest.mark.parametrize(
+    ("argv", "line"),
+    [
+        (["wheel", _WHL], f"loom wheel: wheel file not found: '{_WHL}'"),
+        (["embed-wheel", _WHL], f"loom embed-wheel: wheel file not found: '{_WHL}'"),
+        (["project", "gone"], "loom project: project directory not found: 'gone'"),
+        (
+            ["generate", "gone", "-o", "o.json"],
+            "loom generate: project path not found: 'gone'",
+        ),
+        (["merge", "gone"], "loom merge: fragments directory not found: 'gone'"),
+        (["model", "gone.gguf"], "loom model: Model file not found: 'gone.gguf'"),
+        (["enrich", "gone.gguf"], "loom enrich: Model file not found: 'gone.gguf'"),
+        (
+            ["fragment", "validate", "gone.json"],
+            "loom fragment validate: SBOM file not found: 'gone.json'",
+        ),
+    ],
+    ids=[
+        "wheel",
+        "embed-wheel",
+        "project",
+        "generate",
+        "merge",
+        "model",
+        "enrich",
+        "fragment",
+    ],
+)
+def test_the_command_line_names_a_missing_path_as_typed(
+    argv: list[str],
+    line: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A relative path stays relative: never resolved or made absolute."""
+    monkeypatch.chdir(tmp_path)
+    found = [ln for ln in _loom(argv, monkeypatch, capsys) if " not found: " in ln]
+    assert found == [f"ERROR: {line} [input-not-found]"]
+
+
+_ANY_WHEEL = "x-1-py3-none-any.whl"
+
+
+@pytest.mark.parametrize(
+    ("argv", "shown", "code"),
+    [
+        (["wheel", f"https://u:SECRET@h/{_ANY_WHEEL}"], "'https://***:***@h/", None),
+        (["enrich", "https://u:SECRET@h/x.gguf"], "'https://***:***@h/", None),
+        (["enrich", "ftp://u:SECRET@h/x.onnx"], "'ftp://***:***@h/x.onnx'", None),
+        (
+            ["id", "import", "https://h.example/s.json?token=SECRET"],
+            "'https://h.example/s.json?token=***'",
+            None,
+        ),
+        (["merge", "https://h/d?access_token=SECRET"], "access_token=***'", None),
+        (
+            ["wheel", f"https://h/d?token=SECRET&f={_ANY_WHEEL}"],
+            f"?token=***&f={_ANY_WHEEL}'",
+            None,
+        ),
+        (["wheel", f"ftp://u:SECRET@h/{_ANY_WHEEL}"], "'ftp://***:***@h/", None),
+        (
+            ["id", "generate", "--project-dir", "https://h/p#access_token=SECRET"],
+            "'https://h/p#access_token=***'",
+            None,
+        ),
+        (
+            ["embed-wheel", f"https://h/{_ANY_WHEEL}?token=SECRET"],
+            "no wheel file matches 'https://h/",
+            None,
+        ),
+        (
+            ["fragment", "list", "https://h/d?token=SECRET"],
+            "unrecognized arguments: https://h/d?token=***",
+            "option-invalid",
+        ),
+    ],
+    ids=[
+        "wheel-userinfo",
+        "enrich-userinfo",
+        "enrich-ftp",
+        "id-import-query",
+        "merge-query",
+        "wheel-query",
+        "wheel-ftp",
+        "id-generate-fragment",
+        "embed-wheel-pattern",
+        "usage-error",
+    ],
+)
+def test_a_url_taken_for_a_missing_path_is_named_masked(
+    argv: list[str],
+    shown: str,
+    code: str | None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """argparse makes ``https:/h`` of a ``Path`` argument (``https:\\h`` on
+    Windows): the line still names the URL with ``://`` and its userinfo and
+    secret query or fragment values masked, any scheme."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    try:
+        status: object = __main__.main()
+    except SystemExit as exc:
+        status = exc.code
+    assert status == (2 if code else 1)
+    err = capsys.readouterr().err
+    (line,) = [ln for ln in err.splitlines() if ln.startswith("E")]
+    assert shown in line and "SECRET" not in err
+    assert line.endswith(f" [{code or 'input-not-found'}]")

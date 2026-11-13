@@ -63,9 +63,7 @@ from pitloom.extract.project._pyproject_license import (
 from pitloom.extract.project._setuptools_dynamic import read_setuptools_dynamic
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger(__name__)
 

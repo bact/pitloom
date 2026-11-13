@@ -20,6 +20,7 @@ from pitloom.messages._emit import emit
 from pitloom.messages._lines import says
 from pitloom.messages._options import (
     BUILD_NO_EFFECT_LINE,
+    OPTION_CONFLICT,
     OPTION_INVALID,
     OPTION_MISSING,
     OPTION_NO_EFFECT,
@@ -30,15 +31,17 @@ from pitloom.messages._options import (
 
 def usage_code(text: str) -> str | None:
     """The code of ``argparse``'s refusal *text* (an
-    :meth:`argparse.ArgumentParser.error` message): ``option-missing`` or
-    ``option-invalid`` when *text*, as the line prints it, is one of that
-    entry's lines, else ``None``: a wording a later Python changes carries no
-    code it would not be trusted with."""
+    :meth:`argparse.ArgumentParser.error` message): ``option-missing``,
+    ``option-conflict`` or ``option-invalid`` when *text*, as the line prints
+    it, is one of that entry's lines, else ``None``: a wording a later Python
+    changes carries no code it would not be trusted with. The entries' lines
+    do not overlap: ``option-invalid``'s ``argument X: ...`` excludes the
+    other two's wording."""
     shown = escape_controls(text)
     return next(
         (
             entry.code
-            for entry in (OPTION_MISSING, OPTION_INVALID)
+            for entry in (OPTION_MISSING, OPTION_CONFLICT, OPTION_INVALID)
             if says(entry, "ERROR", shown)
         ),
         None,
@@ -56,8 +59,10 @@ def warn_option_no_effect(
     level: int = logging.WARNING,
 ) -> None:
     """The one line on *log*, ``option-no-effect``, for *option* (as the
-    command or the library names it) given for *subject* (the target, as
-    shown: masked and escaped by the caller) that has no effect *when*
+    command or the library names it) given for *subject* (the target, its
+    credentials already masked by the caller,
+    :func:`pitloom.core.no_effect.warn_no_effect`; the ``name`` field escapes
+    a control character in it) that has no effect *when*
     (``without --allow-build``; no trailing punctuation). *build*: a build
     flag (``Build: ``), else ``Options: ``. *level*: ``logging.INFO`` for a
     setting the surface never acts on (``Options:`` only).

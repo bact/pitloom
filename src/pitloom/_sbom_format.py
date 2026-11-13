@@ -27,18 +27,9 @@ from packaging.utils import canonicalize_name
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.messages import (
-    CodedValueError,
-)
-from pitloom.messages.files import (
-    JSON_MALFORMED,
-)
-from pitloom.messages.targets import (
-    SBOM_WRONG_FORMAT,
-)
-
-#: What an SBOM given to read is read for, as its lines say it.
-_SBOM_USE = "for the SBOM"
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import JSON_MALFORMED, SBOM_USE
+from pitloom.messages.targets import SBOM_WRONG_FORMAT
 
 
 def _looks_like_spdx3_jsonld(data: bytes) -> bool:
@@ -345,10 +336,10 @@ def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> None:
         document = json.loads(text, parse_constant=_reject_constant)
     except (ValueError, RecursionError) as exc:
         raise CodedValueError(
-            JSON_MALFORMED, file=sbom_path, use=_SBOM_USE, failure=exc
+            JSON_MALFORMED, file=sbom_path, use=SBOM_USE, failure=exc
         ) from exc
     if not isinstance(document, dict):
-        raise CodedValueError(JSON_MALFORMED, file=sbom_path, use=_SBOM_USE)
+        raise CodedValueError(JSON_MALFORMED, file=sbom_path, use=SBOM_USE)
     if str(sbom_path).lower().endswith(SPDX3_JSONLD_EXTENSION) and (
         detect_sbom_format(text.encode("utf-8")) != "spdx3-jsonld"
     ):

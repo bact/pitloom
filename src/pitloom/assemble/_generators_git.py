@@ -37,9 +37,7 @@ from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import (
-    emit,
-)
+from pitloom.messages import emit
 from pitloom.messages.targets import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_REMOTE_LINE,

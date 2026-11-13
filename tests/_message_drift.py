@@ -43,6 +43,7 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
     "answered": "other-project",
+    "arity": "one argument",
     "card": "model card",
     "command": "clone",
     "count": 2,
@@ -68,12 +69,14 @@ SAMPLES: dict[str, object] = {
     "number": 2,
     "oid": "0f" * 32,
     "option": "--allow-build",
+    "other": "--pretty",
     "outcome": "skipped",
     "part": "training_config.optimizer",
     "path": "m.gguf",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
+    "refusal": "invalid choice: 'x'",
     "requirement": "pitloom[gguf]",
     "seconds": 30,
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),

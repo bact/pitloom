@@ -24,9 +24,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.messages.targets import (
-    REQUIRED_FRAGMENT_LINE,
-)
+from pitloom.messages.targets import REQUIRED_FRAGMENT_LINE
 
 
 def test_required_fragment_missing_raises_and_warns(

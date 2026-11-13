@@ -47,7 +47,7 @@ GIT_FOLDER_NOT_FOUND_LINE: Final = Line(
 )
 
 #: A path named for Pitloom to read, of a kind of
-#: :data:`~pitloom.messages._fields.INPUT_KINDS`, that does not exist.
+#: :data:`~pitloom.messages._field_tables.INPUT_KINDS`, that does not exist.
 INPUT_LINE: Final = Line(level="ERROR", template="%(input)s not found: %(path)s")
 #: The same, where something that is not a file is there.
 INPUT_NOT_FILE_LINE: Final = Line(
@@ -88,14 +88,18 @@ INPUT_NOT_FOUND: Final = Message(
         NO_ID_PATHS_LINE,
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
-    "wheel, sdist, project directory, configuration or SBOM file on disk "
+    "wheel, sdist, project directory, configuration, ID registry or SBOM file "
+    "on disk "
     "(or something else is there: the line says it is not a file, or not a "
     "directory), the file or folder a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
     "its line says it is a link), or a pattern or directory that holds "
     "nothing of what was asked for. The lines for a model file and for a Git "
     f"URL's file or folder print since 0.23.4, the others since {_SINCE}.",
-    did="Wrote no SBOM: the command exits 1, the library raises "
+    did="Wrote nothing: no SBOM is written; for 'loom id', the ID registry "
+    "is not written; for 'loom embed-wheel', no wheel is changed; a check "
+    "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
+    "checks nothing. The command exits 1, the library raises "
     "FileNotFoundError carrying the code, or ValueError carrying it for a "
     "fragments directory that holds no JSON file. A Git URL's error code is "
     "git.path-not-found.",

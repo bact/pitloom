@@ -22,12 +22,8 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
-from pitloom.messages import (
-    CodedValueError,
-)
-from pitloom.messages.options import (
-    OPTION_MISSING,
-)
+from pitloom.messages import CodedValueError
+from pitloom.messages.options import OPTION_MISSING
 
 log = logging.getLogger("pitloom.id_registry")
 

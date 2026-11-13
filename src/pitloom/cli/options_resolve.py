@@ -17,7 +17,6 @@ this module's helpers.
 from __future__ import annotations
 
 import argparse
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,7 +37,6 @@ from pitloom.core.creation import (
 )
 from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
-from pitloom.core.url_masking import sanitize_url
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
@@ -50,10 +48,6 @@ from pitloom.messages.targets import (
     PROJECT_NOT_FOUND_LINE,
     say_input_not_found,
 )
-
-#: An ``http(s):`` URL a path normalisation turned into a path (``https:/h``,
-#: ``https:\\h`` on Windows).
-_URL_AS_PATH = re.compile(r"https?:[/\\]", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -104,10 +98,8 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
         # A URL Pitloom does not read (user information in a Hugging Face
-        # one) reaches here as a path under the current directory.
-        text = str(project_dir)
-        shown = sanitize_url(text) if _URL_AS_PATH.search(text) else text
-        say_input_not_found("project directory", shown)
+        # one) reaches here as a path: the line masks it.
+        say_input_not_found("project directory", args.project_dir)
         return None, None
 
     if project_dir.is_file():

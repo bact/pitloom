@@ -248,7 +248,11 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     else:
         paths = _default_id_generate_paths(project_dir)
     if not paths:
-        raise CodedValueError(INPUT_NOT_FOUND, line=NO_ID_PATHS_LINE, path=project_dir)
+        raise CodedValueError(
+            INPUT_NOT_FOUND,
+            line=NO_ID_PATHS_LINE,
+            path=args.project_dir or project_dir,
+        )
     return paths
 
 
@@ -289,7 +293,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     if not os.path.isdir(project_dir):
-        say_input_not_found("project directory", project_dir)
+        say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
@@ -315,7 +319,9 @@ def _run_id_generate(args: argparse.Namespace) -> int:
 
 def _import_failure_text(sbom_path: Path, exc: Exception) -> str:
     """The line for an SBOM that could not be imported: a catalogued error
-    (one with a code) says its own text, any other is named after the file."""
+    (one with a code) says its own text, which names the SBOM (every coded
+    error :meth:`~pitloom.id_registry.IdRegistry.import_sbom` raises has it
+    as its ``FILE=`` or path), any other is named after the file."""
     if code_of(exc) is not None:
         return str(exc)
     return f"failed to import SBOM {quote_source(sbom_path)}: {exc}"
@@ -325,12 +331,12 @@ def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
     sbom_path: Path = args.sbom.resolve()
     if not os.path.isfile(sbom_path):
-        say_input_not_found("SBOM file", sbom_path)
+        say_input_not_found("SBOM file", args.sbom)
         return 1
 
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     if not os.path.isdir(project_dir):
-        say_input_not_found("project directory", project_dir)
+        say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
@@ -347,10 +353,11 @@ def _run_id_import(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        skipped = registry.import_sbom(sbom_path)
+        # The path as given: a line about the SBOM names it as the user did.
+        skipped = registry.import_sbom(args.sbom)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        print_error(_import_failure_text(sbom_path, exc), code=code_of(exc))
+        print_error(_import_failure_text(args.sbom, exc), code=code_of(exc))
         return 1
 
     if not _save(registry, registry_path):

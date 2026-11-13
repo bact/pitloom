@@ -42,9 +42,7 @@ from pitloom.core.url_masking import sanitize_url
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.model_target import model_path_of, read_model_file
-from pitloom.extract.project import (
-    resolve_project_with_lockfile,
-)
+from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.id_registry import (
@@ -57,12 +55,8 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging, loggable
-from pitloom.messages import (
-    CodedValueError,
-)
-from pitloom.messages.files import (
-    warn_file_unreadable,
-)
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,

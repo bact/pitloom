@@ -68,7 +68,7 @@ def warn_file_unreadable(
 ) -> None:
     """The one ``WARNING:`` on *log* for the file *file* (as the line names
     it) that *exc* stopped Pitloom reading, for exactly one of: *use* (one
-    of :data:`~pitloom.messages._fields.READ_USES`), *field* (the project
+    of :data:`~pitloom.messages._field_tables.READ_USES`), *field* (the project
     setting that lists the file) or *model_format* (the header read to
     confirm a model of that format).
 
@@ -111,7 +111,7 @@ def warn_dir_unlistable(
 ) -> None:
     """The one ``WARNING:`` on *log* for the directory *directory* (as the
     line names it) that *exc* stopped Pitloom listing for *use* (one of
-    :data:`~pitloom.messages._fields.READ_USES`), ``dir-unlistable``: what
+    :data:`~pitloom.messages._field_tables.READ_USES`), ``dir-unlistable``: what
     *exc* reports, never its text. *once*: as for
     :func:`warn_file_unreadable`.
 
@@ -140,7 +140,7 @@ def file_unreadable_error(
 ) -> CodedValueError:
     """The error to raise for the file *file* (as the line names it) that
     *exc* stopped Pitloom reading for exactly one of: *use* (one of
-    :data:`~pitloom.messages._fields.READ_USES`) or *model_format* (the
+    :data:`~pitloom.messages._field_tables.READ_USES`) or *model_format* (the
     header read to confirm a model of that format), ``file-unreadable``
     (``file-unreadable/not-utf8`` for a :class:`UnicodeDecodeError`, with
     *use* only): what *exc* reports, never its text. The caller raises it

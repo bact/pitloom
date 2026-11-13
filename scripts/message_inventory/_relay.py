@@ -12,8 +12,9 @@ shape of the code around the call, never by a variable's name.
   ``except``, or a line adding text of its own, is a message of its own.
 - ``argparse``: ``argparse``'s own refusal. In the ``error(self, message)``
   method of a class deriving from ``argparse.ArgumentParser``, the text is
-  that parameter as it is, said by ``print_error``: argparse wrote it, as a
-  reader's exception is the detail of the line a wrapper says.
+  that parameter as it is (or with a URL's credentials masked,
+  ``sanitize_url_credentials(message)``), said by ``print_error``: argparse
+  wrote it, as a reader's exception is the detail of the line a wrapper says.
 
 Either holds only where the call is in the binder's own body (not in a
 nested function, lambda, class or comprehension) and nothing in that body
@@ -40,6 +41,8 @@ ARGPARSE = "argparse"
 #: The ``except`` classes that catch whatever a command raised.
 _CATCH_ALL = frozenset({"Exception", "BaseException"})
 _PARSER_BASES = frozenset({"argparse.ArgumentParser", "ArgumentParser"})
+#: The one call an ``error`` override may wrap argparse's text in.
+_MASKED_PARAM = "sanitize_url_credentials"
 #: Nodes that open a scope of their own: a call inside one is not said by
 #: the binder's body, whatever names it reads.
 _SCOPES = (
@@ -176,7 +179,7 @@ def relay_kind(
     if (
         param
         and isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and unparse(text) == param
+        and unparse(text) in (param, f"{_MASKED_PARAM}({param})")
         and _says_only(func.body, call, param)
     ):
         return ARGPARSE

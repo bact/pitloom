@@ -30,9 +30,7 @@ from pitloom.extract.project._setuptools_options import (
     shown_value,
 )
 from pitloom.logging_config import one_line
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger(__name__)
 

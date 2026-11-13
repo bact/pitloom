@@ -7,7 +7,8 @@
 catalogue writes each one, and the shape the written text always has, which
 is what a reader trusts a line by.
 
-See also: :mod:`pitloom.messages._types` (the templates),
+See also: :mod:`pitloom.messages._field_tables` (the closed tables),
+:mod:`pitloom.messages._types` (the templates),
 :mod:`pitloom.messages._lines` (reading a line back), and
 :mod:`pitloom.messages._templates` (rendering a template from its fields).
 """
@@ -20,6 +21,21 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.messages._field_tables import (
+    CAP_KEYS,
+    CAP_UNITS,
+    CAP_WORD,
+    CARD_KINDS,
+    CONFIG_TABLES,
+    ELEMENT,
+    INPUT_KINDS,
+    KEY_STEP,
+    LOOM_COMMANDS,
+    MODEL_FIELD,
+    READ_USES,
+    REASONS,
+    SETTING,
+)
 from pitloom.messages._field_writers import (
     bytes_text,
     count_text,
@@ -30,30 +46,6 @@ from pitloom.messages._field_writers import (
     number_text,
     path_text,
     plain_text,
-)
-from pitloom.messages._model_limits import MODEL_LIMIT_REASONS
-
-#: The command paths a CLI line's frame names (``loom <path>: ``): every
-#: subcommand and nested subcommand of the parser. A drift test holds the
-#: tuple and the parser's ``prog`` values together
-#: (``tests/messages/test_frames.py``).
-LOOM_COMMANDS: Final[tuple[str, ...]] = (
-    "embed-wheel",
-    "enrich",
-    "env",
-    "fragment",
-    "fragment list",
-    "fragment validate",
-    "generate",
-    "id",
-    "id generate",
-    "id import",
-    "merge",
-    "model",
-    "project",
-    "validate-wheel",
-    "verify-wheel",
-    "wheel",
 )
 
 
@@ -75,98 +67,6 @@ class Field:
     free: bool = False
 
 
-#: A whole number in a bound-check reason (each ``%d`` of the table).
-_NUMBER: Final = "(?:0|[1-9][0-9]*)"
-#: The bound-check reasons as one pattern, each ``%d`` a whole number.
-_REASONS: Final = "|".join(
-    _NUMBER.join(re.escape(part) for part in text.split("%d"))
-    for text in MODEL_LIMIT_REASONS
-)
-
-
-#: A G7 element as a ``field-not-recordable`` line names it.
-_ELEMENT: Final = r"[a-z][a-z0-9-]* \((?:not recorded|written in [A-Za-z_]+)\)"
-#: A model field as a ``model-field-unreadable`` line names it: a dotted
-#: name, a note in brackets after it when it has one.
-_MODEL_FIELD: Final = r"[a-z_][A-Za-z0-9_.]*(?: \([^()]+\))?"
-#: One step of a Keras config key path (``layers[0]``).
-#: A build setting, as its file names it (``tool.pdm.build.custom-hook``).
-_SETTING: Final = r"[a-z][a-z0-9_-]*(?:\.[a-z][a-z0-9_-]*)*"
-_KEY_STEP: Final = r"[a-z_]+(?:\[(?:0|[1-9][0-9]*)\])?"
-
-#: The keys an over-cap line names its input by: a file, a directory, a
-#: metadata field (or table), a dataset, a marker or a requirement.
-CAP_KEYS: Final = frozenset(
-    {"DATASET", "DIR", "FIELD", "FILE", "MARKER", "REQUIREMENT"}
-)
-#: What a cap counts, singular.
-CAP_UNITS: Final = frozenset(
-    {
-        "byte",
-        "character",
-        "dataset",
-        "digit",
-        "element",
-        "entry",
-        "header",
-        "item",
-        "label",
-        "level",
-        "marker",
-        "opcode",
-        "part",
-        "second",
-        "unit",
-    }
-)
-#: One word of a cap's name (``GGUF-header``, ``.npy-header``).
-_CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
-
-#: What a file was read for, or a directory listed for, as a
-#: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
-#: read`` or ``could not list`` (and a ``json-malformed`` or JSON ``over-cap``
-#: line after its condition): a closed table. A project setting that lists
-#: the file is named by the ``field`` value instead.
-READ_USES: Final = (
-    "for dataset hashing",
-    "for dependency pins",
-    "for file discovery",
-    "for file scanning",
-    "for ID registry indexing",
-    "for license files",
-    "for the Croissant document",
-    "for the dataset card",
-    "for the Hugging Face dataset card",
-    "for the model card",
-    "for the model hash",
-    "for the PyPI release metadata",
-    "for the SBOM",
-    "for the script hash",
-    "for usage scanning",
-)
-
-#: The kinds of card whose YAML frontmatter Pitloom reads, as a
-#: ``card-malformed`` line names one: a closed table.
-CARD_KINDS: Final = ("model card", "dataset card", "Hugging Face dataset card")
-
-#: What an ``input-not-found`` line names the missing path as: a closed table.
-INPUT_KINDS: Final = (
-    "config file",
-    "fragments directory",
-    "ID registry file",
-    "project directory",
-    "project path",
-    "pyproject.toml",
-    "SBOM file",
-    "sdist archive",
-    "setup.cfg",
-    "setup.py",
-    "wheel file",
-)
-
-#: The configuration tables a line names (``set id-registry in <table>``).
-CONFIG_TABLES: Final = ("[tool.pitloom]", "[tool:pitloom]")
-
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
     {
@@ -177,6 +77,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the project name PyPI answered for, as its answer gives it; in quotes, "
             "escaped, when it holds a control character",
             free=True,
+        ),
+        "arity": Field(
+            r"(?:one|at most one|at least one|[1-9][0-9]*) arguments?",
+            plain_text,
+            "<arity>",
+            "how many values argparse expected after the option (`one "
+            "argument`, `2 arguments`, `at least one argument`)",
         ),
         "card": Field(
             "|".join(re.escape(kind) for kind in CARD_KINDS),
@@ -215,7 +122,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "elements": Field(
-            rf"{_ELEMENT}(?:, {_ELEMENT})*",
+            rf"{ELEMENT}(?:, {ELEMENT})*",
             joined,
             "<elements>",
             "G7 elements, comma-separated, each with where its value is written "
@@ -257,7 +164,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "fields": Field(
-            rf"{_MODEL_FIELD}(?:, {_MODEL_FIELD})*",
+            rf"{MODEL_FIELD}(?:, {MODEL_FIELD})*",
             joined,
             "<fields>",
             "the model fields not recorded, or recorded weaker, comma-separated, "
@@ -351,6 +258,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "argparse names it (`command`), or a library parameter "
             "(`project_metadata`)",
         ),
+        "other": Field(
+            r"\S+",
+            plain_text,
+            "<other>",
+            "the option given before, which the one named first cannot be "
+            "given with, as argparse names it (`--pretty`)",
+        ),
         "outcome": Field(
             r".+",
             plain_text,
@@ -359,7 +273,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "part": Field(
-            rf"{_KEY_STEP}(?:\.{_KEY_STEP})*",
+            rf"{KEY_STEP}(?:\.{KEY_STEP})*",
             plain_text,
             "<part>",
             "the part of a Keras or HDF5 model that was not read: a root "
@@ -373,7 +287,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "a path in quotes",
         ),
         "purpose": Field(
-            rf"{_CAP_WORD}(?: {_CAP_WORD}){{0,2}}",
+            rf"{CAP_WORD}(?: {CAP_WORD}){{0,2}}",
             plain_text,
             "<cap>",
             "the cap's name; a setting's name when a setting sets it "
@@ -387,12 +301,22 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "was read as",
         ),
         "reason": Field(
-            _REASONS,
+            REASONS,
             plain_text,
             "<reason>",
             "what the bound check found: a count the file cannot hold, a "
             "malformed ZIP central directory, or a GGUF version or ZIP archive "
             "it cannot check",
+        ),
+        "refusal": Field(
+            r"(?!expected |not allowed with ).+",
+            free_text,
+            "<refusal>",
+            "argparse's reason for refusing the value, on one line (`invalid "
+            "choice: ...`); never a missing value (`expected ...`) or a "
+            "conflict (`not allowed with ...`); in quotes, escaped, when it "
+            "holds a control character",
+            free=True,
         ),
         "requirement": Field(
             r"pitloom\[[a-z][a-z0-9_-]*\]",
@@ -408,7 +332,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "the time allowed, in whole seconds",
         ),
         "settings": Field(
-            rf"{_SETTING}(?:, {_SETTING})*",
+            rf"{SETTING}(?:, {SETTING})*",
             joined,
             "<settings>",
             "the build settings left out, comma-separated, as the file names "

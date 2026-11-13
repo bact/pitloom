@@ -27,9 +27,7 @@ import struct
 from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
-from pitloom.messages.files import (
-    Cap,
-)
+from pitloom.messages.files import Cap
 from pitloom.messages.models import (
     LIMIT_GGUF_ARRAY,
     LIMIT_GGUF_PAIRS,

@@ -22,9 +22,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate, generate_git_project_sbom
 from pitloom.extract.remote import RemoteSourceError
-from pitloom.messages.files import (
-    OVER_CAP,
-)
+from pitloom.messages.files import OVER_CAP
 from tests._git_http_server import backend_available, make_repo, serve_git
 
 _WINDOWS = sys.platform == "win32"

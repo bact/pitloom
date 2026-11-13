@@ -31,13 +31,13 @@ def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
     fragments_dir: Path = args.fragments_dir.resolve()
     if not fragments_dir.exists():
-        say_input_not_found("fragments directory", fragments_dir)
+        say_input_not_found("fragments directory", args.fragments_dir)
         return 1
 
     files = fragment_files(fragments_dir)
     if not files:
         print_error(
-            NO_FRAGMENT_FILE_LINE.render({"path": fragments_dir}),
+            NO_FRAGMENT_FILE_LINE.render({"path": args.fragments_dir}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1

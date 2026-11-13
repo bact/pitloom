@@ -18,9 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from pitloom.messages.files import (
-    Cap,
-)
+from pitloom.messages.files import Cap
 from pitloom.messages.model_fields import (
     DIMENSION_REASON,
     STATED_COUNT_REASON,

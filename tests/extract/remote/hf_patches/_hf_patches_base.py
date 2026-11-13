@@ -28,9 +28,7 @@ from unittest.mock import MagicMock, create_autospec, patch
 from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote._hub_files import HubFiles, file_url
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages.files import (
-    Cap,
-)
+from pitloom.messages.files import Cap
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_FAILED_LINE,

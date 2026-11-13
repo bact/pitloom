@@ -42,9 +42,7 @@ from pitloom.messages import (
     Line,
     emit,
 )
-from pitloom.messages.files import (
-    Cap,
-)
+from pitloom.messages.files import Cap
 from pitloom.messages.model_fields import (
     FICKLING_PARSE_LINE,
     FICKLING_WALK_LINE,

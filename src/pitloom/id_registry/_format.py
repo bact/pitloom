@@ -48,9 +48,7 @@ from pitloom.id_registry._types import (
     registry_file_error,
     unencodable_message,
 )
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 __all__ = [
     "RegistryFileContents",

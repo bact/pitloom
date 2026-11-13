@@ -55,9 +55,7 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.messages import (
-    Message,
-)
+from pitloom.messages import Message
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,

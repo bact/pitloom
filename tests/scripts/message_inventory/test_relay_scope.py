@@ -157,6 +157,8 @@ def rebound(run, items, x):
 class Parser(argparse.ArgumentParser):
     def error(self, message):
         print_error(message, frame="loom: ")  # out: parser
+        print_error(sanitize_url_credentials(message))  # out: parser-masked
+        print_error(other_mask(message))  # in: parser-other-call
         print_error(f"bad: {message}")  # in: parser-own-text
         print_error(self.prog)  # in: parser-other-text
 

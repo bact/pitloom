@@ -26,9 +26,7 @@ from pitloom.extract._extract_utils import (
     filename_from_url,
     json_nests_over,
 )
-from pitloom.messages import (
-    code_of,
-)
+from pitloom.messages import code_of
 from pitloom.messages.files import (
     FILE_UNREADABLE,
     JSON_MALFORMED,

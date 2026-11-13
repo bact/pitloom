@@ -68,9 +68,7 @@ from pitloom.extract.remote._http_errors import (
 )
 from pitloom.extract.remote._http_watch import Watch, opener
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import (
-    emit,
-)
+from pitloom.messages import emit
 from pitloom.messages.files import (
     DOWNLOAD_LINE,
     JSON_MALFORMED,

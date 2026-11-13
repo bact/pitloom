@@ -51,9 +51,7 @@ from pitloom.core.file_names import (
     sbom_base_name,
 )
 from pitloom.core.quote_source import quote_source
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})

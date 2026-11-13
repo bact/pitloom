@@ -97,16 +97,12 @@ from pitloom.extract.remote.huggingface_field import (
     hub_revision,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import (
-    CodedValueError,
-)
+from pitloom.messages import CodedValueError
 from pitloom.messages.network import (
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
 )
-from pitloom.messages.targets import (
-    HF_URL_INVALID,
-)
+from pitloom.messages.targets import HF_URL_INVALID
 
 log = logging.getLogger(__name__)
 

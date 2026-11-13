@@ -32,9 +32,7 @@ from pitloom.extract.ai_model.limits import (
     ModelOverCap,
     charge_read,
 )
-from pitloom.messages.files import (
-    Cap,
-)
+from pitloom.messages.files import Cap
 from pitloom.messages.models import (
     LIMIT_ZIP_MALFORMED,
     LIMIT_ZIP_UNCHECKABLE,

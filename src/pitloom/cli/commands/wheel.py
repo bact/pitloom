@@ -48,9 +48,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.wheel import wheel_identity
-from pitloom.messages.targets import (
-    say_input_not_found,
-)
+from pitloom.messages.targets import say_input_not_found
 
 
 def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
@@ -87,7 +85,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     # Absolute, not resolved: the file name is judged as given.
     wheel_path: Path = Path(target).absolute()
     if not wheel_path.exists():
-        say_input_not_found("wheel file", wheel_path)
+        say_input_not_found("wheel file", Path(target))
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)

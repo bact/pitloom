@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,24 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.24.0...HEAD>
+
+## [Unreleased]
+
+### Added
+
+- Input, option, SBOM and target errors carry a message code; see
+  `docs/message-codes.md` ([#482])
+
+### Changed
+
+- Error messages for missing inputs and invalid options are reworded, and
+  each CLI `ERROR:` line starts `loom <command>:`; see `docs/message-codes.md`
+  ([#481], [#482])
+- `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
+  `ValueError`, for an ID registry file that is missing or not a file ([#482])
+
+[#481]: https://github.com/bact/pitloom/pull/481
+[#482]: https://github.com/bact/pitloom/pull/482
 
 ## [0.24.0] - 2026-11-11
 
@@ -1065,6 +1083,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[Unreleased]: https://github.com/bact/pitloom/compare/v0.24.0...HEAD
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3

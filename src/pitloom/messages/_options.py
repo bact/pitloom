@@ -23,10 +23,17 @@ from pitloom.messages._types import Line, Message
 
 _SINCE: Final = "0.24.1"
 
+#: The sub-prefix of every line about an option the target or command cannot
+#: act on (``option-no-effect``'s own lines and the other ``Options:`` lines).
+OPTIONS_PREFIX: Final = "Options: "
+#: The sub-prefix of every line about ``--allow-build`` and the build it
+#: runs (:data:`pitloom.core._models_wheel_types.BUILD_LOG_PREFIX` is this).
+BUILD_PREFIX: Final = "Build: "
+
 #: An option given that the target or command cannot act on.
 OPTIONS_NO_EFFECT_LINE: Final = Line(
     level="WARNING",
-    template="Options: %(name)s: %(option)s has no effect %(when)s",
+    template=f"{OPTIONS_PREFIX}%(name)s: %(option)s has no effect %(when)s",
 )
 #: A setting the surface never acts on (``INFO:``: the user did not type it
 #: for this run).
@@ -37,7 +44,7 @@ OPTIONS_NO_EFFECT_INFO_LINE: Final = Line(
 #: applies to.
 BUILD_NO_EFFECT_LINE: Final = Line(
     level="WARNING",
-    template="Build: %(name)s: %(option)s has no effect %(when)s",
+    template=f"{BUILD_PREFIX}%(name)s: %(option)s has no effect %(when)s",
 )
 
 OPTION_NO_EFFECT: Final = Message(
@@ -58,8 +65,9 @@ OPTION_NO_EFFECT: Final = Message(
 
 #: ``argparse``'s refusal of an option's or argument's value (``argument
 #: --build-timeout: invalid duration ...``, ``argument command: invalid
-#: choice: ...``).
-ARGUMENT_LINE: Final = Line(level="ERROR", template="argument %(option)s: %(error)s")
+#: choice: ...``); a missing value (:data:`MISSING_VALUE_LINE`) and a
+#: conflict (:data:`CONFLICT_ARGUMENT_LINE`) are not of its shape.
+ARGUMENT_LINE: Final = Line(level="ERROR", template="argument %(option)s: %(refusal)s")
 #: ``argparse``'s refusal of words it does not know.
 UNRECOGNIZED_LINE: Final = Line(
     level="ERROR", template="unrecognized arguments: %(error)s"
@@ -79,9 +87,8 @@ OPTION_INVALID: Final = Message(
     summary="The command line holds an option or a value the command does not "
     "take: an unknown option, a value of the wrong form or out of range, an "
     "unknown subcommand, or an option out of order (a creator's type or email "
-    "before its name). Every argparse refusal of the form 'argument X: ...' "
-    "carries this code, whatever argparse says after the colon (a value it "
-    "requires is missing, say).",
+    "before its name). An option given without its value is option-missing; "
+    "two options argparse refuses together are option-conflict.",
     did="Ran nothing: the command exits 2 (a parse error) or 1, the library "
     "raises ValueError.",
     effect="not-written",
@@ -96,13 +103,22 @@ OPTION_INVALID: Final = Message(
 CANNOT_BE_USED_LINE: Final = Line(
     level="ERROR", template="%(option)s cannot be used %(when)s"
 )
+#: ``argparse``'s refusal of two options of one mutually exclusive group.
+#: Defensive: no command has such a group yet, so nothing prints it today;
+#: it keeps the refusal coded once one is added.
+CONFLICT_ARGUMENT_LINE: Final = Line(
+    level="ERROR",
+    template="argument %(option)s: not allowed with argument %(other)s",
+)
 
 OPTION_CONFLICT: Final = Message(
     code="option-conflict",
     condition="conflict",
-    lines=(CANNOT_BE_USED_LINE,),
+    lines=(CANNOT_BE_USED_LINE, CONFLICT_ARGUMENT_LINE),
     summary="The command line holds an option the command cannot take in this "
-    "case (-o/--output with several wheels).",
+    "case (-o/--output with several wheels). The 'not allowed with' line is "
+    "reserved for options of a mutually exclusive group; no command has one "
+    "yet.",
     did="Ran nothing: the command exits 1.",
     effect="not-written",
     actor="caller",
@@ -114,6 +130,11 @@ OPTION_CONFLICT: Final = Message(
 #: ``argparse``'s refusal of a command line without a required argument.
 REQUIRED_LINE: Final = Line(
     level="ERROR", template="the following arguments are required: %(error)s"
+)
+#: ``argparse``'s refusal of an option given without its value (``argument
+#: -o/--output: expected one argument``).
+MISSING_VALUE_LINE: Final = Line(
+    level="ERROR", template="argument %(option)s: expected %(arity)s"
 )
 #: ``loom generate`` without ``-o``: a detected target has no default name.
 OUTPUT_REQUIRED_LINE: Final = Line(
@@ -134,12 +155,13 @@ OPTION_MISSING: Final = Message(
     condition="missing",
     lines=(
         REQUIRED_LINE,
+        MISSING_VALUE_LINE,
         OUTPUT_REQUIRED_LINE,
         REGISTRY_REQUIRED_LINE,
     ),
     summary="The command line lacks an argument or option the command needs "
     "(a subcommand, -o/--output for 'loom generate', an ID registry for 'loom "
-    "id').",
+    "id'), or the value of an option given (-o with nothing after it).",
     did="Ran nothing: the command exits 2 (a parse error) or 1.",
     effect="not-written",
     actor="caller",

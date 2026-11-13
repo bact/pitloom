@@ -41,9 +41,7 @@ from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
-from pitloom.messages import (
-    CodedValueError,
-)
+from pitloom.messages import CodedValueError
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,

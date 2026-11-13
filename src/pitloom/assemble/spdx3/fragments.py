@@ -82,9 +82,7 @@ from pitloom.messages.licences import (
     LICENSE_RELATIONSHIP_INVALID,
     LICENSE_RELATIONSHIP_TO_LINE,
 )
-from pitloom.messages.targets import (
-    warn_fragment_not_found,
-)
+from pitloom.messages.targets import warn_fragment_not_found
 
 log = logging.getLogger(__name__)
 

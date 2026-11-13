@@ -23,9 +23,7 @@ from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
-from pitloom.messages.files import (
-    warn_lone_surrogates,
-)
+from pitloom.messages.files import warn_lone_surrogates
 
 if TYPE_CHECKING:
     from pitloom.core.lfs_pointer import LfsPointer

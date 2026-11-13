@@ -20,9 +20,9 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels). | 0.24.1 |
-| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, or an option out of order (a creator's type or email before its name). Every argparse refusal of the form 'argument X: ...' carries this code, whatever argparse says after the colon (a value it requires is missing, say). | 0.24.1 |
-| [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'). | 0.24.1 |
+| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels). The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.24.1 |
+| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, or an option out of order (a creator's type or email before its name). An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.24.1 |
+| [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.24.1 |
 | [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel, a library parameter a URL target ignores); the line says why. | 0.24.1 |
 
 ### `option-conflict`
@@ -30,7 +30,8 @@ values.
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: The command line holds an option the command cannot take in this
-  case (-o/--output with several wheels).
+  case (-o/--output with several wheels). The 'not allowed with' line is
+  reserved for options of a mutually exclusive group; no command has one yet.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Ran nothing: the command exits 1.
 - **The caller may fix**: The caller may drop the option, or run the command
@@ -39,6 +40,7 @@ values.
 
   ```text
   ERROR: <option> cannot be used <when> [option-conflict]
+  ERROR: argument <option>: not allowed with argument <other> [option-conflict]
   ```
 
 ### `option-invalid`
@@ -48,8 +50,8 @@ values.
 - **Means**: The command line holds an option or a value the command does not
   take: an unknown option, a value of the wrong form or out of range, an unknown
   subcommand, or an option out of order (a creator's type or email before its
-  name). Every argparse refusal of the form 'argument X: ...' carries this code,
-  whatever argparse says after the colon (a value it requires is missing, say).
+  name). An option given without its value is option-missing; two options
+  argparse refuses together are option-conflict.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Ran nothing: the command exits 2 (a parse error) or 1, the
   library raises ValueError.
@@ -59,7 +61,7 @@ values.
 - **Lines**:
 
   ```text
-  ERROR: argument <option>: <error> [option-invalid]
+  ERROR: argument <option>: <refusal> [option-invalid]
   ERROR: unrecognized arguments: <error> [option-invalid]
   ERROR: ambiguous option: <error> [option-invalid]
   ERROR: build timeout must be 1-<limit> seconds, got <value> [option-invalid]
@@ -70,7 +72,8 @@ values.
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: The command line lacks an argument or option the command needs (a
-  subcommand, -o/--output for 'loom generate', an ID registry for 'loom id').
+  subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or
+  the value of an option given (-o with nothing after it).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Ran nothing: the command exits 2 (a parse error) or 1.
 - **The caller may fix**: The caller may add what the line names and run again.
@@ -80,6 +83,7 @@ values.
 
   ```text
   ERROR: the following arguments are required: <error> [option-missing]
+  ERROR: argument <option>: expected <arity> [option-missing]
   ERROR: -o/--output is required: a detected target has no default file name; pass -o FILE, or use 'loom project', 'loom wheel', 'loom model' or 'loom env' for that target's own default [option-missing]
   ERROR: no ID registry declared: pass --id-registry FILE or set id-registry in <table> [option-missing]
   ```

@@ -30,9 +30,7 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_pypi_file, pypi, pypi_select
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
-from pitloom.messages import (
-    code_of,
-)
+from pitloom.messages import code_of
 from pitloom.messages.files import (
     OVER_CAP,
     TEMP_DIR_UNUSABLE,

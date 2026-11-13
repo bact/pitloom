@@ -51,9 +51,7 @@ from pitloom.extract.project.setup_cfg_interpolation import (
     section_declares_key,
 )
 from pitloom.logging_config import one_line
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 
 class _NoProjectNameError(ValueError):

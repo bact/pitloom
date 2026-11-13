@@ -47,9 +47,7 @@ from pitloom.extract.model_target import (
 )
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import (
-    code_of,
-)
+from pitloom.messages import code_of
 from pitloom.messages.files import (
     Cap,
     over_cap_of,

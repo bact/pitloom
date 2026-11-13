@@ -53,9 +53,7 @@ from pitloom.core.wheel_dist_info import (
 )
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging, loggable, one_line
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger(__name__)
 
@@ -423,7 +421,7 @@ def embed_sbom_in_wheel(
     require_wheel_path(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
-        raise input_not_found("wheel file", wheel_obj)
+        raise input_not_found("wheel file", Path(wheel_path))
 
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content

@@ -31,9 +31,7 @@ from pitloom.id_registry import (
     persist_registry,
     warn_no_registry_path,
 )
-from pitloom.messages.targets import (
-    input_not_found,
-)
+from pitloom.messages.targets import input_not_found
 
 # dataset_DatasetPackage is never harvested: a dataset id is pinned
 # deliberately, by `loom id generate -e NAME:dataset_DatasetPackage` or
@@ -64,7 +62,7 @@ def archive_project_dir(
         return None
     path = Path(project_dir).resolve()
     if not os.path.isdir(path):
-        raise input_not_found("project directory", path)
+        raise input_not_found("project directory", Path(project_dir))
     if registry is None:
         flag = PARAM_TO_FLAG["project_dir"]
         warn_no_effect(subject, (flag,), _PROJECT_DIR_NO_REGISTRY)
