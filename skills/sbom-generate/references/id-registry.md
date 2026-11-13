@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -462,7 +462,7 @@ element (an older SHA-256) never rolls a newer entry back.
 - `WARNING: DIR=<dir>: could not list for ID registry indexing; <failure>
   [dir-unlistable]` -- `id generate` left out the files of a directory it
   could not list; if you see it, relay the advice of
-  [messages.md](messages.md#dir-unlistable).
+  [messages-files.md](messages-files.md#dir-unlistable).
 - `WARNING: ID registry: <path> is inside the project's file set; left out
   of it` -- keep the registry outside the
   package tree (above).

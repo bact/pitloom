@@ -47,7 +47,15 @@ nav:
       - Metadata provenance, authors: metadata-provenance-authors.md
       - Reading values back: metadata-reading-back.md
       - Messages and codes: messages.md
-      - Message codes: message-codes.md
+      - Message codes:
+          - Index: message-codes.md
+          - AI models: message-codes-models.md
+          - Model fields: message-codes-model-fields.md
+          - Targets: message-codes-targets.md
+          - Files and text: message-codes-files.md
+          - PyPI: message-codes-pypi.md
+          - Network: message-codes-network.md
+          - Licences: message-codes-licences.md
       - Resources: resources.md
 
 theme:

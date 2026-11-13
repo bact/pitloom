@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,7 +108,7 @@ not a bare ASCII file name, or is a Windows device name, a name that does not
 belong to the release, no download URL, a name listed twice) is left out of the
 choice, with one `WARNING:` per file. A file with no valid SHA-256 stays a
 candidate: if it is the one picked, the run stops with
-[`pypi-response-invalid`](message-codes.md#pypi-response-invalid) and does not
+[`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid) and does not
 turn to the next file.
 
 ## Which release
@@ -160,7 +160,7 @@ The download is untrusted data:
   fastText, GGUF, HDF5, ONNX or PyTorch (`.pt`, `.pth`) model is listed
   without metadata, with one `INFO: FILE=<file>: AI models in these formats
   are listed without metadata ...`
-  ([`reader-unsafe/remote`](message-codes.md#reader-unsaferemote)), unless you
+  ([`reader-unsafe/remote`](message-codes-models.md#reader-unsaferemote)), unless you
   pass `--trust-model-files` (`trust_model_files=True`) for a release you
   trust; see [Formats gated for a
   download](ai-model-scan-limits.md#formats-gated-for-a-download). An sdist's
@@ -170,7 +170,7 @@ The download is untrusted data:
   message and no SBOM names its path.
 - **`--offline` is an error**, not a fallback, for every command (the flag, or
   `offline = true` from `--config`): nothing is requested
-  ([`offline-unusable`](message-codes.md#offline-unusable), as for a Git
+  ([`offline-unusable`](message-codes-network.md#offline-unusable), as for a Git
   URL or a Hugging Face model).
 - **`--embed` is refused** with `wheel <url>`: it would write into a temporary
   file.
@@ -191,7 +191,7 @@ loom wheel https://pypi.org/project/huge/1.0/ --max-download-bytes 2147483648
 ```
 
 A file over the cap is not downloaded further: `ERROR:` with the catalogued
-code [`over-cap`](message-codes.md#over-cap), and no SBOM. Raise the cap for one
+code [`over-cap`](message-codes-files.md#over-cap), and no SBOM. Raise the cap for one
 run when you trust the project. The JSON API answer has its own fixed cap of
 64 MiB (and a nesting limit). Timeouts: 30 seconds per socket read, 2 minutes
 for the JSON answer, 30 minutes for the file. The deadline does not cover the
@@ -282,43 +282,43 @@ prefix and before the code.
 
 | Level | Message | When |
 | :---- | :------ | :--- |
-| `INFO:` | `PYPI=<name> VERSION=<version>: no version given; using the latest release` | the URL has no version ([`release-unpinned`](message-codes.md#release-unpinned)) |
-| `INFO:` | `PYPI=<name> VERSION=<version>: no version given and no stable release that is not yanked; using the newest pre-release` | no stable, unyanked release ([`release-unpinned/prerelease`](message-codes.md#release-unpinnedprerelease)) |
-| `INFO:` | `PYPI=<name> VERSION=<version>: no version given and every release is yanked; using the newest (yanked: <reason>)` | only yanked releases ([`release-unpinned/yanked`](message-codes.md#release-unpinnedyanked)) |
-| `INFO:` | `PYPI=<name> VERSION=<version> FILE=<file>: the file is yanked (<reason>); reading it anyway` | the file read is yanked ([`release-unusable`](message-codes.md#release-unusable)) |
-| `INFO:` | `PYPI=<name> VERSION=<version>: <n> wheels match this environment; using <file>, the best-ranked` | several wheels fit ([`file-ambiguous`](message-codes.md#file-ambiguous)) |
-| `INFO:` | `PYPI=<name> VERSION=<version>: <n> sdists; using <file>` | several sdists ([`file-ambiguous`](message-codes.md#file-ambiguous)) |
-| `INFO:` | `FILE=<file>: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies` | `loom project <url>` read the sdist ([`config-unsafe`](message-codes.md#config-unsafe)) |
-| `INFO:` | `URL=<url>: redirects to <target>; followed` | a followed redirect, each hop ([`url-moved`](message-codes.md#url-moved)) |
-| `INFO:` | `URL=<url>: the query and fragment have no effect; cut` | the URL had a query or fragment ([`query-no-effect`](message-codes.md#query-no-effect)) |
-| `INFO:` | `PYPI=<name>: loom generate reads the wheel; 'loom project <url>' reads the sdist` | `loom generate` read the wheel ([`file-ambiguous`](message-codes.md#file-ambiguous)) |
-| `WARNING:` | `PYPI=<name> FILE=<file>: <why>; skipped` | a file of the release is not valid and left out ([`pypi-response-invalid`](message-codes.md#pypi-response-invalid)) |
+| `INFO:` | `PYPI=<name> VERSION=<version>: no version given; using the latest release` | the URL has no version ([`release-unpinned`](message-codes-pypi.md#release-unpinned)) |
+| `INFO:` | `PYPI=<name> VERSION=<version>: no version given and no stable release that is not yanked; using the newest pre-release` | no stable, unyanked release ([`release-unpinned/prerelease`](message-codes-pypi.md#release-unpinnedprerelease)) |
+| `INFO:` | `PYPI=<name> VERSION=<version>: no version given and every release is yanked; using the newest (yanked: <reason>)` | only yanked releases ([`release-unpinned/yanked`](message-codes-pypi.md#release-unpinnedyanked)) |
+| `INFO:` | `PYPI=<name> VERSION=<version> FILE=<file>: the file is yanked (<reason>); reading it anyway` | the file read is yanked ([`release-unusable`](message-codes-pypi.md#release-unusable)) |
+| `INFO:` | `PYPI=<name> VERSION=<version>: <n> wheels match this environment; using <file>, the best-ranked` | several wheels fit ([`file-ambiguous`](message-codes-pypi.md#file-ambiguous)) |
+| `INFO:` | `PYPI=<name> VERSION=<version>: <n> sdists; using <file>` | several sdists ([`file-ambiguous`](message-codes-pypi.md#file-ambiguous)) |
+| `INFO:` | `FILE=<file>: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies` | `loom project <url>` read the sdist ([`config-unsafe`](message-codes-targets.md#config-unsafe)) |
+| `INFO:` | `URL=<url>: redirects to <target>; followed` | a followed redirect, each hop ([`url-moved`](message-codes-network.md#url-moved)) |
+| `INFO:` | `URL=<url>: the query and fragment have no effect; cut` | the URL had a query or fragment ([`query-no-effect`](message-codes-network.md#query-no-effect)) |
+| `INFO:` | `PYPI=<name>: loom generate reads the wheel; 'loom project <url>' reads the sdist` | `loom generate` read the wheel ([`file-ambiguous`](message-codes-pypi.md#file-ambiguous)) |
+| `WARNING:` | `PYPI=<name> FILE=<file>: <why>; skipped` | a file of the release is not valid and left out ([`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid)) |
 | `WARNING:` | the refusal's own `ERROR:` text, repeated | any refusal, as well as its `ERROR:` |
-| `ERROR:` | `URL=<url>: not a PyPI project or release page; give https://pypi.org/project/<name>/ or .../<name>/<version>/` | another page of `pypi.org` ([`pypi-url-invalid`](message-codes.md#pypi-url-invalid)) |
-| `ERROR:` | `URL=<url>: PyPI is read over https only; give the https:// URL` | an `http` URL ([`pypi-url-invalid`](message-codes.md#pypi-url-invalid)) |
-| `ERROR:` | `URL=<url>: holds user information; a PyPI URL is read without credentials` | a user name or password in the URL ([`pypi-url-invalid`](message-codes.md#pypi-url-invalid)) |
-| `ERROR:` | `URL=<url>: <name> is not a valid project name` | a bad name ([`pypi-url-invalid`](message-codes.md#pypi-url-invalid)) |
-| `ERROR:` | `URL=<url>: <version> is not a PEP 440 version` | a bad version ([`pypi-url-invalid`](message-codes.md#pypi-url-invalid)) |
-| `ERROR:` | `PYPI=<name>: no such project on PyPI` | PyPI answers 404 ([`release-not-found`](message-codes.md#release-not-found)) |
-| `ERROR:` | `PYPI=<name> VERSION=<version>: no such release on PyPI` | the version does not exist ([`release-not-found`](message-codes.md#release-not-found)) |
-| `ERROR:` | `PYPI=<name>: no release has a wheel or sdist with a SHA-256 digest` | nothing to read ([`release-not-found`](message-codes.md#release-not-found)) |
-| `ERROR:` | `PYPI=<name> VERSION=<version>: the release has no wheel; 'loom project <url>' reads its sdist` | `wheel` or `generate` on a release without wheels ([`release-file-not-found`](message-codes.md#release-file-not-found)) |
-| `ERROR:` | `PYPI=<name> VERSION=<version>: no wheel matches this Python and platform (wheels: <files>); 'loom project <url>' reads its sdist` | wheels, none for this environment ([`release-file-not-found/compatible-wheel`](message-codes.md#release-file-not-foundcompatible-wheel)) |
-| `ERROR:` | `PYPI=<name> VERSION=<version>: the release has no sdist; 'loom wheel <url>' reads a wheel` | `project` on a release without an sdist ([`release-file-not-found/sdist`](message-codes.md#release-file-not-foundsdist)) |
-| `ERROR:` | `FILE=<file>: SHA-256 <measured> does not match <declared> declared by <source>; not read` | the download is not the file PyPI declared ([`digest-invalid`](message-codes.md#digest-invalid)) |
-| `ERROR:` | `FILE=<file>: PyPI declares no SHA-256 digest; not downloaded` | no digest to check against ([`pypi-response-invalid`](message-codes.md#pypi-response-invalid)) |
-| `ERROR:` | `PYPI=<name>: PyPI answered for project <other>; not read` | the answer is for another project ([`pypi-response-invalid`](message-codes.md#pypi-response-invalid)) |
-| `ERROR:` | `PYPI=<name>: the PyPI JSON API answer has no valid <field>; not read` | the answer lacks a field ([`pypi-response-invalid`](message-codes.md#pypi-response-invalid)) |
-| `ERROR:` | `URL=<url>: redirects to <target>; not followed (<why>)` | a redirect to another scheme or host ([`url-unsafe`](message-codes.md#url-unsafe)) |
-| `ERROR:` | `URL=<url>: more than <n> redirects; not followed` | too many redirects ([`url-unsafe`](message-codes.md#url-unsafe)) |
-| `ERROR:` | `FILE=<file>: download URL <target> is not on <hosts>; not fetched` | PyPI names a file on another host ([`url-unsafe`](message-codes.md#url-unsafe)) |
-| `ERROR:` | `URL=<url>: <failure>; not read` | an HTTP status other than 404, a refused connection, a name that did not resolve ([`download-network-failed`](message-codes.md#download-network-failed)) |
-| `ERROR:` | `URL=<url>: no complete answer within <seconds> seconds; not read` | a timeout ([`download-timeout`](message-codes.md#download-timeout)) |
-| `ERROR:` | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | `--offline`, or `offline = true` in `--config` ([`offline-unusable`](message-codes.md#offline-unusable)) |
-| `ERROR:` | `URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched` | `loom wheel <url> --embed` ([`pypi-url-unusable`](message-codes.md#pypi-url-unusable)) |
-| `ERROR:` | `URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched` | `loom model <url>` ([`pypi-url-unusable`](message-codes.md#pypi-url-unusable)) |
-| `ERROR:` | `FILE=<file>: could not be saved in the temporary directory (<failure>); not downloaded` | the disk is full or the temporary directory cannot be written ([`temp-dir-unusable`](message-codes.md#temp-dir-unusable)) |
-| `ERROR:` | `FILE=<file>: <reason>; not downloaded` | the file is over `max-download-bytes` ([`over-cap`](message-codes.md#over-cap)) |
+| `ERROR:` | `URL=<url>: not a PyPI project or release page; give https://pypi.org/project/<name>/ or .../<name>/<version>/` | another page of `pypi.org` ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
+| `ERROR:` | `URL=<url>: PyPI is read over https only; give the https:// URL` | an `http` URL ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
+| `ERROR:` | `URL=<url>: holds user information; a PyPI URL is read without credentials` | a user name or password in the URL ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
+| `ERROR:` | `URL=<url>: <name> is not a valid project name` | a bad name ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
+| `ERROR:` | `URL=<url>: <version> is not a PEP 440 version` | a bad version ([`pypi-url-invalid`](message-codes-pypi.md#pypi-url-invalid)) |
+| `ERROR:` | `PYPI=<name>: no such project on PyPI` | PyPI answers 404 ([`release-not-found`](message-codes-pypi.md#release-not-found)) |
+| `ERROR:` | `PYPI=<name> VERSION=<version>: no such release on PyPI` | the version does not exist ([`release-not-found`](message-codes-pypi.md#release-not-found)) |
+| `ERROR:` | `PYPI=<name>: no release has a wheel or sdist with a SHA-256 digest` | nothing to read ([`release-not-found`](message-codes-pypi.md#release-not-found)) |
+| `ERROR:` | `PYPI=<name> VERSION=<version>: the release has no wheel; 'loom project <url>' reads its sdist` | `wheel` or `generate` on a release without wheels ([`release-file-not-found`](message-codes-pypi.md#release-file-not-found)) |
+| `ERROR:` | `PYPI=<name> VERSION=<version>: no wheel matches this Python and platform (wheels: <files>); 'loom project <url>' reads its sdist` | wheels, none for this environment ([`release-file-not-found/compatible-wheel`](message-codes-pypi.md#release-file-not-foundcompatible-wheel)) |
+| `ERROR:` | `PYPI=<name> VERSION=<version>: the release has no sdist; 'loom wheel <url>' reads a wheel` | `project` on a release without an sdist ([`release-file-not-found/sdist`](message-codes-pypi.md#release-file-not-foundsdist)) |
+| `ERROR:` | `FILE=<file>: SHA-256 <measured> does not match <declared> declared by <source>; not read` | the download is not the file PyPI declared ([`digest-invalid`](message-codes-pypi.md#digest-invalid)) |
+| `ERROR:` | `FILE=<file>: PyPI declares no SHA-256 digest; not downloaded` | no digest to check against ([`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid)) |
+| `ERROR:` | `PYPI=<name>: PyPI answered for project <other>; not read` | the answer is for another project ([`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid)) |
+| `ERROR:` | `PYPI=<name>: the PyPI JSON API answer has no valid <field>; not read` | the answer lacks a field ([`pypi-response-invalid`](message-codes-pypi.md#pypi-response-invalid)) |
+| `ERROR:` | `URL=<url>: redirects to <target>; not followed (<why>)` | a redirect to another scheme or host ([`url-unsafe`](message-codes-network.md#url-unsafe)) |
+| `ERROR:` | `URL=<url>: more than <n> redirects; not followed` | too many redirects ([`url-unsafe`](message-codes-network.md#url-unsafe)) |
+| `ERROR:` | `FILE=<file>: download URL <target> is not on <hosts>; not fetched` | PyPI names a file on another host ([`url-unsafe`](message-codes-network.md#url-unsafe)) |
+| `ERROR:` | `URL=<url>: <failure>; not read` | an HTTP status other than 404, a refused connection, a name that did not resolve ([`download-network-failed`](message-codes-network.md#download-network-failed)) |
+| `ERROR:` | `URL=<url>: no complete answer within <seconds> seconds; not read` | a timeout ([`download-timeout`](message-codes-network.md#download-timeout)) |
+| `ERROR:` | `URL=<url>: network access is forbidden (offline mode); nothing fetched` | `--offline`, or `offline = true` in `--config` ([`offline-unusable`](message-codes-network.md#offline-unusable)) |
+| `ERROR:` | `URL=<url>: --embed writes into a wheel file, and a PyPI URL has none to keep; nothing fetched` | `loom wheel <url> --embed` ([`pypi-url-unusable`](message-codes-pypi.md#pypi-url-unusable)) |
+| `ERROR:` | `URL=<url>: a PyPI page is not a model; 'loom wheel' reads its wheel, 'loom project' its sdist; nothing fetched` | `loom model <url>` ([`pypi-url-unusable`](message-codes-pypi.md#pypi-url-unusable)) |
+| `ERROR:` | `FILE=<file>: could not be saved in the temporary directory (<failure>); not downloaded` | the disk is full or the temporary directory cannot be written ([`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable)) |
+| `ERROR:` | `FILE=<file>: <reason>; not downloaded` | the file is over `max-download-bytes` ([`over-cap`](message-codes-files.md#over-cap)) |
 
 A temporary directory that cannot be fully removed on return is a `WARNING:`
 (`PyPI source: could not fully remove temporary directory ...`), not an error:

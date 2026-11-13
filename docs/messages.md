@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -174,7 +174,7 @@ unchanged. The annotation is emitted after it.
 
 Pitloom has no SARIF output yet. The codes leave room for one: a family can be
 a SARIF rule `id`, a code its hierarchical `ruleId` (`lfs-pointer/shipped`),
-and a code's section of [Message codes](message-codes.md) its help link.
+and a code's section on its page of [Message codes](message-codes.md) its help link.
 
 ## Catalogue
 

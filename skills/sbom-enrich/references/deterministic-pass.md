@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ fragment's enrichment `Annotation`, with no licence element: a base regenerated
 with `--enrich` states it (or a step 6 fragment does). Read the fragment's
 `@graph` to see what it filled. A card whose frontmatter does not parse fills
 nothing: `WARNING: FILE=<path>: model card frontmatter is not valid YAML;
-<failure> [card-malformed]` (`messages.md` says what to tell the user).
+<failure> [card-malformed]` (`messages.md` links the page that says what to tell the user).
 
 Skip it when the base run used `--enrich` (same pass: merging both duplicates
 each dataset and `trainedOn`), and when the target is not a local AI model file
@@ -36,8 +36,8 @@ read here) and the README or model card next to it. It writes the fragment and
 exits 0 with the one `WARNING:` the scan gave, ending in its code
 (`[model-unreadable]`, `[library-missing]`, `[library-unusable]`
 or `[over-cap]`; its `FILE=` is the path as given, not the scan's
-project-relative one), and the model stays a stub: `messages.md` says what to
-tell the user. A model read without some fields (`[model-field-unreadable]`)
+project-relative one), and the model stays a stub: `messages.md` links the page that says
+what to tell the user. A model read without some fields (`[model-field-unreadable]`)
 is no stub: the line names the fields. (A wheel's gate, ceiling and
 budget do not apply to a local file.)
 
@@ -45,7 +45,7 @@ Only an `ERROR: enrichment fragment generation failed: ...` line ending in
 `[model-wrong-format]` (`header is not <fmt>`, `file is empty`, `not an AI
 model file ...`), `[lfs-pointer]` or `[lfs-pointer-malformed]` means the file
 is not a model: skip the step for it and relay Pitloom's own advice (a code's
-advice is in `messages.md`).
+advice is on the page `messages.md` links).
 
 ## Attaching
 

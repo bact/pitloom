@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,7 @@ pitloom/
 │   ├── id-registry-keys.md
 │   ├── index.md
 │   ├── mascot.png
-│   ├── message-codes.md  # Generated from the catalogue (scripts/generate_message_reference.py)
+│   ├── message-codes.md  # Index of the codes, generated (scripts/generate_message_reference.py); pages: message-codes-{models,model-fields,targets,files,pypi,network,licences}.md
 │   ├── messages.md
 │   ├── metadata-provenance.md  # Also metadata-provenance-{artifact-metadata,authors,licences}.md
 │   ├── metadata-reading-back.md
@@ -339,7 +339,7 @@ pitloom/
 │   ├── check_version_consistency.py  # CI version check; --print-version also used by the action
 │   ├── compare_allow_build.py  # Manual --allow-build parity check
 │   ├── extract_wheel_sbom.py  # Release check: extract the SBOM the build hook embedded in a wheel
-│   ├── generate_message_reference.py # Generate docs/message-codes.md and the skills' messages.md
+│   ├── generate_message_reference.py # Generate the message reference: docs/message-codes*.md and the skills' messages*.md
 │   ├── g7_coverage_report.py  # Checker coverage report and expected tables (--standard g7ai|cisa2026|fsct3)
 │   ├── licence_adoption_sweep.py  # Sweep licenseid's parity corpus through the declared-licence path
 │   ├── manual_cli_checks/  # Unattended manual CLI checks: _checks_*.py, CLI matrix, command sequences

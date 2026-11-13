@@ -158,6 +158,24 @@ class TestSkillFrontmatter:
         )
 
 
+def _orphaned_references(skill_dir: Path) -> list[str]:
+    """The ``references/*.md`` files of *skill_dir* that ``SKILL.md`` does not
+    name, where a ``messages-<topic>.md`` page counts as named when ``SKILL.md``
+    names ``references/messages.md`` and that index links the page."""
+    body = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    index = skill_dir / "references" / "messages.md"
+    index_text = index.read_text(encoding="utf-8") if index.is_file() else ""
+    orphans: list[str] = []
+    for ref in sorted((skill_dir / "references").glob("*.md")):
+        if ref.name.startswith("messages-"):
+            named = "references/messages.md" in body and f"]({ref.name}#" in index_text
+        else:
+            named = f"references/{ref.name}" in body
+        if not named:
+            orphans.append(ref.name)
+    return orphans
+
+
 @pytest.mark.parametrize("skill_dir", SKILL_DIRS, ids=lambda d: d.name)
 class TestSkillReferences:
     """Files a skill ships stay reachable and one level deep."""
@@ -186,9 +204,11 @@ class TestSkillReferences:
             assert len(Path(target).parts) <= 2, f"{target} is nested"
 
     def test_every_reference_is_named_in_skill_md(self, skill_dir: Path) -> None:
-        body = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
-        for ref in sorted((skill_dir / "references").glob("*.md")):
-            assert f"references/{ref.name}" in body, f"{ref.name} is orphaned"
+        """A reference is named in ``SKILL.md``, except a page of the message
+        reference (``messages-<topic>.md``): the body is at its size cap, so
+        ``messages.md`` (named there) links each page instead."""
+        orphans = _orphaned_references(skill_dir)
+        assert not orphans, f"orphaned: {orphans}"
 
     def test_every_body_pointer_says_when_to_read(self, skill_dir: Path) -> None:
         """A sentence naming ``references/x.md`` states a condition, so the
@@ -201,3 +221,23 @@ class TestSkillReferences:
                 assert _CONDITION_RE.search(sentence), (
                     f"no condition near the pointer: {sentence.strip()[:80]!r}"
                 )
+
+
+@pytest.mark.parametrize(
+    ("body", "index", "expected"),
+    [
+        ("see references/messages.md", "[x](messages-a.md#c)", []),
+        ("see references/messages.md", "no links", ["messages-a.md"]),
+        ("no pointer", "[x](messages-a.md#c)", ["messages-a.md", "messages.md"]),
+    ],
+    ids=["linked", "unlinked", "index-unnamed"],
+)
+def test_a_message_page_is_reachable_only_through_a_named_linked_index(
+    tmp_path: Path, body: str, index: str, expected: list[str]
+) -> None:
+    refs = tmp_path / "references"
+    refs.mkdir()
+    (tmp_path / "SKILL.md").write_text(body, encoding="utf-8")
+    (refs / "messages.md").write_text(index, encoding="utf-8")
+    (refs / "messages-a.md").write_text("page", encoding="utf-8")
+    assert _orphaned_references(tmp_path) == expected

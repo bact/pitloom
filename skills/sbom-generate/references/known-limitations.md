@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,7 @@ A **stub** is an `ai_AIPackage` with no `ai_*` property and no `comment`
 entry `Source: <model file> | Field: ...`; its `name` is the file's stem
 (`Method: file_name_stem`). A `comment` citing the README (`--enrich`,
 `Method: yaml_frontmatter`) does not make it read. The stderr line says why
-and ends in its code, which `messages.md` explains (what it means, what
+and ends in its code, which `messages.md` indexes (the page it links says what it means, what
 Pitloom did, what to tell the user):
 
 - A stub: `[reader-unsafe]` (the wheel gate, one `INFO: AI models in a wheel
@@ -197,7 +197,7 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
 - A `\udXXX` in a name or value was a lone surrogate in the file (a JSON
   or YAML `"\ud800"`), which UTF-8 cannot hold: `WARNING: FORMAT=<fmt>
   FILE=<path>: lone surrogates written as \uXXXX [text-malformed]`
-  (`messages.md` says what to tell the user).
+  (`messages.md` links the page that says what to tell the user).
 - A CRFsuite or fastText model with no `labels` but a `num_labels` (or an
   `outputs` shape) had a label over 4 KiB: then none is recorded, and a
   CRFsuite model gets no generated description. `WARNING: FORMAT=<fmt>
