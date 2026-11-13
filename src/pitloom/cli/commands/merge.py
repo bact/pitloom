@@ -22,7 +22,7 @@ from pitloom.logging_config import print_error
 log = logging.getLogger(__name__)
 
 
-@cli_error_handler("fragment merge failed")
+@cli_error_handler
 def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
     fragments_dir: Path = args.fragments_dir.resolve()

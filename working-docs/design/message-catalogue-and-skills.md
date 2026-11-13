@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -164,8 +164,8 @@ and C):
 4. `file-unreadable` and `dir-unlistable`, paired with the evidence reasons of
    the same names (#408, PR 2a; the cards and `fetch_json` follow in 2b).
 5. `option-no-effect`: the first entry whose actor is the `caller`.
-6. Frames: the uniform `loom <command>:` prefix of an `ERROR:` (its own PR;
-   the `FRAMES` table holds today's strings).
+6. Frames: the uniform `loom <command>:` prefix of an `ERROR:` (built, see
+   [message-frames.md](../implementation/message-frames.md)).
 7. The registry file codes, then `input-not-found` (a helper first).
 8. `lock-file-*`, then `lock-entry-*`; then `config-*`; then `timeout` and
    `network-failed`.
@@ -269,9 +269,9 @@ recommendations"; SARIF and LicenseID codes get room only, no scheme):
   templates; `emit(..., file=..., count=...)` and `CodedValueError(M,
   path=...)` write each value through its field (a quoted path, an escaped
   `FILE=`, `N bytes`), each with a tight shape (an `oid` is 64 hex digits).
-- **I. Frames** are a table (`FRAMES`): the CLI handler's and the hook's
-  `<what> failed:`, and the relay's `FORMAT=... FILE=...:`. The uniform
-  `loom <command>:` frame is its own PR.
+- **I. Frames** are a table (`FRAMES`): the CLI's `loom <command>: ` (and
+  `loom: ` where no command is known), the hook's `Pitloom build hook: `, and
+  the relay's `FORMAT=... FILE=...: `. The `<what> failed:` strings are gone.
 - **J. Ratchet**: per module and in total, falls only; a programming error
   is out of scope by its class (`InternalError`), never by raising a count;
   a reader's raise is detail.

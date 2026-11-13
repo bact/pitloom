@@ -23,7 +23,7 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, print_error
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def _check_name_version(
 
     message = format_name_version_mismatch(wheel_path.name, mismatches)
     if fail_on_mismatch:
-        log.error(message)
+        print_error(message)
         return False
     log.warning(message)
     return True
@@ -137,7 +137,7 @@ def _check_one_wheel(
     return location_ok and version_ok
 
 
-@cli_error_handler("wheel SBOM verification failed")
+@cli_error_handler
 def _run_verify_wheel_command(args: argparse.Namespace) -> int:
     """Run `loom verify-wheel`.
 

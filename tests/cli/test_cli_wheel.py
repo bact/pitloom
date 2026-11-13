@@ -77,7 +77,7 @@ def test_wheel_command_nonexistent_and_verbose(
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(tmp_path / "missing.whl")])
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: wheel file not found" in err
+    assert "ERROR: loom wheel: wheel file not found" in err
 
     # Verbose mode on valid wheel
     wheel_path = _make_wheel(tmp_path, "pkg_v", "1.0.0")

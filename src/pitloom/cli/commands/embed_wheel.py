@@ -165,7 +165,7 @@ def _settled_build_options(args: argparse.Namespace) -> BuildOptions:
     return build_options
 
 
-@cli_error_handler("wheel SBOM embedding failed")
+@cli_error_handler
 def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
 

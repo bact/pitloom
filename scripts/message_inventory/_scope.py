@@ -98,7 +98,7 @@ LIBRARY_PAT = re.compile(
 )
 #: A template that is only another message passed through.
 PASSTHROUGH_PAT = re.compile(
-    r"^(%s|\{error_msg\}: \{e\}|\{self\.prog\}: \{message\}|"
+    r"^(%s|\{e\}|\{message\}|"
     r"ERROR: \{escape_controls|%s; skipped|%s%s)?$"
 )
 #: Emitters of ``KEY=VALUE`` data, not of messages.

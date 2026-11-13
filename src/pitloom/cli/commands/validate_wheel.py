@@ -92,7 +92,7 @@ def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | N
     return _validate_location(wheel_path, location, sbom_format)
 
 
-@cli_error_handler("wheel SBOM validation failed")
+@cli_error_handler
 def _run_validate_wheel_command(args: argparse.Namespace) -> int:
     """Run `loom validate-wheel`.
 

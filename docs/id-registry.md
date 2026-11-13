@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,7 +108,7 @@ id import` ([what changed](id-registry-keys.md#what-changed-for-an-existing-regi
 `id-registry` key (both commands: read from `--project-dir`, default the
 current directory; `pyproject.toml`'s `[tool.pitloom]` or `setup.cfg`'s
 `[tool:pitloom]`). The location is required, never assumed: with neither,
-both commands print `ERROR: no ID registry declared: pass --id-registry FILE
+both commands print `ERROR: loom id <command>: no ID registry declared: pass --id-registry FILE
 or set id-registry in [tool.pitloom]` (`[tool:pitloom]` for `setup.cfg`),
 exit 1 and write nothing. `loom-id-registry.json` is only the suggested name.
 A broken `pyproject.toml`/`setup.cfg` is one `ERROR:` line, never a
@@ -120,9 +120,9 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- `--project-dir` must be an existing directory, else `ERROR: --project-dir '<p>'
-  is not a directory` (exit 1). Each `PATH` must resolve inside it, else
-  `ERROR: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
+- `--project-dir` must be an existing directory, else `ERROR: loom id <command>: --project-dir
+  '<p>' is not a directory` (exit 1). Each `PATH` must resolve inside it, else
+  `ERROR: loom id <command>: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
   that itself lives inside the project is fine even if it points outside: it
@@ -136,7 +136,7 @@ traceback, and takes precedence over that error.
   path project-relative, `/`-separated) and the run continues; a partial tree
   is never indexed silently. So does a file whose name a registry cannot hold
   (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
-  listed is `ERROR: PATH '<path>': could not be read: <reason>` (exit 1, nothing
+  listed is `ERROR: loom id <command>: PATH '<path>': could not be read: <reason>` (exit 1, nothing
   written) on every Python version; an unreadable default directory (`src`,
   `data`, `models`) is the `DIR=` warning instead.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
@@ -318,7 +318,7 @@ harvest and `id import` skip such an element with a `WARNING:`. `generate()`
 raises `ID registry: '<path>' is outside the project root '<root>'` for a path
 outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
-`ERROR: failed to import SBOM '<path>': @graph is not a list`.
+`ERROR: loom id import: failed to import SBOM '<path>': @graph is not a list`.
 
 ## In CI
 

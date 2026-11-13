@@ -105,7 +105,10 @@ def test_id_generate_no_paths(
     )
     result = __main__.main()
     assert result == 1
-    assert "ERROR: no source/data directories found" in capsys.readouterr().err
+    assert (
+        "ERROR: loom id generate: no source/data directories found"
+        in capsys.readouterr().err
+    )
 
 
 def test_id_generate_uses_project_own_id_registry_key_no_hint(
@@ -173,7 +176,7 @@ def test_id_import_sbom_not_found(
     monkeypatch.setattr(sys, "argv", ["loom", "id", "import", str(nonexistent)])
     result = __main__.main()
     assert result == 1
-    assert "ERROR: SBOM file not found" in capsys.readouterr().err
+    assert "ERROR: loom id import: SBOM file not found" in capsys.readouterr().err
 
 
 def test_id_import_registry_load_fails(
@@ -218,7 +221,7 @@ def test_id_import_fails(
     )
     result = __main__.main()
     assert result == 1
-    assert "ERROR: failed to import SBOM" in capsys.readouterr().err
+    assert "ERROR: loom id import: failed to import SBOM" in capsys.readouterr().err
 
 
 def test_id_cli_invalid_command() -> None:

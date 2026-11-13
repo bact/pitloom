@@ -187,9 +187,7 @@ def test_offline_forbids_the_fetch(
     code = _run(monkeypatch, tmp_path, *args)
     assert fetched["offline"] is offline
     assert code == (1 if offline else 0)
-    assert (
-        "ERROR: SBOM generation failed: no network" in capsys.readouterr().err
-    ) == offline
+    assert ("ERROR: loom project: no network" in capsys.readouterr().err) == offline
 
 
 def test_a_build_flag_has_no_effect_and_is_said_once(
@@ -261,7 +259,7 @@ def test_a_remote_address_that_is_not_fetched_is_refused_aloud(
     )
     err = capsys.readouterr().err
     assert "WARNING: Git source: Cannot fetch" in err
-    assert "ERROR: SBOM generation failed: Cannot fetch" in err
+    assert f"ERROR: loom {command}: Cannot fetch" in err
     assert "only http and https URLs are fetched" in err
 
 

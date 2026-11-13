@@ -4,16 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The frames a surface puts before a catalogued message's text: the
-``<what> failed: `` of the CLI's error handler
-(:func:`pitloom.cli.commands.utils.cli_error_handler`) and of the Hatchling
-build hook, and the ``FORMAT=... FILE=...: `` a model scan puts before a
-model reader's own line (:mod:`pitloom.extract.scanner`). A line is trusted
-with at most one frame before one of its entry's shapes
-(:func:`pitloom.messages.trusted_message`), never with any other text.
+``loom <command>: `` of every ``ERROR:`` line the command line prints
+(``loom: `` where no command is known), the Hatchling build hook's, and the
+``FORMAT=... FILE=...: `` a model scan puts before a model reader's own line
+(:mod:`pitloom.extract.scanner`). A line is trusted with at most one frame
+before one of its entry's shapes (:func:`pitloom.messages.trusted_message`),
+never with any other text.
 
-The table lists the strings the surfaces print today; a uniform
-``loom <command>: `` frame is planned separately. A drift test holds the
-table and the surfaces together (``tests/messages/test_frames.py``).
+The library prints no ``ERROR:`` line and puts no frame on an exception's
+text. A drift test holds the table and the surfaces together
+(``tests/messages/test_frames.py``).
 
 See also: :mod:`pitloom.messages._lines` (where frames are matched).
 """
@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import Final
 
 from pitloom.messages._templates import render, shown, template_names
@@ -71,24 +70,27 @@ class Frame:
         return render(self.template, values)
 
 
-#: The text the CLI's error handler, or the build hook, puts before an
-#: exception's text (then ``": "``), by what prints it.
-HANDLER_FRAMES: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        "SBOM generation failed": (
-            "loom generate, loom project and the Hatchling build hook"
-        ),
-        "deployed SBOM generation failed": "loom env",
-        "enrichment fragment generation failed": "loom enrich",
-        "fragment list failed": "loom fragment list",
-        "fragment merge failed": "loom merge",
-        "fragment validate failed": "loom fragment validate",
-        "model command failed": "loom model",
-        "wheel SBOM embedding failed": "loom embed-wheel",
-        "wheel SBOM validation failed": "loom validate-wheel",
-        "wheel SBOM verification failed": "loom verify-wheel",
-        "wheel command failed": "loom wheel",
-    }
+#: What every ``ERROR:`` line of a ``loom`` command starts with, by the
+#: command that printed it (``loom generate: ``, ``loom fragment validate: ``).
+COMMAND_FRAME: Final = Frame(
+    levels=frozenset({"ERROR"}),
+    template="loom %(subcommand)s: ",
+    surface="the command line, each subcommand",
+)
+
+#: What an ``ERROR:`` line starts with when no subcommand is known: a command
+#: line that does not parse as one, or Ctrl-C before it did.
+TOP_FRAME: Final = Frame(
+    levels=frozenset({"ERROR"}),
+    template="loom: ",
+    surface="the command line, before a subcommand is known",
+)
+
+#: What the Hatchling build hook puts before an ``ERROR:`` line.
+HOOK_FRAME: Final = Frame(
+    levels=frozenset({"ERROR"}),
+    template="Pitloom build hook: ",
+    surface="the Hatchling build hook",
 )
 
 #: What a model scan puts before a model reader's own warning or error.
@@ -99,10 +101,4 @@ RELAY_FRAME: Final = Frame(
 )
 
 #: Every frame.
-FRAMES: Final = (
-    *(
-        Frame(levels=frozenset({"ERROR"}), template=f"{text}: ", surface=surface)
-        for text, surface in HANDLER_FRAMES.items()
-    ),
-    RELAY_FRAME,
-)
+FRAMES: Final = (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME)

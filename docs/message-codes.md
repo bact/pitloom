@@ -99,17 +99,9 @@ A line may start with one prefix before its text:
 
 | Prefix | Level | Printed by |
 | --- | --- | --- |
-| `SBOM generation failed: <text>` | ERROR | loom generate, loom project and the Hatchling build hook |
-| `deployed SBOM generation failed: <text>` | ERROR | loom env |
-| `enrichment fragment generation failed: <text>` | ERROR | loom enrich |
-| `fragment list failed: <text>` | ERROR | loom fragment list |
-| `fragment merge failed: <text>` | ERROR | loom merge |
-| `fragment validate failed: <text>` | ERROR | loom fragment validate |
-| `model command failed: <text>` | ERROR | loom model |
-| `wheel SBOM embedding failed: <text>` | ERROR | loom embed-wheel |
-| `wheel SBOM validation failed: <text>` | ERROR | loom validate-wheel |
-| `wheel SBOM verification failed: <text>` | ERROR | loom verify-wheel |
-| `wheel command failed: <text>` | ERROR | loom wheel |
+| `loom <subcommand>: <text>` | ERROR | the command line, each subcommand |
+| `loom: <text>` | ERROR | the command line, before a subcommand is known |
+| `Pitloom build hook: <text>` | ERROR | the Hatchling build hook |
 | `FORMAT=<format> FILE=<file>: <text>` | ERROR, WARNING | a model scan, before a model reader's own line |
 
 | Value | What it is |
@@ -156,4 +148,5 @@ A line may start with one prefix before its text:
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
 | `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
+| `<subcommand>` | the `loom` command that failed (`generate`, `fragment validate`) |
 <!-- END GENERATED -->

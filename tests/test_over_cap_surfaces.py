@@ -149,7 +149,7 @@ def test_the_command_line_ends_the_error_in_its_code(tmp_path: Path) -> None:
     done = _loom(["generate", str(sdist), "-o", str(tmp_path / "o.json")], tmp_path)
     assert done.returncode == 1
     (line,) = _said(done.stderr, "config-member cap")
-    assert line.startswith("ERROR: SBOM generation failed: config file ")
+    assert line.startswith("ERROR: loom generate: config file ")
     assert line.endswith(
         ":pyproject.toml': larger than the 1048576-byte config-member cap; not read"
         " [over-cap]"

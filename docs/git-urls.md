@@ -207,7 +207,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   a model suffix that is not in the repository, or is a link (not followed),
   is `git.path-not-found` (`No file '<path>' in the repository at that
   branch. [input-not-found]`); for `loom model`, any named file is. `loom
-  project <url>` on a folder with models and no project says `ERROR: ... No
+  project <url>` on a folder with models and no project says `ERROR: loom project: ... No
   pyproject.toml, setup.cfg, or setup.py found in <url>; it holds files that
   may be AI models ... [project-not-found/model-files]`.
 - **A name is read as the repository spells it, and stays inside the clone.**
@@ -312,7 +312,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - **512 MiB of disk by default.** The fetch is stopped once the checkout
   takes more disk than `--max-download-bytes BYTES` (`[tool.pitloom]
   max-download-bytes` from `--config`, library `max_download_bytes=`; the
-  setting that caps a [PyPI download](pypi-urls.md#size-limit)): `ERROR: the
+  setting that caps a [PyPI download](pypi-urls.md#size-limit)): `ERROR: loom <command>: the
   repository is larger than the <limit>-byte max-download-bytes cap; git clone
   was stopped`, error code `git.too-large`, message code
   [`over-cap`](message-codes-files.md#over-cap), and no SBOM. The 10 MiB filter
@@ -391,7 +391,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
 | `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
-| `ERROR:` | `SBOM generation failed: …` | the run could not finish |
+| `ERROR:` | `<frame>: …` | the run could not finish (the frame names the command) |
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
 and, in a URL, the value of a query or fragment parameter named `token`, `key`,

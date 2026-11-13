@@ -89,13 +89,13 @@ def test_cli_collect_wheel_paths_errors(
     monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(non_existent)])
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: wheel file not found" in err
+    assert "ERROR: loom embed-wheel: wheel file not found" in err
 
     # 2. Not a .whl file
     monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(not_a_whl)])
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: not a .whl file" in err
+    assert "ERROR: loom embed-wheel: not a .whl file" in err
 
     # 3. Glob matching no wheels
     monkeypatch.setattr(
@@ -103,7 +103,7 @@ def test_cli_collect_wheel_paths_errors(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: no wheel files matched" in err
+    assert "ERROR: loom embed-wheel: no wheel files matched" in err
 
 
 def test_cli_embed_wheel_multiple_with_output_fails(
@@ -122,7 +122,7 @@ def test_cli_embed_wheel_multiple_with_output_fails(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: --output cannot be used when embedding multiple wheels" in err
+    assert "ERROR: loom embed-wheel: --output cannot be used when embedding" in err
 
 
 def test_cli_embed_wheel_project_dir(
@@ -148,7 +148,7 @@ def test_cli_embed_wheel_project_dir(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: project directory not found" in err
+    assert "ERROR: loom embed-wheel: project directory not found" in err
 
     # 2. Valid project directory
     monkeypatch.setattr(
@@ -172,7 +172,10 @@ def test_cli_embed_wheel_project_dir(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: No pyproject.toml, setup.cfg, or setup.py found" in err
+    assert (
+        "ERROR: loom embed-wheel: No pyproject.toml, setup.cfg, or setup.py found"
+        in err
+    )
 
 
 def test_cli_embed_wheel_pregenerated_sbom(
@@ -271,7 +274,7 @@ def test_cli_wheel_embed_error_verbose(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: wheel command failed" in err
+    assert "ERROR: loom wheel: " in err
 
 
 def test_cli_embed_wheel_single_with_output(

@@ -47,7 +47,7 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
 from pitloom.logging_config import configure_logging, one_line
-from pitloom.messages import code_extra_of
+from pitloom.messages import HOOK_FRAME, code_extra_of
 from pitloom.plugins._hatch_config import validate_config
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,8 @@ _MIN_HATCHLING_SBOM_VERSION = "1.29.0"
 
 #: Shared prefix for every _check_hatchling_sbom_support() error, so both
 #: failure modes are easy to grep/filter for as one family of error.
-_HATCHLING_ERROR_PREFIX = "Pitloom build hook: Hatchling"
+#: The text of a Hatchling-too-old error; the hook's frame names the hook.
+_HATCHLING_ERROR_PREFIX = "Hatchling"
 
 
 def _check_hatchling_sbom_support() -> None:
@@ -363,7 +364,10 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             # The one place a failure is reported, as the CLI's handler does;
             # the re-raise fails the build, with Hatchling's own traceback.
             log.error(
-                "SBOM generation failed: %s", one_line(exc), extra=code_extra_of(exc)
+                "%s%s",
+                HOOK_FRAME.render({}),
+                one_line(exc),
+                extra=code_extra_of(exc),
             )
             raise
 

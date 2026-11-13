@@ -24,6 +24,7 @@ from pitloom.cli._id_target import (
     _resolve_id_registry_target,
     resolve_dataset_hash_ceiling,
 )
+from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.iri import require_namespace_iri
@@ -39,6 +40,7 @@ from pitloom.id_registry import (
     save_registry,
 )
 from pitloom.logging_config import print_error
+from pitloom.messages import code_of
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -297,7 +299,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
         )
         _register_entities(args, project_dir, registry)
     except (ValueError, OSError) as exc:
-        print_error(str(exc))
+        print_error(str(exc), code=code_of(exc))
         return 1
     if not _save(registry, registry_path):
         return 1
@@ -331,7 +333,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
         if not is_new and args.project_dir is not None:
             registry.require_project_root(project_dir)
     except (ValueError, OSError) as exc:
-        print_error(str(exc))
+        print_error(str(exc), code=code_of(exc))
         return 1
 
     try:
@@ -351,8 +353,10 @@ def _run_id_import(args: argparse.Namespace) -> int:
     return 0
 
 
+@cli_error_handler
 def _run_id_command(args: argparse.Namespace) -> int:
-    """Dispatch `loom id <command> ...` arguments."""
+    """Dispatch `loom id <command> ...` arguments; an exception no command
+    handled is one ``ERROR:`` line (status 1)."""
     if args.id_command == "generate":
         return _run_id_generate(args)
     if args.id_command == "import":

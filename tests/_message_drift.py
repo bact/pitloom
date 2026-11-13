@@ -76,6 +76,7 @@ SAMPLES: dict[str, object] = {
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "source": "the PyPI JSON API",
+    "subcommand": "fragment validate",
     "target": "https://example.org/x.whl",
     "unit": "byte",
     "url": "https://pypi.org/project/demo/1.0/",

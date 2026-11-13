@@ -21,7 +21,7 @@ without a code is not catalogued yet.
 ## Line grammar
 
 ```text
-LEVEL: [SUBJECT=value: ]CONDITION[; ACTION] [code]
+LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
 ```
 
 - `LEVEL` is `ERROR`, `WARNING` or `INFO`, always at the start of the line.
@@ -29,8 +29,10 @@ LEVEL: [SUBJECT=value: ]CONDITION[; ACTION] [code]
   has one.
 - `CONDITION` says what happened; `; ACTION` is what the reader can do next.
 - `[code]` is the last token. `DEBUG` lines carry no code.
-- An `ERROR:` line may start with what failed (`model command failed:`), and a
-  model scan's line with the model it read: the prefixes are listed with the
+- `FRAME` starts every `ERROR:` line the CLI prints: the command, as in
+  `ERROR: loom generate: ...` (`ERROR: loom: ...` before the command is
+  known). The Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
+  also start with the model it read: the prefixes are listed with the
   catalogue, in [Message codes](message-codes.md).
 
 To read a line back, match this regular expression on the line without its

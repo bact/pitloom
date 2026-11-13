@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,7 +91,7 @@ Status/skip/deviation messages the hook logs during a build follow the
 same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
 `loom` CLI (see [Command line](cli.md)) -- e.g. a merge failure (see
 [Merge fragments](fragments.md#merge-fragments)) fails the build outright
-with an `ERROR: SBOM generation failed: <reason>` line (once, whatever the
+with an `ERROR: Pitloom build hook: <reason>` line (once, whatever the
 cause: an invalid setting, a missing `required = true` fragment, a malformed
 `SOURCE_DATE_EPOCH`), and a disabled hook logs `INFO: Pitloom build hook:
 disabled; skipping SBOM generation.`

@@ -87,6 +87,9 @@ def _collect_cli() -> list[Snippet]:
             Snippet(span.path, span.line, "inline", _end_at_pipe(span.body))
             for span in inline_spans(path)
             if any(span.body.startswith(p + " ") for p in _PROGRAMS)
+            # A frame of the message reference (`loom <subcommand>: <text>`)
+            # is the start of an ``ERROR:`` line, not a command.
+            and not span.body.endswith(": <text>")
         )
     return cases
 

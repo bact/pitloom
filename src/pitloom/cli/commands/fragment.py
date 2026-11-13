@@ -40,7 +40,7 @@ from pitloom.logging_config import loggable, print_error
 log = logging.getLogger(__name__)
 
 
-@cli_error_handler("fragment validate failed")
+@cli_error_handler
 def _run_fragment_validate(args: argparse.Namespace) -> int:
     """Run `loom fragment validate`."""
     # Both checks run and report independently -- a user missing the
@@ -276,7 +276,7 @@ def _own_document_id(project_dir: Path) -> str | None:
         return None
 
 
-@cli_error_handler("fragment list failed")
+@cli_error_handler
 def _run_fragment_list(args: argparse.Namespace) -> int:
     """Run `loom fragment list`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()

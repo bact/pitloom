@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -158,7 +158,7 @@ WARNING: Build: received SIGTERM during the build -- exiting after cleanup
 
 (`after the build` once the build has finished; the signal name
 varies) and ends killed by that signal (exit status 143 for SIGTERM,
-129 for SIGHUP). Ctrl-C (SIGINT) prints `ERROR: interrupted` instead,
+129 for SIGHUP). Ctrl-C (SIGINT) prints `ERROR: loom <command>: interrupted` instead,
 exit status 130. Either way, tell the user the run was interrupted, not a
 Pitloom failure, and offer to re-run.
 

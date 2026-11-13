@@ -238,7 +238,7 @@ creator-name = 123
     captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "ERROR: SBOM generation failed" in captured.err
+    assert "ERROR: loom project: " in captured.err
     assert not (project_dir / "x.spdx3.json").exists()
     assert not (tmp_path / "sbom.spdx3.json").exists()
 

@@ -31,11 +31,10 @@ Rules to state to the user:
   --version` shows 0.24.0 or later). The ephemeral recipe in `SKILL.md` pins
   an older floor, where a `pypi.org` URL is cloned as Git. On an older
   `loom`, do not run it; report that 0.24.0 is needed.
-- A refusal prints `ERROR:` after a command prefix (`wheel command failed:`,
-  `project command failed:` or `SBOM generation failed:`), then the
-  condition, ending in the code in brackets. Key on that trailing `[code]`,
-  not on the start of the line; the quoted `ERROR:` fragments below are the
-  part after the prefix.
+- A refusal prints `ERROR: loom <command>: ` (`loom wheel`, `loom project`
+  or `loom generate`), then the condition, ending in the code in brackets.
+  Key on that trailing `[code]`, not on the start of the line; the quoted
+  `ERROR:` fragments below are the part after the frame.
 
 - There is no fallback between kinds. `loom wheel` never takes the sdist and
   `loom project` never takes a wheel. `loom generate` cannot ask for the

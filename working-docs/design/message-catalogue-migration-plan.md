@@ -17,7 +17,9 @@ Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
 `over-cap` (#396), the model-stub causes (#404, PR 1a), unreadable files and
 directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
-and 1c (#446). Left: PR 4 onward and T14, all 0.24.0. This file is the
+and 1c (#446); the reference split (#480) and PR 4, the frames
+([message-frames.md](../implementation/message-frames.md)), are built. Left:
+PR 3 onward and T14. This file is the
 reference for what remains and what ships in which release.
 
 ## Shipped in 0.22.0 (2026-10-30)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,9 +85,8 @@ magic is a GGUF model). A model whose read fails or exceeds a bound is written
 as a stub with that one `WARNING:`, and the command exits 0 (`enrich` writes
 its fragment: it reads the model too, and its enrichers read the README or
 model card next to the file). A file that is not a model, an absent one or an
-unreadable one fails instead: one `ERROR:` (`model command failed:`,
-`enrichment fragment generation failed:` or `SBOM generation failed:`, then the
-path and the reason, e.g. `header is a Git LFS pointer, content not pulled
+unreadable one fails instead: one `ERROR:` (framed by the command, `loom model`,
+`loom enrich` or `loom generate`, then the path and the reason, e.g. `header is a Git LFS pointer, content not pulled
 (oid sha256:<oid>, size <N> byte(s)); run 'git lfs pull'`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom

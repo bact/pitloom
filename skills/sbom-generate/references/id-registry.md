@@ -206,7 +206,7 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   read or listed is a `WARNING: FILE=... [file-unreadable]`/`DIR=...
   [dir-unlistable]` (project-relative path) and the run continues (so does a
   file whose name is not UTF-8 encodable, warned with no code); an
-  unreadable `PATH` argument is `ERROR: PATH '<path>': could not be read: ...`
+  unreadable `PATH` argument is `ERROR: loom id <command>: PATH '<path>': could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
   nothing and warns
@@ -231,11 +231,11 @@ hand: a file without it does not load; neither does one with a non-integer
 package keys without a version) or a version 2 one is rejected, on every
 command, with one `ERROR:`; nothing is written and the file is left as it is.
 `id generate`/`id import` print
-it as below; other commands prefix their own (`ERROR: SBOM generation
-failed: ...`):
+it as below with their own frame (`loom id generate` or `loom id import`); other
+commands frame theirs (`loom generate`):
 
 ```text
-ERROR: ID registry file '<path>': version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`)
+ERROR: loom id generate: ID registry file '<path>': version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`)
 ```
 
 Relay the `ERROR:`. Deleting the file loses its pins

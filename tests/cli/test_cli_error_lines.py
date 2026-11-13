@@ -19,7 +19,9 @@ import pytest
 
 from pitloom.__main__ import main
 from pitloom.cli.commands.utils import cli_error_handler, report_error_line
+from pitloom.cli.parser import command_frame
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import error_frame
 from pitloom.messages import (
     CONFIG_MEMBER_LINE,
     LFS_POINTER_MALFORMED,
@@ -117,15 +119,17 @@ def test_an_error_line_ends_in_a_catalogued_code_only(
     tail: str,
     trusted: Message | None,
 ) -> None:
-    """Both CLI error reporters, the per-wheel line and the command wrapper
-    (its frame ``model command failed: ``), end in the code, trusted."""
+    """Both CLI error reporters, the per-wheel line and the command wrapper,
+    end in the code, trusted; both start with the frame of the running
+    command."""
 
-    @cli_error_handler("model command failed")
+    @cli_error_handler
     def _fail(_args: object) -> int:
         raise raised
 
-    report_error_line(raised)
-    assert _fail(object()) == 1
+    with error_frame(command_frame("model")):
+        report_error_line(raised)
+        assert _fail(object()) == 1
     lines = capsys.readouterr().err.splitlines()
-    assert lines == [f"ERROR: {tail}", f"ERROR: model command failed: {tail}"]
+    assert lines == [f"ERROR: loom model: {tail}"] * 2
     assert [trusted_message(line) for line in lines] == [trusted, trusted]

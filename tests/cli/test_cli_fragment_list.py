@@ -447,7 +447,7 @@ def test_fragment_list_project_dir_no_pyproject(
     )
     result = __main__.main()
     assert result == 1
-    assert "ERROR: fragment list failed:" in capsys.readouterr().err
+    assert "ERROR: loom fragment list:" in capsys.readouterr().err
 
 
 def test_fragment_list_two_fragments_both_reported(

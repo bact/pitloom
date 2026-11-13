@@ -11,13 +11,15 @@ import sys
 import typing
 from types import TracebackType
 
-from pitloom.cli.parser import _build_parser
+from pitloom.cli.parser import _build_parser, command_frame, command_path
 from pitloom.logging_config import (
     apply_debug_override,
     configure_logging,
     debug_enabled,
+    error_frame,
     print_error,
     print_traceback,
+    set_error_frame,
 )
 
 # 128 + SIGINT, the status a shell reports for a command ended by Ctrl-C.
@@ -27,17 +29,20 @@ _EXIT_INTERRUPTED = 130
 def main() -> int:
     """Main entry point for the Pitloom CLI, for in-process callers.
 
-    Ctrl-C is one ``ERROR: interrupted`` line and exit status 130; the
+    Every ``ERROR:`` line starts with the frame of its command (``loom
+    generate: ``; ``loom: `` before the command is known), so Ctrl-C is one
+    ``ERROR: loom generate: interrupted`` line and exit status 130; the
     traceback follows only with ``--debug``/``PITLOOM_DEBUG``. By the time
     the ``KeyboardInterrupt`` gets here, a ``--allow-build`` build tree
     has been killed and its temporary directories removed (the
     :class:`~pitloom.core.build_signals.TerminationGuard` owner's exit).
     """
-    try:
-        return _run()
-    except KeyboardInterrupt:
-        _report_interrupt()
-        return _EXIT_INTERRUPTED
+    with error_frame(command_frame("")):
+        try:
+            return _run()
+        except KeyboardInterrupt:
+            _report_interrupt()
+            return _EXIT_INTERRUPTED
 
 
 def console_main() -> int:
@@ -50,12 +55,13 @@ def console_main() -> int:
     Windows). A shell sees a Ctrl-C and stops a loop or script running
     ``loom``, rather than going on to the next command.
     """
-    try:
-        return _run()
-    except KeyboardInterrupt:
-        _report_interrupt()
-        sys.excepthook = _ignore_exception
-        raise
+    with error_frame(command_frame("")):
+        try:
+            return _run()
+        except KeyboardInterrupt:
+            _report_interrupt()
+            sys.excepthook = _ignore_exception
+            raise
 
 
 def _report_interrupt() -> None:
@@ -90,6 +96,7 @@ def _run() -> int:
     # other attribute too.
     apply_debug_override(getattr(args, "debug", None))
     configure_logging()
+    set_error_frame(command_frame(command_path(args)))
 
     if hasattr(args, "func"):
         return typing.cast(int, args.func(args))

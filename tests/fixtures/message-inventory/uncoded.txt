@@ -144,4 +144,4 @@ pitloom.id_registry._session 4
 pitloom.id_registry._types 4
 pitloom.id_registry.import_keys 3
 pitloom.plugins._hatch_config 3
-pitloom.plugins.hatch 9
+pitloom.plugins.hatch 8

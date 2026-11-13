@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -207,8 +207,10 @@ release is not decided. Several design docs still say "0.24.0" for these items
 and need the new target once it is set. Each item is its own PR; the order and
 counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
-- [ ] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
-  `ERROR:` lines, which unblocks coding the `Build:` and `Git source:` lines.
+- [x] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
+  every CLI `ERROR:` line, built; coding the `Build:` and `Git source:` lines
+  is unblocked (PRs 13 and 14). See
+  [message-frames.md](../implementation/message-frames.md).
 - [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
   last): caller actor and input errors, the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and

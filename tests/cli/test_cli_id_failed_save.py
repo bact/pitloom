@@ -24,6 +24,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.parser import command_frame
 from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry, persist_registry
 from pitloom.id_registry._counters import MAX_ID_NUMBER
 from tests.id_registry.shared import _write_sample_sbom
@@ -65,11 +66,18 @@ def _prepare(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, surface: str) -> P
     return registry
 
 
-def _assert_one_failed_save(err: str, level: str, registry: Path, reason: str) -> None:
+def _assert_one_failed_save(
+    err: str, surface: str, level: str, registry: Path, reason: str
+) -> None:
+    # Only an ERROR line is framed (``loom id import: ``); the project
+    # surface says it as a WARNING.
+    frame = command_frame(f"id {surface}") if level == "ERROR" else ""
     lines = err.splitlines()
     saves = [line for line in lines if "failed to save" in line]
     assert len(saves) == 1, lines
-    assert saves[0].startswith(f"{level}: ID registry: failed to save '{registry}': ")
+    assert saves[0].startswith(
+        f"{level}: {frame}ID registry: failed to save '{registry}': "
+    )
     assert reason in saves[0]
     assert "Traceback" not in err
     errors = [line for line in lines if line.startswith("ERROR: ")]
@@ -96,7 +104,7 @@ def test_a_read_only_registry_is_one_failed_save_line_on_every_surface(
         os.chmod(registry, 0o644)
 
     assert rc == code
-    _assert_one_failed_save(capsys.readouterr().err, level, registry, "")
+    _assert_one_failed_save(capsys.readouterr().err, surface, level, registry, "")
     assert registry.read_bytes() == before
 
 
@@ -121,7 +129,9 @@ def test_a_failed_registry_write_is_one_failed_save_line_on_every_surface(
         rc = __main__.main()
 
     assert rc == code
-    _assert_one_failed_save(capsys.readouterr().err, level, registry, "disk full")
+    _assert_one_failed_save(
+        capsys.readouterr().err, surface, level, registry, "disk full"
+    )
     assert registry.read_bytes() == before
 
 
@@ -141,7 +151,9 @@ def test_id_generate_failing_before_the_save_is_not_a_failed_save(
     assert __main__.main() == 1
 
     err = capsys.readouterr().err
-    assert err.startswith("ERROR: ID registry: no File id left to mint")
+    assert err.startswith(
+        f"ERROR: {command_frame('id generate')}ID registry: no File id left to mint"
+    )
     assert len(err.splitlines()) == 1
     assert registry.read_bytes() == before
 

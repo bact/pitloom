@@ -521,7 +521,7 @@ calling the library API repeatedly in one long-lived process should not rely
 on `--no-debug`/`apply_debug_override(False)` to reset between calls; see
 `apply_debug_override()`'s docstring in `pitloom/logging_config.py`.
 
-Ctrl-C ends any command with one `ERROR: interrupted` line and exit status
+Ctrl-C ends any command with one `ERROR: loom <command>: interrupted` line and exit status
 130. With `--debug` (or `PITLOOM_DEBUG`) the Python traceback follows, showing
 where the command was interrupted: useful for a run that seems stuck.
 

@@ -150,7 +150,7 @@ def test_a_failed_generation_is_one_error_line(
     assert code != 0 and not wheels
     errors = tagged(lines, "ERROR")
     assert len(errors) == 1, lines
-    assert errors[0].startswith("ERROR: SBOM generation failed: ")
+    assert errors[0].startswith("ERROR: Pitloom build hook: ")
     assert reason in errors[0]
     if "SOURCE_DATE_EPOCH" in env:
         assert not tagged(lines, "WARNING")

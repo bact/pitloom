@@ -127,7 +127,7 @@ def _run_hf_model(args: argparse.Namespace, target: str) -> int:
     return 0
 
 
-@cli_error_handler("model command failed")
+@cli_error_handler
 def _run_model_command(args: argparse.Namespace) -> int:
     """Generate an AI Model SBOM from a local file or folder, a Git URL or a
     Hugging Face repository."""

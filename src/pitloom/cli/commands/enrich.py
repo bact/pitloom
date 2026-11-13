@@ -31,7 +31,7 @@ from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
 log = logging.getLogger(__name__)
 
 
-@cli_error_handler("enrichment fragment generation failed")
+@cli_error_handler
 def _run_enrich_command(args: argparse.Namespace) -> int:
     """Run enrichment only for a local AI model file; write a fragment."""
     target: str = args.target

@@ -22,7 +22,9 @@ import re
 import sys
 import threading
 import traceback
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, TextIO, cast
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
@@ -115,13 +117,51 @@ def print_traceback() -> None:
         print(f"  {escape_controls(line)}", file=sys.stderr)
 
 
-def print_error(message: str, *, code: str | None = None) -> None:
-    """Print one ``ERROR: <message>`` line to stderr, the message escaped by
-    :func:`escape_controls`: the one way the CLI writes an error, so a newline
-    in a path or an exception text cannot start a second, forged line. A
-    catalogued *code* follows as `` [code]``; without one, nothing at the end
-    reads as a code (:func:`_with_code`)."""
-    print(f"ERROR: {_with_code(escape_controls(message), code)}", file=sys.stderr)
+#: The prefix :func:`print_error` puts before a message while a command runs
+#: (``loom generate: ``); empty where nothing sets one: the library, the
+#: Hatchling hook and a unit test. Its text is the catalogue's
+#: (:data:`pitloom.messages.COMMAND_FRAME`), built by the caller, since the
+#: catalogue imports this module.
+_ERROR_FRAME: ContextVar[str] = ContextVar("pitloom_error_frame", default="")
+
+
+@contextmanager
+def error_frame(prefix: str) -> Iterator[None]:
+    """Within the block, :func:`print_error` puts *prefix* before a message
+    (until :func:`set_error_frame` changes it); the previous prefix returns
+    on exit, also on an exception.
+
+    The CLI's entry points open it, so a Ctrl-C before a subcommand is known
+    is framed too. A worker thread does not inherit it (nothing prints an
+    ``ERROR:`` line from one)."""
+    token = _ERROR_FRAME.set(prefix)
+    try:
+        yield
+    finally:
+        _ERROR_FRAME.reset(token)
+
+
+def set_error_frame(prefix: str) -> None:
+    """Change the prefix of the open :func:`error_frame` (the CLI knows its
+    subcommand only once the arguments parsed)."""
+    _ERROR_FRAME.set(prefix)
+
+
+def print_error(
+    message: str, *, code: str | None = None, frame: str | None = None
+) -> None:
+    """Print one ``ERROR: <frame><message>`` line to stderr, the message
+    escaped by :func:`escape_controls`: the one way the CLI writes an error,
+    so a newline in a path or an exception text cannot start a second, forged
+    line. A catalogued *code* follows as `` [code]``; without one, nothing at
+    the end reads as a code (:func:`_with_code`).
+
+    The *frame* is the line's prefix (``loom generate: ``, ending in
+    ``": "``); ``None`` takes the one :func:`error_frame` set, ``""`` none."""
+    prefix = _ERROR_FRAME.get() if frame is None else frame
+    print(
+        f"ERROR: {prefix}{_with_code(escape_controls(message), code)}", file=sys.stderr
+    )
 
 
 def loggable(text: str) -> str:
