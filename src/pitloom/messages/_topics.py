@@ -112,6 +112,13 @@ def topic_of(code: str) -> str:
     """The topic slug of the page that holds *code* (``family[/variant]``).
 
     Raises:
-        KeyError: The code's family is not in :data:`FAMILY_TOPICS`.
+        KeyError: The code's family is not in :data:`FAMILY_TOPICS`; the
+            message says to map it in this module.
     """
-    return FAMILY_TOPICS[code.partition("/")[0]]
+    family = code.partition("/")[0]
+    try:
+        return FAMILY_TOPICS[family]
+    except KeyError:
+        raise KeyError(
+            f"family {family!r} has no topic: map it in pitloom/messages/_topics.py"
+        ) from None

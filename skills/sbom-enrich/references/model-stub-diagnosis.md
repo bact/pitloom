@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # A stub model, a cut name, an escaped control: read the cause first
 
 See also: `../SKILL.md` (step 3, which holds the rule: tell the user the cause
-before inferring from prose), `messages.md` (each code: what Pitloom did, what
+before inferring from prose), `messages.md` (the index; its pages: what Pitloom did, what
 to tell the user), `deterministic-pass.md` (the stub case in step 2) and
 `minimum-elements.md` (G7 model elements for a stub).
 

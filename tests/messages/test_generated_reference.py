@@ -53,6 +53,8 @@ def _load() -> ModuleType:
     return module
 
 
+pytestmark = pytest.mark.platform  # paths, globs, line ends, a subprocess
+
 gen = _load()
 _DOCS = gen.SITES[0]
 _BODY = gen.render(_DOCS)
@@ -88,7 +90,32 @@ def test_git_checks_every_target_and_page_out_with_lf() -> None:
     pages = [s.path(t) for s in gen.SITES for t in TOPIC_TITLES]
     for path in (*gen.TARGETS, *pages, *gen.MODEL_TARGETS):
         name = path.relative_to(_ROOT).as_posix()
-        assert any(fnmatch.fnmatchcase(name, pat) for pat in patterns), name
+        assert any(_git_matches(name, pat) for pat in patterns), name
+
+
+def _git_matches(name: str, pattern: str) -> bool:
+    """*name* matches *pattern* as ``.gitattributes`` does: a ``*`` stays
+    within one path segment (``fnmatch`` lets it cross ``/``)."""
+    parts, wanted = name.split("/"), pattern.split("/")
+    return len(parts) == len(wanted) and all(
+        fnmatch.fnmatchcase(p, w) for p, w in zip(parts, wanted, strict=True)
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "pattern", "expected"),
+    [
+        ("skills/x/references/messages.md", "skills/*/references/messages*.md", True),
+        ("skills/x/references/messages.md", "skills/*/messages*.md", False),
+        ("docs/message-codes-files.md", "docs/message-codes*.md", True),
+        ("docs/a/message-codes.md", "docs/message-codes*.md", False),
+    ],
+    ids=["segment", "no-cross-slash", "docs", "nested"],
+)
+def test_the_git_match_does_not_let_a_star_cross_a_slash(
+    name: str, pattern: str, expected: bool
+) -> None:
+    assert _git_matches(name, pattern) is expected
 
 
 def test_the_docs_catalogue_has_its_own_index() -> None:
@@ -164,15 +191,23 @@ def test_the_prefixes_are_the_catalogues_frames() -> None:
         assert any(r.startswith(head) and frame.surface in r for r in rows), head
 
 
-_RENDERS: list[Callable[[], str]] = [
-    lambda: _BODY,
-    lambda: gen.render_page(_DOCS, "models"),
-    lambda: gen.render_page(gen.SITES[1], "pypi"),
-    gen.render_model_table,
+_RENDERS: list[tuple[str, Callable[[], str]]] = [
+    ("index", lambda: _BODY),
+    ("model", gen.render_model_table),
+    *(
+        (
+            f"{site.index.parent.parent.name}-{topic}",
+            lambda s=site, t=topic: gen.render_page(s, t),
+        )
+        for site in gen.SITES
+        for topic in TOPIC_TITLES
+    ),
 ]
 
 
-@pytest.mark.parametrize("render", _RENDERS, ids=["index", "docs", "skill", "model"])
+@pytest.mark.parametrize(
+    "render", [r for _, r in _RENDERS], ids=[name for name, _ in _RENDERS]
+)
 def test_the_output_lints_clean(render: Callable[[], str]) -> None:
     """Outside code blocks: no code span with a space at an edge; outside
     tables too, no line over 80 characters and none starting with ``<``
@@ -389,3 +424,35 @@ def test_the_pages_list_counts_a_single_code_in_the_singular() -> None:
     assert [ln for ln in lines if ln.endswith(": 1 code")] == [
         f"- [Licences]({_DOCS.path('licences').name}): 1 code"
     ]
+
+
+def test_a_site_names_each_codes_page_and_anchor() -> None:
+    """``Site.link`` and ``Site.path`` follow the topic, not the index (a
+    page's anchor is the slug of its code)."""
+    site = gen.SITES[1]
+    assert site.path("files") == site.index.with_name("messages-files.md")
+    assert gen.SITES[0].path("pypi").name == "message-codes-pypi.md"
+    assert site.link("over-cap") == "messages-files.md#over-cap"
+    assert site.link("reader-unsafe/remote") == "messages-models.md#reader-unsaferemote"
+
+
+def test_an_unmapped_family_names_the_module_to_edit() -> None:
+    with pytest.raises(KeyError, match=r"no-such.*_topics\.py"):
+        topic_of("no-such/variant")
+
+
+@pytest.mark.parametrize("kind", ["text", "mapping"])
+def test_a_block_body_is_a_text_or_a_text_by_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    target = tmp_path / "t.md"
+    target.write_bytes(f"a\n{gen.BEGIN}\nold\n{gen.END}\nb\n".encode())
+    monkeypatch.setattr(gen, "ROOT", tmp_path)
+    body: object = "new" if kind == "text" else {target: "new"}
+    assert gen.run([target], check=False, body=body) == 0
+    assert target.read_bytes() == f"a\n{gen.BEGIN}\nnew\n{gen.END}\nb\n".encode()
+
+
+def test_main_checks_the_tree_in_process(capsys: pytest.CaptureFixture[str]) -> None:
+    assert gen.main(["--check"]) == 0
+    assert capsys.readouterr().err == ""

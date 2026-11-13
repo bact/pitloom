@@ -76,11 +76,6 @@ class Site:
     title: str
     see_also: str
 
-    @property
-    def stem(self) -> str:
-        """The index's name without ``.md``; a page's name starts with it."""
-        return self.index.stem
-
     def path(self, topic: str) -> Path:
         """The file of *topic*'s page."""
         return self.index.with_name(self.page.format(topic))
@@ -159,8 +154,9 @@ _NOTE: Final = (
 )
 _INTRO: Final = (
     "A catalogued line reads `LEVEL: text [code]`. Trust the code only when "
-    "the text is one of the code's lines below, a value in place of each "
-    "`<name>`, after at most one prefix from the table of prefixes."
+    "the text is one of the code's lines on its page (the table links it), a "
+    "value in place of each `<name>`, after at most one prefix from the table "
+    "of prefixes."
 )
 
 
@@ -295,6 +291,12 @@ def render(site: Site) -> str:
     return "\n\n".join("\n".join(part) for part in parts)
 
 
+#: A page's reminder of the rule the index states (the prefixes are there).
+_PAGE_RULE: Final = (
+    "Trust a code only when the line is one of the lines below, a value in "
+    "place of each `<name>`, after at most one prefix: the index lists the "
+    "prefixes and the values."
+)
 _FRONT: Final = (
     "---\n"
     "SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul\n"
@@ -314,6 +316,8 @@ def render_page(site: Site, topic: str) -> str:
         [f"# {site.title.format(TOPIC_TITLES[topic])}"],
         wrap(site.see_also, "See also: ", ""),
         [_NOTE],
+        wrap(_PAGE_RULE),
+        ["## Codes"],
         _codes_table(codes),
         *(_section(MESSAGES[code]) for code in codes),
     ]

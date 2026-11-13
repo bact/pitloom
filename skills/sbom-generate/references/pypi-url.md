@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,8 +136,9 @@ How to read the record to the user:
 
 ## Messages to relay
 
-Read `messages-pypi.md` (the index `messages.md` links the other pages) for
-each code above and relay its advice. A
+Find each code above in `messages.md`, read the page it links (`messages-pypi.md`
+for most; `over-cap`, `url-unsafe` and the download codes are on others) and
+relay its advice. A
 `WARNING: PYPI=<name> FILE=<file>: ...; skipped` (`[pypi-response-invalid]`)
 means a file of the release was left out of the choice because PyPI's entry
 for it was not valid; it only narrows the choice, so report it. A network
