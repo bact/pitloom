@@ -41,9 +41,10 @@ from pitloom.messages import LIBRARY_MISSING, LIBRARY_UNUSABLE, code_of
 
 def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
     """Decorator to standardise CLI error handling and tracebacks: an
-    exception is one ``ERROR:`` line (its text, then its code) and exit
-    status 1. The line starts with the frame of the command
-    (:func:`pitloom.logging_config.print_error`), set once for the run."""
+    exception is one ``ERROR:`` line (its text, else its class name, then
+    its code) and exit status 1. The line starts with the frame of the
+    command (:func:`pitloom.logging_config.print_error`), set once for the
+    run."""
 
     @wraps(func)
     def wrapper(args: Any, *pargs: Any, **kwargs: Any) -> int:
@@ -51,7 +52,7 @@ def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
             return func(args, *pargs, **kwargs)
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
-            print_error(f"{e}", code=code_of(e))
+            print_error(str(e) or type(e).__name__, code=code_of(e))
             if getattr(args, "verbose", False):
                 print_traceback()
             return 1

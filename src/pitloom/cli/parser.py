@@ -129,7 +129,7 @@ class _LoomParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         command = self.prog.removeprefix("loom").strip()
-        print_error(f"{message}", frame=command_frame(command))
+        print_error(message, frame=command_frame(command))
         self.exit(2)
 
 

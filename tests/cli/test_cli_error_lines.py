@@ -133,3 +133,24 @@ def test_an_error_line_ends_in_a_catalogued_code_only(
     lines = capsys.readouterr().err.splitlines()
     assert lines == [f"ERROR: loom model: {tail}"] * 2
     assert [trusted_message(line) for line in lines] == [trusted, trusted]
+
+
+@pytest.mark.parametrize(
+    ("raised", "text"),
+    [(RuntimeError(), "RuntimeError"), (KeyError(""), "''"), (OSError(" "), " ")],
+    ids=["empty", "key-error", "space"],
+)
+def test_an_empty_exception_text_names_its_class(
+    capsys: pytest.CaptureFixture[str], raised: Exception, text: str
+) -> None:
+    """A bare ``raise RuntimeError()`` still says its cause: the line names
+    the class, never stopping at the frame; a text that is not empty, even
+    one ``str()`` makes of an empty key, is said as it is."""
+
+    @cli_error_handler
+    def _fail(_args: object) -> int:
+        raise raised
+
+    with error_frame(command_frame("model")):
+        assert _fail(object()) == 1
+    assert capsys.readouterr().err.splitlines() == [f"ERROR: loom model: {text}"]

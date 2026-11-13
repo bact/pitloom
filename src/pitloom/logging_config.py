@@ -99,13 +99,16 @@ class _OneLineFormatter(logging.Formatter):
     """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
     whatever a call site interpolated, one record is one tagged line on
     stderr, then its :data:`CODE_ATTR` (:func:`_with_code`; none on ``DEBUG``).
-    A traceback (``exc_info``) is appended as it is."""
+    An ``ERROR`` (or worse) record starts with the open :func:`error_frame`,
+    as :func:`print_error` does, so a command's error is framed whichever way
+    it is written. A traceback (``exc_info``) is appended as it is."""
 
     def formatMessage(self, record: logging.LogRecord) -> str:
         code = (
             getattr(record, CODE_ATTR, None) if record.levelno > logging.DEBUG else None
         )
-        record.message = _with_code(escape_controls(record.message), code)
+        frame = _ERROR_FRAME.get() if record.levelno >= logging.ERROR else ""
+        record.message = frame + _with_code(escape_controls(record.message), code)
         return super().formatMessage(record)
 
 
@@ -132,8 +135,13 @@ def error_frame(prefix: str) -> Iterator[None]:
     on exit, also on an exception.
 
     The CLI's entry points open it, so a Ctrl-C before a subcommand is known
-    is framed too. A worker thread does not inherit it (nothing prints an
-    ``ERROR:`` line from one)."""
+    is framed too. It is per context: a worker thread does not inherit it, so
+    an ``ERROR`` record logged from a worker would be unframed (none is
+    today). The Hatchling hook writes its own frame into its record's text and
+    runs where no frame is open.
+
+    :func:`print_error` and the formatter of :func:`configure_logging` read it
+    when the line is written."""
     token = _ERROR_FRAME.set(prefix)
     try:
         yield

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import sys
 import typing
+from collections.abc import Iterator
+from contextlib import contextmanager
 from types import TracebackType
 
 from pitloom.cli.parser import _build_parser, command_frame, command_path
@@ -37,12 +39,11 @@ def main() -> int:
     has been killed and its temporary directories removed (the
     :class:`~pitloom.core.build_signals.TerminationGuard` owner's exit).
     """
-    with error_frame(command_frame("")):
-        try:
+    try:
+        with _framed_session():
             return _run()
-        except KeyboardInterrupt:
-            _report_interrupt()
-            return _EXIT_INTERRUPTED
+    except KeyboardInterrupt:
+        return _EXIT_INTERRUPTED
 
 
 def console_main() -> int:
@@ -55,12 +56,25 @@ def console_main() -> int:
     Windows). A shell sees a Ctrl-C and stops a loop or script running
     ``loom``, rather than going on to the next command.
     """
+    try:
+        with _framed_session():
+            return _run()
+    except KeyboardInterrupt:
+        sys.excepthook = _ignore_exception
+        raise
+
+
+@contextmanager
+def _framed_session() -> Iterator[None]:
+    """Run the command line with its error frame open (``loom: `` until the
+    subcommand is known), and report a Ctrl-C inside it, so the line carries
+    the frame of the command that was running; the ``KeyboardInterrupt``
+    goes on to the caller."""
     with error_frame(command_frame("")):
         try:
-            return _run()
+            yield
         except KeyboardInterrupt:
             _report_interrupt()
-            sys.excepthook = _ignore_exception
             raise
 
 

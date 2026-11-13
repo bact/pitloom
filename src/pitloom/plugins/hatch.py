@@ -64,9 +64,10 @@ _LOG_PREFIX = "Pitloom: "
 #: builds with no SBOM and no warning: the version is checked explicitly.
 _MIN_HATCHLING_SBOM_VERSION = "1.29.0"
 
-#: Shared prefix for every _check_hatchling_sbom_support() error, so both
-#: failure modes are easy to grep/filter for as one family of error.
-#: The text of a Hatchling-too-old error; the hook's frame names the hook.
+#: Shared start of every _check_hatchling_sbom_support() error, so both
+#: failure modes are easy to grep/filter for as one family of error. The
+#: hook's frame (``Pitloom build hook: ``) goes before it on the ERROR line;
+#: the traceback names this module, so the raised text does not repeat it.
 _HATCHLING_ERROR_PREFIX = "Hatchling"
 
 
@@ -363,6 +364,8 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         except Exception as exc:
             # The one place a failure is reported, as the CLI's handler does;
             # the re-raise fails the build, with Hatchling's own traceback.
+            # The frame is in the record's own text (what a handler reads), and
+            # the hook runs where no command frame is open (its own process).
             log.error(
                 "%s%s",
                 HOOK_FRAME.render({}),

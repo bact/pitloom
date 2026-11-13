@@ -23,7 +23,7 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.quote_source import quote_source
-from pitloom.logging_config import loggable, print_error
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def _check_name_version(
 
     message = format_name_version_mismatch(wheel_path.name, mismatches)
     if fail_on_mismatch:
-        print_error(message)
+        log.error(message)
         return False
     log.warning(message)
     return True

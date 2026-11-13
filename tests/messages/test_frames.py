@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import logging
 import sys
 from pathlib import Path
 
@@ -29,7 +30,13 @@ from pitloom.cli.parser import (
     command_frame,
     command_path,
 )
-from pitloom.logging_config import error_frame, print_error, set_error_frame
+from pitloom.logging_config import (
+    CODE_ATTR,
+    configure_logging,
+    error_frame,
+    print_error,
+    set_error_frame,
+)
 from pitloom.messages import (
     COMMAND_FRAME,
     FRAMES,
@@ -270,20 +277,38 @@ def test_a_cli_error_handler_is_a_bare_decorator() -> None:
     assert uses >= 12  # the scan finds the handlers
 
 
-def test_the_command_line_writes_no_error_record_that_would_miss_its_frame() -> None:
-    """``print_error`` is the one way: a ``log.error`` in the command line
-    code would print ``ERROR:`` with no frame."""
-    root = SRC_ROOT / "cli"
-    paths = [*root.rglob("*.py"), SRC_ROOT / "__main__.py"]
-    assert len(paths) > 10  # the scan finds the modules
-    for path in paths:
-        for node in ast.walk(ast.parse(path.read_bytes())):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                logger = getattr(node.func.value, "id", None)
-                assert not (
-                    logger in {"log", "logger", "logging"}
-                    and node.func.attr in {"error", "critical", "exception"}
-                ), f"{path.name}:{node.lineno} logs an error the frame skips"
+@pytest.mark.parametrize(
+    ("level", "framed"),
+    [
+        (logging.CRITICAL, True),
+        (logging.ERROR, True),
+        (logging.WARNING, False),
+        (logging.INFO, False),
+    ],
+    ids=["critical", "error", "warning", "info"],
+)
+def test_an_error_record_is_framed_as_print_error_is_and_a_warning_is_not(
+    level: int, framed: bool, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The frame is the logging formatter's too, so a command's ``log.error``
+    reads as its ``print_error`` does (the code still ends the line)."""
+    configure_logging()
+    log = logging.getLogger("pitloom.test_frames")
+    extra = {CODE_ATTR: "x-y"}
+    with error_frame("loom wheel: "):
+        log.log(level, "reason\nSECOND", extra=extra)
+    name = logging.getLevelName(level)
+    wanted = f"{name}: {'loom wheel: ' if framed else ''}reason\\nSECOND [x-y]"
+    assert capsys.readouterr().err.splitlines() == [wanted]
+
+
+def test_an_error_record_outside_a_frame_has_none(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The library, the hook and a unit test set no frame."""
+    configure_logging()
+    logging.getLogger("pitloom.test_frames").error("plain")
+    assert capsys.readouterr().err == "ERROR: plain\n"
 
 
 def test_the_build_hook_reports_its_failure_with_its_frame() -> None:

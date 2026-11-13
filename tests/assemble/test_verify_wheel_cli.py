@@ -332,7 +332,8 @@ def test_verify_wheel_name_mismatch_fails_with_flag(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR:" in captured.err
+    # The one ``log.error`` route of the command line: framed by the formatter.
+    assert "ERROR: loom verify-wheel: " in captured.err
     assert "name: wheel declares 'realpkg2', SBOM declares 'otherpkg2'" in captured.err
     assert statuses(captured.out) == ["failed"]
 

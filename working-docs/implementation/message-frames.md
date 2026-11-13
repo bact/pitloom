@@ -49,6 +49,18 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
   exit-130 rule the generated reference's ERROR text does not state.
 - The `Build:` and `Git source:` WARNING sub-prefixes are not frames yet:
   they need a WARNING line on each family they relay (PRs 13 and 14).
-- Ratchet: a `str(exc)` passthrough forwarding the exception's code is out of
-  scope (`{e}`, `{message}` templates), so the handler and the parser add no
-  uncoded site; the hook's failure line (`%s%s`) leaves one.
+- Ratchet: the two relays are out of scope by the shape of their code, not by
+  a variable's name (`scripts/message_inventory/_relay.py`): the handler's
+  `print_error(str(e) or type(e).__name__, code=code_of(e))` in an
+  `except Exception as e` (text and code both the caught exception's, its
+  raise the counted site), and `argparse`'s own text in the `error(self,
+  message)` override of an `ArgumentParser` subclass, said by `print_error`.
+  Both need the call in the binder's own body (no nested function, lambda or
+  comprehension) and no rebinding of the name there. A line forwarding a
+  code but adding its own text, or under a narrower `except`
+  (`loom id generate`'s), still counts. The handler and the parser so add no
+  uncoded site; the hook's failure line (`%s%s`) leaves one. Rejected: a
+  `{e}`/`{message}` template exemption, which would have exempted any new
+  `log.warning(f"{message}")` in the tree.
+- An exception with empty text is said by its class name
+  (`ERROR: loom model: RuntimeError`), so the line never stops at the frame.
