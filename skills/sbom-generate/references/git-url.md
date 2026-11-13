@@ -24,7 +24,7 @@ URL is read by the host's conventions. Rules to state to the user:
 
 - Only `http`/`https` URLs are fetched. `ssh://`, `git://`, `file://` and
   `git@host:path` get `WARNING: Git source: Cannot fetch <url>: only http and
-  https URLs are fetched ...`, then `ERROR: SBOM generation failed: ...`
+  https URLs are fetched ...`, then `ERROR: loom <command>: ...`
   (exit 1). A Hugging Face model address is a model, not a repository: use
   `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a
   repository.
@@ -36,17 +36,17 @@ URL is read by the host's conventions. Rules to state to the user:
   downloaded repository is not run; <settings> ignored
   [config-unsafe/build-code]`, and the file list may miss what that code adds.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
-  and `loom generate` (`ERROR: SBOM generation failed: URL=<url>: network
+  and `loom generate` (`ERROR: loom <command>: URL=<url>: network
   access is forbidden (offline mode); nothing fetched [offline-unusable]`,
   after the same text as a `WARNING: Git source:` line). The PyPI and
   Hugging Face routes refuse with the same code.
 - The checkout may take at most 512 MiB of disk (`--max-download-bytes
   BYTES`, or `max-download-bytes` in a `--config` file; the setting that caps
-  a PyPI download). Over it the fetch stops: `ERROR: ...: the repository is
+  a PyPI download). Over it the fetch stops: `ERROR: loom <command>: the repository is
   larger than the <limit>-byte max-download-bytes cap; git clone was stopped
   [over-cap]`, no SBOM. Tell the user about the flag and what it costs (disk,
   time); do not raise it for them (non-interactively, report only).
-- A clone that cannot reach the server ends `ERROR: ...: git clone failed:
+- A clone that cannot reach the server ends `ERROR: loom <command>: git clone failed:
   <git's reason>; nothing fetched [download-network-failed]`, one that runs
   out of time `... did not finish within <seconds> seconds; stopped
   [download-timeout]`: the codes a PyPI or Hugging Face request that fails
@@ -102,10 +102,10 @@ generate <url>`. Rules to state:
 - A folder is read non-recursively (the repository URL reads the root files
   only): a model in a subfolder needs that folder's URL or the file's.
 - One model per SBOM: several models in a folder give `INFO: FILE=<file>: one
-  of several AI model files` per file, then `ERROR: ... several AI model files
+  of several AI model files` per file, then `ERROR: loom <command>: ... several AI model files
   ...; name one file` (`[model-ambiguous]`). Ask which one and rerun with the
   file's URL (non-interactively, report the list). Neither a project nor a
-  model: `ERROR: ... no Python project (pyproject.toml, setup.cfg or setup.py)
+  model: `ERROR: loom <command>: ... no Python project (pyproject.toml, setup.cfg or setup.py)
   and no AI model file of a supported format ...` (`[project-or-model-not-found]`;
   `git.no-project` only when the repository has subprojects). `loom model
   <url>` on such a folder says `not an AI model file of a supported format`

@@ -77,10 +77,15 @@ def test_a_project_scan_says_the_reader_library_is_broken(tmp_path: Path) -> Non
         (
             ["model", "google-bert/bert-base-uncased", "-o", "h.json"],
             "huggingface_hub",
-            "model command failed: ",
+            "loom model: ",
             "huggingface_hub",
         ),
-        (["fragment", "validate", "f.json"], "spdx3_validate", "", "validate"),
+        (
+            ["fragment", "validate", "f.json"],
+            "spdx3_validate",
+            "loom fragment validate: ",
+            "validate",
+        ),
         (
             [
                 "project",
@@ -92,7 +97,7 @@ def test_a_project_scan_says_the_reader_library_is_broken(tmp_path: Path) -> Non
                 "o.json",
             ],
             "magika",
-            "SBOM generation failed: ",
+            "loom project: ",
             "content-type",
         ),
     ],

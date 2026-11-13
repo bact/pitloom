@@ -230,3 +230,23 @@ def test_the_documented_command_runs_the_ratchet() -> None:
     )
     assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
     assert done.stdout == b""
+
+
+@pytest.mark.parametrize(
+    ("file", "function", "kind"),
+    [
+        ("src/pitloom/cli/commands/utils.py", "cli_error_handler.wrapper", "exception"),
+        ("src/pitloom/cli/parser.py", "_LoomParser.error", "argparse"),
+    ],
+    ids=["handler", "parser"],
+)
+def test_the_two_relays_say_no_text_of_their_own(
+    records: list[dict[str, Any]], file: str, function: str, kind: str
+) -> None:
+    """The command handler says the caught exception's text and code, the
+    parser argparse's: neither counts, known by the code's shape. They are
+    the only relays, so no other line leaves the count this way."""
+    relays = [(r["file"], r["function"], r["relays"]) for r in records if r["relays"]]
+    assert (file, function, kind) in relays and len(relays) == 2
+    (site,) = [r for r in records if (r["file"], r["function"]) == (file, function)]
+    assert site["emitter"] == "print_error" and not load().in_scope(site)

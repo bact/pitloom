@@ -25,10 +25,13 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands import project as mod_project
+from pitloom.cli.parser import command_frame
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.logging_config import PITLOOM_DEBUG_ENV_VAR
 from tests.build_and_read_shared import pitloom_subprocess_env, spied_raise_signal
 from tests.cli.shared import _make_simple_project
+
+_INTERRUPTED = f"ERROR: {command_frame('project')}interrupted"
 
 
 @pytest.fixture(name="raise_spy")
@@ -76,7 +79,7 @@ def test_ctrl_c_is_one_error_line_and_exit_130(
     env: str | None,
     traceback_shown: bool,
 ) -> None:
-    """Ctrl-C in a subcommand is ``ERROR: interrupted`` and 130, never a
+    """Ctrl-C in a subcommand is ``ERROR: loom project: interrupted`` and 130, never a
     raw traceback; the traceback follows it only when debugging."""
     # setenv "0", not delenv: delenv on an absent name records no restore,
     # so --debug's direct write would leak into later tests.
@@ -86,9 +89,7 @@ def test_ctrl_c_is_one_error_line_and_exit_130(
     assert _run_project(monkeypatch, tmp_path, *top_level) == 130
 
     err = capsys.readouterr().err
-    assert [ln for ln in err.splitlines() if ln.startswith("ERROR:")] == [
-        "ERROR: interrupted"
-    ]
+    assert [ln for ln in err.splitlines() if ln.startswith("ERROR:")] == [_INTERRUPTED]
     assert ("Traceback" in err) is traceback_shown
     assert ("KeyboardInterrupt" in err) is traceback_shown
 
@@ -117,7 +118,7 @@ def test_ctrl_c_under_termination_guard_cleans_up_first(
 
     assert len(stderr_at_cleanup) == 1
     assert "ERROR:" not in stderr_at_cleanup[0]
-    assert capsys.readouterr().err.splitlines() == ["ERROR: interrupted"]
+    assert capsys.readouterr().err.splitlines() == [_INTERRUPTED]
     assert signal.getsignal(signal.SIGTERM) == signal.SIG_DFL
 
 
@@ -137,7 +138,7 @@ def test_console_main_reraises_with_traceback_printout_off(
     with pytest.raises(KeyboardInterrupt) as excinfo:
         __main__.console_main()
 
-    assert capsys.readouterr().err.splitlines() == ["ERROR: interrupted"]
+    assert capsys.readouterr().err.splitlines() == [_INTERRUPTED]
     sys.excepthook(excinfo.type, excinfo.value, excinfo.tb)
     assert capsys.readouterr().err == ""
 
@@ -172,4 +173,4 @@ def test_python_m_pitloom_ends_by_sigint(tmp_path: Path) -> None:
     # Windows has no SIGINT death; Python exits STATUS_CONTROL_C_EXIT.
     expected = 0xC000013A if os.name == "nt" else -signal.SIGINT
     assert result.returncode == expected
-    assert result.stderr.decode().splitlines() == ["ERROR: interrupted"]
+    assert result.stderr.decode().splitlines() == [_INTERRUPTED]

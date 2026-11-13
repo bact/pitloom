@@ -22,7 +22,7 @@ from pitloom.core.inert_options import ENV, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
-@cli_error_handler("deployed SBOM generation failed")
+@cli_error_handler
 def _run_env_command(args: argparse.Namespace) -> int:
     """Generate a Deployed SBOM for the active installed environment."""
     pitloom_config, options = explicit_config_and_options(args)

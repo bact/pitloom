@@ -26,6 +26,7 @@ from ._astutil import (
 from ._coded import FORWARD, STATIC, CodedChecker
 from ._families import analyse, count_args, normalise
 from ._index import Module
+from ._relay import relay_kind
 from ._render import Renderer
 from ._siteinfo import cap_fields, name_kind, snippet, status
 
@@ -106,6 +107,7 @@ class CallSites:
             "uses_loggable": uses_call(nodes, SANITISERS),
             "uses_quote_source": uses_call(nodes, {"quote_source"}),
             **code_fields(self.coder.site_kind(mod, call)),
+            "relays": relay_kind(mod, (emitter, call, tmpl_node), func, cls),
             **analyse(template),
             "source_lines": end - start + 1,
             "source_snippet": snippet(mod, start, end),

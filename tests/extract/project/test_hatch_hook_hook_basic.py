@@ -400,7 +400,7 @@ def test_hook_refuses_an_sbom_name_already_placed(
         assert build_data.get("sbom_files", []) == ([configured] if from_hook else [])
         errors = [r for r in caplog.records if r.levelno == logging.ERROR]
         assert len(errors) == 1
-        assert errors[0].getMessage().startswith("SBOM generation failed: ")
+        assert errors[0].getMessage().startswith("Pitloom build hook: ")
         assert configured in errors[0].getMessage()
 
 
@@ -445,5 +445,5 @@ def test_hook_failure_line_ends_in_a_catalogued_code(
     with pytest.raises(ValueError):
         hook.initialize("standard", {})
     err = capsys.readouterr().err.splitlines()
-    assert err == [f"ERROR: SBOM generation failed: {tail}"]
+    assert err == [f"ERROR: Pitloom build hook: {tail}"]
     assert trusted_message(err[0]) is (LFS_POINTER if tail != "'m.bin': x" else None)

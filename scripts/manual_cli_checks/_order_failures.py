@@ -91,10 +91,18 @@ def read_only(cap: Captured, prev: Captured | None) -> list[tuple[str, str]]:
     if prev is not None and cap.reg_raw != prev.reg_raw:
         found.append(("H/overwritten", "a read-only registry was rewritten"))
     id_command = cap.step.op in _ID_COMMANDS
-    level = "ERROR: " if id_command else "WARNING: "
+    # A command's ERROR line starts with its frame (``loom id generate: ``).
+    level = "ERROR: loom id " if id_command else "WARNING: "
     saves = [ln for ln in cap.stderr_lines if "failed to save" in ln]
-    if len(saves) != 1 or not saves[0].startswith(f"{level}{_FAILED_SAVE}"):
-        found.append(("H/message", f"not one {level}{_FAILED_SAVE}: {saves}"))
+    head = saves[0].partition(_FAILED_SAVE)[0] if saves else ""
+    if (
+        len(saves) != 1
+        or _FAILED_SAVE not in saves[0]
+        or not head.startswith(level)
+        or (id_command and not head.endswith(": "))
+        or (not id_command and head != level)
+    ):
+        found.append(("H/message", f"not one {level}...{_FAILED_SAVE}: {saves}"))
     errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
     if errors != (saves if id_command else []):
         found.append(("H/message", f"other ERROR lines: {errors[:2]}"))

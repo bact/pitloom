@@ -295,9 +295,9 @@ A wheel's name and version come from its own top-level `.dist-info` only.
 not a ZIP and a wheel with a member they cannot read (damaged, encrypted, a
 name that is not UTF-8), two members of one name or a NUL in a name: one
 `ERROR:`, exit 1, nothing written (in a batch the other wheels run). It reads
-`ERROR: wheel command failed: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
-from `wheel` and `wheel --embed`, `ERROR: SBOM generation failed: ARCHIVE=...`
-from `generate`, `ERROR: ARCHIVE=...` from `embed-wheel`. The two embeds also
+`ERROR: loom wheel: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
+from `wheel` and `wheel --embed`, `ERROR: loom generate: ARCHIVE=...`
+from `generate`, `ERROR: loom embed-wheel: ARCHIVE=...` from `embed-wheel`. The two embeds also
 refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
 stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
 a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.

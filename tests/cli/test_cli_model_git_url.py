@@ -149,7 +149,7 @@ def test_model_command_offline_fetches_nothing(
 ) -> None:
     assert _run(monkeypatch, tmp_path / "w", "model", _URL, "--offline") == 1
     assert fetched["offline"] is True
-    assert "ERROR: model command failed: network access" in capsys.readouterr().err
+    assert "ERROR: loom model: network access" in capsys.readouterr().err
 
 
 def test_an_option_a_git_model_cannot_use_names_the_url(

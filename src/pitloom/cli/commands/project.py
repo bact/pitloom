@@ -128,7 +128,7 @@ def _is_hub_model_url(text: str) -> bool:
     )
 
 
-@cli_error_handler("SBOM generation failed")
+@cli_error_handler
 def _run_project_command(args: argparse.Namespace) -> int:
     """Generate a Source SBOM from a project directory, sdist archive or Git
     URL."""

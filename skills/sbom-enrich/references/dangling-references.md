@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ If Pitloom was upgraded since the base SBOM was generated, regenerate the base
 before merging when the upgrade could have changed file discovery for this
 project's build backend (check the CHANGELOG).
 
-An `ERROR: ID registry file ...: version 3, expected 4` means the declared
+An `ERROR: loom <command>: ID registry file ...: version 3, expected 4` means the declared
 registry is an old format: never delete or rewrite it from this skill; hand the
 user to `sbom-generate` ("Pinning element ids"), or when non-interactive stop
 and report the `ERROR:`.

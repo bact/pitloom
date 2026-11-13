@@ -27,7 +27,7 @@ VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 CONFLICTING_FRAGMENT = FIXTURE_DIR / "fragments" / "training-run-fragment.spdx3.json"
 #: What a run without the validator prints: the extra to install, and the code.
 _MISSING_VALIDATOR = (
-    "ERROR: required library not installed: spdx3_validate; "
+    "ERROR: loom fragment validate: required library not installed: spdx3_validate; "
     "install pitloom[validate] [library-missing]"
 )
 
@@ -120,7 +120,7 @@ def test_fragment_validate_command_directory_path(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert f"ERROR: directory: '{directory}'" in captured.err
+    assert f"ERROR: loom fragment validate: directory: '{directory}'" in captured.err
 
 
 def test_fragment_validate_command_file_not_found(
@@ -136,7 +136,10 @@ def test_fragment_validate_command_file_not_found(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert f"ERROR: file not found: '{missing_path}'" in captured.err
+    assert (
+        f"ERROR: loom fragment validate: file not found: '{missing_path}'"
+        in captured.err
+    )
 
 
 def test_fragment_validate_command_missing_dependency(
@@ -172,7 +175,10 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
 
     captured = capsys.readouterr()
     assert _MISSING_VALIDATOR in error_lines(captured.err)
-    assert f"ERROR: file not found: '{missing_path}'" in captured.err
+    assert (
+        f"ERROR: loom fragment validate: file not found: '{missing_path}'"
+        in captured.err
+    )
 
 
 @pytest.mark.usefixtures("offline_spdx3_validate")

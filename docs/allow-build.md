@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -124,7 +124,7 @@ extracted-wheel temporary directory (`pitloom-build-and-read-*` in the
 system temp directory) is removed at once, without waiting for the
 current step to finish. Then:
 
-- **Ctrl-C (SIGINT)** stops Pitloom with `ERROR: interrupted` and exit
+- **Ctrl-C (SIGINT)** stops Pitloom with `ERROR: loom <command>: interrupted` and exit
   status 130, as for any other command (see
   [Debugging](cli.md#debugging) for the traceback).
 - **SIGTERM/SIGHUP** log `WARNING: Build: received SIGTERM during the

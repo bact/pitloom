@@ -221,7 +221,7 @@ def test_generate_into_a_registry_with_another_root_is_one_error(
     assert _generate(monkeypatch, project, registry, root=project / "src") == 1
 
     (error,) = _errors(capsys)
-    assert error.startswith("ERROR: ID registry file ")
+    assert error.startswith("ERROR: loom id generate: ID registry file ")
     assert "project root " in error
     assert "delete it to change the project root" in error
     assert registry.read_bytes() == before
@@ -253,7 +253,9 @@ def test_generate_reports_a_root_that_cannot_be_stored_as_one_error(
         assert _generate(monkeypatch, project, registry) == 1
 
     (error,) = _errors(capsys)
-    assert error.startswith(f"ERROR: ID registry: failed to save '{registry}': ")
+    assert error.startswith(
+        f"ERROR: loom id generate: ID registry: failed to save '{registry}': "
+    )
     assert "no path relative" in error
     assert not registry.exists()
 

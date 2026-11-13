@@ -137,7 +137,7 @@ def _check_one_wheel(
     return location_ok and version_ok
 
 
-@cli_error_handler("wheel SBOM verification failed")
+@cli_error_handler
 def _run_verify_wheel_command(args: argparse.Namespace) -> int:
     """Run `loom verify-wheel`.
 

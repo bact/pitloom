@@ -41,7 +41,7 @@ what to tell the user. A model read without some fields (`[model-field-unreadabl
 is no stub: the line names the fields. (A wheel's gate, ceiling and
 budget do not apply to a local file.)
 
-Only an `ERROR: enrichment fragment generation failed: ...` line ending in
+Only an `ERROR: loom enrich: ...` line ending in
 `[model-wrong-format]` (`header is not <fmt>`, `file is empty`, `not an AI
 model file ...`), `[lfs-pointer]` or `[lfs-pointer-malformed]` means the file
 is not a model: skip the step for it and relay Pitloom's own advice (a code's

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -299,8 +299,8 @@ import` writes for a `loom model` SBOM).
 ## What changed for an existing registry
 
 Pitloom 0.22.0 and later write version 4, whose package keys hold the
-version. A version 3 file is refused on every command, with one ``ERROR: ID
-registry file '<path>': version 3, expected 4 (no migration support -- delete
+version. A version 3 file is refused on every command, with one ``ERROR: loom <command>:
+ID registry file '<path>': version 3, expected 4 (no migration support -- delete
 it and re-run `loom id generate` or `loom id import`)``, and is left as it is:
 nothing is dropped or rewritten. To keep its ids, delete it and `loom id
 import` the last SBOM a run made with it (every file, model and dataset keeps

@@ -274,11 +274,11 @@ Every decision and refusal is said, never silently. The level and code are
 those of the [message catalogue](message-codes.md).
 
 The CLI prints a refusal through its error handler, so the `ERROR:` text
-follows a command prefix (`ERROR: wheel command failed: ...`, `ERROR: project
-command failed: ...` or `ERROR: SBOM generation failed: ...`) and ends in the
-code in brackets, for example `[pypi-url-invalid]`. A script or an agent should
-key on that trailing code. The `ERROR:` rows below quote the part after the
-prefix and before the code.
+starts with the frame of the command (`ERROR: loom wheel: ...`, `ERROR: loom
+project: ...` or `ERROR: loom generate: ...`) and ends in the code in
+brackets, for example `[pypi-url-invalid]`. A script or an agent should key on
+that trailing code. The `ERROR:` rows below quote the part after the frame and
+before the code.
 
 | Level | Message | When |
 | :---- | :------ | :--- |

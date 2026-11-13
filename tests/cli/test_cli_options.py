@@ -120,7 +120,7 @@ def test_resolve_project_paths_not_found(
     monkeypatch.setattr(sys, "argv", ["loom", "project", str(nonexistent)])
     result = __main__.main()
     assert result == 1
-    assert "ERROR: project directory not found" in capsys.readouterr().err
+    assert "ERROR: loom project: project directory not found" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("stub_project_pipeline")
@@ -147,7 +147,7 @@ def test_resolve_project_paths_no_config(
     result = __main__.main()
     assert result == 1
     err = capsys.readouterr().err
-    assert "ERROR: No pyproject.toml, setup.cfg, or setup.py found" in err
+    assert "ERROR: loom project: No pyproject.toml, setup.cfg, or setup.py found" in err
     assert err.rstrip().endswith("[project-not-found]")
 
 

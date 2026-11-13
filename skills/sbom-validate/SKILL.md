@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-11
+# Last-Modified: 2026-11-13
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -162,7 +162,7 @@ given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
 
 A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
 exit 1; the other wheels are still checked (an unexpected `validate-wheel`
-error, `ERROR: wheel SBOM validation failed: ...`, stops the batch instead).
+error, `ERROR: loom validate-wheel: ...`, stops the batch instead).
 `verify-wheel` reads only the member names, the own `.dist-info`'s
 `METADATA` and the embedded SBOM, and `validate-wheel` only the names and
 the embedded SBOM, so they refuse a file
@@ -218,7 +218,7 @@ on the main package (`project_url`, `sha256`, `sha256_declared`,
 `release_version`, `wheel_tags` and the like, as an `Annotation` and as
 `Metadata provenance:` comment text) is nothing to fix; equal `sha256` and
 `sha256_declared` are the normal case. `verify-wheel`, `validate-wheel` and
-`embed-wheel` take a local `.whl` file, never a URL (`ERROR: not a .whl file`):
+`embed-wheel` take a local `.whl` file, never a URL (`ERROR: loom <command>: not a .whl file`):
 a wheel's own embedded SBOM is a different document from the one Pitloom writes
 for the URL, and checking it needs the wheel on disk (do not download it
 unasked; non-interactive: report that). Asked to validate "the SBOM of

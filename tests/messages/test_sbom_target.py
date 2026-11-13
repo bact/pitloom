@@ -62,7 +62,7 @@ def test_the_module_has_its_codes() -> None:
     [
         (
             NO_SBOM_TARGET,
-            "ERROR: SBOM generation failed: 'models': no Python project "
+            "ERROR: loom project: 'models': no Python project "
             "(pyproject.toml, setup.cfg or setup.py) and no AI model file of a "
             "supported format; name a project folder or a model file "
             "[project-or-model-not-found]",
@@ -93,7 +93,7 @@ def test_the_module_has_its_codes() -> None:
         ),
         (
             PROJECT_NOT_FOUND,
-            "ERROR: SBOM generation failed: No pyproject.toml, setup.cfg, or "
+            "ERROR: loom project: No pyproject.toml, setup.cfg, or "
             "setup.py found in 'p' [project-not-found]",
         ),
         (

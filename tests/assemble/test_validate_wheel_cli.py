@@ -108,7 +108,8 @@ def test_validate_wheel_missing_dependency(
 
     captured = capsys.readouterr()
     assert captured.err == (
-        "ERROR: required library not installed: spdx3_validate; "
+        "ERROR: loom validate-wheel: required library not installed: "
+        "spdx3_validate; "
         "install pitloom[validate] [library-missing]\n"
     )
 
@@ -125,7 +126,10 @@ def test_validate_wheel_missing_sbom_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
+    assert (
+        "ERROR: loom validate-wheel: no SBOM found under .dist-info/sboms/"
+        in captured.err
+    )
     assert statuses(captured.out) == ["failed"]
 
 
@@ -204,7 +208,7 @@ def test_validate_wheel_no_wheel_files_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: wheel file not found" in captured.err
+    assert "ERROR: loom validate-wheel: wheel file not found" in captured.err
 
 
 def test_validate_wheel_unrecognized_format_warns_not_fails(

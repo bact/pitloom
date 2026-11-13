@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, Final, NoReturn
 
 from pitloom.__about__ import __version__
 from pitloom.cli.commands.embed_wheel import add_parser as add_embed_wheel
@@ -38,6 +38,7 @@ from pitloom.core.creation import (
     Creator,
 )
 from pitloom.logging_config import print_error
+from pitloom.messages import COMMAND_FRAME, TOP_FRAME
 
 
 class _CreatorNameAction(argparse.Action):
@@ -97,15 +98,38 @@ class _CreatorEmailAction(argparse.Action):
         )
 
 
+#: The ``dest`` of each level of sub-parsers, outermost first.
+COMMAND_DESTS: Final = ("command", "fragment_command", "id_command")
+
+
+def command_frame(path: str) -> str:
+    """The prefix of an ``ERROR:`` line of the command at *path* (``"id
+    generate"``; ``""`` for none known): ``loom id generate: ``, or ``loom: ``."""
+    if not path:
+        return TOP_FRAME.render({})
+    return COMMAND_FRAME.render({"subcommand": path})
+
+
+def command_path(args: argparse.Namespace) -> str:
+    """The command path the parsed *args* name (``"fragment validate"``),
+    read from the sub-parsers' ``dest`` fields (what each sub-parser sets in
+    its defaults differs by Python version); ``""`` when none is named."""
+    parts = (getattr(args, dest, None) for dest in COMMAND_DESTS)
+    return " ".join(part for part in parts if isinstance(part, str))
+
+
 class _LoomParser(argparse.ArgumentParser):
     """``argparse`` with its error as one ``ERROR:`` line: the message may
     quote a command-line value, so it is escaped, and the tag lets the
     Action and every other reader find the reason. Sub-parsers are of this
-    class too (``add_subparsers`` uses its parent's)."""
+    class too (``add_subparsers`` uses its parent's). The line carries the
+    frame of the command whose parser refused (``loom generate: ``), also
+    before a subcommand is chosen (``loom: ``)."""
 
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
-        print_error(f"{self.prog}: {message}")
+        command = self.prog.removeprefix("loom").strip()
+        print_error(message, frame=command_frame(command))
         self.exit(2)
 
 

@@ -7,9 +7,12 @@
 
 Out of scope are the sites that are not Pitloom's own message to a person:
 ``DEBUG`` lines, ``KEY=VALUE`` data on stdout, traceback lines, text that
-passes another message through unchanged (``str(exc)``, a frame before a
-relayed record), the detail text of a reader's exception (it is the DETAIL
-of a line a wrapper says), internal invariants a caller never sees,
+passes another message through unchanged (a frame before a relayed record;
+the catch-all handler's line, which says the caught exception's own text
+and code; ``argparse``'s own text in an ``ArgumentParser.error`` override:
+see ``_relay.py``, keyed on the code's shape, never on a variable's name),
+the detail text of a reader's exception (it is the DETAIL of a line a
+wrapper says), internal invariants a caller never sees,
 library-only errors raised to a Python caller, and a helper's call sites
 whose text lives in the helper body (the body is counted once).
 
@@ -27,7 +30,8 @@ calls a reader, and only the scanner calls the dispatch, so its text is the
 detail of the scanner's line (``tests/test_message_ratchet.py`` holds both
 facts).
 
-See also: ``_coded.py`` (coded or not) and ``_baseline.py`` (the counts).
+See also: ``_coded.py`` (coded or not), ``_relay.py`` (the relays) and
+``_baseline.py`` (the counts).
 """
 
 from __future__ import annotations
@@ -98,7 +102,7 @@ LIBRARY_PAT = re.compile(
 )
 #: A template that is only another message passed through.
 PASSTHROUGH_PAT = re.compile(
-    r"^(%s|\{error_msg\}: \{e\}|\{self\.prog\}: \{message\}|"
+    r"^(%s|"
     r"ERROR: \{escape_controls|%s; skipped|%s%s)?$"
 )
 #: Emitters of ``KEY=VALUE`` data, not of messages.
@@ -175,4 +179,6 @@ def in_scope(rec: dict[str, Any]) -> bool:
             return False
     if rec["template"] is not None and PASSTHROUGH_PAT.match(rec["template"]):
         return False
+    if rec.get("relays"):
+        return False  # another's text said again (``_relay.py``)
     return reach(rec) in _VISIBLE

@@ -86,7 +86,7 @@ def test_the_family_has_its_eight_codes() -> None:
         ),
         (
             LIBRARY_MISSING,
-            "ERROR: model command failed: required library not installed: "
+            "ERROR: loom model: required library not installed: "
             "huggingface_hub; install pitloom[huggingface_hub] [library-missing]",
         ),
         (
@@ -131,13 +131,12 @@ def test_the_family_has_its_eight_codes() -> None:
         ),
         (
             MODEL_WRONG_FORMAT,
-            "ERROR: SBOM generation failed: 'C:\\m\\t.gguf': header is not gguf "
+            "ERROR: loom project: 'C:\\m\\t.gguf': header is not gguf "
             "[model-wrong-format]",
         ),
         (
             MODEL_WRONG_FORMAT,
-            "ERROR: enrichment fragment generation failed: 'e.onnx': file is empty "
-            "[model-wrong-format]",
+            "ERROR: loom enrich: 'e.onnx': file is empty [model-wrong-format]",
         ),
         (
             PARAMETER_COUNT_INVALID,

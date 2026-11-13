@@ -46,10 +46,9 @@ _TRUSTED = [
         LFS_POINTER_SHIPPED,
     ),
     (f"ERROR: {_POINTER} [lfs-pointer]", LFS_POINTER),
-    (f"ERROR: model command failed: {_POINTER} [lfs-pointer]", LFS_POINTER),
+    (f"ERROR: loom model: {_POINTER} [lfs-pointer]", LFS_POINTER),
     (
-        f'ERROR: SBOM generation failed: "it\'s.gguf": {_LOOKS} '
-        "[lfs-pointer-malformed]",
+        f'ERROR: loom project: "it\'s.gguf": {_LOOKS} [lfs-pointer-malformed]',
         LFS_POINTER_MALFORMED,
     ),
     (
@@ -75,12 +74,12 @@ _TRUSTED = [
         OVER_CAP,
     ),
     (
-        "ERROR: SBOM generation failed: config file 's.tar.gz:pyproject.toml': "
+        "ERROR: loom project: config file 's.tar.gz:pyproject.toml': "
         "larger than the 1048576-byte config-member cap; not read [over-cap]",
         OVER_CAP,
     ),
     (
-        "ERROR: SBOM generation failed: the repository is larger than the "
+        "ERROR: loom project: the repository is larger than the "
         "536870912-byte max-download-bytes cap; git clone was stopped [over-cap]",
         OVER_CAP,
     ),
@@ -94,9 +93,9 @@ _FORGED = [
     # the review's probes: any text before an ERROR shape, a stray frame
     f"ERROR: anything at all, even WARNING: text: {_LOOKS} [lfs-pointer-malformed]",
     f"ERROR: anything at all, even WARNING: 'text': {_LOOKS} [lfs-pointer-malformed]",
-    "ERROR: SBOM generation failed: project directory not found: x: "
+    "ERROR: loom project: project directory not found: x: "
     f"{_LOOKS} [lfs-pointer-malformed]",
-    f"ERROR: model command failed: model command failed: {_POINTER} [lfs-pointer]",
+    f"ERROR: loom model: loom model: {_POINTER} [lfs-pointer]",
     # values that do not have their field's shape
     "ERROR: x: header is a Git LFS pointer, content not pulled (oid sha256:zz, "
     "size lots); run 'git lfs pull' [lfs-pointer]",
@@ -110,7 +109,7 @@ _FORGED = [
     "WARNING: FILE=a: Git LFS pointer, content not read; run 'git lfs pull' for "
     "the content; clone with git lfs, then run on the directory [lfs-pointer]",
     # a frame before a line of a level it is not printed before
-    "WARNING: model command failed: FILE=a: Git LFS pointer, content not read; "
+    "WARNING: loom model: FILE=a: Git LFS pointer, content not read; "
     "run 'git lfs pull' for the content [lfs-pointer]",
     # a shape at a level it is not printed at
     f"WARNING: 'm.gguf': {_LOOKS} [lfs-pointer-malformed]",
@@ -163,10 +162,10 @@ def test_a_forged_line_is_not_trusted(line: str) -> None:
     [
         "FILE=" + ": Git LFS pointer, content not read" * 470,
         "FORMAT=gguf FILE=" + "x: FILE=a: header looks like" * 600,
-        "model command failed: " + "'x': header is a Git LFS pointer" * 500,
+        "loom model: " + "'x': header is a Git LFS pointer" * 500,
         "FILE=" + "x: FILE=a: larger than the 1-byte a cap" * 400,
         "FORMAT=gguf FILE=" + "x: FILE=a: DIR=b: larger than the" * 450,
-        "model command failed: " + "config file 'x': larger than the 1-byte" * 400,
+        "loom model: " + "config file 'x': larger than the 1-byte" * 400,
     ],
     ids=["prefix", "relay", "frame", "cap-prefix", "cap-relay", "cap-frame"],
 )

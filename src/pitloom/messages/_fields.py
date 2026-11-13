@@ -33,6 +33,29 @@ from pitloom.messages._field_writers import (
 )
 from pitloom.messages._model_limits import MODEL_LIMIT_REASONS
 
+#: The command paths a CLI line's frame names (``loom <path>: ``): every
+#: subcommand and nested subcommand of the parser. A drift test holds the
+#: tuple and the parser's ``prog`` values together
+#: (``tests/messages/test_frames.py``).
+LOOM_COMMANDS: Final[tuple[str, ...]] = (
+    "embed-wheel",
+    "enrich",
+    "env",
+    "fragment",
+    "fragment list",
+    "fragment validate",
+    "generate",
+    "id",
+    "id generate",
+    "id import",
+    "merge",
+    "model",
+    "project",
+    "validate-wheel",
+    "verify-wheel",
+    "wheel",
+)
+
 
 @dataclass(frozen=True)
 class Field:
@@ -141,6 +164,12 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             plain_text,
             "<card>",
             "the kind of card: " + ", ".join(f"`{kind}`" for kind in CARD_KINDS),
+        ),
+        "subcommand": Field(
+            "(?:" + "|".join(re.escape(c) for c in LOOM_COMMANDS) + ")",
+            plain_text,
+            "<subcommand>",
+            "the `loom` command that failed (`generate`, `fragment validate`)",
         ),
         "command": Field(
             r"[a-z][a-z-]*",

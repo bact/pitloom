@@ -53,7 +53,7 @@ _HOSTILE = "x [lfs-pointer]"
             LFS_POINTER_SHIPPED,
         ),
         (
-            "ERROR: model command failed: 'm.gguf': header looks like a Git LFS "
+            "ERROR: loom model: 'm.gguf': header looks like a Git LFS "
             "pointer but is not a valid one [lfs-pointer-malformed]",
             LFS_POINTER_MALFORMED,
         ),

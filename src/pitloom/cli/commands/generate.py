@@ -46,7 +46,7 @@ from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.logging_config import print_error
 
 
-@cli_error_handler("SBOM generation failed")
+@cli_error_handler
 def _run_generate_command(args: argparse.Namespace) -> int:
     """Smart generate mode.
 
@@ -59,7 +59,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     """
     if args.output is None:
         print_error(
-            "-o/--output is required for 'loom generate' "
+            "-o/--output is required "
             "(the target-detection dispatch has no single natural default "
             "filename -- pass -o FILE, or use 'loom project'/'loom wheel'/"
             "'loom model'/'loom env' directly for that target type's own "

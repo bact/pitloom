@@ -379,7 +379,9 @@ def test_an_id_import_dropping_a_gate_with_its_info_is_clean(
     _imports_file_7(imported)
     readonly = _Seq(mcc, tmp_path / "proj")
     readonly.kinds[1], readonly.ops[1], readonly.rcs[1] = "readonly", "gen", 1
-    readonly.stderr[1] = "ERROR: ID registry: failed to save reg.json: denied\n"
+    readonly.stderr[1] = (
+        "ERROR: loom id generate: ID registry: failed to save reg.json: denied\n"
+    )
     assert (imported.check(), readonly.check()) == (set(), set())
 
 

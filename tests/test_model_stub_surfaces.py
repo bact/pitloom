@@ -166,7 +166,7 @@ def test_a_directory_named_as_a_model_is_refused(tmp_path: Path) -> None:
     assert line.endswith(
         ": not an AI model file of a supported format [model-wrong-format]"
     )
-    assert line.startswith("ERROR: model command failed: '")
+    assert line.startswith("ERROR: loom model: '")
 
 
 def test_a_hub_model_without_its_client_says_the_extra(tmp_path: Path) -> None:
@@ -175,7 +175,7 @@ def test_a_hub_model_without_its_client_says_the_extra(tmp_path: Path) -> None:
     done = run_loom(args, tmp_path, block="huggingface_hub")
     assert done.returncode == 1
     assert coded_lines(done.stderr) == {
-        "ERROR: model command failed: required library not installed: "
+        "ERROR: loom model: required library not installed: "
         "huggingface_hub; install pitloom[huggingface_hub] [library-missing]": (
             "library-missing"
         )

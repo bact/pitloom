@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -160,7 +160,7 @@ a licence relationship goes to <target>, which is not an AnyLicenseInfo; point
 it at a LicenseExpression [license-relationship-invalid]` or `WARNING:
 RELATIONSHIP=<name>: a licence relationship starts at <target>, which is not a
 package, file or snippet; start it at one [license-relationship-invalid]`, then
-`ERROR: Fragment merge left a licence relationship of the wrong type; fix the
+`ERROR: loom merge: Fragment merge left a licence relationship of the wrong type; fix the
 fragment [license-relationship-invalid]`. Fix the fragment you drafted;
 regenerating the base does not help.
 

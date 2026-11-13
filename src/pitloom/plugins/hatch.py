@@ -47,7 +47,7 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
 from pitloom.logging_config import configure_logging, one_line
-from pitloom.messages import code_extra_of
+from pitloom.messages import HOOK_FRAME, code_extra_of
 from pitloom.plugins._hatch_config import validate_config
 
 log = logging.getLogger(__name__)
@@ -64,9 +64,11 @@ _LOG_PREFIX = "Pitloom: "
 #: builds with no SBOM and no warning: the version is checked explicitly.
 _MIN_HATCHLING_SBOM_VERSION = "1.29.0"
 
-#: Shared prefix for every _check_hatchling_sbom_support() error, so both
-#: failure modes are easy to grep/filter for as one family of error.
-_HATCHLING_ERROR_PREFIX = "Pitloom build hook: Hatchling"
+#: Shared start of every _check_hatchling_sbom_support() error, so both
+#: failure modes are easy to grep/filter for as one family of error. The
+#: hook's frame (``Pitloom build hook: ``) goes before it on the ERROR line;
+#: the traceback names this module, so the raised text does not repeat it.
+_HATCHLING_ERROR_PREFIX = "Hatchling"
 
 
 def _check_hatchling_sbom_support() -> None:
@@ -362,8 +364,13 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         except Exception as exc:
             # The one place a failure is reported, as the CLI's handler does;
             # the re-raise fails the build, with Hatchling's own traceback.
+            # The frame is in the record's own text (what a handler reads), and
+            # the hook runs where no command frame is open (its own process).
             log.error(
-                "SBOM generation failed: %s", one_line(exc), extra=code_extra_of(exc)
+                "%s%s",
+                HOOK_FRAME.render({}),
+                one_line(exc),
+                extra=code_extra_of(exc),
             )
             raise
 

@@ -67,7 +67,7 @@ def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
     return run_pypi(args, url, WHEEL_FILE)
 
 
-@cli_error_handler("wheel command failed")
+@cli_error_handler
 def _run_wheel_command(args: argparse.Namespace) -> int:
     """Generate an Analyzed SBOM from a built wheel.
 

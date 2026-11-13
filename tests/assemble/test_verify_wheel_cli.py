@@ -82,7 +82,10 @@ def test_verify_wheel_missing_sbom_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
+    assert (
+        "ERROR: loom verify-wheel: no SBOM found under .dist-info/sboms/"
+        in captured.err
+    )
 
 
 def test_verify_wheel_sbom_filename_exact_match(
@@ -191,7 +194,10 @@ def test_verify_wheel_sbom_filename_not_found_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
+    assert (
+        "ERROR: loom verify-wheel: no SBOM found under .dist-info/sboms/"
+        in captured.err
+    )
     assert "matching 'missing.spdx3.json'" in captured.err
 
 
@@ -220,7 +226,7 @@ def test_verify_wheel_permission_error_reported_per_wheel(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: [Errno 13] Permission denied" in captured.err
+    assert "ERROR: loom verify-wheel: [Errno 13] Permission denied" in captured.err
 
 
 def test_verify_wheel_no_wheel_files_errors(
@@ -235,7 +241,7 @@ def test_verify_wheel_no_wheel_files_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: wheel file not found" in captured.err
+    assert "ERROR: loom verify-wheel: wheel file not found" in captured.err
 
 
 def test_verify_wheel_multiple_wheels_mixed_pass_fail(
@@ -254,7 +260,7 @@ def test_verify_wheel_multiple_wheels_mixed_pass_fail(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: no SBOM found" in captured.err
+    assert "ERROR: loom verify-wheel: no SBOM found" in captured.err
     assert "bad-1.0.0-py3-none-any.whl" in captured.err
     # One record per wheel, in order; no success summary when any failed.
     assert statuses(captured.out) == ["ok", "failed"]
@@ -326,7 +332,8 @@ def test_verify_wheel_name_mismatch_fails_with_flag(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR:" in captured.err
+    # The one ``log.error`` route of the command line: framed by the formatter.
+    assert "ERROR: loom verify-wheel: " in captured.err
     assert "name: wheel declares 'realpkg2', SBOM declares 'otherpkg2'" in captured.err
     assert statuses(captured.out) == ["failed"]
 

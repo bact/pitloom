@@ -308,7 +308,7 @@ def test_the_loom_program_refuses_what_it_does_not_fetch(
     target = "ssh://git@host/o/r.git" if not args else base + "/g/p"
     done = _loom("project", target, "-o", str(tmp_path / "x.json"), *args, cwd=tmp_path)
     assert done.returncode == 1
-    assert "ERROR: SBOM generation failed: " in done.stderr and needle in done.stderr
+    assert "ERROR: loom project: " in done.stderr and needle in done.stderr
     assert "WARNING: Git source:" in done.stderr  # logged as well as shown
     assert not (tmp_path / "x.json").exists()
 
