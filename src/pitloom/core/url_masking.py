@@ -53,46 +53,45 @@ _URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
 #: A URL in a text, to its end at whitespace.
 _URL_RE = re.compile(r"://\S+")
 
-#: A query or fragment parameter (name at most 64 characters, so matching is
-#: linear), as ``(delimiter, name, value)``.
-_PARAM_RE = re.compile(r"([?&;#])([\w.%-]{1,64})=([^&;#\s]*)")
+#: A query or fragment parameter in free text, as ``(delimiter, name,
+#: value)``; the value ends at white space. The name has no length bound: it
+#: is a run of name characters after one delimiter, so a failed match
+#: backtracks over that run only and matching stays linear.
+_PARAM_RE = re.compile(r"([?&;#])([\w.%-]+)=([^&;#\s]*)")
+#: The same in a text that is one URL (:func:`sanitize_url`): the value runs
+#: over a space or a line break, to the next delimiter, a quote or the end.
+_WHOLE_PARAM_RE = re.compile(r"([?&;#])([\w.%-]+)=([^&;#'\"]*)")
 
-#: Names (lower case) of a parameter that holds a secret, and the endings of
-#: such a name (``access_token``, ``db-password``).
+#: Words naming a secret: a parameter is named by one, or its last word is
+#: one (``access_token``, ``db-password``, ``accessToken``,
+#: ``X-Amz-Signature``).
+_SECRET_WORDS = (
+    *("token", "key", "secret", "password", "passwd", "signature", "sig"),
+    *("jwt", "credential", "credentials", "auth"),
+)
+#: Lower-case names of a parameter that holds a secret, matched whole.
 _SECRET_NAMES = frozenset(
-    {
-        "token",
-        "key",
-        "apikey",
-        "secret",
-        "password",
-        "passwd",
-        "pass",
-        "pwd",
-        "pw",
-        "sig",
-        "signature",
-        "jwt",
-        "credential",
-        "credentials",
-    }
+    {*_SECRET_WORDS, "apikey", "pass", "pwd", "pw", "authorization"}
 )
-_SECRET_ENDINGS = ("_token", "-token", "_secret", "-secret", "_key", "-key") + (
-    "_password",
-    "-password",
-    "_signature",
-    "-signature",
-)
+#: The endings of such a name: a separator and a word (``monkey`` and
+#: ``author`` are not secrets).
+_SECRET_ENDINGS = tuple(sep + word for word in _SECRET_WORDS for sep in "_-")
+#: Where a camelCase name starts a word: ``accessToken`` is read as
+#: ``access_token``.
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 #: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
-#: before the first ``/``, whatever characters (a newline, a space) it holds.
-#: ``:/`` and ``:\\`` too, for a URL a path normalisation collapsed.
-_WHOLE_URL_USERINFO_RE = re.compile(r":[/\\]{1,2}[^/\\@][^/\\]*@")
+#: before the first ``/``, whatever characters (a newline, a space, a ``\\``)
+#: it holds. ``:/`` too, for a URL a POSIX path normalisation collapsed, and
+#: ``:\\``, for one a Windows path wrote, where it ends at either separator.
+_WHOLE_URL_USERINFO_RE = re.compile(r":(?:/{1,2}[^/@][^/]*|\\{1,2}[^/\\@][^/\\]*)@")
 
 
 def _mask_param(match: re.Match[str]) -> str:
     delimiter, name, value = match.groups()
-    plain = unquote(name).lower()
+    plain = unquote(name) if "%" in name else name
+    if not plain.islower():
+        plain = _CAMEL_BOUNDARY.sub("_", plain).lower()
     if plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS):
         value = "***"
     return f"{delimiter}{name}={value}"
@@ -118,39 +117,75 @@ def sanitize_url_credentials(text: str) -> str:
 
 def sanitize_url(url: str) -> str:
     """:func:`sanitize_url_credentials` for a text that is one URL: the
-    userinfo is redacted whole even when it holds a newline or a space."""
-    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
+    userinfo is redacted whole even when it holds a newline or a space, and
+    a secret parameter's value up to the next delimiter, quote or the end."""
+    return _WHOLE_PARAM_RE.sub(
+        _mask_param, _WHOLE_URL_USERINFO_RE.sub("://***:***@", url)
+    )
 
 
 #: A URL in a path as given, also as ``Path`` collapses its ``//``
 #: (``https:/host``) or a Windows ``Path`` writes it (``https:\\host``): a
 #: whole scheme of two or more characters (so a Windows drive ``C:\\`` is
-#: not one), ``:`` and ``/`` or ``\\``.
-URL_AS_PATH_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]+:[/\\]")
+#: not one), ``:`` and ``/`` or ``\\``. A digit before it is not part of it
+#: (``1https://``): a scheme starts with a letter.
+URL_AS_PATH_RE = re.compile(r"(?<![A-Za-z+.-])[A-Za-z][A-Za-z0-9+.-]+:[/\\]")
+#: The quotes a message puts around a path it names.
+_QUOTES = "'\""
 
 
-def _restored_url(url: str) -> str:
-    """*url*, which starts at a :data:`URL_AS_PATH_RE` match, with ``://``
-    after its scheme and ``/`` for every ``\\``: the shape
-    :func:`sanitize_url` reads a userinfo and a query from."""
+def _url_end(text: str, start: int) -> int:
+    """Where the URL starting at *start* in *text* ends: at the quote
+    closing the one before it (``'https://...' (choose from``), else at the
+    end of *text* (a path or URL can hold a space)."""
+    quote = text[start - 1] if start else ""
+    end = text.find(quote, start) if quote and quote in _QUOTES else -1
+    return len(text) if end == -1 else end
+
+
+def _masked_url(url: str) -> str:
+    """*url*, which starts at a :data:`URL_AS_PATH_RE` match, masked
+    (:func:`sanitize_url`) and read with ``://`` after its scheme; as it is
+    when it holds nothing to mask.
+
+    After ``:/`` (typed, or a POSIX path's) a ``\\`` is a character of the
+    URL. After ``:\\`` (a Windows path's) every ``\\`` is read as ``/``, but
+    it may as well have been a character of the password: the two cannot be
+    told apart, so the userinfo is masked to the last ``@`` of *url*, which
+    may mask a path's ``@`` too but never leaves a password shown."""
+    if "@" not in url and "=" not in url:
+        return url
     scheme, _, rest = url.partition(":")
-    return f"{scheme}://" + rest.lstrip("/\\").replace("\\", "/")
+    body = rest.lstrip("/\\")
+    windows = rest.startswith("\\")
+    if windows:
+        body = body.replace("\\", "/")
+    restored = f"{scheme}://{body}"
+    at = body.rfind("@") if windows else -1
+    masked = sanitize_url(
+        f"{scheme}://***:***@{body[at + 1 :]}" if at > 0 else restored
+    )
+    return url if masked == restored else masked
 
 
 def masked_given_path(text: str) -> str:
-    """*text*, a path as given, with a URL in it masked (:func:`sanitize_url`
-    from the URL on): a URL Pitloom does not read reaches a path check as a
-    path, and a line names it without its credentials. The URL is read with
-    ``://`` after its scheme and ``/`` for ``\\`` whatever a path made of
-    them; *text* is returned as it is when the URL holds nothing to mask."""
-    found = URL_AS_PATH_RE.search(text)
-    if found is None:
+    """*text*, a path as given or a message naming one, with each URL in it
+    masked (:func:`_masked_url`): a URL Pitloom does not read reaches a path
+    check as a path, and a line names it without its credentials. A URL
+    runs to the end of *text*, or to the quote closing the one before it.
+    *text* is returned as it is when no URL holds anything to mask. The one
+    masker of a path as given and of an ``ERROR:`` line
+    (:func:`pitloom.logging_config.print_error`)."""
+    parts: list[str] = []
+    done = 0
+    while (found := URL_AS_PATH_RE.search(text, done)) is not None:
+        end = _url_end(text, found.start())
+        parts += (text[done : found.start()], _masked_url(text[found.start() : end]))
+        done = end
+    if not parts:
         return text
-    restored = _restored_url(text[found.start() :])
-    masked = sanitize_url(restored)
-    if masked == restored:
-        return text
-    return text[: found.start()] + masked
+    parts.append(text[done:])
+    return "".join(parts)
 
 
 def url_without_credentials(url: str) -> str:

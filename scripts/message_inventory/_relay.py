@@ -12,9 +12,11 @@ shape of the code around the call, never by a variable's name.
   ``except``, or a line adding text of its own, is a message of its own.
 - ``argparse``: ``argparse``'s own refusal. In the ``error(self, message)``
   method of a class deriving from ``argparse.ArgumentParser``, the text is
-  that parameter as it is (or with a URL's credentials masked,
-  ``sanitize_url_credentials(message)``), said by ``print_error``: argparse
-  wrote it, as a reader's exception is the detail of the line a wrapper says.
+  that parameter as it is (or with a URL's credentials masked by a masker
+  :data:`_MASKERS` names, imported from ``pitloom.core.url_masking`` and
+  bound by nothing else in the module or the method), said by
+  ``print_error``: argparse wrote it, as a reader's exception is the detail
+  of the line a wrapper says.
 
 Either holds only where the call is in the binder's own body (not in a
 nested function, lambda, class or comprehension) and nothing in that body
@@ -41,8 +43,10 @@ ARGPARSE = "argparse"
 #: The ``except`` classes that catch whatever a command raised.
 _CATCH_ALL = frozenset({"Exception", "BaseException"})
 _PARSER_BASES = frozenset({"argparse.ArgumentParser", "ArgumentParser"})
-#: The one call an ``error`` override may wrap argparse's text in.
-_MASKED_PARAM = "sanitize_url_credentials"
+#: The module of the maskers an ``error`` override may wrap argparse's text
+#: in, and their names there.
+_MASKING_MODULE = "pitloom.core.url_masking"
+_MASKERS = ("masked_given_path", "sanitize_url_credentials")
 #: Nodes that open a scope of their own: a call inside one is not said by
 #: the binder's body, whatever names it reads.
 _SCOPES = (
@@ -145,6 +149,44 @@ def _caught_by_catch_all(func: ast.AST | None, call: ast.Call, name: str) -> boo
     return False
 
 
+def _module_bindings(mod: Module, name: str) -> int:
+    """How many statements of *mod*'s own body (not a nested scope's) bind
+    *name*: an import, an assignment, a ``def`` or a ``class``."""
+    count = 0
+    for statement in mod.tree.body:
+        todo: list[ast.AST] = [statement]
+        while todo:
+            node = todo.pop()
+            count += name in _bound_names(node)
+            if not isinstance(node, _SCOPES):
+                todo.extend(ast.iter_child_nodes(node))
+    return count
+
+
+def _is_masked_param(mod: Module, func: ast.AST, text: ast.expr, param: str) -> bool:
+    """*text* is the parameter *param* as it is, or the one argument of a
+    masker of :data:`_MASKERS` that *mod* imports from
+    :data:`_MASKING_MODULE` under its own name and that nothing else in
+    *mod* or in *func* binds (a function of that name defined or assigned
+    here may say anything)."""
+    if unparse(text) == param:
+        return True
+    if not (
+        isinstance(text, ast.Call)
+        and isinstance(text.func, ast.Name)
+        and not text.keywords
+        and [unparse(arg) for arg in text.args] == [param]
+    ):
+        return False
+    name = text.func.id
+    return (
+        name in _MASKERS
+        and mod.imports.get(name) == (_MASKING_MODULE, name)
+        and _module_bindings(mod, name) == 1
+        and not any(name in _bound_names(sub) for sub in ast.walk(func))
+    )
+
+
 def _parser_error_param(mod: Module, func: ast.AST | None, cls: str | None) -> str:
     """The message parameter of *func* when it is the ``error`` override of
     an ``argparse.ArgumentParser`` subclass, else ``""``."""
@@ -179,7 +221,7 @@ def relay_kind(
     if (
         param
         and isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and unparse(text) in (param, f"{_MASKED_PARAM}({param})")
+        and _is_masked_param(mod, func, text, param)
         and _says_only(func.body, call, param)
     ):
         return ARGPARSE

@@ -30,7 +30,7 @@ values.
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
 | [`sbom-invalid`](#sbom-invalid) | ERROR | An SBOM given to read is JSON but not a valid SPDX 3 document: spdx3-validate refuses it (its own lines before say why), or its @graph is not a list of objects. | 0.24.1 |
-| [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.24.1 |
+| [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.24.1 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.24.1 |
 
@@ -279,11 +279,12 @@ values.
 
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
-- **Means**: An SBOM given to embed is named as SPDX 3 JSON-LD (.spdx3.json) but
-  holds another format (a CycloneDX document, say).
+- **Means**: An SBOM given to embed or to import into an ID registry is named as
+  SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document,
+  say).
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing: no wheel is changed, the library raises
-  ValueError carrying the code.
+- **Pitloom did**: Wrote nothing: no wheel is changed and no ID registry
+  written; the library raises ValueError carrying the code.
 - **Tell the user**: which file is named as SPDX 3 but is not, as the line names
   it. They give the right file, or rename it to match its format, and run again.
   Do not rename or convert the file for them; ask first, and with nobody to ask,

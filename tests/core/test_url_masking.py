@@ -242,6 +242,7 @@ def test_masking_is_linear(text: str) -> None:
         ),
         # Names that only contain a secret word, and text that is no URL.
         ("https://h/r?author=1&monkey=2&design=3&tokenizer=4", None),
+        ("https://h/r?oauth=1&Monkey=2&keyName=3&passport=4", None),
         ("https://h/r?id=abc&path=/key", None),
         ("pkg &key=value ;keyboard=1", None),
     ],
@@ -251,6 +252,7 @@ def test_masking_is_linear(text: str) -> None:
         "fragment",
         "encoded-name",
         "lookalikes",
+        "lookalike-words",
         "plain",
         "no-url",
     ],
@@ -270,6 +272,9 @@ def test_a_secret_named_query_value_is_redacted(
         *("pwd", "pw", "sig", "signature", "jwt", "credential", "credentials"),
         *("x_token", "x-token", "x_secret", "x-secret", "x_key", "x-key"),
         *("x_password", "x-password", "x_signature", "x-signature"),
+        *("auth", "authorization", "x-auth", "x_sig", "x-credential"),
+        *("accessToken", "apiKey", "X-Amz-Credential", "X-Amz-Signature"),
+        *("ACCESS_TOKEN", "a" * 70 + "_token", "x_passwd", "x-jwt"),
     ],
 )
 def test_every_secret_name_and_ending_is_redacted(name: str) -> None:
@@ -373,6 +378,26 @@ def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) ->
         (r"C:\dir\x?token=SECRET", r"C:\dir\x?token=SECRET"),
         ("a:/x?token=SECRET", "a:/x?token=SECRET"),
         ("dir/x.whl", "dir/x.whl"),
+        # A value runs over a space or a line break, to a delimiter or quote.
+        ("https:/h/x?token=SEC RET&a=1", "https://h/x?token=***&a=1"),
+        ("https:/h/x?token=SEC\nRET", "https://h/x?token=***"),
+        # A digit before the scheme is not part of it.
+        ("1https://u:SECRET@h", "1https://***:***@h"),
+        # After ``://`` a backslash is the password's; after ``:\`` it may
+        # be, so the userinfo runs to the last ``@``.
+        ("https://u:SEC\\RET@h/", "https://***:***@h/"),
+        ("https:\\u:SEC\\RET@h\\x", "https://***:***@h/x"),
+        ("https:\\h\\p@q", "https://***:***@q"),
+        # Each URL of a message, each to the quote closing it.
+        (
+            "invalid choice: 'https:/u:SECRET@h' (choose from 'a@b', 'c')",
+            "invalid choice: 'https://***:***@h' (choose from 'a@b', 'c')",
+        ),
+        (
+            "'https://h/?token=SECRET' and \"ftp:/u:SECRET@h\" 'ab:/x'",
+            "'https://h/?token=***' and \"ftp://***:***@h\" 'ab:/x'",
+        ),
+        ("'https:/u:SECRET@h", "'https://***:***@h"),
     ],
     ids=[
         "userinfo",
@@ -390,6 +415,15 @@ def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) ->
         "windows-drive-is-no-scheme",
         "one-letter-is-no-scheme",
         "plain-path",
+        "value-over-a-space",
+        "value-over-a-newline",
+        "digit-before-scheme",
+        "backslash-in-password",
+        "windows-backslash-in-password",
+        "windows-at-in-path",
+        "quoted-in-a-message",
+        "two-quoted-urls",
+        "unclosed-quote",
     ],
 )
 def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
@@ -407,6 +441,26 @@ def test_a_url_through_a_path_is_masked(
     given = str(make("https://h/x?token=SECRET&f=x-1-py3-none-any.whl"))
     assert "//" not in given
     assert "SECRET" not in masked_given_path(given)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "https://" + "a" * 1_000_000 + "?" + "x=1&" * 250_000,
+        "https://h/?" + "aB" * 500_000 + "=1",
+        "https:\\" + "@\\" * 330_000,
+        "https:/" + "?" + "a" * 1_000_000,
+        "'ab:/=" * 160_000,
+    ],
+    ids=["long-query", "long-camel-name", "windows-ats", "long-name", "many-urls"],
+)
+def test_a_given_path_is_masked_in_linear_time(text: str) -> None:
+    """A text of a million characters is masked in linear time: about 0.1 s
+    here, and a quadratic masker takes minutes; the bound leaves room for
+    coverage tracing on a loaded runner."""
+    started = time.perf_counter()
+    masked_given_path(text)
+    assert time.perf_counter() - started < 1
 
 
 _FIRST_IMPORT = """

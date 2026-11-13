@@ -33,10 +33,11 @@ SBOM_WRONG_FORMAT: Final = Message(
     code="sbom-wrong-format",
     condition="wrong-format",
     lines=(NOT_SPDX3_LINE,),
-    summary="An SBOM given to embed is named as SPDX 3 JSON-LD (.spdx3.json) "
-    "but holds another format (a CycloneDX document, say).",
-    did="Wrote nothing: no wheel is changed, the library raises ValueError "
-    "carrying the code.",
+    summary="An SBOM given to embed or to import into an ID registry is named "
+    "as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX "
+    "document, say).",
+    did="Wrote nothing: no wheel is changed and no ID registry written; the "
+    "library raises ValueError carrying the code.",
     effect="not-written",
     actor="user",
     advice="Tell the user which file is named as SPDX 3 but is not, as the "

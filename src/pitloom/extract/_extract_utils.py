@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
@@ -190,11 +191,6 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
         elif char in "]}":
             depth = max(depth - 1, 0)
     return False
-
-
-#: Largest file or response read whole for parsing (JSON sources, lock/pin
-#: files); a caller over it fails with its own ``WARNING:``/error.
-FETCH_MAX_BYTES = 50 * 1024 * 1024
 
 
 # pylint: disable-next=too-many-arguments

@@ -9,9 +9,8 @@ does not parse, or its top level is no object. ``ERROR`` only: the read raises.
 
 See also: :func:`pitloom.extract._extract_utils.fetch_json` (a Croissant
 document), :mod:`pitloom.extract.remote._http_fetch` (PyPI's JSON API),
-:func:`pitloom._sbom_format.refuse_unusable_given_sbom` (an SBOM to embed)
-and :func:`pitloom.id_registry._sbom_read.read_sbom_objects` (an SBOM to
-import into an ID registry).
+:func:`pitloom._sbom_format.refuse_unusable_given_sbom` (an SBOM to embed
+or to import into an ID registry).
 """
 
 from __future__ import annotations

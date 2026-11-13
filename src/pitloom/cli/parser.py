@@ -37,7 +37,6 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     Creator,
 )
-from pitloom.core.url_masking import sanitize_url_credentials
 from pitloom.logging_config import print_error
 from pitloom.messages import (
     COMMAND_FRAME,
@@ -139,9 +138,9 @@ class _LoomParser(argparse.ArgumentParser):
         self.print_usage(sys.stderr)
         command = self.prog.removeprefix("loom").strip()
         # A URL typed where no argument takes it is named without its
-        # credentials.
+        # credentials: print_error masks it.
         print_error(
-            sanitize_url_credentials(message),
+            message,
             code=usage_code(message),
             frame=command_frame(command),
         )

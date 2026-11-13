@@ -15,7 +15,6 @@ and :mod:`pitloom._embed_build_sbom` (the project-backed Build SBOM and
 
 from __future__ import annotations
 
-import codecs
 import dataclasses
 import functools
 import logging
@@ -28,7 +27,7 @@ from pitloom._embed_build_sbom import (
     EmbedFileCache,
     _build_sbom_from_project_and_wheel,
 )
-from pitloom._sbom_format import refuse_unusable_given_sbom
+from pitloom._sbom_format import read_given_sbom
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.core.build_options import (
     EXTERNAL_SBOM_REASON,
@@ -45,7 +44,6 @@ from pitloom.core.config_cascade import (
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.given_file import read_given_bytes
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
     EMBED_SBOM,
@@ -74,38 +72,22 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages.files import SBOM_USE, file_unreadable_error
 
 log = logging.getLogger(__name__)
 
 
 def _read_external_sbom(sbom_path: Path | str) -> str:
-    """The SBOM at *sbom_path* as written: its bytes decoded as UTF-8 and
-    nothing else (no newline translation), so what is embedded, and what
-    ``-o`` copies, is the file. A UTF-8 byte order mark is dropped, with one
-    ``WARNING:`` (RFC 8259 section 8.1: JSON text must not carry one).
-
-    Raises:
-        pitloom.messages.CodedFileNotFoundError: Nothing is there
-            (``input-not-found``).
-        ValueError: The file cannot be read (``file-unreadable``), is not
-            valid UTF-8 or JSON, is not a JSON object,
-            or is named ``.spdx3.json`` and is not SPDX 3 JSON-LD
-            (:func:`~pitloom._sbom_format.refuse_unusable_given_sbom`).
-    """
-    raw = read_given_bytes(sbom_path, kind="SBOM file", use=SBOM_USE)
-    if raw.startswith(codecs.BOM_UTF8):
+    """The SBOM at *sbom_path* as written (:func:`~pitloom._sbom_format.
+    read_given_sbom`), so what is embedded, and what ``-o`` copies, is the
+    file. A dropped UTF-8 byte order mark is said with one ``WARNING:``: the
+    embedded bytes differ from the file's."""
+    given = read_given_sbom(sbom_path)
+    if given.dropped_bom:
         log.warning(
             "SBOM %s: byte order mark dropped (JSON text must not have one)",
             loggable(str(sbom_path)),
         )
-        raw = raw[len(codecs.BOM_UTF8) :]
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise file_unreadable_error(exc, file=sbom_path, use=SBOM_USE) from exc
-    refuse_unusable_given_sbom(sbom_path, text)
-    return text
+    return given.text
 
 
 def _resolve_embed_registry(

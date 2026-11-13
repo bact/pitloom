@@ -121,6 +121,7 @@ _ALLOWED = {
     "core/_models_wheel_types.py:_MAX_SIGNIFICANT_DIGITS": "over it: ERROR",
     "core/ai_metadata.py:SOURCE_METADATA_MAX_DEPTH": _SHOWN,
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
+    "core/given_file.py:FETCH_MAX_BYTES": "over it: the reader's own warning",
     "core/lfs_pointer.py:LFS_POINTER_MAX_BYTES": "a format rule: longer is content",
     "core/lfs_pointer.py:_MAX_SIZE": "a format rule: git-lfs states no more",
     # extract/remote/pypi.py refuses with the configured value's Cap.
@@ -130,7 +131,6 @@ _ALLOWED = {
     ),
     "core/scalar_text.py:MAX_INTEGER_DIGITS": _SHOWN,
     "core/wheel_dist_info.py:MAX_NAME_CHARS": _HEURISTIC,
-    "extract/_extract_utils.py:FETCH_MAX_BYTES": "over it: the reader's own warning",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_BYTES": "headers lead a file",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_LINES": "headers lead a file",
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,

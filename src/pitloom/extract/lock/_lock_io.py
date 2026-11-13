@@ -21,9 +21,9 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_bytes
+from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.logging_config import one_line
 from pitloom.messages.files import warn_file_unreadable
 
@@ -50,7 +50,7 @@ def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
 
 class LockFileRefusedError(ValueError):
     """A lock/pin file that is not read at all: not a regular file, or over
-    :data:`~pitloom.extract._extract_utils.FETCH_MAX_BYTES`."""
+    :data:`~pitloom.core.given_file.FETCH_MAX_BYTES`."""
 
 
 def read_lock_bytes(lock_path: Path) -> bytes:

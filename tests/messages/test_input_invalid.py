@@ -40,7 +40,7 @@ pytestmark = pytest.mark.platform
 def test_an_sbom_graph_of_the_wrong_shape_is_sbom_invalid(
     tmp_path: Path, graph: bytes, said: str
 ) -> None:
-    sbom = tmp_path / "a b.spdx3.json"
+    sbom = tmp_path / "a b.json"
     sbom.write_bytes(graph)
     with pytest.raises(ValueError) as caught:
         read_sbom_objects(sbom)

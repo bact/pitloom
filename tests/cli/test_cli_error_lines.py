@@ -156,3 +156,53 @@ def test_an_empty_exception_text_names_its_class(
     with error_frame(command_frame("model")):
         assert _fail(object()) == 1
     assert capsys.readouterr().err.splitlines() == [f"ERROR: loom model: {text}"]
+
+
+_FTP = "ftp://user:SECRET1@example.invalid/f"
+
+
+@pytest.mark.parametrize(
+    ("argv", "shown"),
+    [
+        (["generate", ".", "-o", f"{_FTP}/o.json"], "o.json'"),
+        (["generate", ".", "-o", "o.json", "--creation-datetime", _FTP], "ISO 8601"),
+        (["generate", ".", "--bogus", "https:/user:SECRET1@h/x"], "--bogus https://"),
+        (["generate", ".", "--bogus", "https:\\\\user:SECRET1@h/x"], "--bogus"),
+        (["generate", ".", "--bogus", "https://user:SEC RET1@h/x"], "--bogus"),
+        (["https://h/x?token=SEC RET1"], "?token=***' (choose from"),
+    ],
+    ids=["output", "datetime", "collapsed", "backslashes", "space", "choice"],
+)
+def test_an_error_line_names_no_credential(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    argv: list[str],
+    shown: str,
+) -> None:
+    """A URL quoted by an exception (an output path, a datetime) or by an
+    argparse refusal is named without its password or secret parameter,
+    whatever a path made of its separators; a quoted one keeps its closing
+    quote."""
+    (tmp_path / "pyproject.toml").write_bytes(b'[project]\nname = "p"\nversion = "1"\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    code: object
+    try:
+        code = main()
+    except SystemExit as exit_:  # argparse refuses an argument
+        code = exit_.code
+    assert code
+    errors = [ln for ln in capsys.readouterr().err.splitlines() if "ERROR" in ln]
+    assert len(errors) == 1
+    assert "RET1" not in errors[0]
+    assert shown in errors[0]
+
+
+def test_a_per_wheel_line_names_no_credential(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    report_error_line(ValueError(f"bad '{_FTP}/x.whl' and 'https:/u:SECRET2@h'"))
+    (line,) = capsys.readouterr().err.splitlines()
+    assert "SECRET" not in line
+    assert line.endswith("x.whl' and 'https://***:***@h'")

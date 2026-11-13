@@ -34,6 +34,8 @@ and this project adheres to
   ([#481], [#482])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
+- `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
+  over 50 MiB), and every `ERROR:` line masks a URL's credentials ([#482])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482

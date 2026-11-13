@@ -24,8 +24,8 @@ import pytest
 
 import pitloom.extract.lock._lock_io as lock_io
 import pitloom.extract.lock.common as lock_common
+from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.extract.lock.common import load_lock_json, load_lock_toml
 from pitloom.logging_config import CODE_ATTR
 from tests._bounded import run_bounded

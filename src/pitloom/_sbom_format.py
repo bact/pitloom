@@ -17,18 +17,20 @@ and what a skip.
 
 from __future__ import annotations
 
+import codecs
 import dataclasses
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.given_file import read_given_bytes
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
-from pitloom.messages.files import JSON_MALFORMED, SBOM_USE
+from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
 from pitloom.messages.targets import SBOM_WRONG_FORMAT
 
 
@@ -321,8 +323,9 @@ def _reject_constant(name: str) -> object:
     raise ValueError(f"{name} is not a JSON value")
 
 
-def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> None:
-    """Refuse an SBOM file the user named that cannot be what they gave it as.
+def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, Any]:
+    """Refuse an SBOM file the user named that cannot be what they gave it as;
+    else return its JSON object.
 
     *text* is the file's content. Raises ``ValueError`` when it is not valid
     JSON (empty included; ``NaN`` and ``Infinity`` are not JSON) or is JSON but
@@ -344,3 +347,40 @@ def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> None:
         detect_sbom_format(text.encode("utf-8")) != "spdx3-jsonld"
     ):
         raise CodedValueError(SBOM_WRONG_FORMAT, file=sbom_path)
+    return document
+
+
+class GivenSbom(NamedTuple):
+    """An SBOM file the user named, as :func:`read_given_sbom` read it."""
+
+    #: Its bytes decoded as UTF-8, a byte order mark dropped.
+    text: str
+    #: Its JSON object.
+    document: dict[str, Any]
+    #: Whether a UTF-8 byte order mark was dropped (JSON text must not
+    #: carry one); the caller that writes *text* out says so.
+    dropped_bom: bool
+
+
+def read_given_sbom(sbom_path: Path | str) -> GivenSbom:
+    """The SBOM file the user named at *sbom_path*, for ``embed-wheel
+    --sbom`` and ``loom id import`` alike: its bytes decoded as strict UTF-8
+    and nothing else (no newline translation; UTF-16 and -32 are refused,
+    as RFC 8259 section 8.1 wants UTF-8), a UTF-8 byte order mark dropped,
+    and its JSON object.
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: Nothing is there, or not a
+            regular file (``input-not-found``).
+        ValueError: The file cannot be read (``file-unreadable``), is over
+            the read cap (``over-cap``), is not UTF-8
+            (``file-unreadable/not-utf8``), or is refused by
+            :func:`refuse_unusable_given_sbom`.
+    """
+    raw = read_given_bytes(sbom_path, kind="SBOM file", use=SBOM_USE)
+    dropped_bom = raw.startswith(codecs.BOM_UTF8)
+    try:
+        text = raw[len(codecs.BOM_UTF8) if dropped_bom else 0 :].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise file_unreadable_error(exc, file=sbom_path, use=SBOM_USE) from exc
+    return GivenSbom(text, refuse_unusable_given_sbom(sbom_path, text), dropped_bom)

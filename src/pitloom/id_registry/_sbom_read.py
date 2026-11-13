@@ -12,22 +12,14 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.import_sbom``),
 from __future__ import annotations
 
 import io
-import json
 from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core.given_file import read_given_bytes
+from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
 from pitloom.messages import CodedValueError
-from pitloom.messages.files import (
-    JSON_MALFORMED,
-    NOT_JSON_LINE,
-    NOT_OBJECT_LINE,
-    SBOM_USE,
-    file_unreadable_error,
-)
 from pitloom.messages.targets import (
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
@@ -37,30 +29,11 @@ from pitloom.messages.targets import (
 __all__ = ["document_id", "read_sbom_objects"]
 
 
-def _require_graph_list(raw: bytes, sbom_path: Path) -> None:
-    """Raise ``ValueError`` when the bytes *raw*, read from *sbom_path*,
-    are not UTF-8 (``file-unreadable/not-utf8``) or not a JSON object
-    (``json-malformed``), or have an ``@graph`` that
-    is not a list, or holds a non-object (``sbom-invalid``; the
-    deserialiser would leak a ``TypeError``). Each names *sbom_path*."""
-    try:
-        # Bytes, not text: a UTF-8 BOM is accepted, as the deserialiser does.
-        data = json.loads(raw)
-    except UnicodeDecodeError as exc:
-        # Before ValueError (its base): the code embed-wheel gives the file.
-        raise file_unreadable_error(exc, file=sbom_path, use=SBOM_USE) from exc
-    except (ValueError, RecursionError) as exc:
-        raise CodedValueError(
-            JSON_MALFORMED,
-            line=NOT_JSON_LINE,
-            file=sbom_path,
-            use=SBOM_USE,
-            failure=exc,
-        ) from exc
-    if not isinstance(data, dict):
-        raise CodedValueError(
-            JSON_MALFORMED, line=NOT_OBJECT_LINE, file=sbom_path, use=SBOM_USE
-        )
+def _require_graph_list(data: dict[str, Any], sbom_path: Path) -> None:
+    """Raise ``ValueError`` when the JSON object *data*, read from
+    *sbom_path*, has an ``@graph`` that is not a list, or holds a non-object
+    (``sbom-invalid``, naming *sbom_path*): the deserialiser would leak a
+    ``TypeError``."""
     graph = data.get("@graph", [])
     if not isinstance(graph, list):
         raise CodedValueError(
@@ -77,18 +50,20 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
     (:func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`).
 
     Raises:
-        pitloom.messages.CodedFileNotFoundError: Nothing is at *sbom_path*
-            (``input-not-found``).
-        pitloom.messages.CodedValueError: It cannot be read
-            (``file-unreadable``, ``file-unreadable/not-utf8``), is not a
-            JSON object (``json-malformed``)
-            or its ``@graph`` is malformed (``sbom-invalid``); each names
-            *sbom_path*. The deserialiser's own errors are uncoded.
+        pitloom.messages.CodedFileNotFoundError: Nothing is at *sbom_path*,
+            or not a regular file (``input-not-found``).
+        pitloom.messages.CodedValueError: It is refused as ``embed-wheel
+            --sbom`` refuses it (:func:`~pitloom._sbom_format.read_given_sbom`:
+            ``file-unreadable``, ``over-cap``, ``json-malformed``,
+            ``sbom-wrong-format``), or its ``@graph`` is malformed
+            (``sbom-invalid``); each names *sbom_path*. The deserialiser's
+            own errors are uncoded.
     """
     object_set = spdx3.SHACLObjectSet()
-    raw = read_given_bytes(sbom_path, kind="SBOM file", use=SBOM_USE)
-    _require_graph_list(raw, sbom_path)
-    spdx3.JSONLDDeserializer().read(io.BytesIO(raw), object_set)
+    given = read_given_sbom(sbom_path)
+    _require_graph_list(given.document, sbom_path)
+    raw = io.BytesIO(given.text.encode("utf-8"))
+    spdx3.JSONLDDeserializer().read(raw, object_set)
     return _sorted_by_spdx_id(object_set)
 
 
