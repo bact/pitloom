@@ -337,7 +337,7 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` / `--no-offline` -- forbid network access (PyPI and Hugging
   Face lookups; a Git URL, a PyPI URL or a Hugging Face model target is an
-  error, [`offline-unusable`](message-codes.md#offline-unusable)), or, with
+  error, [`offline-unusable`](message-codes-network.md#offline-unusable)), or, with
   `--no-offline`, allow it over a config `offline = true`. Not on `enrich`.
 - `--max-download-bytes BYTES` -- the largest file downloaded from a PyPI URL
   (`wheel`, `project` and `generate` with that URL), the most disk a Git
@@ -345,7 +345,7 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   and each metadata file of a Hugging Face model, under that file's own cap
   (16 MiB JSON, 1 MiB card, 256 KiB licence) (`model` and `generate`); beats
   `--config`'s `max-download-bytes` (512 MiB by default).
-  Over it is an `ERROR:` ([`over-cap`](message-codes.md#over-cap)) and no
+  Over it is an `ERROR:` ([`over-cap`](message-codes-files.md#over-cap)) and no
   SBOM is written; a Hugging Face file over it is left out with a
   `WARNING:` and the rest is read. A
   positive integer: `0` or a negative value exits 2, even where it has no

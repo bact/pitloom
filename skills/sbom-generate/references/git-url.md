@@ -69,7 +69,7 @@ URL is read by the host's conventions. Rules to state to the user:
   redirected to <url>`), and the repository, branch and folder used.
 - A `WARNING: ... Git LFS pointer, content not read ... [lfs-pointer]` is
   common here (most Hugging Face model repositories keep weights in LFS).
-  Explain it from its section in `messages.md`; relay the message's advice.
+  Explain it from its section in `messages-models.md`; relay the message's advice.
   For a model file named by its own URL a pointer is an `ERROR:` (`... Git LFS
   pointer, content not fetched ...; clone with git lfs, then run on the
   file`): relay it; do not clone for the user.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-07
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,9 +68,11 @@ Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh, 2b, 1b
 and 1c, **the 0.23.0 cut** (these four done), then 4 (frames), 3, 5 to 7
 (with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
-adoption is done), and T14. Precondition of the next catalogue PR: split the
-generated references (`docs/message-codes.md` and the skills' copies, over
-the ~30 KB limit after #446) per family or per actor.
+adoption is done), and T14. The precondition (split the generated references,
+over the ~30 KB limit after #446) is built: one page per topic, the family ->
+topic mapping in `src/pitloom/messages/_topics.py`. Each catalogue PR that adds
+a family maps it there (a test fails until it does), and a page nearing 30 KB
+is split in that file; the generator refuses an oversize file.
 
 "Plan" is the count in the plan made on `bccaa747`; "Now" is measured on
 54f79c57. Codes are PROPOSALS by the grammar (decisions A to M); each PR's

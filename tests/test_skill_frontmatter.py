@@ -186,9 +186,18 @@ class TestSkillReferences:
             assert len(Path(target).parts) <= 2, f"{target} is nested"
 
     def test_every_reference_is_named_in_skill_md(self, skill_dir: Path) -> None:
+        """A reference is named in ``SKILL.md``, except a page of the message
+        reference (``messages-<topic>.md``): the body is at its size cap, so
+        ``messages.md`` (named there) links each page instead."""
         body = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        index = skill_dir / "references" / "messages.md"
+        index_text = index.read_text(encoding="utf-8") if index.is_file() else ""
         for ref in sorted((skill_dir / "references").glob("*.md")):
-            assert f"references/{ref.name}" in body, f"{ref.name} is orphaned"
+            if ref.name.startswith("messages-"):
+                assert "references/messages.md" in body, f"{ref.name} is orphaned"
+                assert f"]({ref.name}#" in index_text, f"{ref.name} is not indexed"
+            else:
+                assert f"references/{ref.name}" in body, f"{ref.name} is orphaned"
 
     def test_every_body_pointer_says_when_to_read(self, skill_dir: Path) -> None:
         """A sentence naming ``references/x.md`` states a condition, so the

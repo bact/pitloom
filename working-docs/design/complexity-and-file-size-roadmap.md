@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-13
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,10 +57,9 @@ trip review attention:
   `working-docs/implementation/manual-cli-checks.md` (587) and
   `working-docs/design/canonical-output-followups.md` (535), and `action.yml`
   (621); `CHANGELOG.md` (551) is exempt by nature. The generated message
-  reference (`docs/message-codes.md` and its two skill copies, about 650 lines
-  and 40 KB each) is over the soft line limit and the ~30 KB hard limit.
-  Splitting it (per family or per actor, a generator change) is a
-  precondition of the next catalogue PR.
+  reference was split per topic (`pitloom.messages._topics`): the index and
+  seven pages per site, each under 30 KB, and the generator refuses a file
+  over the limit.
 
 None of the code files have crossed the 800-line hard cap, so nothing is
 currently broken -- but per AGENTS.md, a file should be split *before* crossing

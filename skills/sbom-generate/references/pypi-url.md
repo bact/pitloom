@@ -136,7 +136,8 @@ How to read the record to the user:
 
 ## Messages to relay
 
-Read `messages.md` for each code above and relay its advice. A
+Read `messages-pypi.md` (the index `messages.md` links the other pages) for
+each code above and relay its advice. A
 `WARNING: PYPI=<name> FILE=<file>: ...; skipped` (`[pypi-response-invalid]`)
 means a file of the release was left out of the choice because PyPI's entry
 for it was not valid; it only narrows the choice, so report it. A network

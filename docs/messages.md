@@ -174,7 +174,7 @@ unchanged. The annotation is emitted after it.
 
 Pitloom has no SARIF output yet. The codes leave room for one: a family can be
 a SARIF rule `id`, a code its hierarchical `ruleId` (`lfs-pointer/shipped`),
-and a code's section of [Message codes](message-codes.md) its help link.
+and a code's section on its page of [Message codes](message-codes.md) its help link.
 
 ## Catalogue
 

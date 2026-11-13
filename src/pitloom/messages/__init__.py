@@ -250,6 +250,7 @@ from pitloom.messages._sbom_target import (
 )
 from pitloom.messages._text_malformed import TEXT_MALFORMED
 from pitloom.messages._text_malformed_warning import warn_lone_surrogates
+from pitloom.messages._topics import FAMILY_TOPICS, TOPIC_TITLES, topic_of
 from pitloom.messages._types import (
     ACTOR_HEADINGS,
     ACTORS,
@@ -270,6 +271,9 @@ from pitloom.messages._usage_unparseable import (
 from pitloom.messages._usage_unusable import USAGE_UNUSABLE
 
 __all__ = [
+    "FAMILY_TOPICS",
+    "TOPIC_TITLES",
+    "topic_of",
     "ACTORS",
     "ACTOR_HEADINGS",
     "ATTRIBUTE_LINE",

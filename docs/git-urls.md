@@ -107,7 +107,7 @@ from the server's own branches and tags, longest match first.
 - A host is written in plain ASCII (an international name in its `xn--`
   form): a host with a non-ASCII character or a percent-encoding is refused
   before git runs
-  ([`url-unsafe/host-spelling`](message-codes.md#url-unsafehost-spelling)),
+  ([`url-unsafe/host-spelling`](message-codes-network.md#url-unsafehost-spelling)),
   since git would resolve it to a host the URL's text does not spell.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
@@ -220,7 +220,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   ignores case. `.gitmodules`, `.gitattributes`, `.gitignore`, `.github` and
   `foo.git` stay valid names. A link named in a
   `blob` URL is not followed and has its own line under
-  [`input-not-found`](message-codes.md#input-not-found). A named FIFO or other
+  [`input-not-found`](message-codes-targets.md#input-not-found). A named FIFO or other
   special file is refused, never opened.
 - A file is a model by its **content**, not its name: a GGUF file named `m.dat`
   is recognised as GGUF when its URL is given, and listed without metadata
@@ -274,7 +274,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   repository, not shown>`.
 - **The repository's own build-time code is not run** while its files are
   listed. In a clone, these settings are ignored, with one `WARNING:` naming
-  the file and the settings ([`config-unsafe/build-code`](message-codes.md#config-unsafebuild-code)):
+  the file and the settings ([`config-unsafe/build-code`](message-codes-targets.md#config-unsafebuild-code)):
   Hatchling metadata hooks (`pyproject.toml` and `hatch.toml`), setuptools
   `cmdclass` and an `attr:` version Pitloom cannot read statically, and PDM
   hooks (`pdm_build.py`, `custom-hook`, `run-setuptools`). The `[global]`
@@ -315,7 +315,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   setting that caps a [PyPI download](pypi-urls.md#size-limit)): `ERROR: the
   repository is larger than the <limit>-byte max-download-bytes cap; git clone
   was stopped`, error code `git.too-large`, message code
-  [`over-cap`](message-codes.md#over-cap), and no SBOM. The 10 MiB filter
+  [`over-cap`](message-codes-files.md#over-cap), and no SBOM. The 10 MiB filter
   leaves out only large blobs the checkout does not need; a large file in the
   checked-out tree (a model of 12 MiB, say) is fetched and counts. Raise the
   cap for one run when you trust the repository.
@@ -323,7 +323,7 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   `package-dir`, `packages.find.where` or `package-data` with an absolute or
   `..` path, say) keeps only files inside the repository. Such an entry is
   dropped before the files are discovered, one `WARNING:` per entry as written
-  ([`file-unreadable/outside-repository`](message-codes.md#file-unreadableoutside-repository)),
+  ([`file-unreadable/outside-repository`](message-codes-files.md#file-unreadableoutside-repository)),
   and a file found outside after discovery is only counted, in one more line;
   so a host file is never listed, hashed or read. The same holds for a `file:`
   directive, `license-files`, `packages`/`py_modules` and Poetry
@@ -342,15 +342,15 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - `--offline` forbids the fetch: it is an error, not a fallback, for `loom
   project`, `loom model` and `loom generate` alike (`URL=<url>: network
   access is forbidden (offline mode); nothing fetched`,
-  [`offline-unusable`](message-codes.md#offline-unusable), the code a PyPI
+  [`offline-unusable`](message-codes-network.md#offline-unusable), the code a PyPI
   URL or a Hugging Face model refuses with too).
 - A clone that cannot reach the server (a name that does not resolve, a
   refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer)
   ends `git <command> failed: <git's reason>; nothing fetched`
-  ([`download-network-failed`](message-codes.md#download-network-failed));
+  ([`download-network-failed`](message-codes-network.md#download-network-failed));
   one that runs out of time, `git <command> did not finish within <seconds>
   seconds; stopped`
-  ([`download-timeout`](message-codes.md#download-timeout)): the codes a
+  ([`download-timeout`](message-codes-network.md#download-timeout)): the codes a
   PyPI or Hugging Face request that fails the same way carries. Any other
   git failure (a repository, branch or sign-in the server refused) carries no
   code; its message is git's own. Network failures are told from other git
