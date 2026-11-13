@@ -207,7 +207,8 @@ class TestSkillReferences:
         """A reference is named in ``SKILL.md``, except a page of the message
         reference (``messages-<topic>.md``): the body is at its size cap, so
         ``messages.md`` (named there) links each page instead."""
-        assert _orphaned_references(skill_dir) == []
+        orphans = _orphaned_references(skill_dir)
+        assert not orphans, f"orphaned: {orphans}"
 
     def test_every_body_pointer_says_when_to_read(self, skill_dir: Path) -> None:
         """A sentence naming ``references/x.md`` states a condition, so the
