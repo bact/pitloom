@@ -155,7 +155,10 @@ def test_namespace_on_an_existing_registry(
     else:
         assert code == 1
         (error,) = _errors(capsys)
-        assert f"namespace {_NS} is not --namespace {namespace}; delete it" in error
+        assert error.startswith(
+            f"ERROR: loom id generate: ID registry: FILE={registry}: namespace "
+            f"{_NS} is not --namespace {namespace}; delete it"
+        )
     assert registry.read_bytes() == before  # unchanged either way
 
 
@@ -221,9 +224,11 @@ def test_generate_into_a_registry_with_another_root_is_one_error(
     assert _generate(monkeypatch, project, registry, root=project / "src") == 1
 
     (error,) = _errors(capsys)
-    assert error.startswith("ERROR: loom id generate: ID registry file ")
-    assert "project root " in error
-    assert "delete it to change the project root" in error
+    assert error == (
+        f"ERROR: loom id generate: ID registry: FILE={registry}: project root "
+        f"'{project.resolve()}' is not '{project / 'src'}'; delete it to change "
+        "the project root [option-conflict]"
+    )
     assert registry.read_bytes() == before
 
 
@@ -252,11 +257,16 @@ def test_generate_reports_a_root_that_cannot_be_stored_as_one_error(
         fake.side_effect = ValueError("path is on mount 'C:', start on mount 'D:'")
         assert _generate(monkeypatch, project, registry) == 1
 
+    # Known state until catalogue PR 7 codes the save wrapper
+    # (failed_to_save_message): the registry-unusable line is stacked after
+    # it, the file named twice and no code printed.
     (error,) = _errors(capsys)
-    assert error.startswith(
+    assert error == (
         f"ERROR: loom id generate: ID registry: failed to save '{registry}': "
+        f"ID registry: FILE={registry}: project root '{project.resolve()}' has "
+        "no path relative to the file's directory; path is on mount 'C:', "
+        "start on mount 'D:'"
     )
-    assert "no path relative" in error
     assert not registry.exists()
 
 

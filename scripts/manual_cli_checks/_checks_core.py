@@ -488,8 +488,8 @@ def check_registry_missing_invalid(ctx: Context) -> None:
                 f"{name}/{label}: want one ERROR: line, got {error_lines}",
             )
             expect(
-                bool(error_lines) and "ID registry file" in error_lines[0],
-                f"{name}/{label}: {error_lines} does not name 'ID registry file'",
+                bool(error_lines) and "ID registry" in error_lines[0],
+                f"{name}/{label}: {error_lines} does not name 'ID registry'",
             )
             if label == "v3":
                 expect(

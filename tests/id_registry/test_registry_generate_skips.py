@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ import pytest
 import pitloom.id_registry._types as types_mod
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME
 from pitloom.id_registry._types import _iter_files
+from pitloom.messages import code_of
 from tests._unreadable import POSIX_NON_ROOT
 
 _POSIX = pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX, non-root")
@@ -105,8 +107,8 @@ def test_unencodable_name_is_skipped_with_the_file_warning(
 
     assert files == [good]
     (warning,) = [r.getMessage() for r in caplog.records]
-    assert warning.startswith("FILE='src/bad")
-    assert "cannot be encoded as UTF-8" in warning
+    assert warning.startswith("ID registry: FILE='src/bad")
+    assert warning.endswith("cannot be encoded as UTF-8 (lone surrogate); not indexed")
 
 
 @_POSIX
@@ -115,11 +117,18 @@ def test_unreadable_path_raises(tmp_path: Path, kind: str) -> None:
     root = _project(tmp_path)
     target = root / "src" / "sub" if kind == "dir" else root / "src" / "a.py"
     target.chmod(0)
+    said = {"dir": "could not list", "file": "could not read"}[kind]
     try:
-        with pytest.raises(ValueError, match="PATH .*could not be read"):
+        with pytest.raises(
+            ValueError, match=re.escape(f"={target}: {said} for ID registry indexing; ")
+        ) as caught:
             list(_iter_files([target], root))
     finally:
         target.chmod(0o755)
+    assert (
+        code_of(caught.value)
+        == {"dir": "dir-unlistable", "file": "file-unreadable"}[kind]
+    )
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs mkfifo")

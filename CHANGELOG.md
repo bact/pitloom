@@ -24,14 +24,13 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM and target errors carry a message code; see
-  `docs/message-codes.md` ([#482])
+- Input, option, SBOM, target and ID registry file errors carry a message code;
+  see `docs/message-codes.md` ([#482], [#485])
 
 ### Changed
 
-- Error messages for missing inputs and invalid options are reworded, and
-  each CLI `ERROR:` line starts `loom <command>:`; see `docs/message-codes.md`
-  ([#481], [#482])
+- Error messages for missing inputs, options and ID registry files are
+  reworded; CLI `ERROR:` lines start `loom <command>:` ([#481], [#482], [#485])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
@@ -47,6 +46,8 @@ and this project adheres to
   back to licence files ([#483])
 - Safetensors `ss_base_model_version` (the base model) is no longer read as the
   model's name; it stays a property ([#483])
+- `loom id generate` with a `PATH` that does not exist is an error (exit 1),
+  not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
 
 ### Fixed
 
@@ -56,6 +57,7 @@ and this project adheres to
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
+[#485]: https://github.com/bact/pitloom/pull/485
 
 ## [0.24.0] - 2026-11-11
 

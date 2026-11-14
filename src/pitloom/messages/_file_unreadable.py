@@ -68,7 +68,8 @@ FILE_UNREADABLE: Final = Message(
     "project, a configuration, an ID registry, an SBOM) under a directory "
     "without search permission says so 'for the input check', not that it "
     "is not found. The ERROR line for an SBOM given to 'loom id import' or "
-    f"to embed, and for the input check, prints since {_SINCE_SBOM}.",
+    "to embed, for an ID registry file, for a 'loom id generate' PATH, and "
+    f"for the input check, prints since {_SINCE_SBOM}.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -81,7 +82,9 @@ FILE_UNREADABLE: Final = Message(
     "model; a model or dataset card sets none of the fields it states. As an "
     "ERROR, the call that named the file raises (a Croissant document: the "
     "dataset declaration fails; an SBOM to import: the ID registry is not "
-    "written; an SBOM to embed: no wheel is changed; the only possible "
+    "written; an SBOM to embed: no wheel is changed; an ID registry file, "
+    "or a 'loom id generate' PATH: no registry or SBOM is written; the only "
+    "possible "
     "model file of a folder named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
     "raises ValueError carrying the code).",
@@ -120,12 +123,13 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
     summary="A text file Pitloom read is not UTF-8, the encoding it must be "
     "in: a requirements file or a file a setup.cfg directive lists, a "
     "Python file read for the model usage scan (a WARNING:), or an SBOM "
-    "given to embed or to import into an ID registry (an ERROR:, which "
-    f"prints since {_SINCE_SBOM}).",
+    "given to embed or to import into an ID registry, or an ID registry file "
+    f"(an ERROR:, which prints since {_SINCE_SBOM}).",
     did="Went on without what the file holds: the field is not set from it, "
     "or the usage scan records no model reference from it. For an SBOM, "
     "wrote nothing: to embed, no wheel is changed; to import, the ID "
-    "registry is not written.",
+    "registry is not written. For an ID registry file, wrote nothing: no "
+    "registry and no SBOM.",
     effect="thinner",
     actor="user",
     advice="Tell the user which file is not UTF-8 and what the decoder "
@@ -199,22 +203,29 @@ FILE_UNREADABLE_OUTSIDE_REPOSITORY: Final = Message(
     since="0.23.4",
 )
 
+#: A directory listed for a purpose of the closed table.
+DIR_LINE: Final = Line(
+    level="WARNING", template="DIR=%(dir)s: could not list %(use)s; %(failure)s"
+)
+#: The same, where the listing raises (a directory named as a 'loom id
+#: generate' PATH).
+DIR_ERROR_LINE: Final = Line(level="ERROR", template=DIR_LINE.template)
+
 DIR_UNLISTABLE: Final = Message(
     code="dir-unlistable",
     condition="unlistable",
-    lines=(
-        Line(
-            level="WARNING",
-            template="DIR=%(dir)s: could not list %(use)s; %(failure)s",
-        ),
-    ),
+    lines=(DIR_LINE, DIR_ERROR_LINE),
     summary="A directory could not be listed (no read or search permission): "
-    "the files under it were not seen.",
+    "the files under it were not seen. The ERROR line, for a directory named "
+    f"as a 'loom id generate' PATH, prints since {_SINCE_SBOM}.",
     did="Went on without them: file discovery leaves them out of the SBOM (a "
     "build backend that lists before it excludes can name a directory it "
     "would leave out anyway); a dataset directory gets no hash (Evidence: "
     "not_measured | Reason: dir-unlistable); ID registry indexing leaves them "
-    "out of the index; a model or dataset card in it is not found.",
+    "out of the index; a model or dataset card in it is not found. As an "
+    "ERROR (a directory named as a PATH to index), 'loom id generate' writes "
+    "no registry and exits 1, and the library raises ValueError carrying the "
+    "code.",
     effect="thinner",
     actor="user",
     advice="Tell the user which directory could not be listed and what the "

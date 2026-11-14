@@ -152,6 +152,11 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   (ruling 2), not the registry's.
 - The two `PATH '<p>'` ERRORs (`cli/id.py`, `_types.py:364`) and
   `_types.py:329` are PR 5's (forward requirement from PR 3).
+- Applied in PR 5 (#485): `registry_file_error` became the subject form
+  `ID registry: FILE=<file>: CONDITION` (the file as given, URL masked);
+  `unencodable_message` became `text-malformed/registry` (an `ERROR` and
+  two `WARNING` lines). Left: `failed_to_save_message` (PR 7), so the
+  `registry-unusable` code is not yet printed on the CLI.
 
 ### PRs 8 and 9: configuration
 

@@ -76,7 +76,7 @@ def injected(cap: Captured) -> list[tuple[str, str]]:
             found.append(("H/message", f"no {needle!r}"))
         return found
     errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
-    wanted = "version 2, expected 4" if v2 else "ID registry file"
+    wanted = "version 2, expected 4" if v2 else "ID registry"
     if len(errors) != 1 or wanted not in errors[0]:
         found.append(
             ("H/message", f"not one ERROR with {wanted!r}: {cap.stderr_lines[:3]}")

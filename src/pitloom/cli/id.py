@@ -29,7 +29,7 @@ from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.core.iri import require_namespace_iri
-from pitloom.core.quote_source import quote_given, quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -45,6 +45,7 @@ from pitloom.messages import (
     CodedValueError,
     code_of,
 )
+from pitloom.messages.options import OPTION_INVALID, PATH_OUTSIDE_LINE
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_ID_PATHS_LINE,
@@ -108,10 +109,11 @@ def _namespace_arg(text: str) -> str:
 
 def _registry_file_arg(text: str) -> Path:
     """``type=`` callable for ``-o``: a file path, never ``-``: a registry is
-    not written to stdout, and ``-`` would name a file called ``-``."""
+    not written to stdout, and ``-`` would name a file called ``-``. The path
+    keeps the spelling typed, for a message to name it."""
     if text == "-":
         raise argparse.ArgumentTypeError("'-' (stdout) is not supported")
-    return Path(text)
+    return TypedPath(text)
 
 
 def _entity_arg(text: str) -> tuple[str, str]:
@@ -243,9 +245,11 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
         for path in args.paths:
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
-                raise ValueError(
-                    f"PATH {quote_given(path)} is outside "
-                    f"--project-dir {quote_given(args.project_dir or project_dir)}"
+                raise CodedValueError(
+                    OPTION_INVALID,
+                    line=PATH_OUTSIDE_LINE,
+                    path=path,
+                    root=args.project_dir or project_dir,
                 )
             # The typed spelling rides along, for a warning to name it.
             paths.append(keep_spelling(resolved, path))

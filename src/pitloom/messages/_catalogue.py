@@ -28,6 +28,7 @@ from pitloom.messages import (
     _over_cap,
     _pypi,
     _pypi_info,
+    _registry_file,
     _remote_fetch,
     _sbom_input,
     _sbom_target,
@@ -83,5 +84,6 @@ MESSAGES: Final = _by_code(
         *_options.ENTRIES,
         *_sbom_input.ENTRIES,
         *_target_input.ENTRIES,
+        *_registry_file.ENTRIES,
     )
 )

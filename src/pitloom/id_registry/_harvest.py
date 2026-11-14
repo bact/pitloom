@@ -43,9 +43,9 @@ from pitloom.id_registry._types import (
     DATASET_PACKAGE_TYPE,
     RegistryEntry,
     is_utf8_text,
-    unencodable_message,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages.files import warn_registry_name_skipped
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -444,7 +444,7 @@ def _import_sbom_element(
     label = "key" if written.recorded else "name"
     for what, text in ((label, key[1]), ("spdxId", spdx_id)):
         if not is_utf8_text(text):
-            log.warning("%s; skipped", unencodable_message(what, text))
+            warn_registry_name_skipped(log, what, text)
             return
     if state is None:
         state = _Pass.of(registry, [obj], keys)

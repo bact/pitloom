@@ -257,16 +257,17 @@ def test_id_generate_names_a_missing_path_as_typed(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The warning for a PATH that is not there names it as typed, a URL in
+    """The error for a PATH that is not there names it as typed, a URL in
     it without its credentials, not the absolute path it was read as."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "p").mkdir()
     typed = "p/https://u:SECRET@h/x.txt"
     argv = ["id", "generate", "--project-dir", "p", "--id-registry", "r.json"]
     monkeypatch.setattr(sys, "argv", ["loom", *argv, typed])
-    assert __main__.main() == 0
+    assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert (
-        "WARNING: ID registry: path not found, skipping: 'p/https://***:***@h/x.txt'\n"
-    ) in err
-    assert "SECRET" not in err
+    assert err == (
+        "ERROR: loom id generate: PATH not found: 'p/https://***:***@h/x.txt' "
+        "[input-not-found]\n"
+    )
+    assert not (tmp_path / "r.json").exists()

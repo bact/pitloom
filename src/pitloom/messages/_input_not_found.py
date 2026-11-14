@@ -88,8 +88,8 @@ INPUT_NOT_FOUND: Final = Message(
         NO_ID_PATHS_LINE,
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
-    "wheel, sdist, project directory, configuration, ID registry or SBOM file "
-    "on disk "
+    "wheel, sdist, project directory, configuration, ID registry or SBOM file, "
+    "or a PATH given to 'loom id generate' to index, on disk "
     "(or something else is there: the line says it is not a file, or not a "
     "directory), the file or folder a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
@@ -101,7 +101,8 @@ INPUT_NOT_FOUND: Final = Message(
     "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
     "checks nothing. The command exits 1 (the Action step fails), the build "
     "hook fails the build, and the library raises FileNotFoundError carrying "
-    "the code, ValueError for a fragments directory that holds no JSON file, "
+    "the code (IdRegistry.generate for a path to index that is not there), "
+    "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
     "folder.",
     effect="not-written",

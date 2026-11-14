@@ -17,7 +17,7 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
-from pitloom.core.given_path import given_spelling
+from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
 from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
@@ -125,7 +125,7 @@ def resolve_registry(
     :class:`~pitloom.core.given_path.GivenPath` keeps (the CLI flag, a
     ``--config`` file's key), never the resolved form. One that does not
     load raises ``ValueError`` (via :meth:`IdRegistry.load`), naming the
-    resolved path -- a declared registry is always meant to load; this
+    path as given too -- a declared registry is always meant to load; this
     function never swallows that failure.
     """
     source = id_registry if id_registry is not None else configured
@@ -138,7 +138,8 @@ def resolve_registry(
     if not is_input_file(resolved, shown=given_spelling(source)):
         # Named as given, never as resolved: no absolute or temporary path.
         raise input_not_found("ID registry file", given_spelling(source), at=resolved)
-    return IdRegistry.load(resolved)
+    # Named as given, as the line above: a load failure names what was typed.
+    return IdRegistry.load(TypedPath(GivenPath(resolved, given_spelling(source))))
 
 
 def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:

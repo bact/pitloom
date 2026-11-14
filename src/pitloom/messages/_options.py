@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import Line, Message
 
 _SINCE: Final = "0.24.1"
@@ -83,18 +84,39 @@ BUILD_TIMEOUT_LINE: Final = Line(
     template="build timeout must be 1-%(limit)s seconds, got %(value)s",
 )
 
+#: An ``id generate`` PATH outside ``--project-dir``.
+PATH_OUTSIDE_LINE: Final = Line(
+    level="ERROR", template="PATH %(path)s is outside --project-dir %(root)s"
+)
+#: A path given to ``IdRegistry.generate`` outside its project root.
+REGISTRY_PATH_OUTSIDE_LINE: Final = Line(
+    level="ERROR",
+    template=f"{REGISTRY_PREFIX}FILE=%(file)s: not inside the project root %(root)s",
+)
+
 OPTION_INVALID: Final = Message(
     code="option-invalid",
     condition="invalid",
-    lines=(ARGUMENT_LINE, UNRECOGNIZED_LINE, AMBIGUOUS_LINE, BUILD_TIMEOUT_LINE),
+    lines=(
+        ARGUMENT_LINE,
+        UNRECOGNIZED_LINE,
+        AMBIGUOUS_LINE,
+        BUILD_TIMEOUT_LINE,
+        PATH_OUTSIDE_LINE,
+        REGISTRY_PATH_OUTSIDE_LINE,
+    ),
     summary="The command line holds an option or a value the command does not "
     "take: an unknown option, a value of the wrong form or out of range, an "
-    "unknown subcommand, or an option out of order (a creator's type or email "
-    "before its name). An option given without its value is option-missing; "
-    "two options argparse refuses together are option-conflict.",
-    did="Ran nothing: the command exits 2 (the Action step fails); the "
-    "library raises ValueError carrying the code for a build timeout out of "
-    "range (BuildOptions).",
+    "unknown subcommand, an option out of order (a creator's type or email "
+    "before its name), or a 'loom id generate' PATH outside --project-dir "
+    "(the library: a path outside the project root given to "
+    "IdRegistry.generate). An option given without its value is "
+    "option-missing; two options argparse refuses together are "
+    "option-conflict.",
+    did="Ran nothing: the command exits 2 (the Action step fails), 1 for a "
+    "PATH outside --project-dir; the library raises ValueError carrying the "
+    "code for a build timeout out of range (BuildOptions) and a path outside "
+    "the project root (IdRegistry.generate).",
     effect="not-written",
     actor="caller",
     advice="The caller may fix the option or value the line names ('loom "
@@ -115,19 +137,43 @@ CONFLICT_ARGUMENT_LINE: Final = Line(
     template="argument %(option)s: not allowed with argument %(other)s",
 )
 
+#: ``loom id generate --namespace`` for a registry made with another one.
+NAMESPACE_CONFLICT_LINE: Final = Line(
+    level="ERROR",
+    template=f"{REGISTRY_PREFIX}FILE=%(file)s: namespace %(namespace)s is not "
+    "--namespace %(value)s; delete it to change the namespace",
+)
+#: ``loom id`` for a registry made for another project directory.
+PROJECT_ROOT_CONFLICT_LINE: Final = Line(
+    level="ERROR",
+    template=f"{REGISTRY_PREFIX}FILE=%(file)s: project root %(path)s is not "
+    "%(root)s; delete it to change the project root",
+)
+
 OPTION_CONFLICT: Final = Message(
     code="option-conflict",
     condition="conflict",
-    lines=(CANNOT_BE_USED_LINE, CONFLICT_ARGUMENT_LINE),
+    lines=(
+        CANNOT_BE_USED_LINE,
+        CONFLICT_ARGUMENT_LINE,
+        NAMESPACE_CONFLICT_LINE,
+        PROJECT_ROOT_CONFLICT_LINE,
+    ),
     summary="The command line holds an option the command cannot take in this "
-    "case (-o/--output with several wheels). The 'not allowed with' line is "
-    "reserved for options of a mutually exclusive group; no command has one "
-    "yet.",
-    did="Ran nothing: the command exits 1.",
+    "case (-o/--output with several wheels), or one an existing ID registry "
+    "contradicts: 'loom id generate --namespace' for a registry made with "
+    "another namespace, or 'loom id' with a --project-dir (the current "
+    "directory when not given) other than the one the registry was made for. "
+    "The 'not allowed with' line is reserved for options of a mutually "
+    "exclusive group; no command has one yet.",
+    did="Ran nothing: the command exits 1, and an ID registry is left as it is.",
     effect="not-written",
     actor="caller",
-    advice="The caller may drop the option, or run the command once per "
-    "input, and run again.",
+    advice="The caller may drop the option, run the command once per input, "
+    "or, for an ID registry, pass the namespace or project directory the "
+    "registry holds (or name another registry file), and run again. "
+    "Deleting a registry to change them loses every id it pins: that is the "
+    "user's decision, never the caller's.",
     since=_SINCE,
 )
 

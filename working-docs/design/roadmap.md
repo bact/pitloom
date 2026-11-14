@@ -215,7 +215,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   named as typed, URL credentials masked on every `ERROR:` line, one strict
   SBOM reader for `id import` and `embed-wheel`, the `messages` package split
   by topic (#482); ratchet 454 to 398.
-- [ ] **Catalogue PRs 5 to 18** (the remaining families, the licence families
+- [x] **Catalogue PR 5**: ID registry file errors coded (`FILE=` as
+  given); a missing `loom id generate` PATH is an error (#485); ratchet
+  398 to 366.
+- [ ] **Catalogue PRs 6 to 18** (the remaining families, the licence families
   last): the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and
   build, fragments and wheels, miscellany, licence.

@@ -36,6 +36,7 @@ from pitloom.messages.files import (
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
     INPUT_USE,
+    REGISTRY_USE,
     SBOM_USE,
     file_unreadable_error,
     warn_dir_unlistable,
@@ -56,7 +57,6 @@ _DECODED = "'utf-8' codec can't decode byte 0xff in position 0: invalid start by
 _OTHER_CAUSES = {
     "core/wheel_dist_info.py": "a wheel member that does not read (PR 15-16)",
     "extract/project/_requirements_files.py": "a listed file not found (PR 3)",
-    "id_registry/_types.py": "a file name a registry cannot hold (PR 5-7)",
 }
 
 
@@ -292,13 +292,18 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 
 #: The use constants the catalogue exports, by name, which a module passes
 #: imported, not defined.
-_SHARED_USES = {"INPUT_USE": INPUT_USE, "SBOM_USE": SBOM_USE}
+_SHARED_USES = {
+    "INPUT_USE": INPUT_USE,
+    "REGISTRY_USE": REGISTRY_USE,
+    "SBOM_USE": SBOM_USE,
+}
 
 #: The calls that take a ``use=`` of the table: the helpers, and what hands
 #: one on to them (a card's kind, the JSON reader).
 _USE_TAKERS = frozenset(
     {
         "CardKind",
+        "dir_unlistable_error",
         "fetch_json",
         "file_unreadable_error",
         "warn_dir_unlistable",

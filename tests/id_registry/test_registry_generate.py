@@ -203,10 +203,12 @@ def test_generate_handles_oserror(
 def test_iter_files_edge_cases(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    # Missing root
+    # Missing root: an explicit PATH is not found; a default root, quiet.
+    with pytest.raises(FileNotFoundError, match="^PATH not found: '.*missing'$"):
+        list(_iter_files([tmp_path / "missing"], tmp_path))
     # pylint: disable-next=use-implicit-booleaness-not-comparison
-    assert list(_iter_files([tmp_path / "missing"], tmp_path)) == []
-    assert "path not found, skipping" in caplog.text
+    assert list(_iter_files([tmp_path / "missing"], tmp_path, explicit=False)) == []
+    assert not caplog.text
 
     # Root is file
     f = tmp_path / "file.txt"

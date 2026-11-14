@@ -30,6 +30,7 @@ from pitloom.id_registry import (
     IdRegistry,
     RegistryEntry,
 )
+from pitloom.logging_config import CODE_ATTR
 from tests.id_registry._registry_harvest_shared import (
     _NS,
     _SHA_A,
@@ -300,8 +301,12 @@ def test_harvest_skips_an_element_with_a_lone_surrogate_with_a_warning(
             _object_set(_file(name, spdx_id), _file("ok.py", f"{_NS}#X-2"))
         )
 
-    (warning,) = [r.getMessage() for r in caplog.records]
-    assert warning.startswith("ID registry: ") and "lone surrogate" in warning
+    (record,) = caplog.records
+    warning = record.getMessage()
+    label = "name" if field == "name" else "spdxId"
+    assert warning.startswith(f"ID registry: {label} ")
+    assert warning.endswith("cannot be encoded as UTF-8 (lone surrogate); skipped")
+    assert getattr(record, CODE_ATTR) == "text-malformed/registry"
     assert bad not in warning
     assert list(registry.elements) == [(FILE_TYPE, "ok.py")]
 

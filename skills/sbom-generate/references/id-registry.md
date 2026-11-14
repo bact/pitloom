@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -141,11 +141,10 @@ the commands.
 Only `loom id generate` and `loom id import` create or index a registry;
 never hand-edit one. Run from the project directory (`PATH` and `-o`
 resolve against the current directory; a `PATH` outside the project, an
-unreadable one, or a `--project-dir` that is not a directory (`project directory not found:
-...`) is an `ERROR:`,
-exit 1, nothing written; a `PATH` that does not exist is only `WARNING: ID
-registry: path not found, skipping: <path>` (exit 0, so a typo indexes
-nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):
+unreadable one, one that does not exist (`PATH not found: '<path>'
+[input-not-found]`), or a `--project-dir` that is not a directory (`project
+directory not found: ...`) is an `ERROR:`, exit 1, nothing written; `-o -` is
+a usage error, exit 2):
 
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
@@ -206,9 +205,12 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=... [file-unreadable]`/`DIR=...
   [dir-unlistable]` (project-relative path) and the run continues (so does a
-  file whose name is not UTF-8 encodable, warned with no code); an
-  unreadable `PATH` argument is `ERROR: loom id <command>: PATH '<path>': could not be read: ...`
-  (an unreadable default directory is only the `DIR=` warning). An explicit
+  file whose name is not UTF-8 encodable, `[text-malformed/registry]`); an
+  unreadable `PATH` argument is an `ERROR:` naming it as typed, `ERROR: loom
+  id generate: FILE=<path>: could not read for ID registry indexing; ...
+  [file-unreadable]` (a directory: `DIR=<path>: could not list ...
+  [dir-unlistable]`); an unreadable default directory is only the `DIR=`
+  warning. An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
   nothing and warns
   `ID registry: path has a skipped directory name (build), skipping: <path>`.
@@ -236,7 +238,7 @@ it as below with their own frame (`loom id generate` or `loom id import`); other
 commands frame theirs (`loom generate`):
 
 ```text
-ERROR: loom id generate: ID registry file '<path>': version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`)
+ERROR: loom id generate: ID registry: FILE=<path>: version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`) [registry-wrong-format]
 ```
 
 Relay the `ERROR:`. Deleting the file loses its pins
@@ -245,6 +247,7 @@ then re-run `loom id generate <PATH> -o <REGISTRY>` (add `-e` as before),
 or `loom id import <SBOM> -o <REGISTRY>` to carry an earlier SBOM's ids
 over (same path as the deleted file). Non-interactive: stop, report the
 `ERROR:` and both commands, change nothing. Never convert the file by hand.
+Version above 4: upgrade Pitloom, never delete; none: restore it.
 
 A newly created, undeclared registry prints one of these lines -- relay it
 verbatim (the second when the project already declares a different
@@ -415,6 +418,8 @@ element (an older SHA-256) never rolls a newer entry back.
   not recorded over <id>` (or `element id <id> with an older SHA-256 not
   recorded over <id>`) -- a run met such an element, or a merged fragment's
   stale one; the entry is kept, never rolled back.
+- An `ERROR:` with `ID registry:` is a real failure: see `messages.md`;
+  `failed to save <path>: <reason>` has no code yet, `<reason>` says why.
 - `WARNING: ID registry: failed to save <path>: <reason>` -- a run could
   not write the registry (read-only file, full disk); its SBOM is written.
   The path is the registry's, never a temporary file's.

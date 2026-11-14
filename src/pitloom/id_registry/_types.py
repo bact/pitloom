@@ -26,15 +26,20 @@ from pathlib import Path
 from packaging.utils import canonicalize_name, canonicalize_version
 
 from pitloom.core.file_hash import stated_sha256_hex
+from pitloom.core.given_path import given_spelling
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
-from pitloom.core.quote_source import quote_given, quote_source
+from pitloom.core.quote_source import quote_given
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
-from pitloom.logging_config import loggable, one_line
 from pitloom.messages.files import (
+    INPUT_USE,
+    dir_unlistable_error,
+    file_unreadable_error,
     warn_dir_unlistable,
     warn_file_unreadable,
+    warn_registry_file_name,
 )
+from pitloom.messages.targets import input_not_found
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -54,11 +59,9 @@ __all__ = [
     "is_utf8_text",
     "package_key",
     "package_version_key",
-    "registry_file_error",
     "split_package_key",
     "sha256_file",
     "type_id_prefix",
-    "unencodable_message",
     "warn_unreadable_file",
 ]
 
@@ -177,19 +180,6 @@ def _require_names(names: Sequence[str]) -> None:
         raise TypeError("names must be a sequence of names, not one str")
 
 
-def registry_file_error(path: Path, reason: str) -> ValueError:
-    """Build the one ``ValueError`` shape every registry file failure
-    raises: ``ID registry file '{path}': {reason}``.
-
-    A single helper so every failure reason (not found, unreadable, bad
-    JSON, wrong shape, wrong version, malformed entry, duplicate, a
-    project root that cannot be stored) shares identical wording up to
-    its *reason* -- the CLI, the library API and the Hatchling hook all
-    surface this message verbatim.
-    """
-    return ValueError(f"ID registry file {quote_source(path)}: {reason}")
-
-
 def sha256_file(path: Path) -> str:
     """Return the SHA-256 an SBOM states for the file at *path*, in hex: its
     contents' digest, or for a Git LFS pointer its ``oid``, so a pointer
@@ -238,21 +228,16 @@ def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
         return os.fspath(path)
 
 
-#: ``log.warning()`` format for a file whose name a registry cannot hold:
-#: not catalogued yet. Arguments: the file, what the name cannot be.
-_UNSTORABLE_NAME_WARNING = "FILE=%s: could not read for ID registry indexing; %s"
-
-
 def warn_unreadable_file(
     path: Path, project_root: Path, error: OSError | ValueError
 ) -> None:
     """Log the ``FILE=`` warning for *path*, which ``id generate`` could
-    not read (``file-unreadable``), or whose name a registry cannot hold,
-    and leaves out of the index; nothing for one gone since it was listed
-    (absent)."""
+    not read (``file-unreadable``), or whose name a registry cannot hold
+    (``text-malformed/registry``, *error* a ``ValueError``), and leaves out
+    of the index; nothing for one gone since it was listed (absent)."""
     shown = _shown(path, project_root)
     if isinstance(error, ValueError):
-        log.warning(_UNSTORABLE_NAME_WARNING, loggable(shown), one_line(error))
+        warn_registry_file_name(log, file=shown)
     elif not is_missing_errno(error):
         warn_file_unreadable(log, error, file=shown, use=_PURPOSE)
 
@@ -280,10 +265,6 @@ def _walk_files(root: Path, project_root: Path, strict: bool = True) -> list[Pat
     return found
 
 
-#: Why a registry cannot hold a name, in every message about one.
-UNENCODABLE_REASON = "cannot be encoded as UTF-8 (lone surrogate)"
-
-
 def is_utf8_text(text: str) -> bool:
     """Whether *text* encodes as UTF-8: not when it holds a lone surrogate
     (a non-UTF-8 file name read by ``surrogateescape``, or a JSON ``\\ud800``
@@ -295,19 +276,13 @@ def is_utf8_text(text: str) -> bool:
     return True
 
 
-def unencodable_message(what: str, text: str) -> str:
-    """The one wording for *text* the registry cannot hold, shown escaped
-    (a lone surrogate would crash the log handler); *what* names it."""
-    return f"ID registry: {what} {ascii(text)} {UNENCODABLE_REASON}"
-
-
 def _unstorable_name_error(path: Path, project_root: Path) -> ValueError | None:
     """The error for a *path* whose registry name is not UTF-8 encodable (a
     surrogate-escaped OS file name), else ``None``: a registry file is
     UTF-8 JSON and cannot hold it."""
     if is_utf8_text(_shown(path, project_root)):
         return None
-    return ValueError(f"name {UNENCODABLE_REASON}")
+    return ValueError("unstorable name")
 
 
 def _skipped_name_in(root: Path, project_root: Path, is_dir: bool) -> str | None:
@@ -324,12 +299,23 @@ def _skipped_name_in(root: Path, project_root: Path, is_dir: bool) -> str | None
     )
 
 
-def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
-    """The files the PATH *root* names (see :func:`_root_candidates`); a
-    read or listing failure of *root* itself raises."""
-    root_stat = stat_if_present(root)
+def _root_files(
+    root: Path, project_root: Path, explicit: bool, shown: str | os.PathLike[str]
+) -> Iterable[Path]:
+    """The files the PATH *root* (named *shown*) names: see
+    :func:`_root_candidates`."""
+    try:
+        root_stat = stat_if_present(root)
+    except OSError as exc:
+        if explicit:
+            raise file_unreadable_error(exc, file=shown, use=INPUT_USE) from exc
+        warn_unreadable_file(root, project_root, exc)
+        return ()
     if root_stat is None:
-        log.warning("ID registry: path not found, skipping: %s", quote_given(root))
+        # Absent: an explicit PATH is an input that is not there; a default
+        # root the caller chose (gone since) is absent data, said nothing of.
+        if explicit:
+            raise input_not_found("PATH", shown)
         return ()
 
     is_dir = stat.S_ISDIR(root_stat.st_mode)
@@ -341,11 +327,22 @@ def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
             quote_given(root),
         )
         return ()
-    if is_dir:
-        return _walk_files(root, project_root, strict)
-    if stat.S_ISREG(root_stat.st_mode):
-        with open(root, "rb"):  # a read failure raises
-            pass
+    try:
+        if is_dir:
+            return _walk_files(root, project_root, explicit)
+        if stat.S_ISREG(root_stat.st_mode):
+            with open(root, "rb"):  # a read failure raises
+                pass
+    except OSError as exc:
+        if not explicit:
+            warn_unreadable_file(root, project_root, exc)
+            return ()
+        # Gone since it was found: not there, as above.
+        if is_missing_errno(exc):
+            raise input_not_found("PATH", shown) from exc
+        if is_dir:
+            raise dir_unlistable_error(exc, directory=shown, use=_PURPOSE) from exc
+        raise file_unreadable_error(exc, file=shown, use=_PURPOSE) from exc
     return [root]
 
 
@@ -353,23 +350,16 @@ def _root_candidates(
     raw_path: Path, project_root: Path, explicit: bool
 ) -> Iterable[Path]:
     """The files a PATH names: itself, or the walk below a directory; empty,
-    with a warning, when it is missing or has an ignored directory name
-    below the project.
+    with a warning, when it has an ignored directory name below the project.
 
-    A PATH that cannot be read or listed is a ``ValueError`` naming it
-    when *explicit* (given by the user); an implicit default root gets the
-    shared ``FILE=`` / ``DIR=`` warning and is left out."""
+    When *explicit* (given by the user), a PATH that is not there is
+    ``input-not-found``, and one that cannot be read or listed
+    ``file-unreadable`` or ``dir-unlistable``, each naming it as given; an
+    implicit default root that is not there is left out silently, and one
+    that cannot be read or listed gets the shared ``FILE=`` / ``DIR=``
+    warning and is left out."""
     root = raw_path if raw_path.is_absolute() else project_root / raw_path
-    try:
-        return _root_files(root, project_root, explicit)
-    except OSError as exc:
-        if explicit:
-            raise ValueError(
-                f"PATH {quote_source(_shown(root, project_root))}: could not be "
-                f"read: {one_line(exc.strerror or exc)}"
-            ) from exc
-        warn_unreadable_file(root, project_root, exc)
-        return ()
+    return _root_files(root, project_root, explicit, given_spelling(raw_path))
 
 
 def _eligible_files(
@@ -405,11 +395,13 @@ def _iter_files(
     """Yield every regular file under *paths* in deterministic order,
     except the *exclude* file (the declared registry, matched by identity).
 
-    A missing path, or one with an ignored directory name below the
-    project, is skipped with a warning. One that cannot be ``stat()``-ed
-    or read (a directory: listed) raises a ``ValueError`` naming it, on
-    every Python version, unless *explicit* is false (an implicit default
-    root: a ``FILE=``/``DIR=`` warning instead). Below a directory path,
+    A path with an ignored directory name below the project is skipped
+    with a warning. A missing path raises ``input-not-found``
+    (``FileNotFoundError``), and one that cannot be ``stat()``-ed or read
+    (a directory: listed) a ``ValueError`` (``file-unreadable``,
+    ``dir-unlistable``), each naming it as given, on every Python version,
+    unless *explicit* is false (an implicit default root: left out, with a
+    ``FILE=``/``DIR=`` warning when it cannot be read). Below a directory path,
     a file that cannot be ``stat()``-ed is skipped with the shared
     ``FILE=`` warning, a directory that cannot be listed with the
     ``DIR=`` one, as ``loom project`` does."""
