@@ -275,22 +275,78 @@ def test_fickling_get_top_class_no_title_case_returns_none() -> None:
     assert _fickling_get_top_class(_io.BytesIO(data)) is None
 
 
-def test_fickling_get_top_class_skips_unresolvable_call_then_matches() -> None:
-    """A Call node whose func isn't a Name/Attribute (e.g. a subscript) yields
-    no dotted name, so the loop continues to the next Call node instead of
-    stopping (line 63's ``if name:`` false branch)."""
+def _top_class_of(source: str) -> str | None:
+    """:func:`_fickling_get_top_class` of a pickle whose fickling AST is
+    *source* (the shape fickling writes, ending ``result = ...``)."""
     # pylint: disable=import-outside-toplevel
     import ast
 
     from fickling.fickle import Pickled
 
-    tree = ast.parse("x[0]()\nFoo()\n")
-    fake_pkl = SimpleNamespace(ast=tree)
-
+    fake_pkl = SimpleNamespace(ast=ast.parse(source))
     with patch.object(Pickled, "load", return_value=fake_pkl):
-        result = _fickling_get_top_class(_io.BytesIO(b"\x80\x02N."))
+        return _fickling_get_top_class(_io.BytesIO(b"\x80\x02N."))
 
-    assert result == "Foo"
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        # Protocol 2+: NEWOBJ, followed through aliases past an earlier
+        # title-case call building a part of the object.
+        (
+            "_var0 = Net.__new__(Net)\n_var1 = OrderedDict()\n"
+            "_var2 = _var0\nresult = _var2\n",
+            "Net",
+        ),
+        # Protocols 0 and 1: copyreg._reconstructor(cls, base, state).
+        ("_var0 = _reconstructor(m.Net, object, None)\nresult = _var0\n", "m.Net"),
+        ("result = OrderedDict()\n", "OrderedDict"),
+        # A dict checkpoint: no class, even with one inside it.
+        ("_var0 = OrderedDict()\nresult = {'model': _var0}\n", None),
+        # A pickled class (not an instance), a function's result, an
+        # unresolvable callee, a missing name, no result at all.
+        ("result = Net\n", None),
+        ("result = _rebuild_tensor_v2(1)\n", None),
+        ("result = x[0]()\nFoo()\n", None),
+        ("result = _var9\n", None),
+        ("_reconstructor()\nFoo()\n", None),
+        ("result = _reconstructor()\n", None),
+        ("_var0 = _var1\n_var1 = _var0\nresult = _var0\n", None),
+    ],
+    ids=[
+        "newobj-alias",
+        "reconstructor",
+        "plain-call",
+        "dict",
+        "class",
+        "function",
+        "subscript",
+        "unbound",
+        "no-result",
+        "reconstructor-no-args",
+        "alias-cycle",
+    ],
+)
+def test_top_class_is_the_top_level_objects_class(
+    source: str, expected: str | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The class of the object fickling assigns to ``result``, not the
+    first title-case call anywhere in the pickle; no shape is a walk
+    failure."""
+    caplog.set_level(logging.WARNING)
+    assert _top_class_of(source) == expected
+    assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    ("fixture", "expected"),
+    [("example-model.pt", "Linear"), ("example-model.pth", "OrderedDict")],
+)
+def test_pytorch_fixture_type_of_model(fixture: str, expected: str) -> None:
+    """A full-model save names the module class; a state-dict save its
+    ``OrderedDict``."""
+    pytest.importorskip("fickling.fickle")
+    assert read_pytorch(_PYTORCH_DIR / fixture).type_of_model == expected
 
 
 def test_fickling_get_top_class_ast_walk_failure_logs_warning(
@@ -299,12 +355,11 @@ def test_fickling_get_top_class_ast_walk_failure_logs_warning(
     """_fickling_get_top_class logs a warning and returns None if the AST
     walk fails after a successful parse, distinct from a parse failure."""
     # pylint: disable=import-outside-toplevel
-    import pickle
+    from fickling.fickle import Pickled
 
-    data = pickle.dumps({"key": 1})
     with (
-        patch("ast.walk", side_effect=RuntimeError("walk exploded")),
+        patch.object(Pickled, "load", return_value=SimpleNamespace(ast=None)),
         caplog.at_level(logging.WARNING, logger="pitloom.extract.ai_model.pytorch"),
     ):
-        assert _fickling_get_top_class(_io.BytesIO(data)) is None
+        assert _fickling_get_top_class(_io.BytesIO(b"\x80\x02N.")) is None
     assert any("AST walk failed" in r.message for r in caplog.records)

@@ -13,7 +13,7 @@ File details for `pytorch_pt2/`. See also: [AI model fixtures](../README.md)
 
 | Property | Value |
 | :--- | :--- |
-| Format | PyTorch PT2 Archive (ExecuTorch on-device format) - ZIP archive |
+| Format | PyTorch PT2 Archive (`torch.export` archive, `archive_format` `pt2`; not an ExecuTorch `.pte`) - ZIP archive |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
 | Task | Linear regression (10 features -> 1 output) |
 | Description | A serialized PT2 model for metadata extraction test. |

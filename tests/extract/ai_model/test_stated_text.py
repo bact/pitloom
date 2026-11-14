@@ -58,7 +58,7 @@ def test_first_stated_text_skips_a_blank_value_to_the_next_key() -> None:
 
 
 _ST_KEYS = {
-    "name": ("modelspec.title", "name", "ss_base_model_version"),
+    "name": ("modelspec.title", "name"),
     "description": ("modelspec.description", "description"),
     "version": ("modelspec.version", "version"),
     "architecture": ("modelspec.architecture", "architecture"),
@@ -93,6 +93,18 @@ def test_safetensors_blank_first_key_gives_way_to_the_next(
     meta = read_safetensors(path)
     assert getattr(meta, attr) == "v"
     assert meta.provenance[attr].endswith("Field: __metadata__")
+
+
+def test_safetensors_base_model_version_is_no_name(tmp_path: Path) -> None:
+    """kohya-ss ``ss_base_model_version`` names the base model: a property,
+    never this model's name."""
+    path = _safetensors(
+        tmp_path / "m.safetensors", {"ss_base_model_version": "sdxl_base_v1-0"}
+    )
+    meta = read_safetensors(path)
+    assert meta.name is None
+    assert "name" not in meta.provenance
+    assert meta.properties["ss_base_model_version"] == "sdxl_base_v1-0"
 
 
 def _onnx(path: Path, doc_string: str) -> Path:

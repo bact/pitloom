@@ -271,7 +271,7 @@ unrecognized values.
 
 #### Vague license values
 
-`VAGUE_LICENSE_VALUES` = `{"other", "custom", "proprietary", "unknown", "unlicensed"}`.
+`VAGUE_LICENSE_VALUES` = `{"other", "custom", "proprietary", "unknown", "unlicensed", "n/a"}`.
 When the card YAML `license` field matches one of these, the extractor:
 
 1. Saves the raw value in `extra_data["hf.license_raw"]`

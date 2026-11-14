@@ -181,11 +181,12 @@ def test_unknown_card_license_loses_to_a_detected_licence() -> None:
     assert meta.license == "MIT"
 
 
-@pytest.mark.parametrize("raw", ["other", "custom", "proprietary", "unlicensed"])
+@pytest.mark.parametrize("raw", ["other", "custom", "proprietary", "unlicensed", "N/A"])
 def test_other_vague_card_licenses_stay_absent(raw: str) -> None:
     with _patch_hf_calls(card_data=_make_card_data(license=raw)):
         meta = read_huggingface("org/model")
     assert meta.license is None
+    assert meta.extra_data.get("hf.license_raw") == raw
 
 
 def test_detect_license_from_hf_files_returns_none_on_empty_file(

@@ -65,14 +65,50 @@ def _dotted_name(node: Any) -> str | None:
 _FICKLING_STDERR_CHARS = 200
 
 
+def _constructed_class(call: ast.Call) -> str | None:
+    """The class *call* instantiates: ``Cls()``, ``Cls.__new__(Cls)``
+    (protocol 2+) or ``_reconstructor(Cls, ...)`` (protocols 0 and 1);
+    ``None`` unless its final component is title-case."""
+    name = _dotted_name(call.func)
+    if name is None:
+        return None
+    head, _, last = name.rpartition(".")
+    if last == "__new__" and head:
+        name = head
+    elif last == "_reconstructor" and call.args:
+        name = _dotted_name(call.args[0])
+    if name and name.rsplit(".", 1)[-1][:1].isupper():
+        return name
+    return None
+
+
+#: The variable fickling's AST assigns the unpickled object to.
+_RESULT_VARIABLE = "result"
+
+
 def _top_class(pickled: Any) -> str | None:
-    """The first dotted class name (title-case last part) called in the
-    pickle's AST."""
-    for node in ast.walk(pickled.ast):
-        if isinstance(node, ast.Call):
-            name = _dotted_name(node.func)
-            if name and name.rsplit(".", 1)[-1][:1].isupper():
-                return name
+    """The class of the pickle's top-level object.
+
+    Follows fickling's ``result`` assignment through variable aliases to the
+    call that built the object. ``None`` when that object is not a class
+    instance (a plain ``dict``, a tensor, a class itself) -- a class built
+    deeper in the pickle names a part, not the whole.
+    """
+    values: dict[str, ast.expr] = {}
+    for stmt in pickled.ast.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+        ):
+            values.setdefault(stmt.targets[0].id, stmt.value)
+    node = values.get(_RESULT_VARIABLE)
+    seen: set[str] = set()
+    while isinstance(node, ast.Name) and node.id not in seen:
+        seen.add(node.id)
+        node = values.get(node.id)
+    if isinstance(node, ast.Call):
+        return _constructed_class(node)
     return None
 
 
@@ -122,9 +158,9 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
 def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     """Use fickling to safely extract the top-level class name from a pickle.
 
-    Returns the first dotted class name (title-case final component) found in
-    the pickle AST, or ``None`` if fickling is not installed or the class
-    cannot be determined.  Never executes the pickle.
+    Returns the class of the pickle's top-level object (see
+    :func:`_top_class`), or ``None`` if fickling is not installed or the
+    class cannot be determined.  Never executes the pickle.
 
     Only the first pickle of *pkl_file*, at most
     :data:`~pitloom.extract.ai_model.archive_member.MAX_ARCHIVE_MEMBER_BYTES`
