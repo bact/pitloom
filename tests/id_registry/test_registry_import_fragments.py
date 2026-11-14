@@ -32,9 +32,8 @@ from pitloom.id_registry import (
     FILE_TYPE,
     IdRegistry,
 )
-from pitloom.id_registry.import_keys import (
-    FILE_ALIAS_OVER_CHANGED_INFO,
-    IMPORT_NOT_FOUND,
+from pitloom.messages.id_registry_ids import (
+    KEY_IMPORT_NOT_FOUND as IMPORT_NOT_FOUND,
 )
 from tests.id_registry._registry_harvest_shared import _SHA_A, _SHA_B, _hash
 from tests.id_registry.surfaces_base import _run_cli
@@ -42,6 +41,10 @@ from tests.registry_helpers import entries_of, make_registry
 
 _NS = "https://spdx.org/spdxdocs/imported-1"
 _ALIAS = "ID registry: 1 element(s) matched a registry key through the src/lib"
+_OVER_CHANGED = (
+    "ID registry: 1 file(s) imported under their layout alias: their own "
+    "key holds other content"
+)
 #: Serialisable: ``createdBy`` is required.
 _CI = spdx3.CreationInfo(
     specVersion="3.0.1",
@@ -158,7 +161,7 @@ def test_import_keys_a_changed_file_by_the_alias_holding_its_bytes(
     aliased = want != name
     assert (entries[(FILE_TYPE, name)] == own) is aliased
     said = [m for m in _infos(caplog) if m.startswith(_ALIAS)]
-    over = [FILE_ALIAS_OVER_CHANGED_INFO % 1] if aliased else []
+    over = [_OVER_CHANGED] if aliased else []
     assert [m for m in _infos(caplog) if "other content" in m] == over
     assert said == ([f"{_ALIAS} layout alias"] if aliased else [])
 
@@ -278,7 +281,7 @@ def test_import_keys_a_fragment_dataset_declared_from_its_script(
 
     entry = registry.get(DATASET_PACKAGE_TYPE, key)
     assert entry is not None and entry.spdx_id == imported
-    said = [m for m in _infos(caplog) if m.startswith("ID registry: dataset ")]
+    said = [m for m in _infos(caplog) if m.startswith("ID registry: dataset ../")]
     assert said == [f"ID registry: dataset ../data/t.txt {info}"]
     monkeypatch.chdir(project / "scripts")
     rerun = _dataset_id(_fragment(project, registry).read_text("utf-8"))
@@ -323,5 +326,5 @@ def test_import_says_a_model_held_under_another_key_is_not_imported(
 
     assert entries_of(registry) == held
     assert _infos(caplog) == [
-        "ID registry: ai_AIPackage 'm' not imported: its id is held under 'src/m.bin'"
+        "ID registry: 'ai_AIPackage' m not imported: its id is held under src/m.bin"
     ]

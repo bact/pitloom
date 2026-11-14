@@ -29,8 +29,8 @@ from pitloom.core.file_hash import stated_sha256_hex
 from pitloom.core.given_path import given_spelling
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
-from pitloom.core.quote_source import quote_given
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
+from pitloom.messages import emit
 from pitloom.messages.files import (
     INPUT_USE,
     dir_unlistable_error,
@@ -38,6 +38,10 @@ from pitloom.messages.files import (
     warn_dir_unlistable,
     warn_file_unreadable,
     warn_registry_file_name,
+)
+from pitloom.messages.id_registry_ids import (
+    INDEX_PATH_NO_EFFECT,
+    SKIPPED_PATH_LINE,
 )
 from pitloom.messages.targets import input_not_found
 
@@ -48,7 +52,6 @@ __all__ = [
     "DATASET_PACKAGE_TYPE",
     "DEFAULT_ID_REGISTRY_FILENAME",
     "FILE_TYPE",
-    "NFC_CLASH_WARNING",
     "PACKAGE_TYPE",
     "RegistryEntry",
     "_REGISTRY_VERSION",
@@ -87,13 +90,6 @@ _REGISTRY_VERSION = 4
 #: The texts that state no version (Pitloom's ``unknown``, SPDX's
 #: ``NOASSERTION``, blank), compared stripped and case-folded.
 _NO_VERSION = frozenset({"", "unknown", "noassertion"})
-
-#: ``WARNING:`` for files whose keys are one key once NFC-normalised (two
-#: spellings of a name on a file system that keeps both): none is indexed.
-#: Arguments: the file count, the key.
-NFC_CLASH_WARNING = (
-    "ID registry: %d files have one key once NFC-normalised, none is indexed: %s"
-)
 
 
 @dataclass
@@ -237,7 +233,7 @@ def warn_unreadable_file(
     of the index; nothing for one gone since it was listed (absent)."""
     shown = _shown(path, project_root)
     if isinstance(error, ValueError):
-        warn_registry_file_name(log, file=shown)
+        warn_registry_file_name(log, path=shown)
     elif not is_missing_errno(error):
         warn_file_unreadable(log, error, file=shown, use=_PURPOSE)
 
@@ -321,10 +317,13 @@ def _root_files(
     is_dir = stat.S_ISDIR(root_stat.st_mode)
     skipped = _skipped_name_in(root, project_root, is_dir)
     if skipped is not None:
-        log.warning(
-            "ID registry: path has a skipped directory name (%s), skipping: %s",
-            skipped,
-            quote_given(root),
+        emit(
+            log,
+            INDEX_PATH_NO_EFFECT,
+            logging.WARNING,
+            line=SKIPPED_PATH_LINE,
+            path=shown,
+            name=skipped,
         )
         return ()
     try:
@@ -406,8 +405,13 @@ def _iter_files(
     ``FILE=`` warning, a directory that cannot be listed with the
     ``DIR=`` one, as ``loom project`` does."""
     seen: set[Path] = set()
+    given: set[str] = set()
     excluded = None if exclude is None else SameFile(exclude)
     for raw_path in paths:
+        spelling = os.fspath(given_spelling(raw_path))
+        if spelling in given:
+            continue  # a PATH given twice is walked, and said, once
+        given.add(spelling)
         yield from _eligible_files(
             _root_candidates(raw_path, project_root, explicit),
             project_root,

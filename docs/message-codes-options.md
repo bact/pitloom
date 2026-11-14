@@ -80,7 +80,7 @@ values.
   ERROR: ambiguous option: <error> [option-invalid]
   ERROR: build timeout must be 1-<limit> seconds, got <value> [option-invalid]
   ERROR: PATH '<path>' is outside --project-dir '<root>' [option-invalid]
-  ERROR: ID registry: FILE=<file>: not inside the project root '<root>' [option-invalid]
+  ERROR: ID registry: PATH '<path>' is not inside the project root '<root>' [option-invalid]
   ```
 
 ### `option-missing`

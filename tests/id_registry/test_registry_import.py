@@ -31,6 +31,7 @@ from pitloom.id_registry import (
     IdRegistrySession,
     RegistryEntry,
 )
+from pitloom.logging_config import CODE_ATTR
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.shared import (
     _sha256,
@@ -175,8 +176,12 @@ def test_import_sbom_adopts_only_a_namespace_iri(
     warnings = [r.getMessage() for r in caplog.records]
     assert len(warnings) == (0 if adopted else 1)
     if warnings:
-        assert warnings[0].startswith("ID registry: not adopting the namespace")
-        assert repr(document_id) in warnings[0]
+        assert warnings[0].startswith(
+            f"FILE={sbom_path}: namespace {document_id} cannot be an ID registry "
+            "namespace ("
+        )
+        assert warnings[0].endswith("; the registry keeps its own")
+        assert getattr(caplog.records[0], CODE_ATTR) == "sbom-invalid"
 
 
 def test_import_sbom_returns_an_ambiguous_file_path(tmp_path: Path) -> None:
@@ -304,8 +309,8 @@ def test_cli_import_of_an_unhashed_model_says_it_drops_the_gate(
         assert (gate, reloaded) == ([], RegistryEntry(held, sha))
         return
     assert gate == [
-        "INFO: ID registry: content gate dropped for ai_AIPackage 'tiny': "
-        f"imported id {imported} replaces {held}"
+        "INFO: ID registry: content gate dropped for 'ai_AIPackage' tiny: "
+        f"imported id {imported} replaces {held} [registry-hash-conflict/gate]"
     ]
     assert reloaded == RegistryEntry(imported)
 

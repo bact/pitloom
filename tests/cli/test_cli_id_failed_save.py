@@ -152,7 +152,8 @@ def test_id_generate_failing_before_the_save_is_not_a_failed_save(
 
     err = capsys.readouterr().err
     assert err.startswith(
-        f"ERROR: {command_frame('id generate')}ID registry: no File id left to mint"
+        f"ERROR: {command_frame('id generate')}ID registry: FILE={registry}: "
+        "no File id left to mint"
     )
     assert len(err.splitlines()) == 1
     assert registry.read_bytes() == before

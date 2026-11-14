@@ -62,19 +62,35 @@ SBOM_GRAPH_ELEMENT_LINE: Final = Line(
     template="FILE=%(file)s: SBOM @graph holds an element that is not an object",
 )
 
+#: An SBOM imported into an empty ID registry, whose namespace cannot be
+#: the registry's.
+SBOM_NAMESPACE_LINE: Final = Line(
+    level="WARNING",
+    template="FILE=%(file)s: namespace %(namespace)s cannot be an ID registry "
+    "namespace (%(failure)s); the registry keeps its own",
+)
+
 SBOM_INVALID: Final = Message(
     code="sbom-invalid",
     condition="invalid",
-    lines=(SBOM_NOT_VALID_LINE, SBOM_GRAPH_NOT_LIST_LINE, SBOM_GRAPH_ELEMENT_LINE),
+    lines=(
+        SBOM_NOT_VALID_LINE,
+        SBOM_GRAPH_NOT_LIST_LINE,
+        SBOM_GRAPH_ELEMENT_LINE,
+        SBOM_NAMESPACE_LINE,
+    ),
     summary="An SBOM given to read is JSON but not a valid SPDX 3 document: "
     "its @graph is not a list of objects ('embed-wheel --sbom', 'loom id "
     "import'; checked before the format, whatever the file is named), or "
     "spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own "
-    "lines before say why).",
+    "lines before say why). As a WARNING: 'loom id import' into an empty "
+    "registry finds a document namespace that is not an absolute IRI "
+    "without '#'.",
     did="Wrote nothing: no wheel is changed, no ID is imported. The command "
     "exits 1; the library (embed_wheel_sbom with sbom_path, "
     "IdRegistry.import_sbom) raises ValueError carrying the code for an "
-    "@graph that is not a list of objects.",
+    "@graph that is not a list of objects. As a WARNING, the import goes on "
+    "and the registry keeps the namespace it was created with.",
     effect="not-written",
     actor="user",
     advice="Tell the user which SBOM is not valid, and what the validator "

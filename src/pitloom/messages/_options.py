@@ -91,7 +91,7 @@ PATH_OUTSIDE_LINE: Final = Line(
 #: A path given to ``IdRegistry.generate`` outside its project root.
 REGISTRY_PATH_OUTSIDE_LINE: Final = Line(
     level="ERROR",
-    template=f"{REGISTRY_PREFIX}FILE=%(file)s: not inside the project root %(root)s",
+    template=f"{REGISTRY_PREFIX}PATH %(path)s is not inside the project root %(root)s",
 )
 
 OPTION_INVALID: Final = Message(

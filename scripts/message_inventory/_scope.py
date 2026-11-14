@@ -172,12 +172,32 @@ def reach(rec: dict[str, Any]) -> str:
     return renamed.get(str(rec["level"]), str(rec["level"]))
 
 
+#: The catalogue's helper that says a summary (an ``INFO:`` line of no
+#: condition), and the module that defines it.
+SUMMARY_HELPER = "say_summary"
+SUMMARY_MODULE = f"{MECHANISM}_summary.py:"
+
+
+def is_summary(rec: dict[str, Any]) -> bool:
+    """Whether *rec* says a summary: a call of the catalogue's own
+    :data:`SUMMARY_HELPER`, known by the definition it reaches, never by
+    the call's name or text alone (a module's own ``say_summary`` says
+    anything)."""
+    return (
+        rec["site_kind"] == "helper_call"
+        and rec.get("helper") == SUMMARY_HELPER
+        and rec.get("helper_def", "").startswith(SUMMARY_MODULE)
+    )
+
+
 def in_scope(rec: dict[str, Any]) -> bool:
     """Whether the ratchet counts *rec*."""
     if rec["file"].endswith(("logging_config.py", "cli/kv_output.py")):
         return False  # the logging plumbing and the KEY=VALUE writer
     if rec["file"].startswith(MECHANISM):
         return False  # the coding mechanism itself
+    if is_summary(rec):
+        return False  # kind summary: no condition, so no code (R1)
     if rec["site_kind"] == "helper_call" and rec.get("tmpl_source") == "helper":
         # Its text is in the helper body, counted there; but the body of a
         # catalogue helper (``emit``) is the mechanism, so its callers count.

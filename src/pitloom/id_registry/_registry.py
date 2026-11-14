@@ -58,19 +58,22 @@ from pitloom.id_registry._types import (
     is_utf8_text,
     type_id_prefix,
 )
-from pitloom.id_registry.import_keys import (
-    DATASET_PIN_GATED_INFO,
-    import_keys,
-    report_imported,
-)
-from pitloom.logging_config import loggable
-from pitloom.messages import CodedValueError
+from pitloom.id_registry.import_keys import import_keys, report_imported
+from pitloom.messages import CodedValueError, emit
 from pitloom.messages.files import registry_name_error
+from pitloom.messages.id_registry import MINT_LINE, REGISTRY_MALFORMED
+from pitloom.messages.id_registry_ids import (
+    HASH_CHANGED_LINE,
+    PIN_GATED_LINE,
+    REGISTRY_HASH_CONFLICT,
+    REGISTRY_HASH_MISSING,
+)
 from pitloom.messages.options import (
     NAMESPACE_CONFLICT_LINE,
     OPTION_CONFLICT,
     PROJECT_ROOT_CONFLICT_LINE,
 )
+from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -365,8 +368,12 @@ class IdRegistry:
         while f"{self.namespace}#{prefix}-{number}" in held:
             number += 1  # a held id above RESERVE_CEILING
         if number > MAX_ID_NUMBER:
-            raise ValueError(
-                f"ID registry: no {prefix} id left to mint in {self.namespace}"
+            raise CodedValueError(
+                REGISTRY_MALFORMED,
+                line=MINT_LINE,
+                file=self._named(),
+                name=prefix,
+                namespace=self.namespace,
             )
         self.id_counters[prefix] = number
         return f"{self.namespace}#{prefix}-{number}"
@@ -396,13 +403,22 @@ class IdRegistry:
             if given is None or existing.sha256 == given:
                 return existing.spdx_id
             if existing.sha256 is None and type_name == DATASET_PACKAGE_TYPE:
-                log.info(DATASET_PIN_GATED_INFO, loggable(name))
+                emit(
+                    log,
+                    REGISTRY_HASH_MISSING,
+                    logging.INFO,
+                    line=PIN_GATED_LINE,
+                    entity=name,
+                )
                 self.elements[key] = RegistryEntry(existing.spdx_id, given)
                 return existing.spdx_id
-            log.info(
-                "ID registry: content changed for %s; minting a new spdxId (old: %s).",
-                name,
-                existing.spdx_id,
+            emit(
+                log,
+                REGISTRY_HASH_CONFLICT,
+                logging.INFO,
+                line=HASH_CHANGED_LINE,
+                entity=name,
+                spdx_id=existing.spdx_id,
             )
         spdx_id = self._mint_id(type_id_prefix(type_name))
         self.elements[key] = RegistryEntry(spdx_id=spdx_id, sha256=given)
@@ -463,22 +479,26 @@ class IdRegistry:
         if not self.elements:
             namespace = document_id(sorted_objects)
             if namespace is not None:
-                self._adopt_namespace(namespace)
+                self._adopt_namespace(namespace, sbom_path)
         plan = import_keys(self, sorted_objects)
         skipped = _harvest_elements(self, sorted_objects, imported=True, keys=plan.keys)
         report_imported(self, plan)
         return skipped
 
-    def _adopt_namespace(self, namespace: str) -> None:
-        """Take *namespace* as this registry's, if it can be one."""
+    def _adopt_namespace(self, namespace: str, sbom_path: Path) -> None:
+        """Take *namespace*, the SBOM *sbom_path*'s, as this registry's, if
+        it can be one; else one ``sbom-invalid`` ``WARNING:``."""
         try:
             self.namespace = require_namespace_iri(namespace)
         except ValueError as exc:
-            log.warning(
-                "ID registry: not adopting the namespace %r: %s; keeping %s",
-                namespace,
-                exc,
-                self.namespace,
+            emit(
+                log,
+                SBOM_INVALID,
+                logging.WARNING,
+                line=SBOM_NAMESPACE_LINE,
+                file=sbom_path,
+                namespace=namespace,
+                failure=exc,
             )
 
     def harvest(

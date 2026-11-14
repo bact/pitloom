@@ -5,7 +5,7 @@
 
 """A loom model whose ``path=`` gives no path key (outside the registry's
 project root, or gone once hashed) is keyed by its name, with one
-``INFO:`` per model per run (:data:`pitloom._loom_model.NAME_KEY_INFO`).
+``INFO:`` per model per run (``registry-path-key-unusable``).
 
 See also: test_loom_model.py (the model's lookup and record),
 test_loom_dataset.py (the dataset's same message).

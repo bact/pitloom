@@ -307,3 +307,46 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 - Not coded here: the save wrapper `failed_to_save_message` still prints
   the inner text without its code (PR 7), and the skipped-directory decision
   line (`_types.py`, PR 6).
+
+## ID registry ids and keys (#486, catalogue PR 6)
+
+- New topic `id-registry-ids` (`pitloom.messages.id_registry_ids`), split
+  from `id-registry` for page size. Codes by the condition each line
+  answers (R1): `registry-conflict` (one id, two elements; `/concurrent`
+  another run saved it first, `/held` an import meets an id held under
+  another key, `/spelling` a dataset named two ways, `/type` a name held
+  under another type), `registry-hash-conflict` (`/gate`: a harvest keeps,
+  or an import drops, a content gate), `registry-hash-missing`,
+  `registry-entry-missing`, `registry-path-key-unusable` (keyed by name or
+  by the path as read: closed `key_reason` table), `registry-identity-missing`,
+  `registry-key-ambiguous`, `registry-key-moved` (the layout-alias counts),
+  `index-path-no-effect` (a PATH under a skipped directory name).
+- The summary kind: `Summary` and `say_summary` (`messages/_summary.py`),
+  an `INFO:` of no condition with no code; `scripts/message_inventory`
+  leaves a call out when it reaches that definition
+  (`_scope.is_summary`), never by name or text, and a module's own
+  `say_summary` stays counted (`_walker._pick_def` now prefers the
+  caller's own definition). The reference lists each topic's summaries.
+  Two here (`id import`'s dataset path key and model file-entry key); PR 7
+  adds the other five.
+- New fields in `_fields_registry.py` (`_fields.py` split first):
+  `entity`, `entities`, `claimant` (free; a URL's credentials masked, a
+  control character escaped), `spdx_id`, `element_type` (quoted),
+  `element_kind` and `key_reason` (closed). `_fields._merged` refuses a
+  duplicate name across the two tables.
+- FILE= after `ID registry: ` names only the registry file (ruling Q2):
+  PR 5's two indexed-file lines say `PATH '<p>'`; the SBOM namespace an
+  import cannot adopt is `sbom-invalid` (a new `WARNING` line, `FILE=` the
+  SBOM, no prefix). The mint refusal is `registry-malformed`, `FILE=` the
+  registry (`(no file)` for one in memory).
+- `loom.Run`'s registry lines take `ID registry: ` (ruling Q4) and name
+  the element kind on a miss too (`model m not found`, was `entity`).
+- Fixed with it: `register()`'s content-changed `INFO:` wrote the key raw
+  (a newline forged a line), and a dataset's URL was printed with its
+  credentials; both now go through `entity_text`.
+- Ratchet 366 to 331: the 35 coded sites, per module in
+  `tests/fixtures/message-inventory/uncoded.txt`; the two summary calls
+  are out of scope, not coded.
+- Left for PR 7: the save wrapper, `ENTITY_STORED_AS_INFO` and the other
+  summaries, `_loom_dataset.py:108` (the registry inside a dataset
+  directory), and the hook's `did` texts (the hook never saves).

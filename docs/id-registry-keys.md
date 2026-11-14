@@ -151,14 +151,14 @@ canonical key, hits the held `demo/x.py` (same SHA-256), keeps its id and the
 harvest replaces the held key with `src/demo/x.py`; one key per id, always.
 Reverse: `loom id generate` records `src/demo/x.py`; a later `loom wheel`
 looks up `demo/x.py`, hits the held key through the alias and leaves the held
-key as it is, with one `INFO: ID registry: N element(s) matched a registry key
+key as it is, with one `INFO: ID registry: <number> element(s) matched a registry key
 through the src/lib layout alias` per document. `id generate` over a
 registry that holds an alias key promotes it to the canonical key (`INFO: ID
-registry: N key(s) promoted from a layout alias`). It does so too when the
+registry: <number> key(s) promoted from a layout alias`). It does so too when the
 canonical key holds older content and the alias the current one (an edit a
 wheel run saw first), as a `loom project` lookup would: the alias's id
 replaces the changed key's, so project and wheel keep one id (`INFO: ID
-registry: N key(s) of changed content took their layout alias's id`). Typed
+registry: <number> key(s) of changed content took their layout alias's id`). Typed
 paths (`loom.Run`, `model`, `enrich`) look up the canonical key, so they
 reuse a wheel-minted id.
 
@@ -180,7 +180,7 @@ project but inside the root is keyed from the root. Under `--allow-build`, a
 built file with no source path cannot match its `id generate` key.
 
 When a document's files cannot be keyed from the root, they are keyed by the
-path as read, with one `INFO: ID registry: N file(s) keyed by their path as
+path as read, with one `INFO: ID registry: <number> file(s) keyed by their path as
 read: <reason>`; a `--project-dir` outside the registry's root is one such
 reason (`the project is outside the registry's root`).
 
@@ -235,7 +235,7 @@ The script's own string matters only for a dataset with no path below the root.
 - A file whose key is not held with its SHA-256, but whose layout alias is
   (one held key with its SHA-256), is imported under that held key, counted in
   the layout-alias `INFO:`. When its own key holds other content, that key
-  keeps its entry and one `INFO: ID registry: N file(s) imported under their
+  keeps its entry and one `INFO: ID registry: <number> file(s) imported under their
   layout alias: their own key holds other content` says so.
 - An element whose id is held under another key of its type, one no other
   element of the SBOM moves, is not imported: `INFO: ID registry: <type>
@@ -255,10 +255,10 @@ stderr lists them:
 
 | Event | Line (after `INFO: ID registry: `) |
 | --- | --- |
-| Files not keyable from the root | `N file(s) keyed by their path as read: <why>` |
-| Layout alias used | `N element(s) matched a registry key through the src/lib layout alias` |
-| `id generate` promotes a held alias | `N key(s) promoted from a layout alias` |
-| `id generate` replaces a changed key by its alias | `N key(s) of changed content took their layout alias's id` |
+| Files not keyable from the root | `<number> file(s) keyed by their path as read: <why>` |
+| Layout alias used | `<number> element(s) matched a registry key through the src/lib layout alias` |
+| `id generate` promotes a held alias | `<number> key(s) promoted from a layout alias` |
+| `id generate` replaces a changed key by its alias | `<number> key(s) of changed content took their layout alias's id` |
 | Model refused by the gate (`project`, `model`, `wheel`, ...) | `model <name>: no registry entry records its SHA-256; a new id is used` |
 | Content changed (`id generate`, `loom.Run`) | `content changed for <key>; minting a new spdxId (old: <id>)` |
 | `loom.Run` or `model` hashed model keyed by its name | `model <name> keyed by its name: <why>` |
@@ -266,15 +266,15 @@ stderr lists them:
 | Pin with no hash | `dataset <name> pinned without SHA-256: <why>`, `dataset <key> matched a pin without SHA-256; content not checked` |
 | Pin adopts a digest | `dataset <key> pin now gated by its SHA-256` |
 | `-e` decisions | `-e <name> stored as <key>`, `-e <name> stored by name: <why>`, `-e <name> stored without a version: holds only a package that states none` |
-| `id import` decisions | the model and dataset lines above, `<type> '<key>' not imported: its id is held under '<held key>'`, `N file(s) imported under their layout alias: their own key holds other content` |
-| Harvest leaves a gated entry | `content gate kept for <type> '<key>': harvested id <id> not recorded over <held>` (or `element id <id> with an older SHA-256 not recorded over <held>`) |
+| `id import` decisions | the model and dataset lines above, `'<type>' <key> not imported: its id is held under <held key>`, `<number> file(s) imported under their layout alias: their own key holds other content` |
+| Harvest leaves a gated entry | `content gate kept for '<type>' <key>: harvested id <id> not recorded over <held>` (or `element id <id> with an older SHA-256 not recorded over <held>`) |
 | Hashed model not recorded | `model <name> not recorded: no unique file with its SHA-256` |
 
 A `loom.Run` lookup that finds an entry whose SHA-256 no longer matches says
-`WARNING: loom: registry entry for <model|dataset package|file|entity> '<key>'
-exists but its SHA-256 no longer matches; minting a new spdxId (content
-changed)`, naming the element type because a dataset package and its file
-share a key.
+`WARNING: ID registry: <kind> <key>: its SHA-256 no longer matches the entry;
+minting a new spdxId [registry-hash-conflict]`, `<kind>` naming the element
+(`model`, `dataset package`, `file`, `entity`) because a dataset package and
+its file share a key.
 
 ## Merged fragments and harvest
 

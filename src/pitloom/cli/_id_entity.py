@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pitloom._loom_dataset import PIN_WITHOUT_HASH_INFO, dataset_digest
+from pitloom._loom_dataset import dataset_digest
 from pitloom.core import dataset_hash
 from pitloom.core.path_probe import is_regular_file
 from pitloom.id_registry import (
@@ -30,27 +30,28 @@ from pitloom.id_registry import (
 )
 from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    ENTITY_BY_NAME_LINE,
+    KEY_MODEL_PIN,
+    KEY_NOT_A_FILE,
+    NO_VERSION_LINE,
+    PIN_WITHOUT_HASH_LINE,
+    REGISTRY_HASH_MISSING,
+    REGISTRY_IDENTITY_MISSING,
+    REGISTRY_PATH_KEY_UNUSABLE,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "ENTITY_BY_NAME_INFO",
-    "ENTITY_NO_VERSION_INFO",
     "ENTITY_STORED_AS_INFO",
     "entity_entry",
 ]
 
-#: ``log.info()`` formats, once per ``-e``: NAME stored under another
-#: spelling of its path or package key (arguments: NAME, the key), stored
-#: by name although a model or a file is looked up by path (NAME, why), or
-#: a package stored with no version (NAME).
+#: ``log.info()`` format, once per ``-e``: NAME stored under another
+#: spelling of its path or package key (arguments: NAME, the key).
 ENTITY_STORED_AS_INFO = "ID registry: -e %s stored as %s"
-ENTITY_BY_NAME_INFO = "ID registry: -e %s stored by name: %s"
-ENTITY_NO_VERSION_INFO = (
-    "ID registry: -e %s stored without a version: holds only a package that states none"
-)
-#: Why an ``ai_AIPackage`` name pin is for a pathless model only.
-_MODEL_PIN_REASON = "used only by a model with no file"
 
 
 # pylint: disable-next=too-few-public-methods
@@ -101,12 +102,18 @@ def _package_entry(name: str) -> str:
     """A package's key: :func:`~pitloom.id_registry.package_key` of what NAME
     states (``NAME@VERSION``, split at its first ``@``). With no version it
     holds only a package that states none, one
-    :data:`ENTITY_NO_VERSION_INFO`; else, spelt otherwise than NAME, one
+    ``registry-identity-missing`` ``INFO:``; else, spelt otherwise than NAME, one
     :data:`ENTITY_STORED_AS_INFO`."""
     stated, version = split_package_key(name)
     key = package_key(stated, version)
     if "@" not in key:  # a name's own "@" is "%40": the "@" is the version's
-        log.info(ENTITY_NO_VERSION_INFO, loggable(name))
+        emit(
+            log,
+            REGISTRY_IDENTITY_MISSING,
+            logging.INFO,
+            line=NO_VERSION_LINE,
+            entity=name,
+        )
     else:
         _info_stored_as(name, key)
     return key
@@ -118,16 +125,29 @@ def _dataset_entry(
     """A dataset's key and digest: its path key and the digest its loom
     package carries (hashing at most *max_bytes*) when it exists below the
     root; else *name* and none,
-    with one :data:`~pitloom._loom_dataset.PIN_WITHOUT_HASH_INFO`."""
+    with one ``registry-hash-missing`` ``INFO:``."""
     key = artifact_key(registry, path=path, name=name)
     if not key.path:
-        log.info(PIN_WITHOUT_HASH_INFO, loggable(name), name_key_reason(path))
+        _info_pin_without_hash(name, name_key_reason(path))
         return name, None
     _info_stored_as(name, key.key)
     digest, reason = _pin_digest(registry, path, max_bytes)
     if digest is None:
-        log.info(PIN_WITHOUT_HASH_INFO, loggable(key.key), reason)
+        _info_pin_without_hash(key.key, reason)
     return key.key, digest
+
+
+def _info_pin_without_hash(key: str, why: str) -> None:
+    """The one ``INFO:`` for a dataset pin *key* stored with no SHA-256,
+    *why* saying why."""
+    emit(
+        log,
+        REGISTRY_HASH_MISSING,
+        logging.INFO,
+        line=PIN_WITHOUT_HASH_LINE,
+        entity=key,
+        why=why,
+    )
 
 
 def _file_entry(
@@ -136,16 +156,23 @@ def _file_entry(
     """A model's or a file's key and SHA-256: its path key and the file's
     SHA-256 (streamed) when it is a regular file below the root, as every
     lookup of it is; else *name* and none, with one
-    :data:`ENTITY_BY_NAME_INFO`."""
+    ``registry-path-key-unusable`` ``INFO:``."""
     key = artifact_key(registry, path=path, name=name)
     if key.path and is_regular_file(path):
         _info_stored_as(name, key.key)
         return key.key, sha256_file(path)
     if type_name == AI_PACKAGE_TYPE:
-        reason = _MODEL_PIN_REASON
+        reason = KEY_MODEL_PIN
     else:
-        reason = "not a regular file" if key.path else name_key_reason(path)
-    log.info(ENTITY_BY_NAME_INFO, loggable(name), reason)
+        reason = KEY_NOT_A_FILE if key.path else name_key_reason(path)
+    emit(
+        log,
+        REGISTRY_PATH_KEY_UNUSABLE,
+        logging.INFO,
+        line=ENTITY_BY_NAME_LINE,
+        entity=name,
+        key_reason=reason,
+    )
     return name, None
 
 

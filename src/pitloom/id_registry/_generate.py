@@ -20,16 +20,13 @@ from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     FILE_TYPE,
-    NFC_CLASH_WARNING,
     _element_key,
     _iter_files,
     _unstorable_name_error,
     sha256_file,
     warn_unreadable_file,
 )
-from pitloom.id_registry.import_keys import LAYOUT_ALIAS_CHANGED_INFO
 from pitloom.id_registry.keys import (
-    LAYOUT_ALIAS_PROMOTED_INFO,
     alias_candidates,
     alias_tail,
     join_key,
@@ -37,8 +34,14 @@ from pitloom.id_registry.keys import (
     path_key,
     project_prefix,
 )
-from pitloom.logging_config import loggable
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, emit
+from pitloom.messages.id_registry_ids import (
+    ALIAS_CHANGED_LINE,
+    ALIAS_PROMOTED_LINE,
+    NFC_CLASH_LINE,
+    REGISTRY_KEY_AMBIGUOUS,
+    REGISTRY_KEY_MOVED,
+)
 from pitloom.messages.options import OPTION_INVALID, REGISTRY_PATH_OUTSIDE_LINE
 
 if TYPE_CHECKING:
@@ -69,7 +72,7 @@ def _file_key(
         raise CodedValueError(
             OPTION_INVALID,
             line=REGISTRY_PATH_OUTSIDE_LINE,
-            file=file_path,
+            path=file_path,
             root=project_root,
         )
     return key
@@ -88,7 +91,14 @@ def _one_file_per_key(indexed: list[_Indexed]) -> list[_Indexed]:
     for key, group in by_key.items():
         files = {file_id(item.path) or item.path for item in group}
         if len(files) > 1:
-            log.warning(NFC_CLASH_WARNING, len(files), loggable(key))
+            emit(
+                log,
+                REGISTRY_KEY_AMBIGUOUS,
+                logging.WARNING,
+                line=NFC_CLASH_LINE,
+                number=len(files),
+                entity=key,
+            )
         else:
             kept.append(group[0])
     return kept
@@ -235,7 +245,9 @@ def index_files(
             moved = _promote_alias(registry, type_name, item, walked, scope)
             added, changed = added + moved.added, changed + moved.changed
             registry.register(type_name, item.key, sha256=item.sha256)
-    if added:
-        log.info(LAYOUT_ALIAS_PROMOTED_INFO, added)
-    if changed:
-        log.info(LAYOUT_ALIAS_CHANGED_INFO, changed)
+    for line, number in (
+        (ALIAS_PROMOTED_LINE, added),
+        (ALIAS_CHANGED_LINE, changed),
+    ):
+        if number:
+            emit(log, REGISTRY_KEY_MOVED, logging.INFO, line=line, number=number)

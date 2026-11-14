@@ -144,7 +144,7 @@ def test_model_with_a_file_is_gated_and_recorded(
 
 @pytest.mark.parametrize(
     ("registry_kind", "needle"),
-    [("no-update", "not found in registry"), ("in-memory", "no file path resolved")],
+    [("no-update", "model m.bin not found"), ("in-memory", "no file path resolved")],
     ids=["update-false", "in-memory"],
 )
 def test_a_miss_not_recorded_mints_with_one_warning(

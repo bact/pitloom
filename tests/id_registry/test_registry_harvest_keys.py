@@ -193,7 +193,7 @@ def test_every_skip_reserves_the_id(
     messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.INFO]
     expected = {
         "gate-kept": [
-            "ID registry: content gate kept for software_File 'src/a.py': "
+            "ID registry: content gate kept for 'software_File' src/a.py: "
             f"harvested id {skipped} not recorded over {_M}"
         ],
         "unencodable-key": ["ID registry: key 'a\\udcff.py' "],

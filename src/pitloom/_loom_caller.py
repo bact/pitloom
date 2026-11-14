@@ -41,6 +41,17 @@ from pitloom.id_registry import (
     IdRegistrySession,
 )
 from pitloom.logging_config import field_loss_suffix, warn_once
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    HASH_CHANGED_WARNING_LINE,
+    NOT_FOUND_LINE,
+    REGISTRY_CONFLICT_TYPE,
+    REGISTRY_ENTRY_MISSING,
+    REGISTRY_HASH_CONFLICT,
+    REGISTRY_HASH_MISSING,
+    TYPE_LINE,
+    UNHASHED_LINE,
+)
 
 log = logging.getLogger("pitloom.loom")
 
@@ -192,35 +203,28 @@ def warn_registry_miss(
     never told about other types either. The changed-content line names
     the element's type: a dataset's package and file share a name. With
     *unhashed* (no content was hashed), an entry recording a SHA-256 says
-    so instead: it cannot be vouched for."""
+    so instead: it cannot be vouched for. Each is its cause's code:
+    ``registry-hash-missing``, ``registry-hash-conflict``,
+    ``registry-conflict/type`` or ``registry-entry-missing``."""
     entry = registry.get(type_name, name)
-    if entry is not None and unhashed:
-        log.warning(
-            "loom: registry entry for %s %r records a SHA-256 but no content "
-            "was hashed; minting a new spdxId.",
-            _TYPE_WORDS.get(type_name, "entity"),
-            name,
+    kind = _TYPE_WORDS.get(type_name, "entity")
+    if entry is not None:
+        message, line = (
+            (REGISTRY_HASH_MISSING, UNHASHED_LINE)
+            if unhashed
+            else (REGISTRY_HASH_CONFLICT, HASH_CHANGED_WARNING_LINE)
         )
-    elif entry is not None:
-        log.warning(
-            "loom: registry entry for %s %r exists but its SHA-256 no "
-            "longer matches; minting a new spdxId (content changed).",
-            _TYPE_WORDS.get(type_name, "entity"),
-            name,
-        )
+        emit(log, message, logging.WARNING, line=line, element_kind=kind, entity=name)
     elif type_name == AI_PACKAGE_TYPE and not by_path and registry.has_name(name):
-        log.warning(
-            "loom: registry entry for entity %r exists but under a "
-            "different type; minting a new spdxId.",
-            name,
-        )
+        emit(log, REGISTRY_CONFLICT_TYPE, logging.WARNING, line=TYPE_LINE, entity=name)
     else:
-        kind = "file" if type_name == FILE_TYPE else "entity"
-        log.warning(
-            "loom: %s %r not found in registry; minting a new spdxId (untracked %s).",
-            kind,
-            name,
-            kind,
+        emit(
+            log,
+            REGISTRY_ENTRY_MISSING,
+            logging.WARNING,
+            line=NOT_FOUND_LINE,
+            element_kind=kind,
+            entity=name,
         )
 
 

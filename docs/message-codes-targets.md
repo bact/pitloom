@@ -30,7 +30,7 @@ values.
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
-| [`sbom-invalid`](#sbom-invalid) | ERROR | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). | 0.24.1 |
+| [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING: 'loom id import' into an empty registry finds a document namespace that is not an absolute IRI without '#'. | 0.24.1 |
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.24.1 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.24.1 |
@@ -268,17 +268,20 @@ values.
 
 ### `sbom-invalid`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: An SBOM given to read is JSON but not a valid SPDX 3 document: its
   @graph is not a list of objects ('embed-wheel --sbom', 'loom id import';
   checked before the format, whatever the file is named), or spdx3-validate
-  refuses it ('embed-wheel --sbom --validate'; its own lines before say why).
+  refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As
+  a WARNING: 'loom id import' into an empty registry finds a document namespace
+  that is not an absolute IRI without '#'.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported. The
   command exits 1; the library (embed_wheel_sbom with sbom_path,
   IdRegistry.import_sbom) raises ValueError carrying the code for an @graph that
-  is not a list of objects.
+  is not a list of objects. As a WARNING, the import goes on and the registry
+  keeps the namespace it was created with.
 - **Tell the user**: which SBOM is not valid, and what the validator reported.
   They fix or regenerate it and run again. Do not edit the SBOM for them; ask
   first, and with nobody to ask, report it only.
@@ -288,6 +291,7 @@ values.
   ERROR: FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]
   ERROR: FILE=<file>: SBOM @graph is not a list [sbom-invalid]
   ERROR: FILE=<file>: SBOM @graph holds an element that is not an object [sbom-invalid]
+  WARNING: FILE=<file>: namespace <namespace> cannot be an ID registry namespace (<failure>); the registry keeps its own [sbom-invalid]
   ```
 
 ### `sbom-wrong-format`

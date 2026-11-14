@@ -154,7 +154,7 @@ def test_generate_skips_a_name_that_is_not_utf8_with_one_warning(
     (record,) = caplog.records
     warning = record.getMessage()
     assert warning == (
-        "ID registry: FILE='\\udcff.txt': name cannot be encoded as UTF-8 "
+        "ID registry: PATH '\\udcff.txt': name cannot be encoded as UTF-8 "
         "(lone surrogate); not indexed"
     )
     # A name, not a file the system refused: not file-unreadable.

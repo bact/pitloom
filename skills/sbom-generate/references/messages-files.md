@@ -338,5 +338,5 @@ values.
   ```text
   ERROR: ID registry: <what> <value> cannot be encoded as UTF-8 (lone surrogate) [text-malformed/registry]
   WARNING: ID registry: <what> <value> cannot be encoded as UTF-8 (lone surrogate); skipped [text-malformed/registry]
-  WARNING: ID registry: FILE=<file>: name cannot be encoded as UTF-8 (lone surrogate); not indexed [text-malformed/registry]
+  WARNING: ID registry: PATH '<path>': name cannot be encoded as UTF-8 (lone surrogate); not indexed [text-malformed/registry]
   ```

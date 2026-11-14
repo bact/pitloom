@@ -82,15 +82,16 @@ def warn_registry_name_skipped(
 
 
 def warn_registry_file_name(
-    log: logging.Logger, *, file: str | os.PathLike[str]
+    log: logging.Logger, *, path: str | os.PathLike[str]
 ) -> None:
     """The one ``WARNING:`` on *log* for a file ``loom id generate`` leaves
-    out of the index because the ID registry cannot hold its name (*file*,
-    as the line names it, raw: the line escapes it)."""
+    out of the index because the ID registry cannot hold its name (*path*,
+    as the line names it, raw: the line quotes and escapes it). After ``ID
+    registry: `` the subject ``FILE=`` is the registry file only."""
     emit(
         log,
         TEXT_MALFORMED_REGISTRY,
         logging.WARNING,
         line=REGISTRY_FILE_NAME_LINE,
-        file=file,
+        path=path,
     )

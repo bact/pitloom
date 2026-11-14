@@ -227,7 +227,9 @@ def test_active_run_set_model_registry_type_mismatch_warning(
             with loom.run(output_file, id_registry=registry) as run:
                 run.set_model("my_model")
 
-            assert any("different type" in r.message for r in caplog.records)
+            assert any(
+                "is held under another type" in r.message for r in caplog.records
+            )
 
 
 def test_active_run_resolve_input_ids_missing_dataset_warning(

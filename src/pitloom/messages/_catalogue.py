@@ -28,7 +28,9 @@ from pitloom.messages import (
     _over_cap,
     _pypi,
     _pypi_info,
+    _registry_conflict,
     _registry_file,
+    _registry_keys,
     _remote_fetch,
     _sbom_input,
     _sbom_target,
@@ -37,6 +39,7 @@ from pitloom.messages import (
     _usage_unparseable,
     _usage_unusable,
 )
+from pitloom.messages._summary import Summary
 from pitloom.messages._types import Message
 
 
@@ -85,5 +88,10 @@ MESSAGES: Final = _by_code(
         *_sbom_input.ENTRIES,
         *_target_input.ENTRIES,
         *_registry_file.ENTRIES,
+        *_registry_conflict.ENTRIES,
+        *_registry_keys.ENTRIES,
     )
 )
+
+#: Every summary: an ``INFO:`` line of no condition, printed without a code.
+SUMMARIES: Final[tuple[Summary, ...]] = (*_registry_keys.SUMMARIES,)

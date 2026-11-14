@@ -243,8 +243,8 @@ def project_files(fixture: Path, step: Step, exclude: str | None) -> dict[str, s
 
 
 _GATE_DROPPED = re.compile(
-    r"^INFO: ID registry: content gate dropped for (\S+) (.+): "
-    r"imported id \S+ replaces \S+$"
+    r"^INFO: ID registry: content gate dropped for '(\S+)' (.+): "
+    r"imported id \S+ replaces \S+ \[registry-hash-conflict/gate\]$"
 )
 
 
@@ -255,7 +255,10 @@ def gate_dropped(stderr: str) -> list[Key]:
     for line in stderr.splitlines():
         match = _GATE_DROPPED.match(line)
         if match:
-            keys.append(canonical(match[1], str(ast.literal_eval(match[2]))))
+            key = match[2]  # quoted only when it holds a control character
+            if key.startswith("'"):
+                key = str(ast.literal_eval(key))
+            keys.append(canonical(match[1], key))
     return keys
 
 

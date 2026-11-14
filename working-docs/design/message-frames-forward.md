@@ -296,8 +296,11 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
 - `DATASET_PREFIX = "dataset metadata: "` from the four constants in
   `extract/dataset/values.py:58-76`.
 - The SDK's `loom: ` on about 13 constants (`_loom_dataset*.py`,
-  `_loom_model.py:84`, `_loom_caller.py:199-220`, `_loom_active_run.py:372`)
-  is the text of `TOP_FRAME`. As `TOP_FRAME` is ERROR-only it is never
+  `_loom_model.py:84`, `_loom_active_run.py:372`) is the text of
+  `TOP_FRAME`. The registry lines (`_loom_caller.py`'s misses,
+  `_loom_dataset.py`'s spelling and outside-root lines) took `ID registry: `
+  in PR 6 (#486, ruling Q4); `_loom_dataset.py:108` (the registry inside a
+  dataset directory) does so in PR 7. As `TOP_FRAME` is ERROR-only it is never
   matched as a frame, but a reader takes it for one (ruling 2).
 - Escaped text: 3 sites in scope (`_embed_generate:96`,
   `_loom_dataset_meta:283`, `_ai_package:398`), not 5.

@@ -270,4 +270,4 @@ def test_ai_model_collision_warning_names_the_shown_name(
     assert hits.ids[0] is not None and hits.ids[1] is None
     warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
     assert len(warnings) == 1
-    assert "both BERT and BERT; BERT gets" in warnings[0]  # labels unpadded
+    assert "both BERT and BERT; the second gets" in warnings[0]  # unpadded

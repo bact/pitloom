@@ -38,6 +38,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "pypi": "PyPI",
         "network": "Network",
         "id-registry": "ID registry",
+        "id-registry-ids": "ID registry ids and keys",
         "licences": "Licences",
     }
 )
@@ -113,6 +114,17 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "registry-unknown-key",
             "registry-unusable",
             "registry-wrong-format",
+        ),
+        "id-registry-ids": (
+            "index-path-no-effect",
+            "registry-conflict",
+            "registry-entry-missing",
+            "registry-hash-conflict",
+            "registry-hash-missing",
+            "registry-identity-missing",
+            "registry-key-ambiguous",
+            "registry-key-moved",
+            "registry-path-key-unusable",
         ),
         "licences": ("license-relationship-invalid",),
     }

@@ -33,7 +33,9 @@ from pitloom.id_registry import (
     IdRegistry,
     RegistryEntry,
 )
-from pitloom.id_registry.import_keys import IMPORT_NOT_FOUND
+from pitloom.messages.id_registry_ids import (
+    KEY_IMPORT_NOT_FOUND as IMPORT_NOT_FOUND,
+)
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.id_registry._registry_harvest_shared import _SHA_A, _SHA_B, _object_set
 from tests.id_registry.surfaces_base import DEMO_INIT_CONTENT, MODEL_FILE, _run_cli

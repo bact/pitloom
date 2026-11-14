@@ -19,13 +19,22 @@ from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry._types import PACKAGE_TYPE, _require_names, package_key
 from pitloom.id_registry.keys import (
-    LAYOUT_ALIAS_HITS_INFO,
     Alias,
     LookupKey,
     alias_candidates,
     alias_tail,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    ALIAS_HITS_LINE,
+    ALIAS_TIE_LINE,
+    CLAIM_LINE,
+    IDENTITY_UNKNOWN_LINE,
+    REGISTRY_CONFLICT,
+    REGISTRY_IDENTITY_MISSING,
+    REGISTRY_KEY_AMBIGUOUS,
+    REGISTRY_KEY_MOVED,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -33,33 +42,38 @@ __all__ = ["IdRegistrySession", "info_identity_unknown", "warn_claim_collision"]
 
 
 def info_identity_unknown() -> None:
-    """Log the one ``INFO:`` for a package whose identity is unknown: it is
-    neither looked up in nor recorded into the declared registry."""
-    log.info("ID registry: package identity unknown; not looked up or recorded")
+    """Log the one ``INFO:`` (``registry-identity-missing``) for a package
+    whose identity is unknown: it is neither looked up in nor recorded into
+    the declared registry."""
+    emit(log, REGISTRY_IDENTITY_MISSING, logging.INFO, line=IDENTITY_UNKNOWN_LINE)
 
 
 def warn_claim_collision(spdx_id: str, first: str, second: str) -> None:
-    """Log the one ``WARNING:`` for *spdx_id* wanted by *second* after *first*
-    already took it; *second* mints its own id. Each is escaped
-    (:func:`~pitloom.logging_config.loggable`): a claimant names a path, or
-    a package and its version, as read."""
-    shown = loggable(second)
-    log.warning(
-        "ID registry: %s is registered for both %s and %s; %s gets a new id",
-        loggable(spdx_id),
-        loggable(first),
-        shown,
-        shown,
+    """Log the one ``WARNING:`` (``registry-conflict``) for *spdx_id* wanted
+    by *second* after *first* already took it; *second* mints its own id.
+    The fields escape each value: a claimant names a path, or a package and
+    its version, as read."""
+    emit(
+        log,
+        REGISTRY_CONFLICT,
+        logging.WARNING,
+        line=CLAIM_LINE,
+        spdx_id=spdx_id,
+        entity=first,
+        claimant=second,
     )
 
 
 def _info_alias_tie(key: str, held: Sequence[str]) -> None:
-    """Log the one ``INFO:`` for *key* matching more than one *held* layout
-    alias with its content: none is reused."""
-    log.info(
-        "ID registry: %s matches more than one layout alias (%s); none reused",
-        loggable(key),
-        ", ".join(loggable(name) for name in held),
+    """Log the one ``INFO:`` (``registry-key-ambiguous``) for *key* matching
+    more than one *held* layout alias with its content: none is reused."""
+    emit(
+        log,
+        REGISTRY_KEY_AMBIGUOUS,
+        logging.INFO,
+        line=ALIAS_TIE_LINE,
+        entity=key,
+        entities=tuple(held),
     )
 
 
@@ -292,11 +306,16 @@ class IdRegistrySession:
         return None
 
     def info_layout_alias_hits(self) -> None:
-        """Log the one ``INFO:`` counting this session's claimed hits found
-        through a layout alias, if any
-        (:data:`~pitloom.id_registry.keys.LAYOUT_ALIAS_HITS_INFO`)."""
+        """Log the one ``INFO:`` (``registry-key-moved``) counting this
+        session's claimed hits found through a layout alias, if any."""
         if self._alias_hits:
-            log.info(LAYOUT_ALIAS_HITS_INFO, self._alias_hits)
+            emit(
+                log,
+                REGISTRY_KEY_MOVED,
+                logging.INFO,
+                line=ALIAS_HITS_LINE,
+                number=self._alias_hits,
+            )
 
     def record_key(
         self, spdx_id: str, type_name: str, key: str, *, sha256: str | None = None

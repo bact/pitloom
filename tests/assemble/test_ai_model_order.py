@@ -189,5 +189,6 @@ def test_registry_pin_goes_to_first_model_in_sorted_order(
         sbom, _ = _generate(proj, monkeypatch, reverse=reverse, id_registry=registry)
     assert _package_files(_graph(sbom))[pin] == "twomodels/a/w.npy"
     assert any(
-        "twomodels/b/w.npy gets a new id" in r.getMessage() for r in caplog.records
+        "and twomodels/b/w.npy; the second gets a new id" in r.getMessage()
+        for r in caplog.records
     )

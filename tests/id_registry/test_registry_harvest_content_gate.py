@@ -42,8 +42,8 @@ from tests.id_registry._registry_harvest_shared import (
 )
 from tests.registry_helpers import make_registry
 
-_DROPPED = "content gate dropped for software_File 'a.py'"
-_KEPT = "content gate kept for software_File 'a.py'"
+_DROPPED = "content gate dropped for 'software_File' a.py"
+_KEPT = "content gate kept for 'software_File' a.py"
 
 
 @pytest.mark.parametrize(
@@ -140,7 +140,7 @@ def test_harvest_drops_a_hash_an_ungated_entry_carried() -> None:
     assert registry.elements[key] == RegistryEntry(f"{_NS}#X-1")
 
 
-_DATASET = "dataset_DatasetPackage 'd'"
+_DATASET = "'dataset_DatasetPackage' d"
 
 
 @pytest.mark.parametrize(

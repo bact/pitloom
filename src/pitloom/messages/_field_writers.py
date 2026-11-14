@@ -124,3 +124,28 @@ def joined(value: object) -> str:
     if not isinstance(value, (list, tuple)):
         raise ValueError(f"not a list: {value!r}")
     return ", ".join(plain_text(item) for item in value)
+
+
+def entity_text(value: object) -> str:
+    """An element's name or registry key as given: the credentials of a URL
+    in it masked (a dataset may be named by its URL), escaped when it holds
+    a control character.
+
+    Raises:
+        ValueError: It is not a ``str``.
+    """
+    return loggable(given_path_text(plain_text(value)))
+
+
+def entities_text(value: object) -> str:
+    """A list or tuple of names or keys, each as :func:`entity_text` writes
+    it, comma-separated in the order given; an empty one writes nothing,
+    which the field's shape refuses.
+
+    Raises:
+        ValueError: It is neither (a ``str`` included), or holds anything
+            but text.
+    """
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"not a list: {value!r}")
+    return ", ".join(entity_text(item) for item in value)

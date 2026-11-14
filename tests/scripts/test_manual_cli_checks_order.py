@@ -267,8 +267,8 @@ def _gen_erased(s: _Seq) -> None:
 
 
 _GATE = (
-    "INFO: ID registry: content gate dropped for software_File 'pkg/a.py': "
-    f"imported id {NS}File-7 replaces {NS}File-1\n"
+    "INFO: ID registry: content gate dropped for 'software_File' pkg/a.py: "
+    f"imported id {NS}File-7 replaces {NS}File-1 [registry-hash-conflict/gate]\n"
 )
 
 

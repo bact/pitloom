@@ -217,7 +217,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   warning. An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
   nothing and warns
-  `ID registry: path has a skipped directory name (build), skipping: <path>`.
+  `ID registry: PATH '<path>' is under a skipped directory name (build);
+  not indexed [index-path-no-effect]`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
 - **Namespace**: a new registry gets one minted from the project directory's
@@ -304,8 +305,8 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
   Without `path=`, one `WARNING: loom: model X has no path=` and a name-only
   lookup that hits a hash-less entry only: an id recorded with a SHA-256
   (a model file, `id import` of a model SBOM) is not reused, since no
-  content vouches for it (`WARNING: ... records a SHA-256 but no content was
-  hashed`), so a new id is minted.
+  content vouches for it (`WARNING: ... the entry records a SHA-256 but no
+  content was hashed ... [registry-hash-missing]`), so a new id is minted.
 - The `INFO: ID registry: to use this registry` hint is for CLI runs; a script
   passes `id_registry=` (or `pitloom_config=`) itself.
 - A dataset is hashed when declared, so declare an output dataset after the
@@ -314,8 +315,9 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
   generate data out/pred.csv script.py -e data/train.txt:dataset_DatasetPackage
   -o loom-id-registry.json` (files and the script are `software_File`; the
   dataset package needs its own `-e`, named by its path from the project root).
-  Until then each unpinned item logs `WARNING: loom: ... not found in registry;
-  minting a new spdxId`: expected on a first run, not an error.
+  Until then each unpinned item logs `WARNING: ID registry: ... not found;
+  minting a new spdxId [registry-entry-missing]`: expected on a first run, not
+  an error.
 - A dataset path that exists below the root is matched by its path key, so
   `data/t.txt`, `./data/t.txt` and `../data/t.txt` from a subdirectory reach one
   package. A name pin made before the data existed has no hash and hits any
