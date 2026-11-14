@@ -285,7 +285,7 @@ Found by the fact-check of the AI SBOM workshop paper against 0.24.0
 (2026-11-14).
 
 - [x] **A full PyTorch save's type of model was `OrderedDict` (S).** Fixed
-  (PR #483, provisional number): `_top_class` (`extract/ai_model/pytorch.py`) follows
+  (PR #483): `_top_class` (`extract/ai_model/pytorch.py`) follows
   fickling's `result` assignment through aliases to the call that built the
   top-level object (`Cls()`, `Cls.__new__(Cls)`, `_reconstructor(Cls, ...)`),
   so `example-model.pt` gives `Linear`. Was: the first title-case call of a
