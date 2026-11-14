@@ -258,3 +258,52 @@ or action differs (a git command, a Hugging Face file's `WARNING:` ending
 in what is not read). `offline-unusable` names its cause, offline mode,
 and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 [remote-fetch-policy.md](remote-fetch-policy.md).
+
+## ID registry file errors (#485, catalogue PR 5)
+
+- New topic `id-registry` (`pitloom.messages.id_registry`): `registry-malformed`,
+  `registry-unknown-key`, `registry-wrong-format` (the version) and
+  `registry-unusable` (a project root the file cannot record, on save). Every
+  line starts with the literal `REGISTRY_PREFIX` (`ID registry: `) and names
+  the file as `FILE=`, as given (rule 2 of
+  [message-frames-forward.md](../design/message-frames-forward.md)).
+  `registry_file_error` and `unencodable_message` are gone, so the stacked
+  `ID registry file 'p': ID registry: key ...` (the unencodable name) is
+  fixed. Another stack is left: a load or save failure inside
+  `failed_to_save_message` still prints `ID registry: failed to save
+  '<absolute path>': ID registry: FILE=<path as given>: ...`: the file twice,
+  spelt two ways, and no code (PR 7).
+- Reused by advice: `file-unreadable` (`/not-utf8`) and `json-malformed`
+  read `for the ID registry` (a new `READ_USES` value); a version or key
+  literal that `pitloom.messages` cannot import (`4`, `MAX_ID_NUMBER`) is a
+  constant there, held equal by a drift test.
+- The namespace and project-root mismatch are `option-conflict` (actor
+  `caller`, advice widened: deleting a registry is the user's decision); a
+  `PATH` outside `--project-dir`, and its library twin in
+  `IdRegistry.generate`, are `option-invalid`.
+- A name the registry cannot hold (a lone surrogate) is the variant
+  `text-malformed/registry`: an `ERROR` from `register()`, a `WARNING` for
+  an SBOM element (import, harvest) or a file name (`id generate`). Inside
+  the registry file it is `registry-malformed`.
+- A `PATH` argument: missing is `input-not-found` (kind `PATH`; maintainer
+  ruling 2026-11-14, a change from the old skipping `WARNING:`); unreadable
+  is `file-unreadable` (`for ID registry indexing`, or `for the input check`
+  when it cannot be looked at) or `dir-unlistable` (its new `ERROR` line,
+  `dir_unlistable_error`). A default root (`src`, `data`, `models`) that
+  went away is left out silently. Each names the path as typed.
+- A registry path keeps its typed spelling through `resolve_registry`, the
+  `loom id` `-o` flag and the configured `id-registry` (`TypedPath`), and
+  `IdRegistry.load` keeps it on `IdRegistry.path`.
+- `registry-wrong-format` advice goes by the version found: older,
+  delete and `loom id import` (the user's decision); newer, upgrade Pitloom
+  and keep the file; none, restore from version control. `VERSION_LINE`
+  keeps its old "delete it and re-run" bracket on purpose.
+- A UTF-16 or UTF-32 registry (the reader takes them, more lenient than
+  RFC 8259) that does not decode is `json-malformed` in the decoder's words,
+  not `not-utf8`.
+- `PATH ... is outside --project-dir`, `not inside the project root` and the
+  project-root conflict quote the directory (field `root`) as they quote the
+  path, so a `; ` in it cannot split the line.
+- Not coded here: the save wrapper `failed_to_save_message` still prints
+  the inner text without its code (PR 7), and the skipped-directory decision
+  line (`_types.py`, PR 6).

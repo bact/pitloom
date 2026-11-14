@@ -23,7 +23,7 @@ from typing import Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages._templates import render
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: What an input over a cap is, in every line and in an error's text.
 REASON: Final = "larger than the %(limit)s-%(unit)s %(purpose)s cap"
@@ -144,7 +144,7 @@ OVER_CAP: Final = Message(
     "max-dataset-hash-bytes by its key, by --max-dataset-hash-bytes of loom id "
     "generate or by the max_dataset_hash_bytes argument of loom.Run. "
     "Every other cap is fixed. Do not raise a cap or generate again for them; "
-    "ask first, and with nobody to ask, report it only.",
+    f"{ASK_FIRST}",
 )
 
 ENTRIES: Final = (OVER_CAP,)

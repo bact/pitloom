@@ -67,10 +67,8 @@ ID, `http(s)` Git URL or PyPI project URL (default: the current directory). For 
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.24.1** (it requires LicenseID 0.8.4,
-  which reads `Apache Software License 2.0` and similar names as
-  `Apache-2.0` and does not warn about a missing licence database for a
-  declared licence name; the readings, codes and preflight below are 0.24.1's):
+- Python >= 3.10 and **pitloom >= 0.24.1** (with LicenseID 0.8.4; the
+  licence readings, codes and preflight below are 0.24.1's):
   `pip install "pitloom>=0.24.1"`, or run ephemeral via `uvx`/`pipx`. Extras
   take the floor after the extra: `"pitloom[ai]>=0.24.1"`.
 - AI model targets, and any project or wheel that ships model files, need
@@ -110,10 +108,9 @@ pip install "pitloom>=0.24.1"
 loom generate <target> -o sbom.spdx3.json
 ```
 
-These fetch the newest matching release, not the user's installed `loom`.
-Where the version matters (a merge or re-run reproducing a base SBOM's ids),
-pin it: `"pitloom==X.Y.Z"` (`loom --version` prints `Pitloom
-X.Y.Z`).
+These fetch the newest matching release, not the installed `loom`. Where
+the version matters (a re-run reproducing a base SBOM's ids), pin it:
+`"pitloom==X.Y.Z"` (`loom --version` prints it).
 
 ## Smart entry point: `loom generate`
 
@@ -261,29 +258,27 @@ other target the hand-off ends with an unmerged fragment (`sbom-enrich`,
 
 ## Validate the result
 
-Run `sbom-validate` on the output: a schema/SHACL check catches a missing
-required property or a wrong relationship type. The `@graph` check in
+Run `sbom-validate` on the output (schema/SHACL: a missing required
+property, a wrong relationship type). The `@graph` check in
 `references/examples.md` is a fallback only when `pitloom[validate]` cannot be
 installed.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
-Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
-prefix -- exactly one of the three, always at the start of the line.
+Every stderr line starts with exactly one of `INFO:`, `WARNING:`, `ERROR:`.
 `WARNING:` marks a recovered problem or a deviation (a config value
 normalised, a detector not installed, an option with no effect for this
 target); `INFO:` marks normal status, above all **generation skipped or
-scoped down**. Neither always fails the command or reaches the output JSON,
-so scan the captured stderr for all three prefixes after every `loom` call
-and mention any hit to the user, even when the command exited 0 and produced
-a file. A `WARNING: Options: ...` line about a flag *you* added
+scoped down**. Neither always fails the command or reaches the JSON, so
+scan stderr for all three after every `loom` call and mention any hit, even
+on exit 0 with a file written. A `WARNING: Options: ...` line about a flag *you* added
 means it did not apply to that target: drop it next time.
 
 For `Build: ...` lines from an `--allow-build` run, read
-`references/build-timeout.md`; for `ID registry: ...` lines (which are
-expected), `references/id-registry.md`. When a line ends in a `[code]`
-(`[lfs-pointer]`, `[over-cap]`), read `references/messages.md` for what it
-means and what to tell the user; relay its advice, never run the fix. A
+`references/build-timeout.md`; for `ID registry:` lines,
+`references/id-registry-log-lines.md` (routine unless `ERROR:`). When a line
+ends in a `[code]` (`[lfs-pointer]`, `[over-cap]`), read
+`references/messages.md` for what it means and what to tell the user; relay its advice, never run the fix. A
 `[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
 read is left out: never change permissions, ownership or files yourself.
 

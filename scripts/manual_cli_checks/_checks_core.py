@@ -409,6 +409,14 @@ def check_content_type_method_fetch(ctx: Context) -> None:
         ctx.note(f"{surface}: auto {auto} blocked attempts, extension {extension}")
 
 
+#: What check 14's one ``ERROR:`` line says, by registry label.
+_REGISTRY_NEEDLES = {
+    "missing": "ID registry file not found: ",
+    "invalid": "not valid JSON for the ID registry; ",
+    "v3": "ID registry: FILE=",
+}
+
+
 def _declared_registries(ctx: Context) -> dict[str, Path]:
     """Check 14's ``--id-registry`` files by label: ``missing`` (never
     created), ``invalid`` (not JSON) and ``v3`` (a version 3 file)."""
@@ -487,9 +495,10 @@ def check_registry_missing_invalid(ctx: Context) -> None:
                 len(error_lines) == 1,
                 f"{name}/{label}: want one ERROR: line, got {error_lines}",
             )
+            needle = _REGISTRY_NEEDLES[label]
             expect(
-                bool(error_lines) and "ID registry file" in error_lines[0],
-                f"{name}/{label}: {error_lines} does not name 'ID registry file'",
+                bool(error_lines) and needle in error_lines[0],
+                f"{name}/{label}: {error_lines} does not say {needle!r}",
             )
             if label == "v3":
                 expect(

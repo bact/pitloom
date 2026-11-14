@@ -143,6 +143,10 @@ def template_problem(template: str) -> str | None:
     return None
 
 
+#: The end of every advice an agent relays without acting on it.
+ASK_FIRST: Final = "ask first, and with nobody to ask, report it only."
+
+
 @dataclass(frozen=True, kw_only=True)
 class Line:
     """One shape a message is printed in.

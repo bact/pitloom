@@ -55,6 +55,12 @@ def clean(cap: Captured) -> list[tuple[str, str]]:
     return found
 
 
+#: What the one line says, all of it, for a version 2 registry and for one
+#: that is not JSON.
+_V2_NEEDLES = ("ID registry: FILE=", ": version 2, expected 4")
+_BAD_JSON_NEEDLES = ("not valid JSON for the ID registry; ",)
+
+
 def injected(cap: Captured) -> list[tuple[str, str]]:
     """(code, message) for each way *cap*, run against a v2 or invalid
     registry, broke H."""
@@ -71,13 +77,13 @@ def injected(cap: Captured) -> list[tuple[str, str]]:
     ]
     v2 = cap.step.kind == "v2"
     if cap.step.op in LOOM_SURFACES:
-        needle = "version 2, expected 4" if v2 else "ID registry"
-        if needle not in cap.stderr:
-            found.append(("H/message", f"no {needle!r}"))
+        needles = _V2_NEEDLES if v2 else _BAD_JSON_NEEDLES
+        if not all(needle in cap.stderr for needle in needles):
+            found.append(("H/message", f"no {needles!r}"))
         return found
     errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
-    wanted = "version 2, expected 4" if v2 else "ID registry file"
-    if len(errors) != 1 or wanted not in errors[0]:
+    wanted = _V2_NEEDLES if v2 else _BAD_JSON_NEEDLES
+    if len(errors) != 1 or not all(needle in errors[0] for needle in wanted):
         found.append(
             ("H/message", f"not one ERROR with {wanted!r}: {cap.stderr_lines[:3]}")
         )

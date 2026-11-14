@@ -293,7 +293,7 @@ def test_save_refuses_a_counter_the_loader_rejects(
     checks it: no save writes a file that does not load back."""
     registry = IdRegistry(namespace=_NS, id_counters=counters)
 
-    with pytest.raises(ValueError, match="^ID registry file .*'id_counters' "):
+    with pytest.raises(ValueError, match="^ID registry: FILE=.*'id_counters' "):
         registry.save(tmp_path / "reg.json")
 
     assert not (tmp_path / "reg.json").exists()

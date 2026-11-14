@@ -25,8 +25,8 @@ from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.given_path import keep_spelling
 from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
-from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -56,9 +56,7 @@ from pitloom.id_registry._types import (
     _element_key,
     _require_names,
     is_utf8_text,
-    registry_file_error,
     type_id_prefix,
-    unencodable_message,
 )
 from pitloom.id_registry.import_keys import (
     DATASET_PIN_GATED_INFO,
@@ -66,6 +64,13 @@ from pitloom.id_registry.import_keys import (
     report_imported,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import registry_name_error
+from pitloom.messages.options import (
+    NAMESPACE_CONFLICT_LINE,
+    OPTION_CONFLICT,
+    PROJECT_ROOT_CONFLICT_LINE,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -142,9 +147,12 @@ class IdRegistry:
 
         A file that is not there (or not a file) raises
         :class:`~pitloom.messages.CodedFileNotFoundError`
-        (``input-not-found``); every other failure raises one ``ValueError``
-        via :func:`~pitloom.id_registry._types.registry_file_error`; it never
-        returns ``None``. Whether a registry
+        (``input-not-found``); every other failure raises a ``ValueError``
+        carrying its code (:func:`~pitloom.id_registry._format.read_registry_file`);
+        it never returns ``None``. A message names *path* as given (a
+        :class:`~pitloom.core.given_path.GivenPath` or
+        :class:`~pitloom.core.given_path.TypedPath` keeps its spelling, and
+        :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
         :func:`~pitloom.id_registry.resolve.resolve_registry`.
 
@@ -157,7 +165,7 @@ class IdRegistry:
                 "ID registry file path must be a str or os.PathLike, "
                 f"not {type(path).__name__}"
             )
-        path = Path(path)
+        path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
         registry = cls(
             namespace=contents.namespace,
@@ -251,15 +259,22 @@ class IdRegistry:
                 return entry.spdx_id
         return None
 
+    def _named(self) -> Path | str:
+        """The registry file as a message names it: :attr:`path` (as
+        given), or ``(no file)`` for a registry that has none."""
+        return "(no file)" if self.path is None else self.path
+
     def require_namespace(self, namespace: str) -> None:
         """Raise ``ValueError`` unless this registry's namespace is
         *namespace* (``id generate --namespace`` on an existing registry:
         silently keeping the old one would ignore the flag)."""
         if namespace != self.namespace:
-            raise registry_file_error(
-                self.path or Path(""),
-                f"namespace {self.namespace} is not --namespace {namespace}; "
-                "delete it to change the namespace",
+            raise CodedValueError(
+                OPTION_CONFLICT,
+                line=NAMESPACE_CONFLICT_LINE,
+                file=self._named(),
+                namespace=self.namespace,
+                value=namespace,
             )
 
     def require_project_root(self, project_root: Path) -> None:
@@ -268,11 +283,12 @@ class IdRegistry:
         spelling): keys from two roots in one registry would not match."""
         root = self.root_dir()
         if not same_path(root, project_root):
-            raise registry_file_error(
-                self.path or Path(""),
-                f"project root {quote_source(root)} is not "
-                f"{quote_source(project_root)}; "
-                "delete it to change the project root",
+            raise CodedValueError(
+                OPTION_CONFLICT,
+                line=PROJECT_ROOT_CONFLICT_LINE,
+                file=self._named(),
+                path=root,
+                root=project_root,
             )
 
     def has_name(self, name: str) -> bool:
@@ -372,7 +388,7 @@ class IdRegistry:
         """
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
-                raise ValueError(unencodable_message(label, text))
+                raise registry_name_error(label, text)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)
@@ -417,9 +433,13 @@ class IdRegistry:
         file's or names a file or directory below the root. Files whose
         keys are equal once NFC-normalised are all left out, one ``WARNING:``.
 
-        A path in *paths* that cannot be read or listed is a ``ValueError``
-        naming it; with *explicit* false (default roots the caller chose,
-        not the user) it is a ``WARNING:`` and the path is left out.
+        A path in *paths* that is not there raises ``FileNotFoundError``
+        (``input-not-found``), and one that cannot be read or listed a
+        ``ValueError`` (``file-unreadable``, ``dir-unlistable``), each naming
+        it as given; one outside *project_root* a ``ValueError``
+        (``option-invalid``). With *explicit* false (default roots the caller
+        chose, not the user), a missing path is left out silently, and one
+        that cannot be read or listed with a ``WARNING:``.
         """
         index_files(self, paths, project_root, exclude, explicit=explicit)
 

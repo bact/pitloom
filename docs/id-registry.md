@@ -115,15 +115,33 @@ A broken `pyproject.toml`/`setup.cfg` is one `ERROR:` line, never a
 traceback, and takes precedence over that error.
 
 - A missing target is created. An existing target that cannot be loaded (not
-  JSON, wrong version, a version 3 or 2 file) is one `ERROR:` and exit 1,
-  never silently replaced.
+  JSON, wrong version, a version 3 or 2 file, a key the format does not have:
+  `ID registry: FILE=<path>: unknown top-level key(s): 'files'
+  [registry-unknown-key]`) is one `ERROR:` and exit 1, never silently
+  replaced. A registry file that cannot record its project root (on
+  Windows, a file on another drive than the project) is not saved. The
+  library raises it coded (`registry-unusable`); the CLI prints it, for now
+  without the code, after the save line: `ID registry: failed to save
+  '<absolute path>': ID registry: FILE=<path as given>: project root
+  '<root>' has no path relative to the file's directory; <reason>` (the two
+  spell the file differently until that line is coded; `ERROR:` for `loom id`,
+  `WARNING:` where the SBOM is already written). A registry file inside the
+  project always works.
+- A registry file is read whole, up to the fixed 50 MiB cap for a JSON
+  document: a larger one is not read (`FILE=<path>: larger than the
+  <limit>-byte JSON-document cap for the ID registry; not read [over-cap]`,
+  exit 1). Only a regular file is read: a
+  FIFO or a device there is `input-not-found` (`is not a file`), opened
+  without waiting for a writer.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
 - `--project-dir` must be an existing directory, else `ERROR: loom id <command>: project directory not found: '<p>'
-  [input-not-found]` (a file there adds `is not a directory`; exit 1). Each `PATH` must resolve inside it, else
-  `ERROR: loom id <command>: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
-  or only through a symlink. `..` is collapsed lexically before any symlink
+  [input-not-found]` (a file there adds `is not a directory`; exit 1). Each `PATH` must exist, else
+  `ERROR: loom id generate: PATH not found: '<p>' [input-not-found]` (exit 1, nothing written), and
+  must resolve inside `--project-dir`, else
+  `ERROR: loom id generate: PATH '<p>' is outside --project-dir '<dir>' [option-invalid]` (exit 1),
+  whether directly or only through a symlink. Both name the `PATH` as typed. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
   that itself lives inside the project is fine even if it points outside: it
   is indexed under its in-project location, as the default `PATH`s are,
@@ -134,11 +152,17 @@ traceback, and takes precedence over that error.
 - A file or directory below a `PATH` that cannot be read or listed gets the
   shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
   path project-relative, `/`-separated) and the run continues; a partial tree
-  is never indexed silently. So does a file whose name a registry cannot hold
-  (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
-  listed is `ERROR: loom id <command>: PATH '<path>': could not be read: <reason>` (exit 1, nothing
-  written) on every Python version; an unreadable default directory (`src`,
-  `data`, `models`) is the `DIR=` warning instead.
+  is never indexed silently. A file whose name a registry cannot hold (not
+  UTF-8 encodable) gets `WARNING: ID registry: FILE=<path>: name cannot be
+  encoded as UTF-8 (lone surrogate); not indexed [text-malformed/registry]`.
+  A `PATH` argument itself that cannot be read or listed is an `ERROR:` (exit
+  1, nothing written) on every Python version, naming it as typed:
+  `FILE=<path>: could not read for ID registry indexing; <reason>
+  [file-unreadable]`, `DIR=<path>: could not list for ID registry indexing;
+  <reason> [dir-unlistable]`, or, when its directory cannot be searched,
+  `FILE=<path>: could not read for the input check; <reason>`. An
+  unreadable default directory (`src`, `data`, `models`) is the `DIR=`
+  warning instead, and a missing one is left out.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
   [Directories that are skipped](#directories-that-are-skipped). A `PATH`
   that is, or lies below, one of them indexes nothing and gets one
@@ -306,11 +330,15 @@ current directory for any other target, an sdist included. The CLI makes
 it always means the file under the current directory. A declared
 registry file that's missing (or not a file) raises `FileNotFoundError`
 (`ID registry file not found: '<path>'`, adding `is not a file` when
-something else is there), naming the path as given -- the flag or argument
+something else is there, a FIFO or device included, code `input-not-found`),
+naming the path as given -- the flag or argument
 as typed, the configured `id-registry` value as written -- never the
 resolved absolute path; one that's unreadable or invalid raises
-`ValueError` (`"ID registry file '<path>': <reason>"`, naming the resolved
-path).
+`ValueError` carrying its code (`registry-malformed`, `registry-wrong-format`,
+`registry-unknown-key`, `json-malformed`, `file-unreadable`: `ID registry:
+FILE=<path>: <reason>` or `FILE=<path>: not valid JSON for the ID registry;
+<reason>`), naming the path as given too. See
+[ID registry message codes](message-codes-id-registry.md).
 Neither is silently skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
@@ -318,10 +346,13 @@ directory.
 
 `IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
-`ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
-harvest and `id import` skip such an element with a `WARNING:`. `generate()`
-raises `ID registry: '<path>' is outside the project root '<root>'` for a path
-outside the root; a symlink inside the project that points outside is keyed
+`ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
+skips such a file with the `FILE=` `WARNING:`, and harvest and `id import`
+skip such an element with a `WARNING:` (both `text-malformed/registry`).
+`generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
+[input-not-found]`) for a path that is not there, and `ValueError` (`ID
+registry: FILE=<path>: not inside the project root '<root>' [option-invalid]`) for
+a path outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
 `ERROR: loom id import: FILE=<path>: SBOM @graph is not a list [sbom-invalid]`,
 as `embed-wheel --sbom` refuses it;

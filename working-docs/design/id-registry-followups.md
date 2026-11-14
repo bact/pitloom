@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,6 +120,40 @@ matches the project-relative parent directories only, so a project under an
 ancestor `build/` is indexed and a *file* named `build` is eligible. An
 explicit PATH inside an ignored directory (`loom id generate build/x`) indexes
 nothing and warns once (`path has a skipped directory name`; 2026-10-15).
+
+### Message codes after catalogue PR 5 (#485)
+
+- A missing explicit `loom id generate` PATH is an `ERROR:`
+  (`input-not-found`, kind `PATH`), exit 1, nothing written; a default root
+  that is absent stays quiet; a file gone below a listed PATH is left out.
+- `registry-unusable` (a project root the file cannot record) is not
+  printed on the CLI: `failed_to_save_message` relays the inner text without
+  its code. PR 7 codes the save wrapper.
+- The skipped-directory `WARNING:` (`path has a skipped directory name`)
+  stays uncoded until PR 6.
+- A partly indexed registry on a library raise: a missing or unreadable
+  PATH raises during the walk, before anything is registered, so the
+  `IdRegistry` object is unchanged (pinned by
+  `test_generate_raises_for_a_path_that_is_not_there`, a good PATH first).
+  A raise from `register()` inside the later loop would leave the files
+  before it registered; names are checked during the walk, so none is known
+  to reach it. Open: make the loop all-or-nothing, or document it.
+- `FILE=` after `ID registry: ` names an indexed file, not the registry
+  file, in two lines (`not inside the project root`, option-invalid; the
+  file name that cannot be encoded, `text-malformed/registry`): a grep for
+  `ID registry: FILE=` cannot tell them from the registry file's own lines.
+  Open: another subject key for an indexed file.
+- `loom id generate ""` (an empty PATH) is the project directory itself and
+  indexes the whole project, silently. Open: refuse it, or say so.
+- `loom id generate -e ...` logs the `INFO:` that an entity is stored by name
+  before an `ERROR:` that then writes nothing (as on `main`). Open: log it
+  after the save.
+- `VERSION_LINE` says "delete it and re-run" for every version, a newer one
+  included, while the advice says to keep a newer file. Kept on purpose for
+  now; revisit with PR 7.
+- `option-invalid` exits 2 for argparse's lines and 1 for the PATH-outside
+  line: one code, two exit statuses, chosen by line. Open: document per line
+  in the reference, or align.
 
 ### Merge by id: same-type coincidences and re-minted ids
 

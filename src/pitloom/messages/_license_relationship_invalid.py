@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The ``to`` end is no licence.
 LICENSE_RELATIONSHIP_TO_LINE: Final = Line(
@@ -60,7 +60,7 @@ LICENSE_RELATIONSHIP_INVALID: Final = Message(
     advice="Tell the user which relationship and which end the lines name. "
     "Do not rewrite a fragment you did not draft in this session (one by "
     "hand, or from an older Pitloom that pointed a relationship at a bare "
-    "text); ask first, and with nobody to ask, report it only. One you "
+    f"text); {ASK_FIRST} One you "
     "drafted here: fix it (point its to at a LicenseExpression, or its from at "
     "a package, file or snippet) and merge again; regenerating the base SBOM "
     "does not help.",

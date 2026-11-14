@@ -29,7 +29,8 @@ reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`pitloom.messages.targets`, :mod:`~pitloom.messages.options`,
 :mod:`~pitloom.messages.models`, :mod:`~pitloom.messages.model_fields`,
 :mod:`~pitloom.messages.files`, :mod:`~pitloom.messages.pypi`,
-:mod:`~pitloom.messages.network` and :mod:`~pitloom.messages.licences`.
+:mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.id_registry` and
+:mod:`~pitloom.messages.licences`.
 
 This package imports only :mod:`pitloom.logging_config`,
 :mod:`pitloom.core.quote_source`, :mod:`pitloom.core.internal_error`,

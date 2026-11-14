@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints ``input-not-found/fragment``, and the lines
 #: of ``input-not-found`` after its first four (a model file, a Git URL's
@@ -88,8 +88,8 @@ INPUT_NOT_FOUND: Final = Message(
         NO_ID_PATHS_LINE,
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
-    "wheel, sdist, project directory, configuration, ID registry or SBOM file "
-    "on disk "
+    "wheel, sdist, project directory, configuration, ID registry or SBOM file, "
+    "or a PATH given to 'loom id generate' to index, on disk "
     "(or something else is there: the line says it is not a file, or not a "
     "directory), the file or folder a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
@@ -101,7 +101,8 @@ INPUT_NOT_FOUND: Final = Message(
     "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
     "checks nothing. The command exits 1 (the Action step fails), the build "
     "hook fails the build, and the library raises FileNotFoundError carrying "
-    "the code, ValueError for a fragments directory that holds no JSON file, "
+    "the code (IdRegistry.generate for a path to index that is not there), "
+    "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
     "folder.",
     effect="not-written",
@@ -109,8 +110,7 @@ INPUT_NOT_FOUND: Final = Message(
     advice="Tell the user which path was not found, as the line names it "
     "(for a Git URL, a path in the repository). They check the path, or the "
     "URL's branch and path, and run again. Do not guess another path or "
-    "branch and run for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"branch and run for them; {ASK_FIRST}",
     since="0.23.4",
 )
 
@@ -140,8 +140,7 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     advice="Tell the user which fragment was not found, as the line names it. "
     "They create it (run the enrichment that writes it), fix its path in the "
     "configuration, or remove the entry, and run again. Do not edit the "
-    "configuration for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"configuration for them; {ASK_FIRST}",
     since=_SINCE,
 )
 

@@ -21,7 +21,8 @@ LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
 directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
 and 1c (#446); the reference split (#480) PR 4, the frames
 ([message-frames.md](../implementation/message-frames.md)), and PR 3, the
-input, option, SBOM and target errors (#482), are built. Left: PR 5 onward
+input, option, SBOM and target errors (#482), and PR 5, the ID registry
+file errors (#485), are built. Left: PR 6 onward
 and T14. This file is the
 reference for what remains and what ships in which release.
 
@@ -58,7 +59,7 @@ Update 2026-11-14: v0.24.0 is tagged (#475) without the catalogue PRs; PR 4
 PR ships in the next release after the last tag when it merges, and its new
 entries take that release as `since`. PR 3 uses 0.24.1 (maintainer,
 2026-11-13). PR 3 (#482) is built: the ratchet fell from 454 (after PR 4) to
-398.
+398. PR 5 (#485) is built: 398 to 366.
 
 ## Sizes
 
@@ -100,7 +101,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 2b | 0.23.0 | card-unreadable 3 (`enrich/readme.py` 2, `_loom_dataset_meta.py` 1); source-unreadable 5 and over-cap 2 (`fetch_json`, `extract/_extract_utils.py`); croissant passthrough 1; `id_registry/_types.py` indexing read 1; `core/path_confine.py` passthrough 1; lone surrogate (`warn_lone_surrogates`, 6 callers, helper in `logging_config.py`, out of scope); `find_card_file` silent (adds a line) | `card-malformed`, `text-malformed` (weaker); reuse `file-unreadable` (first `ERROR` template), `dir-unlistable`, `over-cap`; JSON parse as `json-malformed` (R4) | user / thinner (`text-malformed`: weaker) | -13, now -13 (helper move: 0); built -10 (#444) | M; Opus |
 | 3 | next (built, #482) | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52; built -56 (454 to 398, #482) | M-L; Opus plan, Sonnet helper and sites |
 | 4 | next | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
-| 5 | next | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs) | user / not-written | -29, now -30 | M; Opus |
+| 5 | next (built, #485) | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs); built: `registry-malformed`, `registry-unknown-key`, `registry-wrong-format`, `registry-unusable`, `text-malformed/registry`, `option-invalid`/`option-conflict` lines, `dir-unlistable` `ERROR` line, `input-not-found` kind `PATH` | user / not-written | -29, now -30; built -32 (398 to 366, #485) | M; Opus |
 | 6 | next | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`) | user / weaker | -35, now -35 | M; Opus |
 | 7 | next | registry-not-saved 5; registry-left-out 6; registry-summary 4 | `registry-unwritable`? (`unusable`?); left-out as `registry-conflict/file-set`? | user / none | -15, now -15 | S-M; Sonnet, Opus review |
 | 8 | next | config-invalid 46 by the classifier, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `_config_parse_scan.py` 3; 39 config; `iri.py`'s 4 and `_models_wheel_types.py`'s 3 are not config: option-invalid (PR 3), registry key encoding (PR 5), caller misuse (PR 17)) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
@@ -159,7 +160,11 @@ Differences from the plan, by measurement:
   directory error and `id_registry/_types.py:329` (`ID registry: path not
   found, skipping`, a `WARNING:`) go to PR 5, with the `PATH` error of
   `_types.py`; `_embed_generate.py`'s byte order mark `WARNING:` goes to
-  PR 16 (the wheel embed).
+  PR 16 (the wheel embed). Done in PR 5 (#485), except that a missing
+  `PATH` is now an `ERROR:` (`input-not-found`, kind `PATH`) on every
+  surface, not a `WARNING:` (maintainer, 2026-11-14); a default root
+  that is absent stays quiet. `_types.py`'s skipped-directory `WARNING:`
+  is left for PR 6.
 
 ## Evidence pairing
 

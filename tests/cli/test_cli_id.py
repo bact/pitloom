@@ -417,7 +417,7 @@ def test_load_or_create_registry_fails(tmp_path: Path) -> None:
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(ValueError, match="not valid JSON for the ID registry"):
         _load_or_create_registry(registry_path, "proj")
 
 

@@ -54,6 +54,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_project_sbom
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.messages import code_of
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_shared import (
     CLI_SURFACES,
@@ -134,10 +135,19 @@ def _reason(content: str | None) -> str:
     """The regex every surface's message contains for *content*."""
     if content == _V3_FILE:
         return (
-            r"ID registry file .*: version 3, expected 4 \(no migration support "
+            r"ID registry: FILE=.*: version 3, expected 4 \(no migration support "
             r"-- delete it and re-run `loom id generate` or `loom id import`\)"
         )
-    return r"ID registry file "
+    if content is None:
+        return r"ID registry file not found: "
+    return r"FILE=.*: not valid JSON for the ID registry; "
+
+
+def _code(content: str | None) -> str:
+    """The code every surface says for *content*."""
+    if content is None:
+        return "input-not-found"
+    return "registry-wrong-format" if content == _V3_FILE else "json-malformed"
 
 
 def _raised(content: str | None) -> type[Exception]:
@@ -186,6 +196,7 @@ def test_cli_declared_bad_registry_every_mode(
     ]
     assert len(error_lines) == 1, f"{surface}/{mode}: {captured.err}"
     assert re.search(_reason(content), error_lines[0])
+    assert error_lines[0].endswith(f" [{_code(content)}]")
     assert registry_path.name in error_lines[0]
     _assert_untouched(registry_path, content)
 
@@ -222,10 +233,11 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
         # library runner that resolved the registry *after* generating
         # and writing output would still raise here, but too late).
         output_path = tmp_path / "lib-output.spdx3.json"
-        with pytest.raises(_raised(content), match="^" + _reason(content)):
+        with pytest.raises(_raised(content), match="^" + _reason(content)) as caught:
             LIBRARY_RUNNERS_WITH_OUTPUT_PATH[surface](
                 tmp_path, monkeypatch, declare, output_path=output_path
             )
+        assert code_of(caught.value) == _code(content)
         assert not output_path.exists(), f"{surface}/{mode}: output written"
         return
 
@@ -249,6 +261,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
                 run_hook(tmp_path, monkeypatch, declare, build_data=build_data)
         error_records = [r for r in caplog.records if r.levelname == "ERROR"]
         assert len(error_records) == 1, f"{surface}/{mode}: {caplog.records}"
+        assert getattr(error_records[0], "pitloom_code", None) == _code(content)
         assert "sbom_files" not in build_data
         return
 

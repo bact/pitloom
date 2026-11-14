@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,9 +29,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Model fields](message-codes-model-fields.md): 5 codes
 - [Targets](message-codes-targets.md): 14 codes
 - [Options](message-codes-options.md): 4 codes
-- [Files and text](message-codes-files.md): 10 codes
+- [Files and text](message-codes-files.md): 11 codes
 - [PyPI](message-codes-pypi.md): 13 codes
 - [Network](message-codes-network.md): 9 codes
+- [ID registry](message-codes-id-registry.md): 4 codes
 - [Licences](message-codes-licences.md): 1 code
 
 | Code | Level | Since |
@@ -40,7 +41,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`config-unsafe`](message-codes-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](message-codes-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
-| [`dir-unlistable`](message-codes-files.md#dir-unlistable) | WARNING | 0.22.0 |
+| [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](message-codes-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
 | [`download-timeout`](message-codes-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
 | [`field-not-recordable`](message-codes-model-fields.md#field-not-recordable) | INFO | 0.23.0 |
@@ -82,6 +83,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`query-no-effect`](message-codes-network.md#query-no-effect) | INFO | 0.24.0 |
 | [`reader-unsafe`](message-codes-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](message-codes-models.md#reader-unsaferemote) | INFO | 0.23.4 |
+| [`registry-malformed`](message-codes-id-registry.md#registry-malformed) | ERROR | 0.24.1 |
+| [`registry-unknown-key`](message-codes-id-registry.md#registry-unknown-key) | ERROR | 0.24.1 |
+| [`registry-unusable`](message-codes-id-registry.md#registry-unusable) | ERROR | 0.24.1 |
+| [`registry-wrong-format`](message-codes-id-registry.md#registry-wrong-format) | ERROR | 0.24.1 |
 | [`release-file-not-found`](message-codes-pypi.md#release-file-not-found) | ERROR | 0.24.0 |
 | [`release-file-not-found/compatible-wheel`](message-codes-pypi.md#release-file-not-foundcompatible-wheel) | ERROR | 0.24.0 |
 | [`release-file-not-found/sdist`](message-codes-pypi.md#release-file-not-foundsdist) | ERROR | 0.24.0 |
@@ -96,6 +101,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`target-wrong-format`](message-codes-targets.md#target-wrong-format) | ERROR | 0.24.1 |
 | [`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`text-malformed`](message-codes-files.md#text-malformed) | WARNING | 0.23.0 |
+| [`text-malformed/registry`](message-codes-files.md#text-malformedregistry) | ERROR, WARNING | 0.24.1 |
 | [`url-moved`](message-codes-network.md#url-moved) | INFO | 0.24.0 |
 | [`url-moved/hf-endpoint`](message-codes-network.md#url-movedhf-endpoint) | INFO | 0.24.0 |
 | [`url-unsafe`](message-codes-network.md#url-unsafe) | ERROR, WARNING | 0.24.0 |
@@ -123,6 +129,7 @@ A line may start with one prefix before its text:
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
@@ -134,12 +141,13 @@ A line may start with one prefix before its text:
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
-| `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
+| `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<limit>` | the cap, in its unit |
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
+| `<namespace>` | a document namespace IRI, as an ID registry file states it; in quotes, escaped, when it holds a control character |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
@@ -151,7 +159,9 @@ A line may start with one prefix before its text:
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
+| `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `project_root`, `sha256`, `spdxId`, `type name` |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
+| `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
 | `<seconds>` | the time allowed, in whole seconds |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
@@ -160,7 +170,7 @@ A line may start with one prefix before its text:
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 | `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
-| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
 | `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |

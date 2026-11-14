@@ -34,6 +34,7 @@ from pitloom.messages._field_tables import (
     MODEL_FIELD,
     READ_USES,
     REASONS,
+    REGISTRY_PARTS,
     SETTING,
 )
 from pitloom.messages._field_writers import (
@@ -46,6 +47,7 @@ from pitloom.messages._field_writers import (
     number_text,
     path_text,
     plain_text,
+    quoted_text,
 )
 
 
@@ -66,6 +68,10 @@ class Field:
     #: lies next to it.
     free: bool = False
 
+
+#: A path or a text in quotes, as
+#: :func:`~pitloom.core.quote_source.quote_source` writes it.
+QUOTED: Final = r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'"
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -120,6 +126,13 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "a directory as Pitloom names it; in quotes, escaped, when it holds "
             "a control character",
             free=True,
+        ),
+        "element_type": Field(
+            QUOTED,
+            quoted_text,
+            "'<type>'",
+            "an element type as the ID registry file names it, in quotes "
+            "(`'software_File'`), escaped when it holds a control character",
         ),
         "elements": Field(
             rf"{ELEMENT}(?:, {ELEMENT})*",
@@ -240,6 +253,14 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "character",
             free=True,
         ),
+        "namespace": Field(
+            r".+",
+            free_text,
+            "<namespace>",
+            "a document namespace IRI, as an ID registry file states it; in "
+            "quotes, escaped, when it holds a control character",
+            free=True,
+        ),
         "number": Field(
             r"0|[1-9][0-9]*",
             number_text,
@@ -281,7 +302,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "(`training_config.optimizer`, `layers[0].config`)",
         ),
         "path": Field(
-            r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'",
+            QUOTED,
             path_text,
             "'<path>'",
             "a path in quotes",
@@ -318,12 +339,26 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "holds a control character",
             free=True,
         ),
+        "registry_part": Field(
+            "|".join(re.escape(part) for part in REGISTRY_PARTS),
+            plain_text,
+            "<what>",
+            "what of an element the ID registry cannot hold: "
+            + ", ".join(f"`{part}`" for part in REGISTRY_PARTS),
+        ),
         "requirement": Field(
             r"pitloom\[[a-z][a-z0-9_-]*\]",
             plain_text,
             "<requirement>",
             "Pitloom with the extra that installs the library (`pitloom[gguf]`); "
             "`pitloom[ai]` installs every model reader",
+        ),
+        "root": Field(
+            QUOTED,
+            path_text,
+            "'<root>'",
+            "the directory a path is checked against (--project-dir, a "
+            "project root), in quotes like the path beside it",
         ),
         "seconds": Field(
             r"0|[1-9][0-9]*",

@@ -20,8 +20,8 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels). The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.24.1 |
-| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, or an option out of order (a creator's type or email before its name). An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.24.1 |
+| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id' with a --project-dir (the current directory when not given) other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.24.1 |
+| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.24.1 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.24.1 |
 | [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. | 0.24.1 |
 
@@ -30,17 +30,27 @@ values.
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
 - **Means**: The command line holds an option the command cannot take in this
-  case (-o/--output with several wheels). The 'not allowed with' line is
-  reserved for options of a mutually exclusive group; no command has one yet.
+  case (-o/--output with several wheels), or one an existing ID registry
+  contradicts: 'loom id generate --namespace' for a registry made with another
+  namespace, or 'loom id' with a --project-dir (the current directory when not
+  given) other than the one the registry was made for. The 'not allowed with'
+  line is reserved for options of a mutually exclusive group; no command has one
+  yet.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Ran nothing: the command exits 1.
-- **The caller may fix**: The caller may drop the option, or run the command
-  once per input, and run again.
+- **Pitloom did**: Ran nothing: the command exits 1, and an ID registry is left
+  as it is.
+- **The caller may fix**: The caller may drop the option, run the command once
+  per input, or, for an ID registry, pass the namespace or project directory the
+  registry holds (or name another registry file), and run again. Deleting a
+  registry to change them loses every id it pins: that is the user's decision,
+  never the caller's.
 - **Lines**:
 
   ```text
   ERROR: <option> cannot be used <when> [option-conflict]
   ERROR: argument <option>: not allowed with argument <other> [option-conflict]
+  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <value>; delete it to change the namespace [option-conflict]
+  ERROR: ID registry: FILE=<file>: project root '<path>' is not '<root>'; delete it to change the project root [option-conflict]
   ```
 
 ### `option-invalid`
@@ -49,13 +59,16 @@ values.
   nothing for it (exit 1).
 - **Means**: The command line holds an option or a value the command does not
   take: an unknown option, a value of the wrong form or out of range, an unknown
-  subcommand, or an option out of order (a creator's type or email before its
-  name). An option given without its value is option-missing; two options
-  argparse refuses together are option-conflict.
+  subcommand, an option out of order (a creator's type or email before its
+  name), or a 'loom id generate' PATH outside --project-dir (the library: a path
+  outside the project root given to IdRegistry.generate). An option given
+  without its value is option-missing; two options argparse refuses together are
+  option-conflict.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Ran nothing: the command exits 2 (the Action step fails); the
-  library raises ValueError carrying the code for a build timeout out of range
-  (BuildOptions).
+- **Pitloom did**: Ran nothing: the command exits 2 (the Action step fails), 1
+  for a PATH outside --project-dir; the library raises ValueError carrying the
+  code for a build timeout out of range (BuildOptions) and a path outside the
+  project root (IdRegistry.generate).
 - **The caller may fix**: The caller may fix the option or value the line names
   ('loom <command> --help' lists them) and run again. Tell the user only when
   the value came from them.
@@ -66,6 +79,8 @@ values.
   ERROR: unrecognized arguments: <error> [option-invalid]
   ERROR: ambiguous option: <error> [option-invalid]
   ERROR: build timeout must be 1-<limit> seconds, got <value> [option-invalid]
+  ERROR: PATH '<path>' is outside --project-dir '<root>' [option-invalid]
+  ERROR: ID registry: FILE=<file>: not inside the project root '<root>' [option-invalid]
   ```
 
 ### `option-missing`

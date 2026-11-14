@@ -16,8 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.core.file_identity import file_id
-from pitloom.core.given_path import keep_spelling
-from pitloom.core.quote_source import quote_source
+from pitloom.core.given_path import GivenPath, TypedPath, given_spelling
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     FILE_TYPE,
@@ -39,6 +38,8 @@ from pitloom.id_registry.keys import (
     project_prefix,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import CodedValueError
+from pitloom.messages.options import OPTION_INVALID, REGISTRY_PATH_OUTSIDE_LINE
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -61,13 +62,15 @@ def _file_key(
 ) -> str:
     """The key of *file_path*: its path from *project_root* (*scope* is a
     registry rooted there), joined to the project's *prefix*. A file outside
-    the project is a ``ValueError`` naming both."""
+    the project is ``option-invalid``, a ``ValueError`` naming both."""
     rel = path_key(scope, file_path)
     key = None if rel is None else join_key(prefix, rel)
     if key is None:
-        raise ValueError(
-            f"ID registry: {quote_source(file_path)} is outside the "
-            f"project root {quote_source(project_root)}"
+        raise CodedValueError(
+            OPTION_INVALID,
+            line=REGISTRY_PATH_OUTSIDE_LINE,
+            file=file_path,
+            root=project_root,
         )
     return key
 
@@ -171,14 +174,17 @@ def _walk_indexed(
 
     # The project's own root is the base of every file's path. Each walk
     # root is spelt as the file system lists it, once; the names the walk
-    # lists below it are already.
+    # lists below it are already. It keeps the spelling given (typed, else
+    # as passed), for a message to name it.
     scope = Registry(registry.namespace, project_root=project_root)
-    spelt = [
-        keep_spelling(
-            on_disk_path(
-                project_root, path if path.is_absolute() else project_root / path
-            ),
-            path,
+    spelt: list[Path] = [
+        TypedPath(
+            GivenPath(
+                on_disk_path(
+                    project_root, path if path.is_absolute() else project_root / path
+                ),
+                given_spelling(path),
+            )
         )
         for path in paths
     ]

@@ -20,10 +20,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
-
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 USAGE_UNPARSEABLE: Final = Message(
     code="usage-unparseable",
@@ -49,7 +46,7 @@ USAGE_UNPARSEABLE: Final = Message(
     "Python; if it is broken, they fix it, or leave it out of the project; "
     "then they generate again. A file that is not meant to be Python (a "
     "template, a Python 2 script) needs nothing. Do not edit the file or "
-    f"change the Python for them; {_ASK}",
+    f"change the Python for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.22.1",
 )

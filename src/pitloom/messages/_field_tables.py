@@ -91,6 +91,9 @@ CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
 #: What an SBOM given to read (to embed, to import into an ID registry) is
 #: read for, as its lines say it: one of :data:`READ_USES`.
 SBOM_USE: Final = "for the SBOM"
+#: What an ID registry file is read for, as its ``file-unreadable`` and
+#: ``json-malformed`` lines say it: one of :data:`READ_USES`.
+REGISTRY_USE: Final = "for the ID registry"
 #: The use of a path named for Pitloom to read that the system will not let
 #: it look at (:func:`~pitloom.messages.targets.input_exists`): one of
 #: :data:`READ_USES`.
@@ -112,6 +115,7 @@ READ_USES: Final = (
     "for the Croissant document",
     "for the dataset card",
     "for the Hugging Face dataset card",
+    REGISTRY_USE,
     "for the model card",
     "for the model hash",
     "for the PyPI release metadata",
@@ -129,6 +133,7 @@ INPUT_KINDS: Final = (
     "config file",
     "fragments directory",
     "ID registry file",
+    "PATH",
     "project directory",
     "project path",
     "pyproject.toml",
@@ -141,3 +146,14 @@ INPUT_KINDS: Final = (
 
 #: The configuration tables a line names (``set id-registry in <table>``).
 CONFIG_TABLES: Final = ("[tool.pitloom]", "[tool:pitloom]")
+
+#: What a line about a name the ID registry cannot hold names it as: a closed
+#: table (an element's key, its name, its type name, or its ``spdxId``).
+REGISTRY_PARTS: Final = (
+    "key",
+    "name",
+    "project_root",
+    "sha256",
+    "spdxId",
+    "type name",
+)

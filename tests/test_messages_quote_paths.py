@@ -62,8 +62,10 @@ _QUOTING_CALLS = frozenset(
         "CodedImportError",
         "CodedValueError",
         "_interpolation_error",
+        "dir_unlistable_error",
         "file_unreadable_error",
         "input_not_found",
+        "_malformed",
         "_import_failure_text",
         "NotAWheelError",
         "_fragment_read_failure_message",
@@ -126,7 +128,7 @@ def _is_message_call(node: ast.Call) -> bool:
 
 
 #: Calls that quote their leading path arguments (how many) and show the rest as given.
-_QUOTING_FIRST = {"registry_file_error": 1, "refusal": 2, "unreadable_member_error": 2}
+_QUOTING_FIRST = {"refusal": 2, "unreadable_member_error": 2}
 #: Constructors whose filename argument ``OSError`` shows with ``repr()``.
 _OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})
 
@@ -235,8 +237,8 @@ def test_the_guard_sees_a_bare_path() -> None:
         "log.warning(*args, wheel_path)\n"
         "raise ValueError(f'x {path}')\n"
         "raise ValueError(f'x {quote_source(path)}')\n"
-        "raise registry_file_error(path, f'x {root}')\n"
-        "raise registry_file_error(path, f'x {quote_source(root)}')\n"
+        "raise unreadable_member_error(a, path, f'x {root}')\n"
+        "raise unreadable_member_error(a, path, f'x {quote_source(root)}')\n"
         "raise PermissionError(1, 'x', str(path))\n"
         "raise PermissionError(1, f'x {path}', str(path))\n"
         "raise RemoteError(code='c', message=f'x {path}')\n"

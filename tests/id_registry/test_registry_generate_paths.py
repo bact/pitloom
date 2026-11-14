@@ -29,6 +29,7 @@ import pitloom.id_registry._generate as ids_mod
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.id_registry import IdRegistry, keys, path_key, project_prefix
 from pitloom.id_registry._types import _iter_files
+from pitloom.messages import code_of
 from tests._unreadable import POSIX_NON_ROOT
 from tests.id_registry._registry_generate_shared import (
     _make_project,
@@ -98,7 +99,7 @@ def test_generate_outside_the_project_root_is_a_clean_error(tmp_path: Path) -> N
     outside.write_bytes(b"x")
     registry = IdRegistry.new("proj")
 
-    with pytest.raises(ValueError, match="outside the project root") as excinfo:
+    with pytest.raises(ValueError, match="not inside the project root") as excinfo:
         registry.generate([outside], root)
 
     assert "other.txt" in str(excinfo.value)
@@ -152,10 +153,12 @@ def test_generate_skips_a_name_that_is_not_utf8_with_one_warning(
 
     (record,) = caplog.records
     warning = record.getMessage()
-    assert warning.startswith("FILE=") and "lone surrogate" in warning
-    assert "\\udcff" in warning
-    # A name, not a file the system refused: no file-unreadable.
-    assert getattr(record, "pitloom_code", None) is None
+    assert warning == (
+        "ID registry: FILE='\\udcff.txt': name cannot be encoded as UTF-8 "
+        "(lone surrogate); not indexed"
+    )
+    # A name, not a file the system refused: not file-unreadable.
+    assert getattr(record, "pitloom_code", None) == "text-malformed/registry"
     assert not failures
     assert set(_files(registry)) == {"src/a.py"}
 
@@ -193,7 +196,7 @@ def test_generate_collapses_dotdot_before_keying(
     registry = IdRegistry.new("proj")
 
     if key is None:
-        with pytest.raises(ValueError, match="outside the project root"):
+        with pytest.raises(ValueError, match="not inside the project root"):
             registry.generate([Path(given)], root)
     else:
         registry.generate([Path(given)], root)
@@ -210,8 +213,11 @@ def test_generate_unreadable_root_warns_unless_explicit(
         with caplog.at_level(logging.WARNING):
             registry = IdRegistry.new("proj")
             registry.generate([root / "data", root / "src"], root, explicit=False)
-        with pytest.raises(ValueError, match="PATH 'data': could not be read"):
+        with pytest.raises(
+            ValueError, match=r"^DIR=.*data: could not list for ID registry indexing; "
+        ) as caught:
             IdRegistry.new("proj").generate([root / "data"], root)
+        assert code_of(caught.value) == "dir-unlistable"
     finally:
         (root / "data").chmod(0o755)
 

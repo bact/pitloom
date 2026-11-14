@@ -29,14 +29,16 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.load`` and
 
 from __future__ import annotations
 
+import codecs
 import json
 import os
 from os.path import relpath
 from pathlib import Path, PureWindowsPath
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
+from pitloom.core.given_file import read_given_bytes
 from pitloom.core.iri import is_iri_segment, require_namespace_iri
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
@@ -45,10 +47,42 @@ from pitloom.id_registry._types import (
     RegistryEntry,
     _element_key,
     is_utf8_text,
-    registry_file_error,
-    unencodable_message,
 )
-from pitloom.messages.targets import input_not_found, is_input_file
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import (
+    JSON_MALFORMED,
+    NOT_OBJECT_LINE,
+    REGISTRY_USE,
+    file_unreadable_error,
+)
+from pitloom.messages.id_registry import (
+    COUNTER_NUMBER_LINE,
+    COUNTER_PREFIX_LINE,
+    COUNTERS_LINE,
+    DUPLICATE_ENTRY_LINE,
+    DUPLICATE_KEY_LINE,
+    ELEMENTS_LINE,
+    ENTRY_LINE,
+    MISSING_KEY_LINE,
+    NAMESPACE_LINE,
+    NO_NAMESPACE_LINE,
+    NO_RELATIVE_ROOT_LINE,
+    PROJECT_ROOT_LINE,
+    REGISTRY_MALFORMED,
+    REGISTRY_UNKNOWN_KEY,
+    REGISTRY_UNUSABLE,
+    REGISTRY_WRONG_FORMAT,
+    ROOT_NOT_STORABLE_LINE,
+    SHA256_LINE,
+    SPDX_ID_LINE,
+    TYPE_TABLE_LINE,
+    UNENCODABLE_LINE,
+    UNKNOWN_ENTRY_KEY_LINE,
+    UNKNOWN_TOP_KEY_LINE,
+)
+
+if TYPE_CHECKING:
+    from pitloom.messages import Line
 
 __all__ = [
     "RegistryFileContents",
@@ -92,23 +126,39 @@ def _is_relative_posix(value: str) -> bool:
     )
 
 
+def _malformed(path: Path, line: Line, **values: object) -> CodedValueError:
+    """The ``registry-malformed`` error for the registry file *path*: its
+    *line*, naming *values*."""
+    return CodedValueError(REGISTRY_MALFORMED, line=line, file=path, **values)
+
+
 def _read_json(path: Path) -> Any:
-    """The JSON value in the file *path*; a duplicate object key, as every
-    other failure, is the registry file error."""
-    if not is_input_file(path):
-        raise input_not_found("ID registry file", path)
+    """The JSON value in the file *path*, read whole up to the shared cap
+    (:func:`~pitloom.core.given_file.read_given_bytes`): ``input-not-found``
+    when it is not there or not a regular file, ``over-cap`` when larger,
+    ``file-unreadable`` (``/not-utf8``) when it cannot be read,
+    ``json-malformed`` when it is not JSON (a UTF-16 or UTF-32 text that does
+    not decode included), ``registry-malformed`` for a duplicate object
+    key."""
+    raw = read_given_bytes(path, kind="ID registry file", use=REGISTRY_USE)
     try:
-        with open(path, "rb") as f:
-            raw = f.read()
-    except OSError as exc:
-        raise registry_file_error(path, f"cannot be read: {exc}") from exc
-    try:
-        # Bytes, not str: json.loads() strips a leading UTF-8 BOM from bytes.
+        # Bytes, not str: json.loads() strips a leading UTF-8 BOM and, more
+        # lenient than RFC 8259 (UTF-8 only), detects UTF-16 and UTF-32.
         return json.loads(raw, object_pairs_hook=_unique_keys)
     except _DuplicateKeyError as exc:
-        raise registry_file_error(path, str(exc)) from exc
+        raise _malformed(path, DUPLICATE_KEY_LINE, name=exc.shown) from exc
+    except UnicodeDecodeError as exc:
+        if codecs.lookup(exc.encoding).name == "utf-8":
+            raise file_unreadable_error(exc, file=path, use=REGISTRY_USE) from exc
+        # Read as UTF-16 or UTF-32: "not UTF-8" would be untrue; the decoder's
+        # own text names the encoding.
+        raise CodedValueError(
+            JSON_MALFORMED, file=path, use=REGISTRY_USE, failure=exc
+        ) from exc
     except (ValueError, RecursionError) as exc:
-        raise registry_file_error(path, f"not valid JSON: {exc}") from exc
+        raise CodedValueError(
+            JSON_MALFORMED, file=path, use=REGISTRY_USE, failure=exc
+        ) from exc
 
 
 def read_registry_file(path: Path) -> RegistryFileContents:
@@ -116,40 +166,43 @@ def read_registry_file(path: Path) -> RegistryFileContents:
 
     A file that is not there or not a file raises
     :class:`~pitloom.messages.CodedFileNotFoundError` (``input-not-found``);
-    every other failure raises one ``ValueError`` built by
-    :func:`~pitloom.id_registry._types.registry_file_error`. The version is
-    checked before the key set, so a version 2 or 3 file gets the version
-    message, not an "unknown key" one, and is left as it is.
+    every other failure raises a coded ``ValueError`` (:func:`_read_json`,
+    then ``json-malformed``, ``registry-malformed``,
+    ``registry-wrong-format`` or ``registry-unknown-key``), naming *path* as
+    given (:func:`~pitloom.core.given_path.given_spelling`). The version is
+    checked first, before the namespace and the key set, so a file of
+    another version (older, newer or none) gets the version message, never
+    a namespace or "unknown key" one, and is left as it is.
     """
     data = _read_json(path)
     if not isinstance(data, dict):
-        raise registry_file_error(path, "not a JSON object")
-
-    namespace = data.get("namespace")
-    if not isinstance(namespace, str) or not namespace:
-        raise registry_file_error(path, "missing a valid 'namespace'")
-    try:
-        require_namespace_iri(namespace)
-    except ValueError as exc:
-        raise registry_file_error(path, f"'namespace': {exc}") from exc
+        raise CodedValueError(
+            JSON_MALFORMED, line=NOT_OBJECT_LINE, file=path, use=REGISTRY_USE
+        )
 
     version = data.get("version")
     if not isinstance(version, int) or version != _REGISTRY_VERSION:
-        raise registry_file_error(
-            path,
-            f"version {version!r}, expected {_REGISTRY_VERSION} (no "
-            "migration support -- delete it and re-run `loom id "
-            "generate` or `loom id import`)",
-        )
+        raise CodedValueError(REGISTRY_WRONG_FORMAT, file=path, value=repr(version))
+
+    namespace = data.get("namespace")
+    if not isinstance(namespace, str) or not namespace:
+        raise _malformed(path, NO_NAMESPACE_LINE)
+    try:
+        require_namespace_iri(namespace)
+    except ValueError as exc:
+        raise _malformed(path, NAMESPACE_LINE, failure=exc) from exc
 
     unknown = sorted(set(data) - _TOP_LEVEL_KEYS)
     if unknown:
-        raise registry_file_error(
-            path, f"unknown top-level key(s): {', '.join(map(repr, unknown))}"
+        raise CodedValueError(
+            REGISTRY_UNKNOWN_KEY,
+            line=UNKNOWN_TOP_KEY_LINE,
+            file=path,
+            name=_listed(unknown),
         )
     for required in ("elements", "id_counters", "project_root"):
         if required not in data:
-            raise registry_file_error(path, f"missing {required!r}")
+            raise _malformed(path, MISSING_KEY_LINE, name=repr(required))
 
     return RegistryFileContents(
         namespace=namespace,
@@ -159,8 +212,19 @@ def read_registry_file(path: Path) -> RegistryFileContents:
     )
 
 
+def _listed(keys: list[str]) -> str:
+    """*keys*, each as its ``repr``, comma-separated."""
+    return ", ".join(map(repr, keys))
+
+
 class _DuplicateKeyError(ValueError):
-    """A JSON object of the registry file names one key twice."""
+    """A JSON object of the registry file names one key twice: *shown*, in
+    quotes."""
+
+    def __init__(self, key: str) -> None:
+        #: The key, in quotes, escaped.
+        self.shown: str = quote_source(key)
+        super().__init__(f"duplicate key {self.shown}")
 
 
 def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -170,7 +234,7 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     data: dict[str, Any] = {}
     for key, value in pairs:
         if key in data:
-            raise _DuplicateKeyError(f"duplicate key {quote_source(key)}")
+            raise _DuplicateKeyError(key)
         data[key] = value
     return data
 
@@ -183,18 +247,14 @@ def _check_counter(path: Path, prefix: object, number: object) -> None:
     one). Checked on read and on write, so no save writes a counter the
     loader rejects."""
     if not isinstance(prefix, str) or not is_iri_segment(prefix):
-        raise registry_file_error(
-            path, f"'id_counters' key {prefix!r} is not an id prefix"
-        )
+        raise _malformed(path, COUNTER_PREFIX_LINE, name=repr(prefix))
     if (
         isinstance(number, bool)
         or not isinstance(number, int)
         or not 1 <= number <= MAX_ID_NUMBER
     ):
-        raise registry_file_error(
-            path,
-            f"'id_counters' {prefix!r}: {number!r} is not a whole number "
-            f"from 1 to {MAX_ID_NUMBER}",
+        raise _malformed(
+            path, COUNTER_NUMBER_LINE, name=repr(prefix), value=repr(number)
         )
 
 
@@ -202,7 +262,7 @@ def _parse_counters(path: Path, raw: object) -> Counters:
     """The ``id_counters`` table, each pair checked by
     :func:`_check_counter`."""
     if not isinstance(raw, dict):
-        raise registry_file_error(path, "'id_counters' is not an object")
+        raise _malformed(path, COUNTERS_LINE)
     counters: Counters = {}
     for prefix, number in sorted(raw.items()):
         _check_counter(path, prefix, number)
@@ -215,10 +275,10 @@ def _parse_project_root(path: Path, value: object) -> Path:
     the directory of the registry file *path*."""
     if not isinstance(value, str) or not _is_relative_posix(value):
         shown = quote_source(value) if isinstance(value, str) else repr(value)
-        raise registry_file_error(
-            path,
-            f"'project_root' {shown} is not a relative POSIX path "
-            "(relative to the registry file's directory)",
+        raise _malformed(path, PROJECT_ROOT_LINE, value=shown)
+    if not is_utf8_text(value):  # realpath() would raise on it, uncoded
+        raise _malformed(
+            path, UNENCODABLE_LINE, registry_part="project_root", value=value
         )
     return Path(os.path.realpath(registry_dir(path) / value))
 
@@ -227,21 +287,24 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
     """The ``elements`` table, keyed by
     :func:`~pitloom.id_registry._types._element_key`."""
     if not isinstance(raw, dict):
-        raise registry_file_error(path, "malformed entry: 'elements' is not an object")
+        raise _malformed(path, ELEMENTS_LINE)
     elements: dict[tuple[str, str], RegistryEntry] = {}
     for type_name, names in sorted(raw.items()):
         if not isinstance(names, dict):
-            raise registry_file_error(
-                path, f"malformed entry: elements {type_name!r} is not an object"
-            )
+            raise _malformed(path, TYPE_TABLE_LINE, element_type=type_name)
         for name, record in sorted(names.items()):
             for text in (type_name, name):
                 if not is_utf8_text(text):
-                    raise registry_file_error(path, unencodable_message("key", text))
+                    raise _malformed(
+                        path, UNENCODABLE_LINE, registry_part="key", value=text
+                    )
             key = _element_key(type_name=type_name, name=name)
             if key in elements:
-                raise registry_file_error(
-                    path, f"two {key[0]} entries for {quote_source(key[1])}"
+                raise _malformed(
+                    path,
+                    DUPLICATE_ENTRY_LINE,
+                    element_type=key[0],
+                    name=quote_source(key[1]),
                 )
             elements[key] = _parse_entry(path, key, record)
     return elements
@@ -250,49 +313,56 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
 def _parse_entry(path: Path, key: tuple[str, str], record: object) -> RegistryEntry:
     """One entry: ``spdxId`` (a non-empty string) and an optional ``sha256``
     (a non-empty string when present; ``null`` and ``""`` are rejected)."""
-    where = f"malformed entry: {key[0]} {quote_source(key[1])}"
+    where = {"element_type": key[0], "name": quote_source(key[1])}
     if not isinstance(record, dict):
-        raise registry_file_error(path, f"{where} is not an object")
+        raise _malformed(path, ENTRY_LINE, **where)
     unknown = sorted(set(record) - _ENTRY_KEYS)
     if unknown:
-        raise registry_file_error(
-            path, f"{where} has unknown key(s): {', '.join(map(repr, unknown))}"
+        raise CodedValueError(
+            REGISTRY_UNKNOWN_KEY,
+            line=UNKNOWN_ENTRY_KEY_LINE,
+            file=path,
+            value=_listed(unknown),
+            **where,
         )
     spdx_id = record.get("spdxId")
     if not isinstance(spdx_id, str) or not spdx_id:
-        raise registry_file_error(path, f"{where}: 'spdxId' must be a non-empty string")
+        raise _malformed(path, SPDX_ID_LINE, **where)
     if not is_utf8_text(spdx_id):
-        raise registry_file_error(path, unencodable_message("spdxId", spdx_id))
+        raise _malformed(path, UNENCODABLE_LINE, registry_part="spdxId", value=spdx_id)
     if "sha256" not in record:
         return RegistryEntry(spdx_id=spdx_id)
     sha256 = record["sha256"]
     if not isinstance(sha256, str) or not sha256:
-        raise registry_file_error(
-            path, f"{where}: 'sha256' must be a non-empty string, or left out"
-        )
+        raise _malformed(path, SHA256_LINE, **where)
+    if not is_utf8_text(sha256):  # a save could not write it back
+        raise _malformed(path, UNENCODABLE_LINE, registry_part="sha256", value=sha256)
     return RegistryEntry(spdx_id=spdx_id, sha256=sha256)
 
 
 def _stored_project_root(target: Path, project_root: Path) -> str:
     """*project_root* relative to the directory of *target*, realpath on
-    both sides, as POSIX text. Raises the registry file ``ValueError`` when
-    there is no such path (two Windows drives) or the result would not
-    load back."""
+    both sides, as POSIX text. Raises ``registry-unusable`` when there is no
+    such path (two Windows drives) or the result would not load back."""
     base = registry_dir(target)
     root = Path(os.path.realpath(project_root))
     try:
         text = Path(relpath(root, base)).as_posix()
     except ValueError as exc:
-        raise registry_file_error(
-            target,
-            f"project root {quote_source(root)} has no path relative to "
-            f"{quote_source(base)}: {exc}",
+        raise CodedValueError(
+            REGISTRY_UNUSABLE,
+            line=NO_RELATIVE_ROOT_LINE,
+            file=target,
+            path=root,
+            failure=exc,
         ) from exc
     if not _is_relative_posix(text):
-        raise registry_file_error(
-            target,
-            f"project root {quote_source(root)} cannot be stored as "
-            f"{quote_source(text)}",
+        raise CodedValueError(
+            REGISTRY_UNUSABLE,
+            line=ROOT_NOT_STORABLE_LINE,
+            file=target,
+            path=root,
+            value=quote_source(text),
         )
     return text
 
@@ -308,7 +378,7 @@ def write_registry_file(
     indented, LF line endings and one trailing newline. Replaced atomically
     (:func:`~pitloom._sbom_io.replace_text_lf`): a run reading it meanwhile
     sees the old file or the new one, never part. A counter the loader
-    would reject raises the registry file error, and nothing is written."""
+    would reject raises ``registry-malformed``, and nothing is written."""
     for prefix, number in id_counters.items():
         _check_counter(target, prefix, number)
     target.parent.mkdir(parents=True, exist_ok=True)

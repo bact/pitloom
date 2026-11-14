@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: A card whose frontmatter the YAML parser refused.
 CARD_LINE: Final = Line(
@@ -43,8 +43,7 @@ CARD_MALFORMED: Final = Message(
     advice="Tell the user which card's frontmatter is not valid YAML and what "
     "the parser reported, as the line says. They fix the card and generate "
     "again; a Hugging Face dataset card only its maintainers can fix. Do not "
-    "edit the card for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"edit the card for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.0",
 )

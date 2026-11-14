@@ -43,7 +43,7 @@ pitloom.cli.commands.merge 1
 pitloom.cli.commands.utils 4
 pitloom.cli.commands.validate_wheel 3
 pitloom.cli.commands.verify_wheel 6
-pitloom.cli.id 6
+pitloom.cli.id 5
 pitloom.core._config_keys 1
 pitloom.core._config_legacy 5
 pitloom.core._config_parse 19
@@ -123,13 +123,12 @@ pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 5
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
-pitloom.id_registry._format 24
-pitloom.id_registry._generate 4
+pitloom.id_registry._generate 3
 pitloom.id_registry._harvest 2
 pitloom.id_registry._persist 4
-pitloom.id_registry._registry 7
+pitloom.id_registry._registry 4
 pitloom.id_registry._session 4
-pitloom.id_registry._types 4
+pitloom.id_registry._types 1
 pitloom.id_registry.import_keys 3
 pitloom.plugins._hatch_config 3
 pitloom.plugins.hatch 8

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
 
@@ -94,8 +94,7 @@ PYPI_URL_INVALID: Final = Message(
     "says, and that Pitloom reads https://pypi.org/project/<name>/ or "
     "https://pypi.org/project/<name>/<version>/ only. They correct the URL "
     "and run again; a release on another index is read by downloading the "
-    "file and running Pitloom on it. Do not guess another URL; ask first, "
-    "and with nobody to ask, report it only.",
+    f"file and running Pitloom on it. Do not guess another URL; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
@@ -133,8 +132,7 @@ RELEASE_NOT_FOUND: Final = Message(
     actor="user",
     advice="Tell the user which project or release PyPI does not hold. They "
     "check the spelling of the name and the version, and that the project is "
-    "not deleted, and run again. Do not guess another name or version; ask "
-    "first, and with nobody to ask, report it only.",
+    f"not deleted, and run again. Do not guess another name or version; {ASK_FIRST}",
     subject_key="PYPI",
     since=_SINCE,
 )
@@ -228,8 +226,7 @@ DIGEST_MISMATCH: Final = Message(
     advice="Tell the user the downloaded file does not match the digest PyPI "
     "declares, so Pitloom did not read it, and that the file may have been "
     "altered. They may run again; if it repeats, report it to PyPI. Do not "
-    "read the file by other means; ask first, and with nobody to ask, report "
-    "it only.",
+    f"read the file by other means; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -272,8 +269,7 @@ PYPI_RESPONSE_INVALID: Final = Message(
     "Without a digest Pitloom cannot check the download, so it reads nothing. "
     "They may run again later; if it repeats, the project's release is "
     "malformed on PyPI. A skipped file only narrows the choice; report it "
-    "only. Do not read the file by other means; ask first, and with nobody "
-    "to ask, report it only.",
+    f"only. Do not read the file by other means; {ASK_FIRST}",
     since=_SINCE,
 )
 
@@ -316,8 +312,7 @@ PYPI_URL_UNUSABLE: Final = Message(
     "a model they use 'loom wheel URL' or 'loom project URL'; from Python, "
     "generate_pypi_sbom() (or generate()) instead of the Git or model call. "
     "Do not "
-    "download or embed for them; ask first, and with nobody to ask, report "
-    "it only.",
+    f"download or embed for them; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
