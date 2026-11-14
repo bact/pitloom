@@ -30,7 +30,8 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract.project import read_project, sdist_config_source
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import read_sdist
-from pitloom.messages import OVER_CAP, code_of
+from pitloom.messages import code_of
+from pitloom.messages.files import OVER_CAP
 from tests._message_drift import raised_as
 from tests.assemble.conftest import _make_sdist
 

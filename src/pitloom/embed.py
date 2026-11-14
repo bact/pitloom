@@ -56,7 +56,7 @@ from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_names import sbom_base_name, sbom_file_name
 from pitloom.core.quote_source import quote_source
-from pitloom.core.wheel_dist_info import require_wheel_path
+from pitloom.core.wheel_dist_info import require_wheel_file
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
@@ -211,12 +211,17 @@ def embed_wheel_sbom(
             non-conforming name),
             it has no single own ``.dist-info``, or the SBOM's name/version
             mismatches (see above). The wheel is left as it was.
-        OSError: *wheel_path* cannot be opened (missing, permission denied).
+        FileNotFoundError: Nothing is at *wheel_path*, or not a regular
+            file (``input-not-found``, carrying the code).
+        pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+        OSError: The file itself cannot be opened (its own permissions, a
+            transient I/O error).
     """
     configure_logging()
     if sbom_basename:
         sbom_basename = sbom_base_name(sbom_basename, "--sbom-basename")
-    require_wheel_path(wheel_path)
+    require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.
     wheel_obj = Path(wheel_path).absolute()

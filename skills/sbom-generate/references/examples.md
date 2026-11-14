@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,9 +28,9 @@ or the config key `sbom-basename` changes it).
 ## Project SBOM (directory or sdist), ephemeral run
 
 ```bash
-uvx --from "pitloom>=0.24.0" loom project . -o sbom.spdx3.json --pretty
+uvx --from "pitloom>=0.24.1" loom project . -o sbom.spdx3.json --pretty
 # or sdist archive
-uvx --from "pitloom>=0.24.0" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
+uvx --from "pitloom>=0.24.1" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
 ```
 
 ## Project SBOM from a Git URL
@@ -63,11 +63,11 @@ loom model https://gitlab.com/group/project/-/tree/main/models
 ```bash
 # The release's wheel for this Python and platform (Analyzed SBOM); a URL
 # without a version reads the latest release
-uvx --from "pitloom>=0.24.0" loom wheel https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+uvx --from "pitloom>=0.24.1" loom wheel https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
 # The release's sdist (Source SBOM): the command, not the URL, picks the file
-uvx --from "pitloom>=0.24.0" loom project https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+uvx --from "pitloom>=0.24.1" loom project https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
 # generate reads the wheel and needs -o
-uvx --from "pitloom>=0.24.0" loom generate https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
+uvx --from "pitloom>=0.24.1" loom generate https://pypi.org/project/demo/1.0/ -o sbom.spdx3.json
 ```
 
 Without `-o`, `wheel` writes `<wheel file name>.spdx3.json` and `project`
@@ -86,7 +86,7 @@ loom project . -o sbom.spdx3.json --pretty
 ## Project SBOM, already-installed Pitloom
 
 ```bash
-pip install "pitloom>=0.24.0"
+pip install "pitloom>=0.24.1"
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
@@ -145,13 +145,13 @@ with zipfile.ZipFile(sys.argv[1]) as zf:
 ## AI model SBOM, local file
 
 ```bash
-uvx --from "pitloom[ai]>=0.24.0" loom model model.safetensors -o model.spdx3.json
+uvx --from "pitloom[ai]>=0.24.1" loom model model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
 
 ```bash
-uvx --from "pitloom[huggingface_hub]>=0.24.0" loom model mistralai/Mistral-7B-v0.1 \
+uvx --from "pitloom[huggingface_hub]>=0.24.1" loom model mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
 
@@ -214,7 +214,7 @@ print("@graph present:", len(d["@graph"]), "nodes (not validated)")
 - `../SKILL.md` -- operating instructions for this skill.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
 - The sibling `sbom-validate` skill -- schema/SHACL conformance check
-  (minimal: `pip install "pitloom[validate]>=0.24.0"` then
+  (minimal: `pip install "pitloom[validate]>=0.24.1"` then
   `loom fragment validate sbom.spdx3.json`).
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
 - `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.

@@ -342,7 +342,10 @@ def test_entity_package_name_is_a_pep_508_name(
         _build_parser().parse_args(["id", "generate", "-e", spec])
 
     assert exc_info.value.code == 2
-    expected = f"argument -e/--entity: invalid package NAME in {spec!r}{hint}\n"
+    expected = (
+        f"argument -e/--entity: invalid package NAME in {spec!r}{hint} "
+        "[option-invalid]\n"
+    )
     assert expected in capsys.readouterr().err
     args = _build_parser().parse_args(
         ["id", "generate", "-e", f"Foo_Bar.baz@1.0:{PACKAGE_TYPE}"]

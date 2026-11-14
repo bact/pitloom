@@ -126,7 +126,10 @@ def test_library_and_loom_declared_bad_registry_raises(
     project = demo_project(tmp_path)
     output_path = tmp_path / "out.spdx3.json"
 
-    with pytest.raises(ValueError, match=r"^ID registry file "):
+    with pytest.raises(
+        FileNotFoundError if content is None else ValueError,
+        match=r"^ID registry file ",
+    ):
         generate_project_sbom(
             project,
             creation_metadata=None,
@@ -136,7 +139,10 @@ def test_library_and_loom_declared_bad_registry_raises(
     assert not output_path.exists()
 
     frag_path = tmp_path / "frag.spdx3.json"
-    with pytest.raises(ValueError, match=r"^ID registry file "):
+    with pytest.raises(
+        FileNotFoundError if content is None else ValueError,
+        match=r"^ID registry file ",
+    ):
         with loom.run(frag_path, id_registry=registry_path):
             pass
     assert not frag_path.exists()
@@ -156,7 +162,10 @@ def test_hook_declared_bad_registry_raises_one_error_no_sbom_files(
     build_data: dict[str, Any] = {}
 
     with caplog.at_level(logging.ERROR):
-        with pytest.raises(ValueError, match=r"^ID registry file "):
+        with pytest.raises(
+            FileNotFoundError if content is None else ValueError,
+            match=r"^ID registry file ",
+        ):
             hook.initialize("standard", build_data)
 
     error_records = [r for r in caplog.records if r.levelname == "ERROR"]

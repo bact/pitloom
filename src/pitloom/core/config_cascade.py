@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -51,6 +50,7 @@ from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.given_path import GivenPath
 from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,
@@ -58,6 +58,7 @@ from pitloom.core.model_extract_limit import (
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
+from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
 
@@ -187,13 +188,12 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
             version (see AGENTS.md on ``Path.exists()``).
         ValueError: the file is not UTF-8, not valid TOML, or its settings
             are invalid (a wrong value or a wrong table shape); the message
-            names *path*.
+            names *path*; or *path* cannot be looked at
+            (``file-unreadable``, a :class:`~pitloom.messages.CodedValueError`).
         OSError: the file cannot be read.
     """
-    if not os.path.isfile(path):
-        raise FileNotFoundError(
-            f"config file not found or not a file: {quote_source(path)}"
-        )
+    if not is_input_file(path):
+        raise input_not_found("config file", path)
     try:
         data = load_toml_file(Path(path))
         cfg = parse_pitloom_config(data, source=str(path))
@@ -211,7 +211,9 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
     # Pitloom runs: it resolves against the file's own directory.
     config_dir = Path(path).absolute().parent
     if cfg.id_registry is not None and not Path(cfg.id_registry).is_absolute():
-        cfg = dataclasses.replace(cfg, id_registry=str(config_dir / cfg.id_registry))
+        cfg = dataclasses.replace(
+            cfg, id_registry=GivenPath(config_dir / cfg.id_registry, cfg.id_registry)
+        )
     return dataclasses.replace(
         cfg,
         fragments=[

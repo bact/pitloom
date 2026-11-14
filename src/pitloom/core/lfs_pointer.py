@@ -39,6 +39,11 @@ from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_nonblocking
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    CodedValueError,
+    emit,
+    size_text,
+)
+from pitloom.messages.models import (
     LFS_CLONE_ERROR_LINE,
     LFS_CLONE_LINE,
     LFS_POINTER,
@@ -46,9 +51,6 @@ from pitloom.messages import (
     LFS_POINTER_SHIPPED,
     LFS_PULL_ERROR_LINE,
     LFS_PULL_LINE,
-    CodedValueError,
-    emit,
-    size_text,
 )
 
 __all__ = [

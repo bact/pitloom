@@ -30,20 +30,24 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_pypi_file, pypi, pypi_select
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST, WHEEL
-from pitloom.messages import (
-    DIGEST_MISMATCH,
+from pitloom.messages import code_of
+from pitloom.messages.files import (
+    OVER_CAP,
+    TEMP_DIR_UNUSABLE,
+)
+from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     OFFLINE_UNUSABLE,
-    OVER_CAP,
+    URL_REFUSED,
+)
+from pitloom.messages.pypi import (
+    DIGEST_MISMATCH,
     PYPI_RESPONSE_INVALID,
     PYPI_URL_INVALID,
     RELEASE_FILE_NOT_FOUND,
     RELEASE_FILE_NOT_FOUND_COMPATIBLE,
     RELEASE_FILE_NOT_FOUND_SDIST,
     RELEASE_NOT_FOUND,
-    TEMP_DIR_UNUSABLE,
-    URL_REFUSED,
-    code_of,
 )
 from tests._fake_pypi_server import (
     Dist,

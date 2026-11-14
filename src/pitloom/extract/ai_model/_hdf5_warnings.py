@@ -25,6 +25,14 @@ from pitloom.extract.ai_model.hdf5_config import (
 )
 from pitloom.logging_config import one_line
 from pitloom.messages import (
+    Line,
+    emit,
+)
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
+from pitloom.messages.model_fields import (
     ATTRIBUTE_LINE,
     CONFIG_KEPT_LINE,
     CONFIG_RAW_CUT_LINE,
@@ -32,10 +40,6 @@ from pitloom.messages import (
     KERAS_MEMBER_LINE,
     MODEL_FIELD_UNREADABLE,
     TRAINING_CONFIG_LINE,
-    Cap,
-    Line,
-    emit,
-    warn_over_cap,
 )
 
 log = logging.getLogger(__name__)

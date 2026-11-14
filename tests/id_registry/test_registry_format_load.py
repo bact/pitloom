@@ -257,8 +257,10 @@ def test_load_not_found_or_not_a_file(tmp_path: Path, kind: str) -> None:
     if kind == "directory":
         path.mkdir()
 
-    with pytest.raises(ValueError, match="not found or not a file"):
+    with pytest.raises(FileNotFoundError, match="ID registry file not found") as caught:
         IdRegistry.load(path)
+
+    assert not isinstance(caught.value, ValueError)
 
 
 def test_load_os_error_on_read_raises_cannot_be_read(tmp_path: Path) -> None:
@@ -287,5 +289,5 @@ def test_load_takes_a_str_and_names_a_directory_or_missing_file(
 
     assert IdRegistry.load(str(path)).path == path
     for bad in (tmp_path, tmp_path / "nope.json"):
-        with pytest.raises(ValueError, match="not found or not a file"):
+        with pytest.raises(FileNotFoundError, match="ID registry file not found"):
             IdRegistry.load(bad)

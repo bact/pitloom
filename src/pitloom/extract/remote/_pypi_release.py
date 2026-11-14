@@ -36,7 +36,7 @@ from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi_select import select_release, versions_equal_to
 from pitloom.extract.remote.pypi_url import PypiTarget, pypi_json_url
 from pitloom.logging_config import loggable
-from pitloom.messages import (
+from pitloom.messages.pypi import (
     NAME_MISMATCH_LINE,
     NO_USABLE_RELEASE_LINE,
     PYPI_PROJECT_NOT_FOUND_LINE,

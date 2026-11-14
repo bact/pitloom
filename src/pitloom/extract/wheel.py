@@ -42,7 +42,7 @@ from pitloom.extract._license_detect import (
 )
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.copyright_notices import apply_in_package_copyright
-from pitloom.messages import warn_archive_member_over_cap
+from pitloom.messages.files import warn_archive_member_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -246,7 +246,9 @@ def read_wheel(
             archive, a member cannot be read (damaged, encrypted,
             unsupported, badly named), two members have one name or one
             holds a NUL.
-        OSError: *wheel_path* cannot be opened (missing, permission denied).
+        FileNotFoundError: Nothing is at *wheel_path*, or a directory
+            (``input-not-found``, carrying the code).
+        OSError: *wheel_path* cannot be opened (permission denied).
     """
     wheel_path_obj = Path(wheel_path)
     metadata = ProjectMetadata(name="unknown")

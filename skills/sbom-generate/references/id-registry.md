@@ -141,7 +141,8 @@ the commands.
 Only `loom id generate` and `loom id import` create or index a registry;
 never hand-edit one. Run from the project directory (`PATH` and `-o`
 resolve against the current directory; a `PATH` outside the project, an
-unreadable one, or a `--project-dir` that is not a directory is an `ERROR:`,
+unreadable one, or a `--project-dir` that is not a directory (`project directory not found:
+...`) is an `ERROR:`,
 exit 1, nothing written; a `PATH` that does not exist is only `WARNING: ID
 registry: path not found, skipping: <path>` (exit 0, so a typo indexes
 nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):

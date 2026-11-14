@@ -29,6 +29,7 @@ from pitloom.core.optional_libraries import (
     not_installed,
 )
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import masked_given_path
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
     is_wheel_path,
@@ -36,7 +37,17 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import LIBRARY_MISSING, LIBRARY_UNUSABLE, code_of
+from pitloom.messages import CodedValueError, code_of
+from pitloom.messages.models import (
+    LIBRARY_MISSING,
+    LIBRARY_UNUSABLE,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    NO_WHEEL_MATCH_LINE,
+    is_input_file,
+    say_input_not_found,
+)
 
 
 def cli_error_handler(func: Callable[..., int]) -> Callable[..., int]:
@@ -106,17 +117,20 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 had_error = True
                 continue
             if not matched:
-                print_error(f"no wheel files matched: {quote_source(pattern)}")
+                print_error(
+                    NO_WHEEL_MATCH_LINE.render({"path": masked_given_path(pattern)}),
+                    code=INPUT_NOT_FOUND.code,
+                )
                 had_error = True
                 continue
             wheel_paths.extend(matched)
         else:
-            if refuse_non_wheel(Path(pattern)):
+            if refuse_non_wheel(pattern):
                 had_error = True
                 continue
             p = _given(pattern)
-            if not p.exists():
-                print_error(f"wheel file not found: {quote_source(p)}")
+            # A regular file only: a directory named .whl is not a wheel.
+            if not input_file_or_say(p, "wheel file", shown=pattern):
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -144,8 +158,8 @@ def report_error_line(exc: Exception) -> None:
     print_error(str(exc), code=code_of(exc))
 
 
-def refuse_non_wheel(path: Path) -> bool:
-    """Print the one ``ERROR: not a .whl file: <path>`` line and return
+def refuse_non_wheel(path: Path | str) -> bool:
+    """Print the one ``ERROR: FILE=<path>: not a .whl file`` line and return
     ``True`` where *path* is not a wheel by name
     (:func:`~pitloom.core.wheel_dist_info.require_wheel_path`), the same line
     on every command that takes a wheel."""
@@ -161,6 +175,24 @@ def refuse_non_wheel_like(path: str) -> bool:
     """:func:`refuse_non_wheel` for *path* where it looks like a wheel in any
     letter case but is not spelt ``.whl``; ``False`` for any other file."""
     return looks_like_wheel_path(path) and refuse_non_wheel(Path(path))
+
+
+def input_file_or_say(
+    path: Path, kind: str, *, shown: Path | str | None = None
+) -> bool:
+    """Whether a regular file is at *path* (the input probe), else print its
+    one ``ERROR:`` line naming *shown* (default: *path*) as *kind*:
+    ``input-not-found``, or ``file-unreadable`` where the system will not
+    let Pitloom look. Never raises that error, so a loop over several paths
+    reports every one."""
+    named = path if shown is None else shown
+    try:
+        if is_input_file(path, shown=named):
+            return True
+        say_input_not_found(kind, named)
+    except CodedValueError as exc:
+        report_error_line(exc)
+    return False
 
 
 def _locate_embedded_sbom_or_report(

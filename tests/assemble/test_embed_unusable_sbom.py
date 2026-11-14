@@ -12,6 +12,7 @@ See also: test_embed_external_sbom.py (what a good file embeds as).
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -19,28 +20,35 @@ import pytest
 
 from pitloom import __main__
 from pitloom.embed import embed_wheel_sbom
+from pitloom.messages import code_of, trusted_message
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
 _CYCLONEDX = json.dumps(
     {"bomFormat": "CycloneDX", "specVersion": "1.6", "components": []}
 )
-#: file name, content, message part (a directory and a missing file are below)
-_BAD: dict[str, tuple[str, bytes, str]] = {
-    "malformed": ("a.spdx3.json", b'{"@graph": [', "is not valid JSON"),
-    "empty": ("a.spdx3.json", b"", "is not valid JSON"),
-    "array": ("a.spdx3.json", b"[1, 2]", "is not a JSON object"),
-    "cyclonedx": ("a.spdx3.json", _CYCLONEDX.encode(), "not SPDX 3 JSON-LD"),
-    "malformed-other-name": ("a.json", b"{oops", "is not valid JSON"),
-    "nan": ("a.json", b'{"x": NaN}', "is not valid JSON"),
+_NOT_JSON = ("not valid JSON for the SBOM; ", "json-malformed")
+_NOT_SPDX3 = ("named .spdx3.json but not SPDX 3 JSON-LD", "sbom-wrong-format")
+#: file name, content, (message part, code)
+_BAD: dict[str, tuple[str, bytes, tuple[str, str]]] = {
+    "malformed": ("a.spdx3.json", b'{"@graph": [', _NOT_JSON),
+    "empty": ("a.spdx3.json", b"", _NOT_JSON),
+    "array": ("a.spdx3.json", b"[1, 2]", ("not a JSON object", "json-malformed")),
+    "cyclonedx": ("a.spdx3.json", _CYCLONEDX.encode(), _NOT_SPDX3),
+    "malformed-other-name": ("a.json", b"{oops", _NOT_JSON),
+    "nan": ("a.json", b'{"x": NaN}', _NOT_JSON),
     "infinity": (
         "a.spdx3.json",
         b'{"@context": 1, "@graph": [], "x": Infinity}',
-        "is not valid JSON",
+        _NOT_JSON,
     ),
-    "deeply-nested": ("a.json", b"[" * 100_000, "is not valid JSON"),
-    "upper-case-name": ("A.SPDX3.JSON", _CYCLONEDX.encode(), "not SPDX 3 JSON-LD"),
-    "non-utf8": ("a.spdx3.json", b'{"@graph": "\xff"}', "not valid UTF-8"),
+    "deeply-nested": ("a.json", b"[" * 100_000, _NOT_JSON),
+    "upper-case-name": ("A.SPDX3.JSON", _CYCLONEDX.encode(), _NOT_SPDX3),
+    "non-utf8": (
+        "a.spdx3.json",
+        b'{"@graph": "\xff"}',
+        ("could not read for the SBOM; not UTF-8: ", "file-unreadable/not-utf8"),
+    ),
 }
 
 
@@ -63,8 +71,11 @@ def test_the_library_refuses_a_bad_file_and_leaves_the_wheel(
     before = wheel.read_bytes()
     sbom = _bad_file(tmp_path, kind)
 
-    with pytest.raises(ValueError, match=_BAD[kind][2]):
+    part, code = _BAD[kind][2]
+    with pytest.raises(ValueError, match=re.escape(part)) as caught:
         embed_wheel_sbom(wheel, sbom_path=sbom)
+
+    assert code_of(caught.value) == code
 
     assert wheel.read_bytes() == before
     assert _leftovers(tmp_path) == []
@@ -89,7 +100,10 @@ def test_the_cli_refuses_a_bad_file_with_one_error_line(
     errors = [
         ln for ln in capsys.readouterr().err.splitlines() if ln.startswith("ERROR:")
     ]
-    assert len(errors) == 1 and _BAD[kind][2] in errors[0]
+    part, code = _BAD[kind][2]
+    assert len(errors) == 1 and part in errors[0]
+    found = trusted_message(errors[0])
+    assert found is not None and found.code == code
     assert wheel.read_bytes() == before
 
 
@@ -119,14 +133,17 @@ def test_a_valid_spdx3_file_still_embeds(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("kind", ["directory", "missing"])
-def test_a_directory_or_missing_file_is_an_os_error(tmp_path: Path, kind: str) -> None:
+def test_a_directory_or_missing_file_is_coded(tmp_path: Path, kind: str) -> None:
+    """The code ``loom id import`` gives the same file: nothing to read."""
     wheel = _make_dummy_wheel(tmp_path, "extpkg", "1.0.0")
     before = wheel.read_bytes()
     target = tmp_path / "x.spdx3.json"
     if kind == "directory":
         target.mkdir()
 
-    with pytest.raises(OSError):
+    with pytest.raises(FileNotFoundError) as caught:
         embed_wheel_sbom(wheel, sbom_path=target)
+
+    assert code_of(caught.value) == "input-not-found"
 
     assert wheel.read_bytes() == before

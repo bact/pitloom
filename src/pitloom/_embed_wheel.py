@@ -47,7 +47,7 @@ from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     refusal,
     refuse_unreadable,
-    require_wheel_path,
+    require_wheel_file,
     unreadable_member_error,
     wheel_members,
 )
@@ -403,7 +403,8 @@ def embed_sbom_in_wheel(
         earliest a ZIP can hold.
 
     Raises:
-        FileNotFoundError: *wheel_path* doesn't exist.
+        FileNotFoundError: Nothing is at *wheel_path*, or not a regular
+            file (``input-not-found``, carrying the code).
         ValueError: *sbom_content* is empty, or the wheel's content is bad
             (missing/ambiguous ``.dist-info``), or the wheel is refused
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
@@ -412,15 +413,15 @@ def embed_sbom_in_wheel(
             holds a NUL, or a member of its own ``.dist-info`` has a
             non-conforming name, or it is signed and not *allow_signed_wheel*.
             The wheel is left as it was.
-        OSError: An environment problem opening *wheel_path* (permission
-            denied, a transient I/O error) -- kept as its own exception
-            type, not folded into ``ValueError``.
+        pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+        OSError: An environment problem opening the file itself (its own
+            permissions, a transient I/O error) -- kept as its own
+            exception type, not folded into ``ValueError``.
     """
     configure_logging()
-    require_wheel_path(wheel_path)
+    require_wheel_file(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
-    if not wheel_obj.exists():
-        raise FileNotFoundError(f"Wheel file not found: {quote_source(wheel_obj)}")
 
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content

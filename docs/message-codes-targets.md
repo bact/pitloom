@@ -22,13 +22,18 @@ values.
 | --- | --- | --- | --- |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
-| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file on disk, or the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link). | 0.23.4 |
+| [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.24.1 |
+| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for. The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.24.1. | 0.23.4 |
+| [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.24.1 |
 | [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
 | [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
+| [`sbom-invalid`](#sbom-invalid) | ERROR | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). | 0.24.1 |
+| [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.24.1 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
+| [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.24.1 |
 
 ### `config-unsafe`
 
@@ -76,16 +81,48 @@ values.
   WARNING: FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]
   ```
 
+### `hf-url-invalid`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: A Hugging Face target is neither a Hub model URL
+  (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Read nothing and sent no request: 'loom model', 'loom
+  project' and 'loom generate' exit 1; generate, generate_model_sbom,
+  generate_project_sbom, generate_git_project_sbom and read_huggingface raise
+  ValueError carrying the code. An http(s) URL on huggingface.co or hf.co that
+  is no Space or dataset is taken as a model URL, so a malformed one says this,
+  not that a model file is not found.
+- **Tell the user**: the URL or id was not read, as the line gives it. They
+  check it and run again. Do not guess another model and run for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: not a valid Hugging Face URL or model ID [hf-url-invalid]
+  ```
+
 ### `input-not-found`
 
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
-- **Means**: A path named for Pitloom to read does not exist: a model file on
-  disk, or the file or folder a Git URL names in the repository at its branch (a
-  symbolic link there is not followed, so it counts as absent: its line says it
-  is a link).
+- **Means**: A path named for Pitloom to read does not exist: a model file,
+  wheel, sdist, project directory, configuration, ID registry or SBOM file on
+  disk (or something else is there: the line says it is not a file, or not a
+  directory), the file or folder a Git URL names in the repository at its branch
+  (a symbolic link there is not followed, so it counts as absent: its line says
+  it is a link), or a pattern or directory that holds nothing of what was asked
+  for. The lines for a model file and for a Git URL's file or folder print since
+  0.23.4, the others since 0.24.1.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote no SBOM. A Git URL's error code is git.path-not-found.
+- **Pitloom did**: Wrote nothing: no SBOM is written; for 'loom id', the ID
+  registry is not written; for 'loom embed-wheel', no wheel is changed; a check
+  ('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') checks
+  nothing. The command exits 1 (the Action step fails), the build hook fails the
+  build, and the library raises FileNotFoundError carrying the code, ValueError
+  for a fragments directory that holds no JSON file, or RemoteSourceError (code
+  git.path-not-found) for a Git URL's file or folder.
 - **Tell the user**: which path was not found, as the line names it (for a Git
   URL, a path in the repository). They check the path, or the URL's branch and
   path, and run again. Do not guess another path or branch and run for them; ask
@@ -97,6 +134,34 @@ values.
   ERROR: No file '<path>' in the repository at that branch. [input-not-found]
   ERROR: File '<path>' in the repository at that branch is a symbolic link; links are not followed. [input-not-found]
   ERROR: No folder '<path>' in the repository at that branch. [input-not-found]
+  ERROR: <input> not found: '<path>' [input-not-found]
+  ERROR: <input> not found: '<path>' is not a file [input-not-found]
+  ERROR: <input> not found: '<path>' is not a directory [input-not-found]
+  ERROR: no wheel file matches '<path>' [input-not-found]
+  ERROR: no JSON fragment file in '<path>' [input-not-found]
+  ERROR: no source or data directory under '<path>'; pass PATH arguments [input-not-found]
+  ```
+
+### `input-not-found/fragment`
+
+- **Level**: WARNING.
+- **Means**: An SBOM fragment the project configures ([tool.pitloom.fragment])
+  does not exist.
+- **SBOM effect**: thinner: the SBOM says less than reading the input would.
+- **Pitloom did**: Merged the SBOM without it, and wrote it (the build hook
+  builds the wheel). For a fragment marked required, the merge then fails with
+  an uncoded ERROR: and no SBOM is written: the command exits 1, the hook fails
+  the build, the library raises FragmentMergeError. 'loom fragment list' lists
+  it with EXISTS=false, and exits 1 for a required one.
+- **Tell the user**: which fragment was not found, as the line names it. They
+  create it (run the enrichment that writes it), fix its path in the
+  configuration, or remove the entry, and run again. Do not edit the
+  configuration for them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: SBOM fragment not found: '<path>'; not merged [input-not-found/fragment]
+  WARNING: required SBOM fragment not found: '<path>'; the merge will fail [input-not-found/fragment]
   ```
 
 ### `model-ambiguous`
@@ -199,6 +264,50 @@ values.
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file [project-or-model-not-found]
   ```
 
+### `sbom-invalid`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: An SBOM given to read is JSON but not a valid SPDX 3 document: its
+  @graph is not a list of objects ('embed-wheel --sbom', 'loom id import';
+  checked before the format, whatever the file is named), or spdx3-validate
+  refuses it ('embed-wheel --sbom --validate'; its own lines before say why).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported. The
+  command exits 1; the library (embed_wheel_sbom with sbom_path,
+  IdRegistry.import_sbom) raises ValueError carrying the code for an @graph that
+  is not a list of objects.
+- **Tell the user**: which SBOM is not valid, and what the validator reported.
+  They fix or regenerate it and run again. Do not edit the SBOM for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]
+  ERROR: FILE=<file>: SBOM @graph is not a list [sbom-invalid]
+  ERROR: FILE=<file>: SBOM @graph holds an element that is not an object [sbom-invalid]
+  ```
+
+### `sbom-wrong-format`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: An SBOM given to embed or to import into an ID registry is named as
+  SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document,
+  say).
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote nothing: no wheel is changed and no ID registry
+  written; the command exits 1, the library raises ValueError carrying the code.
+- **Tell the user**: which file is named as SPDX 3 but is not, as the line names
+  it. They give the right file, or rename it to match its format, and run again.
+  Do not rename or convert the file for them; ask first, and with nobody to ask,
+  report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: named .spdx3.json but not SPDX 3 JSON-LD [sbom-wrong-format]
+  ```
+
 ### `target-ambiguous`
 
 - **Level**: INFO.
@@ -218,4 +327,25 @@ values.
   INFO: FILE=<file>: not an AI model file; reading its folder [target-ambiguous]
   INFO: FILE=<file>: no Python project; reading this AI model file [target-ambiguous]
   INFO: FILE=<file>: the one AI model file; reading it [target-ambiguous]
+  ```
+
+### `target-wrong-format`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: The target given is not of the kind the command reads: a Hugging
+  Face model given to 'loom project', or a file not named .whl given as a wheel
+  ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Read nothing of it: the command exits 1; the library raises
+  ValueError carrying the code (generate_project_sbom and
+  generate_git_project_sbom for a Hugging Face model URL, generate_wheel_sbom
+  for a file not named .whl).
+- **The caller may fix**: The caller may run the command the line names, or give
+  a wheel file (a built .whl), and run again.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: a Hugging Face model, not a project; use 'loom model' [target-wrong-format]
+  ERROR: FILE=<file>: not a .whl file [target-wrong-format]
   ```

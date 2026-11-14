@@ -12,41 +12,35 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.import_sbom``),
 from __future__ import annotations
 
 import io
-import json
 from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
 
 __all__ = ["document_id", "read_sbom_objects"]
 
 
-def _require_graph_list(raw: bytes) -> None:
-    """Raise ``ValueError`` when the JSON *raw* has an ``@graph`` that is
-    not a list, or holds a non-object (the deserialiser would leak a
-    ``TypeError``). Text that is not JSON is left to the deserialiser's
-    own error."""
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        return
-    graph = data.get("@graph", []) if isinstance(data, dict) else []
-    if not isinstance(graph, list):
-        raise ValueError("@graph is not a list")
-    if not all(isinstance(element, dict) for element in graph):
-        raise ValueError("@graph element is not an object")
-
-
 def read_sbom_objects(sbom_path: Path) -> list[Any]:
     """The objects of the SBOM at *sbom_path*, sorted by ``spdxId``
-    (:func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`)."""
+    (:func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`).
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: Nothing is at *sbom_path*,
+            or not a regular file (``input-not-found``).
+        pitloom.messages.CodedValueError: It is refused as ``embed-wheel
+            --sbom`` refuses it (:func:`~pitloom._sbom_format.read_given_sbom`:
+            ``file-unreadable``, ``over-cap``, ``json-malformed``,
+            ``sbom-wrong-format``, ``sbom-invalid`` for an ``@graph`` that
+            is not a list of objects); each names *sbom_path*. The deserialiser's
+            own errors are uncoded.
+    """
     object_set = spdx3.SHACLObjectSet()
-    with open(sbom_path, "rb") as f:
-        raw = f.read()
-    _require_graph_list(raw)
-    spdx3.JSONLDDeserializer().read(io.BytesIO(raw), object_set)
+    given = read_given_sbom(sbom_path)
+    raw = io.BytesIO(given.text.encode("utf-8"))
+    spdx3.JSONLDDeserializer().read(raw, object_set)
     return _sorted_by_spdx_id(object_set)
 
 

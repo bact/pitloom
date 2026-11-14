@@ -22,8 +22,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Input, option, SBOM and target errors carry a message code; see
+  `docs/message-codes.md` ([#482])
+
 ### Changed
 
+- Error messages for missing inputs and invalid options are reworded, and
+  each CLI `ERROR:` line starts `loom <command>:`; see `docs/message-codes.md`
+  ([#481], [#482])
+- `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
+  `ValueError`, for an ID registry file that is missing or not a file ([#482])
+- `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
+  over 50 MiB, an `@graph` that is not a list of objects) ([#482])
+- A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
+  and `generate_project_sbom()` too) get a coded error; a padded Hub URL is
+  read; a missing input or ID registry is named as given ([#482])
+- An input under a directory without search permission is `file-unreadable`,
+  not "not found" ([#482])
+- Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -35,6 +53,8 @@ and this project adheres to
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
 
+[#481]: https://github.com/bact/pitloom/pull/481
+[#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
 
 ## [0.24.0] - 2026-11-11
@@ -1082,6 +1102,7 @@ Released from `maint-0.21`, on 0.21.1; no other change of 0.22.0 is in it.
 
 ---
 
+[Unreleased]: https://github.com/bact/pitloom/compare/v0.24.0...HEAD
 [0.24.0]: https://github.com/bact/pitloom/compare/v0.23.4...v0.24.0
 [0.23.4]: https://github.com/bact/pitloom/compare/v0.23.3...v0.23.4
 [0.23.3]: https://github.com/bact/pitloom/compare/v0.23.2...v0.23.3

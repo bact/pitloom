@@ -18,6 +18,7 @@ See also: tests/messages/test_drift_quotes.py (quotes elsewhere).
 from __future__ import annotations
 
 import fnmatch
+import importlib
 import importlib.util
 import os
 import re
@@ -35,6 +36,7 @@ from pitloom.messages import (
     FRAMES,
     MESSAGES,
     TOPIC_TITLES,
+    Message,
     topic_of,
 )
 from pitloom.messages import _model_field as model_field
@@ -314,6 +316,19 @@ def test_every_family_has_one_topic_and_no_topic_is_empty() -> None:
     assert families == set(FAMILY_TOPICS), "map each new family in _topics.py"
     assert set(FAMILY_TOPICS.values()) == set(TOPIC_TITLES)
     assert all(re.fullmatch(r"[a-z]+(-[a-z]+)*", t) for t in TOPIC_TITLES)
+
+
+@pytest.mark.parametrize("topic", sorted(TOPIC_TITLES))
+def test_a_topic_module_exports_exactly_its_pages_entries(topic: str) -> None:
+    """``pitloom.messages.<topic>`` (a hyphen spelt ``_``) exports every entry
+    of the page and no other."""
+    module = importlib.import_module(f"pitloom.messages.{topic.replace('-', '_')}")
+    exported = {
+        obj.code
+        for obj in (getattr(module, name) for name in module.__all__)
+        if isinstance(obj, Message)
+    }
+    assert exported == {c for c in MESSAGES if topic_of(c) == topic}
 
 
 @pytest.mark.parametrize(

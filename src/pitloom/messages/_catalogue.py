@@ -24,11 +24,14 @@ from pitloom.messages import (
     _license_relationship_invalid,
     _model_field,
     _model_stub,
+    _options,
     _over_cap,
     _pypi,
     _pypi_info,
     _remote_fetch,
+    _sbom_input,
     _sbom_target,
+    _target_input,
     _text_malformed,
     _usage_unparseable,
     _usage_unusable,
@@ -77,5 +80,8 @@ MESSAGES: Final = _by_code(
         *_remote_fetch.ENTRIES,
         *_pypi_info.ENTRIES,
         *_license_relationship_invalid.ENTRIES,
+        *_options.ENTRIES,
+        *_sbom_input.ENTRIES,
+        *_target_input.ENTRIES,
     )
 )

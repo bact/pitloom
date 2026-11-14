@@ -25,7 +25,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model import reader as ai_model_reader
 from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import READER_UNSAFE_REMOTE
+from pitloom.messages.models import READER_UNSAFE_REMOTE
 
 _ROOT = Path(__file__).resolve().parent / "fixtures" / "aimodels"
 

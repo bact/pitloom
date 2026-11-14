@@ -16,13 +16,15 @@ import time
 import pytest
 
 from pitloom.messages import (
+    LONGEST_LINE,
+    Message,
+    trusted_message,
+)
+from pitloom.messages.files import OVER_CAP
+from pitloom.messages.models import (
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
-    LONGEST_LINE,
-    OVER_CAP,
-    Message,
-    trusted_message,
 )
 
 _OID = "0123456789abcdef" * 4

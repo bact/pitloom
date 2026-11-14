@@ -37,7 +37,7 @@ from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import OFFLINE_UNUSABLE
+from pitloom.messages.network import OFFLINE_UNUSABLE
 
 from ..conftest import (
     _AI_MODEL_FIXTURES,

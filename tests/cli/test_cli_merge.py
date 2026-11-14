@@ -117,7 +117,7 @@ def test_merge_command_no_json_files(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: loom merge: no JSON fragment files found" in captured.err
+    assert "ERROR: loom merge: no JSON fragment file in" in captured.err
 
 
 def test_merge_command_stdout(

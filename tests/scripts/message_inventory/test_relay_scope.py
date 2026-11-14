@@ -29,8 +29,10 @@ import logging
 import sys
 from argparse import ArgumentParser
 
+from pitloom.core.url_masking import masked_given_path, sanitize_url_credentials
 from pitloom.logging_config import print_error
 from pitloom.messages import code_of, other_code
+from pitloom.other import sanitize_url as mask_alias
 
 log = logging.getLogger(__name__)
 print_error(str(e), code=code_of(e))  # in: module-level
@@ -157,11 +159,26 @@ def rebound(run, items, x):
 class Parser(argparse.ArgumentParser):
     def error(self, message):
         print_error(message, frame="loom: ")  # out: parser
+        print_error(sanitize_url_credentials(message))  # out: parser-masked
+        print_error(masked_given_path(message))  # out: parser-masked-path
+        print_error(masked_given_path(message, 1))  # in: parser-masked-two
+        print_error(masked_given_path(text=message))  # in: parser-masked-kw
+        print_error(masked_given_path(self))  # in: parser-masked-other
+        print_error(mask_alias(message))  # in: parser-not-imported
+        print_error(self.mask(message))  # in: parser-attribute-call
+        print_error(other_mask(message))  # in: parser-other-call
         print_error(f"bad: {message}")  # in: parser-own-text
         print_error(self.prog)  # in: parser-other-text
 
     def warn(self, message):
         print_error(message)  # in: not-error
+
+
+class LocalMasker(ArgumentParser):
+    def error(self, message):
+        def masked_given_path(text):
+            return text
+        print_error(masked_given_path(message))  # in: parser-local-masker
 
 
 class Imported(ArgumentParser):
@@ -232,3 +249,37 @@ def test_a_relay_is_out_of_scope_by_its_shape(
     (site,) = [r for r in records if r["line"] == line]
     assert mi.in_scope(site) is scoped
     assert bool(site["relays"]) is not scoped
+
+
+#: A module defining its own function under a masker's name, after
+#: importing the real one: the call may say anything.
+SHADOWED = """\
+from argparse import ArgumentParser
+
+from pitloom.core.url_masking import sanitize_url_credentials
+from pitloom.logging_config import print_error
+
+
+def sanitize_url_credentials(text):
+    return "own words"
+
+
+class Parser(ArgumentParser):
+    def error(self, message):
+        print_error(sanitize_url_credentials(message))
+"""
+
+
+def test_a_masker_shadowed_in_its_module_is_in_scope(
+    mi: ModuleType, tmp_path: Path
+) -> None:
+    package = tmp_path / "src" / "pitloom"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_bytes(b"")
+    (package / "shadowed.py").write_bytes(SHADOWED.encode("utf-8"))
+    line = SHADOWED.splitlines().index(
+        "        print_error(sanitize_url_credentials(message))"
+    )
+    (site,) = [r for r in mi.inventory(tmp_path) if r["line"] == line + 1]
+    assert mi.in_scope(site)
+    assert not site["relays"]

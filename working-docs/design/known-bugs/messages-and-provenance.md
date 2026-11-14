@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -156,7 +156,7 @@ release ships.
   *Found 2026-10-29, Opus review of the provenance code against evidence-levels.md.*
 - [x] **The lone-surrogate message was uncatalogued (S), fixed (#444).** It
   is `text-malformed` (effect `weaker`), said through
-  `pitloom.messages.warn_lone_surrogates`.
+  `pitloom.messages.files.warn_lone_surrogates`.
   *Found 2026-10-30, from #408 (unreadable files, catalogue 2a; 2b and later).*
 - [x] **A card that does not parse had free text (S), fixed (#444).** It
   says `card-malformed`; a card read failure says `file-unreadable`.

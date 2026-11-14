@@ -14,15 +14,14 @@ See also:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import PARAM_TO_FLAG
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
-from pitloom.core.quote_source import quote_source
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
@@ -32,6 +31,7 @@ from pitloom.id_registry import (
     persist_registry,
     warn_no_registry_path,
 )
+from pitloom.messages.targets import input_not_found, is_input_dir
 
 # dataset_DatasetPackage is never harvested: a dataset id is pinned
 # deliberately, by `loom id generate -e NAME:dataset_DatasetPackage` or
@@ -61,11 +61,11 @@ def archive_project_dir(
     if project_dir is None:
         return None
     path = Path(project_dir).resolve()
-    if not os.path.isdir(path):
-        raise FileNotFoundError(f"project directory not found: {quote_source(path)}")
+    if not is_input_dir(path):
+        raise input_not_found("project directory", TypedPath(project_dir))
     if registry is None:
         flag = PARAM_TO_FLAG["project_dir"]
-        warn_no_effect(INERT_LOG_PREFIX, subject, (flag,), _PROJECT_DIR_NO_REGISTRY)
+        warn_no_effect(subject, (flag,), _PROJECT_DIR_NO_REGISTRY)
         return None
     return path
 

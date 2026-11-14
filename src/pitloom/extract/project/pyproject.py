@@ -63,6 +63,7 @@ from pitloom.extract.project._pyproject_license import (
 from pitloom.extract.project._setuptools_dynamic import read_setuptools_dynamic
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
+from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
 
@@ -280,10 +281,8 @@ def read_pyproject(
         ValueError: the file is not valid TOML, or its metadata or
             ``[tool.pitloom]`` settings are invalid.
     """
-    if not pyproject_path.exists():
-        raise FileNotFoundError(
-            f"pyproject.toml not found at {quote_source(pyproject_path)}"
-        )
+    if not is_input_file(pyproject_path):
+        raise input_not_found("pyproject.toml", pyproject_path)
 
     data: dict[str, Any] = load_toml_file(pyproject_path)
 

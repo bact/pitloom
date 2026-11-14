@@ -40,6 +40,10 @@ from pitloom.core.pep440 import parse_version
 from pitloom.core.url_masking import sanitize_url
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    CodedValueError,
+    Line,
+)
+from pitloom.messages.pypi import (
     PYPI_FILE_LINK_LINE,
     PYPI_INDEX_LINE,
     PYPI_NAME_INVALID_LINE,
@@ -49,8 +53,6 @@ from pitloom.messages import (
     PYPI_URL_INVALID,
     PYPI_URL_SCHEME_LINE,
     PYPI_VERSION_INVALID_LINE,
-    CodedValueError,
-    Line,
 )
 
 log = logging.getLogger(__name__)

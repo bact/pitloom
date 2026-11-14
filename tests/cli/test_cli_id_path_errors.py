@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.cli.id import _run_id_command
 from pitloom.cli.parser import _build_parser
+from pitloom.core.quote_source import quote_source
 from tests._symlink import CAN_SYMLINK
 from tests._unreadable import POSIX_NON_ROOT
 
@@ -81,7 +82,11 @@ def test_project_dir_not_a_directory_is_one_error(
 
     assert code == 1
     err = [line for line in capsys.readouterr().err.splitlines() if line]
-    assert err == [f"ERROR: --project-dir '{bad}' is not a directory"]
+    shown = quote_source(bad.resolve())
+    tail = " is not a directory" if kind == "file" else ""
+    assert err == [
+        f"ERROR: project directory not found: {shown}{tail} [input-not-found]"
+    ]
     assert not out.exists()
 
 

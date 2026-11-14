@@ -41,13 +41,15 @@ from pitloom.messages import (
     COMMAND_FRAME,
     FRAMES,
     HOOK_FRAME,
-    INPUT_NOT_FOUND,
     LOOM_COMMANDS,
-    MODEL_FILE_NOT_FOUND_LINE,
     RELAY_FRAME,
     TOP_FRAME,
     says,
     trusted_message,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
 )
 from tests._message_drift import SRC_ROOT, source_modules
 

@@ -68,21 +68,23 @@ from pitloom.extract.remote._http_errors import (
 )
 from pitloom.extract.remote._http_watch import Watch, opener
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages import (
+from pitloom.messages import emit
+from pitloom.messages.files import (
     DOWNLOAD_LINE,
     JSON_MALFORMED,
     NOT_JSON_LINE,
     NOT_OBJECT_LINE,
     OVER_CAP,
-    REDIRECT_REFUSED_LINE,
     SAVE_FAILED_LINE,
     SOURCE_LINE,
     TEMP_DIR_UNUSABLE,
+    Cap,
+)
+from pitloom.messages.network import (
+    REDIRECT_REFUSED_LINE,
     TOO_MANY_REDIRECTS_LINE,
     URL_MOVED,
     URL_REFUSED,
-    Cap,
-    emit,
 )
 
 log = logging.getLogger(__name__)

@@ -27,8 +27,9 @@ from pitloom.cli._id_target import (
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
+from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.core.iri import require_namespace_iri
-from pitloom.core.quote_source import quote_source
+from pitloom.core.quote_source import quote_given, quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -40,7 +41,17 @@ from pitloom.id_registry import (
     save_registry,
 )
 from pitloom.logging_config import print_error
-from pitloom.messages import code_of
+from pitloom.messages import (
+    CodedValueError,
+    code_of,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    NO_ID_PATHS_LINE,
+    is_input_dir,
+    is_input_file,
+    say_input_not_found,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -72,7 +83,8 @@ def _load_or_create_registry(
     only for a new registry: an existing one keeps its own).
 
     Raises ``ValueError`` (from :meth:`~pitloom.id_registry.IdRegistry.load`)
-    when *registry_path* exists but doesn't load.
+    when *registry_path* exists but doesn't load, or ``FileNotFoundError``
+    when what is there is not a file.
     """
     if not os.path.lexists(registry_path):
         return IdRegistry.new(
@@ -232,16 +244,18 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
                 raise ValueError(
-                    f"PATH {quote_source(path)} is outside "
-                    f"--project-dir {quote_source(project_dir)}"
+                    f"PATH {quote_given(path)} is outside "
+                    f"--project-dir {quote_given(args.project_dir or project_dir)}"
                 )
-            paths.append(resolved)
+            # The typed spelling rides along, for a warning to name it.
+            paths.append(keep_spelling(resolved, path))
     else:
         paths = _default_id_generate_paths(project_dir)
     if not paths:
-        raise ValueError(
-            f"no source/data directories found under {quote_source(project_dir)}; "
-            "pass explicit PATH argument(s)."
+        raise CodedValueError(
+            INPUT_NOT_FOUND,
+            line=NO_ID_PATHS_LINE,
+            path=args.project_dir or project_dir,
         )
     return paths
 
@@ -282,10 +296,8 @@ def _register_entities(
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
-    if not os.path.isdir(project_dir):
-        print_error(
-            f"--project-dir {quote_source(args.project_dir)} is not a directory"
-        )
+    if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
+        say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
@@ -309,18 +321,26 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _import_failure_text(sbom_path: Path, exc: Exception) -> str:
+    """The line for an SBOM that could not be imported: a catalogued error
+    (one with a code) says its own text, which names the SBOM (every coded
+    error :meth:`~pitloom.id_registry.IdRegistry.import_sbom` raises has it
+    as its ``FILE=`` or path), any other is named after the file."""
+    if code_of(exc) is not None:
+        return str(exc)
+    return f"failed to import SBOM {quote_source(sbom_path)}: {exc}"
+
+
 def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
     sbom_path: Path = args.sbom.resolve()
-    if not os.path.isfile(sbom_path):
-        print_error(f"SBOM file not found: {quote_source(sbom_path)}")
+    if not is_input_file(sbom_path, shown=args.sbom):
+        say_input_not_found("SBOM file", args.sbom)
         return 1
 
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
-    if not os.path.isdir(project_dir):
-        print_error(
-            f"--project-dir {quote_source(args.project_dir)} is not a directory"
-        )
+    if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
+        say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
@@ -337,10 +357,11 @@ def _run_id_import(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        skipped = registry.import_sbom(sbom_path)
+        # The path as given: a line about the SBOM names it as the user did.
+        skipped = registry.import_sbom(args.sbom)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        print_error(f"failed to import SBOM {quote_source(sbom_path)}: {exc}")
+        print_error(_import_failure_text(args.sbom, exc), code=code_of(exc))
         return 1
 
     if not _save(registry, registry_path):
@@ -385,7 +406,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     gen_parser.add_argument(
         "paths",
         nargs="*",
-        type=Path,
+        type=TypedPath,
         default=None,
         help="Files or directories to index.",
     )
@@ -403,7 +424,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     gen_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         help="Project directory root.",
     )
@@ -459,7 +480,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     imp_parser.add_argument(
         "sbom",
-        type=Path,
+        type=TypedPath,
         help="Source SBOM JSON file to import.",
     )
     imp_parser.add_argument(
@@ -476,7 +497,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     imp_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         help=(
             "Project directory root: a new registry's root, which the SBOM's "

@@ -35,14 +35,16 @@ from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
 from pitloom.logging_config import loggable
 from pitloom.messages import (
+    CodedValueError,
+    code_of,
+)
+from pitloom.messages.targets import (
     GIT_FILE_IS_LINK_LINE,
     GIT_FILE_NOT_FOUND_LINE,
     INPUT_NOT_FOUND,
     MODEL_FILES_LINE,
     NO_SBOM_TARGET,
     PROJECT_NOT_FOUND_MODEL_FILES,
-    CodedValueError,
-    code_of,
 )
 
 __all__ = ["resolve_git_target"]

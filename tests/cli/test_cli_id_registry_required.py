@@ -62,7 +62,7 @@ def test_id_generate_no_flag_no_key_is_exact_error_and_writes_nothing(
     assert exit_code == 1
     err = capsys.readouterr().err
     err_lines = [line for line in err.splitlines() if line]
-    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom]"]
+    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom] [option-missing]"]
     _assert_no_default_registry_anywhere(tmp_path, other_cwd)
 
 
@@ -86,7 +86,7 @@ def test_id_import_no_flag_no_key_is_exact_error_and_writes_nothing(
     assert exit_code == 1
     err = capsys.readouterr().err
     err_lines = [line for line in err.splitlines() if line]
-    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom]"]
+    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom] [option-missing]"]
     _assert_no_default_registry_anywhere(tmp_path, tmp_path)
 
 
@@ -106,7 +106,7 @@ def test_id_generate_no_flag_no_key_no_config_file_at_all(
     assert exit_code == 1
     err = capsys.readouterr().err
     err_lines = [line for line in err.splitlines() if line]
-    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom]"]
+    assert err_lines == [_EXPECTED_ERROR + "[tool.pitloom] [option-missing]"]
     _assert_no_default_registry_anywhere(tmp_path, tmp_path)
 
 
@@ -133,7 +133,7 @@ def test_id_generate_no_flag_no_key_setup_cfg_wording(
     assert exit_code == 1
     err = capsys.readouterr().err
     err_lines = [line for line in err.splitlines() if line]
-    assert err_lines == [_EXPECTED_ERROR + "[tool:pitloom]"]
+    assert err_lines == [_EXPECTED_ERROR + "[tool:pitloom] [option-missing]"]
     _assert_no_default_registry_anywhere(tmp_path, tmp_path)
 
 
@@ -157,7 +157,7 @@ def test_id_import_no_flag_no_key_setup_cfg_wording(
     assert exit_code == 1
     err = capsys.readouterr().err
     err_lines = [line for line in err.splitlines() if line]
-    assert err_lines == [_EXPECTED_ERROR + "[tool:pitloom]"]
+    assert err_lines == [_EXPECTED_ERROR + "[tool:pitloom] [option-missing]"]
 
 
 # ---------------------------------------------------------------------------

@@ -50,13 +50,17 @@ from pitloom.extract.ai_model.safetensors import (
     read_safetensors,
 )
 from pitloom.messages import (
-    EMPTY_LINE,
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
-    MODEL_WRONG_FORMAT,
-    NOT_A_MODEL_LINE,
     CodedFileNotFoundError,
     CodedValueError,
+)
+from pitloom.messages.models import (
+    EMPTY_LINE,
+    MODEL_WRONG_FORMAT,
+    NOT_A_MODEL_LINE,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
 )
 
 __all__ = [
@@ -386,8 +390,8 @@ class NotAModel(Exception):
             (``model-wrong-format``), a Git LFS pointer in the catalogue's
             words (:func:`~pitloom.core.lfs_pointer.refuse_named_pointer`); a
             scan warns of a header that is another format's
-            (:data:`~pitloom.messages.MODEL_WRONG_FORMAT`) and of a malformed
-            pointer (:data:`~pitloom.messages.LFS_POINTER_MALFORMED`).
+            (:data:`~pitloom.messages.models.MODEL_WRONG_FORMAT`) and of a malformed
+            pointer (:data:`~pitloom.messages.models.LFS_POINTER_MALFORMED`).
     """
 
     def __init__(

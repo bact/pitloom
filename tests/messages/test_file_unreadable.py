@@ -25,15 +25,19 @@ from pitloom.core.internal_error import InternalError
 from pitloom.core.path_confine import NotRegularFileError, OutsideRootError
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
+    READ_USES,
+    Message,
+    code_of,
+    trusted_message,
+)
+from pitloom.messages.files import (
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
-    READ_USES,
-    Message,
-    code_of,
+    INPUT_USE,
+    SBOM_USE,
     file_unreadable_error,
-    trusted_message,
     warn_dir_unlistable,
     warn_file_unreadable,
 )
@@ -148,19 +152,27 @@ def test_a_read_that_raises_says_one_purpose(purpose: dict[str, str]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("exc", "match"),
+    ("exc", "match", "purpose"),
     [
-        (FileNotFoundError(errno.ENOENT, "No such file", _ABS), "absent"),
-        (_DECODE, "no ERROR line"),
-        (OutsideRootError(), "no ERROR line"),
+        (FileNotFoundError(errno.ENOENT, "No such file", _ABS), "absent", {}),
+        (OutsideRootError(), "no ERROR line", {}),
+        (_DECODE, "read for a use", {"model_format": "gguf"}),
     ],
-    ids=["absent", "not-utf8", "outside"],
+    ids=["absent", "outside", "not-utf8-header"],
 )
 def test_a_read_that_raises_is_never_absent_or_a_warning_only(
-    exc: BaseException, match: str
+    exc: BaseException, match: str, purpose: dict[str, str]
 ) -> None:
+    purpose = purpose or {"use": "for the Croissant document"}
     with pytest.raises(InternalError, match=match):
-        file_unreadable_error(exc, file="c.json", use="for the Croissant document")
+        file_unreadable_error(exc, file="c.json", **purpose)
+
+
+def test_a_text_not_utf8_that_raises_says_its_variant() -> None:
+    error = file_unreadable_error(_DECODE, file="a\nb.json", use="for the SBOM")
+    text = f"FILE='a\\nb.json': could not read for the SBOM; not UTF-8: {_DECODE}"
+    assert str(error) == text and code_of(error) == "file-unreadable/not-utf8"
+    assert trusted_message(f"ERROR: {text} [file-unreadable/not-utf8]") is not None
 
 
 def test_a_header_read_names_the_format_first(
@@ -278,6 +290,10 @@ def _texts(tree: ast.Module) -> dict[str, str]:
     }
 
 
+#: The use constants the catalogue exports, by name, which a module passes
+#: imported, not defined.
+_SHARED_USES = {"INPUT_USE": INPUT_USE, "SBOM_USE": SBOM_USE}
+
 #: The calls that take a ``use=`` of the table: the helpers, and what hands
 #: one on to them (a card's kind, the JSON reader).
 _USE_TAKERS = frozenset(
@@ -301,11 +317,13 @@ def _handed_on(value: ast.expr) -> bool:
 
 def test_every_use_of_the_table_is_passed_and_no_other() -> None:
     """The table is closed and live: every ``use=`` a call of a taker
-    passes is a text of it (a literal, or a module constant) or hands one
-    on, and each of its uses is passed by some call."""
-    passed: set[str] = set()
+    passes is a text of it (a literal, a module constant or a shared one)
+    or hands one on, and each of its uses is passed by some call."""
+    # The input probe passes INPUT_USE from inside the catalogue, which
+    # source_modules() leaves out.
+    passed: set[str] = {INPUT_USE}
     for path, tree in source_modules():
-        texts = _texts(tree)
+        texts = {**_SHARED_USES, **_texts(tree)}
         for node in ast.walk(tree):
             name = getattr(node, "func", None)
             if getattr(name, "id", getattr(name, "attr", None)) not in _USE_TAKERS:

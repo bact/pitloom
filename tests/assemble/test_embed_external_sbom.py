@@ -57,7 +57,7 @@ def test_invalid_utf8_is_refused(tmp_path: Path) -> None:
     wheel = _make_dummy_wheel(tmp_path, "extpkg", "1.0.0")
     sbom = tmp_path / "given.spdx3.json"
     sbom.write_bytes(b'{"@graph": "\xff"}')
-    with pytest.raises(ValueError, match="not valid UTF-8"):
+    with pytest.raises(ValueError, match="not UTF-8"):
         embed_wheel_sbom(wheel, sbom_path=sbom)
     with zipfile.ZipFile(wheel) as zf:
         assert not [n for n in zf.namelist() if "/sboms/" in n]

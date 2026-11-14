@@ -25,7 +25,6 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
-import re
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -44,12 +43,13 @@ from pitloom.assemble.spdx3.dataset import (
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import FOLLOWER_FIELDS, DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.url_masking import URL_AS_PATH_RE, masked_given_path
 from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
 from pitloom.logging_config import loggable, one_line
-from pitloom.messages import warn_over_cap
+from pitloom.messages.files import warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 
@@ -88,9 +88,8 @@ _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
 #: Fields taken only with the one they follow.
 _FOLLOWERS = frozenset(FOLLOWER_FIELDS.values())
 
-#: An ``http``/``https`` URL in any case, also as ``Path`` collapses its
-#: ``//`` (``https:/host``), or a Windows ``Path`` writes it.
-_URL_RE = re.compile(r"https?:[/\\]", re.IGNORECASE)
+#: A URL of any scheme, also as a ``Path`` writes it (not a Windows drive).
+_URL_RE = URL_AS_PATH_RE
 
 #: The licence a caller declares by saying they make no assertion.
 _NOASSERTION = "NOASSERTION"
@@ -169,7 +168,7 @@ def read_sources(
     if croissant is not None:
         location = os.fspath(croissant)
         if _URL_RE.match(location):
-            raise ValueError(CROISSANT_URL_ERROR % location)
+            raise ValueError(CROISSANT_URL_ERROR % masked_given_path(location))
         label = cwd_relative_label(location)
         sources.read.append(read_croissant(location, label=label))
     if os.path.isdir(name):

@@ -88,7 +88,7 @@ from pitloom.id_registry import (
     registry_file_path,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import warn_file_unreadable
+from pitloom.messages.files import warn_file_unreadable
 
 log = logging.getLogger("pitloom.loom")
 

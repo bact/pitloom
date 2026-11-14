@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract._extract_utils import FETCH_MAX_BYTES
+from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.extract.lock import requirements
 from pitloom.extract.lock.requirements import extract_pinned_requirements_dependencies
 from pitloom.logging_config import CODE_ATTR

@@ -28,16 +28,18 @@ import pytest
 from pitloom.core.evidence import REASON_CODES
 from pitloom.messages import (
     CONDITIONS,
-    LFS_CLONE_LINE,
-    LFS_POINTER,
-    LFS_POINTER_MALFORMED,
-    LFS_POINTER_SHIPPED,
-    LFS_PULL_LINE,
     MESSAGES,
     Line,
     Message,
 )
 from pitloom.messages._catalogue import _by_code
+from pitloom.messages.models import (
+    LFS_CLONE_LINE,
+    LFS_POINTER,
+    LFS_POINTER_MALFORMED,
+    LFS_POINTER_SHIPPED,
+    LFS_PULL_LINE,
+)
 
 _SRC = str(Path(__file__).resolve().parents[2] / "src")
 _SHIPPED_LINE = LFS_POINTER_SHIPPED.lines[0]
@@ -208,6 +210,8 @@ def test_line_for_refuses_when_it_cannot_tell(
     "first",
     [
         "pitloom.messages",
+        "pitloom.messages.targets",
+        "pitloom.messages.files",
         "pitloom.logging_config",
         "pitloom.core.lfs_pointer",
         "pitloom.core.ai_metadata",
@@ -230,7 +234,8 @@ def test_the_package_imports_first_in_a_fresh_interpreter(first: str) -> None:
             "sys.modules['pitloom'] = bare",
             f"importlib.import_module({first!r})",
             "import pitloom.messages, pitloom.logging_config",
-            "print(pitloom.messages.LFS_POINTER.code)",
+            "import pitloom.messages.models",
+            "print(pitloom.messages.models.LFS_POINTER.code)",
         ]
     )
     run = subprocess.run(  # nosec B603

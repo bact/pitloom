@@ -40,6 +40,7 @@ from pitloom.core.config_cascade import (
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     PROJECT,
     SDIST,
@@ -47,13 +48,14 @@ from pitloom.core.inert_options import (
     settle_inert,
 )
 from pitloom.core.models import get_wheel_files
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
+from pitloom.extract.remote.huggingface import refuse_hub_model_target
 from pitloom.extract.remote.pypi import SDIST as SDIST_FILE
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.scanner_project import scan_project_for_ai_models
@@ -178,14 +180,18 @@ def generate_project_sbom(
     Raises:
         FileNotFoundError: *project_dir* is given for an sdist and is not a
             directory.
+        ValueError: *project_target* is a Hugging Face model URL
+            (``target-wrong-format``), or a malformed one
+            (``hf-url-invalid``):
+            :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
         pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's sdist
             could not be fetched or verified (``pypi.*``).
     """
     configure_logging()
+    refuse_hub_model_target(project_target)
     if isinstance(project_target, str) and is_pypi_url(project_target):
         if project_metadata is not None:
             warn_no_effect(
-                INERT_LOG_PREFIX,
                 project_target,
                 ("project_metadata",),
                 "for a PyPI URL target (the metadata is read from the downloaded "
@@ -218,7 +224,8 @@ def generate_project_sbom(
         )
     if max_download_bytes is not None:
         require_download_override(max_download_bytes)  # even if inert
-    target_path = Path(project_target)
+    # Named as given in a message (a URL's "//" kept).
+    target_path = TypedPath(project_target)
 
     # A cheap stat, before any project-metadata/lock-file read, so the
     # build-flag WARNING: is the first thing this call logs.

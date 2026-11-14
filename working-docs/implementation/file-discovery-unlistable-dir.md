@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -88,7 +88,7 @@ wrapper around `os.walk` would not cover them.
   and the Hatchling hook. A registered backend whose discovery fails,
   followed by the Hatchling fallback, still gives one warning per
   directory (the recorded set is shared, so each path appears once).
-- **Wording** `dir-unlistable` (`pitloom.messages.warn_dir_unlistable`,
+- **Wording** `dir-unlistable` (`pitloom.messages.files.warn_dir_unlistable`,
   #408; until then `path_probe.UNLISTABLE_DIR_WARNING`, `DIR=%s: could not
   list %s; %s`) matches `file-unreadable`'s shape, the name escaped. Like
   that warning, it does not say "skipped from the SBOM":

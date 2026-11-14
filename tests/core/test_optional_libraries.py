@@ -26,7 +26,8 @@ import pitloom.core.optional_libraries as libraries
 from pitloom._toml_io import load_toml_file
 from pitloom.core.optional_libraries import Requirement, missing
 from pitloom.extract.ai_model.reader_requirements import REQUIREMENTS
-from pitloom.messages import LIBRARY_MISSING, code_of
+from pitloom.messages import code_of
+from pitloom.messages.models import LIBRARY_MISSING
 from tests._message_drift import raised_as
 
 _PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"

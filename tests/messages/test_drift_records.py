@@ -20,7 +20,8 @@ import pytest
 
 from pitloom.core.lfs_pointer import warn_pointers_not_read
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import LFS_POINTER_SHIPPED, emit
+from pitloom.messages import emit
+from pitloom.messages.models import LFS_POINTER_SHIPPED
 from tests._message_drift import record_problem
 
 

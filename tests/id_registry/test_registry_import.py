@@ -318,7 +318,8 @@ def test_import_sbom_refuses_a_graph_that_is_not_a_list(
     sbom.write_text(json.dumps({"@graph": graph}), encoding="utf-8")
 
     with pytest.raises(
-        ValueError, match="@graph (is not a list|element is not an object)"
+        ValueError,
+        match="SBOM @graph (is not a list|holds an element that is not an object)",
     ):
         IdRegistry.new("x").import_sbom(sbom)
 

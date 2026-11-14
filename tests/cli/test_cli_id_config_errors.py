@@ -355,8 +355,7 @@ def test_id_generate_dangling_symlink_target_is_error_not_write_through(
 
     assert exit_code == 1
     err = capsys.readouterr().err
-    assert "ERROR: ID registry file" in err
-    assert "not found or not a file" in err
+    assert "ID registry file not found:" in err
     # Never written through to the dangling symlink's target.
     assert not missing_target.exists()
 

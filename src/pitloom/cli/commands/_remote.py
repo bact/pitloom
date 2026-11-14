@@ -26,7 +26,11 @@ from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.inert_options import GIT_MODEL
 from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
-from pitloom.messages import CONFIG_UNSAFE, CONFIG_UNSAFE_REMOTE_LINE, emit
+from pitloom.messages import emit
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+    CONFIG_UNSAFE_REMOTE_LINE,
+)
 
 __all__ = ["run_remote"]
 

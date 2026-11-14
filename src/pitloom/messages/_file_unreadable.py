@@ -14,7 +14,7 @@ The codes equal the evidence reasons of the same names
 ``over-cap`` does; ``tests/messages/test_drift_sources.py`` holds them equal.
 
 See also: :mod:`pitloom.messages._file_unreadable_warning` (the helpers
-every site warns through) and :data:`pitloom.messages._fields.READ_USES`
+every site warns through) and :data:`pitloom.messages._field_tables.READ_USES`
 (what a file is read for).
 """
 
@@ -24,6 +24,11 @@ from typing import Final
 
 from pitloom.messages._types import Line, Message
 
+#: The release that first prints an ``ERROR`` line for an SBOM given to read
+#: (``file-unreadable`` and ``file-unreadable/not-utf8``: to import into an
+#: ID registry or to embed); the entries' other lines print since their own
+#: ``since``.
+_SINCE_SBOM: Final = "0.24.1"
 #: The end of every advice an agent relays without acting on it.
 _ASK: Final = "ask first, and with nobody to ask, report it only."
 #: What every line ends in when the content is outside the project.
@@ -34,7 +39,8 @@ FILE_LINE: Final = Line(
     level="WARNING", template="FILE=%(file)s: could not read %(use)s; %(failure)s"
 )
 #: A file read for a purpose of the closed table, where the read raises (a
-#: Croissant document a dataset declaration names).
+#: Croissant document a dataset declaration names, an SBOM to import into an
+#: ID registry or to embed).
 FILE_ERROR_LINE: Final = Line(level="ERROR", template=FILE_LINE.template)
 #: A file a project setting lists, read for that setting.
 FIELD_LINE: Final = Line(
@@ -58,7 +64,11 @@ FILE_UNREADABLE: Final = Message(
     "operating system refused it (no read permission, a directory above it "
     "without search permission, a file another program holds open on "
     "Windows) or the read failed (an I/O error, a file that is no regular "
-    "file once opened).",
+    "file once opened). A path named for Pitloom to read (a wheel, a "
+    "project, a configuration, an ID registry, an SBOM) under a directory "
+    "without search permission says so 'for the input check', not that it "
+    "is not found. The ERROR line for an SBOM given to 'loom id import' or "
+    f"to embed, and for the input check, prints since {_SINCE_SBOM}.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -70,8 +80,11 @@ FILE_UNREADABLE: Final = Message(
     "file; a model whose header could not be read is not listed as an AI "
     "model; a model or dataset card sets none of the fields it states. As an "
     "ERROR, the call that named the file raises (a Croissant document: the "
-    "dataset declaration fails; the only possible model file of a folder "
-    "named for a model SBOM: no SBOM is written).",
+    "dataset declaration fails; an SBOM to import: the ID registry is not "
+    "written; an SBOM to embed: no wheel is changed; the only possible "
+    "model file of a folder named for a model SBOM: no SBOM is written; the "
+    "input check: the command writes nothing and exits 1, the library "
+    "raises ValueError carrying the code).",
     effect="thinner",
     actor="user",
     advice="Tell the user which file could not be read and what the system "
@@ -80,6 +93,13 @@ FILE_UNREADABLE: Final = Message(
     "copy, and generate again. Do not change permissions or ownership, or "
     f"copy, move or replace the file, for them; {_ASK}",
     subject_key="FILE",
+)
+
+#: A file that must be UTF-8 where the read raises (an SBOM to embed or to
+#: import into an ID registry).
+NOT_UTF8_ERROR_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: could not read %(use)s; not UTF-8: %(failure)s",
 )
 
 FILE_UNREADABLE_NOT_UTF8: Final = Message(
@@ -95,17 +115,23 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
             template="FILE=%(file)s: could not read for %(field)s; not UTF-8: "
             "%(failure)s",
         ),
+        NOT_UTF8_ERROR_LINE,
     ),
     summary="A text file Pitloom read is not UTF-8, the encoding it must be "
-    "in: a requirements file or a file a setup.cfg directive lists, or a "
-    "Python file read for the model usage scan.",
+    "in: a requirements file or a file a setup.cfg directive lists, a "
+    "Python file read for the model usage scan (a WARNING:), or an SBOM "
+    "given to embed or to import into an ID registry (an ERROR:, which "
+    f"prints since {_SINCE_SBOM}).",
     did="Went on without what the file holds: the field is not set from it, "
-    "or the usage scan records no model reference from it.",
+    "or the usage scan records no model reference from it. For an SBOM, "
+    "wrote nothing: to embed, no wheel is changed; to import, the ID "
+    "registry is not written.",
     effect="thinner",
     actor="user",
     advice="Tell the user which file is not UTF-8 and what the decoder "
-    "reported, as the line says. They save it as UTF-8 and generate again. Do "
-    f"not convert, edit or replace the file for them; {_ASK}",
+    "reported, as the line says. They save it as UTF-8 (an SBOM: generate it "
+    "again) and run again. Do not convert, edit or replace the file for "
+    f"them; {_ASK}",
     subject_key="FILE",
 )
 

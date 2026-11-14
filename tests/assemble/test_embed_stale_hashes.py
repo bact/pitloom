@@ -114,7 +114,7 @@ def test_allow_signed_wheel_without_embed_warns_and_changes_nothing(
     err = capsys.readouterr().err.splitlines()
     assert [x for x in err if "WARNING:" in x] == [
         "WARNING: Options: demo_pkg-1.0.0-py3-none-any.whl: "
-        "--allow-signed-wheel has no effect without --embed"
+        "--allow-signed-wheel has no effect without --embed [option-no-effect]"
     ]
 
 

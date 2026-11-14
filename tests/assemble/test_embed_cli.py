@@ -28,6 +28,7 @@ from installer.sources import WheelFile
 from pitloom import __main__
 from pitloom.assemble import find_embedded_sbom
 from pitloom.core.models import get_wheel_files as real_get_wheel_files
+from pitloom.core.quote_source import quote_source
 from tests.kv_helpers import info_kv, records, sbom_output_path
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
@@ -89,13 +90,16 @@ def test_cli_collect_wheel_paths_errors(
     monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(non_existent)])
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom embed-wheel: wheel file not found" in err
+    assert (
+        f"ERROR: loom embed-wheel: wheel file not found: {quote_source(non_existent)} "
+        "[input-not-found]"
+    ) in err.splitlines()
 
     # 2. Not a .whl file
     monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(not_a_whl)])
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom embed-wheel: not a .whl file" in err
+    assert "ERROR: loom embed-wheel: FILE=" in err and ": not a .whl file [" in err
 
     # 3. Glob matching no wheels
     monkeypatch.setattr(
@@ -103,7 +107,7 @@ def test_cli_collect_wheel_paths_errors(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom embed-wheel: no wheel files matched" in err
+    assert "ERROR: loom embed-wheel: no wheel file matches" in err
 
 
 def test_cli_embed_wheel_multiple_with_output_fails(
@@ -122,7 +126,10 @@ def test_cli_embed_wheel_multiple_with_output_fails(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: loom embed-wheel: --output cannot be used when embedding" in err
+    assert (
+        "ERROR: loom embed-wheel: --output cannot be used when embedding multiple "
+        "wheels [option-conflict]"
+    ) in err.splitlines()
 
 
 def test_cli_embed_wheel_project_dir(

@@ -19,7 +19,8 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.model_target import read_model_file
-from pitloom.messages import MODEL_WRONG_FORMAT, code_of
+from pitloom.messages import code_of
+from pitloom.messages.models import MODEL_WRONG_FORMAT
 
 _NOT_A_MODEL = "not an AI model file of a supported format"
 

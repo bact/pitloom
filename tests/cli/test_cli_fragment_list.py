@@ -20,12 +20,15 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.assemble.spdx3.fragments import _missing_fragment_message
 from pitloom.cli.commands.fragment import (
     _fragment_read_status,
     _report_fragment,
 )
 from pitloom.core.config import FragmentConfig
+from pitloom.messages.targets import (
+    FRAGMENT_LINE,
+    REQUIRED_FRAGMENT_LINE,
+)
 
 _MINIMAL_PROJECT = '[project]\nname = "smoke"\nversion = "0.1.0"\n'
 
@@ -163,8 +166,8 @@ def test_fragment_list_required_missing_exits_1(
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
-    expected_warning = _missing_fragment_message(
-        tmp_path / "gone.spdx3.json", required=True
+    expected_warning = REQUIRED_FRAGMENT_LINE.render(
+        {"path": tmp_path / "gone.spdx3.json"}
     )
     with caplog.at_level("WARNING"):
         result = __main__.main()
@@ -185,14 +188,15 @@ def test_fragment_list_optional_missing_exits_0(
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
-    expected_warning = _missing_fragment_message(
-        tmp_path / "gone.spdx3.json", required=False
-    )
+    expected_warning = FRAGMENT_LINE.render({"path": tmp_path / "gone.spdx3.json"})
     with caplog.at_level("WARNING"):
         result = __main__.main()
     assert result == 0
-    assert any(r.message == expected_warning for r in caplog.records)
-    assert "merge will fail" not in expected_warning
+    assert [
+        getattr(r, "pitloom_code", None)
+        for r in caplog.records
+        if r.message == expected_warning
+    ] == ["input-not-found/fragment"]
 
 
 def test_fragment_list_unparseable_file(

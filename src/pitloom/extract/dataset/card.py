@@ -32,7 +32,7 @@ from pitloom.extract.dataset.licence import (
     field_provenance,
 )
 from pitloom.extract.dataset.values import stated_text, stated_texts, stated_version
-from pitloom.messages import warn_lone_surrogates
+from pitloom.messages.files import warn_lone_surrogates
 
 log = logging.getLogger(__name__)
 

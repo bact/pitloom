@@ -39,7 +39,7 @@ from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import READER_UNSAFE_REMOTE
+from pitloom.messages.models import READER_UNSAFE_REMOTE
 from tests._model_fixtures import (
     FORMATS,
     fixture_path,

@@ -31,11 +31,11 @@ from packaging.tags import Tag
 
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract.remote import pypi_select
-from pitloom.messages import (
+from pitloom.messages import Line
+from pitloom.messages.pypi import (
     PYPI_FILE_LINK_LINE,
     PYPI_INDEX_LINE,
     PYPI_OLD_HOST_LINE,
-    Line,
 )
 from tests._fake_pypi_server import Dist, FakePypi, point_at, publish, serving
 

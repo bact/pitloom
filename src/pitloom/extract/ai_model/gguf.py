@@ -26,9 +26,7 @@ from pitloom.core.model_originators import (
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
-from pitloom.extract._extract_utils import (
-    record_dict_field_provenance,
-)
+from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract._license import warn_unless_expression
 from pitloom.extract._license_classify import is_vague_license_value, is_weak_licence
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
@@ -36,7 +34,11 @@ from pitloom.extract.ai_model._stated_text import stated_text
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
-from pitloom.messages import GGUF_LENGTH_LINE, MODEL_FIELD_CONFLICT, emit
+from pitloom.messages import emit
+from pitloom.messages.model_fields import (
+    GGUF_LENGTH_LINE,
+    MODEL_FIELD_CONFLICT,
+)
 
 log = logging.getLogger(__name__)
 

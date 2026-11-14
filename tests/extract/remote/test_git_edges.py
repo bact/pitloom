@@ -41,7 +41,9 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     scheme_allowed,
 )
-from pitloom.messages import MODEL_AMBIGUOUS, OVER_CAP, CodedValueError
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import OVER_CAP
+from pitloom.messages.targets import MODEL_AMBIGUOUS
 from tests._message_drift import raised_as
 
 posix_only = pytest.mark.skipif(

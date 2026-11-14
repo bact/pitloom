@@ -35,10 +35,10 @@ from pitloom.extract._usage_attach import usage_models
 from pitloom.extract._usage_parse import parse_python, python_version
 from pitloom.extract.scanner import UsageSource, attach_usage_references
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import (
+from pitloom.messages import trusted_message
+from pitloom.messages.models import (
     USAGE_UNPARSEABLE,
     USAGE_UNPARSEABLE_MENTION,
-    trusted_message,
 )
 from tests._message_drift import record_problem
 

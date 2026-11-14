@@ -26,6 +26,10 @@ from pitloom.extract.remote.pypi_url import (
     pypi_json_url,
 )
 from pitloom.messages import (
+    Line,
+    code_of,
+)
+from pitloom.messages.pypi import (
     PYPI_FILE_LINK_LINE,
     PYPI_INDEX_LINE,
     PYPI_NAME_INVALID_LINE,
@@ -35,8 +39,6 @@ from pitloom.messages import (
     PYPI_URL_INVALID,
     PYPI_URL_SCHEME_LINE,
     PYPI_VERSION_INVALID_LINE,
-    Line,
-    code_of,
 )
 
 _PAGE = "https://pypi.org/project/"

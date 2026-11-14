@@ -52,6 +52,7 @@ nav:
           - AI models: message-codes-models.md
           - Model fields: message-codes-model-fields.md
           - Targets: message-codes-targets.md
+          - Options: message-codes-options.md
           - Files and text: message-codes-files.md
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md

@@ -26,11 +26,13 @@ import pytest
 from pitloom import loom
 from pitloom.extract.dataset import read_croissant
 from pitloom.messages import (
+    Message,
+    code_of,
+)
+from pitloom.messages.files import (
     FILE_UNREADABLE,
     JSON_MALFORMED,
     OVER_CAP,
-    Message,
-    code_of,
 )
 from tests._message_drift import raised_as
 from tests._unreadable import deny

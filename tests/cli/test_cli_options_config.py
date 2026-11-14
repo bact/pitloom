@@ -30,6 +30,7 @@ from pitloom.cli.options_resolve import config_file_display
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
+from pitloom.core.given_path import given_spelling
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import demo_project
 from tests.cli.shared import SAFETENSORS_FIXTURE
@@ -132,11 +133,13 @@ def test_relative_id_registry_is_made_absolute_against_cwd(
 ) -> None:
     """A path typed on the command line means the file under the current
     directory on every command -- the library would otherwise resolve a
-    relative one against the project directory on some of them."""
+    relative one against the project directory on some of them -- and a
+    message names it as typed."""
     monkeypatch.chdir(tmp_path)
     options = run_options(_parse("--id-registry", "ids.json"), PitloomConfig())
-    assert options["id_registry"] == tmp_path / "ids.json"
-    assert options["id_registry"].is_absolute()
+    assert Path(options["id_registry"]) == tmp_path / "ids.json"
+    assert Path(options["id_registry"]).is_absolute()
+    assert given_spelling(options["id_registry"]) == "ids.json"
 
 
 def _loom(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> int:

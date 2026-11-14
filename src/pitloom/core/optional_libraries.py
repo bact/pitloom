@@ -18,10 +18,10 @@ from dataclasses import dataclass
 from typing import Final
 
 from pitloom.logging_config import one_line
-from pitloom.messages import (
+from pitloom.messages import CodedImportError
+from pitloom.messages.models import (
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
-    CodedImportError,
 )
 
 

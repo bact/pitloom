@@ -130,8 +130,10 @@ def test_cli_project_dir_not_a_directory_fails(
     assert code == 1
     (line,) = [x for x in capsys.readouterr().err.splitlines() if "ERROR" in x]
     assert line.startswith("ERROR: ")
+    tail = "" if missing else " is not a directory"
     assert line.endswith(
-        f"project directory not found: {quote_source(given.resolve())}"
+        f"project directory not found: {quote_source(given.resolve())}{tail} "
+        "[input-not-found]"
     )
     assert not out.exists()
 

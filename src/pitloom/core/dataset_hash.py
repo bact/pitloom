@@ -59,7 +59,7 @@ from pitloom.core.path_probe import (
     stat_if_present,
 )
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
-from pitloom.messages import (
+from pitloom.messages.files import (
     Cap,
     warn_dir_unlistable,
     warn_file_unreadable,

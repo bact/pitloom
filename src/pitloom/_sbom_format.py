@@ -17,17 +17,26 @@ and what a skip.
 
 from __future__ import annotations
 
+import codecs
 import dataclasses
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from packaging.utils import canonicalize_name
 
+from pitloom.core.given_file import read_given_bytes
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import loggable
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
+from pitloom.messages.targets import (
+    SBOM_GRAPH_ELEMENT_LINE,
+    SBOM_GRAPH_NOT_LIST_LINE,
+    SBOM_INVALID,
+    SBOM_WRONG_FORMAT,
+)
 
 
 def _looks_like_spdx3_jsonld(data: bytes) -> bool:
@@ -319,28 +328,85 @@ def _reject_constant(name: str) -> object:
     raise ValueError(f"{name} is not a JSON value")
 
 
-def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> None:
-    """Refuse an SBOM file the user named that cannot be what they gave it as.
+def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, Any]:
+    """Refuse an SBOM file the user named that cannot be what they gave it as;
+    else return its JSON object.
 
     *text* is the file's content. Raises ``ValueError`` when it is not valid
-    JSON (empty included; ``NaN`` and ``Infinity`` are not JSON), is JSON but
-    not an object, or is named ``.spdx3.json`` and is not SPDX 3 JSON-LD. A
+    JSON (empty included; ``NaN`` and ``Infinity`` are not JSON) or is JSON but
+    not an object (``json-malformed``), has an ``@graph`` that is not a list
+    of objects (``sbom-invalid``; :func:`_require_graph_list`), or is named
+    ``.spdx3.json`` and is not SPDX 3 JSON-LD (``sbom-wrong-format``). A
     JSON object in another format under another name (a CycloneDX
     ``bom.json``) is left to the name/version cross-check, which skips it with
     a ``WARNING:``.
     """
-    quoted = quote_source(sbom_path)
     try:
         document = json.loads(text, parse_constant=_reject_constant)
     except (ValueError, RecursionError) as exc:
-        raise ValueError(
-            f"SBOM {quoted} is not valid JSON: {loggable(str(exc))}"
+        raise CodedValueError(
+            JSON_MALFORMED, file=sbom_path, use=SBOM_USE, failure=exc
         ) from exc
     if not isinstance(document, dict):
-        raise ValueError(f"SBOM {quoted} is not a JSON object")
+        raise CodedValueError(JSON_MALFORMED, file=sbom_path, use=SBOM_USE)
+    # Before the format: an @graph of the wrong shape is a broken SPDX 3
+    # document, whatever the name, not another format.
+    _require_graph_list(document, sbom_path)
     if str(sbom_path).lower().endswith(SPDX3_JSONLD_EXTENSION) and (
         detect_sbom_format(text.encode("utf-8")) != "spdx3-jsonld"
     ):
-        raise ValueError(
-            f"SBOM {quoted} is named {SPDX3_JSONLD_EXTENSION} but is not SPDX 3 JSON-LD"
+        raise CodedValueError(SBOM_WRONG_FORMAT, file=sbom_path)
+    return document
+
+
+def _require_graph_list(document: dict[str, Any], sbom_path: Path | str) -> None:
+    """Raise ``ValueError`` when the JSON object *document*, read from
+    *sbom_path*, has an ``@graph`` that is not a list, or holds a non-object
+    (``sbom-invalid``, naming *sbom_path*): no SPDX 3 reader can follow it,
+    and the deserialiser would leak a ``TypeError``. No ``@graph`` (another
+    format) passes."""
+    graph = document.get("@graph", [])
+    if not isinstance(graph, list):
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_GRAPH_NOT_LIST_LINE, file=sbom_path
         )
+    if not all(isinstance(element, dict) for element in graph):
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_GRAPH_ELEMENT_LINE, file=sbom_path
+        )
+
+
+class GivenSbom(NamedTuple):
+    """An SBOM file the user named, as :func:`read_given_sbom` read it."""
+
+    #: Its bytes decoded as UTF-8, a byte order mark dropped.
+    text: str
+    #: Its JSON object.
+    document: dict[str, Any]
+    #: Whether a UTF-8 byte order mark was dropped (JSON text must not
+    #: carry one); the caller that writes *text* out says so.
+    dropped_bom: bool
+
+
+def read_given_sbom(sbom_path: Path | str) -> GivenSbom:
+    """The SBOM file the user named at *sbom_path*, for ``embed-wheel
+    --sbom`` and ``loom id import`` alike: its bytes decoded as strict UTF-8
+    and nothing else (no newline translation; UTF-16 and -32 are refused,
+    as RFC 8259 section 8.1 wants UTF-8), a UTF-8 byte order mark dropped,
+    and its JSON object.
+
+    Raises:
+        pitloom.messages.CodedFileNotFoundError: Nothing is there, or not a
+            regular file (``input-not-found``).
+        ValueError: The file cannot be read (``file-unreadable``), is over
+            the read cap (``over-cap``), is not UTF-8
+            (``file-unreadable/not-utf8``), or is refused by
+            :func:`refuse_unusable_given_sbom`.
+    """
+    raw = read_given_bytes(sbom_path, kind="SBOM file", use=SBOM_USE)
+    dropped_bom = raw.startswith(codecs.BOM_UTF8)
+    try:
+        text = raw[len(codecs.BOM_UTF8) if dropped_bom else 0 :].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise file_unreadable_error(exc, file=sbom_path, use=SBOM_USE) from exc
+    return GivenSbom(text, refuse_unusable_given_sbom(sbom_path, text), dropped_bom)

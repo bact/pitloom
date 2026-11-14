@@ -29,7 +29,6 @@ import os
 from pathlib import Path
 
 from pitloom.core._models_wheel_types import (
-    BUILD_LOG_PREFIX,
     BuildSettings,
     resolve_build_timeout,
     validate_build_timeout,
@@ -161,7 +160,7 @@ class BuildOptions:
         """
         if self.allow or not self.given:
             return self
-        warn_no_effect(BUILD_LOG_PREFIX, subject, self.given, f"without {_ALLOW_FLAG}")
+        warn_no_effect(subject, self.given, f"without {_ALLOW_FLAG}", build=True)
         return BuildOptions()
 
     def settle_target(self, target: Path) -> BuildOptions:
@@ -192,7 +191,7 @@ class BuildOptions:
         :data:`SDIST_TARGET_REASON`. Idempotent the same way :meth:`settle`
         is: the returned (defaulted) value has no given flag to warn about.
         """
-        warn_no_effect(BUILD_LOG_PREFIX, subject, self.given, reason)
+        warn_no_effect(subject, self.given, reason, build=True)
         return BuildOptions()
 
 

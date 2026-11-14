@@ -216,7 +216,7 @@ pitloom/
 │       │   ├── quote_source.py  # Quote a path or file name for a message
 │       │   ├── untrusted_text.py  # Untrusted text shown to a reader, controls made visible
 │       │   ├── temp_dirs.py  # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   ├── url_masking.py  # Masking of URL credentials and the temporary Git checkout
+│       │   ├── url_masking/  # Masking of URL credentials and the temporary Git checkout (__init__.py: public functions; _params.py: secret parameters; _scan.py: URL scanner)
 │       │   ├── walk_rules.py  # Rules shared by every project file walk
 │       │   ├── warning_capture.py  # The one lock on Python's warning state; per-thread warning recorder
 │       │   └── wheel_dist_info.py  # A wheel's own .dist-info: resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused

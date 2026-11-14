@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-13
+# Last-Modified: 2026-11-14
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -23,7 +23,7 @@ description: >-
   FSCT, CISA 2026, G7 AI or BSI completeness (sbom-enrich).
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.24.0 with the validate
+  Requires a shell, Python 3.10+ and pitloom >= 0.24.1 with the validate
   extra (pitloom[validate], which brings spdx3-validate) via pip, uvx or
   pipx, or spdx3-validate alone. Needs network access to install them. Not
   usable where packages cannot be installed, e.g. Claude API code execution.
@@ -80,12 +80,12 @@ to validate. For copy-paste recipes, read `references/examples.md`.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.24.0** (it requires LicenseID 0.8.4, which
+Python >= 3.10 and **pitloom >= 0.24.1** (it requires LicenseID 0.8.4, which
 reads `Apache Software License 2.0` and similar names as `Apache-2.0`, and
 does not warn about a missing licence database for a declared licence name;
-the commands, output lines and messages below are those of 0.24.0), the `loom`/`pitloom` entry point or the
+the commands, output lines and messages below are those of 0.24.1), the `loom`/`pitloom` entry point or the
 standalone `spdx3-validate` CLI; `loom fragment validate` needs the `validate`
-extra (`pip install "pitloom[validate]>=0.24.0"`).
+extra (`pip install "pitloom[validate]>=0.24.1"`).
 
 ## Run the validator
 
@@ -94,11 +94,11 @@ and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
 one per line).
 
 ```bash
-pip install "pitloom[validate]>=0.24.0"  # if not already installed
+pip install "pitloom[validate]>=0.24.1"  # if not already installed
 loom fragment validate <sbom-file>
 ```
 
-Without a persistent install: `uvx --from "pitloom[validate]>=0.24.0"
+Without a persistent install: `uvx --from "pitloom[validate]>=0.24.1"
 loom fragment validate <sbom-file>`.
 
 Despite the `fragment` grouping (shared with `loom merge`), the
@@ -205,7 +205,9 @@ Right after an embed, `loom embed-wheel dist/*.whl --project-dir .
 (`sbom-generate`'s "Embed an SBOM into a wheel" section): a pass prints no
 line of its own, a failure the same `ERROR:` lines and exit 1, with the SBOM
 already embedded. With `--sbom FILE --validate` an SPDX 3 file is validated
-first: one that fails is refused and the wheel is not written. If the user
+first: one that fails is refused and the wheel is not written (an `@graph`
+that is not a list of objects is refused, `[sbom-invalid]`, even without
+`--validate`). If the user
 asked for `embed-wheel --allow-build`, always pass an explicit
 `--build-timeout` (see `sbom-generate`'s "Choosing `--build-timeout`").
 
@@ -218,7 +220,7 @@ on the main package (`project_url`, `sha256`, `sha256_declared`,
 `release_version`, `wheel_tags` and the like, as an `Annotation` and as
 `Metadata provenance:` comment text) is nothing to fix; equal `sha256` and
 `sha256_declared` are the normal case. `verify-wheel`, `validate-wheel` and
-`embed-wheel` take a local `.whl` file, never a URL (`ERROR: loom <command>: not a .whl file`):
+`embed-wheel` take a local `.whl` file, never a URL (`ERROR: loom <command>: FILE=<file>: not a .whl file [target-wrong-format]`):
 a wheel's own embedded SBOM is a different document from the one Pitloom writes
 for the URL, and checking it needs the wheel on disk (do not download it
 unasked; non-interactive: report that). Asked to validate "the SBOM of

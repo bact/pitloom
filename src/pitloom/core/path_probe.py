@@ -14,8 +14,8 @@ presence checks (:mod:`pitloom.assemble.spdx3.fragments`,
 failure identically.
 
 A present path that cannot be read or listed is reported through the
-catalogue (:func:`pitloom.messages.warn_file_unreadable`,
-:func:`pitloom.messages.warn_dir_unlistable`), which refuses an absent one.
+catalogue (:func:`pitloom.messages.files.warn_file_unreadable`,
+:func:`pitloom.messages.files.warn_dir_unlistable`), which refuses an absent one.
 """
 
 from __future__ import annotations
@@ -59,6 +59,15 @@ def is_missing_errno(exc: OSError) -> bool:
     return (
         exc.errno in STAT_MISSING_ERRNOS
         or getattr(exc, "winerror", None) in STAT_MISSING_WINERRORS
+    )
+
+
+def is_directory_error(exc: OSError, path: str | os.PathLike[str]) -> bool:
+    """Whether *exc*, raised opening *path* to read it, says *path* is a
+    directory: ``IsADirectoryError`` (POSIX), or ``PermissionError`` on a
+    directory (Windows opens none, with ``EACCES``)."""
+    return isinstance(exc, IsADirectoryError) or (
+        isinstance(exc, PermissionError) and os.path.isdir(path)
     )
 
 

@@ -22,6 +22,7 @@ from pitloom.cli.commands._remote_pypi import refuse_embed_of_pypi_url, run_pypi
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
+    input_file_or_say,
     refuse_non_wheel,
 )
 from pitloom.cli.kv_output import log_verbose
@@ -41,15 +42,13 @@ from pitloom.core.inert_options import (
     forward_options,
     settle_inert,
 )
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
-from pitloom.core.quote_source import quote_source
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.url_masking import sanitize_url
 from pitloom.embed import embed_filename, refuse_unembeddable_wheel
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.wheel import wheel_identity
-from pitloom.logging_config import print_error
 
 
 def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
@@ -59,7 +58,6 @@ def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
         return refuse_embed_of_pypi_url(url)
     if args.allow_signed_wheel:
         warn_no_effect(
-            INERT_LOG_PREFIX,
             sanitize_url(url.strip()),
             ("--allow-signed-wheel",),
             "without --embed",
@@ -82,12 +80,12 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     target: str = args.target
     if is_pypi_url(target):
         return _run_pypi_wheel(args, target)
-    if refuse_non_wheel(Path(target)):
+    if refuse_non_wheel(target):
         return 1
     # Absolute, not resolved: the file name is judged as given.
     wheel_path: Path = Path(target).absolute()
-    if not wheel_path.exists():
-        print_error(f"wheel file not found: {quote_source(wheel_path)}")
+    # A regular file only: a directory named .whl is not a wheel.
+    if not input_file_or_say(wheel_path, "wheel file", shown=target):
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)
@@ -95,7 +93,6 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     embed = getattr(args, "embed", False)
     if args.allow_signed_wheel and not embed:
         warn_no_effect(
-            INERT_LOG_PREFIX,
             wheel_path.name,
             ("--allow-signed-wheel",),
             "without --embed",

@@ -22,7 +22,8 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract.scanner import UsageSource, attach_usage_references
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import USAGE_UNUSABLE, trusted_message
+from pitloom.messages import trusted_message
+from pitloom.messages.models import USAGE_UNUSABLE
 from tests._message_drift import record_problem
 
 _LOGGER_NAME = "pitloom.extract.scanner"

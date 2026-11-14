@@ -74,12 +74,15 @@ from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.logging_config import configure_logging
 from pitloom.messages import (
-    LICENSE_RELATIONSHIP_FROM_LINE,
-    LICENSE_RELATIONSHIP_INVALID,
-    LICENSE_RELATIONSHIP_TO_LINE,
     CodedValueError,
     emit,
 )
+from pitloom.messages.licences import (
+    LICENSE_RELATIONSHIP_FROM_LINE,
+    LICENSE_RELATIONSHIP_INVALID,
+    LICENSE_RELATIONSHIP_TO_LINE,
+)
+from pitloom.messages.targets import warn_fragment_not_found
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +116,6 @@ __all__ = [
     "_merge_list",
     "_merge_properties",
     "_merge_scalar",
-    "_missing_fragment_message",
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
@@ -352,24 +354,12 @@ def fragment_files(fragments_dir: Path) -> list[str]:
     )
 
 
-def _missing_fragment_message(fragment_path: Path, *, required: bool) -> str:
-    """Wording for a configured fragment file that doesn't exist on disk --
-    shared by the real merge and ``loom fragment list``'s diagnostic
-    pass, so the same condition reads identically on both surfaces."""
-    if required:
-        return (
-            f"Required SBOM fragment {quote_source(fragment_path)} not found -- "
-            "merge will fail."
-        )
-    return f"Configured SBOM fragment {quote_source(fragment_path)} not found."
-
-
 def _fragment_read_failure_message(
     fragment_path: Path, exc: Exception, *, required: bool
 ) -> str:
     """Wording for a fragment file that exists but couldn't be read/parsed
-    -- shared the same way as :func:`_missing_fragment_message`. Says
-    "read", not "ingest": accurate for both the real merge (which parses
+    -- shared by the real merge and ``loom fragment list``'s diagnostic
+    pass. Says "read", not "ingest": accurate for both the real merge (which parses
     the file as SPDX 3 JSON-LD) and ``fragment list`` (which only needs a
     plain JSON parse for an element count) -- the file's problem is the
     same regardless of which caller noticed it."""
@@ -397,7 +387,7 @@ def _load_fragment(
     serialisable included, see :func:`read_fragment_set`) or the document it
     would merge into."""
     if _fragment_is_missing(fragment_path):
-        log.warning(_missing_fragment_message(fragment_path, required=required))
+        warn_fragment_not_found(log, fragment_path, required=required)
         return None
     try:
         fragment_set = read_fragment_set(fragment_path)

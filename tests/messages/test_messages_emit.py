@@ -31,13 +31,6 @@ from pitloom.logging_config import (
     print_error,
 )
 from pitloom.messages import (
-    LFS_CLONE_ERROR_LINE,
-    LFS_CLONE_LINE,
-    LFS_POINTER,
-    LFS_POINTER_MALFORMED,
-    LFS_POINTER_SHIPPED,
-    LFS_PULL_ERROR_LINE,
-    LFS_PULL_LINE,
     CodedValueError,
     Line,
     Message,
@@ -45,6 +38,15 @@ from pitloom.messages import (
     code_of,
     emit,
     relay_extra,
+)
+from pitloom.messages.models import (
+    LFS_CLONE_ERROR_LINE,
+    LFS_CLONE_LINE,
+    LFS_POINTER,
+    LFS_POINTER_MALFORMED,
+    LFS_POINTER_SHIPPED,
+    LFS_PULL_ERROR_LINE,
+    LFS_PULL_LINE,
 )
 from tests._message_drift import raised_as
 

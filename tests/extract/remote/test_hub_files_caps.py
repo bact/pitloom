@@ -46,7 +46,11 @@ from pitloom.extract.remote.huggingface_fetch import (
     _safe_load_json,
 )
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import DOWNLOAD_TIMEOUT, OVER_CAP, Cap
+from pitloom.messages.files import (
+    OVER_CAP,
+    Cap,
+)
+from pitloom.messages.network import DOWNLOAD_TIMEOUT
 from tests._fake_hub import FakeHub, hub_and_cdn, point_hub_at, serve_in_git
 from tests._fake_pypi_server import Route
 

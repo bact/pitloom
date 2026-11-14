@@ -240,6 +240,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
         ),
         ("HTTPS://example.org/c.json", "only a local file is read", None),
         (Path("https://example.org/c.json"), "only a local file is read", None),
+        ("ftp://u:SECRET@h/c.json", r"'ftp://\*\*\*:\*\*\*@h/c.json' is a URL", None),
     ],
     ids=[
         "url",
@@ -251,6 +252,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
         "directory",
         "url-upper-case",
         "url-as-path",
+        "url-other-scheme-masked",
     ],
 )
 def test_unreadable_croissant_raises(
@@ -270,6 +272,7 @@ def test_unreadable_croissant_raises(
                 loom.add_dataset("t.txt", croissant=croissant)
     urlopen.assert_not_called()
     assert code_of(raised.value) == code
+    assert "SECRET" not in str(raised.value)
     assert not (project / "out.json").exists()
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-16
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,6 +27,13 @@ built path-key redesign; items it closed are marked).
   symlink gives a temp-path error text; `IsADirectoryError` names the temp
   file, not the registry.
 - **`resolve_registry` raises a bare `TypeError`** for a non-path argument.
+- ~~**A missing `--id-registry` is named absolute**~~: done in PR #482; the
+  CLI flag and a `--config` key keep their spelling (`GivenPath`) and
+  `resolve_registry` names the path as given.
+- **`id import` of a non-SPDX JSON object not named `.spdx3.json`**
+  (`{"a": 1}` as `s.json`) still fails with the deserialiser's uncoded
+  `TypeError`; `embed-wheel` accepts such a file (its cross-check skips it).
+  A `.spdx3.json` one is `sbom-wrong-format` on both since PR #482.
 - **NFC/NFD is not normalised in `RegistryCopy`** (registry keys are NFC since
   path keys; the copy match is not).
 

@@ -57,7 +57,10 @@ from pitloom.extract.dataset.licence import (
 from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote._hub_files import FileKind, HubFiles, local_reason
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
 
 log = logging.getLogger(__name__)
 

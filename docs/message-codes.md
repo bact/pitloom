@@ -27,7 +27,8 @@ each `<name>`, after at most one prefix from the table of prefixes.
 
 - [AI models](message-codes-models.md): 12 codes
 - [Model fields](message-codes-model-fields.md): 5 codes
-- [Targets](message-codes-targets.md): 9 codes
+- [Targets](message-codes-targets.md): 14 codes
+- [Options](message-codes-options.md): 4 codes
 - [Files and text](message-codes-files.md): 10 codes
 - [PyPI](message-codes-pypi.md): 13 codes
 - [Network](message-codes-network.md): 9 codes
@@ -45,11 +46,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`field-not-recordable`](message-codes-model-fields.md#field-not-recordable) | INFO | 0.23.0 |
 | [`file-ambiguous`](message-codes-pypi.md#file-ambiguous) | INFO | 0.24.0 |
 | [`file-unreadable`](message-codes-files.md#file-unreadable) | ERROR, WARNING | 0.22.0 |
-| [`file-unreadable/not-utf8`](message-codes-files.md#file-unreadablenot-utf8) | WARNING | 0.22.0 |
+| [`file-unreadable/not-utf8`](message-codes-files.md#file-unreadablenot-utf8) | ERROR, WARNING | 0.22.0 |
 | [`file-unreadable/outside-project`](message-codes-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](message-codes-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
+| [`hf-url-invalid`](message-codes-targets.md#hf-url-invalid) | ERROR | 0.24.1 |
 | [`hyperparameter-conflict`](message-codes-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`input-not-found`](message-codes-targets.md#input-not-found) | ERROR | 0.23.4 |
+| [`input-not-found/fragment`](message-codes-targets.md#input-not-foundfragment) | WARNING | 0.24.1 |
 | [`json-malformed`](message-codes-files.md#json-malformed) | ERROR | 0.23.0 |
 | [`lfs-pointer`](message-codes-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](message-codes-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
@@ -64,6 +67,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`model-unreadable`](message-codes-models.md#model-unreadable) | WARNING | 0.22.0 |
 | [`model-wrong-format`](message-codes-models.md#model-wrong-format) | ERROR, WARNING | 0.22.0 |
 | [`offline-unusable`](message-codes-network.md#offline-unusable) | ERROR, WARNING | 0.24.0 |
+| [`option-conflict`](message-codes-options.md#option-conflict) | ERROR | 0.24.1 |
+| [`option-invalid`](message-codes-options.md#option-invalid) | ERROR | 0.24.1 |
+| [`option-missing`](message-codes-options.md#option-missing) | ERROR | 0.24.1 |
+| [`option-no-effect`](message-codes-options.md#option-no-effect) | WARNING, INFO | 0.24.1 |
 | [`over-cap`](message-codes-files.md#over-cap) | ERROR, WARNING | 0.22.0 |
 | [`parameter-count-invalid`](message-codes-model-fields.md#parameter-count-invalid) | WARNING | 0.22.0 |
 | [`project-not-found`](message-codes-targets.md#project-not-found) | ERROR | 0.23.4 |
@@ -83,7 +90,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`release-unpinned/prerelease`](message-codes-pypi.md#release-unpinnedprerelease) | INFO | 0.24.0 |
 | [`release-unpinned/yanked`](message-codes-pypi.md#release-unpinnedyanked) | INFO | 0.24.0 |
 | [`release-unusable`](message-codes-pypi.md#release-unusable) | INFO | 0.24.0 |
+| [`sbom-invalid`](message-codes-targets.md#sbom-invalid) | ERROR | 0.24.1 |
+| [`sbom-wrong-format`](message-codes-targets.md#sbom-wrong-format) | ERROR | 0.24.1 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
+| [`target-wrong-format`](message-codes-targets.md#target-wrong-format) | ERROR | 0.24.1 |
 | [`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`text-malformed`](message-codes-files.md#text-malformed) | WARNING | 0.23.0 |
 | [`url-moved`](message-codes-network.md#url-moved) | INFO | 0.24.0 |
@@ -107,6 +117,7 @@ A line may start with one prefix before its text:
 | Value | What it is |
 | --- | --- |
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
+| `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
@@ -123,6 +134,7 @@ A line may start with one prefix before its text:
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
+| `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<limit>` | the cap, in its unit |
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
@@ -130,23 +142,28 @@ A line may start with one prefix before its text:
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
+| `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
+| `<other>` | the option given before, which the one named first cannot be given with, as argparse names it (`--pretty`) |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
+| `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `<seconds>` | the time allowed, in whole seconds |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
+| `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 | `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
-| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
+| `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |
 | `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
 | `<subcommand>` | the `loom` command that failed (`generate`, `fragment validate`) |
 <!-- END GENERATED -->

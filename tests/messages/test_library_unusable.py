@@ -44,10 +44,12 @@ from pitloom.extract.scanner import read_model_candidate
 from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
-    LIBRARY_MISSING,
-    LIBRARY_UNUSABLE,
     code_of,
     trusted_message,
+)
+from pitloom.messages.models import (
+    LIBRARY_MISSING,
+    LIBRARY_UNUSABLE,
 )
 from tests._message_drift import raised_as
 

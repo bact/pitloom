@@ -39,10 +39,10 @@ from pitloom.extract.remote._hub_files import (
 )
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import (
+from pitloom.messages.files import OVER_CAP
+from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     OFFLINE_UNUSABLE,
-    OVER_CAP,
     URL_REFUSED,
 )
 from tests._fake_hub import (

@@ -19,7 +19,10 @@ from pitloom.core.path_confine import (
 from pitloom.core.project_markers import PROJECT_MARKERS
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
-from pitloom.messages import GIT_FOLDER_NOT_FOUND_LINE, INPUT_NOT_FOUND
+from pitloom.messages.targets import (
+    GIT_FOLDER_NOT_FOUND_LINE,
+    INPUT_NOT_FOUND,
+)
 
 __all__ = [
     "PROJECT_MARKERS",

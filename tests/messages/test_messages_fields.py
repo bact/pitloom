@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
 from pitloom.messages._templates import render
@@ -87,6 +88,12 @@ def test_a_line_may_start_with_a_quoted_path_and_end_in_a_dotted_table() -> None
         ("path", "it's", '"it\'s"'),
         ("path", "a'\"b", "'a\\'\"b'"),
         ("path", _BACKSLASHED, f"'{_BACKSLASHED}'"),
+        # As typed (a URL's "//" kept), its credentials masked.
+        ("file", TypedPath("https://h//x.whl"), "https://h//x.whl"),
+        ("path", TypedPath("ftp://u:SECRET@h/x"), "'ftp://***:***@h/x'"),
+        ("path", GivenPath("/abs/r.json", "r.json"), "'r.json'"),
+        ("dir", "https://h/d?token=SECRET", "https://h/d?token=***"),
+        ("path", "C:\\d\\x.whl", "'C:\\d\\x.whl'"),
         ("oid", "0f" * 32, "0f" * 32),
         ("format", AiModelFormat.GGUF, "gguf"),
         ("format", "pytorch_pt2", "pytorch_pt2"),
@@ -121,6 +128,16 @@ def test_a_field_writes_a_value_of_its_shape(field: str, value: Any, text: str) 
     assert re.fullmatch(FIELDS[field].pattern, text)
 
 
+class _BytesPath:
+    """An :class:`os.PathLike` whose path is bytes."""
+
+    def __fspath__(self) -> bytes:
+        return b"x"
+
+    def __repr__(self) -> str:
+        return "_BytesPath()"
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -129,6 +146,7 @@ def test_a_field_writes_a_value_of_its_shape(field: str, value: Any, text: str) 
         ("count", "2"),
         ("size", 1.5),
         ("file", b"x"),
+        ("file", _BytesPath()),
         ("file", 3),
         ("path", None),
         ("oid", "0" * 63),

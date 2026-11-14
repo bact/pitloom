@@ -28,12 +28,16 @@ from pitloom.extract.model_target import AUTO, MODEL, PROJECT
 from pitloom.extract.remote import RemoteSourceError, fetch_git_project, git_url
 from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.messages import (
-    LFS_POINTER,
-    MODEL_AMBIGUOUS,
-    MODEL_WRONG_FORMAT,
-    NO_SBOM_TARGET,
     CodedValueError,
     code_of,
+)
+from pitloom.messages.models import (
+    LFS_POINTER,
+    MODEL_WRONG_FORMAT,
+)
+from pitloom.messages.targets import (
+    MODEL_AMBIGUOUS,
+    NO_SBOM_TARGET,
 )
 from tests._git_http_server import git
 from tests._model_fixtures import FORMATS, fixture_path

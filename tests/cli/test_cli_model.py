@@ -348,20 +348,6 @@ def test_enrich_command_missing_model_file_errors(
     assert __main__.main() == 1
 
 
-def test_model_command_invalid_hf_target(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Invalid HF target format returns exit code 1 with stderr error."""
-    with monkeypatch.context() as m:
-        m.setattr("pitloom.cli.commands.model.is_huggingface_source", lambda _t: True)
-        m.setattr("pitloom.cli.commands.model.parse_hf_model_id", lambda _t: None)
-        m.setattr(sys, "argv", ["loom", "model", "hf://invalid"])
-        assert __main__.main() == 1
-    err = capsys.readouterr().err
-    assert "ERROR: loom model: not a valid Hugging Face URL or model ID" in err
-
-
 def test_env_command_verbose(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -471,8 +457,8 @@ def test_model_command_masks_credentials_of_an_unread_url(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A Hugging Face URL with user information is no source Pitloom reads:
-    the one ``ERROR:`` line names it cleaned, not as a path under the cwd."""
+    """A URL with user information is no source Pitloom reads: the one
+    ``ERROR:`` line names it cleaned, not as a path under the cwd."""
     monkeypatch.setattr(sys, "argv", ["loom", "model", url])
     assert __main__.main() == 1
     lines = capsys.readouterr().err.strip().splitlines()

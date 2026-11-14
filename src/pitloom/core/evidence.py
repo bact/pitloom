@@ -53,12 +53,12 @@ EVIDENCE_KEY = "evidence"
 REASON_KEY = "reason"
 
 #: The reason code of a fact over a read cap: the code of the catalogue's
-#: ``over-cap`` message too (:data:`pitloom.messages.OVER_CAP`).
+#: ``over-cap`` message too (:data:`pitloom.messages.files.OVER_CAP`).
 OVER_CAP = "over-cap"
 #: The reason codes of a fact whose file could not be read, or whose
 #: directory could not be listed: the codes of the catalogue's messages too
-#: (:data:`pitloom.messages.FILE_UNREADABLE`,
-#: :data:`pitloom.messages.DIR_UNLISTABLE`).
+#: (:data:`pitloom.messages.files.FILE_UNREADABLE`,
+#: :data:`pitloom.messages.files.DIR_UNLISTABLE`).
 FILE_UNREADABLE = "file-unreadable"
 DIR_UNLISTABLE = "dir-unlistable"
 

@@ -31,7 +31,10 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
 - `[code]` is the last token. `DEBUG` lines carry no code.
 - `FRAME` starts every `ERROR:` line the CLI prints: the command, as in
   `ERROR: loom generate: ...` (`ERROR: loom: ...` before the command is
-  known). The Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
+  known). A command line that does not parse says argparse's own text
+  after the frame, coded when its wording is catalogued
+  (`ERROR: loom: unrecognized arguments: --bogus [option-invalid]`). The
+  Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
   also start with the model it read: the prefixes are listed with the
   catalogue, in [Message codes](message-codes.md).
 

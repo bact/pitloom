@@ -8,7 +8,7 @@ not parse. A card that has no frontmatter, or one that is valid YAML but no
 mapping, is not malformed: it states nothing, quietly.
 
 See also: :mod:`pitloom.enrich.readme` (the one reader of a card) and
-:data:`pitloom.messages._fields.CARD_KINDS` (the kinds of card).
+:data:`pitloom.messages._field_tables.CARD_KINDS` (the kinds of card).
 """
 
 from __future__ import annotations

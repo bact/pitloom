@@ -32,12 +32,13 @@ from pitloom.assemble import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.fetch_policy import RemoteFetchPolicy
+from pitloom.core.given_path import given_spelling
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import CONFIG_UNSAFE
+from pitloom.messages.targets import CONFIG_UNSAFE
 
 _URL = "https://gitlab.example.org/g/p"
 
@@ -230,7 +231,9 @@ def test_a_relative_id_registry_means_the_callers_directory(
 
     monkeypatch.setattr(_generators_git, "generate_project_sbom", fake)
     generate_git_project_sbom(_URL, id_registry="ids.json")
-    assert given["id_registry"] == tmp_path / "ids.json"
+    # Read there, named as given.
+    assert Path(given["id_registry"]) == tmp_path / "ids.json"
+    assert given_spelling(given["id_registry"]) == "ids.json"
     assert seen["url"] == _URL
     registry = IdRegistry.__new__(IdRegistry)
     generate_git_project_sbom(_URL, id_registry=registry)  # an object is kept

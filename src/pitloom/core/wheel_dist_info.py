@@ -38,10 +38,22 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.given_path import TypedPath
+from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
-from pitloom.messages import Cap, warn_over_cap
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import (
+    Cap,
+    warn_over_cap,
+)
+from pitloom.messages.targets import (
+    NOT_A_WHEEL_LINE,
+    TARGET_WRONG_FORMAT,
+    input_not_found,
+    is_input_file,
+)
 
 log = logging.getLogger(__name__)
 
@@ -93,6 +105,11 @@ class WheelRefused(ValueError):
     """A wheel Pitloom refuses as a whole, with one clean line."""
 
 
+class NotAWheelError(WheelRefused, CodedValueError):
+    """A file given as a wheel that is not named ``.whl``
+    (``target-wrong-format``)."""
+
+
 #: The one extension a wheel file carries. ``pip`` and
 #: :func:`packaging.utils.parse_wheel_filename` both require exactly this
 #: spelling, so ``x.WHL`` is not a wheel.
@@ -125,7 +142,27 @@ def require_wheel_path(path: Path | str) -> None:
     The one rule every surface that takes a wheel applies, with one message.
     """
     if not is_wheel_path(path):
-        raise WheelRefused(f"not a {WHEEL_SUFFIX} file: {quote_source(path)}")
+        raise NotAWheelError(TARGET_WRONG_FORMAT, line=NOT_A_WHEEL_LINE, file=path)
+
+
+def require_wheel_file(path: Path | str) -> None:
+    """:func:`require_wheel_path`, then raise unless a regular file is at
+    *path* (``input-not-found``, naming *path* as given): for an entry
+    point that goes on with a resolved or absolute form of it. *path* is
+    looked at as :class:`pathlib.Path` reads it (``real.whl/``, ``d//x.whl``
+    are ``real.whl``, ``d/x.whl``), as the command line's argument is.
+
+    Raises:
+        WheelRefused: the file name does not end in ``.whl``.
+        pitloom.messages.CodedFileNotFoundError: nothing is at *path*, or
+            not a regular file (a directory named ``.whl``).
+        pitloom.messages.CodedValueError: *path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+    """
+    typed = TypedPath(path)  # looked at as a Path reads it, named as given
+    require_wheel_path(typed)
+    if not is_input_file(typed):
+        raise input_not_found("wheel file", typed)
 
 
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:
@@ -200,14 +237,21 @@ def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.Zip
             member name flagged UTF-8 that is not, a version it cannot
             read. Any exception but ``OSError``/``MemoryError``, so a
             ``zipfile`` failure mode added later is a refusal too.
-        OSError: *path* cannot be opened (missing, permission denied, a
+        pitloom.messages.CodedFileNotFoundError: nothing is at *path*, or
+            it is a directory (``input-not-found``, naming the file as
+            given: *name*, else *path*).
+        OSError: *path* cannot be opened otherwise (permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
     given = Path(path if name is None else name)
     require_wheel_path(given)
     try:
         return zipfile.ZipFile(path, "r")
-    except (OSError, MemoryError):
+    except OSError as exc:
+        if is_missing_errno(exc) or is_directory_error(exc, path):
+            raise input_not_found("wheel file", given) from None
+        raise
+    except MemoryError:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

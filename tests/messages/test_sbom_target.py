@@ -21,6 +21,14 @@ from typing import Any
 import pytest
 
 from pitloom.messages import (
+    CodedFileNotFoundError,
+    CodedValueError,
+    Message,
+    _sbom_target,
+    emit,
+    trusted_message,
+)
+from pitloom.messages.targets import (
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,
     MODEL_FILES_LINE,
@@ -30,12 +38,6 @@ from pitloom.messages import (
     PROJECT_NOT_FOUND_LINE,
     PROJECT_NOT_FOUND_MODEL_FILES,
     TARGET_AMBIGUOUS,
-    CodedFileNotFoundError,
-    CodedValueError,
-    Message,
-    _sbom_target,
-    emit,
-    trusted_message,
 )
 from tests._message_drift import TEST_LOGGER_PREFIX, raised_as
 

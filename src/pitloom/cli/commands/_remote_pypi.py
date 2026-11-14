@@ -32,7 +32,10 @@ from pitloom.core.url_masking import sanitize_url
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.remote.pypi import SDIST, WHEEL, sdist_hint
 from pitloom.logging_config import print_error
-from pitloom.messages import EMBED_URL_LINE, PYPI_URL_UNUSABLE
+from pitloom.messages.pypi import (
+    EMBED_URL_LINE,
+    PYPI_URL_UNUSABLE,
+)
 
 __all__ = ["refuse_embed_of_pypi_url", "run_pypi"]
 

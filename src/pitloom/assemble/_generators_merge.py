@@ -23,8 +23,14 @@ from pitloom.assemble.spdx3._fragments_envelope import (
 )
 from pitloom.assemble.spdx3.fragments import fragment_files, merge_fragments
 from pitloom.core.config import FragmentConfig
-from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import configure_logging
+from pitloom.messages import CodedValueError
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    NO_FRAGMENT_FILE_LINE,
+    input_not_found,
+    is_input_dir,
+)
 
 
 def generate_merged_sbom(
@@ -42,8 +48,9 @@ def generate_merged_sbom(
     directory or the order the files were written in.
 
     Raises:
-        FileNotFoundError: *fragments_dir* does not exist.
-        ValueError: it has no ``*.json`` file.
+        FileNotFoundError: *fragments_dir* does not exist, or is not a
+            directory (``input-not-found``, carrying the code).
+        ValueError: it has no ``*.json`` file (``input-not-found``).
         pitloom.assemble.FragmentMergeError: the merge left a dangling
             reference, a root included, or a licence relationship end of the
             wrong type (a ``pitloom.assemble.spdx3.fragments.
@@ -51,14 +58,12 @@ def generate_merged_sbom(
     """
     configure_logging()
     fragments_dir = Path(fragments_dir)
-    if not fragments_dir.exists():
-        raise FileNotFoundError(
-            f"fragments directory not found: {quote_source(fragments_dir)}"
-        )
+    if not is_input_dir(fragments_dir):
+        raise input_not_found("fragments directory", fragments_dir)
     files = fragment_files(fragments_dir)
     if not files:
-        raise ValueError(
-            f"no JSON fragment files found in {quote_source(fragments_dir)}"
+        raise CodedValueError(
+            INPUT_NOT_FOUND, line=NO_FRAGMENT_FILE_LINE, path=fragments_dir
         )
     exporter = new_merge_document(fragments_dir, files)
     merge_fragments(

@@ -53,7 +53,6 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_project_sbom
-from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_shared import (
@@ -141,6 +140,12 @@ def _reason(content: str | None) -> str:
     return r"ID registry file "
 
 
+def _raised(content: str | None) -> type[Exception]:
+    """The error every raising surface gives for *content*: a missing file
+    is ``FileNotFoundError``, any other bad file ``ValueError``."""
+    return FileNotFoundError if content is None else ValueError
+
+
 def _assert_untouched(path: Path, content: str | None) -> None:
     """The declared registry is as written: a refused file is never
     rewritten, and a missing one is not created."""
@@ -189,7 +194,7 @@ def test_cli_declared_bad_registry_every_mode(
         assert not (tmp_path / output_name).exists(), f"{surface}/{mode}"
 
 
-# --- Library/hook/loom-run surfaces: a ValueError, nothing produced -----
+# --- Library/hook/loom-run surfaces: an exception, nothing produced -----
 
 
 @pytest.mark.parametrize("content", _CONTENT_VALUES, ids=_CONTENT_IDS)
@@ -217,7 +222,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
         # library runner that resolved the registry *after* generating
         # and writing output would still raise here, but too late).
         output_path = tmp_path / "lib-output.spdx3.json"
-        with pytest.raises(ValueError, match="^" + _reason(content)):
+        with pytest.raises(_raised(content), match="^" + _reason(content)):
             LIBRARY_RUNNERS_WITH_OUTPUT_PATH[surface](
                 tmp_path, monkeypatch, declare, output_path=output_path
             )
@@ -231,7 +236,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
         # registry before it ever reads/rewrites the wheel).
         wheel = demo_wheel(tmp_path)
         before = wheel.read_bytes()
-        with pytest.raises(ValueError, match="^" + _reason(content)):
+        with pytest.raises(_raised(content), match="^" + _reason(content)):
             lib_embed_wheel_sbom(tmp_path, monkeypatch, declare, wheel=wheel)
         after = wheel.read_bytes()
         assert before == after, f"{surface}/{mode}: wheel was modified"
@@ -240,14 +245,14 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
     if surface == "hook":
         build_data: dict[str, object] = {}
         with caplog.at_level(logging.ERROR):
-            with pytest.raises(ValueError, match="^" + _reason(content)):
+            with pytest.raises(_raised(content), match="^" + _reason(content)):
                 run_hook(tmp_path, monkeypatch, declare, build_data=build_data)
         error_records = [r for r in caplog.records if r.levelname == "ERROR"]
         assert len(error_records) == 1, f"{surface}/{mode}: {caplog.records}"
         assert "sbom_files" not in build_data
         return
 
-    with pytest.raises(ValueError, match="^" + _reason(content)):
+    with pytest.raises(_raised(content), match="^" + _reason(content)):
         SURFACES[surface](tmp_path, monkeypatch, declare)
     _assert_untouched(registry_path, content)
 
@@ -281,7 +286,7 @@ def test_id_command_malformed_declared_registry_is_one_error(
     _assert_untouched(registry_path, content)
 
 
-# --- A relative project directory: the ERROR names an absolute path ----
+# --- A relative project directory: the ERROR names the path as given ---
 
 _RELATIVE_PROJECT_ARGV: dict[str, Callable[[str, Path], list[str]]] = {
     "cli-project": lambda rel, _wheel: ["project", rel, "-o", "out.json"],
@@ -304,7 +309,8 @@ _RELATIVE_PROJECT_ARGV: dict[str, Callable[[str, Path], list[str]]] = {
 
 def _relative_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A project declaring a missing ``id-registry = "missing-reg.json"``,
-    and a cwd that is its sibling; returns the registry's absolute path."""
+    and a cwd that is its sibling; returns the registry's absolute path,
+    which no message names."""
     project = demo_project(
         tmp_path, '\n[tool.pitloom]\nid-registry = "missing-reg.json"\n'
     )
@@ -315,7 +321,7 @@ def _relative_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.mark.parametrize("surface", sorted(_RELATIVE_PROJECT_ARGV))
-def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
+def test_cli_relative_project_dir_error_names_the_registry_as_configured(
     surface: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -331,23 +337,28 @@ def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
     (error_line,) = [
         line for line in capsys.readouterr().err.splitlines() if "ERROR:" in line
     ]
-    assert f"ID registry file {quote_source(expected)}: " in error_line
+    assert "ID registry file not found: 'missing-reg.json' [" in error_line
+    assert str(expected) not in error_line
 
 
 @pytest.mark.parametrize("surface", ["generate_project_sbom", "enrich_model"])
-def test_library_relative_project_target_error_names_the_absolute_registry_path(
+def test_library_relative_project_target_error_names_the_registry_as_configured(
     surface: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     expected = _relative_project(tmp_path, monkeypatch)
     relative = Path("..", "proj")
 
-    with pytest.raises(ValueError, match=r"^ID registry file ") as excinfo:
+    with pytest.raises(
+        FileNotFoundError, match=r"^ID registry file not found: "
+    ) as excinfo:
         if surface == "enrich_model":
             enrich_model(SAFETENSORS_FIXTURE, project_target=relative)
         else:
             generate_project_sbom(relative, creation_metadata=None)
 
-    assert f"ID registry file {quote_source(expected)}: " in str(excinfo.value)
+    assert str(excinfo.value) == "ID registry file not found: 'missing-reg.json'"
+    assert getattr(excinfo.value, "pitloom_code", None) == "input-not-found"
+    assert not expected.exists()
 
 
 # --- Undeclared: IdRegistry.load is never called, on any surface -------

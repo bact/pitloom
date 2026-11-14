@@ -29,11 +29,9 @@ from pathlib import Path, PurePath
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.clone_mark import in_remote_clone, remote_clone_root
 from pitloom.core.path_confine import inside_clone_but_not_git
-from pitloom.messages import (
-    CONFIG_UNSAFE_BUILD_CODE,
-    FILE_UNREADABLE_OUTSIDE_REPOSITORY,
-    emit,
-)
+from pitloom.messages import emit
+from pitloom.messages.files import FILE_UNREADABLE_OUTSIDE_REPOSITORY
+from pitloom.messages.targets import CONFIG_UNSAFE_BUILD_CODE
 
 log = logging.getLogger(__name__)
 

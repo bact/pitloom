@@ -11,7 +11,7 @@ work already ran.
 
 Kept together (rather than filed under each surface's own test module)
 since they share this one invariant across three different surfaces; the
-plain "one ERROR:/raises ValueError" coverage for a declared-bad
+plain "one ERROR:/raises" coverage for a declared-bad
 registry lives in :mod:`tests.id_registry.test_surfaces_failures`'s
 exhaustive sweeps instead.
 
@@ -58,7 +58,7 @@ def test_resolve_before_allow_build_discovery(
 
     monkeypatch.setattr("pitloom.assemble._generators.get_wheel_files", spy)
 
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(FileNotFoundError, match="ID registry file"):
         generate_project_sbom(project, creation_metadata=None)
 
     assert not calls
@@ -87,7 +87,7 @@ def test_hook_resolves_registry_before_building_document_model(
     monkeypatch.setattr(hatch_module, "_build_document_model", spy)
 
     hook = make_hook(str(project), {})
-    with pytest.raises(ValueError, match=r"^ID registry file "):
+    with pytest.raises(FileNotFoundError, match=r"^ID registry file "):
         hook.initialize("standard", {})
 
     assert not calls
@@ -110,7 +110,7 @@ def test_embed_wheel_sbom_resolves_registry_before_reading_wheel(
 
     monkeypatch.setattr("pitloom.embed.read_wheel", spy)
 
-    with pytest.raises(ValueError, match=r"^ID registry file "):
+    with pytest.raises(FileNotFoundError, match=r"^ID registry file "):
         embed_wheel_sbom(wheel, id_registry=tmp_path / "missing.json")
 
     assert not calls
@@ -123,7 +123,7 @@ def test_loom_run_raises_from_enter_leaves_no_active_run(tmp_path: Path) -> None
     # pylint: disable=protected-access
     assert loom._active_run is None
 
-    with pytest.raises(ValueError, match="ID registry file"):
+    with pytest.raises(FileNotFoundError, match="ID registry file"):
         with loom.run(
             tmp_path / "frag.spdx3.json", id_registry=tmp_path / "missing.json"
         ):

@@ -31,15 +31,6 @@ from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import (
     FIELDS,
-    HYPERPARAMETER_CONFLICT,
-    LIBRARY_MISSING,
-    MODEL_LIMIT_REASONS,
-    MODEL_UNREADABLE,
-    MODEL_WRONG_FORMAT,
-    NOT_A_MODEL_LINE,
-    PARAMETER_COUNT_INVALID,
-    READER_UNSAFE,
-    READER_UNSAFE_REMOTE,
     CodedImportError,
     CodedValueError,
     Line,
@@ -51,6 +42,19 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages._emit import _CodedError
+from pitloom.messages.model_fields import (
+    HYPERPARAMETER_CONFLICT,
+    PARAMETER_COUNT_INVALID,
+)
+from pitloom.messages.models import (
+    LIBRARY_MISSING,
+    MODEL_LIMIT_REASONS,
+    MODEL_UNREADABLE,
+    MODEL_WRONG_FORMAT,
+    NOT_A_MODEL_LINE,
+    READER_UNSAFE,
+    READER_UNSAFE_REMOTE,
+)
 from tests._message_drift import SRC_ROOT, TEST_LOGGER_PREFIX, raised_as
 
 _LOG = logging.getLogger(f"{TEST_LOGGER_PREFIX}model_stub")

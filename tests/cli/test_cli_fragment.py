@@ -120,7 +120,10 @@ def test_fragment_validate_command_directory_path(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert f"ERROR: loom fragment validate: directory: '{directory}'" in captured.err
+    assert (
+        f"ERROR: loom fragment validate: SBOM file not found: '{directory}' "
+        "is not a file [input-not-found]"
+    ) in captured.err
 
 
 def test_fragment_validate_command_file_not_found(
@@ -137,7 +140,7 @@ def test_fragment_validate_command_file_not_found(
 
     captured = capsys.readouterr()
     assert (
-        f"ERROR: loom fragment validate: file not found: '{missing_path}'"
+        f"ERROR: loom fragment validate: SBOM file not found: '{missing_path}'"
         in captured.err
     )
 
@@ -176,7 +179,7 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
     captured = capsys.readouterr()
     assert _MISSING_VALIDATOR in error_lines(captured.err)
     assert (
-        f"ERROR: loom fragment validate: file not found: '{missing_path}'"
+        f"ERROR: loom fragment validate: SBOM file not found: '{missing_path}'"
         in captured.err
     )
 

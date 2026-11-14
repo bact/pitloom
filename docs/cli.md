@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,7 +165,12 @@ the `oid`, the stated size and `git lfs pull`), absent or unreadable is an
 [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Or pass a Hugging Face Hub URL or model ID, with no local file (needs `pip
-install pitloom[huggingface_hub]`):
+install pitloom[huggingface_hub]`). A huggingface.co or hf.co URL that names
+no model (`https://huggingface.co/owner`) is
+`URL=<url>: not a valid Hugging Face URL or model ID [hf-url-invalid]`, not a
+missing model file, under `loom project` too; white space around a URL or
+ID is ignored. `loom project` given a model says
+`URL=<url>: a Hugging Face model, not a project; use 'loom model' [target-wrong-format]`:
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
@@ -187,7 +192,8 @@ loom generate env -o env.spdx3.json                          # installed venv   
 
 `generate` requires `-o`/`--output`: it dispatches across several target
 types with no single natural default filename, unlike `project`/`wheel`/
-`model`/`env`. Pass `-o`, or use the target-specific command.
+`model`/`env`. Pass `-o`, or use the target-specific command; without it,
+`-o/--output is required: a detected target has no default file name; ... [option-missing]`.
 
 #### setuptools projects (`setup.py` and `setup.cfg`)
 
@@ -319,7 +325,9 @@ of new ids (`--update-id-registry`): [Loom ID registry](id-registry.md).
 Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
 (not `merge`/`fragment`/`id`, which take only their own flags), unless noted:
 
-- `-o FILE` / `--output FILE` -- explicit output path.
+- `-o FILE` / `--output FILE` -- explicit output path. With several wheels,
+  `embed-wheel` refuses it
+  (`--output cannot be used when embedding multiple wheels [option-conflict]`).
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
   target's own `pyproject.toml`. On a project target (`project`, `generate` on
   a project directory or sdist, `embed-wheel --project-dir`) it replaces the

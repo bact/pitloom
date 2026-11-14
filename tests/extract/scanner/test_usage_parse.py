@@ -32,7 +32,7 @@ from pitloom.core.model_usage import UsageAccess
 from pitloom.extract import _usage_parse
 from pitloom.extract.scanner import UsageSource, attach_usage_references
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import USAGE_UNPARSEABLE
+from pitloom.messages.models import USAGE_UNPARSEABLE
 from tests._bounded import run_bounded_in_child
 
 _MIB = 1024 * 1024

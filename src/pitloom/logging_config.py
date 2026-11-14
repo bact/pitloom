@@ -28,7 +28,7 @@ from contextvars import ContextVar
 from typing import Any, TextIO, cast
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
-from pitloom.core.url_masking import mask_checkout
+from pitloom.core.url_masking import mask_checkout, masked_given_path
 
 # Guards the handlers.clear()/addHandler() swap below (see
 # configure_logging()'s docstring) and the _WARNED_ONCE read-then-write in
@@ -161,15 +161,17 @@ def print_error(
     """Print one ``ERROR: <frame><message>`` line to stderr, the message
     escaped by :func:`escape_controls`: the one way the CLI writes an error,
     so a newline in a path or an exception text cannot start a second, forged
-    line. A catalogued *code* follows as `` [code]``; without one, nothing at
-    the end reads as a code (:func:`_with_code`).
+    line. A URL in the message is named without its credentials
+    (:func:`~pitloom.core.url_masking.masked_given_path`), so an exception
+    quoting a typed value (``[Errno 2] ... 'ftp:/user:pw@h/o.json'``) or an
+    argparse refusal shows none. A catalogued *code* follows as `` [code]``;
+    without one, nothing at the end reads as a code (:func:`_with_code`).
 
     The *frame* is the line's prefix (``loom generate: ``, ending in
     ``": "``); ``None`` takes the one :func:`error_frame` set, ``""`` none."""
     prefix = _ERROR_FRAME.get() if frame is None else frame
-    print(
-        f"ERROR: {prefix}{_with_code(escape_controls(message), code)}", file=sys.stderr
-    )
+    shown = escape_controls(masked_given_path(message, line=True))
+    print(f"ERROR: {prefix}{_with_code(shown, code)}", file=sys.stderr)
 
 
 def loggable(text: str) -> str:

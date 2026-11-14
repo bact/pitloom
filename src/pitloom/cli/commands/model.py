@@ -12,9 +12,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    generate_model_sbom,
-)
+from pitloom.assemble import generate_model_sbom
 from pitloom.cli.commands._remote import run_remote
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
@@ -30,7 +28,6 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.inert_options import GIT_MODEL, HF, MODEL_FILE, forward_options
-from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import MODEL, model_path_of
 from pitloom.extract.remote import (
@@ -38,15 +35,17 @@ from pitloom.extract.remote import (
     is_huggingface_source,
     is_unfetchable_remote,
     log_hf_url_rewrite,
-    parse_hf_model_id,
+    require_hf_model_id,
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
-from pitloom.messages import (
-    INPUT_NOT_FOUND,
-    MODEL_FILE_NOT_FOUND_LINE,
+from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
+)
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
 )
 
 
@@ -110,13 +109,7 @@ def generate_model_from_args(
 
 def _run_hf_model(args: argparse.Namespace, target: str) -> int:
     """``loom model`` on a Hugging Face URL or model id."""
-    model_id = parse_hf_model_id(target)
-    if model_id is None:
-        print_error(
-            "not a valid Hugging Face URL or model ID: "
-            f"{quote_source(sanitize_url(target))}"
-        )
-        return 1
+    model_id = require_hf_model_id(target)
     log_hf_url_rewrite(target, model_id)
     output_path = _resolve_hf_output_path(args.output, model_id)
     if args.verbose:
@@ -149,11 +142,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
     # file as the user wrote it.
     opened_path = existing_model_path(Path(target))
     if opened_path is None:
-        # A URL that is no source we read (user information in a Hugging
-        # Face one) is named as given, cleaned, not as a path under the cwd.
-        shown = sanitize_url(target) if "://" in target else Path(target).resolve()
+        # Named as given, with the credentials of anything URL-shaped in it
+        # masked.
         print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": shown}),
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": target}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1

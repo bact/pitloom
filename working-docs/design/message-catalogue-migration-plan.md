@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,15 +11,18 @@ SPDX-License-Identifier: CC0-1.0
 See also: [message-catalogue-and-skills.md](message-catalogue-and-skills.md)
 (the design and decisions A to M), [roadmap.md](roadmap.md) (0.23.0 and
 0.24.0 scope), [known-bugs.md](known-bugs.md),
-[licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md).
+[licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md),
+[message-frames-forward.md](message-frames-forward.md) (frames and prefixes
+for PRs 5 to 18).
 
 Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
 `over-cap` (#396), the model-stub causes (#404, PR 1a), unreadable files and
 directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
-and 1c (#446); the reference split (#480) and PR 4, the frames
-([message-frames.md](../implementation/message-frames.md)), are built. Left:
-PR 3 onward and T14. This file is the
+and 1c (#446); the reference split (#480) PR 4, the frames
+([message-frames.md](../implementation/message-frames.md)), and PR 3, the
+input, option, SBOM and target errors (#482), are built. Left: PR 5 onward
+and T14. This file is the
 reference for what remains and what ships in which release.
 
 ## Shipped in 0.22.0 (2026-10-30)
@@ -43,12 +46,19 @@ The grammar ratchet keeps new uncoded messages out
 - **0.23.0**: the LicenseID 0.7.0 adoption (built, #437 to #440), the
   adoption's final gate (stage E), this plan's refresh, PR 2b and PRs 1b and
   1c. The ratchet falls from 498 to 469 (2b: 10, #444; 1b: 19, #446).
-- **0.24.0**: the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to
-  18 (the licence families last), the licence provenance mapping (T14,
+- **0.24.0** (planned; see the update below): the uniform `loom <command>:`
+  frame (PR 4), catalogue PRs 3 to 18 (the licence families last), the licence provenance mapping (T14,
   [licence-resolution-provenance.md](licence-resolution-provenance.md)) and
   `--report` with SARIF.
 
 The earlier decision of 2026-10-30 (everything in 0.23.0) is superseded.
+
+Update 2026-11-14: v0.24.0 is tagged (#475) without the catalogue PRs; PR 4
+(#481) merged after the tag. The "Cut" column below therefore says "next": a
+PR ships in the next release after the last tag when it merges, and its new
+entries take that release as `since`. PR 3 uses 0.24.1 (maintainer,
+2026-11-13). PR 3 (#482) is built: the ratchet fell from 454 (after PR 4) to
+398.
 
 ## Sizes
 
@@ -68,13 +78,16 @@ PR's plan.
 
 Order (the maintainer's, C5 of the 2026-11-04 plan): doc refresh, 2b, 1b
 and 1c, **the 0.23.0 cut** (these four done), then 4 (frames), 3, 5 to 7
-(with the D7 remote registry entries first, or with 6), 10 and 11, 8 and 9,
+(the remote registry entries first, or with 6), 10 and 11, 8 and 9,
 12, 13 and 14, 15 and 16, 17, 18 (the licence families; unblocked, the
 adoption is done), and T14. The precondition (split the generated references,
 over the ~30 KB limit after #446) is built: one page per topic, the family ->
 topic mapping in `src/pitloom/messages/_topics.py`. Each catalogue PR that adds
-a family maps it there (a test fails until it does), and a page nearing 30 KB
-is split in that file; the generator refuses an oversize file.
+a family maps it there (a test fails until it does) and exports its entries,
+lines and helpers from that topic's public module (`pitloom.messages.targets`,
+`.options` and so on, a hyphen spelt `_`; `pitloom.messages` itself keeps only
+the mechanism). A page nearing 30 KB is split in that file; the generator
+refuses an oversize file.
 
 "Plan" is the count in the plan made on `bccaa747`; "Now" is measured on
 54f79c57. Codes are PROPOSALS by the grammar (decisions A to M); each PR's
@@ -85,23 +98,23 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 1b | 0.23.0 | model-field-unread 19 (`extract/ai_model/` hdf5_config 5, pytorch_pt2 5, pytorch 3, fasttext 2, gguf, onnx, unrecordable; `_ai_package.py` release time); model-scan-decision 1 (`scanner.py`); passthrough in `scanner_wheel.py` 2 | `model-field-unreadable`, `model-field-conflict`, `model-field-invalid` (built folded into `-unreadable`), `field-not-recordable` (#404 D10) | user / thinner (conflict: none) | -25, now -22; built -19 (#446) | M; Opus plan and implementation, Sonnet tests |
 | 1c | 0.23.0 | none (coded sites gain a code) | `library-unusable` (planned as a variant of `library-missing`; its own family on review, final), helper `optional_libraries.import_failed(requirement, exc)` for about 11 sites | user / thinner | 0; built 0 (#446) | S-M; Opus; may ride with 1b |
 | 2b | 0.23.0 | card-unreadable 3 (`enrich/readme.py` 2, `_loom_dataset_meta.py` 1); source-unreadable 5 and over-cap 2 (`fetch_json`, `extract/_extract_utils.py`); croissant passthrough 1; `id_registry/_types.py` indexing read 1; `core/path_confine.py` passthrough 1; lone surrogate (`warn_lone_surrogates`, 6 callers, helper in `logging_config.py`, out of scope); `find_card_file` silent (adds a line) | `card-malformed`, `text-malformed` (weaker); reuse `file-unreadable` (first `ERROR` template), `dir-unlistable`, `over-cap`; JSON parse as `json-malformed` (R4) | user / thinner (`text-malformed`: weaker) | -13, now -13 (helper move: 0); built -10 (#444) | M; Opus |
-| 3 | 0.24.0 | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52 | M-L; Opus plan, Sonnet helper and sites |
-| 4 | 0.24.0 | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
-| 5 | 0.24.0 | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs) | user / not-written | -29, now -30 | M; Opus |
-| 6 | 0.24.0 | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; D7's unpinned `INFO` born coded (`unpinned`) | user / weaker | -35, now -35 | M; Opus |
-| 7 | 0.24.0 | registry-not-saved 5; registry-left-out 6; registry-summary 4 | `registry-unwritable`? (`unusable`?); left-out as `registry-conflict/file-set`? | user / none | -15, now -15 | S-M; Sonnet, Opus review |
-| 8 | 0.24.0 | config-invalid 46, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `iri.py` 4, `_config_parse_scan.py` 3, `_models_wheel_types.py` 3; 44 templates) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
-| 9 | 0.24.0 | config-file-unusable 5; config-moved 6; config-unknown-key 2; config-value-ignored 1 | `config-unusable`, `config-moved`, `config-unknown-key`; value-ignored folds into `option-no-effect` | user / none or not-written | -14, now -14 | S-M; Sonnet |
-| 10 | 0.24.0 | lock-file-ignored 20 (pylock 7, requirements 4, uv 3); lock-file-unreadable 1 (`_lock_io.py:104`) | `lock-file-malformed`, `lock-file-unusable`, `file-unreadable` reuse; the `over N bytes` text is detail | user / thinner | -21, now -21 | M; Opus |
-| 11 | 0.24.0 | lock-entry-skipped 20 (`_uv_graph.py` 9, `_common_warnings.py` 5, pipfile 3); dependency-skipped 7 | `lock-entry-malformed` or `-invalid`; `requirement-invalid`; the direct-reference `INFO` "not looked up on PyPI" born coded | user / thinner | -27, now -27 | M; Sonnet, Opus review |
-| 12 | 0.24.0 | project-metadata-unreadable 31; project-value-ignored 5; file-discovery-fallback 12 (incl. the Hatchling `file discovery failed`); poetry-core API moved 1; `setuptools_cfg.py` passthrough 1 | `metadata-malformed` vs `file-unreadable` (split by advice); `file-discovery-unusable`?; `poetry-core-unusable`; value-ignored by cause | user / thinner | -50, now -50 | L; Opus |
-| 13 | 0.24.0 | git-fetch-failed 11; git-decision 11 (INFO); git-redirect 2; network-refused 4; `git` missing 1 (`_git_run.py:121`) | `timeout`, `network-failed` (bare); `git-redirect-invalid`; `tool-missing`; `RemoteSourceError` dotted codes map onto `pitloom_code` | user / not-written | -29, now -29 | M; Opus |
-| 14 | 0.24.0 | hub-fetch-failed 5; hf-decision 1; hf-unpinned 1; hf-input-invalid 1; build-subprocess 8; temp-left-behind 1; interpreter missing 1 (`_models_wheel_build_subprocess.py:133`); HF licence-file reads 2 | `network-failed`, `timeout` reuse; `unpinned`; `build-failed`, `needs-build`; `temp-dir-unusable`? | user / thinner | -20, now -20 | M; Opus plan, Sonnet |
-| 15 | 0.24.0 | fragment-unusable 13; merge-conflict-kept 9; source-conflict-kept 9 | `fragment-unusable` or `-malformed`; `fragment-conflict`, `source-conflict` (merged if the advice is equal) | user / weaker | -31, now -31 | M; Opus |
-| 16 | 0.24.0 | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
-| 17 | 0.24.0 | author-split 6; escaped-text 5 (plan: 6); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
-| 18 | 0.24.0 | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1); the `licenseid database` lines | `expression-malformed` (redesigns the ported broken-expression warning, adoption D7), `licence-not-recordable`, `licence-ambiguous`, `licence-db-missing`? ("licence" is a domain, not a condition) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
-| T14 | 0.24.0 | none (the licence provenance mapping, [licence-resolution-provenance.md](licence-resolution-provenance.md); not a catalogue PR) | none | none | 0 | after PR 18 |
+| 3 | next (built, #482) | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52; built -56 (454 to 398, #482) | M-L; Opus plan, Sonnet helper and sites |
+| 4 | next | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
+| 5 | next | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs) | user / not-written | -29, now -30 | M; Opus |
+| 6 | next | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`) | user / weaker | -35, now -35 | M; Opus |
+| 7 | next | registry-not-saved 5; registry-left-out 6; registry-summary 4 | `registry-unwritable`? (`unusable`?); left-out as `registry-conflict/file-set`? | user / none | -15, now -15 | S-M; Sonnet, Opus review |
+| 8 | next | config-invalid 46 by the classifier, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `_config_parse_scan.py` 3; 39 config; `iri.py`'s 4 and `_models_wheel_types.py`'s 3 are not config: option-invalid (PR 3), registry key encoding (PR 5), caller misuse (PR 17)) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
+| 9 | next | config-file-unusable 5; config-moved 6; config-unknown-key 2; config-value-ignored 1 | `config-unusable`, `config-moved`, `config-unknown-key`; value-ignored folds into `option-no-effect` | user / none or not-written | -14, now -14 | S-M; Sonnet |
+| 10 | next | lock-file-ignored 20 (pylock 7, requirements 4, uv 3); lock-file-unreadable 1 (`_lock_io.py:106`); the readers live in `extract/lock/` | `lock-file-malformed`, `lock-file-unusable`, `file-unreadable` reuse; the `over N bytes` text is detail | user / thinner | -21, now -21 | M; Opus |
+| 11 | next | lock-entry-skipped 20 (`_uv_graph.py` 9, `_common_warnings.py` 5, pipfile 3); dependency-skipped 7 | `lock-entry-malformed` or `-invalid`; `requirement-invalid`; the direct-reference `INFO` "not looked up on PyPI" born coded | user / thinner | -27, now -27 | M; Sonnet, Opus review |
+| 12 | next | project-metadata-unreadable 31; project-value-ignored 5; file-discovery-fallback 12 (incl. the Hatchling `file discovery failed`); poetry-core API moved 1; `setuptools_cfg.py` passthrough 1 | `metadata-malformed` vs `file-unreadable` (split by advice); `file-discovery-unusable`?; `poetry-core-unusable`; value-ignored by cause | user / thinner | -50, now -50 | L; Opus |
+| 13 | next | git-fetch-failed 11; git-decision 11 (INFO); git-redirect 2; network-refused 4; `git` missing 1 (`_git_run.py:181`); the `Git source: ` prefix on about 14 lines | reuse the shipped `download-timeout`, `download-network-failed`; `git-redirect-invalid`; `tool-missing`; `RemoteSourceError` dotted codes map onto `pitloom_code` | user / not-written | -29, now -29 | M; Opus |
+| 14 | next | hub-fetch-failed 5; hf-decision 1; hf-unpinned 1; hf-input-invalid 1; build-subprocess 8; temp-left-behind 1; interpreter missing 1 (`_models_wheel_build_subprocess.py:133`); HF licence-file reads 2 | `download-network-failed`, `download-timeout` reuse (no `Hub: ` prefix exists; HF lines use `URL=`/`FILE=` subjects); `unpinned`; `build-failed`, `needs-build`; `temp-dir-unusable`? | user / thinner | -20, now -20 | M; Opus plan, Sonnet |
+| 15 | next | fragment-unusable 13; merge-conflict-kept 9; source-conflict-kept 9 | `fragment-unusable` or `-malformed`; `fragment-conflict`, `source-conflict` (merged if the advice is equal) | user / weaker | -31, now -31; 22 in scope by the 2026-11-14 survey | M; Opus |
+| 16 | next | wheel-sbom-check 13; wheel-embed-action 4; archive-member-refused 10; `archive_member_names.py` passthrough 1 | `wheel-sbom-missing`, `-invalid`; `archive-member-unsafe`; embed actions per R1 | user or caller / not-written | -28, now -28 | M; Sonnet, Opus review |
+| 17 | next | author-split 6; escaped-text 3 in scope (`_embed_generate.py`, `_loom_dataset_meta.py`, `_ai_package.py`; plan: 6, then 5); dataset-field-invalid 7; over-cap in `provenance.py` 2; library-api-misuse 4; `_loom_active_run.py` passthrough 1; internal 1 (`provenance.py:414`, becomes `InternalError`, R7) | `author-ambiguous`, `text-escaped`?, `dataset-field-invalid`, `over-cap`, `call-invalid` (caller) | mixed | -27, now -26 | M; Sonnet |
+| 18 | next | licence 8 (`_license_classify.py` 3, `_license_text_match.py` 2, `_core_metadata.py` 1, `_license_resolve.py` 1, `pyproject.py` 1; the two `licenseid database` lines, 97 and 107, are among these 8, not extra) | `expression-malformed` (redesigns the ported broken-expression warning), `license-not-recordable`, `license-ambiguous`, `license-db-missing`? (working names; codes are spelt `license-*` as identifiers, like the shipped `license-relationship-invalid`) | user / weaker | -8, now -8 | M; Opus; after the adoption (done) |
+| T14 | next | none (the licence provenance mapping, [licence-resolution-provenance.md](licence-resolution-provenance.md); not a catalogue PR) | none | none | 0 | after PR 18 |
 
 Sum of the rows: 498 (the plan's 501 counted three `raise _over_cap()` sites
 of `core/model_parameters.py` that the tool treats as a reader's detail,
@@ -114,9 +127,9 @@ Differences from the plan, by measurement:
 - 5: 30, not 29, and 17: 26, not 27: three of the eight `escaped-text` sites
   are the ID registry's key encoding (`_format.py` twice, `_registry.py`
   once), not two.
-- 3: the classifier files `_license_text_match.py:94` ("licenseid database not
-  found") under `input-not-found`; it belongs to PR 18, which keeps both lines
-  of that module. `id_registry/_format.py:98` ("not found or not a file") is
+- 3: the classifier files `_license_text_match.py:97` (was `:94`; "licenseid
+  database not found") under `input-not-found`; it belongs to PR 18, which
+  keeps both lines of that module (97 and 107, inside PR 18's 8). `id_registry/_format.py:98` ("not found or not a file") is
   PR 3's by family, though PR 5 edits the same file.
 - Passthrough sites: the tool counts 19 in scope, as in the plan (1b 2, 2b 2,
   4 11, 6 1, 12 1, 16 1, 17 1). The warning relay of the adoption
@@ -129,15 +142,37 @@ Differences from the plan, by measurement:
   so the move changes no count.
 - Counts of PR 4's "about 47" stderr tests changed are not re-measured.
 
+## Forward requirements (from PR 3)
+
+- PRs 13 and 14 need a frame for `WARNING:` and `INFO:` lines: `Git source: `
+  (about 14 lines) and `Build: `, which is passed as the runtime `log_prefix`
+  into `core/temp_dirs.py` and `core/build_signals.py`. R1 (`INFO` decision
+  lines) must be ruled first. The frame design (family-restricted frames,
+  `emit(frame=)`, literal prefixes elsewhere) is in
+  [message-frames-forward.md](message-frames-forward.md).
+- PR 14 turns `Build: ` into a frame and collapses `option-no-effect`'s two
+  templates (`Options: `, `Build: `) into one, same code and same text.
+- PR 18: `extract/_licenseid_relay.py` relays LicenseID's own text after
+  `licenseid: `; `_license_text_match.py:97` is PR 18's own input kind
+  (`INPUT_KINDS` is closed: PR 18 adds the kind).
+- Left uncoded by PR 3: `cli/id.py`'s `PATH ... is outside` the project
+  directory error and `id_registry/_types.py:329` (`ID registry: path not
+  found, skipping`, a `WARNING:`) go to PR 5, with the `PATH` error of
+  `_types.py`; `_embed_generate.py`'s byte order mark `WARNING:` goes to
+  PR 16 (the wheel embed).
+
 ## Evidence pairing
 
 - PR-A (the `Fact` value type) and PR-D (`file-unreadable` and
   `dir-unlistable` reasons, #408) are done.
 - PR-B: the stub's cause as `Reason:` on a format-only model entry. Parked by
   #404 D12. It would pair with 1b; it stays parked (R5).
-- PR-C1: Hub failures write `Evidence: not_measured | Reason: timeout` or
-  `network-failed`; pairs with PRs 13 and 14. `PENDING` in
-  `tests/messages/test_drift_sources.py` empties then.
+- PR-C1: Hub failures write `Evidence: not_measured | Reason:
+  download-timeout` or `download-network-failed` (Reason equals the message's
+  code; the placeholders `timeout` and `network-failed` are renamed, no SBOM
+  writes them yet); pairs with PR 14 only (the HF file left out,
+  `_http_errors.py:111`). `PENDING` in `tests/messages/test_drift_sources.py`
+  empties then. See [message-frames-forward.md](message-frames-forward.md).
 - Not paired (later): the declared size of a model over the cap,
   `Evidence: declared` on pointers, directory sizes.
 
@@ -145,7 +180,13 @@ Differences from the plan, by measurement:
 
 The recommendation is in brackets.
 
-- R1 (before 4, 6, 13, 16): `INFO` decision and summary lines (57 sites).
+- R1 (before 6, 7, 13, 14, 15, 16, 17 and 18; PR 4 is built): `INFO`
+  decision and summary lines (57 sites). **Ruled 2026-11-14: as
+  recommended.** Also ruled that day (see
+  [message-frames-forward.md](message-frames-forward.md), "Rulings"): the
+  hook's WARNING/INFO prefix becomes `Pitloom build hook: `, the SDK's
+  `loom: ` becomes `loom SDK: `, and the duplicate Git/PyPI relays are
+  dropped.
   [Code a decision by the condition it answers (`unpinned`, `needs-build`;
   actor none, effect none); keep pure counts in a "summary" kind left out of
   the ratchet by kind, an explicit scope rule, never by raising a count.]

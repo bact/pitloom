@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,11 +58,22 @@ mismatch is an `ERROR:` that aborts the embed (exit 1, nothing written);
 best-effort CI). A Pitloom-generated SBOM (no `--sbom`) is never checked: it
 is built from the same metadata. An external SBOM is embedded verbatim, byte
 for byte (line endings included; `-o` writes the same bytes), and may list
-`.dist-info` files. It must be UTF-8: other bytes are an `ERROR:`, and a
-UTF-8 byte order mark is dropped with a `WARNING:` (RFC 8259 section 8.1). A
-file that is not valid JSON (an empty one included), not a JSON object, or
-named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say) is an
-`ERROR:` and exit 1, and no wheel is written. A JSON object in another format
+`.dist-info` files. It must be a regular file of at most 50 MiB: a
+directory, FIFO or device is `[input-not-found]` and a larger file
+`[over-cap]`. It must be UTF-8: other bytes (UTF-16 and UTF-32 included)
+are an `ERROR:`, and a UTF-8 byte order mark is dropped with a `WARNING:`
+(RFC 8259 section 8.1). `loom id import` refuses these files with the same
+codes. A
+file that is not valid JSON (an empty one included) or not a JSON object
+(`FILE=<file>: not valid JSON for the SBOM; <failure> [json-malformed]`), or
+named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say:
+`FILE=<file>: named .spdx3.json but not SPDX 3 JSON-LD [sbom-wrong-format]`),
+or whose `@graph` is not a list of objects
+(`FILE=<file>: SBOM @graph is not a list [sbom-invalid]`, with or without
+`--validate`) is an `ERROR:` and exit 1, and no wheel is written. So is one
+that
+`spdx3-validate` refuses
+(`FILE=<file>: SBOM is not valid; no wheel was written [sbom-invalid]`). A JSON object in another format
 under another name is embedded, with a `WARNING:` that its name and version
 cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
 whatever it is called or holds.
@@ -358,8 +369,11 @@ member, where one is at fault), and nothing is written:
 - no single own `.dist-info` (plain `ValueError`);
 - (embed only) a member of its own `.dist-info` under a non-conforming name.
 
-A file that cannot be opened at all (missing, permission denied) raises
-`OSError`. Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where
+A wheel that is not there raises `FileNotFoundError` (`input-not-found`);
+one under a directory Pitloom may not search raises `ValueError`
+(`file-unreadable`) from the generate and embed functions, `OSError` from
+`read_wheel()`; one whose own permissions refuse the open raises `OSError`.
+Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where
 you have already read them from the wheel's `METADATA`: the default file
 name is made from it and `METADATA` is not read, or warned about, again.
 `pitloom.extract.wheel.wheel_identity(metadata)` gives that pair from the

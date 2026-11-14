@@ -32,7 +32,8 @@ from pitloom.assemble import (
 from pitloom.cli.commands import _remote as mod_remote
 from pitloom.embed import embed_wheel_sbom
 from pitloom.extract.remote.git import GitCheckout
-from pitloom.messages import LFS_POINTER_MALFORMED, trusted_message
+from pitloom.messages import trusted_message
+from pitloom.messages.models import LFS_POINTER_MALFORMED
 from tests._lfs import lfs_pointer_bytes, pointers, write_project
 from tests._lfs import tree as demo_tree
 from tests._raw_archive import METADATA, write_raw_zip

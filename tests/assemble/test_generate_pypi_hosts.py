@@ -37,12 +37,14 @@ from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.messages import (
+    Line,
+    code_of,
+)
+from pitloom.messages.pypi import (
     GIT_PYPI_URL_LINE,
     MODEL_URL_LINE,
     PYPI_URL_INVALID,
     PYPI_URL_UNUSABLE,
-    Line,
-    code_of,
 )
 from tests._fake_pypi_server import FakePypi
 from tests.assemble._pypi_dists import (

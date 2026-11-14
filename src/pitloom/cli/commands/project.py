@@ -12,9 +12,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    generate_project_sbom,
-)
+from pitloom.assemble import generate_project_sbom
 from pitloom.cli.commands._remote import run_remote
 from pitloom.cli.commands._remote_pypi import run_pypi
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
@@ -32,23 +30,22 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     GIT,
     forward_options,
     project_target_kind,
     settle_inert,
 )
-from pitloom.core.quote_source import quote_source
-from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import PROJECT
 from pitloom.extract.remote import (
     is_git_url,
-    is_huggingface_source,
+    is_hub_model_target,
     is_unfetchable_remote,
+    refuse_hub_model_target,
 )
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.extract.remote.pypi_url import is_pypi_url
-from pitloom.logging_config import print_error
 
 
 def generate_project_from_args(
@@ -114,18 +111,11 @@ def _project_target(text: str) -> Path | str:
     if (
         is_pypi_url(text)
         or is_git_url(text)
-        or _is_hub_model_url(text)
+        or is_hub_model_target(text)
         or is_unfetchable_remote(text)
     ):
         return text.strip()
-    return Path(text)
-
-
-def _is_hub_model_url(text: str) -> bool:
-    """Whether *text* is the URL of a Hugging Face model."""
-    return text.strip().lower().startswith(("http://", "https://")) and (
-        is_huggingface_source(text.strip())
-    )
+    return TypedPath(text)
 
 
 @cli_error_handler
@@ -133,12 +123,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
     """Generate a Source SBOM from a project directory, sdist archive or Git
     URL."""
     if isinstance(args.project_dir, str):
-        if _is_hub_model_url(args.project_dir):
-            shown = quote_source(sanitize_url(args.project_dir))
-            print_error(
-                f"{shown} is a Hugging Face model, not a project: use 'loom model'."
-            )
-            return 1
+        # A Hugging Face model URL is refused as the library refuses it.
+        refuse_hub_model_target(args.project_dir)
         if is_pypi_url(args.project_dir):
             return run_pypi(args, args.project_dir, SDIST)
         return run_remote_project(args, args.project_dir)

@@ -17,10 +17,12 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
+from pitloom.core.given_path import given_spelling
 from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry.keys import path_key
+from pitloom.messages.targets import input_not_found, is_input_file
 
 __all__ = [
     "registry_base_dir",
@@ -111,15 +113,20 @@ def resolve_registry(
     no ``loom-id-registry.json`` is searched for, near the target or
     anywhere else. A relative path resolves against *base_dir* (the
     project directory, or the current directory for a target with none of
-    its own), itself resolved first, so the loaded registry's path (and
-    every message naming it) is absolute even for a relative *base_dir*;
-    an already-absolute path (e.g. a config's own key, made absolute by
+    its own), itself resolved first, so the loaded registry's path is
+    absolute even for a relative *base_dir*; an already-absolute path (e.g.
+    a config's own key, made absolute by
     :func:`~pitloom.core.config_cascade.load_config_file`, or a CLI flag
-    made absolute against cwd) is used as given.
+    made absolute against cwd) is used as it is.
 
-    Raises ``ValueError`` (via :meth:`IdRegistry.load`) when the resolved
-    path does not load -- a declared registry is always meant to load;
-    this function never swallows that failure.
+    A resolved path that is not a file raises the ``input-not-found``
+    ``FileNotFoundError``, naming the path as given: *id_registry* or
+    *configured* as passed, or the spelling a
+    :class:`~pitloom.core.given_path.GivenPath` keeps (the CLI flag, a
+    ``--config`` file's key), never the resolved form. One that does not
+    load raises ``ValueError`` (via :meth:`IdRegistry.load`), naming the
+    resolved path -- a declared registry is always meant to load; this
+    function never swallows that failure.
     """
     source = id_registry if id_registry is not None else configured
     if source is None:
@@ -127,7 +134,11 @@ def resolve_registry(
     if isinstance(source, IdRegistry):
         return source
     path = Path(source)
-    return IdRegistry.load(path if path.is_absolute() else base_dir.resolve() / path)
+    resolved = path if path.is_absolute() else base_dir.resolve() / path
+    if not is_input_file(resolved, shown=given_spelling(source)):
+        # Named as given, never as resolved: no absolute or temporary path.
+        raise input_not_found("ID registry file", given_spelling(source), at=resolved)
+    return IdRegistry.load(resolved)
 
 
 def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:

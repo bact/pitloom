@@ -22,6 +22,9 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
+from pitloom.messages import CodedValueError
+from pitloom.messages.options import OPTION_MISSING
+from pitloom.messages.targets import is_input_file
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -59,7 +62,7 @@ def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
     ``pyproject.toml``/``setup.cfg``/``setup.py`` at all -- nothing to
     read, not an error.
     """
-    if not any(os.path.isfile(project_dir / name) for name in PROJECT_FILES):
+    if not any(is_input_file(project_dir / name) for name in PROJECT_FILES):
         return PitloomConfig(), _PYPROJECT_TABLE
     _metadata, pitloom_config, config_path = read_project(
         project_dir,
@@ -110,11 +113,8 @@ def _no_id_registry_declared_error(table: str) -> ValueError:
     """The ``ValueError`` `loom id generate`/`import` raise when
     neither a flag nor the project's own config declares a registry
     location -- no implicit default file is assumed (see docs/cli.md's
-    "Pin ids across fragments")."""
-    return ValueError(
-        "no ID registry declared: pass --id-registry FILE or set "
-        f"id-registry in {table}"
-    )
+    "Pin ids across fragments"); ``option-missing``."""
+    return CodedValueError(OPTION_MISSING, table=table)
 
 
 def _resolve_id_registry_target(
@@ -139,7 +139,7 @@ def _resolve_id_registry_target(
     # .absolute() only, never .resolve(): resolving would follow a dangling
     # symlink at the final path component to its (nonexistent) target and
     # write through it there instead of surfacing IdRegistry.load()'s own
-    # "not found or not a file" error at the symlink's own path.
+    # "ID registry file not found" error at the symlink's own path.
     # normpath() after .absolute() only collapses lexical ".."/"." noise
     # (e.g. a `-o ../x` display) -- it never touches a symlink itself, so
     # the dangling-symlink behaviour above is preserved.

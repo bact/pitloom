@@ -61,7 +61,10 @@ from pitloom.extract.dataset.values import (
     text_of,
 )
 from pitloom.logging_config import one_line
-from pitloom.messages import Cap, warn_lone_surrogates
+from pitloom.messages.files import (
+    Cap,
+    warn_lone_surrogates,
+)
 
 log = logging.getLogger(__name__)
 

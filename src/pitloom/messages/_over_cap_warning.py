@@ -7,7 +7,7 @@
 and reading its cap back off a record (:func:`over_cap_of`).
 
 See also: :mod:`pitloom.messages._over_cap` (the ``over-cap`` entry and
-:class:`~pitloom.messages.Cap`).
+:class:`~pitloom.messages.files.Cap`).
 """
 
 from __future__ import annotations

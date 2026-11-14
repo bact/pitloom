@@ -27,17 +27,23 @@ from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.given_path import GivenPath, given_spelling
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.no_effect import warn_no_effect
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.model_target import AUTO, MODEL, PROJECT
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
+from pitloom.extract.remote.huggingface import refuse_hub_model_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import CONFIG_UNSAFE, CONFIG_UNSAFE_REMOTE_LINE, emit
+from pitloom.messages import emit
+from pitloom.messages.targets import (
+    CONFIG_UNSAFE,
+    CONFIG_UNSAFE_REMOTE_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +59,6 @@ def _git_model_sbom(
     project_metadata = options.pop("project_metadata")
     if project_metadata is not None:
         warn_no_effect(
-            INERT_LOG_PREFIX,
             url,
             ("project_metadata",),
             "for an AI model file (it is not a Python project)",
@@ -137,8 +142,11 @@ def generate_git_sbom(
     )
     build_options.settle_not_applicable(url, REMOTE_REPOSITORY_REASON)
     if isinstance(id_registry, (str, Path)):
-        # A relative path means the caller's directory, not the checkout's.
-        id_registry = Path(id_registry).absolute()
+        # A relative path means the caller's directory, not the checkout's;
+        # a message still names it as given.
+        id_registry = GivenPath(
+            Path(id_registry).absolute(), given_spelling(id_registry)
+        )
     with fetch_git_project(
         url, policy=policy, trust_model_files=trust_model_files is True
     ) as checkout:
@@ -259,8 +267,13 @@ def generate_git_project_sbom(
     Raises:
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, or ``git.no-project``.
+        ValueError: *url* is a Hugging Face model URL
+            (``target-wrong-format``), or a malformed one
+            (``hf-url-invalid``):
+            :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
     """
     configure_logging()
+    refuse_hub_model_target(url)
     return generate_git_sbom(
         url,
         sbom_kind=PROJECT,

@@ -12,9 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    enrich_model,
-)
+from pitloom.assemble import enrich_model
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -23,10 +21,14 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
-from pitloom.messages import INPUT_NOT_FOUND, MODEL_FILE_NOT_FOUND_LINE
+from pitloom.messages.targets import (
+    INPUT_NOT_FOUND,
+    MODEL_FILE_NOT_FOUND_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     opened_path = existing_model_path(given_path)
     if opened_path is None:
         print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": model_path}),
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": target}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1
@@ -94,7 +96,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     enrich_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="DIR",
         help=(

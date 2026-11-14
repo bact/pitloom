@@ -32,7 +32,7 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import huggingface_fetch, read_huggingface
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import OVER_CAP
+from pitloom.messages.files import OVER_CAP
 from tests._fake_hub import TOKEN, FakeHub, hub_and_cdn, point_hub_at, serve_in_git
 from tests._fake_pypi_server import Route, redirect
 from tests.conformance.g7ai_shared import without_licence_database

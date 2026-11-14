@@ -30,7 +30,14 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.logging_config import CODE_ATTR
-from pitloom.messages import OVER_CAP, code_of, over_cap_of, trusted_message
+from pitloom.messages import (
+    code_of,
+    trusted_message,
+)
+from pitloom.messages.files import (
+    OVER_CAP,
+    over_cap_of,
+)
 from tests._git_http_server import backend_available, make_repo, serve_git
 from tests.assemble.conftest import _make_sdist
 from tests.extract.conftest import make_hook, write_pyproject

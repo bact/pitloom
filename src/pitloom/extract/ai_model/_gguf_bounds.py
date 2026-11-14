@@ -27,12 +27,12 @@ import struct
 from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
-from pitloom.messages import (
+from pitloom.messages.files import Cap
+from pitloom.messages.models import (
     LIMIT_GGUF_ARRAY,
     LIMIT_GGUF_PAIRS,
     LIMIT_GGUF_TENSORS,
     LIMIT_GGUF_VERSION,
-    Cap,
 )
 
 #: Budget for the tensors, key/value pairs and array elements (scalar, string

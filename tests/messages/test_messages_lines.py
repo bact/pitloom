@@ -26,11 +26,13 @@ import pytest
 from pitloom.core.lfs_pointer import warn_pointers_not_read
 from pitloom.logging_config import CODE_PATTERN, configure_logging
 from pitloom.messages import (
+    LINE_RE,
+    trusted_message,
+)
+from pitloom.messages.models import (
     LFS_POINTER,
     LFS_POINTER_MALFORMED,
     LFS_POINTER_SHIPPED,
-    LINE_RE,
-    trusted_message,
 )
 from tests._lfs import lfs_pointer_bytes
 

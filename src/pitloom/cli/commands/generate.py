@@ -44,6 +44,26 @@ from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.extract.model_target import AUTO
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.logging_config import print_error
+from pitloom.messages.options import (
+    OPTION_MISSING,
+    OUTPUT_REQUIRED_LINE,
+)
+from pitloom.messages.targets import input_exists, say_input_not_found
+
+
+def _run_project_target(args: argparse.Namespace) -> int:
+    """A project directory or sdist archive: exactly what `loom project`
+    does, so the two cannot drift. Settled first, as `loom project` does, so
+    the build-flag WARNING: precedes any metadata WARNING:. A missing target
+    is named as typed (read_project would name the resolved path)."""
+    target_path = Path(args.target).resolve()
+    if not input_exists(target_path, shown=args.target):
+        say_input_not_found("project path", args.target)
+        return 1
+    build_options = build_options_from_args(args).settle_target(target_path)
+    generate_project_from_args(args, target_path, build_options)
+    _print_sbom_output_path(args.output)
+    return 0
 
 
 @cli_error_handler
@@ -58,13 +78,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     more transparent than picking a name the user didn't ask for.
     """
     if args.output is None:
-        print_error(
-            "-o/--output is required "
-            "(the target-detection dispatch has no single natural default "
-            "filename -- pass -o FILE, or use 'loom project'/'loom wheel'/"
-            "'loom model'/'loom env' directly for that target type's own "
-            "default)."
-        )
+        print_error(OUTPUT_REQUIRED_LINE.render({}), code=OPTION_MISSING.code)
         return 1
 
     if target_is_pypi_url(args.target):
@@ -72,7 +86,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         # INFO: naming `loom project <url>` for the sdist.
         return run_pypi(args, str(args.target).strip(), WHEEL_FILE, hint=True)
 
-    if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
+    if looks_like_wheel_path(args.target) and refuse_non_wheel(args.target):
         return 1
 
     if target_is_git_url(args.target):
@@ -83,14 +97,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         )
 
     if target_resolves_to_project(args.target):
-        # A project directory or sdist archive: exactly what `loom project`
-        # does, so the two cannot drift. Settle first, as `loom project`
-        # does, so the build-flag WARNING: precedes any metadata WARNING:.
-        target_path = Path(args.target).resolve()
-        build_options = build_options_from_args(args).settle_target(target_path)
-        generate_project_from_args(args, target_path, build_options)
-        _print_sbom_output_path(args.output)
-        return 0
+        return _run_project_target(args)
 
     # env / wheel / model file / HF: no project of its own, so only an
     # explicitly named config applies, and generate() settles every option

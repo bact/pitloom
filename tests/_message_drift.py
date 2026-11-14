@@ -15,17 +15,18 @@ from __future__ import annotations
 
 import ast
 import functools
+import importlib
 import logging
 import re
 from collections.abc import Iterator
 from pathlib import Path
 
-import pitloom.messages as catalogue
 from pitloom.logging_config import CODE_ATTR, CODE_PATTERN, escape_controls
 from pitloom.messages import (
     FIELDS,
     FRAMES,
     MESSAGES,
+    TOPIC_TITLES,
     Message,
     code_of,
     trusted_message,
@@ -42,6 +43,7 @@ TEST_LOGGER_PREFIX = "pitloom.test_"
 #: A value of each field, as a caller passes it.
 SAMPLES: dict[str, object] = {
     "answered": "other-project",
+    "arity": "one argument",
     "card": "model card",
     "command": "clone",
     "count": 2,
@@ -57,6 +59,7 @@ SAMPLES: dict[str, object] = {
     "format": "gguf",
     "formats": ["gguf", "onnx"],
     "hosts": "files.pythonhosted.org",
+    "input": "wheel file",
     "key": "FIELD",
     "limit": 1024,
     "fields": ("type_of_model", "properties.tags (kept as raw string)"),
@@ -65,24 +68,29 @@ SAMPLES: dict[str, object] = {
     "name": "a.txt",
     "number": 2,
     "oid": "0f" * 32,
+    "option": "--allow-build",
+    "other": "--pretty",
     "outcome": "skipped",
     "part": "training_config.optimizer",
     "path": "m.gguf",
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
+    "refusal": "invalid choice: 'x'",
     "requirement": "pitloom[gguf]",
     "seconds": 30,
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "source": "the PyPI JSON API",
     "subcommand": "fragment validate",
+    "table": "[tool.pitloom]",
     "target": "https://example.org/x.whl",
     "unit": "byte",
     "url": "https://pypi.org/project/demo/1.0/",
     "use": "for file scanning",
     "value": "-1",
     "version": "1.0",
+    "when": "without --allow-build",
     "why": "not https",
 }
 
@@ -118,12 +126,16 @@ def raised_as(exc: BaseException, message: Message) -> bool:
 
 
 def family_names() -> dict[str, tuple[str, ...]]:
-    """Each family to the names :mod:`pitloom.messages` exports for its
-    entries (``LFS_POINTER``)."""
+    """Each family to the names its topic module
+    (``pitloom.messages.<topic>``) exports for its entries
+    (``LFS_POINTER``)."""
     found: dict[str, list[str]] = {}
-    for name, value in vars(catalogue).items():
-        if isinstance(value, Message):
-            found.setdefault(value.family, []).append(name)
+    for topic in TOPIC_TITLES:
+        module = importlib.import_module(f"pitloom.messages.{topic.replace('-', '_')}")
+        for name in module.__all__:
+            value = getattr(module, name)
+            if isinstance(value, Message):
+                found.setdefault(value.family, []).append(name)
     return {family: tuple(sorted(names)) for family, names in found.items()}
 
 

@@ -23,7 +23,7 @@ from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.model_usage import ModelUsage
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
-from pitloom.messages import Cap
+from pitloom.messages.files import Cap
 
 # Provenance of a name derived from the model's file name
 FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
@@ -151,7 +151,7 @@ MODEL_ENTRIES_CAP = Cap(MAX_MODEL_ENTRIES, "entry", "per-field")
 
 def model_cap(cap: Cap, fmt: str) -> Cap:
     """*cap* naming a model as every model warning does,
-    ``FORMAT=<fmt> FILE=<path>`` (:attr:`~pitloom.messages.Cap.model_format`);
+    ``FORMAT=<fmt> FILE=<path>`` (:attr:`~pitloom.messages.files.Cap.model_format`);
     *cap* names its file. The same cap again for a model already named."""
     return replace(cap, model_format=fmt)
 

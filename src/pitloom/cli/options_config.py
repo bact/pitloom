@@ -36,7 +36,8 @@ from pitloom.cli.options_resolve import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
-from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.core.given_path import GivenPath, TypedPath
+from pitloom.core.no_effect import warn_no_effect
 
 #: Shared flags whose ``argparse`` dest is also the library parameter name.
 #: ``offline`` and ``use_lockfile`` are per-command (absent on some), so
@@ -90,14 +91,17 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     Every other value is the raw flag, ``None`` when omitted, except that a
     relative ``--id-registry`` is made absolute against the current
     directory, as a path on the command line is -- the library resolves a
-    relative one against the project directory. ``project_dir`` comes from
-    the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on a command that has it.
+    relative one against the project directory -- keeping the spelling
+    given for a message (:class:`~pitloom.core.given_path.GivenPath`).
+    ``project_dir`` comes from the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on
+    a command that has it.
     """
     options: dict[str, Any] = {
         name: getattr(args, name, None) for name in _SAME_NAME_OPTIONS
     }
     if options["id_registry"] is not None:
-        options["id_registry"] = Path(options["id_registry"]).absolute()
+        given = options["id_registry"]
+        options["id_registry"] = GivenPath(Path(given).absolute(), given)
     if hasattr(args, ARCHIVE_PROJECT_DIR_DEST):
         options["project_dir"] = getattr(args, ARCHIVE_PROJECT_DIR_DEST)
     options["creation_metadata"] = _resolve_creation_metadata(
@@ -148,7 +152,7 @@ def warn_verbose_no_effect(
     command path that prints no verbose details. ``-v`` is CLI-only, so it
     is not an :data:`~pitloom.core.inert_options.INERT` parameter."""
     if getattr(args, "verbose", False):
-        warn_no_effect(INERT_LOG_PREFIX, subject, ("-v/--verbose",), reason)
+        warn_no_effect(subject, ("-v/--verbose",), reason)
 
 
 def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:
@@ -159,7 +163,7 @@ def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--project-dir",
         dest=ARCHIVE_PROJECT_DIR_DEST,
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="DIR",
         help=(
@@ -176,7 +180,7 @@ def add_config_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--config FILE`` option."""
     parser.add_argument(
         "--config",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="FILE",
         help=(

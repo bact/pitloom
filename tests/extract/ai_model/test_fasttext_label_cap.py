@@ -21,7 +21,7 @@ import pytest
 
 from pitloom.core.ai_metadata import MAX_MODEL_ENTRIES
 from pitloom.extract.ai_model.fasttext import read_fasttext
-from pitloom.messages import over_cap_of
+from pitloom.messages.files import over_cap_of
 
 from .test_fasttext_mocked import _make_fasttext_model
 

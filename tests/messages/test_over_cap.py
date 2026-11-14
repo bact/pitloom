@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The ``over-cap`` family: a :class:`~pitloom.messages.Cap` has the shape its
-values have in a line, :func:`~pitloom.messages.warn_over_cap` says the one
+"""The ``over-cap`` family: a :class:`~pitloom.messages.files.Cap` has the shape its
+values have in a line, :func:`~pitloom.messages.files.warn_over_cap` says the one
 warning (the input after its key, or after a model's format) once when asked,
 the code and the cap on its record, and the advice names settings that exist.
 
@@ -31,20 +31,22 @@ from pitloom.core.config import INT_KEYS
 from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import CODE_ATTR, configure_logging
 from pitloom.messages import (
-    CONFIG_MEMBER_LINE,
-    OVER_CAP,
-    SOURCE_LINE,
-    Cap,
     CodedValueError,
     Line,
     code_of,
     emit,
-    over_cap_of,
     trusted_message,
-    warn_over_cap,
 )
 from pitloom.messages._over_cap import KEY_LINE, MODEL_LINE, REASON
 from pitloom.messages._templates import render
+from pitloom.messages.files import (
+    CONFIG_MEMBER_LINE,
+    OVER_CAP,
+    SOURCE_LINE,
+    Cap,
+    over_cap_of,
+    warn_over_cap,
+)
 
 _LOG = logging.getLogger("pitloom.test_over_cap")
 _NAME = Cap(1024, "character", "name")

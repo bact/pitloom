@@ -23,15 +23,13 @@ from pitloom.core.ai_metadata import (
 from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
 from pitloom.core.provenance import provenance_source
 from pitloom.core.quote_source import quote_source
-from pitloom.extract._extract_utils import (
-    record_dict_field_provenance,
-)
+from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model._stated_text import first_stated_text
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
-from pitloom.messages import Cap
+from pitloom.messages.files import Cap
 
 log = logging.getLogger(__name__)
 

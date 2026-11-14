@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Drift guard: a path or file name in a log record or a stderr line goes
-through `quote_source` (a path), `loggable` or `one_line` (other untrusted
-text), as AGENTS.md's "CLI output" section says, so Windows backslashes are not
-doubled and a newline cannot start another line.
+through `quote_source` or `quote_given` (a path), `loggable` or `one_line`
+(other untrusted text), as AGENTS.md's "CLI output" section says, so Windows
+backslashes are not doubled and a newline cannot start another line.
 
 The formatter of `configure_logging` escapes control characters whatever a call
 site did, so this guards the display, not the line structure. It reads the
@@ -38,6 +38,7 @@ _PART_ATTRIBUTES = frozenset({"name", "parent", "stem", "suffix"})
 _SAFE_CALLS = frozenset(
     {
         "quote_source",
+        "quote_given",
         "loggable",
         "one_line",
         "type",
@@ -52,7 +53,8 @@ _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 #: Calls that take a path and quote it inside, or only count paths. The
 #: catalogue's coded exceptions (CodedValueError, CodedImportError,
 #: CodedFileNotFoundError) write each value through its field (a ``path`` in
-#: quotes, a ``file`` through loggable), as does ``Line.render``;
+#: quotes, a ``file`` through loggable), as do ``Line.render`` and the
+#: catalogue helpers (``input_not_found``, ``file_unreadable_error``);
 #: ``refusal_error`` says the refusal through CodedValueError, else quoted.
 _QUOTING_CALLS = frozenset(
     {
@@ -60,7 +62,10 @@ _QUOTING_CALLS = frozenset(
         "CodedImportError",
         "CodedValueError",
         "_interpolation_error",
-        "_missing_fragment_message",
+        "file_unreadable_error",
+        "input_not_found",
+        "_import_failure_text",
+        "NotAWheelError",
         "_fragment_read_failure_message",
         "_same_document_message",
         "failed_to_save_message",
@@ -85,8 +90,9 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_read.py", "table_path"),
         ("core/model_extract_limit.py", "table_path"),
         ("core/_config_parse_scan.py", "pattern"),
-        # A URL shown with repr().
+        # A URL shown with repr(), its credentials masked.
         ("_loom_dataset_meta.py", "location"),
+        ("_loom_dataset_meta.py", "masked_given_path"),
     }
 )
 
