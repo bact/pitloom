@@ -249,6 +249,9 @@ def test_generate_refuses_a_non_wheel_name_before_settling_options(
     ]
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="a colon in a path component is not a name"
+)
 def test_id_generate_names_a_missing_path_as_typed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
