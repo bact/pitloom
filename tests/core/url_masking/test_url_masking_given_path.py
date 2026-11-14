@@ -403,11 +403,11 @@ def _best_time(text: str, line: bool) -> float:
 @pytest.mark.parametrize("line", [False, True], ids=["path", "line"])
 @pytest.mark.parametrize("shape", sorted(_ADVERSARIAL))
 def test_a_given_path_is_masked_in_linear_time(shape: str, line: bool) -> None:
-    """Masking an adversarial text four times as long takes about four times
-    as long (a quadratic masker: sixteen). The ratio, not a wall-clock
+    """Masking an adversarial text five times as long takes about five times
+    as long (a quadratic masker: twenty-five). The ratio, not a wall-clock
     bound, so a slow or loaded runner, or coverage tracing, cancels out;
     each time is the best of three, and a run under 5 ms counts as 5 ms."""
     make = _ADVERSARIAL[shape]
     short = max(_best_time(make(100_000), line), 0.005)
-    long = _best_time(make(400_000), line)
-    assert long / short < 8
+    long = _best_time(make(500_000), line)
+    assert long / short < 12
