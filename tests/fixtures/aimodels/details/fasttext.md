@@ -20,7 +20,7 @@ File details for `fasttext/`. See also: [AI model fixtures](../README.md)
 | Output | Class probabilities `[176]` (one score per ISO language code) |
 | Embedding dim | 16 |
 | Labels | 176 ISO language codes (e.g. `__label__en`, `__label__de`, …) |
-| Training | epoch=5, lr=0.05, wordNgrams=1, loss=hs |
+| Training | epoch=5, wordNgrams=1, loss=hs |
 | n-gram range | minn=2, maxn=4 |
 | Size | 938 013 bytes (0.89 MB) |
 | SHA-256 | `8f3472cfe8738a7b6099e8e999c3cbfae0dcd15696aac7d7738a8039db603e83` |
@@ -31,8 +31,10 @@ File details for `fasttext/`. See also: [AI model fixtures](../README.md)
 Notable metadata extracted by the fastText extractor:
 
 - `type_of_model` = `"supervised"` (from `args.model`)
-- `hyperparameters`: `dim=16`, `lr=0.05`, `epoch=5`, `wordNgrams=1`,
+- `hyperparameters`: `dim=16`, `epoch=5`, `wordNgrams=1`,
   `minCount=1000`, `minn=2`, `maxn=4`, `neg=5`, `bucket=2000000`, `ws=5`
+  (`lr` is not in the file: a loaded model reports the default 0.05, so it
+  is not read)
 - `properties["lossName"]` = `"hs"` (hierarchical softmax)
 - `properties["labels"]` is a JSON array string of 176 language codes (order as read)
 - `name`, `description`, `version` are all `None`
@@ -50,7 +52,7 @@ Notable metadata extracted by the fastText extractor:
 | Output | Class probabilities `[4]` (`pos`, `neg`, `neu`, `q`) |
 | Embedding dim | 21 |
 | Labels | `__label__pos`, `__label__neg`, `__label__neu`, `__label__q` |
-| Training | epoch=100, lr=0.05, wordNgrams=4, loss=softmax |
+| Training | epoch=100, wordNgrams=4, loss=softmax |
 | n-gram range | minn=3, maxn=6 |
 | Size | 96 339 bytes (0.09 MB) |
 | SHA-256 | `a88bf0de7dff74d740cd45048521d319ff7c2560085f2604af265561e72ec4bc` |
@@ -61,8 +63,9 @@ Notable metadata extracted by the fastText extractor:
 Notable metadata extracted by the fastText extractor:
 
 - `type_of_model` = `"supervised"` (from `args.model`)
-- `hyperparameters`: `dim=21`, `lr=0.05`, `epoch=100`, `wordNgrams=4`,
+- `hyperparameters`: `dim=21`, `epoch=100`, `wordNgrams=4`,
   `minCount=1`, `minn=3`, `maxn=6`, `neg=5`, `bucket=33502`, `ws=5`
+  (no `lr`, as above)
 - `properties["lossName"]` = `"softmax"`
 - `properties["labels"]` = `'["__label__q","__label__pos","__label__neu","__label__neg"]'`
   (JSON array string, in the order the model stores them)

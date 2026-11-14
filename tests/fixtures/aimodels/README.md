@@ -66,8 +66,8 @@ recognised under another suffix.
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification - bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features -> 1 output) - full model save | CC0-1.0 |
-| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features -> 1 output) - weights-only save | CC0-1.0 |
+| `pytorch/example-model.pt` | PyTorch classic | Linear layer (10 features -> 2 outputs) - full model save | CC0-1.0 |
+| `pytorch/example-model.pth` | PyTorch classic | Linear layer (10 features -> 2 outputs) - weights-only save | CC0-1.0 |
 | `pytorch_pt2/example-model.pt2` | PyTorch PT2 Archive | Linear regression (10 features -> 1 output) | CC0-1.0 |
 | `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation - MarianMT (random weights) | MIT |
 | `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation - Phi (random weights) | Apache-2.0 |

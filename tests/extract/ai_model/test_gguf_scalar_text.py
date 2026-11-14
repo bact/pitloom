@@ -17,6 +17,7 @@ See also: :mod:`tests.core.test_scalar_text` (the spelling) and
 from __future__ import annotations
 
 import json
+import logging
 import struct
 from pathlib import Path
 from typing import Any
@@ -210,7 +211,16 @@ def test_general_license_is_the_model_licence(
             "Gemma Terms",
             "general.license.name",
         ),
-        ({b"general.license": "other"}, "other", "general.license"),
+        # a placeholder pointing elsewhere, with nothing to point at, is no
+        # licence; "not known" is a statement (NOASSERTION) and stays
+        ({b"general.license": "other"}, None, None),
+        ({b"general.license": "N/A"}, None, None),
+        (
+            {b"general.license": "n/a", b"general.license.name": "Foo"},
+            "Foo",
+            "general.license.name",
+        ),
+        ({b"general.license": "unknown"}, "unknown", "general.license"),
         # a weak placeholder gives way; NONE is a statement and stays
         (
             {b"general.license": "NOASSERTION", b"general.license.name": "Foo Terms"},
@@ -237,6 +247,9 @@ def test_general_license_is_the_model_licence(
         "other-then-name",
         "other-case-trimmed",
         "other-alone",
+        "na-alone",
+        "na-then-name",
+        "unknown-alone",
         "noassertion-then-name",
         "unknown-then-name",
         "none-stays",
@@ -249,14 +262,20 @@ def test_general_license_name_is_the_licence_when_no_id_is_stated(
     fields: dict[bytes, str],
     expected: str | None,
     field: str | None,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     body = b"".join(kv(key, STRING, string(value)) for key, value in fields.items())
     path = tmp_path / "m.gguf"
     path.write_bytes(gguf_file(0, len(fields), body))
 
+    caplog.set_level(logging.WARNING)
     meta = read_ai_model(path)
 
     assert meta.license == expected
+    # a placeholder dropped as the licence stays a property, quietly
+    for key, value in fields.items():
+        assert meta.properties[key.decode()] == value
+    assert not caplog.records
     if field is None:
         assert "license" not in meta.provenance
     else:

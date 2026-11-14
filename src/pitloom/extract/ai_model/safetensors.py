@@ -53,9 +53,11 @@ MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
 
 
 #: The ``__metadata__`` keys of each field, in the order tried:
-#: name, description, version, architecture, quantization.
+#: name, description, version, architecture, quantization. kohya-ss
+#: ``ss_base_model_version`` names the base model, not this one: it stays in
+#: ``properties`` only.
 _STATED_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("name", ("modelspec.title", "name", "ss_base_model_version")),
+    ("name", ("modelspec.title", "name")),
     ("description", ("modelspec.description", "description")),
     ("version", ("modelspec.version", "version")),
     ("architecture", ("modelspec.architecture", "architecture")),

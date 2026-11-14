@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-02
-Last-Modified: 2026-11-09
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -117,10 +117,10 @@ history.
   other fields cite.
 - [ ] **PT2 / ExecuTorch reader never sets `type_of_model` (S).** No
   `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
-- [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
-  Questions, moved to
+- [ ] **GGUF licence comma lists (S, needs a decision).** `other` alone is
+  fixed (see Fixed, below). Questions, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
-  (C15, C16).
+  (C15, and C16 for a `LicenseRef-` from a stated name).
 - [ ] **GGUF `general.license` with a zero-width character (S).** A
   question, moved to
   [canonical-output-followups.md](../canonical-output-followups.md#c17-invisible-characters-at-the-edges-of-a-licence-value)
@@ -132,10 +132,15 @@ history.
   `signature.input_specs` marks only `x` as `user_input`. Read user inputs
   only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
   fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`. Malformed
-  `model.json` shapes: see the fixed PT2 entry under Fixed, P3.
-- [ ] **Safetensors name and framework (S).** `ss_base_model_version` (the
-  base model, not this one) is a name candidate; prefer `ss_output_name`.
-  Framework is the raw `format` value `pt`, not `pytorch`.
+  `model.json` shapes: see the fixed PT2 entry under Fixed, P3. The same
+  "ExecuTorch" naming is in the reader's docstrings (`pytorch_pt2.py`) and
+  the website (`docs/ai-model-formats.md`, `cli.md`, `g7-sbom-for-ai.md`,
+  `ai-model-scan-limits.md`: "PT2 / ExecuTorch"); the fixture page is
+  corrected (2026-11-14).
+- [ ] **Safetensors framework (S).** Framework is the raw `format` value
+  `pt`, not `pytorch`. The name no longer falls back to
+  `ss_base_model_version` (Fixed, below); kohya-ss `ss_output_name` (the
+  trainer's output name) is an unread name candidate, to decide.
 - [ ] **Keras `layer_count` counts `InputLayer` (S, needs a decision).**
   `len(layers)` in `hdf5_config.py`, shared by the Keras v3 reader since
   2026-11-09 (the fixture's `Sequential` of `InputLayer`, two `Dense` gives 3).
@@ -144,8 +149,9 @@ history.
   `test_hdf5_hostile_attrs.py` and `test_keras_config.py` pin the current
   count and must flip.
 - [ ] **Type of model holds a class or training mode (S).** PyTorch
-  `OrderedDict` (a state dict) and fastText `supervised`/`cbow`/`skipgram`
-  reach `ai_typeOfModel`; neither is a model type. Map or drop.
+  `OrderedDict` (a state dict; a full save gives its module class, `Linear`,
+  since 2026-11-14) and fastText `supervised`/`cbow`/`skipgram` reach
+  `ai_typeOfModel`; neither is a model type. Map or drop.
 - [ ] **`software_primaryPurpose` never set on `ai_AIPackage` (S).**
   Documented as fragment-only; decide whether a model gets `model` by default.
 - [ ] **Quantised fastText (`.ftz`) leaves `quantization` empty (S).**
@@ -272,6 +278,38 @@ history.
 Kept for history, with the PR. A fixed entry moves to
 [roadmap-completed.md](../../implementation/roadmap-completed.md) once its
 release ships.
+
+### Fixed, P3: after 0.24.0
+
+Found by the fact-check of the AI SBOM workshop paper against 0.24.0
+(2026-11-14).
+
+- [x] **A full PyTorch save's type of model was `OrderedDict` (S).** Fixed
+  (PR #483, provisional number): `_top_class` (`extract/ai_model/pytorch.py`) follows
+  fickling's `result` assignment through aliases to the call that built the
+  top-level object (`Cls()`, `Cls.__new__(Cls)`, `_reconstructor(Cls, ...)`),
+  so `example-model.pt` gives `Linear`. Was: the first title-case call of a
+  breadth-first `ast.walk`, the parameters' `OrderedDict`. Reversal: a plain
+  `dict` checkpoint (`{"model": state_dict, ...}`) gave the nested
+  `OrderedDict` and now gives none; the fixtures' sweep (HEAD vs tree, every
+  `.pt`/`.pth`/`.bin`) changed only `example-model.pt`. Still `None`
+  (review probes, as before the fix): a nested class at protocols 0-3
+  (`_var0 = getattr(Outer, 'Inner')` then `_var0.__new__(_var0)`; torch saves
+  at protocol 2, so a nested `nn.Module`), `copyreg.__newobj__(Cls)` from a
+  custom `__reduce__`, and `__getnewargs_ex__` at protocols 2-3
+  (`partial(getattr(Cls, '__new__'))`). Following a `Name` callee through the
+  assignments would cover the first. `NA` and `not applicable` are not
+  licence placeholders (`NA` is text with a `WARNING:`).
+- [x] **A placeholder licence with nothing to point at was licence text
+  (S).** Fixed (PR #483): GGUF `general.license` `other`, `custom`,
+  `proprietary`, `unlicensed` or `N/A` with no `general.license.name` gives no
+  licence (the value stays a property), as a Hub card's `other` does;
+  `unknown`/`NOASSERTION` stay. `N/A` joined `VAGUE_LICENSE_VALUES`, so a Hub
+  card's `N/A` falls back to licence files and is kept as `hf.license_raw`.
+- [x] **Safetensors name fell back to `ss_base_model_version` (S).** Fixed
+  (PR #483): the kohya-ss key names the base model, so it stays a property
+  only. Not mapped to `descendantOf`: its values (`sdxl_base_v1-0`, `sd_v1`)
+  name a model family, not a resolvable model.
 
 ### Fixed, P3: 0.23.4
 

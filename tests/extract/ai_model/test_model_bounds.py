@@ -139,7 +139,7 @@ def test_fickling_stderr_becomes_one_bounded_escaped_warning(
     def noisy(_stream: io.BytesIO) -> object:
         for _ in range(200):
             sys.stderr.write(noise + "y" * 500 + "\n")
-        return SimpleNamespace(ast=ast.parse("Foo()"))
+        return SimpleNamespace(ast=ast.parse("result = Foo()"))
 
     caplog.set_level(logging.WARNING)
     with mock.patch.object(Pickled, "load", side_effect=noisy):

@@ -303,16 +303,20 @@ def _read_gguf_license(
     it is a non-blank string; a value of another type stays in
     ``properties`` only. One that is no SPDX expression (``llama3.1``) is
     text, with a ``WARNING:``. With no ``general.license``, or a placeholder
-    (``other``, ``custom``, ...), ``general.license.name`` (the licence's name:
-    free text, no field warning) stands in; ``general.license.link`` is not
-    read."""
+    (``other``, ``custom``, ``N/A``, ``NOASSERTION``, ...),
+    ``general.license.name`` (the licence's name: free text, no field
+    warning) stands in; ``general.license.link`` is not read. A placeholder
+    pointing elsewhere (``other``, ``custom``, ``N/A``: not
+    ``NOASSERTION``/``UNKNOWN``, which say "not known") with no name is no
+    licence, as on the Hub."""
     license_expr = stated_text(fields.get(_GGUF_LICENSE_KEY))
     name = stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
     # llama.cpp's converter writes a card's ``license: other`` with its
     # ``license_name`` as ``general.license.name``: a placeholder (``other``,
     # ``NOASSERTION``, ...) gives way to it; ``NONE`` is a statement and stays.
-    placeholder = is_vague_license_value(license_expr) or is_weak_licence(license_expr)
-    if license_expr and not (name and placeholder):
+    weak = is_weak_licence(license_expr)
+    vague = not weak and is_vague_license_value(license_expr)
+    if license_expr and not vague and not (name and weak):
         warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
         provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
         return license_expr

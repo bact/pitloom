@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -297,6 +297,10 @@ Highest priority first.
 - [ ] **TensorFlow Lite** (and SavedModel): `TFL3` FlatBuffer checked on two
   Hub files; design note with open questions. See
   [tensorflow-lite-savedmodel-support.md](tensorflow-lite-savedmodel-support.md).
+- [ ] **Fields the built model readers leave unread**: PT2 parameter count
+  from `is_param`, GGUF `general.base_model.*`/`general.dataset.*`/`general.source.*`
+  as lineage and datasets, the Hub's declared per-file LFS SHA-256. See
+  [model-metadata-extraction.md](model-metadata-extraction.md#fields-the-built-readers-could-read).
 - [ ] **Other model formats**: scikit-learn (pickle/joblib). See
   [model-metadata-extraction.md](model-metadata-extraction.md),
   [docs/ai-model-formats.md](../../docs/ai-model-formats.md).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -413,13 +413,15 @@ origin; KB is [known-bugs.md](known-bugs.md).
 - **Question:** one rule for `other` (`custom`, `proprietary`) in every
   format: a `LicenseRef-` from GGUF `general.license.name` (`.link` as its
   text or URL), `NoAssertionLicense`, or nothing?
-- **Why it matters:** GGUF `other` becomes the text `other` and ignores
-  `.name`/`.link`; a Hugging Face card `other` gives nothing and triggers
-  file detection. One meaning, two shapes.
+- **Why it matters:** a stated name is kept as text, not an identifier;
+  `.link` is never read.
 - **Options:** `LicenseRef-` from a stated name (idstring escaping to
   decide); nothing in every format (the Hugging Face rule);
   `NoAssertionLicense`.
-- **Current behaviour:** as above; the Hugging Face cascade part is
+- **Current behaviour:** GGUF `other` (or `custom`, `N/A`, ...) with a
+  `general.license.name` gives the name as text; with none, nothing (the
+  Hugging Face rule, since 2026-11-14, PR #483). Open: a `LicenseRef-` from
+  a stated name, and reading `.link`. The Hugging Face cascade part is
   license-rules question 8.
 - **Owner:** licence rules. Found in the #294 reviews; was in KB.
 
