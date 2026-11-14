@@ -61,7 +61,7 @@ from pitloom.messages.files import (
     Cap,
     warn_over_cap,
 )
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
 
@@ -326,13 +326,16 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
     an explicit config replaces it, so a fault in it cannot fail the read.
 
     Raises:
-        FileNotFoundError: *sdist_path* does not exist.
+        FileNotFoundError: Nothing is at *sdist_path*, or not a regular
+            file (``input-not-found``, carrying the code).
+        pitloom.messages.CodedValueError: *sdist_path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
         ValueError: with *read_config*, the archive's own config cannot be
             read (invalid TOML, not UTF-8, over the size cap) or is invalid,
             as for a directory; the message names the member
             (``<archive>:pyproject.toml``).
     """
-    if not sdist_path.exists():
+    if not is_input_file(sdist_path):
         raise input_not_found("sdist archive", sdist_path)
 
     # The archive as given, as load_config_file() names a --config file.

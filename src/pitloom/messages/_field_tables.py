@@ -91,6 +91,10 @@ CAP_WORD: Final = r"[.A-Za-z][-.A-Za-z0-9]*"
 #: What an SBOM given to read (to embed, to import into an ID registry) is
 #: read for, as its lines say it: one of :data:`READ_USES`.
 SBOM_USE: Final = "for the SBOM"
+#: The use of a path named for Pitloom to read that the system will not let
+#: it look at (:func:`~pitloom.messages.targets.input_exists`): one of
+#: :data:`READ_USES`.
+INPUT_USE: Final = "for the input check"
 
 #: What a file was read for, or a directory listed for, as a
 #: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
@@ -103,6 +107,7 @@ READ_USES: Final = (
     "for file discovery",
     "for file scanning",
     "for ID registry indexing",
+    INPUT_USE,
     "for license files",
     "for the Croissant document",
     "for the dataset card",

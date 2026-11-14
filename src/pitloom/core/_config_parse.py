@@ -51,7 +51,7 @@ from pitloom.core.file_names import (
     sbom_base_name,
 )
 from pitloom.core.quote_source import quote_source
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_not_found, is_input_file
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
@@ -448,7 +448,7 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
         FileNotFoundError: *pyproject_path* does not exist.
         ValueError: the file is not valid TOML or its settings are invalid.
     """
-    if not pyproject_path.exists():
+    if not is_input_file(pyproject_path):
         raise input_not_found("pyproject.toml", pyproject_path)
 
     data: dict[str, Any] = load_toml_file(pyproject_path)

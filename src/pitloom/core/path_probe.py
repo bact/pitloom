@@ -62,6 +62,15 @@ def is_missing_errno(exc: OSError) -> bool:
     )
 
 
+def is_directory_error(exc: OSError, path: str | os.PathLike[str]) -> bool:
+    """Whether *exc*, raised opening *path* to read it, says *path* is a
+    directory: ``IsADirectoryError`` (POSIX), or ``PermissionError`` on a
+    directory (Windows opens none, with ``EACCES``)."""
+    return isinstance(exc, IsADirectoryError) or (
+        isinstance(exc, PermissionError) and os.path.isdir(path)
+    )
+
+
 def stat_if_present(path: str | os.PathLike[str]) -> os.stat_result | None:
     """``os.stat(path)``, or ``None`` for a missing path (per
     :func:`is_missing_errno`); any other ``OSError`` (e.g.

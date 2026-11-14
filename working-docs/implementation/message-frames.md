@@ -77,6 +77,13 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
 - A path in an `input-not-found` line is named as the user gave it (the
   argument as typed, the configured value) whenever the caller has that
   spelling; a resolved or absolute form is used only for the check (the
-  docstring of `messages._input_not_found_say.input_not_found`).
+  docstring of `messages._input_not_found_say.input_not_found`). The CLI's
+  `--id-registry` and a `--config` file's `id-registry` keep that spelling
+  through `core.given_file.GivenPath`, so `resolve_registry` names it too.
+- An input check uses the shared probe (`messages.targets.input_exists`,
+  `is_input_file`, `is_input_dir`), never `os.path.isfile` and its
+  siblings: those say `False` for a path under a directory that cannot be
+  searched, which is `file-unreadable` ("for the input check"), not
+  `input-not-found`.
 - An exception with empty text is said by its class name
   (`ERROR: loom model: RuntimeError`), so the line never stops at the frame.

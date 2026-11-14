@@ -378,7 +378,7 @@ def test_embed_sbom_orig_mode_none_skips_chmod(
 
     def fake_exists(self: Path) -> bool:
         call_count["n"] += 1
-        if call_count["n"] == 2:
+        if call_count["n"] == 1:
             return False
         return real_exists(self)
 

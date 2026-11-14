@@ -99,10 +99,11 @@ INPUT_NOT_FOUND: Final = Message(
     did="Wrote nothing: no SBOM is written; for 'loom id', the ID registry "
     "is not written; for 'loom embed-wheel', no wheel is changed; a check "
     "('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') "
-    "checks nothing. The command exits 1, the library raises "
-    "FileNotFoundError carrying the code, or ValueError carrying it for a "
-    "fragments directory that holds no JSON file. A Git URL's error code is "
-    "git.path-not-found.",
+    "checks nothing. The command exits 1 (the Action step fails), the build "
+    "hook fails the build, and the library raises FileNotFoundError carrying "
+    "the code, ValueError for a fragments directory that holds no JSON file, "
+    "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
+    "folder.",
     effect="not-written",
     actor="user",
     advice="Tell the user which path was not found, as the line names it "
@@ -129,9 +130,11 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     lines=(FRAGMENT_LINE, REQUIRED_FRAGMENT_LINE),
     summary="An SBOM fragment the project configures ([tool.pitloom.fragment]) "
     "does not exist.",
-    did="Merged the SBOM without it. For a fragment marked required, the "
-    "merge then fails with an ERROR: and no SBOM is written; 'loom fragment "
-    "list' only reports it.",
+    did="Merged the SBOM without it, and wrote it (the build hook builds the "
+    "wheel). For a fragment marked required, the merge then fails with an "
+    "uncoded ERROR: and no SBOM is written: the command exits 1, the hook "
+    "fails the build, the library raises FragmentMergeError. 'loom fragment "
+    "list' lists it with EXISTS=false, and exits 1 for a required one.",
     effect="thinner",
     actor="user",
     advice="Tell the user which fragment was not found, as the line names it. "

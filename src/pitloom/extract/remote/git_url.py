@@ -41,6 +41,7 @@ __all__ = [
     "HUB_GIT_AREAS",
     "HUB_HOST_PATTERN",
     "is_git_url",
+    "is_hub_model_url",
     "is_unsupported_remote_url",
     "parse_git_page",
     "scheme_allowed",
@@ -116,6 +117,21 @@ def is_git_url(source: str) -> bool:
         return True
     area = parts.path.lstrip("/").split("/", 1)[0].lower()
     return area in HUB_GIT_AREAS
+
+
+def is_hub_model_url(source: str) -> bool:
+    """Whether *source* is an ``http`` or ``https`` URL on a Hugging Face host
+    that is no Git repository (:func:`is_git_url`): a model's, whether its
+    path names one (``owner/name``) or not, so that a malformed one is
+    refused as a Hugging Face URL, not taken for a local path."""
+    text = source.strip()
+    if not text.lower().startswith(("http://", "https://")):
+        return False
+    try:
+        host = urlsplit(text).hostname or ""
+    except ValueError:
+        return False
+    return _HF_HOST.fullmatch(host) is not None and not is_git_url(text)
 
 
 def scheme_allowed(url: str) -> bool:

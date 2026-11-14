@@ -47,6 +47,8 @@ from pitloom.messages import (
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_ID_PATHS_LINE,
+    is_input_dir,
+    is_input_file,
     say_input_not_found,
 )
 
@@ -292,7 +294,7 @@ def _register_entities(
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `loom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
-    if not os.path.isdir(project_dir):
+    if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:
@@ -330,12 +332,12 @@ def _import_failure_text(sbom_path: Path, exc: Exception) -> str:
 def _run_id_import(args: argparse.Namespace) -> int:
     """Run `loom id import`."""
     sbom_path: Path = args.sbom.resolve()
-    if not os.path.isfile(sbom_path):
+    if not is_input_file(sbom_path, shown=args.sbom):
         say_input_not_found("SBOM file", args.sbom)
         return 1
 
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
-    if not os.path.isdir(project_dir):
+    if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
         say_input_not_found("project directory", args.project_dir or project_dir)
         return 1
     try:

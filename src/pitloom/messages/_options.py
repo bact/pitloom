@@ -52,14 +52,17 @@ OPTION_NO_EFFECT: Final = Message(
     condition="no-effect",
     lines=(OPTIONS_NO_EFFECT_LINE, OPTIONS_NO_EFFECT_INFO_LINE, BUILD_NO_EFFECT_LINE),
     summary="An option or setting was given that the target or command cannot "
-    "act on (a build flag without --allow-build, --use-lockfile for a wheel, "
-    "a library parameter a URL target ignores); the line says why.",
-    did="Ran as if it were not given.",
+    "act on (a build flag without --allow-build, --use-lockfile for a wheel "
+    "given to 'loom generate', a library parameter a URL target ignores); "
+    "the line says why. The INFO: line is a [tool.pitloom] setting the "
+    "build hook or 'embed-wheel' never acts on, named by its flag.",
+    did="Ran as if it were not given; the run goes on.",
     effect="none",
     actor="caller",
     advice="The caller may drop the option from its command, or pick the "
     "target or companion option it needs (the line says which). Nothing to "
-    "tell the user unless they asked for the option.",
+    "tell the user unless they asked for the option; for the INFO: line, do "
+    "not edit their configuration.",
     since=_SINCE,
 )
 
@@ -89,8 +92,9 @@ OPTION_INVALID: Final = Message(
     "unknown subcommand, or an option out of order (a creator's type or email "
     "before its name). An option given without its value is option-missing; "
     "two options argparse refuses together are option-conflict.",
-    did="Ran nothing: the command exits 2 (a parse error) or 1, the library "
-    "raises ValueError.",
+    did="Ran nothing: the command exits 2 (the Action step fails); the "
+    "library raises ValueError carrying the code for a build timeout out of "
+    "range (BuildOptions).",
     effect="not-written",
     actor="caller",
     advice="The caller may fix the option or value the line names ('loom "

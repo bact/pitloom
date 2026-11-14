@@ -42,6 +42,7 @@ from pitloom.extract.remote import (
     is_git_url,
     is_huggingface_source,
     is_unfetchable_remote,
+    require_hf_model_id,
 )
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.extract.remote.pypi_url import is_pypi_url
@@ -135,6 +136,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
     URL."""
     if isinstance(args.project_dir, str):
         if _is_hub_model_url(args.project_dir):
+            # A malformed one says so now, not after a run of 'loom model'.
+            require_hf_model_id(args.project_dir)
             print_error(
                 HUB_MODEL_NOT_PROJECT_LINE.render(
                     {"url": sanitize_url(args.project_dir)}

@@ -24,6 +24,7 @@ from pitloom.extract.remote.huggingface import (
     log_hf_url_rewrite,
     parse_hf_model_id,
     read_huggingface,
+    require_hf_model_id,
 )
 from pitloom.extract.remote.pypi import PypiDownload, fetch_pypi_file, sdist_hint
 from pitloom.extract.remote.pypi_url import (
@@ -51,5 +52,6 @@ __all__ = [
     "parse_pypi_url",
     "pypi_json_url",
     "read_huggingface",
+    "require_hf_model_id",
     "sdist_hint",
 ]

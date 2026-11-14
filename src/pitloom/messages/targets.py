@@ -36,7 +36,10 @@ from pitloom.messages._input_not_found import (
     REQUIRED_FRAGMENT_LINE,
 )
 from pitloom.messages._input_not_found_say import (
+    input_exists,
     input_not_found,
+    is_input_dir,
+    is_input_file,
     say_input_not_found,
     warn_fragment_not_found,
 )
@@ -110,7 +113,10 @@ __all__ = [
     "SBOM_WRONG_FORMAT",
     "TARGET_AMBIGUOUS",
     "TARGET_WRONG_FORMAT",
+    "input_exists",
     "input_not_found",
+    "is_input_dir",
+    "is_input_file",
     "say_input_not_found",
     "warn_fragment_not_found",
 ]

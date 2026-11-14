@@ -23,7 +23,7 @@ values.
 | [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels). The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.24.1 |
 | [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, or an option out of order (a creator's type or email before its name). An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.24.1 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.24.1 |
-| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel, a library parameter a URL target ignores); the line says why. | 0.24.1 |
+| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. | 0.24.1 |
 
 ### `option-conflict`
 
@@ -53,8 +53,9 @@ values.
   name). An option given without its value is option-missing; two options
   argparse refuses together are option-conflict.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Ran nothing: the command exits 2 (a parse error) or 1, the
-  library raises ValueError.
+- **Pitloom did**: Ran nothing: the command exits 2 (the Action step fails); the
+  library raises ValueError carrying the code for a build timeout out of range
+  (BuildOptions).
 - **The caller may fix**: The caller may fix the option or value the line names
   ('loom <command> --help' lists them) and run again. Tell the user only when
   the value came from them.
@@ -92,13 +93,16 @@ values.
 
 - **Level**: WARNING, INFO.
 - **Means**: An option or setting was given that the target or command cannot
-  act on (a build flag without --allow-build, --use-lockfile for a wheel, a
-  library parameter a URL target ignores); the line says why.
+  act on (a build flag without --allow-build, --use-lockfile for a wheel given
+  to 'loom generate', a library parameter a URL target ignores); the line says
+  why. The INFO: line is a [tool.pitloom] setting the build hook or
+  'embed-wheel' never acts on, named by its flag.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Ran as if it were not given.
+- **Pitloom did**: Ran as if it were not given; the run goes on.
 - **The caller may fix**: The caller may drop the option from its command, or
   pick the target or companion option it needs (the line says which). Nothing to
-  tell the user unless they asked for the option.
+  tell the user unless they asked for the option; for the INFO: line, do not
+  edit their configuration.
 - **Lines**:
 
   ```text

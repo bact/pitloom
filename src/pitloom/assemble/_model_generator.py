@@ -286,6 +286,8 @@ def generate_model_sbom(
         require_download_override(max_download_bytes)  # even if inert
     source_str = str(source)
     is_hf = is_huggingface_source(source_str)
+    if is_hf:
+        source_str = source_str.strip()
     settle_inert(
         HF if is_hf else MODEL_FILE,
         source_str,

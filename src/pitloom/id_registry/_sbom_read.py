@@ -19,30 +19,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_format import read_given_sbom
 from pitloom.id_registry._harvest import _sorted_by_spdx_id
-from pitloom.messages import CodedValueError
-from pitloom.messages.targets import (
-    SBOM_GRAPH_ELEMENT_LINE,
-    SBOM_GRAPH_NOT_LIST_LINE,
-    SBOM_INVALID,
-)
 
 __all__ = ["document_id", "read_sbom_objects"]
-
-
-def _require_graph_list(data: dict[str, Any], sbom_path: Path) -> None:
-    """Raise ``ValueError`` when the JSON object *data*, read from
-    *sbom_path*, has an ``@graph`` that is not a list, or holds a non-object
-    (``sbom-invalid``, naming *sbom_path*): the deserialiser would leak a
-    ``TypeError``."""
-    graph = data.get("@graph", [])
-    if not isinstance(graph, list):
-        raise CodedValueError(
-            SBOM_INVALID, line=SBOM_GRAPH_NOT_LIST_LINE, file=sbom_path
-        )
-    if not all(isinstance(element, dict) for element in graph):
-        raise CodedValueError(
-            SBOM_INVALID, line=SBOM_GRAPH_ELEMENT_LINE, file=sbom_path
-        )
 
 
 def read_sbom_objects(sbom_path: Path) -> list[Any]:
@@ -55,13 +33,12 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
         pitloom.messages.CodedValueError: It is refused as ``embed-wheel
             --sbom`` refuses it (:func:`~pitloom._sbom_format.read_given_sbom`:
             ``file-unreadable``, ``over-cap``, ``json-malformed``,
-            ``sbom-wrong-format``), or its ``@graph`` is malformed
-            (``sbom-invalid``); each names *sbom_path*. The deserialiser's
+            ``sbom-wrong-format``, ``sbom-invalid`` for an ``@graph`` that
+            is not a list of objects); each names *sbom_path*. The deserialiser's
             own errors are uncoded.
     """
     object_set = spdx3.SHACLObjectSet()
     given = read_given_sbom(sbom_path)
-    _require_graph_list(given.document, sbom_path)
     raw = io.BytesIO(given.text.encode("utf-8"))
     spdx3.JSONLDDeserializer().read(raw, object_set)
     return _sorted_by_spdx_id(object_set)

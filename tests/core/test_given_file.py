@@ -14,8 +14,11 @@ embed-wheel refuses), tests/id_registry/test_registry_import.py.
 from __future__ import annotations
 
 import builtins
+import copy
+import dataclasses
 import errno
 import os
+import pickle  # nosec B403 # round-trips its own value
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -25,7 +28,8 @@ import pytest
 
 import pitloom.core.given_file
 from pitloom import __main__
-from pitloom.core.given_file import read_given_bytes
+from pitloom.core.config_cascade import load_config_file
+from pitloom.core.given_file import GivenPath, read_given_bytes
 from pitloom.embed import embed_wheel_sbom
 from pitloom.id_registry import IdRegistry
 from pitloom.messages import code_of, trusted_message
@@ -104,6 +108,8 @@ def _write(sbom: Path, given: str, monkeypatch: pytest.MonkeyPatch) -> None:
         "utf16": _DOCUMENT.encode("utf-16"),
         "utf32": _DOCUMENT.encode("utf-32"),
         "not-spdx3": b'{"a": 1}',
+        "graph-not-list": b'{"@context": "x", "@graph": {}}',
+        "graph-element": b'{"@context": "x", "@graph": [1]}',
     }
     if given in ("directory", "directory-windows"):
         sbom.mkdir()
@@ -143,6 +149,8 @@ def _write(sbom: Path, given: str, monkeypatch: pytest.MonkeyPatch) -> None:
             marks=pytest.mark.skipif(not HAS_FIFO, reason="needs a FIFO"),
         ),
         ("not-spdx3", "sbom-wrong-format"),
+        ("graph-not-list", "sbom-invalid"),
+        ("graph-element", "sbom-invalid"),
         ("over-cap", "over-cap"),
     ],
 )
@@ -189,3 +197,35 @@ def test_a_file_is_read_in_chunks_up_to_the_cap(
     with pytest.raises(ValueError, match="larger than the 20000-byte") as raised:
         read_given_bytes(given, kind="SBOM file", use=SBOM_USE)
     assert code_of(raised.value) == "over-cap"
+
+
+@pytest.mark.parametrize(
+    "rebuild",
+    [
+        copy.copy,
+        copy.deepcopy,
+        lambda p: pickle.loads(pickle.dumps(p)),  # nosec B301 # own data
+        lambda p: pickle.loads(pickle.dumps(p, protocol=0)),  # nosec B301
+    ],
+    ids=["copy", "deepcopy", "pickle", "pickle-0"],
+)
+def test_a_given_path_survives_copy_and_pickle(
+    rebuild: Callable[[GivenPath], object],
+) -> None:
+    """With its spelling, and still equal to (and hashed as) the path."""
+    path = GivenPath("/abs/reg.json", "reg.json")
+    again = rebuild(path)
+    assert isinstance(again, GivenPath)
+    assert (again, again.given, repr(again)) == (path, "reg.json", "'/abs/reg.json'")
+    assert hash(again) == hash("/abs/reg.json")
+
+
+def test_a_config_holding_a_given_path_converts_to_a_dict(tmp_path: Path) -> None:
+    """``load_config_file`` keeps the spelling of a relative ``id-registry``;
+    ``dataclasses.asdict`` deep-copies it."""
+    config = tmp_path / "c.toml"
+    config.write_text('[tool.pitloom]\nid-registry = "sub/r.json"\n', "utf-8")
+    loaded = load_config_file(config)
+    assert isinstance(loaded.id_registry, GivenPath)
+    said = dataclasses.asdict(loaded)["id_registry"]
+    assert (said, said.given) == (str(tmp_path / "sub/r.json"), "sub/r.json")

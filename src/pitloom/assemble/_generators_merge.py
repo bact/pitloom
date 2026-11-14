@@ -29,6 +29,7 @@ from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_FRAGMENT_FILE_LINE,
     input_not_found,
+    is_input_dir,
 )
 
 
@@ -47,8 +48,9 @@ def generate_merged_sbom(
     directory or the order the files were written in.
 
     Raises:
-        FileNotFoundError: *fragments_dir* does not exist.
-        ValueError: it has no ``*.json`` file.
+        FileNotFoundError: *fragments_dir* does not exist, or is not a
+            directory (``input-not-found``, carrying the code).
+        ValueError: it has no ``*.json`` file (``input-not-found``).
         pitloom.assemble.FragmentMergeError: the merge left a dangling
             reference, a root included, or a licence relationship end of the
             wrong type (a ``pitloom.assemble.spdx3.fragments.
@@ -56,7 +58,7 @@ def generate_merged_sbom(
     """
     configure_logging()
     fragments_dir = Path(fragments_dir)
-    if not fragments_dir.exists():
+    if not is_input_dir(fragments_dir):
         raise input_not_found("fragments directory", fragments_dir)
     files = fragment_files(fragments_dir)
     if not files:

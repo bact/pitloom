@@ -14,7 +14,6 @@ from __future__ import annotations
 import ast
 import logging
 import math
-import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,7 @@ from pitloom.extract.project._setuptools_options import (
     shown_value,
 )
 from pitloom.logging_config import one_line
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
 
@@ -276,8 +275,8 @@ def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOpt
         ValueError: ``setup.py`` cannot be read or parsed; one line.
     """
     setup_py_path = project_dir / "setup.py"
-    # isfile: a directory or a FIFO is none, as for setup.cfg; never raises
-    if not os.path.isfile(setup_py_path):
+    # A directory or a FIFO is none, as for setup.cfg.
+    if not is_input_file(setup_py_path):
         raise input_not_found("setup.py", setup_py_path)
     try:
         # Bytes: the parser honours a BOM and a PEP 263 coding line.

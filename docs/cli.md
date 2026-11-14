@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,9 +165,11 @@ the `oid`, the stated size and `git lfs pull`), absent or unreadable is an
 [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Or pass a Hugging Face Hub URL or model ID, with no local file (needs `pip
-install pitloom[huggingface_hub]`). Anything else is
-`URL=<url>: not a valid Hugging Face URL or model ID [hf-url-invalid]`, and
-`loom project` given a model says
+install pitloom[huggingface_hub]`). A huggingface.co or hf.co URL that names
+no model (`https://huggingface.co/owner`) is
+`URL=<url>: not a valid Hugging Face URL or model ID [hf-url-invalid]`, not a
+missing model file, under `loom project` too; white space around a URL or
+ID is ignored. `loom project` given a model says
 `URL=<url>: a Hugging Face model, not a project; use 'loom model' [target-wrong-format]`:
 
 ```bash

@@ -36,7 +36,8 @@ TARGET_WRONG_FORMAT: Final = Message(
     summary="The target given is not of the kind the command reads: a Hugging "
     "Face model given to 'loom project', or a file not named .whl given as a "
     "wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').",
-    did="Read nothing of it: the command exits 1.",
+    did="Read nothing of it: the command exits 1; the library raises "
+    "ValueError carrying the code for a file not named .whl.",
     effect="not-written",
     actor="caller",
     advice="The caller may run the command the line names, or give a wheel "
@@ -56,7 +57,11 @@ HF_URL_INVALID: Final = Message(
     lines=(HF_URL_LINE,),
     summary="A Hugging Face target is neither a Hub model URL "
     "(https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).",
-    did="Wrote no SBOM, and sent no request.",
+    did="Read nothing and sent no request: 'loom model', 'loom project' and "
+    "'loom generate' exit 1; generate_model_sbom and read_huggingface raise "
+    "ValueError carrying the code. An http(s) URL on huggingface.co or hf.co "
+    "that is no Space or dataset is taken as a model URL, so a malformed one "
+    "says this, not that a model file is not found.",
     effect="not-written",
     actor="user",
     advice="Tell the user the URL or id was not read, as the line gives it. "

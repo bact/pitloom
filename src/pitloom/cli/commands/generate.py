@@ -9,7 +9,6 @@ the target."""
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +48,7 @@ from pitloom.messages.options import (
     OPTION_MISSING,
     OUTPUT_REQUIRED_LINE,
 )
-from pitloom.messages.targets import say_input_not_found
+from pitloom.messages.targets import input_exists, say_input_not_found
 
 
 def _run_project_target(args: argparse.Namespace) -> int:
@@ -58,7 +57,7 @@ def _run_project_target(args: argparse.Namespace) -> int:
     the build-flag WARNING: precedes any metadata WARNING:. A missing target
     is named as typed (read_project would name the resolved path)."""
     target_path = Path(args.target).resolve()
-    if not os.path.exists(target_path):
+    if not input_exists(target_path, shown=args.target):
         say_input_not_found("project path", Path(args.target))
         return 1
     build_options = build_options_from_args(args).settle_target(target_path)

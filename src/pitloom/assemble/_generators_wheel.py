@@ -40,6 +40,7 @@ from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.walk_rules import without_registry_copies
+from pitloom.core.wheel_dist_info import require_wheel_file
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.extract.remote.pypi_url import is_pypi_url
@@ -127,8 +128,13 @@ def generate_wheel_sbom(
             archive, a member cannot be read, two members have one name or
             one holds a NUL; or *max_model_extract_bytes* is not an
             integer of at least 1.
-        FileNotFoundError: *project_dir* is given and is not a directory.
-        OSError: *wheel_path* cannot be opened (missing, permission denied).
+        FileNotFoundError: Nothing is at *wheel_path*, or not a regular
+            file; or *project_dir* is given and is not a directory
+            (``input-not-found``, carrying the code).
+        pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+        OSError: The file itself cannot be opened (its own permissions, a
+            transient I/O error).
         pitloom.extract.remote.errors.RemoteSourceError: a PyPI URL's
             wheel could not be fetched or verified (``pypi.*``).
     """
@@ -220,8 +226,13 @@ def generate_wheel_sbom_with_metadata(
             archive, a member cannot be read, two members have one name or
             one holds a NUL; or *max_model_extract_bytes* is not an
             integer of at least 1.
-        FileNotFoundError: *project_dir* is given and is not a directory.
-        OSError: *wheel_path* cannot be opened (missing, permission denied).
+        FileNotFoundError: Nothing is at *wheel_path*, or not a regular
+            file; or *project_dir* is given and is not a directory
+            (``input-not-found``, carrying the code).
+        pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+        OSError: The file itself cannot be opened (its own permissions, a
+            transient I/O error).
     """
     configure_logging()
     del check_url  # nothing is fetched for a local wheel
@@ -229,6 +240,7 @@ def generate_wheel_sbom_with_metadata(
         require_download_override(max_download_bytes)  # even if inert
         settle_inert(WHEEL, wheel_path, {"max_download_bytes": max_download_bytes})
     wheel_path_obj = Path(wheel_path)
+    require_wheel_file(wheel_path_obj)
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(

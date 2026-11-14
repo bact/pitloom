@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
 import pickle  # nosec B403
 import sys
 from pathlib import Path, PureWindowsPath
 
 import pytest
 
+import pitloom.messages._input_not_found_say as say
 from pitloom import __main__
 from pitloom.core.internal_error import InternalError
 from pitloom.core.quote_source import quote_source
@@ -228,3 +230,29 @@ def test_the_printed_line_is_the_raised_text(
     raised = input_not_found(kind, path)
     assert capsys.readouterr().err == f"ERROR: {raised} [input-not-found]\n"
     assert "u:p" not in str(raised)
+
+
+@pytest.mark.parametrize(
+    ("kind", "tail", "probed"),
+    [
+        ("project path", "", False),
+        ("wheel file", " is not a file", True),
+        ("fragments directory", " is not a directory", True),
+    ],
+    ids=["either-kind", "file-kind", "directory-kind"],
+)
+def test_a_path_that_appears_after_the_probe_is_named_by_its_kind(
+    kind: str, tail: str, probed: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The caller's probe found nothing; by the message a regular file is
+    there. A kind that names a file or a directory says what is there; one
+    that names either is not probed again and still reads as not found."""
+    looked: list[object] = []
+
+    def appeared(path: object) -> os.stat_result:
+        looked.append(path)
+        return os.stat(__file__)
+
+    monkeypatch.setattr(say, "stat_if_present", appeared)
+    assert str(input_not_found(kind, "p")) == f"{kind} not found: 'p'{tail}"
+    assert looked == (["p"] if probed else [])

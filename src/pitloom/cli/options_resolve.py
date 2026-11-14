@@ -46,6 +46,7 @@ from pitloom.logging_config import print_error
 from pitloom.messages.targets import (
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_LINE,
+    input_exists,
     say_input_not_found,
 )
 
@@ -96,7 +97,7 @@ class _ResolvedCreationMetadata:
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
-    if not project_dir.exists():
+    if not input_exists(project_dir, shown=args.project_dir):
         # A URL Pitloom does not read (user information in a Hugging Face
         # one) reaches here as a path: the line masks it.
         say_input_not_found("project directory", args.project_dir)

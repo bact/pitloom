@@ -17,7 +17,7 @@ import stat
 from typing import IO
 
 from pitloom.core.path_confine import open_nonblocking
-from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import (
     OVER_CAP,
@@ -27,7 +27,7 @@ from pitloom.messages.files import (
 )
 from pitloom.messages.targets import input_not_found
 
-__all__ = ["FETCH_MAX_BYTES", "read_given_bytes"]
+__all__ = ["FETCH_MAX_BYTES", "GivenPath", "given_spelling", "read_given_bytes"]
 
 #: Largest file or response read whole for parsing (an SBOM, a JSON source,
 #: a lock or pin file); a caller over it fails with its own ``WARNING:`` or
@@ -37,13 +37,32 @@ FETCH_MAX_BYTES = 50 * 1024 * 1024
 _CHUNK_BYTES = 8192
 
 
-def _is_directory(exc: OSError, path: str | os.PathLike[str]) -> bool:
-    """Whether *exc*, raised opening *path*, says *path* is a directory:
-    ``IsADirectoryError`` (POSIX), or ``PermissionError`` on a directory
-    (Windows opens none, with ``EACCES``)."""
-    return isinstance(exc, IsADirectoryError) or (
-        isinstance(exc, PermissionError) and os.path.isdir(path)
-    )
+class GivenPath(str):
+    """A path resolved for the read (made absolute against the current
+    directory, or a configuration file's directory) that keeps the spelling
+    the user gave, for a message to name (:func:`given_spelling`), as
+    :func:`~pitloom.messages.targets.input_not_found` asks."""
+
+    given: str
+
+    def __new__(
+        cls, resolved: str | os.PathLike[str], given: str | os.PathLike[str]
+    ) -> GivenPath:
+        self = super().__new__(cls, os.fspath(resolved))
+        self.given = os.fspath(given)
+        return self
+
+    def __getnewargs__(self) -> tuple[str, str]:  # type: ignore[override]
+        """The arguments :meth:`__new__` needs, so :mod:`copy` and
+        :mod:`pickle` (``dataclasses.asdict`` of a configuration holding
+        one) rebuild it with its spelling."""
+        return (str(self), self.given)
+
+
+def given_spelling(path: str | os.PathLike[str]) -> str | os.PathLike[str]:
+    """The spelling of *path* the user gave: its :class:`GivenPath` one, else
+    *path* itself."""
+    return path.given if isinstance(path, GivenPath) else path
 
 
 def _read_capped(handle: IO[bytes], path: str | os.PathLike[str], use: str) -> bytes:
@@ -85,7 +104,7 @@ def read_given_bytes(path: str | os.PathLike[str], *, kind: str, use: str) -> by
             if stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 return _read_capped(handle, path, use)
     except OSError as exc:
-        if is_missing_errno(exc) or _is_directory(exc, path):
+        if is_missing_errno(exc) or is_directory_error(exc, path):
             raise input_not_found(kind, path) from None
         raise file_unreadable_error(exc, file=path, use=use) from exc
     raise input_not_found(kind, path)

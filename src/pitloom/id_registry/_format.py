@@ -48,7 +48,7 @@ from pitloom.id_registry._types import (
     registry_file_error,
     unencodable_message,
 )
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_not_found, is_input_file
 
 __all__ = [
     "RegistryFileContents",
@@ -95,7 +95,7 @@ def _is_relative_posix(value: str) -> bool:
 def _read_json(path: Path) -> Any:
     """The JSON value in the file *path*; a duplicate object key, as every
     other failure, is the registry file error."""
-    if not os.path.isfile(path):
+    if not is_input_file(path):
         raise input_not_found("ID registry file", path)
     try:
         with open(path, "rb") as f:

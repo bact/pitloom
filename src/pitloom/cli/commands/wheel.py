@@ -22,6 +22,7 @@ from pitloom.cli.commands._remote_pypi import refuse_embed_of_pypi_url, run_pypi
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
+    input_file_or_say,
     refuse_non_wheel,
 )
 from pitloom.cli.kv_output import log_verbose
@@ -48,7 +49,6 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.remote.pypi import WHEEL as WHEEL_FILE
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.extract.wheel import wheel_identity
-from pitloom.messages.targets import say_input_not_found
 
 
 def _run_pypi_wheel(args: argparse.Namespace, url: str) -> int:
@@ -84,8 +84,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         return 1
     # Absolute, not resolved: the file name is judged as given.
     wheel_path: Path = Path(target).absolute()
-    if not wheel_path.exists():
-        say_input_not_found("wheel file", Path(target))
+    # A regular file only: a directory named .whl is not a wheel.
+    if not input_file_or_say(wheel_path, "wheel file", shown=Path(target)):
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)

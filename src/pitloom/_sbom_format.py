@@ -31,7 +31,12 @@ from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
-from pitloom.messages.targets import SBOM_WRONG_FORMAT
+from pitloom.messages.targets import (
+    SBOM_GRAPH_ELEMENT_LINE,
+    SBOM_GRAPH_NOT_LIST_LINE,
+    SBOM_INVALID,
+    SBOM_WRONG_FORMAT,
+)
 
 
 def _looks_like_spdx3_jsonld(data: bytes) -> bool:
@@ -329,8 +334,9 @@ def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, An
 
     *text* is the file's content. Raises ``ValueError`` when it is not valid
     JSON (empty included; ``NaN`` and ``Infinity`` are not JSON) or is JSON but
-    not an object (``json-malformed``), or is named ``.spdx3.json`` and is not
-    SPDX 3 JSON-LD (``sbom-wrong-format``). A
+    not an object (``json-malformed``), has an ``@graph`` that is not a list
+    of objects (``sbom-invalid``; :func:`_require_graph_list`), or is named
+    ``.spdx3.json`` and is not SPDX 3 JSON-LD (``sbom-wrong-format``). A
     JSON object in another format under another name (a CycloneDX
     ``bom.json``) is left to the name/version cross-check, which skips it with
     a ``WARNING:``.
@@ -343,11 +349,31 @@ def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, An
         ) from exc
     if not isinstance(document, dict):
         raise CodedValueError(JSON_MALFORMED, file=sbom_path, use=SBOM_USE)
+    # Before the format: an @graph of the wrong shape is a broken SPDX 3
+    # document, whatever the name, not another format.
+    _require_graph_list(document, sbom_path)
     if str(sbom_path).lower().endswith(SPDX3_JSONLD_EXTENSION) and (
         detect_sbom_format(text.encode("utf-8")) != "spdx3-jsonld"
     ):
         raise CodedValueError(SBOM_WRONG_FORMAT, file=sbom_path)
     return document
+
+
+def _require_graph_list(document: dict[str, Any], sbom_path: Path | str) -> None:
+    """Raise ``ValueError`` when the JSON object *document*, read from
+    *sbom_path*, has an ``@graph`` that is not a list, or holds a non-object
+    (``sbom-invalid``, naming *sbom_path*): no SPDX 3 reader can follow it,
+    and the deserialiser would leak a ``TypeError``. No ``@graph`` (another
+    format) passes."""
+    graph = document.get("@graph", [])
+    if not isinstance(graph, list):
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_GRAPH_NOT_LIST_LINE, file=sbom_path
+        )
+    if not all(isinstance(element, dict) for element in graph):
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_GRAPH_ELEMENT_LINE, file=sbom_path
+        )
 
 
 class GivenSbom(NamedTuple):

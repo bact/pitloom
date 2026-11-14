@@ -53,7 +53,6 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_project_sbom
-from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_shared import (
@@ -287,7 +286,7 @@ def test_id_command_malformed_declared_registry_is_one_error(
     _assert_untouched(registry_path, content)
 
 
-# --- A relative project directory: the ERROR names an absolute path ----
+# --- A relative project directory: the ERROR names the path as given ---
 
 _RELATIVE_PROJECT_ARGV: dict[str, Callable[[str, Path], list[str]]] = {
     "cli-project": lambda rel, _wheel: ["project", rel, "-o", "out.json"],
@@ -310,7 +309,8 @@ _RELATIVE_PROJECT_ARGV: dict[str, Callable[[str, Path], list[str]]] = {
 
 def _relative_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A project declaring a missing ``id-registry = "missing-reg.json"``,
-    and a cwd that is its sibling; returns the registry's absolute path."""
+    and a cwd that is its sibling; returns the registry's absolute path,
+    which no message names."""
     project = demo_project(
         tmp_path, '\n[tool.pitloom]\nid-registry = "missing-reg.json"\n'
     )
@@ -321,7 +321,7 @@ def _relative_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.mark.parametrize("surface", sorted(_RELATIVE_PROJECT_ARGV))
-def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
+def test_cli_relative_project_dir_error_names_the_registry_as_configured(
     surface: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -337,11 +337,12 @@ def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
     (error_line,) = [
         line for line in capsys.readouterr().err.splitlines() if "ERROR:" in line
     ]
-    assert f"ID registry file not found: {quote_source(expected)}" in error_line
+    assert "ID registry file not found: 'missing-reg.json' [" in error_line
+    assert str(expected) not in error_line
 
 
 @pytest.mark.parametrize("surface", ["generate_project_sbom", "enrich_model"])
-def test_library_relative_project_target_error_names_the_absolute_registry_path(
+def test_library_relative_project_target_error_names_the_registry_as_configured(
     surface: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     expected = _relative_project(tmp_path, monkeypatch)
@@ -355,7 +356,9 @@ def test_library_relative_project_target_error_names_the_absolute_registry_path(
         else:
             generate_project_sbom(relative, creation_metadata=None)
 
-    assert f"ID registry file not found: {quote_source(expected)}" in str(excinfo.value)
+    assert str(excinfo.value) == "ID registry file not found: 'missing-reg.json'"
+    assert getattr(excinfo.value, "pitloom_code", None) == "input-not-found"
+    assert not expected.exists()
 
 
 # --- Undeclared: IdRegistry.load is never called, on any surface -------

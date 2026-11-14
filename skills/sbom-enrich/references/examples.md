@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -289,7 +289,7 @@ Read both fragments -- `model.enrich.spdx3.json` from step 1 and
 `fragments/agent-enrichment.spdx3.json` from step 2 -- with the SPDX 3
 JSON-LD deserialiser `merge_fragments()` itself uses, as `../SKILL.md`'s
 step 7 describes: run the one-line snippet in `pre-merge-check.md` (with the
-interpreter Pitloom is installed in; `uvx --from "pitloom>=0.24.0" python` for
+interpreter Pitloom is installed in; `uvx --from "pitloom>=0.24.1" python` for
 a `uvx` run) on those two files. Exit 0 is a pass.
 
 Do not run `loom fragment validate` on a fragment: it names the base
@@ -337,7 +337,7 @@ agent-inferred ones their `comment`.
 Use the `sbom-validate` skill on `sbom.spdx3.json` -- this catches
 SPDX-shape/SHACL problems (e.g. a missing required property or the wrong
 relationship type) that plain JSON-syntax validity would miss. Minimal fallback:
-`pip install "pitloom[validate]>=0.24.0"` then
+`pip install "pitloom[validate]>=0.24.1"` then
 `loom fragment validate sbom.spdx3.json`.
 
 ## 7. Report back to the user

@@ -77,7 +77,7 @@ from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote._hub_files import ROUTE, HubFiles, hub_files
-from pitloom.extract.remote.git_url import HUB_HOST_PATTERN
+from pitloom.extract.remote.git_url import HUB_HOST_PATTERN, is_hub_model_url
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
 from pitloom.extract.remote.huggingface_fetch import (
     _fetch_all_hf_data,
@@ -111,6 +111,7 @@ __all__ = [
     "log_hf_url_rewrite",
     "parse_hf_model_id",
     "read_huggingface",
+    "require_hf_model_id",
 ]
 
 # Match full HF model URLs: https://huggingface.co/owner/name[/anything], also
@@ -137,6 +138,7 @@ def log_hf_url_rewrite(source: str, model_id: str) -> None:
     mixed-case host), naming the URL it is read as; credentials and query
     tokens are masked. ``loom model`` calls it before fetching, the other
     routes through :func:`read_huggingface`."""
+    source = source.strip()
     if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):
         log.info(
             "Hugging Face URL %s is read as %s%s",
@@ -153,7 +155,11 @@ def parse_hf_model_id(source: str) -> str | None:
     The check is intentionally conservative: the ``owner/name`` pattern is
     only accepted when the path does *not* exist on the local filesystem,
     to avoid misidentifying relative project paths like ``models/my_model``.
+    Surrounding white space is no part of it, as
+    :func:`~pitloom.extract.remote.git_url.is_hub_model_url` and
+    ``generate()``'s classification take it.
     """
+    source = source.strip()
     url_match = _HF_URL_RE.match(source)
     if url_match:
         return url_match.group(1)
@@ -170,8 +176,28 @@ def parse_hf_model_id(source: str) -> str | None:
 
 
 def is_huggingface_source(source: str) -> bool:
-    """Return ``True`` when *source* is a Hugging Face URL or model ID."""
-    return parse_hf_model_id(source) is not None
+    """Return ``True`` when *source* is a Hugging Face model ID, or a URL on
+    the Hub that is no Git repository
+    (:func:`~pitloom.extract.remote.git_url.is_hub_model_url`): every route
+    then refuses one :func:`parse_hf_model_id` reads no ID from
+    (``hf-url-invalid``) instead of taking it for a local path."""
+    return parse_hf_model_id(source) is not None or is_hub_model_url(source)
+
+
+def require_hf_model_id(source: str) -> str:
+    """The model id of the Hugging Face target *source*
+    (:func:`parse_hf_model_id`): the one check every route that takes a
+    Hub URL (``loom model``, ``loom project``'s refusal of a model,
+    :func:`read_huggingface`) makes, so a malformed URL says so at once.
+
+    Raises:
+        pitloom.messages.CodedValueError: It names no model
+            (``hf-url-invalid``), named with its credentials masked.
+    """
+    model_id = parse_hf_model_id(source)
+    if model_id is None:
+        raise CodedValueError(HF_URL_INVALID, url=sanitize_url(source.strip()))
+    return model_id
 
 
 def read_huggingface(
@@ -218,10 +244,7 @@ def read_huggingface(
     except Exception as exc:  # a broken install raises more than ImportError
         raise import_failed(HUB, exc) from exc
 
-    model_id = parse_hf_model_id(source)
-    if model_id is None:
-        raise CodedValueError(HF_URL_INVALID, url=sanitize_url(source))
-
+    model_id = require_hf_model_id(source)
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
     if policy.offline:
         raise remote_error(

@@ -3,11 +3,17 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Saying ``input-not-found``: the error to raise for a path named for
-Pitloom to read that is not there (:func:`input_not_found`), the command
-line's ``ERROR:`` line for one (:func:`say_input_not_found`), and the
+"""Saying ``input-not-found``: the one probe of a path named for Pitloom to
+read (:func:`input_exists`, :func:`is_input_file`, :func:`is_input_dir`),
+the error to raise for one that is not there (:func:`input_not_found`), the
+command line's ``ERROR:`` line for one (:func:`say_input_not_found`), and the
 ``WARNING:`` for a configured SBOM fragment that is not there
 (:func:`warn_fragment_not_found`).
+
+An input check goes through the probe, never :func:`os.path.isfile` and its
+siblings, which say ``False`` for a path the system will not let Pitloom
+look at (a directory above it without search permission): that is
+``file-unreadable``, not ``input-not-found``.
 
 See also: :mod:`pitloom.messages._input_not_found` (the entries).
 """
@@ -16,15 +22,18 @@ from __future__ import annotations
 
 import logging
 import os
+import stat
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
 from pitloom.core.internal_error import InternalError
+from pitloom.core.path_probe import stat_if_present
 from pitloom.core.url_masking import masked_given_path
 from pitloom.logging_config import print_error
 from pitloom.messages._emit import CodedFileNotFoundError, emit
-from pitloom.messages._field_tables import INPUT_KINDS
+from pitloom.messages._field_tables import INPUT_KINDS, INPUT_USE
+from pitloom.messages._file_unreadable_warning import file_unreadable_error
 from pitloom.messages._input_not_found import (
     FRAGMENT_LINE,
     INPUT_LINE,
@@ -50,26 +59,86 @@ _WRONG_KIND_LINES: Final[Mapping[str, Line]] = MappingProxyType(
 )
 
 
-def _line(kind: str, path: str | os.PathLike[str]) -> Line:
+def _input_stat(
+    path: str | os.PathLike[str], shown: str | os.PathLike[str] | None
+) -> os.stat_result | None:
+    """``os.stat(path)``, or ``None`` when nothing is there: missing
+    (:func:`~pitloom.core.path_probe.is_missing_errno`, a link loop
+    included), a dangling link (it leads nowhere), or a path no file can
+    have (an embedded NUL).
+
+    Raises:
+        pitloom.messages.CodedValueError: The system will not let Pitloom
+            look (a directory above *path* without search permission, an
+            I/O error): ``file-unreadable``, naming *shown*, else *path*.
+    """
+    try:
+        return stat_if_present(path)
+    except ValueError:
+        return None
+    except OSError as exc:
+        named = path if shown is None else shown
+        raise file_unreadable_error(exc, file=named, use=INPUT_USE) from exc
+
+
+def input_exists(
+    path: str | os.PathLike[str], *, shown: str | os.PathLike[str] | None = None
+) -> bool:
+    """Whether something is at the input *path* (:func:`_input_stat`, which
+    raises ``file-unreadable`` naming *shown*, else *path*, for an access
+    failure)."""
+    return _input_stat(path, shown) is not None
+
+
+def is_input_file(
+    path: str | os.PathLike[str], *, shown: str | os.PathLike[str] | None = None
+) -> bool:
+    """Whether a regular file is at the input *path*, as
+    :func:`input_exists` looks."""
+    result = _input_stat(path, shown)
+    return result is not None and stat.S_ISREG(result.st_mode)
+
+
+def is_input_dir(
+    path: str | os.PathLike[str], *, shown: str | os.PathLike[str] | None = None
+) -> bool:
+    """Whether a directory is at the input *path*, as :func:`input_exists`
+    looks."""
+    result = _input_stat(path, shown)
+    return result is not None and stat.S_ISDIR(result.st_mode)
+
+
+def _line(
+    kind: str, path: str | os.PathLike[str], shown: str | os.PathLike[str]
+) -> Line:
     """The line for *path*, named as *kind*: not found when nothing is
-    there (:func:`os.path.exists`, which never raises; a dangling link
-    leads nowhere, so it is not found too), else not a file or not a
-    directory, as *kind* expects.
+    there (:func:`input_exists`), else not a file or not a directory, as
+    *kind* expects.
 
     Raises:
         pitloom.core.internal_error.InternalError: *kind* is not one of
             :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
+        pitloom.messages.CodedValueError: *path* cannot be looked at
+            (``file-unreadable``, naming *shown*).
     """
     if kind not in INPUT_KINDS:
         raise InternalError(f"input kind {kind!r} is not in INPUT_KINDS")
-    if kind in _EITHER_KINDS or not os.path.exists(path):
+    # An either kind has no wrong-kind line and is never probed: a path that
+    # appears after the caller's probe still reads as not found.
+    wrong = _WRONG_KIND_LINES.get(kind)
+    if wrong is None or not input_exists(path, shown=shown):
         return INPUT_LINE
-    return _WRONG_KIND_LINES[kind]
+    return wrong
 
 
-def _render(kind: str, path: str | os.PathLike[str]) -> tuple[Line, dict[str, object]]:
-    """The line for *path*, named as *kind* (:func:`_line`, the one probe),
-    and the values it is written from, *path* shown with a URL in it masked
+def _render(
+    kind: str,
+    path: str | os.PathLike[str],
+    at: str | os.PathLike[str] | None = None,
+) -> tuple[Line, dict[str, object]]:
+    """The line for *path*, named as *kind* (:func:`_line`, the one probe,
+    of *at* when given, else of *path*), and the values it is written from,
+    *path* shown with a URL in it masked
     (:func:`~pitloom.core.url_masking.masked_given_path`): what
     :func:`input_not_found` raises and :func:`say_input_not_found` prints.
 
@@ -77,13 +146,18 @@ def _render(kind: str, path: str | os.PathLike[str]) -> tuple[Line, dict[str, ob
         pitloom.core.internal_error.InternalError: *kind* is not one of
             :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
     """
-    line = _line(kind, path)
+    line = _line(kind, path if at is None else at, path)
     text = os.fspath(path)
     shown = masked_given_path(text)
     return line, {"input": kind, "path": path if shown == text else shown}
 
 
-def input_not_found(kind: str, path: str | os.PathLike[str]) -> CodedFileNotFoundError:
+def input_not_found(
+    kind: str,
+    path: str | os.PathLike[str],
+    *,
+    at: str | os.PathLike[str] | None = None,
+) -> CodedFileNotFoundError:
     """The error to raise for *path*, named as *kind* (one of
     :data:`~pitloom.messages._field_tables.INPUT_KINDS`), which is not there, or is
     not a file or not a directory as *kind* expects (the line says which).
@@ -93,13 +167,16 @@ def input_not_found(kind: str, path: str | os.PathLike[str]) -> CodedFileNotFoun
     resolves a path for the check still passes the given one here, so the
     line names what the user wrote, never a resolved or absolute form of it.
     A URL in it (one Pitloom does not read, taken for a path) is named with
-    its credentials masked.
+    its credentials masked. *at* is where the caller looked, when that is
+    not *path* as the current directory reads it (a relative path resolved
+    against a project directory): it decides whether the line says what is
+    there instead.
 
     Raises:
         pitloom.core.internal_error.InternalError: *kind* is not one of
             :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
     """
-    line, values = _render(kind, path)
+    line, values = _render(kind, path, at)
     return CodedFileNotFoundError(INPUT_NOT_FOUND, line=line, **values)
 
 

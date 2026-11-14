@@ -45,12 +45,13 @@ JSON_MALFORMED: Final = Message(
     "given to embed or to import into an ID registry. The lines print since "
     f"{_SINCE} for a Croissant document, {_SINCE_PYPI} for PyPI's release "
     f"metadata and {_SINCE_SBOM} for an SBOM.",
-    did="Read nothing of it: the call raises ValueError carrying the code. "
-    "For a Croissant document, the dataset declaration (loom.add_dataset "
-    "with croissant=, or read_croissant) fails; for PyPI's release metadata "
-    "of a PyPI URL, no SBOM is written (its remote error code is "
-    "pypi.response-invalid); for an SBOM to embed, no wheel is changed; for "
-    "one to import, the ID registry is not written.",
+    did="Read nothing of it: the call raises ValueError carrying the code "
+    "(for PyPI's release metadata, RemoteSourceError, code "
+    "pypi.response-invalid), and a command exits 1. For a Croissant "
+    "document, the dataset declaration (loom.add_dataset with croissant=, or "
+    "read_croissant) fails; for PyPI's release metadata of a PyPI URL, no "
+    "SBOM is written; for an SBOM to embed, no wheel is changed; for one to "
+    "import, the ID registry is not written.",
     effect="not-written",
     actor="user",
     advice="Tell the user which document is not valid JSON, or not a JSON "

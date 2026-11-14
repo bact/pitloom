@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -211,8 +211,12 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   every CLI `ERROR:` line, built; coding the `Build:` and `Git source:` lines
   is unblocked (PRs 13 and 14). See
   [message-frames.md](../implementation/message-frames.md).
-- [ ] **Catalogue PRs 3 to 18** (the remaining families, the licence families
-  last): caller actor and input errors, the ID registry (with the remote
+- [x] **Catalogue PR 3**: input, option, SBOM and target errors coded, paths
+  named as typed, URL credentials masked on every `ERROR:` line, one strict
+  SBOM reader for `id import` and `embed-wheel`, the `messages` package split
+  by topic (#482); ratchet 454 to 398.
+- [ ] **Catalogue PRs 5 to 18** (the remaining families, the licence families
+  last): the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and
   build, fragments and wheels, miscellany, licence.
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand

@@ -35,6 +35,7 @@ from pitloom.messages.files import (
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
+    INPUT_USE,
     SBOM_USE,
     file_unreadable_error,
     warn_dir_unlistable,
@@ -291,7 +292,7 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 
 #: The use constants the catalogue exports, by name, which a module passes
 #: imported, not defined.
-_SHARED_USES = {"SBOM_USE": SBOM_USE}
+_SHARED_USES = {"INPUT_USE": INPUT_USE, "SBOM_USE": SBOM_USE}
 
 #: The calls that take a ``use=`` of the table: the helpers, and what hands
 #: one on to them (a card's kind, the JSON reader).
@@ -318,7 +319,9 @@ def test_every_use_of_the_table_is_passed_and_no_other() -> None:
     """The table is closed and live: every ``use=`` a call of a taker
     passes is a text of it (a literal, a module constant or a shared one)
     or hands one on, and each of its uses is passed by some call."""
-    passed: set[str] = set()
+    # The input probe passes INPUT_USE from inside the catalogue, which
+    # source_modules() leaves out.
+    passed: set[str] = {INPUT_USE}
     for path, tree in source_modules():
         texts = {**_SHARED_USES, **_texts(tree)}
         for node in ast.walk(tree):

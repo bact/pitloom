@@ -35,7 +35,7 @@ from pitloom.extract.remote import (
     is_huggingface_source,
     is_unfetchable_remote,
     log_hf_url_rewrite,
-    parse_hf_model_id,
+    require_hf_model_id,
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import print_error
@@ -44,8 +44,6 @@ from pitloom.messages.pypi import (
     PYPI_URL_UNUSABLE,
 )
 from pitloom.messages.targets import (
-    HF_URL_INVALID,
-    HF_URL_LINE,
     INPUT_NOT_FOUND,
     MODEL_FILE_NOT_FOUND_LINE,
 )
@@ -111,13 +109,7 @@ def generate_model_from_args(
 
 def _run_hf_model(args: argparse.Namespace, target: str) -> int:
     """``loom model`` on a Hugging Face URL or model id."""
-    model_id = parse_hf_model_id(target)
-    if model_id is None:
-        print_error(
-            HF_URL_LINE.render({"url": sanitize_url(target)}),
-            code=HF_URL_INVALID.code,
-        )
-        return 1
+    model_id = require_hf_model_id(target)
     log_hf_url_rewrite(target, model_id)
     output_path = _resolve_hf_output_path(args.output, model_id)
     if args.verbose:
@@ -150,8 +142,8 @@ def _run_model_command(args: argparse.Namespace) -> int:
     # file as the user wrote it.
     opened_path = existing_model_path(Path(target))
     if opened_path is None:
-        # Named as given; a URL that is no source we read (user information
-        # in a Hugging Face one) with its credentials masked.
+        # Named as given, with the credentials of anything URL-shaped in it
+        # masked.
         print_error(
             MODEL_FILE_NOT_FOUND_LINE.render({"path": masked_given_path(target)}),
             code=INPUT_NOT_FOUND.code,

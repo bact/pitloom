@@ -27,12 +27,9 @@ built path-key redesign; items it closed are marked).
   symlink gives a temp-path error text; `IsADirectoryError` names the temp
   file, not the registry.
 - **`resolve_registry` raises a bare `TypeError`** for a non-path argument.
-- **A missing `--id-registry` is named absolute**: `loom generate . -o o.json
-  --id-registry ftp://u:S@h/f` says `ID registry file not found:
-  '<cwd>/ftp://***:***@h/f'`, as `resolve_registry` documents (its path is
-  absolute for every message), while `input_not_found` says a line names the
-  path as given, never absolute. Pass the given spelling to the message, or
-  word the exception (found in the PR #482 review).
+- ~~**A missing `--id-registry` is named absolute**~~: done in PR #482; the
+  CLI flag and a `--config` key keep their spelling (`GivenPath`) and
+  `resolve_registry` names the path as given.
 - **`id import` of a non-SPDX JSON object not named `.spdx3.json`**
   (`{"a": 1}` as `s.json`) still fails with the deserialiser's uncoded
   `TypeError`; `embed-wheel` accepts such a file (its cross-check skips it).

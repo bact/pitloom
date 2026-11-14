@@ -44,6 +44,7 @@ from pitloom.messages import CodedFileNotFoundError
 from pitloom.messages.targets import (
     PROJECT_NOT_FOUND,
     PROJECT_NOT_FOUND_LINE,
+    input_exists,
     input_not_found,
 )
 
@@ -173,7 +174,7 @@ def read_project(
             ``project-not-found``).
         ValueError: If config is malformed.
     """
-    if not project_path.exists():
+    if not input_exists(project_path):
         raise input_not_found("project path", project_path)
 
     if is_sdist_archive(project_path):

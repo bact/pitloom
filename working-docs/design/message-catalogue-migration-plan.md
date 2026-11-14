@@ -19,9 +19,10 @@ Status: plan, re-measured 2026-11-04 on `main` 54f79c57 (0.22.1 released; the
 LicenseID 0.7 adoption merged, #437 to #440). Done: `lfs-pointer` (#390),
 `over-cap` (#396), the model-stub causes (#404, PR 1a), unreadable files and
 directories (#408, PR 2a) and, in 0.23.0 (2026-11-05), PR 2b (#444) and PRs 1b
-and 1c (#446); the reference split (#480) and PR 4, the frames
-([message-frames.md](../implementation/message-frames.md)), are built. Left:
-PR 3 onward and T14. This file is the
+and 1c (#446); the reference split (#480) PR 4, the frames
+([message-frames.md](../implementation/message-frames.md)), and PR 3, the
+input, option, SBOM and target errors (#482), are built. Left: PR 5 onward
+and T14. This file is the
 reference for what remains and what ships in which release.
 
 ## Shipped in 0.22.0 (2026-10-30)
@@ -56,7 +57,8 @@ Update 2026-11-14: v0.24.0 is tagged (#475) without the catalogue PRs; PR 4
 (#481) merged after the tag. The "Cut" column below therefore says "next": a
 PR ships in the next release after the last tag when it merges, and its new
 entries take that release as `since`. PR 3 uses 0.24.1 (maintainer,
-2026-11-13).
+2026-11-13). PR 3 (#482) is built: the ratchet fell from 454 (after PR 4) to
+398.
 
 ## Sizes
 
@@ -96,7 +98,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 1b | 0.23.0 | model-field-unread 19 (`extract/ai_model/` hdf5_config 5, pytorch_pt2 5, pytorch 3, fasttext 2, gguf, onnx, unrecordable; `_ai_package.py` release time); model-scan-decision 1 (`scanner.py`); passthrough in `scanner_wheel.py` 2 | `model-field-unreadable`, `model-field-conflict`, `model-field-invalid` (built folded into `-unreadable`), `field-not-recordable` (#404 D10) | user / thinner (conflict: none) | -25, now -22; built -19 (#446) | M; Opus plan and implementation, Sonnet tests |
 | 1c | 0.23.0 | none (coded sites gain a code) | `library-unusable` (planned as a variant of `library-missing`; its own family on review, final), helper `optional_libraries.import_failed(requirement, exc)` for about 11 sites | user / thinner | 0; built 0 (#446) | S-M; Opus; may ride with 1b |
 | 2b | 0.23.0 | card-unreadable 3 (`enrich/readme.py` 2, `_loom_dataset_meta.py` 1); source-unreadable 5 and over-cap 2 (`fetch_json`, `extract/_extract_utils.py`); croissant passthrough 1; `id_registry/_types.py` indexing read 1; `core/path_confine.py` passthrough 1; lone surrogate (`warn_lone_surrogates`, 6 callers, helper in `logging_config.py`, out of scope); `find_card_file` silent (adds a line) | `card-malformed`, `text-malformed` (weaker); reuse `file-unreadable` (first `ERROR` template), `dir-unlistable`, `over-cap`; JSON parse as `json-malformed` (R4) | user / thinner (`text-malformed`: weaker) | -13, now -13 (helper move: 0); built -10 (#444) | M; Opus |
-| 3 | next | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52 | M-L; Opus plan, Sonnet helper and sites |
+| 3 | next (built, #482) | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52; built -56 (454 to 398, #482) | M-L; Opus plan, Sonnet helper and sites |
 | 4 | next | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
 | 5 | next | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs) | user / not-written | -29, now -30 | M; Opus |
 | 6 | next | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`) | user / weaker | -35, now -35 | M; Opus |
@@ -179,7 +181,12 @@ Differences from the plan, by measurement:
 The recommendation is in brackets.
 
 - R1 (before 6, 7, 13, 14, 15, 16, 17 and 18; PR 4 is built): `INFO`
-  decision and summary lines (57 sites).
+  decision and summary lines (57 sites). **Ruled 2026-11-14: as
+  recommended.** Also ruled that day (see
+  [message-frames-forward.md](message-frames-forward.md), "Rulings"): the
+  hook's WARNING/INFO prefix becomes `Pitloom build hook: `, the SDK's
+  `loom: ` becomes `loom SDK: `, and the duplicate Git/PyPI relays are
+  dropped.
   [Code a decision by the condition it answers (`unpinned`, `needs-build`;
   actor none, effect none); keep pure counts in a "summary" kind left out of
   the ratchet by kind, an explicit scope rule, never by raising a count.]

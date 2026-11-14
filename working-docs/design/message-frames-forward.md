@@ -372,14 +372,15 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
 
 ## Rulings needed from the user
 
-Recommendation in brackets.
+Recommendation in brackets. **Decided 2026-11-14** (the user took the
+recommendation): 1, 2, 5 and 7. Open: 3, 4 and 6.
 
-1. The hook's WARNING/INFO prefix `Pitloom: ` (`plugins/hatch.py:58`)
+1. **Decided: rename.** The hook's WARNING/INFO prefix `Pitloom: ` (`plugins/hatch.py:58`)
    differs from its ERROR frame `Pitloom build hook: `. [Spell both
    `Pitloom build hook: `: one name per surface; `HOOK_STEP_FRAME` has the
    same text as `HOOK_FRAME`, a separate table row because it is
    family-restricted.]
-2. The SDK's `loom: ` prefix on WARNING lines reads as `TOP_FRAME`. [Replace
+2. **Decided: `loom SDK: `.** The SDK's `loom: ` prefix on WARNING lines reads as `TOP_FRAME`. [Replace
    it by a literal `loom SDK: ` family constant (rule 2); a decided wording
    change in PR 17.]
 3. Config subject spelling. [The setting as written in the file read
@@ -387,13 +388,17 @@ Recommendation in brackets.
    `setup.cfg`); field name chosen by PR 8, not `key`.]
 4. Lock-file subject. [Keep `'<p>': ` and `'<p>':N: `; no `FILE=` rewrite
    of about 40 lines quoted in `lockfile-discovery.md`.]
-5. Drop the duplicate relays `git.py:225`, `pypi.py:457,466` (a printed
+5. **Decided: drop** (PR 13 still confirms the exception always reaches the
+   ERROR line before the relay goes). Drop the duplicate relays `git.py:225`, `pypi.py:457,466` (a printed
    line disappears). [Drop, after the PR 13 plan confirms the exception
    always reaches the ERROR line.]
 6. `licenseid: ` relay: uncoded, outside `FRAMES`, excluded by relay shape.
    [Yes. The alternative, one Pitloom code for any LicenseID diagnostic,
    would promise a condition Pitloom does not own.]
-7. R1 itself (migration plan). [As recommended there.]
+7. **Decided: code decisions by the condition they answer; pure counts are
+   a "summary" kind left out of the ratchet by an explicit scope rule, never
+   by raising a count.** R1 itself (migration plan). [As recommended there.]
+   Gates PRs 6, 7 and 13 to 18; PR 4b (command summaries) follows it.
 
 ## Not decided
 

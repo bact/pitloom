@@ -24,6 +24,7 @@ from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
 from pitloom.messages import CodedValueError
 from pitloom.messages.options import OPTION_MISSING
+from pitloom.messages.targets import is_input_file
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -61,7 +62,7 @@ def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
     ``pyproject.toml``/``setup.cfg``/``setup.py`` at all -- nothing to
     read, not an error.
     """
-    if not any(os.path.isfile(project_dir / name) for name in PROJECT_FILES):
+    if not any(is_input_file(project_dir / name) for name in PROJECT_FILES):
         return PitloomConfig(), _PYPROJECT_TABLE
     _metadata, pitloom_config, config_path = read_project(
         project_dir,

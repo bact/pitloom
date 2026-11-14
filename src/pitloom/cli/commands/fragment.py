@@ -29,16 +29,14 @@ from pitloom.cli.commands.utils import (
     _import_spdx3_validate,
     _validate_spdx3_documents,
     cli_error_handler,
+    input_file_or_say,
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
-from pitloom.messages.targets import (
-    say_input_not_found,
-    warn_fragment_not_found,
-)
+from pitloom.messages.targets import warn_fragment_not_found
 
 log = logging.getLogger(__name__)
 
@@ -52,11 +50,12 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
     dependency_ok = _import_spdx3_validate() is not None
 
     paths: list[Path] = args.paths
-    not_files = [p for p in paths if not p.is_file()]
-    for p in not_files:
-        say_input_not_found("SBOM file", p)
+    files_ok = True
+    for p in paths:
+        # Every path is reported, an unreadable one included.
+        files_ok = input_file_or_say(p, "SBOM file") and files_ok
 
-    if not dependency_ok or not_files:
+    if not dependency_ok or not files_ok:
         return 1
 
     exit_code = _validate_spdx3_documents(

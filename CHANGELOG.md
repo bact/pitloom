@@ -35,7 +35,13 @@ and this project adheres to
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
-  over 50 MiB), and every `ERROR:` line masks a URL's credentials ([#482])
+  over 50 MiB, an `@graph` that is not a list of objects) ([#482])
+- A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
+  too) get a coded error; a padded Hub URL is read; a missing ID registry is
+  named as given ([#482])
+- An input under a directory without search permission is `file-unreadable`,
+  not "not found" ([#482])
+- Every CLI `ERROR:` line masks the credentials and tokens of a URL ([#482])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482

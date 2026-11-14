@@ -14,7 +14,7 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 from __future__ import annotations
 
 from pitloom.messages._card_malformed import CARD_MALFORMED
-from pitloom.messages._field_tables import SBOM_USE
+from pitloom.messages._field_tables import INPUT_USE, SBOM_USE
 from pitloom.messages._file_unreadable import (
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
@@ -72,6 +72,7 @@ __all__ = [
     "OVER_CAP",
     "SAVE_FAILED_LINE",
     "SAVE_FAILED_WARNING_LINE",
+    "INPUT_USE",
     "SBOM_USE",
     "SOURCE_LINE",
     "TEMP_DIR_UNUSABLE",

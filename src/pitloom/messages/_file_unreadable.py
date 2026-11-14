@@ -64,8 +64,11 @@ FILE_UNREADABLE: Final = Message(
     "operating system refused it (no read permission, a directory above it "
     "without search permission, a file another program holds open on "
     "Windows) or the read failed (an I/O error, a file that is no regular "
-    "file once opened). The ERROR line for an SBOM given to 'loom id "
-    f"import' or to embed prints since {_SINCE_SBOM}.",
+    "file once opened). A path named for Pitloom to read (a wheel, a "
+    "project, a configuration, an ID registry, an SBOM) under a directory "
+    "without search permission says so 'for the input check', not that it "
+    "is not found. The ERROR line for an SBOM given to 'loom id import' or "
+    f"to embed, and for the input check, prints since {_SINCE_SBOM}.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -79,7 +82,9 @@ FILE_UNREADABLE: Final = Message(
     "ERROR, the call that named the file raises (a Croissant document: the "
     "dataset declaration fails; an SBOM to import: the ID registry is not "
     "written; an SBOM to embed: no wheel is changed; the only possible "
-    "model file of a folder named for a model SBOM: no SBOM is written).",
+    "model file of a folder named for a model SBOM: no SBOM is written; the "
+    "input check: the command writes nothing and exits 1, the library "
+    "raises ValueError carrying the code).",
     effect="thinner",
     actor="user",
     advice="Tell the user which file could not be read and what the system "

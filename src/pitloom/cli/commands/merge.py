@@ -20,6 +20,7 @@ from pitloom.logging_config import print_error
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_FRAGMENT_FILE_LINE,
+    is_input_dir,
     say_input_not_found,
 )
 
@@ -30,7 +31,7 @@ log = logging.getLogger(__name__)
 def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
     fragments_dir: Path = args.fragments_dir.resolve()
-    if not fragments_dir.exists():
+    if not is_input_dir(fragments_dir, shown=args.fragments_dir):
         say_input_not_found("fragments directory", args.fragments_dir)
         return 1
 

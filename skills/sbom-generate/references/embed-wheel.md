@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-05
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,9 +33,11 @@ standalone wheel. `embed-wheel` also accepts `--allow-build` (see
 
 Or embed an already-generated SBOM file directly -- its declared subject
 name/version is cross-checked against the wheel's own METADATA first; a
-mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). The
-SBOM is embedded verbatim, so one from another tool may list files Pitloom's
-own never do:
+mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). A
+file whose `@graph` is not a list of objects is refused, with or without
+`--validate` (`FILE=<file>: SBOM @graph is not a list [sbom-invalid]`; exit 1,
+no wheel written). The SBOM is embedded verbatim, so one from another tool may
+list files Pitloom's own never do:
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json

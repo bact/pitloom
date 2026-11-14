@@ -29,7 +29,7 @@ values.
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
-| [`sbom-invalid`](#sbom-invalid) | ERROR | An SBOM given to read is JSON but not a valid SPDX 3 document: spdx3-validate refuses it (its own lines before say why), or its @graph is not a list of objects. | 0.24.1 |
+| [`sbom-invalid`](#sbom-invalid) | ERROR | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). | 0.24.1 |
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.24.1 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.24.1 |
@@ -87,7 +87,11 @@ values.
 - **Means**: A Hugging Face target is neither a Hub model URL
   (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote no SBOM, and sent no request.
+- **Pitloom did**: Read nothing and sent no request: 'loom model', 'loom
+  project' and 'loom generate' exit 1; generate_model_sbom and read_huggingface
+  raise ValueError carrying the code. An http(s) URL on huggingface.co or hf.co
+  that is no Space or dataset is taken as a model URL, so a malformed one says
+  this, not that a model file is not found.
 - **Tell the user**: the URL or id was not read, as the line gives it. They
   check it and run again. Do not guess another model and run for them; ask
   first, and with nobody to ask, report it only.
@@ -113,9 +117,10 @@ values.
 - **Pitloom did**: Wrote nothing: no SBOM is written; for 'loom id', the ID
   registry is not written; for 'loom embed-wheel', no wheel is changed; a check
   ('loom fragment validate', 'loom verify-wheel', 'loom validate-wheel') checks
-  nothing. The command exits 1, the library raises FileNotFoundError carrying
-  the code, or ValueError carrying it for a fragments directory that holds no
-  JSON file. A Git URL's error code is git.path-not-found.
+  nothing. The command exits 1 (the Action step fails), the build hook fails the
+  build, and the library raises FileNotFoundError carrying the code, ValueError
+  for a fragments directory that holds no JSON file, or RemoteSourceError (code
+  git.path-not-found) for a Git URL's file or folder.
 - **Tell the user**: which path was not found, as the line names it (for a Git
   URL, a path in the repository). They check the path, or the URL's branch and
   path, and run again. Do not guess another path or branch and run for them; ask
@@ -141,9 +146,11 @@ values.
 - **Means**: An SBOM fragment the project configures ([tool.pitloom.fragment])
   does not exist.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
-- **Pitloom did**: Merged the SBOM without it. For a fragment marked required,
-  the merge then fails with an ERROR: and no SBOM is written; 'loom fragment
-  list' only reports it.
+- **Pitloom did**: Merged the SBOM without it, and wrote it (the build hook
+  builds the wheel). For a fragment marked required, the merge then fails with
+  an uncoded ERROR: and no SBOM is written: the command exits 1, the hook fails
+  the build, the library raises FragmentMergeError. 'loom fragment list' lists
+  it with EXISTS=false, and exits 1 for a required one.
 - **Tell the user**: which fragment was not found, as the line names it. They
   create it (run the enrichment that writes it), fix its path in the
   configuration, or remove the entry, and run again. Do not edit the
@@ -259,11 +266,15 @@ values.
 
 - **Level**: ERROR. As an ERROR, the command stops for that input and writes
   nothing for it (exit 1).
-- **Means**: An SBOM given to read is JSON but not a valid SPDX 3 document:
-  spdx3-validate refuses it (its own lines before say why), or its @graph is not
-  a list of objects.
+- **Means**: An SBOM given to read is JSON but not a valid SPDX 3 document: its
+  @graph is not a list of objects ('embed-wheel --sbom', 'loom id import';
+  checked before the format, whatever the file is named), or spdx3-validate
+  refuses it ('embed-wheel --sbom --validate'; its own lines before say why).
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported.
+- **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported. The
+  command exits 1; the library (embed_wheel_sbom with sbom_path,
+  IdRegistry.import_sbom) raises ValueError carrying the code for an @graph that
+  is not a list of objects.
 - **Tell the user**: which SBOM is not valid, and what the validator reported.
   They fix or regenerate it and run again. Do not edit the SBOM for them; ask
   first, and with nobody to ask, report it only.
@@ -284,7 +295,7 @@ values.
   say).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote nothing: no wheel is changed and no ID registry
-  written; the library raises ValueError carrying the code.
+  written; the command exits 1, the library raises ValueError carrying the code.
 - **Tell the user**: which file is named as SPDX 3 but is not, as the line names
   it. They give the right file, or rename it to match its format, and run again.
   Do not rename or convert the file for them; ask first, and with nobody to ask,
@@ -324,7 +335,8 @@ values.
   Face model given to 'loom project', or a file not named .whl given as a wheel
   ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Read nothing of it: the command exits 1.
+- **Pitloom did**: Read nothing of it: the command exits 1; the library raises
+  ValueError carrying the code for a file not named .whl.
 - **The caller may fix**: The caller may run the command the line names, or give
   a wheel file (a built .whl), and run again.
 - **Lines**:

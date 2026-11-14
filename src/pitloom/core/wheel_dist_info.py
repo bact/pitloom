@@ -38,6 +38,7 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
@@ -49,6 +50,8 @@ from pitloom.messages.files import (
 from pitloom.messages.targets import (
     NOT_A_WHEEL_LINE,
     TARGET_WRONG_FORMAT,
+    input_not_found,
+    is_input_file,
 )
 
 log = logging.getLogger(__name__)
@@ -141,6 +144,23 @@ def require_wheel_path(path: Path | str) -> None:
         raise NotAWheelError(TARGET_WRONG_FORMAT, line=NOT_A_WHEEL_LINE, file=path)
 
 
+def require_wheel_file(path: Path | str) -> None:
+    """:func:`require_wheel_path`, then raise unless a regular file is at
+    *path* (``input-not-found``, naming *path* as given): for an entry
+    point that goes on with a resolved or absolute form of it.
+
+    Raises:
+        WheelRefused: the file name does not end in ``.whl``.
+        pitloom.messages.CodedFileNotFoundError: nothing is at *path*, or
+            not a regular file (a directory named ``.whl``).
+        pitloom.messages.CodedValueError: *path* cannot be looked at
+            (``file-unreadable``: a directory on its way refuses search).
+    """
+    require_wheel_path(path)
+    if not is_input_file(path):
+        raise input_not_found("wheel file", path)
+
+
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:
     """The one shape of every wheel refusal:
     ``ARCHIVE='a.whl' ENTRY='m': <reason> -- wheel refused`` (no ``ENTRY=``
@@ -213,14 +233,21 @@ def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.Zip
             member name flagged UTF-8 that is not, a version it cannot
             read. Any exception but ``OSError``/``MemoryError``, so a
             ``zipfile`` failure mode added later is a refusal too.
-        OSError: *path* cannot be opened (missing, permission denied, a
+        pitloom.messages.CodedFileNotFoundError: nothing is at *path*, or
+            it is a directory (``input-not-found``, naming the file as
+            given: *name*, else *path*).
+        OSError: *path* cannot be opened otherwise (permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
     given = Path(path if name is None else name)
     require_wheel_path(given)
     try:
         return zipfile.ZipFile(path, "r")
-    except (OSError, MemoryError):
+    except OSError as exc:
+        if is_missing_errno(exc) or is_directory_error(exc, path):
+            raise input_not_found("wheel file", given) from None
+        raise
+    except MemoryError:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

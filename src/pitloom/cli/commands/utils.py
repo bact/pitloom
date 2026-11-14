@@ -37,7 +37,7 @@ from pitloom.core.wheel_dist_info import (
     require_wheel_path,
 )
 from pitloom.logging_config import print_error, print_traceback
-from pitloom.messages import code_of
+from pitloom.messages import CodedValueError, code_of
 from pitloom.messages.models import (
     LIBRARY_MISSING,
     LIBRARY_UNUSABLE,
@@ -45,6 +45,7 @@ from pitloom.messages.models import (
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_WHEEL_MATCH_LINE,
+    is_input_file,
     say_input_not_found,
 )
 
@@ -128,8 +129,8 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 had_error = True
                 continue
             p = _given(pattern)
-            if not p.exists():
-                say_input_not_found("wheel file", Path(pattern))
+            # A regular file only: a directory named .whl is not a wheel.
+            if not input_file_or_say(p, "wheel file", shown=Path(pattern)):
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -174,6 +175,22 @@ def refuse_non_wheel_like(path: str) -> bool:
     """:func:`refuse_non_wheel` for *path* where it looks like a wheel in any
     letter case but is not spelt ``.whl``; ``False`` for any other file."""
     return looks_like_wheel_path(path) and refuse_non_wheel(Path(path))
+
+
+def input_file_or_say(path: Path, kind: str, *, shown: Path | None = None) -> bool:
+    """Whether a regular file is at *path* (the input probe), else print its
+    one ``ERROR:`` line naming *shown* (default: *path*) as *kind*:
+    ``input-not-found``, or ``file-unreadable`` where the system will not
+    let Pitloom look. Never raises that error, so a loop over several paths
+    reports every one."""
+    named = path if shown is None else shown
+    try:
+        if is_input_file(path, shown=named):
+            return True
+        say_input_not_found(kind, named)
+    except CodedValueError as exc:
+        report_error_line(exc)
+    return False
 
 
 def _locate_embedded_sbom_or_report(

@@ -14,7 +14,6 @@ See also:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +30,7 @@ from pitloom.id_registry import (
     persist_registry,
     warn_no_registry_path,
 )
-from pitloom.messages.targets import input_not_found
+from pitloom.messages.targets import input_not_found, is_input_dir
 
 # dataset_DatasetPackage is never harvested: a dataset id is pinned
 # deliberately, by `loom id generate -e NAME:dataset_DatasetPackage` or
@@ -61,7 +60,7 @@ def archive_project_dir(
     if project_dir is None:
         return None
     path = Path(project_dir).resolve()
-    if not os.path.isdir(path):
+    if not is_input_dir(path):
         raise input_not_found("project directory", Path(project_dir))
     if registry is None:
         flag = PARAM_TO_FLAG["project_dir"]
