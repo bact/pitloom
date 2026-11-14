@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-11-06).
+the day it was added (2026-10-02 to 2026-11-14).
 
 ## Files
 
@@ -52,7 +52,9 @@ the day it was added (2026-10-02 to 2026-11-06).
   PyPI-style sources actually contain.
 - [model-file-metadata.md](model-file-metadata.md): what AI model files
   carry and what their fields mean (ONNX `domain`, exporter-default names,
-  packed versions, standard keys, parameter-count shapes).
+  packed versions, standard keys, parameter-count shapes, a pickle's root
+  class, licence placeholders, a trainer's parent-model key, fixture
+  descriptions that drift).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
 - [datasets-and-reproducible-results.md](datasets-and-reproducible-results.md):
