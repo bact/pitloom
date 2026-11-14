@@ -270,8 +270,9 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   `registry_file_error` and `unencodable_message` are gone, so the stacked
   `ID registry file 'p': ID registry: key ...` (the unencodable name) is
   fixed. Another stack is left: a load or save failure inside
-  `failed_to_save_message` still prints `ID registry: failed to save 'p':
-  ID registry: FILE=p: ...`, the file twice and no code (PR 7).
+  `failed_to_save_message` still prints `ID registry: failed to save
+  '<absolute path>': ID registry: FILE=<path as given>: ...`: the file twice,
+  spelt two ways, and no code (PR 7).
 - Reused by advice: `file-unreadable` (`/not-utf8`) and `json-malformed`
   read `for the ID registry` (a new `READ_USES` value); a version or key
   literal that `pitloom.messages` cannot import (`4`, `MAX_ID_NUMBER`) is a

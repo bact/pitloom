@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
 
@@ -86,7 +86,7 @@ URL_REFUSED: Final = Message(
     advice="Tell the user which URL was not followed and why, as the line "
     "says. A mirror or proxy that redirects is not supported; they may "
     "download the file themselves and run Pitloom on it. Do not fetch the "
-    "target for them; ask first, and with nobody to ask, report it only.",
+    f"target for them; {ASK_FIRST}",
     since=_SINCE,
 )
 
@@ -108,7 +108,7 @@ ENDPOINT_REFUSED: Final = Message(
     advice="Tell the user HF_ENDPOINT is not used, and why, as the "
     "line says. They set it to an https URL without credentials, or unset it "
     "for https://huggingface.co, and run again. Do not change it for them; "
-    "ask first, and with nobody to ask, report it only.",
+    f"{ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
@@ -162,7 +162,7 @@ DOWNLOAD_FAILED: Final = Message(
     "They check the network and run again; for a private or gated Hugging "
     "Face repository (HTTP 401 or 403) they sign in with an account that has "
     "access (HF_TOKEN, or 'hf auth login'). Do not retry in a loop or sign "
-    "in for them; ask first, and with nobody to ask, report it only.",
+    f"in for them; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
@@ -198,8 +198,7 @@ DOWNLOAD_TIMEOUT: Final = Message(
     actor="user",
     advice="Tell the user the request timed out. They check the network and "
     "run again, or fetch the file or repository themselves and run Pitloom on "
-    "the local copy. Do not retry in a loop; ask first, and with nobody to "
-    "ask, report it only.",
+    f"the local copy. Do not retry in a loop; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
@@ -234,7 +233,7 @@ TEMP_DIR_UNUSABLE: Final = Message(
     "reason the line gives; the network is not the cause. They free disk "
     "space, or set TMPDIR (TEMP on Windows) to a writable directory with a "
     "short path, and run again. Do not change their temporary directory for "
-    "them; ask first, and with nobody to ask, report it only.",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -268,7 +267,7 @@ OFFLINE_UNUSABLE: Final = Message(
     "it. They run again without offline mode (no --offline, offline = false "
     "in the config, HF_HUB_OFFLINE unset), or fetch the repository or file "
     "themselves and run Pitloom on the local copy. Do not turn offline mode "
-    "off for them; ask first, and with nobody to ask, report it only.",
+    f"off for them; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
@@ -296,8 +295,7 @@ URL_HOST_SPELLING: Final = Message(
     actor="user",
     advice="Tell the user the host must be written as it is resolved. They "
     "write it in ASCII, an international domain name in its xn-- "
-    "(punycode) form, and run again. Do not rewrite the URL for them; ask "
-    "first, and with nobody to ask, report it only.",
+    f"(punycode) form, and run again. Do not rewrite the URL for them; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )

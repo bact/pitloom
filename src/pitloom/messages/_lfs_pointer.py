@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The summary warning of a checkout's pointers.
 LFS_PULL_LINE: Final = Line(
@@ -67,7 +67,7 @@ LFS_POINTER: Final = Message(
     "SHA-512). If they want them, they run 'git lfs pull' in the checkout "
     "(for a Git URL: clone it with Git LFS and run Pitloom on that "
     "directory) and generate again. Do not pull, clone or regenerate for "
-    "them; ask first, and with nobody to ask, report it only.",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
 )
 

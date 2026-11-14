@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.1"
 
@@ -42,8 +42,7 @@ SBOM_WRONG_FORMAT: Final = Message(
     actor="user",
     advice="Tell the user which file is named as SPDX 3 but is not, as the "
     "line names it. They give the right file, or rename it to match its "
-    "format, and run again. Do not rename or convert the file for them; ask "
-    "first, and with nobody to ask, report it only.",
+    f"format, and run again. Do not rename or convert the file for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -80,7 +79,7 @@ SBOM_INVALID: Final = Message(
     actor="user",
     advice="Tell the user which SBOM is not valid, and what the validator "
     "reported. They fix or regenerate it and run again. Do not edit the SBOM "
-    "for them; ask first, and with nobody to ask, report it only.",
+    f"for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )

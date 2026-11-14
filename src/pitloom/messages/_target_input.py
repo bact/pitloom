@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.1"
 
@@ -69,7 +69,7 @@ HF_URL_INVALID: Final = Message(
     actor="user",
     advice="Tell the user the URL or id was not read, as the line gives it. "
     "They check it and run again. Do not guess another model and run for "
-    "them; ask first, and with nobody to ask, report it only.",
+    f"them; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )

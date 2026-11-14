@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.1"
 
@@ -37,18 +37,16 @@ REGISTRY_VERSION: Final = 4
 #: The largest id counter (:data:`pitloom.id_registry._counters.MAX_ID_NUMBER`;
 #: a drift test holds them equal).
 MAX_COUNTER: Final = 9007199254740991
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
 #: What a command, the hook and the library do for every line here.
 _DID: Final = (
-    "Wrote nothing: the command exits 1 (the Action step fails), the build "
+    "Wrote nothing. The command exits 1 (the Action step fails), the build "
     "hook fails the build, and the library raises ValueError carrying the "
-    "code; 'loom id' writes no registry and every other command no SBOM. "
-    "The file is left as it is. Read again to save the ids a run added "
-    "after its SBOM is written (loom generate, the build hook, the library), "
-    "it is one WARNING instead and the SBOM stands: until that save line is "
-    "coded, it prints this line after 'ID registry: failed to save <file>: ', "
-    "without the code."
+    "code. 'loom id' writes no registry, and every other command writes no "
+    "SBOM. The file is left as it is. A run that has already written its "
+    "SBOM (loom generate, the build hook, the library) reads the file again "
+    "to save the ids it added. There the line is one WARNING, and the SBOM "
+    "stands. Until that save line is coded, it prints this line after 'ID "
+    "registry: failed to save <file>: ', without the code."
 )
 
 
@@ -135,7 +133,7 @@ REGISTRY_MALFORMED: Final = Message(
     advice="Tell the user which registry file is malformed and what is "
     "wrong, as the line says. They fix the edit, or restore the file from "
     "version control, and run again; deleting it loses every id it pins. Do "
-    f"not edit, restore or delete the file for them; {_ASK}",
+    f"not edit, restore or delete the file for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -160,7 +158,7 @@ REGISTRY_UNKNOWN_KEY: Final = Message(
     actor="user",
     advice="Tell the user which registry file holds which unknown key, as "
     "the line says. They remove the key (or restore the file from version "
-    "control) and run again. Do not edit the file for them; " + _ASK,
+    "control) and run again. Do not edit the file for them; " + ASK_FIRST,
     subject_key="FILE",
     since=_SINCE,
 )
@@ -192,7 +190,7 @@ REGISTRY_WRONG_FORMAT: Final = Message(
     "Pitloom; they upgrade Pitloom and keep the file, which is not to be "
     "deleted. None, or not a whole number: most often a hand edit; they "
     "restore the file from version control. Deleting it loses every id it "
-    f"pins. Do not delete, restore or upgrade anything for them; {_ASK}",
+    f"pins. Do not delete, restore or upgrade anything for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )
@@ -227,7 +225,7 @@ REGISTRY_UNUSABLE: Final = Message(
     "path (two Windows drives), a file on the project's drive works too; a "
     "root that cannot be stored (a backslash in a directory name between the "
     "file and the project) is fixed only by a file inside the project. They "
-    f"name such a file and run again. Do not move files for them; {_ASK}",
+    f"name such a file and run again. Do not move files for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )

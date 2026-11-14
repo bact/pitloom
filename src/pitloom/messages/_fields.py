@@ -47,6 +47,7 @@ from pitloom.messages._field_writers import (
     number_text,
     path_text,
     plain_text,
+    quoted_text,
 )
 
 
@@ -68,9 +69,9 @@ class Field:
     free: bool = False
 
 
-#: A path in quotes, as :func:`~pitloom.messages._field_writers.path_text`
-#: writes it.
-QUOTED_PATH: Final = r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'"
+#: A path or a text in quotes, as
+#: :func:`~pitloom.core.quote_source.quote_source` writes it.
+QUOTED: Final = r"'[^']*'|\"[^\"]*\"|'(?:[^'\\]|\\.)*'"
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -127,13 +128,11 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             free=True,
         ),
         "element_type": Field(
-            r".+",
-            free_text,
-            "<type>",
-            "an element type as the ID registry file names it (`software_File`), "
-            "or its Python repr when it is not a type name the file can hold; "
-            "in quotes, escaped, when it holds a control character",
-            free=True,
+            QUOTED,
+            quoted_text,
+            "'<type>'",
+            "an element type as the ID registry file names it, in quotes "
+            "(`'software_File'`), escaped when it holds a control character",
         ),
         "elements": Field(
             rf"{ELEMENT}(?:, {ELEMENT})*",
@@ -303,7 +302,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "(`training_config.optimizer`, `layers[0].config`)",
         ),
         "path": Field(
-            QUOTED_PATH,
+            QUOTED,
             path_text,
             "'<path>'",
             "a path in quotes",
@@ -355,7 +354,7 @@ FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "`pitloom[ai]` installs every model reader",
         ),
         "root": Field(
-            QUOTED_PATH,
+            QUOTED,
             path_text,
             "'<root>'",
             "the directory a path is checked against (--project-dir, a "

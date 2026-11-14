@@ -18,10 +18,7 @@ from __future__ import annotations
 from typing import Final
 
 from pitloom.messages._registry_file import REGISTRY_PREFIX
-from pitloom.messages._types import Line, Message
-
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: What every line says was done.
 _WRITTEN: Final = "lone surrogates written as \\uXXXX"
@@ -51,8 +48,7 @@ TEXT_MALFORMED: Final = Message(
     "the line says, and that the SBOM shows each as \\udXXX, not as the "
     "character the source meant. If the exact text matters, they correct the "
     "source (a proper escape, a UTF-8 file name) and generate again. Do not "
-    "rename or edit files for them; ask first, and with nobody to ask, report "
-    "it only.",
+    f"rename or edit files for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.0",
 )
@@ -93,7 +89,7 @@ TEXT_MALFORMED_REGISTRY: Final = Message(
     advice="Tell the user which name the ID registry cannot hold, as the line "
     "shows it escaped, and that it has no pinned id. They rename the file to "
     "a UTF-8 name, or correct the SBOM or the name given, and run again. Do "
-    f"not rename or edit files for them; {_ASK}",
+    f"not rename or edit files for them; {ASK_FIRST}",
     since="0.24.1",
 )
 

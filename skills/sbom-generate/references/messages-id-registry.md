@@ -35,13 +35,14 @@ values.
   merge of two versions of the file. A counter a save would write out of range
   says the same, before the file is written.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing: the command exits 1 (the Action step fails),
+- **Pitloom did**: Wrote nothing. The command exits 1 (the Action step fails),
   the build hook fails the build, and the library raises ValueError carrying the
-  code; 'loom id' writes no registry and every other command no SBOM. The file
-  is left as it is. Read again to save the ids a run added after its SBOM is
-  written (loom generate, the build hook, the library), it is one WARNING
-  instead and the SBOM stands: until that save line is coded, it prints this
-  line after 'ID registry: failed to save <file>: ', without the code.
+  code. 'loom id' writes no registry, and every other command writes no SBOM.
+  The file is left as it is. A run that has already written its SBOM (loom
+  generate, the build hook, the library) reads the file again to save the ids it
+  added. There the line is one WARNING, and the SBOM stands. Until that save
+  line is coded, it prints this line after 'ID registry: failed to save <file>:
+  ', without the code.
 - **Tell the user**: which registry file is malformed and what is wrong, as the
   line says. They fix the edit, or restore the file from version control, and
   run again; deleting it loses every id it pins. Do not edit, restore or delete
@@ -58,12 +59,12 @@ values.
   ERROR: ID registry: FILE=<file>: 'id_counters' is not an object [registry-malformed]
   ERROR: ID registry: FILE=<file>: 'project_root' <value> is not a relative POSIX path (relative to the registry file's directory) [registry-malformed]
   ERROR: ID registry: FILE=<file>: malformed entry: 'elements' is not an object [registry-malformed]
-  ERROR: ID registry: FILE=<file>: malformed entry: elements <type> is not an object [registry-malformed]
+  ERROR: ID registry: FILE=<file>: malformed entry: elements '<type>' is not an object [registry-malformed]
   ERROR: ID registry: FILE=<file>: <what> <value> cannot be encoded as UTF-8 (lone surrogate) [registry-malformed]
-  ERROR: ID registry: FILE=<file>: two <type> entries for <name> [registry-malformed]
-  ERROR: ID registry: FILE=<file>: malformed entry: <type> <name> is not an object [registry-malformed]
-  ERROR: ID registry: FILE=<file>: malformed entry: <type> <name>: 'spdxId' must be a non-empty string [registry-malformed]
-  ERROR: ID registry: FILE=<file>: malformed entry: <type> <name>: 'sha256' must be a non-empty string, or left out [registry-malformed]
+  ERROR: ID registry: FILE=<file>: two '<type>' entries for <name> [registry-malformed]
+  ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name> is not an object [registry-malformed]
+  ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name>: 'spdxId' must be a non-empty string [registry-malformed]
+  ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name>: 'sha256' must be a non-empty string, or left out [registry-malformed]
   ```
 
 ### `registry-unknown-key`
@@ -75,13 +76,14 @@ values.
   newer Pitloom says registry-wrong-format instead: the key comes from a hand
   edit or another tool.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing: the command exits 1 (the Action step fails),
+- **Pitloom did**: Wrote nothing. The command exits 1 (the Action step fails),
   the build hook fails the build, and the library raises ValueError carrying the
-  code; 'loom id' writes no registry and every other command no SBOM. The file
-  is left as it is. Read again to save the ids a run added after its SBOM is
-  written (loom generate, the build hook, the library), it is one WARNING
-  instead and the SBOM stands: until that save line is coded, it prints this
-  line after 'ID registry: failed to save <file>: ', without the code.
+  code. 'loom id' writes no registry, and every other command writes no SBOM.
+  The file is left as it is. A run that has already written its SBOM (loom
+  generate, the build hook, the library) reads the file again to save the ids it
+  added. There the line is one WARNING, and the SBOM stands. Until that save
+  line is coded, it prints this line after 'ID registry: failed to save <file>:
+  ', without the code.
 - **Tell the user**: which registry file holds which unknown key, as the line
   says. They remove the key (or restore the file from version control) and run
   again. Do not edit the file for them; ask first, and with nobody to ask,
@@ -90,7 +92,7 @@ values.
 
   ```text
   ERROR: ID registry: FILE=<file>: unknown top-level key(s): <name> [registry-unknown-key]
-  ERROR: ID registry: FILE=<file>: malformed entry: <type> <name> has unknown key(s): <value> [registry-unknown-key]
+  ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name> has unknown key(s): <value> [registry-unknown-key]
   ```
 
 ### `registry-unusable`
@@ -131,13 +133,14 @@ values.
   or none at all (no 'version', or one that is not a whole number). It is never
   migrated. The line states the version found.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing: the command exits 1 (the Action step fails),
+- **Pitloom did**: Wrote nothing. The command exits 1 (the Action step fails),
   the build hook fails the build, and the library raises ValueError carrying the
-  code; 'loom id' writes no registry and every other command no SBOM. The file
-  is left as it is. Read again to save the ids a run added after its SBOM is
-  written (loom generate, the build hook, the library), it is one WARNING
-  instead and the SBOM stands: until that save line is coded, it prints this
-  line after 'ID registry: failed to save <file>: ', without the code.
+  code. 'loom id' writes no registry, and every other command writes no SBOM.
+  The file is left as it is. A run that has already written its SBOM (loom
+  generate, the build hook, the library) reads the file again to save the ids it
+  added. There the line is one WARNING, and the SBOM stands. Until that save
+  line is coded, it prints this line after 'ID registry: failed to save <file>:
+  ', without the code.
 - **Tell the user**: which registry file cannot be read and the version the line
   states; what helps depends on it. Older than 4: to keep its ids, they delete
   it and run 'loom id import' on the last SBOM a run made with it ('loom id

@@ -93,7 +93,7 @@ _FAILURES: dict[str, tuple[Any, str]] = {
     ),
     "entry-list": (
         _set("elements", {FILE_TYPE: {"a": []}}),
-        "malformed entry: software_File 'a' is not an object",
+        "malformed entry: 'software_File' 'a' is not an object",
     ),
     "unknown-entry-key": (_entry(type="x"), "unknown key(s): 'type'"),
     "no-spdx-id": (_entry(spdxId=_DELETE), "'spdxId' must be a non-empty string"),
@@ -117,7 +117,7 @@ _FAILURES: dict[str, tuple[Any, str]] = {
             "elements",
             {PACKAGE_TYPE: {"PyYAML": {"spdxId": "x#1"}, "pyyaml": {"spdxId": "x#2"}}},
         ),
-        "two software_Package entries for 'pyyaml'",
+        "two 'software_Package' entries for 'pyyaml'",
     ),
 }
 
@@ -337,7 +337,7 @@ def test_load_os_error_on_read_raises_cannot_be_read(tmp_path: Path) -> None:
     path.write_text("{}")
 
     with patch(
-        "pitloom.id_registry._format.open",
+        "pitloom.core.given_file.open",
         side_effect=PermissionError(errno.EACCES, "Permission denied"),
     ):
         with pytest.raises(ValueError) as caught:
@@ -357,7 +357,7 @@ def test_load_of_a_file_gone_since_it_was_found_is_not_found(
     path.write_text("{}")
 
     with patch(
-        "pitloom.id_registry._format.open",
+        "pitloom.core.given_file.open",
         side_effect=FileNotFoundError(errno.ENOENT, "No such file or directory"),
     ):
         with pytest.raises(FileNotFoundError) as caught:

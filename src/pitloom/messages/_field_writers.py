@@ -87,6 +87,11 @@ def plain_text(value: object) -> str:
     return value
 
 
+def quoted_text(value: object) -> str:
+    """A text value in quotes, escaped, as :func:`path_text` quotes a path."""
+    return quote_source(plain_text(value))
+
+
 def free_text(value: object) -> str:
     """A free text value: as it is when printable, else escaped."""
     return loggable(plain_text(value))

@@ -138,6 +138,22 @@ nothing and warns once (`path has a skipped directory name`; 2026-10-15).
   A raise from `register()` inside the later loop would leave the files
   before it registered; names are checked during the walk, so none is known
   to reach it. Open: make the loop all-or-nothing, or document it.
+- `FILE=` after `ID registry: ` names an indexed file, not the registry
+  file, in two lines (`not inside the project root`, option-invalid; the
+  file name that cannot be encoded, `text-malformed/registry`): a grep for
+  `ID registry: FILE=` cannot tell them from the registry file's own lines.
+  Open: another subject key for an indexed file.
+- `loom id generate ""` (an empty PATH) is the project directory itself and
+  indexes the whole project, silently. Open: refuse it, or say so.
+- `loom id generate -e ...` logs the `INFO:` that an entity is stored by name
+  before an `ERROR:` that then writes nothing (as on `main`). Open: log it
+  after the save.
+- `VERSION_LINE` says "delete it and re-run" for every version, a newer one
+  included, while the advice says to keep a newer file. Kept on purpose for
+  now; revisit with PR 7.
+- `option-invalid` exits 2 for argparse's lines and 1 for the PATH-outside
+  line: one code, two exit statuses, chosen by line. Open: document per line
+  in the reference, or align.
 
 ### Merge by id: same-type coincidences and re-minted ids
 

@@ -122,10 +122,17 @@ traceback, and takes precedence over that error.
   Windows, a file on another drive than the project) is not saved. The
   library raises it coded (`registry-unusable`); the CLI prints it, for now
   without the code, after the save line: `ID registry: failed to save
-  '<path>': ID registry: FILE=<path>: project root '<root>' has no path
-  relative to the file's directory; <reason>` (`ERROR:` for `loom id`,
+  '<absolute path>': ID registry: FILE=<path as given>: project root
+  '<root>' has no path relative to the file's directory; <reason>` (the two
+  spell the file differently until that line is coded; `ERROR:` for `loom id`,
   `WARNING:` where the SBOM is already written). A registry file inside the
   project always works.
+- A registry file is read whole, up to the fixed 50 MiB cap for a JSON
+  document: a larger one is not read (`FILE=<path>: larger than the
+  <limit>-byte JSON-document cap for the ID registry; not read [over-cap]`,
+  exit 1). Only a regular file is read: a
+  FIFO or a device there is `input-not-found` (`is not a file`), opened
+  without waiting for a writer.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
@@ -323,7 +330,8 @@ current directory for any other target, an sdist included. The CLI makes
 it always means the file under the current directory. A declared
 registry file that's missing (or not a file) raises `FileNotFoundError`
 (`ID registry file not found: '<path>'`, adding `is not a file` when
-something else is there), naming the path as given -- the flag or argument
+something else is there, a FIFO or device included, code `input-not-found`),
+naming the path as given -- the flag or argument
 as typed, the configured `id-registry` value as written -- never the
 resolved absolute path; one that's unreadable or invalid raises
 `ValueError` carrying its code (`registry-malformed`, `registry-wrong-format`,

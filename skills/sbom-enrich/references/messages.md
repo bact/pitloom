@@ -133,7 +133,7 @@ A line may start with one prefix before its text:
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
-| `<type>` | an element type as the ID registry file names it (`software_File`), or its Python repr when it is not a type name the file can hold; in quotes, escaped, when it holds a control character |
+| `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
@@ -163,7 +163,7 @@ A line may start with one prefix before its text:
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
 | `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
-| `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `spdxId`, `type name` |
+| `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `project_root`, `sha256`, `spdxId`, `type name` |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
 | `<seconds>` | the time allowed, in whole seconds |

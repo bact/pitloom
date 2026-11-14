@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.0"
 
@@ -81,8 +81,7 @@ _UNPINNED_ADVICE: Final = (
     "Tell the user which release was read, as the line names it, and that "
     "the URL named no version. For a repeatable result they give the "
     "version in the URL (https://pypi.org/project/<name>/<version>/). Do not "
-    "run again with another version; ask first, and with nobody to ask, "
-    "report it only."
+    f"run again with another version; {ASK_FIRST}"
 )
 
 #: No version in the URL: the latest stable release.
@@ -174,8 +173,7 @@ FILE_AMBIGUOUS: Final = Message(
     "that the choice follows the running environment. A different wheel is "
     "read by running Pitloom on that platform, or on a downloaded file; the "
     "sdist by the loom project command (or generate_pypi_sbom() call) the "
-    "line gives. Do not run again for another file; ask first, and with "
-    "nobody to ask, report it only.",
+    f"line gives. Do not run again for another file; {ASK_FIRST}",
     subject_key="PYPI",
     since=_SINCE,
 )

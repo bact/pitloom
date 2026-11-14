@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints ``input-not-found/fragment``, and the lines
 #: of ``input-not-found`` after its first four (a model file, a Git URL's
@@ -110,8 +110,7 @@ INPUT_NOT_FOUND: Final = Message(
     advice="Tell the user which path was not found, as the line names it "
     "(for a Git URL, a path in the repository). They check the path, or the "
     "URL's branch and path, and run again. Do not guess another path or "
-    "branch and run for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"branch and run for them; {ASK_FIRST}",
     since="0.23.4",
 )
 
@@ -141,8 +140,7 @@ INPUT_NOT_FOUND_FRAGMENT: Final = Message(
     advice="Tell the user which fragment was not found, as the line names it. "
     "They create it (run the enrichment that writes it), fix its path in the "
     "configuration, or remove the entry, and run again. Do not edit the "
-    "configuration for them; ask first, and with nobody to ask, report it "
-    "only.",
+    f"configuration for them; {ASK_FIRST}",
     since=_SINCE,
 )
 

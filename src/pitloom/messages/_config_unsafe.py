@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: Said when no ``--config`` (``pitloom_config=``) is given.
 CONFIG_UNSAFE_REMOTE_LINE: Final = Line(
@@ -82,7 +82,7 @@ CONFIG_UNSAFE_BUILD_CODE: Final = Message(
     "code that Pitloom does not run on a downloaded repository, so the file "
     "list may miss what it would add. To have it, they clone the repository, "
     "review that code, and generate from the local copy. Do not clone or run "
-    "that code for them; ask first, and with nobody to ask, report it only.",
+    f"that code for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.4",
 )

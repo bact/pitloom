@@ -149,4 +149,11 @@ CONFIG_TABLES: Final = ("[tool.pitloom]", "[tool:pitloom]")
 
 #: What a line about a name the ID registry cannot hold names it as: a closed
 #: table (an element's key, its name, its type name, or its ``spdxId``).
-REGISTRY_PARTS: Final = ("key", "name", "spdxId", "type name")
+REGISTRY_PARTS: Final = (
+    "key",
+    "name",
+    "project_root",
+    "sha256",
+    "spdxId",
+    "type name",
+)

@@ -120,7 +120,7 @@ loom project . --id-registry loom-id-registry.json -o sbom.spdx3.json
 ```
 
 stdout is `PITLOOM_ID_REGISTRY_PATH=<path>`; relay the `INFO:`/`WARNING:`
-lines (see `id-registry.md`).
+lines (see `id-registry-log-lines.md`).
 
 ## Embed an SBOM into a built wheel (PEP 770)
 

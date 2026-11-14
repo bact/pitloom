@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints the entry, for a Croissant document.
 _SINCE: Final = "0.23.0"
@@ -65,8 +65,7 @@ JSON_MALFORMED: Final = Message(
     "registry, restore it from version control: deleting it loses every id "
     "it pins) and run again; "
     "PyPI's answer is not theirs to fix, so they retry later. Do not edit, "
-    "regenerate or replace the document for them; ask first, and with nobody "
-    "to ask, report it only.",
+    f"regenerate or replace the document for them; {ASK_FIRST}",
     subject_key="FILE",
     since=_SINCE,
 )

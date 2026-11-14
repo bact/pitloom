@@ -22,15 +22,13 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: The release that first prints an ``ERROR`` line for an SBOM given to read
 #: (``file-unreadable`` and ``file-unreadable/not-utf8``: to import into an
 #: ID registry or to embed); the entries' other lines print since their own
 #: ``since``.
 _SINCE_SBOM: Final = "0.24.1"
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
 #: What every line ends in when the content is outside the project.
 _OUTSIDE: Final = "outside the project directory"
 
@@ -94,7 +92,7 @@ FILE_UNREADABLE: Final = Message(
     "reported, as the line says. They give the account Pitloom runs as read "
     "access to it (or close the program that holds it), or restore a damaged "
     "copy, and generate again. Do not change permissions or ownership, or "
-    f"copy, move or replace the file, for them; {_ASK}",
+    f"copy, move or replace the file, for them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -135,7 +133,7 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
     advice="Tell the user which file is not UTF-8 and what the decoder "
     "reported, as the line says. They save it as UTF-8 (an SBOM: generate it "
     "again) and run again. Do not convert, edit or replace the file for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -165,7 +163,7 @@ FILE_UNREADABLE_OUTSIDE: Final = Message(
     "the file into the project, or point the setting at a file inside it, "
     "and generate again; for an installed dependency, only its maintainers "
     "can fix it. Do not move, copy or link files, or edit the setting, for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -198,7 +196,7 @@ FILE_UNREADABLE_OUTSIDE_REPOSITORY: Final = Message(
     "files outside it, which were left out, as the line says. To have them in "
     "the SBOM, they clone the repository, check what those paths name, and "
     "generate from the local copy. Do not clone or run on a local copy for "
-    f"them; {_ASK}",
+    f"them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.4",
 )
@@ -231,7 +229,7 @@ DIR_UNLISTABLE: Final = Message(
     advice="Tell the user which directory could not be listed and what the "
     "system reported, as the line says. They give the account Pitloom runs "
     "as read and search access to it and generate again. Do not change "
-    f"permissions or ownership, or copy or move files, for them; {_ASK}",
+    f"permissions or ownership, or copy or move files, for them; {ASK_FIRST}",
     subject_key="DIR",
 )
 

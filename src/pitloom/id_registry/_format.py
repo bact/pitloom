@@ -38,8 +38,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
+from pitloom.core.given_file import read_given_bytes
 from pitloom.core.iri import is_iri_segment, require_namespace_iri
-from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
 from pitloom.id_registry._types import (
@@ -80,7 +80,6 @@ from pitloom.messages.id_registry import (
     UNKNOWN_ENTRY_KEY_LINE,
     UNKNOWN_TOP_KEY_LINE,
 )
-from pitloom.messages.targets import input_not_found, is_input_file
 
 if TYPE_CHECKING:
     from pitloom.messages import Line
@@ -134,20 +133,14 @@ def _malformed(path: Path, line: Line, **values: object) -> CodedValueError:
 
 
 def _read_json(path: Path) -> Any:
-    """The JSON value in the file *path*: ``input-not-found`` when it is not
-    there, ``file-unreadable`` (``/not-utf8``) when it cannot be read,
+    """The JSON value in the file *path*, read whole up to the shared cap
+    (:func:`~pitloom.core.given_file.read_given_bytes`): ``input-not-found``
+    when it is not there or not a regular file, ``over-cap`` when larger,
+    ``file-unreadable`` (``/not-utf8``) when it cannot be read,
     ``json-malformed`` when it is not JSON (a UTF-16 or UTF-32 text that does
     not decode included), ``registry-malformed`` for a duplicate object
     key."""
-    if not is_input_file(path):
-        raise input_not_found("ID registry file", path)
-    try:
-        with open(path, "rb") as f:
-            raw = f.read()
-    except OSError as exc:
-        if is_missing_errno(exc):  # gone since it was found
-            raise input_not_found("ID registry file", path) from exc
-        raise file_unreadable_error(exc, file=path, use=REGISTRY_USE) from exc
+    raw = read_given_bytes(path, kind="ID registry file", use=REGISTRY_USE)
     try:
         # Bytes, not str: json.loads() strips a leading UTF-8 BOM and, more
         # lenient than RFC 8259 (UTF-8 only), detects UTF-16 and UTF-32.
@@ -177,14 +170,19 @@ def read_registry_file(path: Path) -> RegistryFileContents:
     then ``json-malformed``, ``registry-malformed``,
     ``registry-wrong-format`` or ``registry-unknown-key``), naming *path* as
     given (:func:`~pitloom.core.given_path.given_spelling`). The version is
-    checked before the key set, so a version 2 or 3 file gets the version
-    message, not an "unknown key" one, and is left as it is.
+    checked first, before the namespace and the key set, so a file of
+    another version (older, newer or none) gets the version message, never
+    a namespace or "unknown key" one, and is left as it is.
     """
     data = _read_json(path)
     if not isinstance(data, dict):
         raise CodedValueError(
             JSON_MALFORMED, line=NOT_OBJECT_LINE, file=path, use=REGISTRY_USE
         )
+
+    version = data.get("version")
+    if not isinstance(version, int) or version != _REGISTRY_VERSION:
+        raise CodedValueError(REGISTRY_WRONG_FORMAT, file=path, value=repr(version))
 
     namespace = data.get("namespace")
     if not isinstance(namespace, str) or not namespace:
@@ -193,10 +191,6 @@ def read_registry_file(path: Path) -> RegistryFileContents:
         require_namespace_iri(namespace)
     except ValueError as exc:
         raise _malformed(path, NAMESPACE_LINE, failure=exc) from exc
-
-    version = data.get("version")
-    if not isinstance(version, int) or version != _REGISTRY_VERSION:
-        raise CodedValueError(REGISTRY_WRONG_FORMAT, file=path, value=repr(version))
 
     unknown = sorted(set(data) - _TOP_LEVEL_KEYS)
     if unknown:
@@ -282,6 +276,10 @@ def _parse_project_root(path: Path, value: object) -> Path:
     if not isinstance(value, str) or not _is_relative_posix(value):
         shown = quote_source(value) if isinstance(value, str) else repr(value)
         raise _malformed(path, PROJECT_ROOT_LINE, value=shown)
+    if not is_utf8_text(value):  # realpath() would raise on it, uncoded
+        raise _malformed(
+            path, UNENCODABLE_LINE, registry_part="project_root", value=value
+        )
     return Path(os.path.realpath(registry_dir(path) / value))
 
 
@@ -293,7 +291,7 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
     elements: dict[tuple[str, str], RegistryEntry] = {}
     for type_name, names in sorted(raw.items()):
         if not isinstance(names, dict):
-            raise _malformed(path, TYPE_TABLE_LINE, element_type=repr(type_name))
+            raise _malformed(path, TYPE_TABLE_LINE, element_type=type_name)
         for name, record in sorted(names.items()):
             for text in (type_name, name):
                 if not is_utf8_text(text):
@@ -337,6 +335,8 @@ def _parse_entry(path: Path, key: tuple[str, str], record: object) -> RegistryEn
     sha256 = record["sha256"]
     if not isinstance(sha256, str) or not sha256:
         raise _malformed(path, SHA256_LINE, **where)
+    if not is_utf8_text(sha256):  # a save could not write it back
+        raise _malformed(path, UNENCODABLE_LINE, registry_part="sha256", value=sha256)
     return RegistryEntry(spdx_id=spdx_id, sha256=sha256)
 
 

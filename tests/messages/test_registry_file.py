@@ -251,7 +251,7 @@ def test_a_path_gone_since_it_was_found_is_not_found(
         raise gone
 
     monkeypatch.setattr(types_mod, "_walk_files", missing)
-    with patch("builtins.open", side_effect=gone):
+    with patch.object(types_mod, "open", side_effect=gone, create=True):
         with pytest.raises(FileNotFoundError, match="^PATH not found: ") as caught:
             list(_iter_files([target], root))
 

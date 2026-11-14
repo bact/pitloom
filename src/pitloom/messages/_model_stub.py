@@ -19,15 +19,13 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message
 
 #: What a model whose read stopped is, in the SBOM.
 _STUB: Final = (
     "Listed the model by its file, format and hashes only (a format-only "
     "entry, named after its file), without its metadata"
 )
-#: The end of every advice an agent relays without acting on it.
-_ASK: Final = "ask first, and with nobody to ask, report it only."
 
 #: A model reader's library missing, in a scan or for a model file named on
 #: its own: the model is a stub.
@@ -60,7 +58,7 @@ LIBRARY_MISSING: Final = Message(
     "every model reader and the Hugging Face Hub client). They install it where "
     "Pitloom runs (with uvx or pipx, in the --from or --spec requirement) and "
     "run again; a model reader then runs on each such file, so only for files "
-    f"they trust. Do not install anything or run again for them; {_ASK}",
+    f"they trust. Do not install anything or run again for them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -106,7 +104,7 @@ LIBRARY_UNUSABLE: Final = Message(
     "it. They reinstall it where Pitloom runs (with uvx or pipx, in the --from "
     "or --spec requirement) and run again; a model reader then runs on each "
     "such file, so only for files they trust. Do not install anything or run "
-    f"again for them; {_ASK}",
+    f"again for them; {ASK_FIRST}",
     subject_key="FILE",
     since="0.23.0",
 )
@@ -134,7 +132,7 @@ READER_UNSAFE: Final = Message(
     "they trust the wheel, they pass --trust-model-files (trust_model_files="
     "True in the library; the trust-model-files input of the GitHub Action, "
     "with embed-wheel and an empty project-path) and generate again; no config "
-    f"file can set it. Do not add the flag or generate again for them; {_ASK}",
+    f"file can set it. Do not add the flag or generate again for them; {ASK_FIRST}",
 )
 
 #: The Git URL's line: a model file of its temporary clone, named on its own
@@ -177,7 +175,7 @@ READER_UNSAFE_REMOTE: Final = Message(
     "Action) and generate again; no config file can set it. For a Git URL, "
     "running Pitloom on a local clone reads them in full too, but also "
     "honours the repository's own configuration and build file list. Do not "
-    f"add the flag or generate again for them; {_ASK}",
+    f"add the flag or generate again for them; {ASK_FIRST}",
     since="0.23.4",
 )
 
@@ -206,7 +204,7 @@ MODEL_UNREADABLE: Final = Message(
     "failed, as the line says. They check the file (a partial download or copy "
     "is the common cause: fetch or export it again), or update the reader's "
     "library or Pitloom for a newer format version, and generate again. Do not "
-    f"change, replace or download the file for them; {_ASK}",
+    f"change, replace or download the file for them; {ASK_FIRST}",
     subject_key="FILE",
 )
 
@@ -244,7 +242,7 @@ MODEL_WRONG_FORMAT: Final = Message(
     "suffix, a placeholder or a damaged copy. If a model belongs there, they "
     "put the real file in its place and generate again; for loom model or loom "
     "enrich, they name the model file itself. Do not rename, replace or "
-    f"download the file for them; {_ASK}",
+    f"download the file for them; {ASK_FIRST}",
     subject_key="FILE",
 )
 

@@ -139,11 +139,9 @@ def _resolve_id_registry_target(
     """
     # .absolute() only, never .resolve(): resolving would follow a dangling
     # symlink at the final path component to its (nonexistent) target and
-    # write through it there instead of surfacing IdRegistry.load()'s own
-    # "ID registry file not found" error at the symlink's own path.
-    # normpath() after .absolute() only collapses lexical ".."/"." noise
-    # (e.g. a `-o ../x` display) -- it never touches a symlink itself, so
-    # the dangling-symlink behaviour above is preserved.
+    # write through it there; the path stays the link's own, the one every
+    # message names. normpath() after .absolute() collapses lexical ".."/"."
+    # only (a `-o ../x`), never a symlink.
     if flag is not None:
         # The spelling typed rides along, for a message to name it.
         path = keep_spelling(_normalized_absolute(flag), flag)
