@@ -28,7 +28,7 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.inert_options import GIT_MODEL, HF, MODEL_FILE, forward_options
-from pitloom.core.url_masking import masked_given_path, sanitize_url
+from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import MODEL, model_path_of
 from pitloom.extract.remote import (
     is_git_url,
@@ -145,7 +145,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         # Named as given, with the credentials of anything URL-shaped in it
         # masked.
         print_error(
-            MODEL_FILE_NOT_FOUND_LINE.render({"path": masked_given_path(target)}),
+            MODEL_FILE_NOT_FOUND_LINE.render({"path": target}),
             code=INPUT_NOT_FOUND.code,
         )
         return 1

@@ -88,10 +88,11 @@ values.
   (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Read nothing and sent no request: 'loom model', 'loom
-  project' and 'loom generate' exit 1; generate_model_sbom and read_huggingface
-  raise ValueError carrying the code. An http(s) URL on huggingface.co or hf.co
-  that is no Space or dataset is taken as a model URL, so a malformed one says
-  this, not that a model file is not found.
+  project' and 'loom generate' exit 1; generate, generate_model_sbom,
+  generate_project_sbom, generate_git_project_sbom and read_huggingface raise
+  ValueError carrying the code. An http(s) URL on huggingface.co or hf.co that
+  is no Space or dataset is taken as a model URL, so a malformed one says this,
+  not that a model file is not found.
 - **Tell the user**: the URL or id was not read, as the line gives it. They
   check it and run again. Do not guess another model and run for them; ask
   first, and with nobody to ask, report it only.
@@ -336,7 +337,9 @@ values.
   ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Read nothing of it: the command exits 1; the library raises
-  ValueError carrying the code for a file not named .whl.
+  ValueError carrying the code (generate_project_sbom and
+  generate_git_project_sbom for a Hugging Face model URL, generate_wheel_sbom
+  for a file not named .whl).
 - **The caller may fix**: The caller may run the command the line names, or give
   a wheel file (a built .whl), and run again.
 - **Lines**:

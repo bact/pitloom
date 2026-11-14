@@ -79,7 +79,7 @@ frame on an exception's text. The old `<what> failed:` strings are gone.
   spelling; a resolved or absolute form is used only for the check (the
   docstring of `messages._input_not_found_say.input_not_found`). The CLI's
   `--id-registry` and a `--config` file's `id-registry` keep that spelling
-  through `core.given_file.GivenPath`, so `resolve_registry` names it too.
+  through `core.given_path.GivenPath`, so `resolve_registry` names it too.
 - An input check uses the shared probe (`messages.targets.input_exists`,
   `is_input_file`, `is_input_dir`), never `os.path.isfile` and its
   siblings: those say `False` for a path under a directory that cannot be

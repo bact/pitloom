@@ -80,12 +80,12 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     target: str = args.target
     if is_pypi_url(target):
         return _run_pypi_wheel(args, target)
-    if refuse_non_wheel(Path(target)):
+    if refuse_non_wheel(target):
         return 1
     # Absolute, not resolved: the file name is judged as given.
     wheel_path: Path = Path(target).absolute()
     # A regular file only: a directory named .whl is not a wheel.
-    if not input_file_or_say(wheel_path, "wheel file", shown=Path(target)):
+    if not input_file_or_say(wheel_path, "wheel file", shown=target):
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)

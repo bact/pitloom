@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import os
 
-from pitloom.core.quote_source import quote_source
+from pitloom.core.given_path import given_spelling
+from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.logging_config import loggable, one_line
 
 
@@ -24,15 +25,18 @@ def size_text(size: int) -> str:
 
 
 def _path_text(value: object) -> str:
-    """*value*, a ``str`` or :class:`os.PathLike` path, as text.
+    """*value*, a ``str`` or :class:`os.PathLike` path, as text: spelt as the
+    user gave it (:func:`~pitloom.core.given_path.given_spelling`), a URL in
+    it masked (:func:`~pitloom.core.url_masking.masked_given_path`).
 
     Raises:
         ValueError: It is neither, or names a path in bytes.
     """
-    text = os.fspath(value) if isinstance(value, os.PathLike) else value
-    if not isinstance(text, str):
-        raise ValueError(f"not a path: {value!r}")
-    return text
+    if isinstance(value, (str, os.PathLike)):
+        spelt = given_spelling(value)
+        if isinstance(os.fspath(spelt), str):
+            return given_path_text(spelt)
+    raise ValueError(f"not a path: {value!r}")
 
 
 def file_text(value: object) -> str:

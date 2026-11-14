@@ -19,8 +19,12 @@ parser).
 from __future__ import annotations
 
 import logging
+from pathlib import PurePath
 
 from pitloom.__about__ import __version__
+from pitloom.core.given_path import GivenPath
+from pitloom.core.quote_source import given_path_text
+from pitloom.core.url_masking import masked_given_path
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
@@ -38,9 +42,23 @@ def print_kv(**pairs: object) -> None:
     print(kv_line(**pairs))
 
 
+def _shown(value: object) -> str:
+    """*value* as a ``-v`` detail writes it: a path (or a
+    :class:`~pitloom.core.given_path.GivenPath`) as the user gave it
+    (:func:`~pitloom.core.quote_source.given_path_text`), anything else
+    (text, bytes, a list of paths) as ``str`` writes it; a URL in either
+    without its credentials, text as a message line (an address after a
+    URL is kept: :func:`~pitloom.core.url_masking.masked_given_path`)."""
+    if isinstance(value, (PurePath, GivenPath)):
+        return given_path_text(value)
+    return masked_given_path(str(value), line=True)
+
+
 def log_kv(**pairs: object) -> None:
-    """Log one ``INFO: KEY=VALUE`` line to stderr."""
-    log.info("%s", kv_line(**pairs))
+    """Log one ``INFO: KEY=VALUE`` line to stderr, each value through
+    :func:`_shown`: a ``-v`` detail names an argument as typed and shows no
+    secret."""
+    log.info("%s", kv_line(**{key: _shown(value) for key, value in pairs.items()}))
 
 
 def log_verbose(**pairs: object) -> None:

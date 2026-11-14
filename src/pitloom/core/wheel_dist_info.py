@@ -38,6 +38,7 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.given_path import TypedPath
 from pitloom.core.path_probe import is_directory_error, is_missing_errno
 from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
@@ -147,7 +148,9 @@ def require_wheel_path(path: Path | str) -> None:
 def require_wheel_file(path: Path | str) -> None:
     """:func:`require_wheel_path`, then raise unless a regular file is at
     *path* (``input-not-found``, naming *path* as given): for an entry
-    point that goes on with a resolved or absolute form of it.
+    point that goes on with a resolved or absolute form of it. *path* is
+    looked at as :class:`pathlib.Path` reads it (``real.whl/``, ``d//x.whl``
+    are ``real.whl``, ``d/x.whl``), as the command line's argument is.
 
     Raises:
         WheelRefused: the file name does not end in ``.whl``.
@@ -156,9 +159,10 @@ def require_wheel_file(path: Path | str) -> None:
         pitloom.messages.CodedValueError: *path* cannot be looked at
             (``file-unreadable``: a directory on its way refuses search).
     """
-    require_wheel_path(path)
-    if not is_input_file(path):
-        raise input_not_found("wheel file", path)
+    typed = TypedPath(path)  # looked at as a Path reads it, named as given
+    require_wheel_path(typed)
+    if not is_input_file(typed):
+        raise input_not_found("wheel file", typed)
 
 
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:

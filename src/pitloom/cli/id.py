@@ -27,8 +27,9 @@ from pitloom.cli._id_target import (
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options import positive_byte_ceiling
+from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.core.iri import require_namespace_iri
-from pitloom.core.quote_source import quote_source
+from pitloom.core.quote_source import quote_given, quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -243,10 +244,11 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
                 raise ValueError(
-                    f"PATH {quote_source(path)} is outside "
-                    f"--project-dir {quote_source(project_dir)}"
+                    f"PATH {quote_given(path)} is outside "
+                    f"--project-dir {quote_given(args.project_dir or project_dir)}"
                 )
-            paths.append(resolved)
+            # The typed spelling rides along, for a warning to name it.
+            paths.append(keep_spelling(resolved, path))
     else:
         paths = _default_id_generate_paths(project_dir)
     if not paths:
@@ -404,7 +406,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     gen_parser.add_argument(
         "paths",
         nargs="*",
-        type=Path,
+        type=TypedPath,
         default=None,
         help="Files or directories to index.",
     )
@@ -422,7 +424,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     gen_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         help="Project directory root.",
     )
@@ -478,7 +480,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     imp_parser.add_argument(
         "sbom",
-        type=Path,
+        type=TypedPath,
         help="Source SBOM JSON file to import.",
     )
     imp_parser.add_argument(
@@ -495,7 +497,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     imp_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         help=(
             "Project directory root: a new registry's root, which the SBOM's "

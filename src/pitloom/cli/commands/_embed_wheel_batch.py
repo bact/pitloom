@@ -112,7 +112,7 @@ def resolve_project_dir_and_config(
 
     proj_path = Path(project_dir).resolve()
     if not input_exists(proj_path, shown=project_dir):
-        say_input_not_found("project directory", Path(project_dir))
+        say_input_not_found("project directory", project_dir)
         return None
     if not read_config:
         return proj_path, None

@@ -58,7 +58,7 @@ def _run_project_target(args: argparse.Namespace) -> int:
     is named as typed (read_project would name the resolved path)."""
     target_path = Path(args.target).resolve()
     if not input_exists(target_path, shown=args.target):
-        say_input_not_found("project path", Path(args.target))
+        say_input_not_found("project path", args.target)
         return 1
     build_options = build_options_from_args(args).settle_target(target_path)
     generate_project_from_args(args, target_path, build_options)
@@ -86,7 +86,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         # INFO: naming `loom project <url>` for the sdist.
         return run_pypi(args, str(args.target).strip(), WHEEL_FILE, hint=True)
 
-    if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
+    if looks_like_wheel_path(args.target) and refuse_non_wheel(args.target):
         return 1
 
     if target_is_git_url(args.target):

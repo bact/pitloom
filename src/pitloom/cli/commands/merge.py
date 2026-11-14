@@ -15,6 +15,7 @@ from typing import Any
 from pitloom.assemble import generate_merged_sbom
 from pitloom.assemble.spdx3.fragments import fragment_files
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.core.given_path import TypedPath
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import print_error
 from pitloom.messages.targets import (
@@ -61,7 +62,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     merge_parser.add_argument(
         "fragments_dir",
-        type=Path,
+        type=TypedPath,
         help="Directory of SPDX 3 fragments (every *.json file in it).",
     )
     merge_parser.add_argument(

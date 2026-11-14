@@ -32,7 +32,7 @@ from pitloom.assemble import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.core.given_file import given_spelling
+from pitloom.core.given_path import given_spelling
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout

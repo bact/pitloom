@@ -37,7 +37,9 @@ TARGET_WRONG_FORMAT: Final = Message(
     "Face model given to 'loom project', or a file not named .whl given as a "
     "wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel').",
     did="Read nothing of it: the command exits 1; the library raises "
-    "ValueError carrying the code for a file not named .whl.",
+    "ValueError carrying the code (generate_project_sbom and "
+    "generate_git_project_sbom for a Hugging Face model URL, "
+    "generate_wheel_sbom for a file not named .whl).",
     effect="not-written",
     actor="caller",
     advice="The caller may run the command the line names, or give a wheel "
@@ -58,9 +60,10 @@ HF_URL_INVALID: Final = Message(
     summary="A Hugging Face target is neither a Hub model URL "
     "(https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>).",
     did="Read nothing and sent no request: 'loom model', 'loom project' and "
-    "'loom generate' exit 1; generate_model_sbom and read_huggingface raise "
-    "ValueError carrying the code. An http(s) URL on huggingface.co or hf.co "
-    "that is no Space or dataset is taken as a model URL, so a malformed one "
+    "'loom generate' exit 1; generate, generate_model_sbom, "
+    "generate_project_sbom, generate_git_project_sbom and read_huggingface "
+    "raise ValueError carrying the code. An http(s) URL on huggingface.co or "
+    "hf.co that is no Space or dataset is taken as a model URL, so a malformed one "
     "says this, not that a model file is not found.",
     effect="not-written",
     actor="user",

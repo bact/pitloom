@@ -30,27 +30,22 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     GIT,
     forward_options,
     project_target_kind,
     settle_inert,
 )
-from pitloom.core.url_masking import sanitize_url
 from pitloom.extract.model_target import PROJECT
 from pitloom.extract.remote import (
     is_git_url,
-    is_huggingface_source,
+    is_hub_model_target,
     is_unfetchable_remote,
-    require_hf_model_id,
+    refuse_hub_model_target,
 )
 from pitloom.extract.remote.pypi import SDIST
 from pitloom.extract.remote.pypi_url import is_pypi_url
-from pitloom.logging_config import print_error
-from pitloom.messages.targets import (
-    HUB_MODEL_NOT_PROJECT_LINE,
-    TARGET_WRONG_FORMAT,
-)
 
 
 def generate_project_from_args(
@@ -116,18 +111,11 @@ def _project_target(text: str) -> Path | str:
     if (
         is_pypi_url(text)
         or is_git_url(text)
-        or _is_hub_model_url(text)
+        or is_hub_model_target(text)
         or is_unfetchable_remote(text)
     ):
         return text.strip()
-    return Path(text)
-
-
-def _is_hub_model_url(text: str) -> bool:
-    """Whether *text* is the URL of a Hugging Face model."""
-    return text.strip().lower().startswith(("http://", "https://")) and (
-        is_huggingface_source(text.strip())
-    )
+    return TypedPath(text)
 
 
 @cli_error_handler
@@ -135,16 +123,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
     """Generate a Source SBOM from a project directory, sdist archive or Git
     URL."""
     if isinstance(args.project_dir, str):
-        if _is_hub_model_url(args.project_dir):
-            # A malformed one says so now, not after a run of 'loom model'.
-            require_hf_model_id(args.project_dir)
-            print_error(
-                HUB_MODEL_NOT_PROJECT_LINE.render(
-                    {"url": sanitize_url(args.project_dir)}
-                ),
-                code=TARGET_WRONG_FORMAT.code,
-            )
-            return 1
+        # A Hugging Face model URL is refused as the library refuses it.
+        refuse_hub_model_target(args.project_dir)
         if is_pypi_url(args.project_dir):
             return run_pypi(args, args.project_dir, SDIST)
         return run_remote_project(args, args.project_dir)

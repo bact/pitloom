@@ -240,7 +240,7 @@ def generate_wheel_sbom_with_metadata(
         require_download_override(max_download_bytes)  # even if inert
         settle_inert(WHEEL, wheel_path, {"max_download_bytes": max_download_bytes})
     wheel_path_obj = Path(wheel_path)
-    require_wheel_file(wheel_path_obj)
+    require_wheel_file(wheel_path)
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(

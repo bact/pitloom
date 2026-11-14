@@ -55,6 +55,7 @@ from pitloom.core.build_options import (
     NO_PROJECT_DIR_REASON,
     BuildOptions,
 )
+from pitloom.core.given_path import TypedPath
 from pitloom.embed import EmbedFileCache
 from pitloom.logging_config import loggable, print_error
 from pitloom.messages.options import (
@@ -259,7 +260,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="DIR",
         help=(
@@ -271,7 +272,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--sbom",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="FILE",
         help=(

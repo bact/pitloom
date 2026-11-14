@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.core.file_identity import file_id
+from pitloom.core.given_path import keep_spelling
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
@@ -173,7 +174,12 @@ def _walk_indexed(
     # lists below it are already.
     scope = Registry(registry.namespace, project_root=project_root)
     spelt = [
-        on_disk_path(project_root, path if path.is_absolute() else project_root / path)
+        keep_spelling(
+            on_disk_path(
+                project_root, path if path.is_absolute() else project_root / path
+            ),
+            path,
+        )
         for path in paths
     ]
     indexed: list[_Indexed] = []

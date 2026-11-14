@@ -111,7 +111,10 @@ unchanged. `generate_pypi_sbom_with_download()` returns
 `PypiSbom(sbom, download, metadata)`. `generate_git_sbom()` and
 `generate_git_project_sbom()` refuse PyPI-family URLs (`git.url-invalid`, with
 `pypi-url-unusable` as `pitloom_code`); `generate()` names the library route in
-its hint. `offline=True` (or `pitloom_config=`'s `offline`) raises
+its hint. `generate_project_sbom()` and `generate_git_project_sbom()` refuse a
+Hugging Face model URL as `loom project` does: a `ValueError` coded
+`target-wrong-format` naming `loom model`, or `hf-url-invalid` for a Hub URL
+that names no model. `offline=True` (or `pitloom_config=`'s `offline`) raises
 `pypi.offline` (`offline-unusable`) before any request. AI models in a downloaded wheel are gated
 as a Git URL's are (`reader-unsafe/remote`), and `trust_model_files=True`
 lifts the gate for a release you trust; an sdist's models are not scanned, so

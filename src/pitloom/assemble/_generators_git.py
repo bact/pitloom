@@ -27,7 +27,7 @@ from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.given_file import GivenPath, given_spelling
+from pitloom.core.given_path import GivenPath, given_spelling
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
 from pitloom.core.no_effect import warn_no_effect
@@ -36,6 +36,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.model_target import AUTO, MODEL, PROJECT
 from pitloom.extract.remote.git import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
+from pitloom.extract.remote.huggingface import refuse_hub_model_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 from pitloom.messages import emit
@@ -266,8 +267,13 @@ def generate_git_project_sbom(
     Raises:
         pitloom.extract.remote.errors.RemoteSourceError: the repository could
             not be fetched, or ``git.no-project``.
+        ValueError: *url* is a Hugging Face model URL
+            (``target-wrong-format``), or a malformed one
+            (``hf-url-invalid``):
+            :func:`~pitloom.extract.remote.huggingface.refuse_hub_model_target`.
     """
     configure_logging()
+    refuse_hub_model_target(url)
     return generate_git_sbom(
         url,
         sbom_kind=PROJECT,

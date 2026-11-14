@@ -36,7 +36,7 @@ from pitloom.cli.options_resolve import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
-from pitloom.core.given_file import GivenPath
+from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.no_effect import warn_no_effect
 
 #: Shared flags whose ``argparse`` dest is also the library parameter name.
@@ -92,7 +92,7 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     relative ``--id-registry`` is made absolute against the current
     directory, as a path on the command line is -- the library resolves a
     relative one against the project directory -- keeping the spelling
-    given for a message (:class:`~pitloom.core.given_file.GivenPath`).
+    given for a message (:class:`~pitloom.core.given_path.GivenPath`).
     ``project_dir`` comes from the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on
     a command that has it.
     """
@@ -163,7 +163,7 @@ def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--project-dir",
         dest=ARCHIVE_PROJECT_DIR_DEST,
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="DIR",
         help=(
@@ -180,7 +180,7 @@ def add_config_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--config FILE`` option."""
     parser.add_argument(
         "--config",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="FILE",
         help=(

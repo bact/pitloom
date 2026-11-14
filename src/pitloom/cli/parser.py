@@ -37,6 +37,7 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     Creator,
 )
+from pitloom.core.given_path import TypedPath
 from pitloom.logging_config import print_error
 from pitloom.messages import (
     COMMAND_FRAME,
@@ -291,7 +292,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     parent.add_argument(
         "--id-registry",
-        type=Path,
+        type=TypedPath,
         default=None,
         metavar="FILE",
         help=(

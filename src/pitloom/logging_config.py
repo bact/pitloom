@@ -170,7 +170,7 @@ def print_error(
     The *frame* is the line's prefix (``loom generate: ``, ending in
     ``": "``); ``None`` takes the one :func:`error_frame` set, ``""`` none."""
     prefix = _ERROR_FRAME.get() if frame is None else frame
-    shown = escape_controls(masked_given_path(message))
+    shown = escape_controls(masked_given_path(message, line=True))
     print(f"ERROR: {prefix}{_with_code(shown, code)}", file=sys.stderr)
 
 

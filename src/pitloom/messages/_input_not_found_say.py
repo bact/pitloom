@@ -29,7 +29,6 @@ from typing import Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.core.path_probe import stat_if_present
-from pitloom.core.url_masking import masked_given_path
 from pitloom.logging_config import print_error
 from pitloom.messages._emit import CodedFileNotFoundError, emit
 from pitloom.messages._field_tables import INPUT_KINDS, INPUT_USE
@@ -137,9 +136,9 @@ def _render(
     at: str | os.PathLike[str] | None = None,
 ) -> tuple[Line, dict[str, object]]:
     """The line for *path*, named as *kind* (:func:`_line`, the one probe,
-    of *at* when given, else of *path*), and the values it is written from,
-    *path* shown with a URL in it masked
-    (:func:`~pitloom.core.url_masking.masked_given_path`): what
+    of *at* when given, else of *path*), and the values it is written from
+    (the path field names *path* as given, a URL in it masked:
+    :func:`~pitloom.messages._field_writers.path_text`): what
     :func:`input_not_found` raises and :func:`say_input_not_found` prints.
 
     Raises:
@@ -147,9 +146,7 @@ def _render(
             :data:`~pitloom.messages._field_tables.INPUT_KINDS`.
     """
     line = _line(kind, path if at is None else at, path)
-    text = os.fspath(path)
-    shown = masked_given_path(text)
-    return line, {"input": kind, "path": path if shown == text else shown}
+    return line, {"input": kind, "path": path}
 
 
 def input_not_found(

@@ -20,10 +20,12 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
 )
 from pitloom.extract.remote.huggingface import (
+    is_hub_model_target,
     is_huggingface_source,
     log_hf_url_rewrite,
     parse_hf_model_id,
     read_huggingface,
+    refuse_hub_model_target,
     require_hf_model_id,
 )
 from pitloom.extract.remote.pypi import PypiDownload, fetch_pypi_file, sdist_hint
@@ -42,6 +44,7 @@ __all__ = [
     "fetch_git_project",
     "fetch_pypi_file",
     "is_git_url",
+    "is_hub_model_target",
     "is_huggingface_source",
     "is_pypi_url",
     "is_unfetchable_remote",
@@ -52,6 +55,7 @@ __all__ = [
     "parse_pypi_url",
     "pypi_json_url",
     "read_huggingface",
+    "refuse_hub_model_target",
     "require_hf_model_id",
     "sdist_hint",
 ]

@@ -125,12 +125,12 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 continue
             wheel_paths.extend(matched)
         else:
-            if refuse_non_wheel(Path(pattern)):
+            if refuse_non_wheel(pattern):
                 had_error = True
                 continue
             p = _given(pattern)
             # A regular file only: a directory named .whl is not a wheel.
-            if not input_file_or_say(p, "wheel file", shown=Path(pattern)):
+            if not input_file_or_say(p, "wheel file", shown=pattern):
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -158,7 +158,7 @@ def report_error_line(exc: Exception) -> None:
     print_error(str(exc), code=code_of(exc))
 
 
-def refuse_non_wheel(path: Path) -> bool:
+def refuse_non_wheel(path: Path | str) -> bool:
     """Print the one ``ERROR: FILE=<path>: not a .whl file`` line and return
     ``True`` where *path* is not a wheel by name
     (:func:`~pitloom.core.wheel_dist_info.require_wheel_path`), the same line
@@ -177,7 +177,9 @@ def refuse_non_wheel_like(path: str) -> bool:
     return looks_like_wheel_path(path) and refuse_non_wheel(Path(path))
 
 
-def input_file_or_say(path: Path, kind: str, *, shown: Path | None = None) -> bool:
+def input_file_or_say(
+    path: Path, kind: str, *, shown: Path | str | None = None
+) -> bool:
     """Whether a regular file is at *path* (the input probe), else print its
     one ``ERROR:`` line naming *shown* (default: *path*) as *kind*:
     ``input-not-found``, or ``file-unreadable`` where the system will not

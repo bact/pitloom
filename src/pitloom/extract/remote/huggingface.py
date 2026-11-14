@@ -102,15 +102,21 @@ from pitloom.messages.network import (
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
 )
-from pitloom.messages.targets import HF_URL_INVALID
+from pitloom.messages.targets import (
+    HF_URL_INVALID,
+    HUB_MODEL_NOT_PROJECT_LINE,
+    TARGET_WRONG_FORMAT,
+)
 
 log = logging.getLogger(__name__)
 
 __all__ = [
+    "is_hub_model_target",
     "is_huggingface_source",
     "log_hf_url_rewrite",
     "parse_hf_model_id",
     "read_huggingface",
+    "refuse_hub_model_target",
     "require_hf_model_id",
 ]
 
@@ -198,6 +204,41 @@ def require_hf_model_id(source: str) -> str:
     if model_id is None:
         raise CodedValueError(HF_URL_INVALID, url=sanitize_url(source.strip()))
     return model_id
+
+
+def is_hub_model_target(text: str) -> bool:
+    """Whether *text* is the ``http`` or ``https`` URL of a Hugging Face
+    model, well-formed or not (:func:`is_huggingface_source`): a target a
+    project route refuses (:func:`refuse_hub_model_target`). A bare model
+    id is not one: it may name a local directory."""
+    stripped = text.strip()
+    return stripped.lower().startswith(("http://", "https://")) and (
+        is_huggingface_source(stripped)
+    )
+
+
+def refuse_hub_model_target(target: object) -> None:
+    """Refuse *target*, given where a project is read, when it is a Hugging
+    Face model URL (:func:`is_hub_model_target`): the one classification
+    ``loom project`` and the library's project entry points
+    (:func:`~pitloom.assemble.generate_project_sbom`,
+    :func:`~pitloom.assemble.generate_git_project_sbom`) make. Anything else,
+    a path object included, passes.
+
+    Raises:
+        pitloom.messages.CodedValueError: It names no model
+            (``hf-url-invalid``, :func:`require_hf_model_id`), else it is a
+            model (``target-wrong-format``, naming ``loom model``); the URL
+            is named with its credentials masked.
+    """
+    if not isinstance(target, str) or not is_hub_model_target(target):
+        return
+    require_hf_model_id(target)
+    raise CodedValueError(
+        TARGET_WRONG_FORMAT,
+        line=HUB_MODEL_NOT_PROJECT_LINE,
+        url=sanitize_url(target.strip()),
+    )
 
 
 def read_huggingface(

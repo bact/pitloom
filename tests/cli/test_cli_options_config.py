@@ -30,7 +30,7 @@ from pitloom.cli.options_resolve import config_file_display
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
-from pitloom.core.given_file import given_spelling
+from pitloom.core.given_path import given_spelling
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import demo_project
 from tests.cli.shared import SAFETENSORS_FIXTURE

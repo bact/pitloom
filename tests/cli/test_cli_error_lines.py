@@ -166,12 +166,14 @@ _FTP = "ftp://user:SECRET1@example.invalid/f"
     [
         (["generate", ".", "-o", f"{_FTP}/o.json"], "o.json'"),
         (["generate", ".", "-o", "o.json", "--creation-datetime", _FTP], "ISO 8601"),
-        (["generate", ".", "--bogus", "https:/user:SECRET1@h/x"], "--bogus https://"),
+        (["generate", ".", "--bogus", "https:/user:SECRET1@h/x"], "--bogus https:/***"),
         (["generate", ".", "--bogus", "https:\\\\user:SECRET1@h/x"], "--bogus"),
-        (["generate", ".", "--bogus", "https://user:SEC RET1@h/x"], "--bogus"),
         (["https://h/x?token=SEC RET1"], "?token=***' (choose from"),
+        (["generate", ".", "-o", "ftp://u:SE'C\"RET1@h/o.json"], "o.json'"),
+        (["ftp://u:SE'CRET1@h/x"], 'ftp://***:***@h/x" (choose from'),
     ],
-    ids=["output", "datetime", "collapsed", "backslashes", "space", "choice"],
+    ids=["output", "datetime", "collapsed", "backslashes", "choice"]
+    + ["quotes-in-password", "quote-in-password-choice"],
 )
 def test_an_error_line_names_no_credential(
     monkeypatch: pytest.MonkeyPatch,
@@ -199,10 +201,32 @@ def test_an_error_line_names_no_credential(
     assert shown in errors[0]
 
 
+@pytest.mark.parametrize(
+    "target",
+    ["ftp:/u:SECRET1@h/x.whl", "ftp:\\u:SECRET1@h\\x.whl"],
+    ids=["posix", "windows"],
+)
+def test_a_no_effect_warning_names_no_credential(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    target: str,
+) -> None:
+    """The subject of an ``option-no-effect`` warning, a URL a path
+    collapsed (no ``://``), is named without its password."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "generate", target, "-v", "-o", "o.json"])
+    assert main()
+    err = capsys.readouterr().err
+    (warning,) = [ln for ln in err.splitlines() if "[option-no-effect]" in ln]
+    assert "***:***@h" in warning
+    assert "RET1" not in err
+
+
 def test_a_per_wheel_line_names_no_credential(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     report_error_line(ValueError(f"bad '{_FTP}/x.whl' and 'https:/u:SECRET2@h'"))
     (line,) = capsys.readouterr().err.splitlines()
     assert "SECRET" not in line
-    assert line.endswith("x.whl' and 'https://***:***@h'")
+    assert line.endswith("x.whl' and 'https:/***:***@h'")

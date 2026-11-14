@@ -26,6 +26,7 @@ from pitloom.core.config_cascade import (
 )
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
+from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
     ENRICH_STANDALONE,
     HF,
@@ -408,7 +409,7 @@ def enrich_model(
         # used (an explicit config, else the project's own). Registry
         # resolved right after resolve_project_with_lockfile(), before
         # _doc_identity_of()'s own file walk.
-        project_dir = Path(project_target)
+        project_dir = TypedPath(project_target)  # named as given
         base_metadata, base_config, _ = resolve_project_with_lockfile(
             project_dir, use_lockfile, pitloom_config
         )

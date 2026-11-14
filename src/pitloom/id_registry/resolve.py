@@ -17,7 +17,7 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
-from pitloom.core.given_file import given_spelling
+from pitloom.core.given_path import given_spelling
 from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
@@ -122,7 +122,7 @@ def resolve_registry(
     A resolved path that is not a file raises the ``input-not-found``
     ``FileNotFoundError``, naming the path as given: *id_registry* or
     *configured* as passed, or the spelling a
-    :class:`~pitloom.core.given_file.GivenPath` keeps (the CLI flag, a
+    :class:`~pitloom.core.given_path.GivenPath` keeps (the CLI flag, a
     ``--config`` file's key), never the resolved form. One that does not
     load raises ``ValueError`` (via :meth:`IdRegistry.load`), naming the
     resolved path -- a declared registry is always meant to load; this

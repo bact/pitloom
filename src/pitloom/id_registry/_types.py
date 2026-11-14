@@ -28,7 +28,7 @@ from packaging.utils import canonicalize_name, canonicalize_version
 from pitloom.core.file_hash import stated_sha256_hex
 from pitloom.core.path_probe import is_missing_errno, stat_if_present
 from pitloom.core.pep440 import parse_version
-from pitloom.core.quote_source import quote_source
+from pitloom.core.quote_source import quote_given, quote_source
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
 from pitloom.messages.files import (
@@ -329,7 +329,7 @@ def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
     read or listing failure of *root* itself raises."""
     root_stat = stat_if_present(root)
     if root_stat is None:
-        log.warning("ID registry: path not found, skipping: %s", quote_source(root))
+        log.warning("ID registry: path not found, skipping: %s", quote_given(root))
         return ()
 
     is_dir = stat.S_ISDIR(root_stat.st_mode)
@@ -338,7 +338,7 @@ def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
         log.warning(
             "ID registry: path has a skipped directory name (%s), skipping: %s",
             skipped,
-            quote_source(root),
+            quote_given(root),
         )
         return ()
     if is_dir:

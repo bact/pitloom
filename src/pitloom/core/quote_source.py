@@ -14,9 +14,11 @@ from __future__ import annotations
 import os
 import sys
 
+from pitloom.core.given_path import given_spelling
+from pitloom.core.url_masking import masked_given_path
 from pitloom.logging_config import escape_controls
 
-__all__ = ["quote_source"]
+__all__ = ["given_path_text", "quote_given", "quote_source"]
 
 
 def quote_source(source: str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> str:
@@ -45,3 +47,16 @@ def quote_source(source: str | bytes | os.PathLike[str] | os.PathLike[bytes]) ->
             return f'"{text}"'
         text = text.replace("'", "\\'")
     return f"'{text}'"
+
+
+def given_path_text(path: str | os.PathLike[str]) -> str:
+    """*path* as the user gave it
+    (:func:`~pitloom.core.given_path.given_spelling`), with the credentials
+    of a URL in it masked (:func:`~pitloom.core.url_masking.masked_given_path`):
+    the one text of a path a message or a ``-v`` detail names."""
+    return masked_given_path(os.fspath(given_spelling(path)))
+
+
+def quote_given(path: str | os.PathLike[str]) -> str:
+    """:func:`given_path_text` in quotes, as :func:`quote_source` writes it."""
+    return quote_source(given_path_text(path))

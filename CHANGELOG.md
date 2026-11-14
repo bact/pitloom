@@ -37,11 +37,11 @@ and this project adheres to
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
   over 50 MiB, an `@graph` that is not a list of objects) ([#482])
 - A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
-  too) get a coded error; a padded Hub URL is read; a missing ID registry is
-  named as given ([#482])
+  and `generate_project_sbom()` too) get a coded error; a padded Hub URL is
+  read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` line masks the credentials and tokens of a URL ([#482])
+- Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482

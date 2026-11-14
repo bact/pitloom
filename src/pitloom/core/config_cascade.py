@@ -50,7 +50,7 @@ from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.core.given_file import GivenPath
+from pitloom.core.given_path import GivenPath
 from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,

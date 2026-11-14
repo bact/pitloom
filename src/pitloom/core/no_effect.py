@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from pitloom.core.url_masking import sanitize_url, sanitize_url_credentials
+from pitloom.core.url_masking import masked_given_path
 from pitloom.messages.options import OPTIONS_PREFIX, warn_option_no_effect
 
 log = logging.getLogger(__name__)
@@ -55,18 +55,19 @@ def warn_no_effect(
     *reason* follows "has no effect" with no trailing punctuation, e.g.
     ``"without --allow-build"``.
 
-    *subject* may be a user-given URL or path: credentials are masked here,
-    and the line's ``name`` field escapes a control character. *build*: a
-    build flag (``Build: ``), else an option the target or command cannot
-    act on (``Options: ``).
+    *subject* may be a user-given URL or path, a ``Path`` that collapsed a
+    URL's ``//`` included: credentials are masked here
+    (:func:`~pitloom.core.url_masking.masked_given_path`), and the line's
+    ``name`` field escapes a control character. *build*: a build flag
+    (``Build: ``), else an option the target or command cannot act on
+    (``Options: ``).
 
     Raises:
         pitloom.core.internal_error.InternalError: *level* ``logging.INFO``
             with *build*, or neither ``WARNING`` nor ``INFO``
             (:func:`~pitloom.messages.options.warn_option_no_effect`).
     """
-    text = str(subject)
-    shown = sanitize_url(text) if "://" in text else sanitize_url_credentials(text)
+    shown = masked_given_path(str(subject))
     for flag in flags:
         warn_option_no_effect(
             log,

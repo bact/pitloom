@@ -33,10 +33,15 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
+from pitloom.core.given_path import TypedPath
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
-from pitloom.messages.targets import warn_fragment_not_found
+from pitloom.messages.targets import (
+    is_input_dir,
+    say_input_not_found,
+    warn_fragment_not_found,
+)
 
 log = logging.getLogger(__name__)
 
@@ -281,6 +286,9 @@ def _own_document_id(project_dir: Path) -> str | None:
 def _run_fragment_list(args: argparse.Namespace) -> int:
     """Run `loom fragment list`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    if not is_input_dir(project_dir, shown=args.project_dir or project_dir):
+        say_input_not_found("project directory", args.project_dir or project_dir)
+        return 1
     pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
 
     if not pitloom_config.fragments:
@@ -327,7 +335,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     validate_parser.add_argument(
         "paths",
         nargs="+",
-        type=Path,
+        type=TypedPath,
         metavar="PATH",
         help="SPDX 3 JSON document(s) to validate.",
     )
@@ -347,7 +355,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     )
     list_parser.add_argument(
         "--project-dir",
-        type=Path,
+        type=TypedPath,
         default=None,
         help="Project directory containing pyproject.toml (default: cwd).",
     )

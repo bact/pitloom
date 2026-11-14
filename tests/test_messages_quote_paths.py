@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Drift guard: a path or file name in a log record or a stderr line goes
-through `quote_source` (a path), `loggable` or `one_line` (other untrusted
-text), as AGENTS.md's "CLI output" section says, so Windows backslashes are not
-doubled and a newline cannot start another line.
+through `quote_source` or `quote_given` (a path), `loggable` or `one_line`
+(other untrusted text), as AGENTS.md's "CLI output" section says, so Windows
+backslashes are not doubled and a newline cannot start another line.
 
 The formatter of `configure_logging` escapes control characters whatever a call
 site did, so this guards the display, not the line structure. It reads the
@@ -38,6 +38,7 @@ _PART_ATTRIBUTES = frozenset({"name", "parent", "stem", "suffix"})
 _SAFE_CALLS = frozenset(
     {
         "quote_source",
+        "quote_given",
         "loggable",
         "one_line",
         "type",
