@@ -42,9 +42,20 @@ and this project adheres to
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
+- A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
+  with no `general.license.name` gives no licence; a Hub card's `N/A` falls
+  back to licence files ([#483])
+- Safetensors `ss_base_model_version` (the base model) is no longer read as the
+  model's name; it stays a property ([#483])
+
+### Fixed
+
+- PyTorch type of model is the top-level object's class (`Linear` for a full
+  save, none for a `dict` checkpoint), not the first class found ([#483])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
+[#483]: https://github.com/bact/pitloom/pull/483
 
 ## [0.24.0] - 2026-11-11
 

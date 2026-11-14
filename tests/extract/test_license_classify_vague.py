@@ -24,6 +24,8 @@ from pitloom.extract._license_classify import is_vague_license_value
         ("proprietary", True),
         ("unknown", True),
         ("unlicensed", True),
+        ("N/A", True),
+        ("n/a-ish", False),
         ("MIT", False),
         ("other-permissive", False),
         ("", False),

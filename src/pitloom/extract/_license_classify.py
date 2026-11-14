@@ -213,9 +213,10 @@ def warn_unless_expression(value: str | None, field: str) -> None:
 
 
 #: What a model card or file puts in a licence field for "a licence, not
-#: named here" (the name is in another field): a placeholder, not a claim.
+#: named here" (the name is in another field) or "not applicable": a
+#: placeholder, not a claim.
 VAGUE_LICENSE_VALUES: frozenset[str] = frozenset(
-    {"other", "custom", "proprietary", "unknown", "unlicensed"}
+    {"other", "custom", "proprietary", "unknown", "unlicensed", "n/a"}
 )
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-28
+Last-Modified: 2026-11-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,10 +18,12 @@ What AI model files actually carry in their metadata fields, and what those
 fields mean, measured on the fixtures under `tests/fixtures/aimodels/`, the
 three ONNX models bundled with PyThaiNLP 5.3.9 (`deepcut.onnx`,
 `thai2rom_encoder.onnx`, `thai2rom_decoder.onnx`) and the Hugging Face Hub
-API. The first five items are from #292; the rest (from "No GGUF
-key holds a parameter count" on) are from the producer and parameter-count
-work, #306
-([g7-model-producer-parameter-count.md](../g7-model-producer-parameter-count.md)).
+API. The first five items are from #292; from "No GGUF key holds a
+parameter count" on, they are from the producer and parameter-count work,
+#306 ([g7-model-producer-parameter-count.md](../g7-model-producer-parameter-count.md)),
+except the fastText defaults item (#361) and the last five, from the
+fact-check of the LLMSC 2027 workshop paper draft against 0.24.0 (#483,
+2026-11-14).
 
 - **A field name shared with SPDX can mean something else.** ONNX
   `ModelProto.domain` is "a reverse-DNS name to indicate the model
@@ -164,3 +166,60 @@ work, #306
   file stores it and whether the loader overrides it by version or model type;
   record only what is stored. Test with one file of each kind, not a mock that
   lacks the model type.
+- **The first class a pickle mentions is not the class of what it builds.**
+  `example-model.pt` (`torch.save(model)` of an `nn.Linear(10, 2)`) imports
+  `torch.nn.modules.linear Linear` first, and fickling's AST builds it as
+  `_var0 = Linear.__new__(Linear)`; the parameters come after, each wrapped
+  in a fresh `OrderedDict()`. The reader took the first title-case call of a
+  breadth-first `ast.walk`: `Linear.__new__` ends in `__new__`, so it was
+  skipped and the type of model was `OrderedDict`. The built object is what
+  fickling assigns to `result`, reached through aliases (`_var21 = _var0`);
+  its class is in `Cls.__new__(Cls)` (protocol 2+, NEWOBJ),
+  `copyreg._reconstructor(Cls, object, None)` (protocols 0 and 1) or `Cls()`.
+  A `dict` checkpoint (`{"model": state_dict, ...}`) has no class at all,
+  though an `OrderedDict` sits inside it. Still unread: a nested class at
+  protocols 0-3 (`getattr(Outer, 'Inner')` first; torch saves at protocol
+  2), a custom `__reduce__` through `copyreg.__newobj__`.
+  Do: read the root of an object graph, never the first match of a walk;
+  probe every pickle protocol with a class and a container.
+- **A licence placeholder with nothing behind it is not a licence.** GGUF
+  `general.license` `other` (llama.cpp writes a card's `license: other` that
+  way, the name going to `general.license.name`) was recorded as the licence
+  text `other` when no name followed, and a Hub card's `license: N/A` became
+  the licence text `N/A`, while a Hub `other` gave none and a dataset card's
+  `N/A` gave none. Three kinds hide in one field: a pointer elsewhere
+  (`other`, `custom`, `proprietary`, `N/A`: no claim when nothing is pointed
+  at), "not known" (`unknown`, `NOASSERTION`: a statement, kept as
+  `NOASSERTION`) and "none" (`NONE`: a claim). Do: sort a field's
+  placeholder spellings into these kinds once, share the set across formats
+  and routes, and keep the raw value as a property.
+- **A trainer's key can describe the parent, not the file.** kohya-ss
+  sd-scripts write `ss_base_model_version` (values such as `sdxl_base_v1-0`)
+  into a LoRA's Safetensors `__metadata__`: the base model family the LoRA
+  was trained against. Pitloom used it as the model's name when
+  `modelspec.title` and `name` were absent, so a LoRA was named after its base
+  model. It is not a lineage link either: a family label, not a model one can
+  point at. Do: look up what a vendor key's writer means by it before adding
+  it to a name cascade; a key that names another model is lineage or a
+  property, never identity.
+- **Fixture descriptions drift from the fixtures.** Running every fixture
+  through `loom model` and comparing with its description page found four
+  stale claims: `nn.Linear(10, 1)` for a pickle whose weight is `(2, 10)`;
+  `lr=0.05` listed as read after the fastText reader stopped reading it (the
+  loader's default, item above); `type_of_model None` for a file that gives a
+  class; "ExecuTorch" for a `torch.export` archive (`archive_format` `pt2`;
+  ExecuTorch's on-device file is a `.pte`). The format table also said GGUF
+  inputs and outputs were "not read" where GGUF has no I/O signature (absent,
+  not unread), and showed no Hub version though the reader records the
+  revision's commit hash. Do: derive "what the reader extracts" lines from
+  the reader's output, or test them; keep "the format lacks it" and "the
+  reader skips it" apart in every coverage table.
+- **The formats carry more than the readers read** (found by the same
+  check, not built): a PT2 archive's `model_weights_config.json` marks each
+  weight `is_param` with its `sizes`, enough for a true parameter count
+  without opening tensors; GGUF has `general.base_model.N.*`,
+  `general.dataset.N.*` and `general.source.*` for lineage and training data;
+  the Hub API states each LFS file's SHA-256 (`files_metadata=True`), a
+  declared hash to record as such, never as one measured. Do: when comparing
+  formats, list per format what it can hold and what the tool reads in
+  separate columns; the gap is a finding.
