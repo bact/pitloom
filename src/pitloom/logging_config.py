@@ -69,7 +69,7 @@ def escape_controls(text: str) -> str:
     escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
     letters included, is kept. Unlike :func:`loggable` it never quotes, so a
     message already built stays readable."""
-    text = mask_checkout(text)
+    text = masked_given_path(mask_checkout(text), line=True)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return "".join(

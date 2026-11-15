@@ -292,6 +292,15 @@ source's own annotation appears. See [Metadata
 provenance](metadata-provenance.md) for how to read these annotations
 in the generated SBOM.
 
+## Credentials in a URL
+
+A URL a project declares (a direct dependency, a project URL) may hold a
+user name or password, or a query parameter named like a secret (`token`,
+`key`, `signature`). An SBOM can be published, so Pitloom states the URL
+without them and says so once per URL, as `WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user information or a secret query value; removed from the SBOM [credentials-unsafe]`.
+
+Treat a credential that was in a project file as exposed.
+
 ## Configuration and flags
 
 There is currently no setting to change the priority order above or

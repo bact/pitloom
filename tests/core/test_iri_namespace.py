@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.iri import (
+    NAMESPACE_CREDENTIALS,
     NAMESPACE_PROBLEMS,
     NAMESPACE_RELATIVE,
     namespace_problem,
@@ -129,28 +130,24 @@ def test_a_registry_file_namespace_is_refused_with_its_credentials_masked(
     assert code_of(caught.value) == "registry-malformed"
 
 
-@pytest.mark.parametrize(
-    ("given", "shown", "note"),
-    [
-        (
-            "https://u:OTHER@h/ns",
-            "https://***:***@h/ns",
-            " (they differ in masked credentials)",
-        ),
-        ("https://h/other", "https://h/other", ""),
-    ],
-    ids=["alike-masked", "differ"],
-)
-def test_a_namespace_conflict_never_reads_x_is_not_x(
-    given: str, shown: str, note: str
-) -> None:
-    registry = IdRegistry.new("demo", namespace="https://u:SECRET@h/ns")
+def test_a_namespace_conflict_never_reads_x_is_not_x() -> None:
+    registry = IdRegistry.new("demo", namespace="https://h/ns")
 
     with pytest.raises(ValueError) as caught:
-        registry.require_namespace(given)
+        registry.require_namespace("https://h/other")
 
     assert str(caught.value) == (
-        "ID registry: FILE=(no file): namespace https://***:***@h/ns is not "
-        f"--namespace {shown}{note}; delete it to change the namespace"
+        "ID registry: FILE=(no file): namespace https://h/ns is not "
+        "--namespace https://h/other; delete it to change the namespace"
     )
     assert code_of(caught.value) == "option-conflict"
+
+
+@pytest.mark.parametrize(
+    "value", ["https://u:SECRET@h/ns", "https://h/ns?token=SECRET"]
+)
+def test_a_namespace_with_credentials_is_refused_masked(value: str) -> None:
+    assert namespace_problem(value) == NAMESPACE_CREDENTIALS
+    with pytest.raises(ValueError, match="carries a user name") as caught:
+        require_namespace_iri(value)
+    assert "SECRET" not in str(caught.value)

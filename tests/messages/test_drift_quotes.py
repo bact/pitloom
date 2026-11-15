@@ -211,6 +211,11 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     ),
     "temp-dir-unusable": ("could not be saved in the temporary directory",),
     "text-malformed": ("lone surrogates written", "cannot be encoded as UTF-8"),
+    "credentials-unsafe": (
+        "removed from the SBOM",
+        "are not sent to git",
+        "an ID registry key is stored as written",
+    ),
     "url-moved": ("; followed",),
     "url-unsafe": ("redirects to ", "; not fetched"),
     "usage-unparseable": ("could not parse as Python ",),

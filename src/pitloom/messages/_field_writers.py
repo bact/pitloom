@@ -16,6 +16,7 @@ import os
 
 from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
+from pitloom.core.url_masking import masked_given_path
 from pitloom.logging_config import loggable, one_line
 
 
@@ -110,7 +111,9 @@ def failure_text(value: object) -> str:
         raise ValueError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
         return one_line(value.strerror)
-    return one_line(value)
+    # A client's text names the URL it failed on: masked here, since the text
+    # also reaches a library caller in an exception, past the log sink.
+    return masked_given_path(one_line(value), line=True)
 
 
 def joined(value: object) -> str:

@@ -32,6 +32,7 @@ from pitloom.core.iri import (
     namespace_problem,
     require_namespace_iri,
 )
+from pitloom.core.url_masking import strip_url_secrets
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -79,6 +80,7 @@ from pitloom.messages.options import (
     namespace_conflict_line,
 )
 from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
+from pitloom.messages.url_credentials import registry_key_credentials_error
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -396,11 +398,14 @@ class IdRegistry:
 
         Raises:
             ValueError: *type_name* or *name* cannot be encoded as UTF-8
-                (the file could never be saved).
+                (the file could never be saved), or *name* is a URL holding
+                credentials (``credentials-unsafe/registry``).
         """
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
+        if strip_url_secrets(name)[1]:
+            raise registry_key_credentials_error(name)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)

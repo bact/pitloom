@@ -252,3 +252,8 @@ $RECYCLE.BIN/
 .Trash-*
 .nfs*
 nohup.out
+
+# Credential stores
+.git-credentials
+.netrc
+.pypirc

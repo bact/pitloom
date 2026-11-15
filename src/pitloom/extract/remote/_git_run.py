@@ -30,6 +30,11 @@ from pitloom.core.url_masking import (
     sanitize_url_credentials,
 )
 from pitloom.extract.remote import git_url
+from pitloom.extract.remote._git_credentials import (
+    GitCredentials,
+    credential_config,
+    split_credentials,
+)
 from pitloom.extract.remote._git_size import SizeCap, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
@@ -153,6 +158,10 @@ class GitRunner:
     #: The most bytes a call that fetches may write below its *watch*
     #: directory; ``None`` for no limit.
     max_bytes: int | None = None
+    #: The user information of the URL a call named: later calls of this
+    #: runner (a ``fetch`` of the remote ``remote add`` made) need it, and it
+    #: is never in an argument (:mod:`pitloom.extract.remote._git_credentials`).
+    credentials: GitCredentials | None = None
 
     def remaining(self) -> float:
         """Seconds left of the shared deadline."""
@@ -181,8 +190,10 @@ class GitRunner:
             raise RemoteSourceError(
                 "git.not-found", "git is not installed or not on PATH."
             )
+        args, found = split_credentials(args)
+        self.credentials = found or self.credentials
         command = [git]
-        for setting in _SAFE_CONFIG:
+        for setting in (*_SAFE_CONFIG, *credential_config(self.credentials)):
             command += ["-c", setting]
         command += args
         if echo:
@@ -198,7 +209,7 @@ class GitRunner:
         cap = None
         if watch is not None and self.max_bytes is not None:
             cap = SizeCap(watch, self.max_bytes)
-        status, out, err = _capture(command, left, cap)
+        status, out, err = _capture(command, left, cap, self.credentials)
         if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
             reason = Cap(cap.limit, "byte", MAX_DOWNLOAD_BYTES_KEY).reason_values()
             raise RemoteSourceError(
@@ -267,13 +278,18 @@ def _failure(err: str, status: int) -> str:
     return loggable(text)
 
 
-def _environment() -> dict[str, str]:
+def _environment(credentials: GitCredentials | None = None) -> dict[str, str]:
     """The environment git runs in: the caller's, without what points git
     elsewhere, with no prompt, no LFS download, only the allowed transports
     and English messages (:data:`_LOCALE`)."""
     env = {k: v for k, v in os.environ.items() if not _SCRUBBED_ENV.fullmatch(k)}
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GIT_LFS_SKIP_SMUDGE"] = "1"
+    # An empty program is no program: no ask-pass of the caller's runs.
+    env["GIT_ASKPASS"] = ""
+    env["SSH_ASKPASS"] = ""
+    if credentials is not None:
+        env.update(credentials.environment())
     env["GIT_ALLOW_PROTOCOL"] = ":".join(sorted(git_url.ALLOWED_SCHEMES))
     for name in _LOCALE_ENV:
         env.pop(name, None)
@@ -359,7 +375,10 @@ def _size_watch(proc: subprocess.Popen[bytes], cap: SizeCap | None) -> Iterator[
 
 
 def _capture(
-    command: list[str], seconds: float, cap: SizeCap | None = None
+    command: list[str],
+    seconds: float,
+    cap: SizeCap | None = None,
+    credentials: GitCredentials | None = None,
 ) -> tuple[int | None, str | None, str]:
     """Run *command* for at most *seconds*: its exit status (``None`` when
     killed for time), its standard output (``None`` when over
@@ -369,7 +388,7 @@ def _capture(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=_environment(),
+        env=_environment(credentials),
         # Its own process group, so a kill reaches what git started
         # (git-remote-https holds the pipe open).
         start_new_session=_POSIX,

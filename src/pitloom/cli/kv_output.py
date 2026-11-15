@@ -33,8 +33,12 @@ log = logging.getLogger(__name__)
 def kv_line(**pairs: object) -> str:
     """``KEY=VALUE`` pairs, space-separated, in the order given. Each value
     goes through :func:`~pitloom.logging_config.loggable`, so a value with a
-    line break cannot forge a second line."""
-    return " ".join(f"{key}={loggable(str(value))}" for key, value in pairs.items())
+    line break cannot forge a second line, and the credentials of a URL in it
+    are masked (:func:`~pitloom.core.url_masking.masked_given_path`)."""
+    return " ".join(
+        f"{key}={loggable(masked_given_path(str(value), line=True))}"
+        for key, value in pairs.items()
+    )
 
 
 def print_kv(**pairs: object) -> None:

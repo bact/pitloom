@@ -19,10 +19,11 @@ import re
 import string
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
-from pitloom.core.url_masking import masked_given_path
+from pitloom.core.url_masking import masked_given_path, strip_url_secrets
 
 __all__ = [
     "NAMESPACE_CHARACTER",
+    "NAMESPACE_CREDENTIALS",
     "NAMESPACE_EMPTY",
     "NAMESPACE_FRAGMENT",
     "NAMESPACE_PROBLEMS",
@@ -42,11 +43,13 @@ NAMESPACE_RELATIVE = (
     "is not an absolute IRI (a scheme is needed, as in https://example.org/ns)"
 )
 NAMESPACE_CHARACTER = "has a character an IRI cannot hold"
+NAMESPACE_CREDENTIALS = "carries a user name, password or secret token"
 NAMESPACE_PROBLEMS = (
     NAMESPACE_EMPTY,
     NAMESPACE_FRAGMENT,
     NAMESPACE_RELATIVE,
     NAMESPACE_CHARACTER,
+    NAMESPACE_CREDENTIALS,
 )
 
 #: Base IRI of every Pitloom-minted SPDX document namespace.
@@ -152,4 +155,6 @@ def namespace_problem(value: str) -> str | None:
     rest = _PERCENT.sub("", value)
     if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
         return NAMESPACE_CHARACTER
+    if strip_url_secrets(value)[1]:
+        return NAMESPACE_CREDENTIALS
     return None

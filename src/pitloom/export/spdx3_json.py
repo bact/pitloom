@@ -22,8 +22,10 @@ from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
+from pitloom.core.url_masking import strip_url_secrets
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 from pitloom.messages.files import warn_lone_surrogates
+from pitloom.messages.url_credentials import warn_url_credentials_stripped
 
 if TYPE_CHECKING:
     from pitloom.core.lfs_pointer import LfsPointer
@@ -132,6 +134,40 @@ def _escape_lone_surrogates(graph: list[dict[str, Any]]) -> None:
     changed = escape_lone_surrogates_in_elements(graph)
     if changed:
         warn_lone_surrogates(log, file=min(changed))
+
+
+def _stripped_urls(value: Any, seen: list[str]) -> Any:
+    """*value*, a decoded JSON value, with the credentials of each URL in each
+    string removed (:func:`~pitloom.core.url_masking.strip_url_secrets`);
+    each URL changed is added to *seen*, masked. An ``spdxId`` is a key,
+    never text a project wrote."""
+    if isinstance(value, str):
+        plain, changed = strip_url_secrets(value)
+        seen.extend(changed)
+        return plain
+    if isinstance(value, list):
+        return [_stripped_urls(item, seen) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: item if key in _ID_KEYS else _stripped_urls(item, seen)
+            for key, item in value.items()
+        }
+    return value
+
+
+#: The keys of an element that name it; their values are ids, not text.
+_ID_KEYS = frozenset({"spdxId", "@id"})
+
+
+def _strip_url_credentials(graph: list[dict[str, Any]]) -> None:
+    """The user information and secret query parameters of each URL in
+    *graph* (a project URL, a dependency's direct URL, a provenance note),
+    removed in place, with one ``WARNING:`` per URL: the one place every
+    surface's SBOM passes, which a wheel can embed and anyone can publish."""
+    seen: list[str] = []
+    graph[:] = _stripped_urls(graph, seen)
+    for url in dict.fromkeys(seen):
+        warn_url_credentials_stripped(log, url)
 
 
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
@@ -565,6 +601,8 @@ class Spdx3JsonExporter:
         serializer.write(self.object_set, out_f)
         data = json.loads(out_f.getvalue())
         _escape_lone_surrogates(data.get("@graph", [data]))
+        if "@graph" in data:
+            _strip_url_credentials(data["@graph"])
         if "@graph" in data:
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])

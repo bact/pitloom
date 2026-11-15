@@ -55,12 +55,22 @@ and this project adheres to
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
+- Credentials in a URL no longer reach any log line, traceback, `KEY=VALUE`
+  stdout line or SBOM: the sinks mask them, and an SBOM states a project's URL
+  without user information or secret query values (`credentials-unsafe`
+  warning) ([#487])
+- A Git URL's password is passed to `git` by an ephemeral credential helper,
+  not in its arguments; every system credential helper is switched off for
+  Git URL fetches ([#487])
+- `loom id generate` refuses a `--namespace` or `-e` URL that holds
+  credentials ([#487])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
 [#485]: https://github.com/bact/pitloom/pull/485
 [#486]: https://github.com/bact/pitloom/pull/486
+[#487]: https://github.com/bact/pitloom/pull/487
 
 ## [0.24.0] - 2026-11-11
 

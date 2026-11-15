@@ -38,6 +38,9 @@ _SECRET_WORDS = (
     *("token", "key", "secret", "password", "passwd", "signature", "sig"),
     *("jwt", "credential", "credentials", "auth"),
 )
+#: Names that hold a secret only sometimes (``code=utf8``, ``session=2024``):
+#: masked in a message, never removed from an SBOM.
+_WEAK_SECRET_NAMES = frozenset({"code", "session", "ticket", "sid", "otp"})
 #: Lower-case names of a parameter that holds a secret, matched whole.
 _SECRET_NAMES = frozenset(
     {*_SECRET_WORDS, "apikey", "pass", "pwd", "pw", "authorization"}
@@ -50,12 +53,18 @@ _SECRET_ENDINGS = tuple(sep + word for word in _SECRET_WORDS for sep in "_-")
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
-def is_secret_name(name: str) -> bool:
+def is_secret_name(name: str, *, weak: bool = True) -> bool:
     """Whether the parameter *name* names a secret (:data:`_SECRET_NAMES`,
-    :data:`_SECRET_ENDINGS`), percent-decoded and camelCase read as words."""
+    :data:`_SECRET_ENDINGS`), percent-decoded and camelCase read as words;
+    with *weak* false, not one of the names that only sometimes do
+    (:data:`_WEAK_SECRET_NAMES`)."""
     plain = unquote(name) if "%" in name else name
+    # ``token%3D=v`` is a parameter named ``token=``: a server may decode it.
+    plain = plain.rstrip("=")
     if not plain.islower():
         plain = _CAMEL_BOUNDARY.sub("_", plain).lower()
+    if weak and plain in _WEAK_SECRET_NAMES:
+        return True
     return plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS)
 
 
