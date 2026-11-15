@@ -13,7 +13,9 @@ file format, :mod:`pitloom.id_registry._counters` for the id counters,
 :mod:`pitloom.id_registry._generate` for indexing a project's files,
 :mod:`pitloom.id_registry._harvest` for SBOM-element harvest
 helpers, :mod:`pitloom.id_registry._ambiguous` for the keys harvest does
-not write, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
+not write, :mod:`pitloom.id_registry._credentials` for the credentials a
+key, an id or the namespace may not hold,
+:mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
 :mod:`pitloom.id_registry._persist` for saving a run's additions,
 :mod:`pitloom.id_registry._sbom_read` for reading an SBOM for ``id import``,
 :mod:`pitloom.id_registry.import_keys` for the keys ``id import`` writes,
@@ -28,6 +30,7 @@ that defines them.
 from __future__ import annotations
 
 from pitloom.id_registry._ambiguous import say_ambiguous_keys
+from pitloom.id_registry._credentials import require_key_without_credentials
 from pitloom.id_registry._persist import (
     failed_to_save_message,
     persist_registry,
@@ -100,6 +103,7 @@ __all__ = [
     "registry_copy",
     "registry_file_path",
     "registry_key_for_path",
+    "require_key_without_credentials",
     "resolve_registry",
     "save_registry",
     "sha256_file",

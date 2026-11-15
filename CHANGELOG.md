@@ -41,8 +41,8 @@ and this project adheres to
   read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` and ID registry `WARNING:` line and `-v` detail masks the
-  credentials and tokens of each URL ([#482], [#486])
+- Pitloom's log lines, tracebacks and `-v` details mask the credentials of each
+  URL; an SBOM states a project's URLs without them ([#482], [#486], [#487])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -50,17 +50,30 @@ and this project adheres to
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
+- `--namespace`, `-e` and `IdRegistry` refuse credentials in a namespace or key;
+  `id import` and `load()` drop such entries; `id-collision` in merge ([#487])
+- Git URL fetches reset system credential helpers only for a URL with user
+  information; the password is not in git's arguments ([#487])
 
 ### Fixed
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
 
+### Security
+
+- Credentials in a URL are removed from SBOMs and registry files and masked in
+  Pitloom's logs; known gaps in `docs/dependency-sources.md` ([#487])
+- Rotate any credential an SBOM, wheel, registry file or log of 0.24.0 or
+  earlier held; remove it from git credential stores (`git credential reject`)
+  ([#487])
+
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
 [#485]: https://github.com/bact/pitloom/pull/485
 [#486]: https://github.com/bact/pitloom/pull/486
+[#487]: https://github.com/bact/pitloom/pull/487
 
 ## [0.24.0] - 2026-11-11
 

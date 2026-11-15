@@ -37,6 +37,7 @@ from pitloom.id_registry import (
     PACKAGE_TYPE,
     IdRegistry,
     failed_to_save_message,
+    require_key_without_credentials,
     save_registry,
     say_ambiguous_keys,
 )
@@ -293,6 +294,8 @@ def _register_entities(
         args.max_dataset_hash_bytes, project_dir, [t for t, _ in entities]
     )
     for type_name, name in entities:
+        # Before entity_entry says anything about the entity.
+        require_key_without_credentials(type_name, name)
         key, sha256 = entity_entry(registry, project_dir, type_name, name, ceiling)
         registry.register(type_name, key, sha256=sha256)
 

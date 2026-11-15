@@ -71,7 +71,7 @@ from pitloom.core.url_masking._scan import masked_once
         # An @ in a secret value ends a userinfo: the rest of the value is
         # masked too (RFC 3986 reads ``x@h/x`` as the token's).
         ("https://u:p?token=x@h/x", "https://***:***@***"),
-        ("https:/h?apiKey=@=SECRET&a=1", "https:/***:***@***&a=1"),
+        ("https:/u:p?apiKey=@=SECRET&a=1", "https:/***:***@***&a=1"),
         ("'https:\\u@h\\p?a=1&key=@=SECRET' x", "'https:\\***:***@***' x"),
         # Each URL of a path; a value holding what reads as a URL is one.
         ("/a/https:/u:A@h/x/ftp:/v:B@h/y", "/a/https:/***:***@h/x/ftp:/***:***@h/y"),
@@ -111,10 +111,10 @@ from pitloom.core.url_masking._scan import masked_once
         # A / in a secret value does not end a userinfo: masking the value
         # would uncover one.
         (
-            "'https:/#sig=/'@#sig=/'@#sig=/'@#sig=/'@&token=ZqS",
+            "'https:/u:p#sig=/'@#sig=/'@#sig=/'@#sig=/'@&token=ZqS",
             "'https:/***:***@&token=***",
         ),
-        ("https:\\h?token=a/b&u@h2", "https:\\***:***@h2"),
+        ("https:\\u:p?token=a/b&u@h2", "https:\\***:***@h2"),
     ],
     ids=[
         "userinfo",
@@ -261,7 +261,7 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
         ("'https://h/p?token=S', 'x y'", "'https://h/p?token=***', 'x y'"),
         ("https://h&x=1&token=S ops@x.com", "https://h&x=1&token=*** ops@x.com"),
         # White space in a quoted secret value does not end a userinfo.
-        ("'https:/h?token=a b/c'@?token=a b/c'@&x", "'https:/***:***@&x"),
+        ("'https:/u:p?token=a b/c'@?token=a b/c'@&x", "'https:/***:***@&x"),
     ],
     ids=[
         "token-colon",
@@ -312,11 +312,11 @@ def test_a_url_in_a_line_keeps_the_line(given: str, shown: str) -> None:
 @pytest.mark.parametrize(
     ("given", "line", "shown"),
     [
-        ("'https:/#sig=/'@#sig=/'@&token=ZqS", False, "'https:/***:***@&token=***"),
-        ("'https:/#sig=/'@#sig=/'@&token=ZqS", True, "'https:/***:***@&token=***"),
-        ("https:\\h&token=a?b=c/d&u@h2", False, "https:\\***:***@h2"),
-        ("https:\\h?token=/b&u@h2", False, "https:\\***:***@h2"),
-        ("'https:/h?token=a b/c'@?token=a b/c'@&x", True, "'https:/***:***@&x"),
+        ("'https:/u:p#sig=/'@#sig=/'@&token=ZqS", False, "'https:/***:***@&token=***"),
+        ("'https:/u:p#sig=/'@#sig=/'@&token=ZqS", True, "'https:/***:***@&token=***"),
+        ("https:\\u:p&token=a?b=c/d&u@h2", False, "https:\\***:***@h2"),
+        ("https:\\u:p?token=/b&u@h2", False, "https:\\***:***@h2"),
+        ("'https:/u:p?token=a b/c'@?token=a b/c'@&x", True, "'https:/***:***@&x"),
         ("https://u:p?token=x@h/x", False, "https://***:***@***"),
     ],
     ids=["slash-chain", "slash-chain-line", "question-mark-head", "slash-first"]

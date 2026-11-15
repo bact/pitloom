@@ -16,7 +16,7 @@ import os
 
 from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import failure_reason, loggable, one_line
 
 
 def size_text(size: int) -> str:
@@ -101,7 +101,9 @@ def failure_text(value: object) -> str:
     """What stopped a read, from the exception *value*, on one line: an
     :class:`OSError`'s own description (``strerror``, ``Permission
     denied``), never its text, which quotes the path; any other
-    exception's text, its class name when it has none.
+    exception's text, its class name when it has none, the credentials of a
+    URL in it masked (:func:`~pitloom.logging_config.failure_reason`). The
+    text also reaches a library caller in an exception, past the log sink.
 
     Raises:
         ValueError: *value* is not an exception (a text included).
@@ -110,7 +112,7 @@ def failure_text(value: object) -> str:
         raise ValueError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
         return one_line(value.strerror)
-    return one_line(value)
+    return failure_reason(value)
 
 
 def joined(value: object) -> str:

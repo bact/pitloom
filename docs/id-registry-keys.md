@@ -307,3 +307,25 @@ nothing is dropped or rewritten. To keep its ids, delete it and `loom id
 import` the last SBOM a run made with it (every file, model and dataset keeps
 its id, and each package is keyed by the version that SBOM states); `loom id
 generate` alone starts afresh, with new ids.
+
+## Credentials in a key
+
+A key is stored as written, so a URL key (or an scp-style address such as
+`alice:password@host:path`) that holds user information or a secret query
+value (`token`, `api_key`, `signature`...) is refused for `-e` and
+`register()` (`credentials-unsafe/registry`), and skipped, with a warning,
+for an SBOM element that `id import` or a run's harvest reads (its key or
+its `spdxId`). A `code`, `session`, `ticket`, `sid` or `otp` parameter, and
+a user name alone on an `ssh` or `git` URL (`git+ssh://git@github.com/o/r`,
+a repository's address), are kept as written. A `software_File` key is a
+file name, not an address, so it is never refused as an scp-style address.
+
+A registry file that already holds such a key or `spdxId` (written by hand,
+or by Pitloom 0.24.0 or earlier) loads without that entry, with one line
+per value, shown masked: `WARNING: URL=https://***:***@host/model: holds
+user information or a secret query value, or a query nested too deeply to
+read; the ID registry entry is dropped and the next save writes the file without it
+[credentials-unsafe/registry]`. The next save (`loom id generate`, `loom id
+import`, or a run that adds an id) writes the file without it, and the
+element gets a new id. The credential is still in the file's version
+history: rotate it. A file whose `namespace` holds one does not load.

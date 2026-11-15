@@ -41,6 +41,8 @@ _NOT_EMITTERS = {
     "extract/ai_model/reader.py",
     # OutsideRootError's text; the outside-project line states it itself.
     "core/path_confine.py",
+    # The namespace refusal's phrase, which the credentials-unsafe lines take.
+    "core/iri.py",
 }
 
 _LOG_METHODS = frozenset({"warning", "info", "error", "critical", "exception", "log"})

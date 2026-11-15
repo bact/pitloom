@@ -24,17 +24,37 @@ from pathlib import PurePath
 from pitloom.__about__ import __version__
 from pitloom.core.given_path import GivenPath
 from pitloom.core.quote_source import given_path_text
-from pitloom.core.url_masking import masked_given_path
+from pitloom.core.url_masking import URL_AS_PATH_RE, masked_given_path
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
 
+def _url_credentials_masked(text: str) -> str:
+    """*text* with the credentials of a URL in it masked
+    (:func:`~pitloom.core.url_masking.masked_given_path`) when it holds one
+    (a scheme and ``:/`` or ``:\\``,
+    :data:`~pitloom.core.url_masking.URL_AS_PATH_RE`), else as it is.
+
+    A stdout value is data (a path a command wrote, which the GitHub Action
+    reads back), so the scp-style rule of the masker, which reads
+    ``meet 10:30@ab:c.json`` as ``user:password@host:path``, must not
+    rewrite a file name that only looks like an address. An scp-style
+    address with a password in a value that also holds a URL is still
+    masked; one in a value without a URL is printed as given."""
+    return masked_given_path(text, line=True) if URL_AS_PATH_RE.search(text) else text
+
+
 def kv_line(**pairs: object) -> str:
     """``KEY=VALUE`` pairs, space-separated, in the order given. Each value
     goes through :func:`~pitloom.logging_config.loggable`, so a value with a
-    line break cannot forge a second line."""
-    return " ".join(f"{key}={loggable(str(value))}" for key, value in pairs.items())
+    line break cannot forge a second line, and the credentials of a URL in it
+    are masked (:func:`_url_credentials_masked`); any other value, a path
+    included, is printed as given."""
+    return " ".join(
+        f"{key}={loggable(_url_credentials_masked(str(value)))}"
+        for key, value in pairs.items()
+    )
 
 
 def print_kv(**pairs: object) -> None:

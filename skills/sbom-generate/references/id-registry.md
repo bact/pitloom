@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -223,7 +223,13 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   namespace it adopted unless another run changed it meanwhile.
 - **Namespace**: a new registry gets one minted from the project directory's
   name and a random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id
-  generate` only, `id import` has no such option) sets a reproducible one. An
+  generate` only, `id import` has no such option) sets a reproducible one. A
+  namespace holding user information (any user name, `ssh://git@...` too) or
+  a secret query value is refused; a key holding one is refused for `-e`, and
+  an imported element with one is skipped (`credentials-unsafe/registry`). A
+  registry file entry holding one is dropped on load with a `WARNING:` (same
+  code; the next save writes the file without it, the element gets a new id);
+  a file whose namespace holds one does not load. An
   existing registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
   (`--project-dir`, default the current directory, for both `generate` and

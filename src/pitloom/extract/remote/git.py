@@ -20,9 +20,10 @@ does not need (a server without partial clone sends them; one that rejects
 the filter is asked again without it): a large file in the checked-out tree
 is still fetched, at checkout. It follows no redirect itself and runs with
 git-lfs off; with ``max_bytes`` it stops past a disk cap (``git.too-large``),
-which bounds a large file too. Once checked out, the URL git wrote to
-``.git/config`` loses its user information, and a symbolic link out of the
-checkout, into its ``.git`` or to a folder is removed.
+which bounds a large file too. Git is never given a URL's user information
+(:mod:`~pitloom.extract.remote._git_credentials`), so ``.git/config`` holds
+none; once checked out, a symbolic link out of the checkout, into its
+``.git`` or to a folder is removed.
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -48,7 +49,6 @@ from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
     sanitize_url,
     sanitize_url_credentials,
-    url_without_credentials,
 )
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
@@ -249,7 +249,6 @@ def _prepare(
     clone_url, page, target = _resolve(runner, page, policy.check_url)
     _log_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
-    _forget_credentials(runner, clone_url, work_dir)
     _drop_outside_links(work_dir)
     folder, file = _folder(work_dir, target)
     commit = _head(runner, work_dir, shown)
@@ -441,22 +440,6 @@ def _fetch(
         "clone",
         watch=work_dir,
     )
-
-
-def _forget_credentials(runner: GitRunner, clone_url: str, work_dir: str) -> None:
-    """Rewrite the URL git wrote to the clone's ``.git/config`` (``clone``
-    and ``remote add`` keep it as given) without its user information
-    (:func:`~pitloom.core.url_masking.url_without_credentials`): no read of
-    the clone, a link into ``.git`` included, can find the credential.
-    Nothing else of the clone holds the URL whole (git writes it to
-    ``FETCH_HEAD`` and the reflog without the user information)."""
-    stored = url_without_credentials(clone_url)
-    if stored != clone_url:
-        runner.run(
-            ["-C", work_dir, "config", "remote.origin.url", stored],
-            "config",
-            echo=False,
-        )
 
 
 def _head(runner: GitRunner, work_dir: str, shown: str) -> str:

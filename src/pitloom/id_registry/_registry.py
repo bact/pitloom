@@ -26,12 +26,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.given_path import keep_spelling
-from pitloom.core.iri import (
-    doc_namespace,
-    iri_segment,
-    namespace_problem,
-    require_namespace_iri,
-)
+from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -41,6 +36,10 @@ from pitloom.id_registry._counters import (
     id_number,
     merge_counters,
 )
+from pitloom.id_registry._credentials import (
+    require_key_without_credentials,
+    require_registry_namespace,
+)
 from pitloom.id_registry._format import (
     read_registry_file,
     registry_dir,
@@ -48,6 +47,7 @@ from pitloom.id_registry._format import (
 )
 from pitloom.id_registry._generate import index_files
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
+from pitloom.id_registry._harvest._skip import without_credentials
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -93,6 +93,12 @@ class IdRegistry:
     element has; a lookup decides whether the hash must match
     (:meth:`lookup`). :attr:`id_counters` keeps a retired id from being
     minted again (:meth:`reserve_id`).
+
+    Raises:
+        ValueError: *namespace* cannot be a document namespace
+            (:func:`~pitloom.id_registry._credentials.require_registry_namespace`:
+            ``credentials-unsafe/registry`` when it holds credentials), so
+            no id is minted in it.
     """
 
     def __init__(
@@ -104,7 +110,7 @@ class IdRegistry:
         *,
         id_counters: Counters | None = None,
     ) -> None:
-        self.namespace = namespace
+        self.namespace = require_registry_namespace(namespace)
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
@@ -135,8 +141,9 @@ class IdRegistry:
     ) -> IdRegistry:
         """Create a fresh, empty registry.
 
-        The namespace is *namespace* (an absolute IRI without ``#``; a
-        ``ValueError`` otherwise), else one minted from *project_name* (the
+        The namespace is *namespace* (an absolute IRI without ``#`` or
+        credentials; a ``ValueError`` otherwise, see :class:`IdRegistry`),
+        else one minted from *project_name* (the
         CLI passes the project directory's name) and a random UUID4. It is
         fixed once the registry is created: the registry file is an input, so
         a committed one gives identical ids.
@@ -145,8 +152,6 @@ class IdRegistry:
         """
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
-        else:
-            require_namespace_iri(namespace)
         return cls(namespace=namespace, path=path, project_root=project_root)
 
     @classmethod
@@ -162,7 +167,10 @@ class IdRegistry:
         :class:`~pitloom.core.given_path.TypedPath` keeps its spelling, and
         :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
-        :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        :func:`~pitloom.id_registry.resolve.resolve_registry`. An entry
+        whose key or id holds credentials is dropped, with a ``WARNING:``
+        (``credentials-unsafe/registry``), so a save writes the file without
+        it; a namespace holding them is refused.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
@@ -177,7 +185,7 @@ class IdRegistry:
         contents = read_registry_file(path)
         registry = cls(
             namespace=contents.namespace,
-            elements=dict(contents.elements),
+            elements=without_credentials(contents.elements),
             path=path,
             project_root=contents.project_root,
             id_counters=contents.id_counters,
@@ -212,6 +220,8 @@ class IdRegistry:
             )
         contents = read_registry_file(self.path)
         merged, refused = replay_changes(base, self.elements, contents.elements)
+        # An entry another run saved meanwhile is held to load()'s rule.
+        merged = without_credentials(merged)
         self.elements.clear()
         self.elements.update(merged)
         if contents.namespace != self._on_disk_namespace or (
@@ -396,11 +406,13 @@ class IdRegistry:
 
         Raises:
             ValueError: *type_name* or *name* cannot be encoded as UTF-8
-                (the file could never be saved).
+                (the file could never be saved), or *name* is a URL holding
+                credentials (``credentials-unsafe/registry``).
         """
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
+        require_key_without_credentials(type_name, name)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)

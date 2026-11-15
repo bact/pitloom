@@ -21,7 +21,10 @@ from pitloom.core.url_masking._params import (
     WHOLE_PARAM_RE,
     free_value_end,
     is_secret_name,
+    is_secret_param,
+    iter_params,
 )
+from pitloom.core.url_masking._userinfo import userinfo_end
 
 #: A run of scheme characters, ``:`` and a separator: where a URL may start
 #: in a text, the scheme from the run's first letter (``1https://``). Each
@@ -194,7 +197,10 @@ class _Scan:
         """The span of the user information of the *url* (scheme start,
         separator), or ``None``: to the last ``@`` before the next ``/`` or
         the end of the text, in a *line* before white space too, either not
-        in a secret parameter's value (:meth:`_userinfo_end`). A quote does
+        in a secret parameter's value (:meth:`_userinfo_end`), read by the
+        one rule (:func:`~pitloom.core.url_masking._userinfo.userinfo_end`:
+        a ``?`` or ``#`` before that ``@`` is the user information's only
+        after ``user:password``). A quote does
         not end it (RFC 3986 allows ``'`` there); a ``\\`` does not either
         (after ``:\\``, a Windows path's, it may be a separator or the
         password's: the two cannot be told apart, so a path's ``@`` may be
@@ -211,8 +217,8 @@ class _Scan:
         end = self._userinfo_end(start, self.quote(scheme))
         if first_at >= end:
             return None
-        at = self.text.rfind("@", start, end)
-        return (start, at) if at > start else None
+        at = userinfo_end(self.text, start, end, free_text=False, widest=True)
+        return None if at is None else (start, at)
 
     def value_tail(self, userinfo: tuple[int, int], quote: str) -> int | None:
         """Where the secret parameter value holding the ``@`` that ends the
@@ -290,8 +296,8 @@ def _secret_values(
     Return where such a value ends, to scan on from there, else ``None``."""
     pattern = PARAM_RE if line else WHOLE_PARAM_RE
     start, bound, limit = scan
-    for param in pattern.finditer(text, start, bound):
-        if not is_secret_name(param.group(2)):
+    for param in iter_params(pattern, text, start, bound):
+        if not is_secret_param(param):
             continue
         whole = param
         if param.end() == bound < limit:

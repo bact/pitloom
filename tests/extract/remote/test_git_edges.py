@@ -107,14 +107,14 @@ def test_a_failing_git_reports_its_message_without_credentials(
 def test_the_command_is_echoed_in_an_info_without_credentials(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Each call is one ``INFO:``; a ``user:password@`` is masked; a call made
+    """Each call is one ``INFO:``; a ``user:password@`` is not in it; a call made
     quietly says nothing."""
     _fake_git(tmp_path, monkeypatch, "exit 0")
     with caplog.at_level(logging.INFO):
         GitRunner().run(["ls-remote", "--", "https://u:pw@h/r"], "ls-remote")
         GitRunner().run(["rev-parse"], "rev-parse", echo=False)
     lines = [r.getMessage() for r in caplog.records]
-    assert len(lines) == 1 and "***:***@h/r" in lines[0] and "pw@" not in lines[0]
+    assert len(lines) == 1 and "https://h/r" in lines[0] and "pw" not in lines[0]
 
 
 # pylint: disable-next=too-few-public-methods

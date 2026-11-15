@@ -124,6 +124,10 @@ _ALLOWED = {
     "core/given_file.py:FETCH_MAX_BYTES": "over it: the reader's own warning",
     "core/lfs_pointer.py:LFS_POINTER_MAX_BYTES": "a format rule: longer is content",
     "core/lfs_pointer.py:_MAX_SIZE": "a format rule: git-lfs states no more",
+    "core/url_masking/_params.py:MAX_QUERY_MARKS": (
+        "classification: such a value is read as a secret and removed, with the "
+        "URL's own strip warning"
+    ),
     # extract/remote/pypi.py refuses with the configured value's Cap.
     "core/model_extract_limit.py:DEFAULT_MAX_DOWNLOAD_BYTES": "a setting's default",
     "core/pep440.py:MAX_VERSION_NUMBER_DIGITS": (

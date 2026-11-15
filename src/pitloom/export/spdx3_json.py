@@ -3,7 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 JSON-LD exporter for generating SBOM documents."""
+"""SPDX 3 JSON-LD exporter for generating SBOM documents.
+
+See also: :mod:`pitloom.export._spdx3_strip` (the credentials removed from
+every URL of the exported graph).
+"""
 
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
+from pitloom.export._spdx3_strip import strip_graph_credentials
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 from pitloom.messages.files import warn_lone_surrogates
 
@@ -566,6 +571,7 @@ class Spdx3JsonExporter:
         data = json.loads(out_f.getvalue())
         _escape_lone_surrogates(data.get("@graph", [data]))
         if "@graph" in data:
+            strip_graph_credentials(data["@graph"])
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
             _check_no_duplicate_spdx_ids(data["@graph"])

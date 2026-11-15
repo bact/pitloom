@@ -107,6 +107,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "offline-unusable",
             "query-no-effect",
             "url-moved",
+            "credentials-unsafe",
             "url-unsafe",
         ),
         "id-registry": (
