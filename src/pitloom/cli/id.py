@@ -30,6 +30,7 @@ from pitloom.cli.options import positive_byte_ceiling
 from pitloom.core.given_path import TypedPath, keep_spelling
 from pitloom.core.iri import require_namespace_iri
 from pitloom.core.quote_source import quote_source
+from pitloom.core.url_masking import holds_url_credentials
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -53,6 +54,7 @@ from pitloom.messages.targets import (
     is_input_file,
     say_input_not_found,
 )
+from pitloom.messages.url_credentials import registry_key_credentials_error
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -293,6 +295,9 @@ def _register_entities(
         args.max_dataset_hash_bytes, project_dir, [t for t, _ in entities]
     )
     for type_name, name in entities:
+        if holds_url_credentials(name):
+            # Before entity_entry says anything about the entity.
+            raise registry_key_credentials_error(name)
         key, sha256 = entity_entry(registry, project_dir, type_name, name, ceiling)
         registry.register(type_name, key, sha256=sha256)
 

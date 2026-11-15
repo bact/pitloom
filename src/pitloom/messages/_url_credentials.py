@@ -40,6 +40,13 @@ KEY_LINE: Final = Line(
     "written, so it is refused",
 )
 
+#: A key an import or harvest would store as written.
+KEY_SKIPPED_LINE: Final = Line(
+    level="WARNING",
+    template=f"URL=%(url)s: {_HOLDS}; an ID registry key is stored as "
+    "written, so it is skipped",
+)
+
 URL_CREDENTIALS: Final = Message(
     code="credentials-unsafe",
     condition="unsafe",
@@ -50,13 +57,16 @@ URL_CREDENTIALS: Final = Message(
     "published, so it must not carry either.",
     did="Removed the user information and each such parameter from the URL "
     "in the SBOM, its provenance and its comments, and went on; said once "
-    "per URL, shown masked. A Git URL whose user name or password holds a "
+    "per URL, shown masked. A parameter named code, session, ticket, sid or "
+    "otp, and a user name alone on an ssh or git URL (git@), are kept as "
+    "written. A Git URL whose user name or password holds a "
     "line break is fetched without credentials.",
     effect="thinner",
     actor="user",
     advice="Tell the user which URL, as the line shows it, and that the SBOM "
     "states it without the credential. A credential in a project's files "
-    "is also in its history: they should consider it exposed and rotate it. "
+    "is also in its history: they should consider it exposed and rotate it, "
+    "and check a code or session parameter the SBOM still states. "
     f"Do not edit their files; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
@@ -65,11 +75,12 @@ URL_CREDENTIALS: Final = Message(
 URL_CREDENTIALS_REGISTRY: Final = Message(
     code="credentials-unsafe/registry",
     condition="unsafe",
-    lines=(KEY_LINE,),
+    lines=(KEY_LINE, KEY_SKIPPED_LINE),
     summary="A key given to the ID registry (an external reference URL) "
     "holds a user name or password, or a query parameter named like a "
     "secret. The registry file stores a key as written.",
-    did="Wrote nothing to the registry, and stored nothing.",
+    did="Stored nothing: refused the key (error), or left the SBOM element "
+    "out of the registry and went on (warning).",
     effect="not-written",
     actor="user",
     advice="Tell the user which value, as the line shows it, and that it "

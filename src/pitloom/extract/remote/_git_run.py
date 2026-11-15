@@ -88,6 +88,9 @@ _SAFE_CONFIG = (
     "filter.lfs.required=false",
 )
 
+#: The git subcommands that contact the server, so need the credential.
+_TALKS_TO_SERVER = frozenset({"clone", "fetch", "ls-remote"})
+
 #: Environment variables that point git at another repository or add
 #: settings; one set by the caller (a git hook) must not reach the fetch.
 _SCRUBBED_ENV = re.compile(
@@ -192,8 +195,11 @@ class GitRunner:
             )
         args, found = split_credentials(args)
         self.credentials = found or self.credentials
+        # Only a call that talks to the server gets the credential, in its
+        # helper and its environment: not a hook or helper of a local call.
+        sent = self.credentials if _TALKS_TO_SERVER.intersection(args) else None
         command = [git]
-        for setting in (*_SAFE_CONFIG, *credential_config(self.credentials)):
+        for setting in (*_SAFE_CONFIG, *credential_config(sent)):
             command += ["-c", setting]
         command += args
         if echo:
@@ -209,7 +215,7 @@ class GitRunner:
         cap = None
         if watch is not None and self.max_bytes is not None:
             cap = SizeCap(watch, self.max_bytes)
-        status, out, err = _capture(command, left, cap, self.credentials)
+        status, out, err = _capture(command, left, cap, sent)
         if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
             reason = Cap(cap.limit, "byte", MAX_DOWNLOAD_BYTES_KEY).reason_values()
             raise RemoteSourceError(

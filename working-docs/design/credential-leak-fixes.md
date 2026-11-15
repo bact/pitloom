@@ -202,3 +202,41 @@ Deferred (not fixed here):
   (RFC 3986 percent-encodes both).
 - pyrefly could not run in this worktree (its path is ignored by
   `.gitignore`); run it from the repository root before merge.
+
+## Review round 2 (Opus review of PR head 5846c2a, Fable review)
+
+Decided with the user:
+
+- An element id that holds credentials (a third-party fragment's) and every
+  reference to it are stripped to the same new id in one pass
+  (`_strip_url_credentials`); ids minted by Pitloom never hold credentials
+  (a namespace with credentials is refused), so registry ids and emitted ids
+  agree. Test: `test_the_stripped_url_warning_is_said_once_per_url`.
+- Weak names (`code`, `session`, `ticket`, `sid`, `otp`) are kept as written
+  in the SBOM, the namespace and an `-e` key; the warning, the catalogue and
+  `docs/dependency-sources.md` say they are kept. They are masked in logs.
+- `sort_key`, `primary-key` and the like are not secrets: the SBOM strip
+  matches whole names, `*_token`/`*_secret`/... endings and named `*_key`
+  forms (`api_key`), not every `_key`.
+- The scp form (`alice:pw@host:o/r`, also `host:/abs`) is refused as a
+  namespace or an `-e` key (`holds_url_credentials`), skipped on import
+  (`_unrecordable` in `_harvest.py`), not stripped from SBOM text (it has no
+  `://`, and `python:3.11@sha256:...` would be hit).
+- The git password is in the environment of `clone`, `fetch` and `ls-remote`
+  calls only.
+
+Recorded, not fixed here:
+
+- Masker gaps: `/` in a password, `@[::1]` hosts, `state=`, `Policy=`
+  (CloudFront), `oauth_verifier` only by its `verifier` ending.
+- A user name alone on an ssh URL is kept in the SBOM (`git@`), while a
+  token used as that user name is masked in logs and kept in the SBOM.
+- `IdRegistry.register()` raises for a credential key, also inside a user's
+  program that uses `pitloom.loom`.
+- Windows: the real-git helper test is POSIX only; the `!f()` helper needs
+  git's bundled sh (Git for Windows ships it) and is unverified there.
+- Namespace mixing (reproduced by the review): one element on
+  `ids.example/ns` and eight on `spdx.org/spdxdocs/demo-<uuid>` in one SBOM.
+  Not related to credentials; needs its own investigation.
+- Mutation testing of the new rules and pyrefly (it ignores this worktree
+  path; run from the repository root with `--use-ignore-files=false`).

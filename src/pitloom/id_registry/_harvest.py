@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.url_masking import holds_url_credentials
 from pitloom.id_registry._ambiguous import (
     GATED_TYPES,
     TWIN_DEBUG,
@@ -56,6 +57,7 @@ from pitloom.messages.id_registry_ids import (
     REGISTRY_HASH_CONFLICT_GATE,
     REGISTRY_PATH_KEY_UNUSABLE,
 )
+from pitloom.messages.url_credentials import warn_registry_key_credentials_skipped
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -409,6 +411,20 @@ def _own_sha256(
     return harvest_sha256(obj, hashes) if type_name in types else None
 
 
+def _unrecordable(label: str, key_name: str, spdx_id: str) -> bool:
+    """Whether the element, its key (*label*, *key_name*) or *spdx_id* is
+    left out of the registry: a text its UTF-8 file cannot hold, or a key
+    that is a URL with credentials; says so with one ``WARNING:``."""
+    for what, text in ((label, key_name), ("spdxId", spdx_id)):
+        if not is_utf8_text(text):
+            warn_registry_name_skipped(log, what, text)
+            return True
+    if holds_url_credentials(key_name):
+        warn_registry_key_credentials_skipped(log, key_name)
+        return True
+    return False
+
+
 def _import_sbom_element(
     registry: IdRegistry,
     obj: Any,
@@ -467,10 +483,8 @@ def _import_sbom_element(
     # Reserved even when the element is skipped: its id is never minted.
     registry.reserve_id(spdx_id)
     label = "key" if written.recorded else "name"
-    for what, text in ((label, key[1]), ("spdxId", spdx_id)):
-        if not is_utf8_text(text):
-            warn_registry_name_skipped(log, what, text)
-            return
+    if _unrecordable(label, key[1], spdx_id):
+        return
     if state is None:
         state = _Pass.of(registry, [obj], keys)
     if key in state.ambiguous:

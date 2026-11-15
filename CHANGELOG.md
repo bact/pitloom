@@ -55,10 +55,9 @@ and this project adheres to
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
-- Credentials in a URL no longer reach any log line, traceback, `KEY=VALUE`
-  stdout line or SBOM: the sinks mask them, and an SBOM states a project's URL
-  without user information or secret query values (`credentials-unsafe`
-  warning) ([#487])
+- URL credentials no longer reach logs, tracebacks, `KEY=VALUE` stdout or the
+  SBOM; an SBOM drops a URL's user information and secret parameters
+  (`credentials-unsafe`) ([#487])
 - A Git URL's password is passed to `git` by an ephemeral credential helper,
   not in its arguments; every system credential helper is switched off for
   Git URL fetches ([#487])

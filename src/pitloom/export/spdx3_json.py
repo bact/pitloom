@@ -136,36 +136,55 @@ def _escape_lone_surrogates(graph: list[dict[str, Any]]) -> None:
         warn_lone_surrogates(log, file=min(changed))
 
 
-def _stripped_urls(value: Any, seen: list[str]) -> Any:
+def _stripped_urls(value: Any, seen: list[str], ids: dict[str, str]) -> Any:
     """*value*, a decoded JSON value, with the credentials of each URL in each
     string removed (:func:`~pitloom.core.url_masking.strip_url_secrets`);
-    each URL changed is added to *seen*, masked. An ``spdxId`` is a key,
-    never text a project wrote."""
+    each URL changed is added to *seen*, masked. A string that is an
+    element id (*ids*, old to new) becomes the same new id wherever it
+    stands, so a reference never dangles. The same object when nothing in it
+    changed, so a clean SBOM is not copied."""
     if isinstance(value, str):
+        if value in ids:
+            return ids[value]
         plain, changed = strip_url_secrets(value)
         seen.extend(changed)
-        return plain
+        return value if plain == value else plain
     if isinstance(value, list):
-        return [_stripped_urls(item, seen) for item in value]
+        items = [_stripped_urls(item, seen, ids) for item in value]
+        return (
+            value if all(a is b for a, b in zip(items, value, strict=True)) else items
+        )
     if isinstance(value, dict):
-        return {
-            key: item if key in _ID_KEYS else _stripped_urls(item, seen)
-            for key, item in value.items()
-        }
+        fields = {key: _stripped_urls(item, seen, ids) for key, item in value.items()}
+        same = all(fields[key] is item for key, item in value.items())
+        return value if same else fields
     return value
 
 
-#: The keys of an element that name it; their values are ids, not text.
-_ID_KEYS = frozenset({"spdxId", "@id"})
+def _stripped_ids(graph: list[dict[str, Any]], seen: list[str]) -> dict[str, str]:
+    """Each element id of *graph* that holds credentials, to the id without
+    them (what its references become too)."""
+    ids: dict[str, str] = {}
+    for element in graph:
+        for key in ("spdxId", "@id"):
+            old = element.get(key)
+            if isinstance(old, str):
+                new, changed = strip_url_secrets(old)
+                if changed:
+                    ids[old] = new
+                    seen.extend(changed)
+    return ids
 
 
 def _strip_url_credentials(graph: list[dict[str, Any]]) -> None:
     """The user information and secret query parameters of each URL in
-    *graph* (a project URL, a dependency's direct URL, a provenance note),
-    removed in place, with one ``WARNING:`` per URL: the one place every
-    surface's SBOM passes, which a wheel can embed and anyone can publish."""
+    *graph* (a project URL, a dependency's direct URL, a provenance note, an
+    id of a third-party fragment), removed in place, with one ``WARNING:``
+    per URL: the one place every surface's SBOM passes, which a wheel can
+    embed and anyone can publish."""
     seen: list[str] = []
-    graph[:] = _stripped_urls(graph, seen)
+    ids = _stripped_ids(graph, seen)
+    graph[:] = _stripped_urls(graph, seen, ids)
     for url in dict.fromkeys(seen):
         warn_url_credentials_stripped(log, url)
 
@@ -603,7 +622,6 @@ class Spdx3JsonExporter:
         _escape_lone_surrogates(data.get("@graph", [data]))
         if "@graph" in data:
             _strip_url_credentials(data["@graph"])
-        if "@graph" in data:
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
             _check_no_duplicate_spdx_ids(data["@graph"])

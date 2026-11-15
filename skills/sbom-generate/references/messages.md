@@ -46,7 +46,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`config-unsafe`](messages-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](messages-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
 | [`credentials-unsafe`](messages-network.md#credentials-unsafe) | WARNING | 0.24.1 |
-| [`credentials-unsafe/registry`](messages-network.md#credentials-unsaferegistry) | ERROR | 0.24.1 |
+| [`credentials-unsafe/registry`](messages-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.24.1 |
 | [`digest-invalid`](messages-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](messages-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](messages-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |

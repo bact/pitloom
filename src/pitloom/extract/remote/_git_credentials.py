@@ -47,6 +47,9 @@ _HELPER = (
 )
 
 
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
 @dataclass(frozen=True)
 class GitCredentials:
     """The user information of one Git URL, and the origin it is for."""
@@ -82,7 +85,9 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
         return arg, None
     host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
     try:
-        netloc = host + (f":{parts.port}" if parts.port else "")
+        # The scheme's default port is not part of the origin git matches.
+        port = parts.port if parts.port != _DEFAULT_PORTS.get(parts.scheme) else None
+        netloc = host + (f":{port}" if port else "")
     except ValueError:
         return arg, None
     plain = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))

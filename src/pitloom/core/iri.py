@@ -19,7 +19,7 @@ import re
 import string
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
-from pitloom.core.url_masking import masked_given_path, strip_url_secrets
+from pitloom.core.url_masking import holds_url_credentials, masked_given_path
 
 __all__ = [
     "NAMESPACE_CHARACTER",
@@ -155,6 +155,6 @@ def namespace_problem(value: str) -> str | None:
     rest = _PERCENT.sub("", value)
     if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
         return NAMESPACE_CHARACTER
-    if strip_url_secrets(value)[1]:
+    if holds_url_credentials(value):
         return NAMESPACE_CREDENTIALS
     return None

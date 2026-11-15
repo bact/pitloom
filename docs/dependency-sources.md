@@ -299,7 +299,9 @@ user name or password, or a query parameter named like a secret (`token`,
 `key`, `signature`). An SBOM can be published, so Pitloom states the URL
 without them and says so once per URL, as `WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user information or a secret query value; removed from the SBOM [credentials-unsafe]`.
 
-Treat a credential that was in a project file as exposed.
+A parameter named `code`, `session`, `ticket`, `sid` or `otp`, and a user
+name alone on an `ssh` or `git` URL (`git@`), are kept as written. Treat a
+credential that was in a project file as exposed.
 
 ## Configuration and flags
 

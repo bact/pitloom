@@ -36,7 +36,7 @@ PARAM_HEAD = r"[?&;#](?P<name>[\w.%-]+)="
 #: ``X-Amz-Signature``).
 _SECRET_WORDS = (
     *("token", "key", "secret", "password", "passwd", "signature", "sig"),
-    *("jwt", "credential", "credentials", "auth"),
+    *("jwt", "credential", "credentials", "auth", "hmac", "verifier"),
 )
 #: Names that hold a secret only sometimes (``code=utf8``, ``session=2024``):
 #: masked in a message, never removed from an SBOM.
@@ -53,19 +53,42 @@ _SECRET_ENDINGS = tuple(sep + word for word in _SECRET_WORDS for sep in "_-")
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
+#: Names (``_`` for ``-``) a secret key goes by: ``sort_key`` and
+#: ``primary-key`` are not secrets, ``api_key`` is.
+_SECRET_KEYS = tuple(
+    f"{kind}_key" for kind in ("api", "access", "secret", "private", "signing", "auth")
+) + ("session_key", "license_key", "encryption_key")
+#: The words whose ending makes a name a secret to remove from an SBOM.
+_STRIP_WORDS = tuple(w for w in _SECRET_WORDS if w not in {"key", "sig", "auth"})
+
+
+def _strip_name(plain: str) -> bool:
+    """Whether the lower-case *plain* name is removed from an SBOM."""
+    plain = plain.replace("-", "_")
+    if plain in _WEAK_SECRET_NAMES:
+        return False
+    if plain in _SECRET_NAMES or plain in _SECRET_KEYS:
+        return True
+    return plain.endswith(tuple(f"_{word}" for word in (*_STRIP_WORDS, *_SECRET_KEYS)))
+
+
 def is_secret_name(name: str, *, weak: bool = True) -> bool:
     """Whether the parameter *name* names a secret (:data:`_SECRET_NAMES`,
     :data:`_SECRET_ENDINGS`), percent-decoded and camelCase read as words;
-    with *weak* false, not one of the names that only sometimes do
-    (:data:`_WEAK_SECRET_NAMES`)."""
+    with *weak* false (the removal from an SBOM), only a whole name or an
+    ending that is a secret whatever the value (:func:`_strip_name`)."""
     plain = unquote(name) if "%" in name else name
     # ``token%3D=v`` is a parameter named ``token=``: a server may decode it.
     plain = plain.rstrip("=")
     if not plain.islower():
         plain = _CAMEL_BOUNDARY.sub("_", plain).lower()
-    if weak and plain in _WEAK_SECRET_NAMES:
-        return True
-    return plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS)
+    if weak:
+        return (
+            plain in _WEAK_SECRET_NAMES
+            or plain in _SECRET_NAMES
+            or plain.endswith(_SECRET_ENDINGS)
+        )
+    return _strip_name(plain)
 
 
 def mask_param(match: re.Match[str]) -> str:

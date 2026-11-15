@@ -18,6 +18,7 @@ from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._url_credentials import (
     GIT_LINE,
     KEY_LINE,
+    KEY_SKIPPED_LINE,
     STRIPPED_LINE,
     URL_CREDENTIALS,
     URL_CREDENTIALS_REGISTRY,
@@ -28,6 +29,7 @@ __all__ = [
     "URL_CREDENTIALS_REGISTRY",
     "registry_key_credentials_error",
     "warn_git_credentials_unsent",
+    "warn_registry_key_credentials_skipped",
     "warn_url_credentials_stripped",
 ]
 
@@ -50,6 +52,19 @@ def warn_git_credentials_unsent(log: logging.Logger, url: str) -> None:
     """The one ``WARNING:`` on *log* that the credentials of the Git *url*
     (given masked) hold a line break and are not sent."""
     emit(log, URL_CREDENTIALS, logging.WARNING, line=GIT_LINE, url=url)
+
+
+def warn_registry_key_credentials_skipped(log: logging.Logger, url: str) -> None:
+    """The one ``WARNING:`` on *log* that an SBOM element with the registry
+    key *url* (masked here) is left out of the ID registry."""
+    emit(
+        log,
+        URL_CREDENTIALS_REGISTRY,
+        logging.WARNING,
+        line=KEY_SKIPPED_LINE,
+        once=f"credentials-unsafe/registry:{masked_given_path(url)}",
+        url=masked_given_path(url),
+    )
 
 
 def registry_key_credentials_error(url: str) -> CodedValueError:

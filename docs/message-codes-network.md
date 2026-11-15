@@ -21,7 +21,7 @@ values.
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature). An SBOM can be published, so it must not carry either. | 0.24.1 |
-| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR | A key given to the ID registry (an external reference URL) holds a user name or password, or a query parameter named like a secret. The registry file stores a key as written. | 0.24.1 |
+| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key given to the ID registry (an external reference URL) holds a user name or password, or a query parameter named like a secret. The registry file stores a key as written. | 0.24.1 |
 | [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
@@ -42,12 +42,14 @@ values.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Removed the user information and each such parameter from the
   URL in the SBOM, its provenance and its comments, and went on; said once per
-  URL, shown masked. A Git URL whose user name or password holds a line break is
-  fetched without credentials.
+  URL, shown masked. A parameter named code, session, ticket, sid or otp, and a
+  user name alone on an ssh or git URL (git@), are kept as written. A Git URL
+  whose user name or password holds a line break is fetched without credentials.
 - **Tell the user**: which URL, as the line shows it, and that the SBOM states
   it without the credential. A credential in a project's files is also in its
-  history: they should consider it exposed and rotate it. Do not edit their
-  files; ask first, and with nobody to ask, report it only.
+  history: they should consider it exposed and rotate it, and check a code or
+  session parameter the SBOM still states. Do not edit their files; ask first,
+  and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
@@ -57,13 +59,14 @@ values.
 
 ### `credentials-unsafe/registry`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: A key given to the ID registry (an external reference URL) holds a
   user name or password, or a query parameter named like a secret. The registry
   file stores a key as written.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote nothing to the registry, and stored nothing.
+- **Pitloom did**: Stored nothing: refused the key (error), or left the SBOM
+  element out of the registry and went on (warning).
 - **Tell the user**: which value, as the line shows it, and that it must be
   given without the credential. They correct it and run again; a credential they
   typed is exposed in their shell history. Do not edit their registry file; ask
@@ -72,6 +75,7 @@ values.
 
   ```text
   ERROR: URL=<url>: holds user information or a secret query value; an ID registry key is stored as written, so it is refused [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information or a secret query value; an ID registry key is stored as written, so it is skipped [credentials-unsafe/registry]
   ```
 
 ### `download-network-failed`

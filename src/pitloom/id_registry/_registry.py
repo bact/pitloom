@@ -32,7 +32,7 @@ from pitloom.core.iri import (
     namespace_problem,
     require_namespace_iri,
 )
-from pitloom.core.url_masking import strip_url_secrets
+from pitloom.core.url_masking import holds_url_credentials
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -404,7 +404,7 @@ class IdRegistry:
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
-        if strip_url_secrets(name)[1]:
+        if holds_url_credentials(name):
             raise registry_key_credentials_error(name)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
