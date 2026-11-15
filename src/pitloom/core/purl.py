@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from urllib.parse import quote, unquote
 
-from pitloom.core.url_masking import strip_url_secrets
+from pitloom.core.url_masking import is_whole_url, strip_url_secrets
 
 __all__ = [
     "build_generic_purl",
@@ -78,7 +78,7 @@ def build_generic_purl(
     the URL itself elsewhere, where that strip says what it removed.
     """
     if download_url:
-        download_url = strip_url_secrets(download_url)[0]
+        download_url = _stripped(download_url)[0]
     purl = f"pkg:generic/{_encode(name)}"
     if version:
         purl += f"@{_encode(version)}"
@@ -108,14 +108,65 @@ def _split(purl: str) -> tuple[str, list[str], str]:
     return head, query.split("&"), hash_mark + subpath
 
 
+#: How many times a qualifier value is percent-decoded at most (a value
+#: that is a URL encoded twice: ``%253A``).
+_DECODE_ROUNDS = 5
+
+
+def _decoded(value: str) -> str:
+    """*value* percent-decoded until it no longer changes, at most
+    :data:`_DECODE_ROUNDS` times."""
+    for _ in range(_DECODE_ROUNDS):
+        plain = unquote(value)
+        if plain == value:
+            break
+        value = plain
+    return value
+
+
+def _stripped(value: str) -> tuple[str, list[str]]:
+    """:func:`~pitloom.core.url_masking.strip_url_secrets` of *value*, read
+    as one URL when it is one (a qualifier value is: ``download_url``)."""
+    return strip_url_secrets(value, whole=is_whole_url(value))
+
+
+def _stripped_once(value: str) -> tuple[str, list[str]]:
+    """*value* with the credentials of its URL removed at the least depth of
+    percent-encoding that shows them, and encoded again that many times (at
+    least once), so what an inner value was encoded as stays:
+    ``...%3Fa%3D100%2525`` keeps its ``%25``. Unchanged when no depth
+    shows any."""
+    level = value
+    for depth in range(_DECODE_ROUNDS + 1):
+        plain, found = _stripped(level)
+        if found:
+            for _ in range(max(depth, 1)):
+                plain = _encode(plain, safe=_URL_SAFE)
+            return plain, found
+        level = unquote(level)
+    return value, []
+
+
+def _stripped_at_depth(value: str) -> tuple[str, list[str]]:
+    """*value*, a qualifier value as written, stripped (:func:`_stripped_once`)
+    again while that finds a URL, at most :data:`_DECODE_ROUNDS` times."""
+    changed: list[str] = []
+    for _ in range(_DECODE_ROUNDS):
+        value, found = _stripped_once(value)
+        if not found:
+            break
+        changed += found
+    return value, changed
+
+
 def purl_qualifier_values(purl: str) -> list[str]:
-    """Each qualifier value of *purl*, percent-decoded."""
-    return [unquote(item.partition("=")[2]) for item in _split(purl)[1]]
+    """Each qualifier value of *purl*, percent-decoded as far as it goes."""
+    return [_decoded(item.partition("=")[2]) for item in _split(purl)[1]]
 
 
 def strip_purl_secrets(purl: str) -> tuple[str, list[str]]:
     """*purl* with the credentials of each URL in a qualifier value removed:
-    each value is percent-decoded, stripped
+    each value is percent-decoded (until it no longer changes), stripped
     (:func:`~pitloom.core.url_masking.strip_url_secrets`) and, when that
     changed it, encoded again; an encoded ``@`` or ``?`` would hide them
     from a strip of the PURL as written. Also returns each URL changed, as
@@ -125,9 +176,9 @@ def strip_purl_secrets(purl: str) -> tuple[str, list[str]]:
     kept: list[str] = []
     for item in qualifiers:
         key, _, value = item.partition("=")
-        plain, found = strip_url_secrets(unquote(value))
+        value, found = _stripped_at_depth(value)
         if found:
-            item = f"{key}={_encode(plain, safe=_URL_SAFE)}"
+            item = f"{key}={value}"
             changed += found
         kept.append(item)
     if not changed:

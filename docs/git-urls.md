@@ -305,10 +305,11 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
     fetched without them, with `WARNING: URL=<url>: credentials holding a line
     break are not sent to git [credentials-unsafe/git-line-break]`.
   - A URL whose user information `git` would read differently from Pitloom
-    (an `@` after a `?` or `#` and before the first `/`, a malformed host or
-    port) is refused before `git` runs: `ERROR: ... Invalid URL: <url>: its
-    user information cannot be taken out of the git command line.`
-    (`git.url-invalid`).
+    (an empty host after the `@`, for one) is refused before `git` runs:
+    `ERROR: loom project: URL='https://***:***@/o/r': user information
+    cannot be taken out of the git command line; not fetched
+    [credentials-unsafe/git-userinfo]`. A malformed host or port is refused
+    as an invalid URL (`git.url-invalid`).
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
   follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
@@ -404,7 +405,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
 | `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |
 | `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
-| `INFO:` | `Git source: $ git …` | each `git` call; a URL's credentials are not among its arguments |
+| `INFO:` | `Git source: $ git ...` | each `git` call; a URL's credentials are not among its arguments |
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
 | `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder were not followed` | such links were removed |
 | `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
@@ -421,9 +422,9 @@ A URL or ref in a message is shown without credentials (`https://***:***@host`,
 fragment parameter named like a secret, as listed in
 [Credentials in a URL](dependency-sources.md#credentials-in-a-url):
 `?private_token=***`) and with control characters escaped. A secret in a
-parameter with another name is not recognised. What a server or `git` says is reduced to
-one line (its `fatal:`, `error:` and `remote:` lines), so it cannot add a
-tagged line of its own.
+parameter with another name is not recognised. What a server or `git` says
+is reduced to one line (its `fatal:`, `error:` and `remote:` lines), so it
+cannot add a tagged line of its own.
 
 If the repository has no Python project at its root but has some in folders,
 the error names them (up to five) and asks for the URL of one of them.

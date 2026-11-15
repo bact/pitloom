@@ -47,6 +47,7 @@ from pitloom.id_registry._format import (
 )
 from pitloom.id_registry._generate import index_files
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
+from pitloom.id_registry._harvest._skip import without_credentials
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -166,7 +167,10 @@ class IdRegistry:
         :class:`~pitloom.core.given_path.TypedPath` keeps its spelling, and
         :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
-        :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        :func:`~pitloom.id_registry.resolve.resolve_registry`. An entry
+        whose key or id holds credentials is dropped, with a ``WARNING:``
+        (``credentials-unsafe/registry``), so a save writes the file without
+        it; a namespace holding them is refused.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
@@ -181,7 +185,7 @@ class IdRegistry:
         contents = read_registry_file(path)
         registry = cls(
             namespace=contents.namespace,
-            elements=dict(contents.elements),
+            elements=without_credentials(contents.elements),
             path=path,
             project_root=contents.project_root,
             id_counters=contents.id_counters,
@@ -216,6 +220,8 @@ class IdRegistry:
             )
         contents = read_registry_file(self.path)
         merged, refused = replay_changes(base, self.elements, contents.elements)
+        # An entry another run saved meanwhile is held to load()'s rule.
+        merged = without_credentials(merged)
         self.elements.clear()
         self.elements.update(merged)
         if contents.namespace != self._on_disk_namespace or (

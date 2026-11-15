@@ -20,7 +20,7 @@ from typing import Final
 
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: What to give ``git`` a credential through instead of a URL.
 _INSTEAD: Final = (

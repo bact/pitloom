@@ -79,8 +79,11 @@ existing registry with another namespace is one `ERROR:`, exit 1. The
 library's `IdRegistry(namespace=...)` and `IdRegistry.new(namespace=...)`
 refuse such a namespace with a `ValueError`, coded
 `credentials-unsafe/registry` for a credential. A
-registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
-is not a non-empty string, does not load. `id import` into an empty
+registry whose `namespace` is not a valid namespace IRI (one holding a
+credential included), or whose `spdxId` is not a non-empty string, does not
+load; an entry whose key or `spdxId` holds a credential is dropped with a
+`WARNING:` (see
+[Credentials in a key](id-registry-keys.md#credentials-in-a-key)). `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
 namespace IRI; otherwise one
 `WARNING: FILE=<sbom>: SBOM namespace <why>; the ID registry keeps its
@@ -357,7 +360,8 @@ skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
 `register()` raises `ValueError` for a key holding user information or a
 secret query value, and harvest and `id import` skip an element whose key
-or `spdxId` holds one, with a `WARNING:` (both
+or `spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
+such an entry of the file, with a `WARNING:` (all
 `credentials-unsafe/registry`; see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)).
 `generate()` raises `FileNotFoundError` (`PATH not found: '<path>'

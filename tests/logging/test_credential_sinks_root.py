@@ -9,7 +9,7 @@ embedder's handler (``logging.basicConfig``, Sentry, a JSON handler) once
 formatted the raw message and arguments.
 
 See also: tests/logging/test_credential_sinks_cut.py,
-tests/test_logging_config.py.
+tests/logging/test_credential_sinks_factory.py, tests/test_logging_config.py.
 """
 
 from __future__ import annotations
@@ -125,16 +125,15 @@ def test_a_secret_in_the_stack_info_is_masked(
     root_stream: io.StringIO, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """``stack_info`` holding a URL with a password (a source line shown in
-    a stack) is masked, and a record already masked is passed on as it is."""
+    a stack) is masked by the handler, also when set after the record was
+    masked once."""
     (handler,) = logging.getLogger("pitloom").handlers
     record = _LOG.makeRecord(_LOG.name, logging.WARNING, "f", 1, "x", (), None)
-    record.stack_info = f"Stack (most recent call last):\n  fetch({URL!r})"
-    assert handler.filter(record)
-    assert SECRET not in record.stack_info
-    assert "https://***:***@h.example" in record.stack_info
-    record.stack_info = f"changed {URL}"
-    assert handler.filter(record)
-    assert record.stack_info == f"changed {URL}"
+    for stack in (f"Stack (most recent call last):\n  fetch({URL!r})", URL):
+        record.stack_info = stack
+        assert handler.filter(record)
+        assert SECRET not in record.stack_info
+        assert "https://***:***@h.example" in record.stack_info
     assert SECRET not in root_stream.getvalue() + capsys.readouterr().err
 
 

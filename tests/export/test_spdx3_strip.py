@@ -15,12 +15,18 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
+from urllib.parse import quote
 
 import pytest
 
-from pitloom.core.purl import build_generic_purl, strip_purl_secrets
-from pitloom.export._spdx3_strip import strip_graph_credentials
+from pitloom.core.purl import (
+    build_generic_purl,
+    purl_qualifier_values,
+    strip_purl_secrets,
+)
+from pitloom.export._spdx3_strip import _url_words, strip_graph_credentials
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import code_of
 from pitloom.messages._url_credentials import (
@@ -175,3 +181,169 @@ def test_two_ids_that_differ_only_by_credentials_are_an_error(
         strip_graph_credentials(graph)
     assert _SECRET not in str(caught.value)
     assert code_of(caught.value) == "credentials-unsafe/id-collision"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        f"https://o'brien:{_SECRET}@h.example/x",
+        f"https://TOK'EN{_SECRET}@h.example/x",
+        f"user:{_SECRET}@h.example:o/r",
+        f"https:/u:{_SECRET}@h/x",
+    ],
+    ids=["apostrophe", "token-apostrophe", "address", "one-slash"],
+)
+def test_a_url_field_is_read_as_one_url(
+    url: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A string that is one URL is a URL field: what ``urllib`` reads as its
+    user information is removed, whatever characters it holds."""
+    graph: list[dict[str, Any]] = [{"software_homePage": url}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    assert _SECRET not in json.dumps(graph)
+    (said,) = _warnings(caplog)
+    assert _SECRET not in said.getMessage()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Open http://localhost:<port> in a browser. Questions: dev@example.org",
+        "Serve on http://host:port and report bugs to bugs@example.org",
+        'Use "http://HOST:PORT" - author jane@example.org',
+    ],
+    ids=range(3),
+)
+def test_prose_is_left_as_written_and_said_nothing(
+    text: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    graph: list[dict[str, Any]] = [{"description": text}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    assert graph == [{"description": text}] and not caplog.records
+
+
+def test_a_purl_qualifier_encoded_twice_is_stripped(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    twice = f"https%253A%252F%252Fu%253A{_SECRET}%2540h%252Fx"
+    graph: list[dict[str, Any]] = [{"p": f"pkg:generic/d?download_url={twice}&a=1"}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    assert _SECRET not in json.dumps(graph) and len(_warnings(caplog)) == 1
+
+
+def test_a_purl_qualifier_that_keeps_a_value_says_so_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    purl = "pkg:generic/d?download_url=https://h/x%3Fcode%3DABC"
+    graph: list[dict[str, Any]] = [{"p": purl, "q": [purl]}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    assert graph == [{"p": purl, "q": [purl]}]
+    (said,) = _warnings(caplog)
+    assert said.getMessage().endswith(_template_tail(KEPT_LINE.template))
+    assert "code=ABC" in said.getMessage()
+
+
+def test_two_json_ld_ids_that_differ_only_by_credentials_collide() -> None:
+    """The ``@id`` key is an id as ``spdxId`` is."""
+    graph: list[dict[str, Any]] = [
+        {"@id": f"https://u:{_SECRET}@h/x#P"},
+        {"@id": "https://h/x#P"},
+    ]
+    with pytest.raises(ValueError, match="another element has this id") as caught:
+        strip_graph_credentials(graph)
+    assert code_of(caught.value) == "credentials-unsafe/id-collision"
+
+
+def test_a_long_string_with_a_late_scheme_separator_is_read_in_linear_time() -> None:
+    """A million characters before a ``://`` are one word walked once, not
+    once per start (a quadratic scan took minutes)."""
+    started = time.perf_counter()
+    strip_graph_credentials(
+        [{"name": "n" * 2**20 + " https://u:p@h/x", "type": "Element"}]
+    )
+    assert time.perf_counter() - started < 5
+
+
+@pytest.mark.parametrize(
+    ("text", "plain"),
+    [
+        ("dep @ https://o'brien:PW@h.example/d.whl", "dep @ https://h.example/d.whl"),
+        (
+            "dep @ https://TOK'EN@h/d.whl ; python_version>'3'",
+            "dep @ https://h/d.whl ; python_version>'3'",
+        ),
+        ("dep[x]@ https://u:PW@h/d.whl", "dep[x]@ https://h/d.whl"),
+        ("foo@https://u:S3'CRET@h/x.whl", "foo@https://h/x.whl"),
+        ("foo @ https://h/x?token=T0KEN, bar", "foo @ https://h/x, bar"),
+        ("see foo @ https://u:p@h/x.", "see foo @ https://h/x."),
+        (
+            "Metadata provenance: Note: dep @ https://o'brien:PW@h/d.whl",
+            "Metadata provenance: Note: dep @ https://h/d.whl",
+        ),
+    ],
+    ids=[
+        "apostrophe",
+        "token-and-marker",
+        "extras",
+        "no-space",
+        "comma",
+        "full-stop",
+        "in-a-comment",
+    ],
+)
+def test_a_pep_508_direct_reference_reads_its_url_as_a_field(
+    text: str, plain: str
+) -> None:
+    """A quote in the user information of the URL of ``name @ URL`` is part
+    of it, so the password is not left in a requirement note."""
+    graph: list[dict[str, Any]] = [{"type": "Element", "note": text}]
+    strip_graph_credentials(graph)
+    assert graph[0]["note"] == plain
+
+
+def test_the_direct_reference_scan_is_linear() -> None:
+    started = time.perf_counter()
+    graph: list[dict[str, Any]] = [
+        {"type": "Element", "note": "n" * 2**20},
+        {"type": "Element", "note": "@ " * 2**19},
+        {"type": "Element", "note": "@ a" * 2**19},
+    ]
+    strip_graph_credentials(graph)
+    assert time.perf_counter() - started < 5
+
+
+def test_a_scheme_separator_without_a_word_after_it_is_no_url_word() -> None:
+    assert _url_words("a:// b https://h/x ://") == ["https://h/x"]
+
+
+def test_a_purl_value_encoded_more_often_than_the_cap_is_still_cut_short() -> None:
+    value = "https://u:PW@h/x"
+    for _ in range(8):
+        value = value.replace("%", "%25").replace("@", "%40")
+    assert strip_purl_secrets(f"pkg:generic/a?download_url={value}")[0]
+
+
+def test_a_qualifier_value_keeps_the_encoding_of_what_is_inside_it() -> None:
+    """Only the levels that showed the credentials are undone: an inner
+    ``%2525`` stays ``%25`` after one decode of the result."""
+    value = "https%3A%2F%2Fu%3AS3CRET%40h%2Fx%3Fa%3D100%2525"
+    purl, changed = strip_purl_secrets(f"pkg:generic/a?download_url={value}")
+    assert changed and "S3CRET" not in purl and purl.endswith("%3Fa%3D100%2525")
+
+
+def test_credentials_in_every_layer_of_nested_encoding_are_stripped() -> None:
+    """A URL inside a URL's parameter, encoded at each layer, is found layer
+    by layer up to the limit; more layers than it are left, not looped on."""
+    value = "https://uN:S3CRET@h/x"
+    for layer in range(5):
+        value = f"https://u{layer}:S3CRET@h/x?a=" + quote(value, safe="")
+    purl, changed = strip_purl_secrets(f"pkg:generic/a?download_url={value}")
+    assert len(changed) == 5 and "u0:" not in purl
+    deep = value
+    for _ in range(8):
+        deep = quote(deep, safe="")
+    assert purl_qualifier_values(f"pkg:generic/a?download_url={deep}")

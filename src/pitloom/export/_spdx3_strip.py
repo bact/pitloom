@@ -19,7 +19,11 @@ import re
 from typing import Any
 
 from pitloom.core.purl import is_purl, purl_qualifier_values, strip_purl_secrets
-from pitloom.core.url_masking import keeps_url_credential, strip_url_secrets
+from pitloom.core.url_masking import (
+    is_whole_url,
+    keeps_url_credential,
+    strip_url_secrets,
+)
 from pitloom.messages.url_credentials import (
     id_collision_error,
     warn_url_credential_kept,
@@ -30,11 +34,19 @@ __all__ = ["strip_graph_credentials"]
 
 log = logging.getLogger(__name__)
 
-#: A run of text holding ``://``, to white space, a quote, an angle bracket
-#: or a backtick: a URL as a message names it.
-_URL_WORD = re.compile(r"[^\s\"'<>`]*://[^\s\"'<>`]+")
+#: White space, a quote, an angle bracket or a backtick: where a URL word of a
+#: text ends.
+_WORD_BREAK = re.compile(r"[\s\"'<>`]")
 #: The punctuation that ends a sentence or closes a bracket after a URL.
 _TRAILING = ".,;:!?)]}"
+
+
+#: The ``@ URL`` (or ``@URL``) of a PEP 508 direct reference, alone or inside a note:
+#: the URL runs to white space, so a quote in its user information is part of
+#: it, not the end of a word in prose.
+_DIRECT_REFERENCE = re.compile(
+    r"(?P<head>@\s*)(?P<url>[A-Za-z][A-Za-z0-9+.-]*:[/\\]\S*)"
+)
 
 
 def _stripped_text(text: str, seen: list[str]) -> str:
@@ -44,23 +56,59 @@ def _stripped_text(text: str, seen: list[str]) -> str:
     if is_purl(text):
         text, changed = strip_purl_secrets(text)
         seen.extend(changed)
-    plain, changed = strip_url_secrets(text)
+
+    def direct(match: re.Match[str]) -> str:
+        url = match["url"]
+        url_end = len(url.rstrip(_TRAILING))  # a sentence's punctuation is the text's
+        plain, changed = strip_url_secrets(url[:url_end], whole=True)
+        seen.extend(changed)
+        return match["head"] + plain + url[url_end:]
+
+    text = _DIRECT_REFERENCE.sub(direct, text)
+    plain, changed = strip_url_secrets(text, whole=is_whole_url(text))
     seen.extend(changed)
     return plain
+
+
+def _url_words(text: str) -> list[str]:
+    """Each run of *text* holding ``://``, to white space, a quote, an angle
+    bracket or a backtick: a URL as a message names it. Linear: the start of
+    a word is found by walking left from its ``://`` once."""
+    words: list[str] = []
+    floor = 0  # the end of the last word: the next one starts after it
+    at = text.find("://")
+    while at >= 0:
+        end_match = _WORD_BREAK.search(text, at + 3)
+        end = end_match.start() if end_match else len(text)
+        if end > at + 3:
+            start = at
+            while start > floor and not _WORD_BREAK.match(text, start - 1):
+                start -= 1
+            words.append(text[start:end])
+            floor = end
+        at = text.find("://", max(end, at + 3))
+    return words
 
 
 def _kept_urls(text: str) -> list[str]:
     """Each URL of *text* (of a PURL's qualifier values too) that holds a
     value :func:`~pitloom.core.url_masking.strip_url_secrets` keeps that may
-    be a credential and removes nothing from, as written."""
+    be a credential and removes nothing from, as written. A string that is
+    one URL is read as a whole (a URL field), else its URLs are read in free
+    text."""
     views = purl_qualifier_values(text) if is_purl(text) else [text]
     found: list[str] = []
     for view in views:
-        if "://" not in view or not keeps_url_credential(view):
+        if "://" not in view and not is_whole_url(view):
             continue
-        for word in _URL_WORD.findall(view):
-            url = word.rstrip(_TRAILING)
-            if keeps_url_credential(url) and not strip_url_secrets(url)[1]:
+        whole = is_whole_url(view)
+        words = [view] if whole else _url_words(view)
+        for word in words:
+            url = word if whole else word.rstrip(_TRAILING)
+            if (
+                keeps_url_credential(url, whole=whole)
+                and not (strip_url_secrets(url, whole=whole)[1])
+            ):
                 found.append(url)
     return found
 

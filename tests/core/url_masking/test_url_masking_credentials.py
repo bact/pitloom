@@ -60,7 +60,7 @@ def test_every_sink_masks_a_secret_the_caller_forgot(
     "shape", _SHAPES[:2] + _SHAPES[3:4], ids=["userinfo", "token", "encoded-name"]
 )
 def test_the_stripped_url_keeps_what_is_not_secret(shape: str) -> None:
-    plain, changed = strip_url_secrets(f"see {shape}, ok")
+    plain, changed = strip_url_secrets(f"see {shape}, ok", whole=False)
     assert SECRET not in plain and plain.startswith("see ") and changed
     assert SECRET not in "".join(changed)
 
@@ -87,8 +87,8 @@ def test_the_stripped_url_keeps_what_is_not_secret(shape: str) -> None:
 )
 def test_a_secret_parameter_is_dropped_whole(text: str, plain: str) -> None:
     """A fragment stays a fragment and a joined name is a secret."""
-    assert strip_url_secrets(text)[0] == plain
-    assert not strip_url_secrets(plain)[1]  # idempotent, nothing to report
+    assert strip_url_secrets(text, whole=False)[0] == plain
+    assert not strip_url_secrets(plain, whole=False)[1]  # idempotent, nothing to report
 
 
 @pytest.mark.parametrize(
@@ -102,12 +102,12 @@ def test_a_secret_parameter_is_dropped_whole(text: str, plain: str) -> None:
     ],
 )
 def test_the_sbom_strip_leaves_what_is_no_credential(text: str) -> None:
-    assert strip_url_secrets(text) == (text, [])
+    assert strip_url_secrets(text, whole=False) == (text, [])
 
 
 def test_the_provenance_json_of_a_stripped_url_still_parses() -> None:
     note = json.dumps({"note": f"foo @ https://a:{SECRET}@h/x.whl?token={SECRET}"})
-    plain, changed = strip_url_secrets(note)
+    plain, changed = strip_url_secrets(note, whole=False)
     assert json.loads(plain) == {"note": "foo @ https://h/x.whl"} and changed
     assert SECRET not in "".join(changed)
 
@@ -133,7 +133,7 @@ def test_an_ordinary_path_and_address_stay_as_they_are(text: str) -> None:
     ids=["image", "drive", "one-colon"],
 )
 def test_no_credential_is_found_in_an_image_reference_or_a_drive(text: str) -> None:
-    assert not holds_url_credentials(text)
+    assert not holds_url_credentials(text, whole=False)
     assert masked_given_path(text) == text
 
 
@@ -152,8 +152,8 @@ def test_masker_strip_hold_and_refusal_agree(url: str) -> None:
     """One definition of user information: where the masker masks, the strip
     removes, ``holds_url_credentials`` says so, and a namespace is refused."""
     assert SECRET not in masked_given_path(url)
-    plain, changed = strip_url_secrets(url)
+    plain, changed = strip_url_secrets(url, whole=True)
     assert SECRET not in plain and changed
-    assert holds_url_credentials(url)
+    assert holds_url_credentials(url, whole=True)
     with pytest.raises(ValueError):
         require_namespace_iri(url)

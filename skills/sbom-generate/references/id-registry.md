@@ -226,7 +226,10 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   generate` only, `id import` has no such option) sets a reproducible one. A
   namespace holding user information (any user name, `ssh://git@...` too) or
   a secret query value is refused; a key holding one is refused for `-e`, and
-  an imported element with one is skipped (`credentials-unsafe/registry`). An
+  an imported element with one is skipped (`credentials-unsafe/registry`). A
+  registry file entry holding one is dropped on load with a `WARNING:` (same
+  code; the next save writes the file without it, the element gets a new id);
+  a file whose namespace holds one does not load. An
   existing registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
   (`--project-dir`, default the current directory, for both `generate` and

@@ -41,8 +41,8 @@ and this project adheres to
   read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every log line, traceback and `-v` detail masks the credentials and tokens of
-  each URL; an SBOM states a project's URLs without them ([#482], [#486], [#487])
+- Pitloom's log lines, tracebacks and `-v` details mask the credentials of each
+  URL; an SBOM states a project's URLs without them ([#482], [#486], [#487])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -50,9 +50,8 @@ and this project adheres to
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
-
 - `--namespace`, `-e` and `IdRegistry` refuse credentials in a namespace or key;
-  `id import` skips such elements; a merge can fail with `id-collision` ([#487])
+  `id import` and `load()` drop such entries; `id-collision` in merge ([#487])
 - Git URL fetches reset system credential helpers only for a URL with user
   information; the password is not in git's arguments ([#487])
 
@@ -63,11 +62,11 @@ and this project adheres to
 
 ### Security
 
-- Credentials in a URL (user information, secret query values) no longer reach
-  logs, git credential stores, SBOMs or registry files; see the limits in
-  `docs/dependency-sources.md` ([#487])
-- Rotate any credential that appeared in an SBOM, wheel, registry file or CI
-  log from version 0.24.0 or earlier ([#487])
+- Credentials in a URL are removed from SBOMs and registry files and masked in
+  Pitloom's logs; known gaps in `docs/dependency-sources.md` ([#487])
+- Rotate any credential an SBOM, wheel, registry file or log of 0.24.0 or
+  earlier held; remove it from git credential stores (`git credential reject`)
+  ([#487])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482

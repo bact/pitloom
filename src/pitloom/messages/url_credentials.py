@@ -5,7 +5,7 @@
 
 """The ``credentials-unsafe`` messages: the one ``WARNING:`` for a URL stripped
 of its credentials or holding one the SBOM keeps, and the errors for a
-registry value that holds some.
+registry value that holds some, or a registry file's entry dropped for one.
 
 See also: :mod:`pitloom.messages._url_credentials` (the entries) and
 :mod:`pitloom.messages.url_credentials_git` (the Git variants).
@@ -15,12 +15,17 @@ from __future__ import annotations
 
 import logging
 
-from pitloom.core.url_masking import keeps_url_credential, masked_given_path
+from pitloom.core.url_masking import (
+    is_whole_url,
+    keeps_url_credential,
+    masked_given_path,
+)
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._url_credentials import (
     CREDENTIALS_UNSAFE,
     CREDENTIALS_UNSAFE_ID_COLLISION,
     CREDENTIALS_UNSAFE_REGISTRY,
+    ENTRY_DROPPED_LINE,
     ID_COLLISION_LINE,
     KEPT_LINE,
     KEY_LINE,
@@ -37,6 +42,7 @@ __all__ = [
     "id_collision_error",
     "registry_key_credentials_error",
     "registry_namespace_credentials_error",
+    "warn_registry_entry_credentials_dropped",
     "warn_registry_key_credentials_skipped",
     "warn_url_credential_kept",
     "warn_url_credentials_stripped",
@@ -53,7 +59,11 @@ def warn_url_credentials_stripped(log: logging.Logger, url: str) -> None:
     :func:`~pitloom.core.url_masking.strip_url_secrets` shows it (what is
     removed masked, what is kept as written), so the line names a kept
     value only when *url* holds one."""
-    line = STRIPPED_KEPT_LINE if keeps_url_credential(url) else STRIPPED_LINE
+    line = (
+        STRIPPED_KEPT_LINE
+        if keeps_url_credential(url, whole=is_whole_url(url))
+        else STRIPPED_LINE
+    )
     emit(log, CREDENTIALS_UNSAFE, logging.WARNING, line=line, once=_once(url), url=url)
 
 
@@ -80,6 +90,20 @@ def warn_registry_key_credentials_skipped(log: logging.Logger, url: str) -> None
         CREDENTIALS_UNSAFE_REGISTRY,
         logging.WARNING,
         line=KEY_SKIPPED_LINE,
+        once=f"{CREDENTIALS_UNSAFE_REGISTRY.code}:{shown}",
+        url=shown,
+    )
+
+
+def warn_registry_entry_credentials_dropped(log: logging.Logger, url: str) -> None:
+    """The one ``WARNING:`` on *log* that the entry of a registry file whose
+    key or id is *url* (masked here) is dropped from the ID registry."""
+    shown = masked_given_path(url)
+    emit(
+        log,
+        CREDENTIALS_UNSAFE_REGISTRY,
+        logging.WARNING,
+        line=ENTRY_DROPPED_LINE,
         once=f"{CREDENTIALS_UNSAFE_REGISTRY.code}:{shown}",
         url=shown,
     )

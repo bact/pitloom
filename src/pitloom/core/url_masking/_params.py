@@ -14,6 +14,7 @@ Standard library only.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from urllib.parse import unquote
 
 #: The characters of a parameter name: word characters, ``.``, ``%``, ``-``
@@ -70,18 +71,25 @@ _NOISE_TAIL = "_0123456789"
 #: How many times a name is percent-decoded at most (``t%256Fken``).
 _DECODE_ROUNDS = 3
 
-#: Names a secret key goes by: ``sort_key`` and ``primary-key`` are not
-#: secrets, ``api_key`` is.
-_SECRET_KEYS = tuple(
-    f"{kind}_key"
-    for kind in ("api", "access", "secret", "private", "signing", "auth", "ssh")
-) + ("session_key", "license_key", "encryption_key")
+#: The kinds of key that are secrets: ``api_key`` is, ``sort_key`` and
+#: ``primary-key`` are not (a name ending in ``_key`` that none of these
+#: starts is weak: masked in a message, kept in an SBOM).
+_KEY_KINDS = (
+    *("api", "access", "secret", "private", "signing", "auth", "ssh"),
+    *("session", "license", "encryption", "subscription", "application"),
+    *("app", "client", "master", "consumer", "deploy", "account", "shared"),
+    *("service", "admin"),
+)
+#: Such a name whole (``api_key``).
+_SECRET_KEYS = tuple(f"{kind}_key" for kind in _KEY_KINDS)
 #: The words whose ending makes a name a secret to remove from an SBOM.
 _STRIP_WORDS = tuple(w for w in _SECRET_WORDS if w not in {"key", "sig", "auth"})
-#: Words a name may end in without a separator (``accesstoken``).
+#: Words a name may end in without a separator (``accesstoken``,
+#: ``secretkey``, ``AccountKey``).
 _JOINED_WORDS = (
     *("token", "secret", "password", "passwd", "signature", "passphrase"),
     *("sessionid", "privatekey"),
+    *(f"{kind}key" for kind in _KEY_KINDS),
 )
 #: The endings that make a name removed from an SBOM.
 _STRIP_ENDINGS = (
@@ -123,8 +131,13 @@ def plain_name(name: str) -> str:
 
 def is_weak_name(name: str) -> bool:
     """Whether the parameter *name* holds a secret only sometimes
-    (:data:`WEAK_SECRET_NAMES`): kept in an SBOM, masked in a message."""
-    return plain_name(name) in WEAK_SECRET_NAMES
+    (:data:`WEAK_SECRET_NAMES`, or a name ending in ``_key`` that is no
+    kind of secret key: ``sort_key``): kept in an SBOM, masked in a
+    message."""
+    plain = plain_name(name)
+    return plain in WEAK_SECRET_NAMES or (
+        plain.endswith("_key") and not plain.endswith(_STRIP_ENDINGS)
+    )
 
 
 def is_secret_name(name: str, *, weak: bool = True) -> bool:
@@ -141,10 +154,52 @@ def is_secret_name(name: str, *, weak: bool = True) -> bool:
     return plain.endswith(_STRIP_ENDINGS)
 
 
+#: The most ``?`` a non-secret parameter's value may hold: a value with more
+#: is read as a secret (the strip removes it, a message masks it), so a
+#: crafted ``?q=1?q=1?...`` cannot nest the reading without limit.
+MAX_QUERY_MARKS = 16
+
+
+def is_secret_param(param: re.Match[str], *, weak: bool = True) -> bool:
+    """Whether the parameter *param* (:data:`PARAM_RE` or
+    :data:`WHOLE_PARAM_RE`) is a secret: :func:`is_secret_name` of its name
+    (with *weak*), or a value with more than :data:`MAX_QUERY_MARKS` ``?``,
+    which is read whole and not looked into."""
+    return is_secret_name(param.group(2), weak=weak) or (
+        param.group(3).count("?") > MAX_QUERY_MARKS
+    )
+
+
+def iter_params(
+    pattern: re.Pattern[str],
+    text: str,
+    start: int,
+    bound: int,
+    *,
+    weak: bool = True,
+) -> Iterator[re.Match[str]]:
+    """Each parameter of *text* from *start* to *bound* by *pattern*
+    (:data:`PARAM_RE` or :data:`WHOLE_PARAM_RE`), in order, and the ones in
+    the value of a parameter that is no secret after a second ``?``
+    (``?q=1?token=T``: a ``?`` is a character of a query, but a server or a
+    client reads a parameter after it), at most :data:`MAX_QUERY_MARKS`
+    levels deep. A secret's value is read whole, a ``?`` in it included;
+    with *weak* false (the strip, which keeps a weak name's value as
+    written) a weak name's value is looked into too."""
+    for param in pattern.finditer(text, start, bound):
+        yield param
+        if "?" in param.group(3) and not is_secret_param(param, weak=weak):
+            yield from iter_params(
+                pattern, text, param.start(3), param.end(3), weak=weak
+            )
+
+
 def mask_param(match: re.Match[str]) -> str:
     delimiter, name, value = match.groups()
-    if is_secret_name(name):
+    if is_secret_param(match):
         value = "***"
+    elif "?" in value:
+        value = WHOLE_PARAM_RE.sub(mask_param, value)
     return f"{delimiter}{name}={value}"
 
 
@@ -155,7 +210,11 @@ def free_value_end(param: re.Match[str]) -> int:
 
 
 def mask_free_param(match: re.Match[str]) -> str:
-    if not is_secret_name(match.group(2)):
-        return match.group(0)
+    if not is_secret_param(match):
+        value = match.group(3)
+        if "?" not in value:
+            return match.group(0)
+        inner = PARAM_RE.sub(mask_free_param, value)
+        return f"{match.group(1)}{match.group(2)}={inner}"
     tail = match.string[free_value_end(match) : match.end()]
     return f"{match.group(1)}{match.group(2)}=***{tail}"

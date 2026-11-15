@@ -43,7 +43,10 @@ NAMESPACE_RELATIVE = (
     "is not an absolute IRI (a scheme is needed, as in https://example.org/ns)"
 )
 NAMESPACE_CHARACTER = "has a character an IRI cannot hold"
-NAMESPACE_CREDENTIALS = "holds user information or a secret query value"
+NAMESPACE_CREDENTIALS = (
+    "holds user information or a secret query value, or a query nested too "
+    "deeply to read"
+)
 NAMESPACE_PROBLEMS = (
     NAMESPACE_EMPTY,
     NAMESPACE_FRAGMENT,
@@ -155,6 +158,6 @@ def namespace_problem(value: str) -> str | None:
     rest = _PERCENT.sub("", value)
     if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
         return NAMESPACE_CHARACTER
-    if holds_url_credentials(value):
+    if holds_url_credentials(value, whole=True):
         return NAMESPACE_CREDENTIALS
     return None

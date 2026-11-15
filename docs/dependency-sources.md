@@ -300,8 +300,8 @@ or a query parameter named like a secret (`token`, `key`, `signature`,
 `session_id`, `sessionid`). An SBOM can be published, so Pitloom states the
 URL without them and says so once per URL, as
 `WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user
-information or a secret query value; removed from the SBOM
-[credentials-unsafe]`. A parameter named `code`, `session`, `ticket`,
+information or a secret query value, or a query nested too deeply to
+read; removed from the SBOM [credentials-unsafe]`. A parameter named `code`, `session`, `ticket`,
 `sid` or `otp`, which holds a secret only sometimes, and a user name alone
 on an `ssh` or `git` URL (`ssh://git@github.com/o/r`) are kept as written,
 and said too, once per URL: `holds a code, session, ticket, sid or otp
@@ -309,6 +309,40 @@ parameter or an ssh user name that the SBOM keeps as written`. The log line
 may still mask a kept `code` value. A user name that looks like a token
 (`ssh://ghp_...@github.com/o/r`) is removed. Treat a credential that was in
 a project file as exposed.
+
+### Known gaps
+
+The masking reads the shapes above; these are not covered, so keep such
+credentials out of URLs (use `.netrc`, a credential helper or an
+environment variable instead):
+
+- A `/` or white space in a password, and a host written as `@[::1]`: the
+  user information is not recognised.
+- An scp-style address whose user is a bare token (`TOKEN@host:o/r`, no
+  `user:`): not recognised.
+- `state=` and `Policy=` query parameters, and path parameters such as
+  `;jsessionid=`: kept as written.
+- A percent-encoded URL nested in another URL, other than in a `pkg:` PURL
+  qualifier: not read.
+- A URL inside free text (a description): it ends at white space, a quote or
+  an angle bracket, so an apostrophe, quote, space, `<` or `>` in its user
+  information is not read as part of it (a URL field, such as a project URL
+  or a dependency's direct URL, reads it whole).
+- An scp-style `user:password@host:path` is read only when the host has a `.`
+  or the path a `/`; `build:42@ci:linux` is left as written.
+- A parameter whose value holds more than 16 `?` is removed whole, as a
+  precaution: the query is nested too deeply to read, and what is removed may
+  not be a credential.
+- An `ssh` account name is kept, with a "kept" warning, even when it looks
+  like a value (`ssh://abcdeftokenvalue@host`).
+- Logs that are not Pitloom's own: warnings of third-party libraries, a
+  Hatchling traceback and `urllib3` log lines are not masked; a line break
+  in a password can split a traceback line so that its parts are not
+  recognised.
+- A `?token=` value of a Git URL still reaches `git`'s command line (visible
+  to other users in `ps`) and the clone's `.git/config`; only user
+  information (`https://user:token@host`) is kept off them.
+- The GitHub Action does not `::add-mask::` its source inputs.
 
 ## Configuration and flags
 

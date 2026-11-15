@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 """The user information of a Git URL stays off the disk of its clone: git
-writes the URL it is given to ``.git/config``, which Pitloom rewrites
-without it right after the checkout, by a clone and by a pinned fetch. A
+writes the URL it is given to ``.git/config``, and it is given the URL
+without it, by a clone and by a pinned fetch. A
 repository naming ``.git/config`` as its licence or readme reads nothing of
 it either.
 

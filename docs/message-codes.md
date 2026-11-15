@@ -41,12 +41,12 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`card-malformed`](message-codes-files.md#card-malformed) | WARNING | 0.23.0 |
 | [`config-unsafe`](message-codes-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](message-codes-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
-| [`credentials-unsafe`](message-codes-network.md#credentials-unsafe) | WARNING | 0.24.1 |
-| [`credentials-unsafe/git-line-break`](message-codes-network.md#credentials-unsafegit-line-break) | WARNING | 0.24.1 |
-| [`credentials-unsafe/git-userinfo`](message-codes-network.md#credentials-unsafegit-userinfo) | ERROR | 0.24.1 |
-| [`credentials-unsafe/http-clear`](message-codes-network.md#credentials-unsafehttp-clear) | WARNING | 0.24.1 |
-| [`credentials-unsafe/id-collision`](message-codes-network.md#credentials-unsafeid-collision) | ERROR | 0.24.1 |
-| [`credentials-unsafe/registry`](message-codes-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.24.1 |
+| [`credentials-unsafe`](message-codes-network.md#credentials-unsafe) | WARNING | 0.25.0 |
+| [`credentials-unsafe/git-line-break`](message-codes-network.md#credentials-unsafegit-line-break) | WARNING | 0.25.0 |
+| [`credentials-unsafe/git-userinfo`](message-codes-network.md#credentials-unsafegit-userinfo) | ERROR | 0.25.0 |
+| [`credentials-unsafe/http-clear`](message-codes-network.md#credentials-unsafehttp-clear) | WARNING | 0.25.0 |
+| [`credentials-unsafe/id-collision`](message-codes-network.md#credentials-unsafeid-collision) | ERROR | 0.25.0 |
+| [`credentials-unsafe/registry`](message-codes-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](message-codes-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
@@ -175,7 +175,7 @@ A line may start with one prefix before its text:
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
-| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information or a secret query value` |
+| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information or a secret query value, or a query nested too deeply to read` |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |

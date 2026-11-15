@@ -40,13 +40,15 @@ def key_holds_credentials(type_name: str, name: str) -> bool:
     is no scp-style address); a user name alone on an ``ssh`` or ``git`` URL
     that is an account name (``git@``) is how a repository is reached, so it
     is accepted, as in an SBOM."""
-    return holds_url_credentials(name, scp=type_name != FILE_TYPE, account=True)
+    return holds_url_credentials(
+        name, whole=True, scp=type_name != FILE_TYPE, account=True
+    )
 
 
 def id_holds_credentials(spdx_id: str) -> bool:
     """Whether the element id *spdx_id* holds credentials: any user
     information counts, as in a namespace."""
-    return holds_url_credentials(spdx_id)
+    return holds_url_credentials(spdx_id, whole=True)
 
 
 def require_key_without_credentials(type_name: str, name: str) -> None:

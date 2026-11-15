@@ -21,6 +21,8 @@ from pitloom.core.url_masking._params import (
     WHOLE_PARAM_RE,
     free_value_end,
     is_secret_name,
+    is_secret_param,
+    iter_params,
 )
 from pitloom.core.url_masking._userinfo import userinfo_end
 
@@ -215,7 +217,7 @@ class _Scan:
         end = self._userinfo_end(start, self.quote(scheme))
         if first_at >= end:
             return None
-        at = userinfo_end(self.text, start, end, widest=True)
+        at = userinfo_end(self.text, start, end, free_text=False, widest=True)
         return None if at is None else (start, at)
 
     def value_tail(self, userinfo: tuple[int, int], quote: str) -> int | None:
@@ -294,8 +296,8 @@ def _secret_values(
     Return where such a value ends, to scan on from there, else ``None``."""
     pattern = PARAM_RE if line else WHOLE_PARAM_RE
     start, bound, limit = scan
-    for param in pattern.finditer(text, start, bound):
-        if not is_secret_name(param.group(2)):
+    for param in iter_params(pattern, text, start, bound):
+        if not is_secret_param(param):
             continue
         whole = param
         if param.end() == bound < limit:

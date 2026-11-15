@@ -36,6 +36,7 @@ from pitloom.core.url_masking._params import (
     WHOLE_PARAM_RE,
     is_secret_name,
     is_weak_name,
+    iter_params,
     mask_free_param,
     mask_param,
 )
@@ -43,6 +44,7 @@ from pitloom.core.url_masking._scan import masked_once
 from pitloom.core.url_masking._strip import find_urls, neutral, rebuilt
 from pitloom.core.url_masking._userinfo import (
     ACCOUNT_SCHEMES,
+    WHOLE_URL,
     is_account_name,
     split_userinfo,
     userinfo_end,
@@ -59,6 +61,7 @@ __all__ = [
     "holds_url_credentials",
     "is_account_name",
     "is_secret_name",
+    "is_whole_url",
     "keeps_url_credential",
     "keeps_weak_parameter",
     "mask_checkout",
@@ -100,7 +103,11 @@ def _replaced_userinfo(
         stop = _WHOLE_STOP[found.group()[1]] if whole else _FREE_STOP
         end = stop.search(text, start)
         at = userinfo_end(
-            text, start, len(text) if end is None else end.start(), widest=True
+            text,
+            start,
+            len(text) if end is None else end.start(),
+            free_text=False,
+            widest=True,
         )
         if at is not None:
             parts += (text[done : found.start()], replacement)
@@ -122,6 +129,16 @@ _SCP_USERINFO_RE = re.compile(
     r"(?!(?i:sha\d+|md5|blake\w+):)"
     r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
 )
+
+
+def is_whole_url(text: str) -> bool:
+    """Whether *text*, as a whole, is one URL or address (a scheme, ``:`` and
+    a ``/`` or ``\\``, or ``user:password@host:path``; no white space), so
+    it is a URL field and not free text that holds a URL: the reading of a
+    value that has no white space to end it (:func:`strip_url_secrets`)."""
+    return WHOLE_URL.fullmatch(text) is not None or (
+        _SCP_USERINFO_RE.match(text) is not None and not any(c.isspace() for c in text)
+    )
 
 
 def _mask_scp(text: str) -> str:
@@ -244,35 +261,60 @@ def url_without_credentials(url: str) -> str:
     )
 
 
-def strip_url_secrets(text: str, *, weak: bool = False) -> tuple[str, list[str]]:
+def strip_url_secrets(text: str, *, whole: bool) -> tuple[str, list[str]]:
     """*text* with, in each URL in it, the user information and each
     parameter named like a secret removed (``https://u:p@h/x?token=T&a=1``
     is ``https://h/x?a=1``): what an SBOM may state of a URL a project
-    declared. The URLs and their user information are read as
-    :mod:`pitloom.core.url_masking._strip` says (a URL ends at white space,
-    a quote or an angle bracket, the text may be JSON, and a URL in a
-    parameter value is read on its own). A user name alone on an ``ssh`` or
-    ``git`` URL that is an account name (:func:`is_account_name`: ``git@``)
-    is how a server is reached, not a credential, and is kept. Also returns
-    each URL changed, for a message: what is removed masked, what is kept
-    as written (it is in the SBOM). A text with no URL is returned as it
-    is. Names that hold a secret only sometimes (``code``, ``session``,
-    ``ticket``, ``sid``, ``otp``) are kept as written, unless *weak*."""
-    if "://" not in text:
+    declared. *whole* when *text* is one URL (a URL field: a project URL,
+    an id, a PURL qualifier value; :func:`is_whole_url`): it is read as
+    ``urllib`` and git read it, so a quote, an angle bracket or a space in
+    its user information is part of it (``https://o'brien:pw@h``), and an
+    address ``user:password@host:path`` loses its password (when its host
+    has a ``.`` or its path a ``/``: ``build:42@ci:linux`` is no address). Else
+    *text* is free text, where a URL ends at white space, a quote or an angle bracket
+    (:mod:`pitloom.core.url_masking._strip`, the text may be JSON, a URL in
+    a parameter value is read on its own), and prose that only looks like
+    one (``http://host:port ... mail a@b.org``) is never rewritten. A user
+    name alone on an ``ssh`` or ``git`` URL that is an account name
+    (:func:`is_account_name`: ``git@``) is how a server is reached, not a
+    credential, and is kept. Also returns each URL changed, for a message:
+    what is removed masked, what is kept as written (it is in the SBOM). A
+    text with no URL is returned as it is. Names that hold a secret only
+    sometimes (``code``, ``session``, ``ticket``, ``sid``, ``otp``) are kept
+    as written."""
+    if "@" not in text and "=" not in text:
         return text, []
     parts: list[str] = []
     changed: list[str] = []
     done = 0
-    for url in find_urls(text, weak=weak):
+    for url in find_urls(text, whole=whole):
         found = rebuilt(text, url)
         if found is not None:
             parts += (text[done : url.start], found[0])
             changed.append(found[1])
             done = url.end
-    if not parts:
+    if parts:
+        parts.append(text[done:])
+        text = "".join(parts)
+    if whole:
+        text, scp = _stripped_scp(text)
+        changed += scp
+    return text, changed
+
+
+def _stripped_scp(text: str) -> tuple[str, list[str]]:
+    """*text*, an address (``user:password@host:path``), without its user
+    information, and the address as a message shows it."""
+    found = _SCP_USERINFO_RE.match(text)
+    if found is None:
         return text, []
-    parts.append(text[done:])
-    return "".join(parts), changed
+    rest = text[found.end() :]
+    host, _, path = rest.partition(":")
+    # ``meeting-10:30@room:notes.txt`` is not one: a host with no dot and a
+    # path with no ``/`` is too like a time or a label to rewrite.
+    if "." not in host and "/" not in path and not path.startswith("~"):
+        return text, []
+    return rest, ["***:***@" + rest]
 
 
 def keeps_weak_parameter(url: str) -> bool:
@@ -280,10 +322,13 @@ def keeps_weak_parameter(url: str) -> bool:
     sometimes (``code``, ``session``...: ``WEAK_SECRET_NAMES`` of
     :mod:`pitloom.core.url_masking._params`), which
     :func:`strip_url_secrets` keeps."""
-    return any(is_weak_name(found.group(2)) for found in PARAM_RE.finditer(url))
+    return any(
+        is_weak_name(found.group(2))
+        for found in iter_params(PARAM_RE, url, 0, len(url))
+    )
 
 
-def keeps_url_credential(url: str) -> bool:
+def keeps_url_credential(url: str, *, whole: bool) -> bool:
     """Whether :func:`strip_url_secrets` keeps something in *url* that may
     be a credential: a parameter with a weak name
     (:func:`keeps_weak_parameter`) or a user name alone on an ``ssh`` or
@@ -291,11 +336,11 @@ def keeps_url_credential(url: str) -> bool:
     not removed."""
     if keeps_weak_parameter(url):
         return True
-    return any(found.account for found in find_urls(url) if found.userinfo)
+    return any(found.account for found in find_urls(url, whole=whole) if found.userinfo)
 
 
 def holds_url_credentials(
-    text: str, *, scp: bool = True, account: bool = False
+    text: str, *, whole: bool, scp: bool = True, account: bool = False
 ) -> bool:
     """Whether *text*, a value Pitloom would store as written (a registry
     key, a namespace), holds credentials: any user information (an
@@ -305,10 +350,12 @@ def holds_url_credentials(
     keep. With *account*, a user name alone on an ``ssh`` or ``git`` URL
     that is an account name (``git@``, :func:`is_account_name`) is accepted,
     as in an SBOM. With *scp* false, only a URL: a file name such as ``meet
-    10:30@ab:c.txt`` is no address."""
+    10:30@ab:c.txt`` is no address. *whole* when *text* is one URL (a
+    registry key, an element id, a namespace: the reading of
+    :func:`strip_url_secrets`)."""
     if scp and _SCP_USERINFO_RE.search(text):
         return True
-    urls = find_urls(text) if "://" in text else []
+    urls = find_urls(text, whole=whole)
     for url in urls:
         if url.userinfo is not None and not (account and url.account):
             return True

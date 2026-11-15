@@ -220,6 +220,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "an ID registry key is stored as written",
         "an ID registry namespace is stored as written",
         "so the element is skipped",
+        "the ID registry entry is dropped",
+        "cannot be taken out of the git command line",
     ),
     "url-moved": ("; followed",),
     "url-unsafe": ("redirects to ", "; not fetched"),

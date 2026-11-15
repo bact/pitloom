@@ -13,44 +13,56 @@ See also: :mod:`pitloom.core.url_masking` (the public functions),
 library only.
 
 A URL starts at ``scheme://`` (the scheme from the first letter of a run of
-scheme characters: ``1.https://``), its user information is read by
-:func:`~pitloom.core.url_masking._userinfo.userinfo_end` in free text, and
-its rest runs to white space, a quote or an angle bracket, without the
-punctuation that ends a sentence (``.``, ``,``, ``'``...) or a closing
-bracket it does not open (``(see https://h/x)``). A URL inside it (``?r=
-https://u:p@h``) is read on its own: the outer one ends where it starts,
-unless it is inside a secret value, which runs over it.
+scheme characters: ``1.https://``; a special scheme, ``http``, ``https``,
+``ftp``, ``ws``, ``wss`` or ``file``, also at ``:/``, ``:\\`` and more
+separators, as a browser reads ``https:/u:p@h``).
+
+Two readings (:mod:`pitloom.core.url_masking._userinfo`). In *free text* a
+URL's user information is read in free text, and its rest runs to white
+space, a quote, a backtick or an angle bracket, without the punctuation
+that ends a sentence (``.``, ``,``, ``'``...) or a closing bracket it does
+not open (``(see https://h/x)``). When the text *is* one URL (*whole*: a URL
+field), each URL in it is read as ``urllib`` reads it: no quote, bracket or
+white space ends anything, and nothing is trimmed from its end. A URL inside
+another (``?r=https://u:p@h``) is read on its own: the outer one ends where
+it starts, unless it is inside a secret value, which runs over it.
 """
 
 from __future__ import annotations
 
 import re
 from bisect import bisect_left
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
 from pitloom.core.url_masking._params import (
     PARAM_HEAD,
     WHOLE_PARAM_RE,
     is_secret_name,
+    is_secret_param,
+    iter_params,
 )
 from pitloom.core.url_masking._userinfo import is_account_name, userinfo_end
 
 #: A run of scheme characters holding a letter, followed by ``://``. A run
 #: only starts after a character that is none, and the letter is its first
 #: one, so each run is tried once and a search stays linear.
-_URL_START = re.compile(r"(?<![A-Za-z0-9+.-])[0-9+.-]*[A-Za-z][A-Za-z0-9+.-]*://")
+_URL_START = re.compile(
+    r"(?<![A-Za-z0-9+.-])(?:(?i:https?|ftp|wss?|file):[/\\]+"
+    r"|[0-9+.-]*[A-Za-z][A-Za-z0-9+.-]*://)"
+)
 _LETTER = re.compile(r"[A-Za-z]")
 #: Where the rest of a URL in free text ends.
-_URL_TAIL = re.compile(r"[\s\"<>]")
+_URL_TAIL = re.compile(r"[\s\"<>`]")
 _SLASH = re.compile("/")
 _HEAD = re.compile(PARAM_HEAD)
 _DELIMITER = re.compile("[&;#]")
 #: How many secret parameter values the end of a user information is moved
 #: out of at most (each step reads the user information again).
 _SECRET_STEPS = 8
-#: Where a parameter value in free text ends.
-_VALUE_END = re.compile(r"[&;#\s\"<>]")
+#: Where a parameter value ends, in free text and in a URL field.
+_VALUE_END = re.compile(r"[&;#\s\"<>`]")
+_FIELD_VALUE_END = re.compile(r"[&;#]")
 _BRACKET = re.compile(r"[()\[\]{}]")
 #: The punctuation that ends a sentence or a quotation after a URL.
 _TRAILING = ".,;:!?'"
@@ -110,11 +122,11 @@ class _Brackets:
 
     def __init__(self, text: str) -> None:
         self.text = text
-        self._at: dict[str, list[int]] | None = None
+        self._at: defaultdict[str, list[int]] | None = None
 
     def count(self, char: str, start: int, end: int) -> int:
         if self._at is None:
-            self._at = {c: [] for c in (*_CLOSERS, *_CLOSERS.values())}
+            self._at = defaultdict(list)
             for found in _BRACKET.finditer(self.text):
                 self._at[found.group()].append(found.start())
         at = self._at[char]
@@ -147,14 +159,17 @@ class _Brackets:
 class _Reader:
     """The URLs of a free text, read in order."""
 
-    def __init__(self, text: str, *, weak: bool) -> None:
+    def __init__(self, text: str, *, whole: bool) -> None:
         self.text = text
-        self.weak = weak
+        self.whole = whole
         self.starts = _Memo(text, _URL_START)
         self._tails = _Memo(text, _URL_TAIL)
         self._slashes = _Memo(text, _SLASH)
         self._brackets = _Brackets(text)
         self._trim: tuple[tuple[int, int], int] = ((-1, -1), -1)
+        #: The (host start, end) of the URL read as a field, whose end is
+        #: not trimmed.
+        self._field: tuple[int, int] | None = None
 
     def next_url(self, pos: int) -> FoundUrl | None:
         """The first URL at or after *pos*, or ``None``."""
@@ -165,23 +180,30 @@ class _Reader:
         return self.url(run, run.end() if letter is None else letter.start())
 
     def url(self, run: re.Match[str], scheme: int) -> FoundUrl:
-        """The URL whose scheme starts at *scheme* and whose ``://`` ends
+        """The URL whose scheme starts at *scheme* and whose separator ends
         the *run*."""
         start = run.end()
         found = FoundUrl(scheme, start)
-        at = userinfo_end(self.text, start, self._slashes.start(start), free_text=True)
+        one = self.whole
+        at = userinfo_end(
+            self.text, start, self._slashes.start(start), free_text=not one
+        )
         host = start
         if at is not None:
-            at, host = self._outside_secret_value(start, at)
+            at, host = self._outside_secret_value(start, at, one=one)
         if at is not None:
             found.userinfo = (start, at)
-            name = self.text[scheme : start - 3]
+            name = self.text[scheme : self.text.index(":", scheme)]
             found.account = is_account_name(name, self.text[start:at])
             found.cut = host = max(host, at + 1)
-        found.end = self._params(found, host, self._tails.start(host))
+        rest_end = len(self.text) if one else self._tails.start(host)
+        self._field = (host, rest_end) if one else None
+        found.end = self._params(found, host, rest_end)
         return found
 
-    def _outside_secret_value(self, start: int, at: int) -> tuple[int, int]:
+    def _outside_secret_value(
+        self, start: int, at: int, *, one: bool
+    ) -> tuple[int, int]:
         """The ``@`` ending the user information from *start* to *at*, and
         where the host starts, read so that the ``@`` is in no secret
         parameter's value (``https://u:#P@h?token=a@b``: ``P@`` ends it).
@@ -199,8 +221,10 @@ class _Reader:
                 break
             # The part before the head holds an ``@`` and the same first
             # break, so it has a user information; ``or`` keeps *at* if not.
-            at = userinfo_end(self.text, start, head, free_text=True) or at
-        value_end = _VALUE_END.search(self.text, first + 1)
+            at = userinfo_end(self.text, start, head, free_text=not one) or at
+        value_end = (_FIELD_VALUE_END if one else _VALUE_END).search(
+            self.text, first + 1
+        )
         return first, len(self.text) if value_end is None else value_end.start()
 
     def _secret_head(self, start: int, at: int) -> int | None:
@@ -214,6 +238,8 @@ class _Reader:
     def _trimmed(self, host: int, rest_end: int) -> int:
         """:meth:`_Brackets.trimmed_end` of the rest of a URL, found once
         per URL."""
+        if self._field == (host, rest_end):
+            return rest_end
         if self._trim[0] != (host, rest_end):
             self._trim = ((host, rest_end), self._brackets.trimmed_end(host, rest_end))
         return self._trim[1]
@@ -244,10 +270,10 @@ class _Reader:
         inside ends runs on over it, to the end of the *rest* (host, end).
         Return where such a value ends, else ``None``."""
         pos, bound = span
-        for param in WHOLE_PARAM_RE.finditer(self.text, pos, bound):
-            if not is_secret_name(param.group(2)):
+        for param in iter_params(WHOLE_PARAM_RE, self.text, pos, bound, weak=False):
+            if not is_secret_param(param):
                 continue
-            removed = is_secret_name(param.group(2), weak=self.weak)
+            removed = is_secret_param(param, weak=False)
             whole = param
             if removed and rest is not None and param.end() == bound:
                 end = self._trimmed(*rest)
@@ -258,10 +284,10 @@ class _Reader:
         return None
 
 
-def find_urls(text: str, *, weak: bool = False) -> list[FoundUrl]:
-    """Each URL of the free *text*, in order (the reading: this module's
-    docstring); a parameter is removed with a weak name too when *weak*."""
-    reader = _Reader(text, weak=weak)
+def find_urls(text: str, *, whole: bool) -> list[FoundUrl]:
+    """Each URL of *text*, in order (the readings: this module's
+    docstring); *whole* when *text* is one URL (a URL field)."""
+    reader = _Reader(text, whole=whole)
     urls: list[FoundUrl] = []
     while (found := reader.next_url(urls[-1].end if urls else 0)) is not None:
         urls.append(found)
@@ -271,13 +297,19 @@ def find_urls(text: str, *, weak: bool = False) -> list[FoundUrl]:
 class _Plain:
     """The pieces of a URL being rebuilt without its removed parameters: a
     ``?`` or ``#`` that starts a removed one is written only when a
-    parameter follows (``?token=T&&a=1`` is ``?a=1``)."""
+    parameter follows (``?token=T&&a=1`` is ``?a=1``), and the separators
+    around a removed parameter are one (``?a=1&token=T&b=2`` is
+    ``?a=1&b=2``, ``?a=1&token=T&`` is ``?a=1``)."""
 
     def __init__(self) -> None:
         self.parts: list[str] = []
         self.pending = ""
+        self.after_removed = False
 
     def kept(self, text: str) -> None:
+        if self.after_removed:
+            self.after_removed = False
+            text = self._joined(text)
         if self.pending:
             text = text.lstrip("&;")
             if not text:
@@ -287,7 +319,18 @@ class _Plain:
             self.pending = ""
         self.parts.append(text)
 
+    def _joined(self, text: str) -> str:
+        """*text*, what follows a removed parameter, without the separators
+        that would be doubled or dangling: all of them after another
+        separator or at the end, else the first one."""
+        rest = text.lstrip("&;")
+        if rest == text or not rest:
+            return rest
+        last = self.parts[-1][-1:] if self.parts else ""
+        return rest if last in ("", "?", "&", ";", "#") else text[0] + rest
+
     def removed(self, delimiter: str) -> None:
+        self.after_removed = True
         if delimiter in "?#":
             self.pending = "#" if "#" in (self.pending, delimiter) else "?"
 

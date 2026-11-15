@@ -36,22 +36,19 @@ from pitloom.core.url_masking import (
         ("https://u:PW@h.example?mail=a@b.org", "https://h.example?mail=a@b.org"),
         ("https://TOKEN@h?contact=me@x.org", "https://h?contact=me@x.org"),
         ("https://:SECRET?x@h/ns", "https://h/ns"),
-        ("https://u:?PW@h/r", "https://h/r"),
         ("https://u:p@ss@h/x", "https://h/x"),
         ("https://u:S3<CRET@h.example/x", "https://h.example/x"),
         ('https://u:S3"CRET@h/x', "https://h/x"),
         ("https://u:S3>CRET@h/x", "https://h/x"),
         ("https://u:S3 CRET@h/x", "https://h/x"),
         ("https://u:S3\tCRET@h/x", "https://h/x"),
-        ('dq @ https://u:S3\\"CRET@h', "dq @ https://h"),
+        ('https://u:S3\\"CRET@h', "https://h"),
         ("https://u:S3'CRET@h/x", "https://h/x"),
-        ("https://u:p@h and mail me@x.org", "https://h and mail me@x.org"),
     ],
     ids=[
         "host-before-query-at",
         "token-before-query-at",
         "empty-user-question",
-        "question-first",
         "last-at-wins",
         "angle",
         "double-quote",
@@ -60,14 +57,13 @@ from pitloom.core.url_masking import (
         "tab",
         "escaped-quote",
         "single-quote",
-        "address-after",
     ],
 )
 def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
     """The strip removes it, the refusal says so, the masker hides it and
     the Git split takes it out, each by the one rule."""
-    assert strip_url_secrets(url)[0] == plain
-    assert holds_url_credentials(url)
+    assert strip_url_secrets(url, whole=True)[0] == plain
+    assert holds_url_credentials(url, whole=True)
     assert "S3" not in masked_given_path(url) and "PW" not in masked_given_path(url)
 
 
@@ -84,8 +80,8 @@ def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
     ids=["query", "port", "fragment", "ipv6", "empty", "path"],
 )
 def test_an_at_sign_after_a_host_is_no_user_information(url: str) -> None:
-    assert strip_url_secrets(url) == (url, [])
-    assert not holds_url_credentials(url)
+    assert strip_url_secrets(url, whole=True) == (url, [])
+    assert not holds_url_credentials(url, whole=True)
     assert masked_given_path(url) == url
 
 
@@ -97,7 +93,7 @@ def test_an_at_sign_after_a_host_is_no_user_information(url: str) -> None:
 def test_an_address_after_a_url_in_free_text_is_kept(text: str) -> None:
     """In free text a URL ends at white space or a quote, unless the text
     before it reads as ``user:password``."""
-    assert strip_url_secrets(text) == (text, [])
+    assert strip_url_secrets(text, whole=False) == (text, [])
 
 
 @pytest.mark.parametrize(
@@ -119,7 +115,12 @@ def test_the_masker_reads_the_widest_user_information(
     """A masker runs to the last ``@`` (it hides a host, never a password);
     the strip and git stop at an ``@`` followed by a host."""
     stop = url.find("/", 8)
-    assert userinfo_end(url, 8, len(url) if stop < 0 else stop, widest=widest) == end
+    assert (
+        userinfo_end(
+            url, 8, len(url) if stop < 0 else stop, free_text=False, widest=widest
+        )
+        == end
+    )
 
 
 @pytest.mark.parametrize(
@@ -172,10 +173,10 @@ def test_an_ssh_account_name_is_kept_and_a_token_removed(url: str, kept: bool) -
     """A user name alone on an ``ssh`` URL reaches the server; a password or
     a token-looking name is a credential. A namespace or a key refuses any
     user information unless *account* is set."""
-    plain, changed = strip_url_secrets(url)
+    plain, changed = strip_url_secrets(url, whole=True)
     assert (plain == url) is kept and bool(changed) is not kept
-    assert holds_url_credentials(url)
-    assert holds_url_credentials(url, account=True) is not kept
+    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url, whole=True, account=True) is not kept
     scheme, _, rest = url.partition("://")
     assert is_account_name(scheme, rest.partition("@")[0]) is kept
 

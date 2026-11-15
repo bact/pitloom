@@ -48,10 +48,12 @@ URL is read by the host's conventions. Rules to state to the user:
   holding a line break are not sent (`WARNING: URL=<url>: credentials
   holding a line break are not sent to git
   [credentials-unsafe/git-line-break]`; a private repository then fails). A
-  URL whose user information git would read differently (an `@` after a `?`
-  or `#` before the first `/`, a malformed host or port) is refused,
-  `Invalid URL: ...` (`git.url-invalid`). Never put a credential into a URL
-  for the user.
+  URL whose user information git would read differently (an empty host
+  after the `@`, for one) is refused before git runs: `ERROR: loom
+  project: URL='https://***:***@/o/r': user information cannot be taken out
+  of the git command line; not fetched [credentials-unsafe/git-userinfo]`; a
+  malformed host or port is refused as `Invalid URL: ...`
+  (`git.url-invalid`). Never put a credential into a URL for the user.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`ERROR: loom <command>: URL=<url>: network
   access is forbidden (offline mode); nothing fetched [offline-unusable]`,

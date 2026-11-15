@@ -58,14 +58,14 @@ from pitloom.core.url_masking import (
         ("Mirror at 1.https://u:S@h/x", "Mirror at 1.https://h/x", None),
         ("x.https://u:S@h/x", "x.https://h/x", None),
         ("https://h?x=123://&token=T", "https://h?x=123://", None),
-        ("https://u:#P@h?token=a@b&c=1", "https://h?c=1", None),
+        ("https://u:p#P@h?token=a@b&c=1", "https://h?c=1", None),
         ("https://u:p?token=x@h&a=2", "https://&a=2", "https://***:***@***&a=2"),
         (
             "see https://h/x?token=https://evil/y?a=1 end",
             "see https://h/x end",
             "https://h/x?token=***",
         ),
-        ("https://u:#P@h" + "?token=a@h" * 9 + "&c=1", "https://&c=1", None),
+        ("https://u:p#P@h" + "?token=a@h" * 9 + "&c=1", "https://&c=1", None),
     ],
     ids=[
         "parenthesis",
@@ -95,11 +95,11 @@ def test_a_url_in_free_text_keeps_what_is_around_it(
     text's; a URL in a parameter value is read on its own; a removed
     ``?`` parameter hands its ``?`` to the next one. The URL a message shows
     ends where the URL ends."""
-    stripped, changed = strip_url_secrets(text)
+    stripped, changed = strip_url_secrets(text, whole=False)
     assert stripped == plain
     if shown is not None:
         assert changed == [shown]
-    assert strip_url_secrets(stripped) == (stripped, [])
+    assert strip_url_secrets(stripped, whole=False) == (stripped, [])
 
 
 _REMOVED = [
@@ -108,12 +108,18 @@ _REMOVED = [
     *("privatekey", "passcode", "creds", "userpwd", "tokens", "token1", "password1"),
     *("token_", "token-v2", "token.value", "t%256Fken", "ssh_key", "api-key"),
     *("accesstoken", "db_passphrase", "SessionId"),
+    *("subscription-key", "Ocp-Apim-Subscription-Key", "application_key", "app_key"),
+    *("client_key", "master_key", "consumer_key", "deploy_key", "AccountKey"),
+    *("secretkey", "accesskey", "sessionkey", "ApiKey", "x_api_key"),
 ]
 _KEPT = [
-    *("monkey", "author", "keyword", "sort_key", "primary-key", "tokenizer"),
-    *("max_tokens", "country_code", "state", "Policy", "oauth2", "keys[0]"),
+    *("monkey", "author", "keyword", "tokenizer", "max_tokens", "country_code"),
+    *("state", "Policy", "oauth2", "keys[0]"),
 ]
+#: Kept in an SBOM, masked in a message, told as kept: a name that holds a
+#: secret only sometimes, and a ``_key`` that is no kind of secret key.
 _WEAK = ["code", "session", "ticket", "sid", "otp", "code1", "Session"]
+_WEAK_KEYS = ["sort_key", "primary-key", "foreign_key"]
 
 
 @pytest.mark.parametrize("name", _REMOVED)
@@ -121,39 +127,39 @@ def test_a_secret_name_is_masked_and_removed(name: str) -> None:
     """The masker and the strip read one list of names: a name the strip
     removes, the masker masks."""
     url = f"https://h/x?{name}=S3CRET&a=1"
-    assert strip_url_secrets(url)[0] == "https://h/x?a=1"
+    assert strip_url_secrets(url, whole=True)[0] == "https://h/x?a=1"
     assert "S3CRET" not in masked_given_path(url)
     assert "S3CRET" not in sanitize_url_credentials(url)
-    assert holds_url_credentials(url)
+    assert holds_url_credentials(url, whole=True)
 
 
-@pytest.mark.parametrize("name", _KEPT + _WEAK)
+@pytest.mark.parametrize("name", _KEPT + _WEAK + _WEAK_KEYS)
 def test_an_ordinary_or_weak_name_is_kept_in_an_sbom(name: str) -> None:
     url = f"https://h/x?{name}=V&a=1"
-    assert strip_url_secrets(url) == (url, [])
-    assert not holds_url_credentials(url)
-    masked = name in _WEAK or name in ("sort_key", "primary-key")
-    assert is_secret_name(name) is masked
-    assert keeps_weak_parameter(url) is (name in _WEAK)
+    assert strip_url_secrets(url, whole=True) == (url, [])
+    assert not holds_url_credentials(url, whole=True)
+    weak = name in _WEAK + _WEAK_KEYS
+    assert is_secret_name(name) is weak
+    assert keeps_weak_parameter(url) is weak
 
 
 @pytest.mark.parametrize(
     ("url", "kept"),
     [
         ("https://u:p@h/x?code=WK", True),
-        ("https://u:p@h/x?sort_key=V&primary-key=W", False),
+        ("https://u:p@h/x?sort_key=V&primary-key=W", True),
         ("ssh://git@h/r?token=T", True),
         ("ssh://ghp_TOKEN@h/r", False),
         ("https://h/x?token=T", False),
     ],
-    ids=["weak", "key-names", "account", "token-user", "removed"],
+    ids=["weak", "weak-keys", "account", "token-user", "removed"],
 )
 def test_a_kept_credential_is_told_apart(url: str, kept: bool) -> None:
     """A message says a credential is kept only when one is, and shows a
     kept value as the SBOM states it (never ``sort_key=***``)."""
-    _, changed = strip_url_secrets(url)
-    assert changed and keeps_url_credential(changed[0]) is kept
-    assert keeps_url_credential(url) is kept
+    _, changed = strip_url_secrets(url, whole=True)
+    assert changed and keeps_url_credential(changed[0], whole=True) is kept
+    assert keeps_url_credential(url, whole=True) is kept
     assert "***" not in changed[0].partition("?")[2].replace("token=***", "")
 
 
@@ -171,6 +177,6 @@ def test_the_strip_is_linear() -> None:
     ]
     started = time.perf_counter()
     for text in shapes:
-        strip_url_secrets(text)
-        holds_url_credentials(text)
+        strip_url_secrets(text, whole=False)
+        holds_url_credentials(text, whole=False)
     assert time.perf_counter() - started < 1

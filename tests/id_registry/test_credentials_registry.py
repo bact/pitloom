@@ -23,7 +23,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.iri import require_namespace_iri
 from pitloom.core.url_masking import holds_url_credentials
-from pitloom.id_registry import FILE_TYPE, IdRegistry
+from pitloom.id_registry import FILE_TYPE, IdRegistry, save_registry
 from pitloom.id_registry._harvest import _import_sbom_element
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import code_of
@@ -158,7 +158,7 @@ def test_id_import_keeps_its_namespace_over_a_credentialed_one(
 )
 def test_a_value_stored_as_written_refuses_every_credential_shape(value: str) -> None:
     """A namespace and a registry key are refused, masked."""
-    assert holds_url_credentials(value)
+    assert holds_url_credentials(value, whole=True)
     with pytest.raises(ValueError) as caught:
         require_namespace_iri(value)
     assert _SECRET not in str(caught.value)
@@ -172,7 +172,7 @@ def test_a_weak_name_is_kept_in_a_namespace_and_a_key() -> None:
     """``code``, ``session``... are accepted as written (they are often no
     secret), the same rule as in an SBOM."""
     value = "https://h/ns?code=utf8&session=2024"
-    assert not holds_url_credentials(value)
+    assert not holds_url_credentials(value, whole=True)
     assert require_namespace_iri(value) == value
 
 
@@ -191,3 +191,72 @@ def test_harvest_skips_a_credential_id_and_keeps_an_odd_file_name(
     assert "skipped" in caplog.text and _SECRET not in caplog.text
     assert len(registry.elements) == 1
     assert registry.register(FILE_TYPE, "a@b c.txt")
+
+
+def _registry_file(path: Path, namespace: str, key: str, spdx_id: str) -> Path:
+    """A registry file holding *key* -> *spdx_id* and a clean entry."""
+    elements = {key: {"spdxId": spdx_id}, "ok": {"spdxId": f"{namespace}#AIPackage-3"}}
+    path.write_text(
+        json.dumps(
+            {
+                "elements": {"ai_AIPackage": elements},
+                "id_counters": {"AIPackage": 3},
+                "namespace": namespace,
+                "project_root": ".",
+                "version": 4,
+            }
+        ),
+        "utf-8",
+    )
+    return path
+
+
+_NS = "https://ids.example/ns"
+
+
+@pytest.mark.parametrize(
+    ("key", "spdx_id"),
+    [
+        (f"https://u:{_SECRET}@h/m", f"{_NS}#AIPackage-1"),
+        ("model", f"https://u:{_SECRET}@ids.example/ns#AIPackage-1"),
+        ("model", f"{_NS}#AIPackage-1?token={_SECRET}"),
+    ],
+    ids=["key", "id", "id-token"],
+)
+def test_load_drops_a_credentialed_entry_and_a_save_writes_without_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, spdx_id: str
+) -> None:
+    """The file's other entries and counters are kept; one masked warning;
+    a rebase of the unchanged file keeps it dropped."""
+    path = _registry_file(tmp_path / "ids.json", _NS, key, spdx_id)
+    with caplog.at_level(logging.WARNING):
+        registry = IdRegistry.load(path)
+        assert save_registry(registry).pending
+    assert list(registry.elements) == [("ai_AIPackage", "ok")]
+    (said,) = caplog.records
+    assert getattr(said, CODE_ATTR) == _REGISTRY and _SECRET not in caplog.text
+    assert "entry is dropped" in said.getMessage()
+    saved = path.read_text("utf-8")
+    assert _SECRET not in saved and '"AIPackage": 3' in saved
+
+
+def test_load_refuses_a_file_whose_namespace_holds_credentials(
+    tmp_path: Path,
+) -> None:
+    namespace = f"https://u:{_SECRET}@ids.example/ns"
+    path = _registry_file(tmp_path / "ids.json", namespace, "m", f"{namespace}#P-1")
+    with pytest.raises(ValueError, match="holds user information") as caught:
+        IdRegistry.load(path)
+    assert _SECRET not in str(caught.value)
+
+
+def test_a_rebase_drops_a_credentialed_entry_another_run_saved(
+    tmp_path: Path,
+) -> None:
+    path = _registry_file(tmp_path / "ids.json", _NS, "model", f"{_NS}#AIPackage-1")
+    registry = IdRegistry.load(path)
+    registry.register("ai_AIPackage", "new")
+    _registry_file(path, _NS, f"https://u:{_SECRET}@h/m", f"{_NS}#AIPackage-1")
+    save_registry(registry)
+    assert _SECRET not in path.read_text("utf-8")
+    assert ("ai_AIPackage", "new") in registry.elements
