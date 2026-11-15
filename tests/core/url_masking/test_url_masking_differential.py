@@ -14,6 +14,12 @@ ends at white space or a quote). The masker is never weaker than the strip,
 except the listed gaps (a ``/`` or white space in a password in a URL field,
 a break in the user information of a URL in free text).
 
+A PURL (a URL, an scp-style address or a token in a qualifier or the
+subpath, encoded up to three times) is read alike by the detector, the
+masker, the refusal and the PURL strip: what the detector refuses the
+masker hides, and the strip removes it or leaves a value the detector
+still refuses (so the strip says it was not removed).
+
 See also: test_url_masking_userinfo.py (the rule case by case) and
 test_url_masking_planted_secrets.py (the masker alone), both in this
 folder.
@@ -25,13 +31,16 @@ import random
 
 import pytest
 
+from pitloom.core.purl import strip_purl_secrets
 from pitloom.core.url_masking import (
+    find_url_credentials,
     holds_url_credentials,
     keeps_weak_parameter,
     masked_given_path,
     split_userinfo,
     strip_url_secrets,
 )
+from tests.core.url_masking._probe_corpus import encoded
 
 _SCHEMES = ["https", "HTTPS", "ftp", "ssh", "SSH", "git+ssh", "s3"]
 #: What may stand around the secret in a password of a URL field: breaks,
@@ -158,3 +167,46 @@ def test_the_masker_hides_every_name_the_strip_removes_or_keeps_as_weak() -> Non
         masked = "V" not in masked_given_path(url)
         removed = strip_url_secrets(url, whole=True)[0] != url
         assert masked == (removed or keeps_weak_parameter(url)), name
+
+
+def _purl(rng: random.Random, secret: str) -> tuple[str, str]:
+    """A random PURL holding one planted *secret* (or none), and the
+    secret."""
+    token = f"ghp_{secret}" + "aB3" * 12
+    token = token[: len("ghp_") + 36]
+    values = {
+        "url": f"https://u:P{secret}@h/x",
+        "scp": f"alice:P{secret}@host:o/r",
+        "token": token,
+        "none": "https://h/x",
+    }
+    kind = rng.choice([*values, "key"])
+    planted = "" if kind == "none" else (token[4:] if kind == "token" else secret)
+    if kind == "key":
+        return f"pkg:generic/x@1?private_token=P{secret}&a=1", secret
+    value = encoded(values[kind], rng.randint(0, 3))
+    if rng.random() < 0.5:
+        return f"pkg:generic/x@1?a=1&v={value}", planted
+    # An scp-style address counts in a subpath only as all of it.
+    lead = "" if kind == "scp" else "sub/"
+    return f"pkg:generic/x@1?a=1#{lead}{value}", planted
+
+
+@pytest.mark.parametrize("seed", [7, 489])
+def test_a_purl_is_read_alike_by_every_decider(seed: int) -> None:
+    """On 300 random PURLs: the refusal is the detector's non-weak finding;
+    a planted secret is refused, and hidden by the masker and every
+    finding; the strip removes it or leaves a value still refused."""
+    rng = random.Random(seed)
+    for index in range(300):
+        purl, planted = _purl(rng, f"QZ{index:03d}K")
+        found = find_url_credentials(purl)
+        held = holds_url_credentials(purl)
+        assert held == any(not f.weak for f in found), purl
+        assert held == bool(planted), purl
+        if planted:
+            assert planted not in masked_given_path(purl), purl
+            assert planted not in masked_given_path(f"see {purl} ok", line=True)
+            assert not any(planted in f.shown for f in found), purl
+            plain = strip_purl_secrets(purl)[0]
+            assert planted not in plain or holds_url_credentials(plain), purl

@@ -10,7 +10,8 @@ the detector must never refuse.
 See also: test_url_masking_detect.py (the tests that read it).
 
 Each row is ``(id, text, strip_changes, refused)``. *strip_changes* is
-whether the SBOM strip (``pitloom.export._spdx3_strip``, retired in PR 2)
+whether the SBOM strip (``pitloom.export._spdx3_strip``, to be retired in
+PR 2)
 changed the text, computed once on the tree before the detector. *refused*
 is whether the detector refuses it (an account name accepted), reviewed row
 by row. The detector reads a URL-typed value as a whole and no prose: every
@@ -40,11 +41,45 @@ def marks(count: int) -> str:
 
 def b62(length: int) -> str:
     """A token body of *length* base-62 characters holding ``T0KEN``."""
-    return ("T0KEN" + "aB3" * 30)[:length]
+    return ("T0KEN" + "aB3" * 60)[:length]
 
 
 _URL = "https://u:S3CRET@h.example/x"
 _HF = "Tq" * 17
+_SLACK = "1234567890-1234567890-"
+_OPENAI = f"{b62(58)}T3BlbkFJ{b62(58)}"
+#: Each token prefix and (the body of its shortest real shape, a near-miss
+#: body that is none), after the gitleaks rule set.
+TOKENS: dict[str, tuple[str, str]] = {
+    **{f"gh{kind}_": (b62(36), b62(35)) for kind in "porsu"},
+    "github_pat_": (f"{b62(22)}_{b62(59)}", f"{b62(22)}_{b62(58)}"),
+    **{
+        f"{kind}-": (b62(20), b62(19))
+        for kind in ("glpat", "gldt", "glrt", "glcbt", "gloas")
+    },
+    "glptt-": ("0f" * 20, "0f" * 19 + "0"),
+    "xoxb-": ("1234567890-1234567890", "1234567890-123456789"),
+    **{f"xox{kind}-": (_SLACK + b62(8), _SLACK + b62(7)) for kind in "pe"},
+    **{f"xox{kind}-": (f"1-2-{b62(8)}", f"1-2-{b62(7)}") for kind in "ar"},
+    **{f"xox{kind}-": ("1-2-3-a", "1-2-3-") for kind in "os"},
+    **{f"xoxe.xox{kind}-": (f"1-{b62(163)}", f"1-{b62(162)}") for kind in "bp"},
+    "xapp-": ("1-A0T0KEN12-1234567890-abc12345", "1-A0T0KEN12-1234567890-abc1234"),
+    "hf_": (_HF, _HF[:-1]),
+    "api_org_": (_HF, _HF[:-1]),
+    "AKIA": ("T2KENABCDEFGHIJK", "T2KENABCDEFGHIJ"),
+    "ASIA": ("T2KENABCDEFGHIJK", "T0KENABCDEFGHIJK"),
+    "pypi-": ("AgE" + b62(50), "AgE" + b62(49)),
+    "npm_": (b62(36), b62(35)),
+    **{
+        f"sk-{kind}-": (_OPENAI, f"{b62(57)}T3BlbkFJ{b62(58)}")
+        for kind in ("proj", "svcacct", "admin")
+    },
+    **{
+        prefix: (f"{b62(93)}AA", f"{b62(92)}AA")
+        for prefix in ("sk-ant-api03-", "sk-ant-admin01-")
+    },
+    "AIza": (b62(35), b62(34)),
+}
 _IN_URL = "https://h.example/x?q="
 
 #: (id, text, whether the retired strip changed it, whether it is refused).
@@ -133,29 +168,24 @@ PROBES: tuple[tuple[str, str, bool, bool], ...] = (
         False,
     ),
     ("purl-hf", "pkg:huggingface/o/n@abc", False, False),
+    ("purl-subpath-url", "pkg:pypi/x@1?a=b#sub/" + _URL, True, True),
+    ("purl-subpath-scp", "pkg:pypi/x@1?a=b#alice:S3CRET@h:x", False, True),
+    ("purl-subpath-bare", "pkg:pypi/x@1#sub/" + _URL, True, True),
+    ("purl-subpath-enc", "pkg:pypi/x@1#sub/" + encoded(_URL, 1), False, True),
+    ("q-next-scp", "https://h.example/x?next=alice:S3CRET@host:o/r", False, True),
     # Query nesting.
     ("marks-16", marks(16), False, False),
     ("marks-17", marks(17), True, True),
     # Token shapes inside a URL value.
-    *((f"tok-gh{k}", f"{_IN_URL}gh{k}_{b62(36)}", False, True) for k in "porsu"),
-    ("tok-github-pat", f"{_IN_URL}github_pat_{b62(22)}_{b62(59)}", False, True),
-    *((f"tok-{p}", f"{_IN_URL}{p}-{b62(20)}", False, True) for p in ("glpat", "gldt")),
-    *((f"tok-{p}", f"{_IN_URL}{p}-{b62(20)}", False, True) for p in ("glptt", "glrt")),
-    *((f"tok-{p}", f"{_IN_URL}{p}-{b62(20)}", False, True) for p in ("gloas", "glcbt")),
-    *((f"tok-xox{k}", f"{_IN_URL}xox{k}-1-2-{b62(24)}", False, True) for k in "abeprs"),
-    ("tok-xapp", f"{_IN_URL}xapp-1-A0T0KEN12-1234567890-{b62(16)}", False, True),
-    ("tok-hf", f"https://h.example/hf_{_HF}/x", False, True),
-    ("tok-api-org", f"{_IN_URL}api_org_{_HF}", False, True),
-    ("tok-akia", f"{_IN_URL}AKIAT0KEN12345678901", False, True),
-    ("tok-asia", f"{_IN_URL}ASIAT0KEN12345678901", False, True),
-    ("tok-pypi", f"{_IN_URL}pypi-AgE{b62(60)}", False, True),
-    ("tok-npm", f"{_IN_URL}npm_{b62(36)}", False, True),
+    *((f"tok-{p}", f"{_IN_URL}{p}{b}", False, True) for p, (b, _) in TOKENS.items()),
     ("tok-encoded", f"{_IN_URL}Bearer%20ghp_{b62(36)}", False, True),
     # URL values whose path only looks like a token.
     ("near-ghp-35", f"{_IN_URL}ghp_{b62(35)}", False, False),
     ("near-ghp-37", f"{_IN_URL}ghp_{b62(37)}", False, False),
-    ("near-akia-15", f"{_IN_URL}AKIAT0KEN1234567890", False, False),
-    ("near-akia-17", f"{_IN_URL}AKIAT0KEN123456789012", False, False),
+    ("near-akia-15", f"{_IN_URL}AKIAT2KENABCDEFGHIJ", False, False),
+    ("near-akia-17", f"{_IN_URL}AKIAT2KENABCDEFGHIJKL", False, False),
+    ("near-akia-digit", f"{_IN_URL}AKIAT0KEN12345678901", False, False),
+    ("near-asia-word", "https://h.example/x/ASIAPACIFICREGION123", False, False),
     ("near-npm-config", "https://docs.npmjs.com/cli/npm_config_registry", False, False),
     ("near-pat-slug", "https://docs.github.com/github_pat_creation_page", False, False),
     (
@@ -201,7 +231,7 @@ PROBES: tuple[tuple[str, str, bool, bool], ...] = (
     ("prose-req", "needs name @ https://h.example/x.whl?token=T0KEN, ok", True, False),
     ("prose-scp", "clone alice:S3CRET@host.example:o/r now", False, False),
     ("prose-build", "run build:42@ci:linux now", False, False),
-    ("prose-aws", "Set AKIAT0KEN12345678901 in the environment", False, False),
+    ("prose-aws", "Set AKIAIOSFODNN7EXAMPLE in the environment", False, False),
     ("prose-ghp", f"use ghp_{b62(36)} here", False, False),
     ("prose-hf-env", f"HF_TOKEN=hf_{_HF}", False, False),
     ("prose-slugs", "glpat-token-rotation-guide-v2 and hf_hub_download", False, False),

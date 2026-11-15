@@ -8,9 +8,10 @@ a URL-typed value read as a whole, never prose; no weaker than the retired
 SBOM strip on such values; never showing what it finds; the masker hiding
 all it refuses; weak names told and not refused.
 
-See also: _probe_corpus.py (the corpus), test_url_masking_detect_shapes.py
-(token shapes and 1 MiB timings) and test_url_masking_credentials.py (the
-refusal surfaces) in this folder.
+See also: _probe_corpus.py (the corpus), test_url_masking_hits.py (each
+kind of value and 1 MiB timings), test_url_masking_tokens.py (token shapes),
+test_url_masking_mask.py (the masker) and test_url_masking_credentials.py
+(the refusal surfaces) in this folder.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from pitloom.core.url_masking import (
     holds_url_credentials,
     masked_given_path,
 )
-from tests.core.url_masking._probe_corpus import PLANTED, PROBES, encoded, marks
+from tests.core.url_masking._probe_corpus import PLANTED, PROBES
 
 
 @pytest.mark.parametrize(
@@ -129,82 +130,36 @@ def test_an_account_name_is_weak_only_when_accepted(
     assert [(f.kind, f.weak) for f in found] == [(kind, weak)]
 
 
-@pytest.mark.parametrize("scp", [True, False], ids=["scp", "no-scp"])
-def test_an_scp_address_is_looked_for_only_when_asked(scp: bool) -> None:
-    found = find_url_credentials("alice:S3CRET@host.example:o/r", scp=scp)
-    assert [(f.kind, f.shown) for f in found] == (
-        [("scp", "***:***@host.example:o/r")] if scp else []
-    )
-
-
 @pytest.mark.parametrize(
     "text",
-    [",a:S3CRET@cc:d,b:T0KEN@ee:f", "a:S3CRET@cc:d b:T0KEN@ee:f", "x a:S3CRET@cc:d"],
-    ids=["comma-run", "two-words", "sentence"],
-)
-def test_text_holding_scp_addresses_is_no_address(text: str) -> None:
-    """Only a value that is one address, with no white space, is one."""
-    assert not find_url_credentials(text)
-
-
-@pytest.mark.parametrize(
-    ("text", "kinds"),
     [
-        (marks(15), []),
-        (marks(16), []),
-        (marks(17), ["nesting"]),
-        ("https://h/x?code=1" + "?q=1" * 16, ["weak"]),
-        ("https://h/x?token=1" + "?q=1" * 16, ["secret"]),
-        ("https://h/x?code=1" + "?q=1" * 17, ["nesting"]),
+        "\ufeffhttps://u:S3CRET@h/x",
+        "\u200bhttps://u:S3CRET@h/x",
+        "https\u200b://u:S3CRET@h/x",
+        "<https://u:S3CRET@h/x>",
+        '"https://u:S3CRET@h/x"',
+        " 'https://u:S3CRET@h/x' ",
+        "x @ https://u:S3CRET@h/x --hash=sha256:abc",
     ],
-    ids=["15", "16", "17", "weak-16", "secret-16", "weak-17"],
-)
-def test_a_value_nested_over_sixteen_marks_is_found(
-    text: str, kinds: list[str]
-) -> None:
-    """A value holding 16 ``?`` is read as its name says; 17 is nesting."""
-    assert [f.kind for f in find_url_credentials(text)] == kinds
-
-
-_PURL = "pkg:generic/x?checksum=sha256:ab&download_url="
-
-
-@pytest.mark.parametrize(
-    ("value", "kinds"),
-    [
-        (encoded("https://u:S3CRET@h.example/x", 0), ["secret"]),
-        (encoded("https://u:S3CRET@h.example/x", 1), ["secret"]),
-        (encoded("https://u:S3CRET@h.example/x", 5), ["secret"]),
-        (encoded("https://u:S3CRET@h.example/x", 6), ["nesting"]),
-        (encoded('https://h.example/x"?token=T0KEN', 1), ["secret"]),
-        (encoded("https://h.example/x?a=1", 5), []),
+    ids=[
+        *("bom", "zero-width", "zero-width-in-scheme", "angle", "quote"),
+        *("squote", "hash"),
     ],
-    ids=["plain", "once", "five", "six", "field-reading", "clean"],
 )
-def test_a_purl_qualifier_is_read_at_every_decode_depth(
-    value: str, kinds: list[str]
-) -> None:
-    """A qualifier value is read as written and after each of five decodes,
-    as one URL when it is one (a quote does not end it); one still encoded
-    after the fifth is nesting, shown as its key only."""
-    found = find_url_credentials(_PURL + value)
-    assert [f.kind for f in found] == kinds
-    assert not any(s in f.shown for f in found for s in PLANTED)
-    if kinds == ["nesting"]:
-        assert found[0].shown == "download_url=***"
+def test_a_value_is_read_as_a_reader_reads_it(text: str) -> None:
+    """A format character (dropped by a reader), one enclosing pair and a
+    requirement line's trailing words hide no credential; the masker hides
+    it too, in a value and in a line."""
+    found = find_url_credentials(text)
+    assert [f.kind for f in found] == ["secret"]
+    assert not any("S3CRET" in f.shown for f in found)
+    # A value read once normalised is held as written.
+    assert found[0].view == (text if "@ " not in text else "https://u:S3CRET@h/x")
+    for line in (False, True):
+        assert "S3CRET" not in masked_given_path(text, line=line)
 
 
-@pytest.mark.parametrize("prefix", ["pkg", "PKG", "Pkg"])
-def test_a_purl_is_known_in_any_case(prefix: str) -> None:
-    text = f"{prefix}:generic/x?u=" + encoded("https://u:S3CRET@h.example/x", 1)
-    assert [f.kind for f in find_url_credentials(text)] == ["secret"]
-    assert "S3CRET" not in masked_given_path(text)
-
-
-@pytest.mark.parametrize(
-    "text",
-    ["pkg:pypi/x@1.0", "see pkg:pypi/x@1.0#sub ok", "pkg:generic/x?checksum=sha256:ab"],
-    ids=["no-qualifier", "subpath-in-prose", "clean-qualifier"],
-)
-def test_a_purl_without_a_hit_is_masked_as_given(text: str) -> None:
-    assert masked_given_path(text) == text
+def test_a_format_character_is_kept_where_it_hides_no_credential() -> None:
+    """A bidirectional override stays in a masked message, so a quoting of it
+    can still show it."""
+    assert masked_given_path("a\u202eb https://h/x") == "a\u202eb https://h/x"

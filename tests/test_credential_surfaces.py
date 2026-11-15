@@ -174,6 +174,81 @@ def test_no_planted_secret_reaches_the_sbom_or_a_stream(
     assert "credentials-unsafe]" in said
 
 
+_GHP = "ghp_T0KEN" + "aB3" * 10 + "x"
+#: A credential the SBOM strip does not read (a token in a URL's path).
+_UNREAD = f"https://e.example/h/{_GHP}"
+
+
+def _merge_id(tmp: Path, mp: pytest.MonkeyPatch) -> str:
+    """``merge`` of a fragment whose element id holds the token."""
+    fragments = tmp / "fragments"
+    fragments.mkdir()
+    text = FRAGMENT_FIXTURE.read_text(encoding="utf-8")
+    old = "https://spdx.org/spdxdocs/pitloom-test/DatasetPackage/tiny-image-01"
+    (fragments / "a.json").write_text(
+        text.replace(old, f"https://e.example/{_GHP}#tiny"), encoding="utf-8"
+    )
+    assert _cli(["merge", str(fragments), "-o", str(tmp / "o.json")], mp) == 0
+    return (tmp / "o.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "surface", ["cli-generate", "library", "hook", "embed-wheel", "merge", "merge-id"]
+)
+def test_a_credential_the_strip_does_not_read_is_said_on_every_surface(
+    surface: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A token in a project URL (or a merged element id) that the SBOM keeps
+    as written is said, masked, as not removed: never silently."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(globals(), "_HOME", _UNREAD)
+    surfaces = {**_SURFACES, "merge-id": _merge_id}
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        sbom = surfaces[surface](tmp_path, monkeypatch)
+    _, err = capsys.readouterr()
+    said = err + caplog.text
+    assert _GHP in sbom and _GHP[4:] not in said
+    assert "which the SBOM states as written; remove it" in said
+
+
+#: A value behind a format character: a PURL that keeps a ``code`` value,
+#: a URL and an scp-style address.
+_MARKED = {
+    "purl": "\u200bpkg:pypi/x@1?token=S3CRET&vcs_url=https://e.example/h?code=1",
+    "url": "\ufeffhttps://u:S3CRET@e.example/h?code=1",
+    "scp": "\u202eu:S3CRET@e.example:h",
+}
+
+
+@pytest.mark.parametrize("value", sorted(_MARKED))
+@pytest.mark.parametrize(
+    "surface", ["cli-generate", "library", "hook", "embed-wheel", "merge"]
+)
+def test_a_value_behind_a_format_character_is_said_masked_on_every_surface(
+    surface: str,
+    value: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A format character in front of a value hides no secret from a line:
+    the strip reads past it as the detector does, and every line is
+    masked."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(globals(), "_HOME", _MARKED[value])
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        sbom = _SURFACES[surface](tmp_path, monkeypatch)
+    _, err = capsys.readouterr()
+    assert "S3CRET" not in err + caplog.text and "code=1" not in err
+    assert "credentials-unsafe]" in err
+    assert ("S3CRET" in sbom) is (value == "purl")
+
+
 def _registry_surfaces(tmp: Path, mp: pytest.MonkeyPatch) -> dict[str, object]:
     """Each registry surface given a credentialed namespace or key: its code
     (an exception's, else the exit status)."""

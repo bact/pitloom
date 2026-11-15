@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -379,3 +379,14 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 - Left for PR 7: the save wrapper, `ENTITY_STORED_AS_INFO` and the other
   summaries, `_loom_dataset.py:108` (the registry inside a dataset
   directory), and the hook's `did` texts (the hook never saves).
+
+## `credentials-unsafe` subjects (#489)
+
+- A refusal of a dotless scp-style key (`alice:pw@host:repo`) says it as
+  `URL=<value>`, though it is no URL: accepted. Every line of the family
+  keys on one subject, `URL`, so a skill reads one field; a second subject
+  for the scp case would split the family for one shape.
+- `credentials-unsafe` gained a line for a value the SBOM strip leaves that
+  the detector refuses ("which the SBOM states as written"),
+  said once per value, masked; PR 2 replaces the strip with the detector
+  and retires the line.

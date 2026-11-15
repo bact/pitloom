@@ -251,8 +251,10 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
             "URL=https://pypi.org: unreachable; contact admin@example.com",
         ),
         ("https://u:A@h/a, mail ops@x.com", "https://***:***@h/a, mail ops@x.com"),
-        ("https://h\tops@x.com", "https://h\tops@x.com"),
-        ("https://h\nops@x.com", "https://h\nops@x.com"),
+        ("https://h\tops@x.com", "https://***:***@x.com"),
+        # A tab or a line break is deleted by a URL parser, so the address
+        # after one is the URL's user information (``https://hops@x.com``).
+        ("https://h\nops@x.com", "https://***:***@x.com"),
         # A quote inside a secret value, quoted or not.
         ("x https://h/p?token=Zq'V y", "x https://h/p?token=*** y"),
         ("x 'https://h/p?token=Zq'V' y", "x 'https://h/p?token=***' y"),
@@ -287,8 +289,8 @@ def test_a_url_given_as_a_path_is_masked(given: str, shown: str) -> None:
         "address-after-comma",
         "address-after-colon",
         "address-after-userinfo",
-        "address-after-tab",
-        "address-after-newline",
+        "tab-is-deleted",
+        "newline-is-deleted",
         "quote-in-value",
         "quote-in-quoted-value",
         "same-quote-in-value",

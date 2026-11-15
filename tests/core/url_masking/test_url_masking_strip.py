@@ -41,7 +41,7 @@ from pitloom.core.url_masking import (
         ("at https://u:p@h/x, ok", "at https://h/x, ok", "https://***:***@h/x"),
         ("https://h/w_(x)?token=T", "https://h/w_(x)", "https://h/w_(x)?token=***"),
         ("https://h/x?token=T&&a=1", "https://h/x?a=1", "https://h/x?token=***&&a=1"),
-        ("https://h/x?token=T;a=1", "https://h/x?a=1", "https://h/x?token=***;a=1"),
+        ("https://h/x?token=T;a=1", "https://h/x", "https://h/x?token=***"),
         ("https://h/x?token=T#f", "https://h/x#f", "https://h/x?token=***#f"),
         ("https://h/x?&token=T", "https://h/x?", None),
         (

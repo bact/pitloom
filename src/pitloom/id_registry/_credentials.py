@@ -36,17 +36,21 @@ __all__ = [
 
 def key_holds_credentials(type_name: str, name: str) -> bool:
     """Whether the registry key *name* of *type_name* holds credentials,
-    read as a whole value. A file's key is a path, so only a URL counts
-    (``meet 10:30@ab:c.txt`` is no scp-style address); a user name alone on
-    an ``ssh`` or ``git`` URL that is an account name (``git@``) is how a
-    repository is reached, so it is accepted, as in an SBOM."""
-    return holds_url_credentials(name, scp=type_name != FILE_TYPE, account=True)
+    read as a whole value, and a URL or an access token anywhere in it (a
+    key is an identifier the registry stores, never prose). A file's key is
+    a path, so a value that is an scp-style address is not one
+    (``meet-10:30@ab:c.txt``); a user name alone on an ``ssh`` or ``git``
+    URL that is an account name (``git@``) is how a repository is reached,
+    so it is accepted, as in an SBOM."""
+    return holds_url_credentials(
+        name, scp=type_name != FILE_TYPE, account=True, embedded=True
+    )
 
 
 def id_holds_credentials(spdx_id: str) -> bool:
-    """Whether the element id *spdx_id* holds credentials: any user
-    information counts, as in a namespace."""
-    return holds_url_credentials(spdx_id)
+    """Whether the element id *spdx_id* holds credentials, a URL anywhere
+    in it included: any user information counts, as in a namespace."""
+    return holds_url_credentials(spdx_id, embedded=True)
 
 
 def require_key_without_credentials(type_name: str, name: str) -> None:

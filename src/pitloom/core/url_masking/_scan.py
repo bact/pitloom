@@ -23,6 +23,7 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_secret_param,
     iter_params,
+    param_run,
 )
 from pitloom.core.url_masking._userinfo import has_userinfo, userinfo_end
 
@@ -32,6 +33,10 @@ from pitloom.core.url_masking._userinfo import has_userinfo, userinfo_end
 _SCHEME_RUN_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z0-9+.-]+:[/\\]")
 _LETTER_RE = re.compile(r"[A-Za-z]")
 _SPACE_RE = re.compile(r"\s")
+#: What ends a user information in a *line*: a ``/`` or white space other
+#: than a tab or a line break, which a URL parser deletes (WHATWG, ``urllib``)
+#: so a password holding one is still the password (``u:S3\\tCRET@h``).
+_LINE_STOP = r"(?:/|(?![\t\n\r])\s)"
 _AT_RE = re.compile("@")
 _HEAD_RE = re.compile(PARAM_HEAD)
 #: The quotes a message puts around a path it names.
@@ -60,7 +65,7 @@ def _ends(line: bool, quote: str) -> tuple[str, str]:
         value_end = rf"[&;#]|{_closing(quote)}"
     else:
         value_end = r"[&;#\s]" if line else "[&;#]"
-    return (r"[/\s]" if line else "/"), value_end
+    return (_LINE_STOP if line else "/"), value_end
 
 
 _ENDS: dict[tuple[bool, str], tuple[str, str]] = {
@@ -78,7 +83,7 @@ _BOUNDARY: dict[tuple[bool, str], re.Pattern[str]] = {
     key: re.compile(rf"(?P<head>{PARAM_HEAD})|(?P<stop>{stop})|(?P<end>{end})")
     for key, (stop, end) in _ENDS.items()
 }
-_STOP = {False: re.compile("/"), True: re.compile(r"[/\s]")}
+_STOP = {False: re.compile("/"), True: re.compile(_LINE_STOP)}
 
 
 def _next_url(text: str, pos: int, end: int) -> tuple[int, int] | None:
@@ -279,7 +284,7 @@ def _secret_values(
             continue
         whole = param
         if param.end() == bound < limit:
-            whole = pattern.match(text, param.start(), limit) or param
+            whole = param_run(pattern, text, param.start(), limit) or param
         value_end = free_value_end(whole) if line else whole.end(3)
         spans.append((whole.start(3), value_end, "***"))
         if whole is not param:

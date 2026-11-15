@@ -41,6 +41,7 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_secret_param,
     iter_params,
+    param_run,
 )
 from pitloom.core.url_masking._userinfo import (
     has_userinfo,
@@ -295,7 +296,8 @@ class _Reader:
             whole = param
             if removed and rest is not None and param.end() == bound:
                 end = self._trimmed(*rest)
-                whole = WHOLE_PARAM_RE.match(self.text, param.start(), end) or param
+                run = param_run(WHOLE_PARAM_RE, self.text, param.start(), end)
+                whole = run or param
             found.params.append((whole.start(), whole.start(3), whole.end(), removed))
             if whole is not param:
                 return whole.end()

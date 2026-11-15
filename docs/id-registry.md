@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -71,8 +71,11 @@ Windows drive path works, as in
 blank `NAME` or a package `NAME` that is not a PEP 508 name (`foo==1.0`:
 write `foo@1.0`) is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
-absolute IRI without `#`, and without user information or a secret query
-value such as `token`: any user name is refused, `ssh://git@...` too; a
+absolute IRI without `#`, and without user information, a secret query
+value such as `token` or an access token, or a query nested or encoded too
+deeply to read, also in a URL anywhere in it
+(`urn:x:https://user:pw@host/ns`): any user name is refused,
+`ssh://git@...` too; a
 `code`, `session`, `ticket`, `sid` or `otp` parameter is accepted as
 written; default: the project directory's name and a random UUID4); an
 existing registry with another namespace is one `ERROR:`, exit 1. The
@@ -359,8 +362,10 @@ and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
 `register()` raises `ValueError` for a key holding user information, a
-secret query value or an access token, and harvest and `id import` skip an element whose key
-or `spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
+secret query value or an access token, or a query nested or encoded too
+deeply to read (a PURL qualifier and a dotless scp-style address
+included), and harvest and `id import` skip an element whose key or
+`spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
 such an entry of the file, with a `WARNING:` (all
 `credentials-unsafe/registry`; see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)).

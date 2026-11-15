@@ -24,7 +24,7 @@ from typing import Final
 
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: The literal prefix of every line about the ID registry.
 REGISTRY_PREFIX: Final = "ID registry: "

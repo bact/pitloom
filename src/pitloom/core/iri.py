@@ -158,6 +158,6 @@ def namespace_problem(value: str) -> str | None:
     rest = _PERCENT.sub("", value)
     if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
         return NAMESPACE_CHARACTER
-    if holds_url_credentials(value):
+    if holds_url_credentials(value, embedded=True):
         return NAMESPACE_CREDENTIALS
     return None

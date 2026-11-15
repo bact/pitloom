@@ -23,7 +23,7 @@ from pitloom.messages._types import ASK_FIRST, Line, Message
 #: The release that first prints ``input-not-found/fragment``, and the lines
 #: of ``input-not-found`` after its first four (a model file, a Git URL's
 #: file or folder), which print since 0.23.4.
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: A model file named on its own (a path, or a file of a folder) that does
 #: not exist.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-06
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,6 +110,11 @@ Between the gates (review rounds, fix batches), a change runs:
 - the invariants that apply (below);
 - the linters of the touched files (ruff, mypy; pylint and pyrefly on
   the touched directories).
+
+Never run the full suite or branch coverage in these loops: Gate A runs
+once the reviews have converged. Timing tests stay cheap (a size ratio at
+small inputs); 1 MiB rows under coverage stalled a run for 30 minutes
+(PR 489).
 
 CI on the PR stays the cross-platform check between the gates: push when
 a batch is done, not after each fix.

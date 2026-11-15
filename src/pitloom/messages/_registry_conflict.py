@@ -19,7 +19,7 @@ from typing import Final
 from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 #: Where an id is looked up: every surface that reads a registry.
 LOOKUP_SURFACES: Final = (
     "every command that reads an ID registry (generate, project, wheel, env, "

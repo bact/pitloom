@@ -16,31 +16,60 @@ from __future__ import annotations
 
 import re
 
-from pitloom.core.url_masking._hits import qualifier_hits, split_purl
+from pitloom.core.url_masking._hits import (
+    purl_qualifiers,
+    qualifier_hits,
+    qualifier_levels,
+    subpath_hits,
+    without_format,
+)
 from pitloom.core.url_masking._scan import masked_once
-from pitloom.core.url_masking._tokens import mask_tokens
+from pitloom.core.url_masking._tokens import TOKEN_RE, mask_tokens
 from pitloom.core.url_masking._userinfo import mask_scp
 
 __all__ = ["masked_given_path"]
 
 #: A Package URL in a text, to white space.
 _PURL_WORD = re.compile(r"(?<![A-Za-z0-9+.-])(?i:pkg):\S+")
+#: What ends a sentence, a quotation or an enclosing ``<>`` after a PURL in
+#: a text.
+_PURL_TAIL = ":.,;)]>'\""
+
+
+def _holds_hit(item: str) -> bool:
+    """Whether the PURL qualifier *item* holds a hit
+    (:func:`~pitloom.core.url_masking._hits.qualifier_hits`) or, at a decode
+    depth, an access token's shape anywhere in its value."""
+    if qualifier_hits(item, scp=True, account=False):
+        return True
+    levels, _ = qualifier_levels(item.partition("=")[2])
+    return any(TOKEN_RE.search(level) for level in levels)
 
 
 def _masked_purl(found: re.Match[str]) -> str:
-    """The PURL *found* with the value of each qualifier that holds a hit
-    (:func:`~pitloom.core.url_masking._hits.qualifier_hits`) written as
-    ``***``."""
-    head, qualifiers, tail = split_purl(found.group())
+    """The PURL *found* with its subpath written as ``***`` when it holds a
+    hit (:func:`~pitloom.core.url_masking._hits.subpath_hits`, a token
+    anywhere in it included), and the value of each qualifier that holds
+    one (:func:`_holds_hit`). The punctuation ending a sentence after it
+    (``pkg:...?token=***: not found``) is kept, as after a URL's value."""
+    word = found.group()
+    purl = word.rstrip(_PURL_TAIL)
+    return _masked_purl_text(purl) + word[len(purl) :]
+
+
+def _masked_purl_text(purl: str) -> str:
+    """:func:`_masked_purl` of the PURL *purl*."""
+    before, mark, _ = purl.partition("#")
+    if mark and subpath_hits(purl, scp=True, account=False):
+        purl = f"{before}#***"
+    head, qualifiers = purl_qualifiers(purl)
     if not qualifiers:
-        return found.group()
+        return purl
     kept = [
-        item.partition("=")[0] + "=***"
-        if qualifier_hits(item, scp=True, account=False)
-        else item
+        item.partition("=")[0] + "=***" if _holds_hit(item) else item
         for item in qualifiers
     ]
-    return f"{head}?{'&'.join(kept)}{tail}"
+    return f"{head}?{'&'.join(kept)}"
 
 
 def _masked_purls(text: str) -> str:
@@ -65,8 +94,9 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     reaches a path check as a path, and a line names it without its
     credentials. The user information runs to the last ``@`` before the
     next ``/`` or the end of *text*, and in a message *line* before the next
-    white space (``URL=https://h: unreachable; contact a@b.org`` keeps the
-    address), either not in a secret parameter's value (masking the value
+    white space other than a tab or a line break, which a URL parser deletes
+    (``URL=https://h: unreachable; contact a@b.org`` keeps the address),
+    either not in a secret parameter's value (masking the value
     would uncover a later ``@``); a quote is a character of it, never its
     end. When its ``@`` is in a secret value, the rest of that value is
     masked too (``https://u:p?token=x@h/x`` prints ``https://***:***@***``:
@@ -76,9 +106,13 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     characters ending a sentence: ``'...': not found``), so a quote inside
     a value does not close it. In a *line* a URL that is not quoted ends at
     the first white space after its user information, and each URL of the
-    line is masked. A secret value runs to the next ``&``, ``;``, ``#`` or
-    the URL's end, over a quote, and over white space unless in a *line*
-    outside quotes. The masked text is masked again until nothing changes,
+    line is masked: a log sentence's URL is read so, and a secret after a
+    space in its path (``https://h/a b?token=T``) is not masked; a
+    ``KEY=VALUE`` value that starts with a URL is read whole instead
+    (:mod:`pitloom.cli.kv_output`). A secret value runs to the next ``&``,
+    ``#`` or the URL's end (to a ``;`` too when a ``;`` opened it: a path
+    parameter), over a ``;``, a quote, and over white space unless in a
+    *line* outside quotes. The masked text is masked again until nothing changes,
     at most :data:`_MASK_PASSES` times (a URL masked in a quoted context
     can take away the stop that ended an earlier URL's user information),
     so masking a masked text changes nothing unless a text needs more
@@ -92,6 +126,12 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     the value of a PURL qualifier that holds a hit once percent-decoded
     (``download_url=***``).
 
+    A format character (Unicode ``Cf``: a byte order mark, a zero-width
+    space) is dropped, as a reader drops it, when that shows a credential to
+    mask (``https\\u200b://u:p@h``), so one inside a URL hides nothing
+    (:func:`~pitloom.core.url_masking._hits.without_format`); else it is
+    kept, so a message can still show it (a bidirectional override).
+
     After one separator (``https:/u:p@h``, a ``//`` a path collapsed) a
     scheme has a user information unless a ``/`` or ``\\`` comes before it
     (``/x/T10:/a@b`` is a path); a scheme a URL uses has one there too
@@ -100,21 +140,29 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     ``backup:/u@h/x`` is read as a collapsed URL and its ``u`` masked: a
     credential shown costs more than a path's ``@`` hidden.
 
-    Out of scope: a password holding a raw ``/``, or in a *line* white
-    space, is not a user information (RFC 3986 percent-encodes both), so it
-    is not masked. Accepted partial leaks, none showing the start of a
-    secret: in a *line*, a secret value holding a space in a URL that is not
-    quoted is masked to the space (``?token=SEC RET`` prints ``?token=***
-    RET``), and the punctuation ending a sentence or a quotation is kept
-    after a value, so a secret ending in it shows that end
-    (``?token=abc...`` prints ``?token=***...``, ``?token=ab'`` prints
-    ``?token=***'``); in a quoted URL, a secret value holding the URL's
-    quote before white space or the end, after at most four such
-    punctuation characters, is masked to that quote (``'...?token=ab'.
-    cd'`` prints ``'...?token=***'. cd'``); a value ending in a backslash
-    escapes the closing quote, so its URL runs on to the next quote that
-    closes.
+    Out of scope: a password holding a raw ``/``, or in a *line* white space
+    other than a tab or a line break, is not a user information (RFC 3986
+    percent-encodes both), so it is not masked. Accepted partial leaks, none
+    showing the start of a secret: in a *line*, a secret value holding a
+    space in a URL that is not quoted is masked to the space (``?token=SEC
+    RET`` prints ``?token=*** RET``), and the punctuation ending a sentence
+    or a quotation is kept after a value, so a secret ending in it shows
+    that end (``?token=abc...`` prints ``?token=***...``, ``?token=ab'``
+    prints ``?token=***'``); in a quoted URL, a secret value holding the
+    URL's quote before white space or the end, after at most four such
+    punctuation characters, is masked to that quote (``'...?token=ab'. cd'``
+    prints ``'...?token=***'. cd'``); a value ending in a backslash escapes
+    the closing quote, so its URL runs on to the next quote that closes.
     """
+    plain = without_format(text)
+    if plain != text:
+        masked = _masked(plain, line=line)
+        return masked if masked != plain else _masked(text, line=line)
+    return _masked(text, line=line)
+
+
+def _masked(text: str, *, line: bool) -> str:
+    """:func:`masked_given_path` of *text* as it is."""
     text = mask_scp(mask_tokens(_masked_purls(text)))
     masked = masked_once(text, line=line)
     passes = 1

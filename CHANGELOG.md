@@ -50,8 +50,9 @@ and this project adheres to
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
-- `--namespace`, `-e` and `IdRegistry` refuse credentials in a namespace or key;
-  `id import` and `load()` drop such entries; `id-collision` in merge ([#487])
+- `--namespace`, `-e` and `IdRegistry` refuse credentials in a namespace or key
+  (also tokens, encoded PURL qualifiers, dotless scp, nesting); `id import` and
+  `load()` drop such entries; `id-collision` in merge ([#487], [#489])
 - Git URL fetches reset system credential helpers only for a URL with user
   information; the password is not in git's arguments ([#487])
 
@@ -62,8 +63,8 @@ and this project adheres to
 
 ### Security
 
-- Credentials in a URL are removed from SBOMs and registry files and masked in
-  Pitloom's logs; known gaps in `docs/dependency-sources.md` ([#487])
+- Credentials in a URL are masked in Pitloom's logs and refused in registry
+  files; an SBOM removes most and warns on the rest ([#487], [#489])
 - Rotate any credential an SBOM, wheel, registry file or log of 0.24.0 or
   earlier held; remove it from git credential stores (`git credential reject`)
   ([#487])
@@ -74,6 +75,7 @@ and this project adheres to
 [#485]: https://github.com/bact/pitloom/pull/485
 [#486]: https://github.com/bact/pitloom/pull/486
 [#487]: https://github.com/bact/pitloom/pull/487
+[#489]: https://github.com/bact/pitloom/pull/489
 
 ## [0.24.0] - 2026-11-11
 

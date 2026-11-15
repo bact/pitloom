@@ -52,6 +52,12 @@ KEPT_LINE: Final = Line(
     level="WARNING",
     template=f"URL=%(url)s: holds {_KEPT} that the SBOM keeps as written",
 )
+#: A value the detector refuses that the SBOM strip leaves as written.
+UNREMOVED_LINE: Final = Line(
+    level="WARNING",
+    template=f"URL=%(url)s: {_REFUSED}, which the SBOM states as written; "
+    "remove it from the source",
+)
 #: A registry key the registry would store as written.
 KEY_LINE: Final = Line(
     level="ERROR",
@@ -86,7 +92,7 @@ ID_COLLISION_LINE: Final = Line(
 CREDENTIALS_UNSAFE: Final = Message(
     code="credentials-unsafe",
     condition="unsafe",
-    lines=(STRIPPED_LINE, STRIPPED_KEPT_LINE, KEPT_LINE),
+    lines=(STRIPPED_LINE, STRIPPED_KEPT_LINE, KEPT_LINE, UNREMOVED_LINE),
     summary="A URL a project declares (a dependency's direct URL, a project "
     "URL, a model card's link) holds a user name or password, or a query "
     "parameter named like a secret (token, key, signature), or a query with "
@@ -98,14 +104,20 @@ CREDENTIALS_UNSAFE: Final = Message(
     "otp, and a user name alone on an ssh or git URL (git@), are kept as "
     "written, and said too (the log line may still mask the value). A "
     "parameter whose value holds more than 16 ? is removed as a "
-    "precaution, not necessarily a credential.",
+    "precaution, not necessarily a credential. A value that holds a "
+    "credential the removal does not read (an access token's shape, an "
+    "scp-style password, a URL after one / of a scheme such as s3:/, one in "
+    "a PURL subpath) is NOT removed: the SBOM states it as written, and "
+    "this is said once per value, shown masked.",
     effect="thinner",
     actor="user",
     advice="Tell the user which URL, as the line shows it, and that the SBOM "
     "states it without the credential, or keeps the value the line names. "
     "A credential in a project's files is also in its history: they should "
     "consider it exposed and rotate it, and check that a kept code, session "
-    "or ssh user name is no credential. "
+    "or ssh user name is no credential. For a value the SBOM states as "
+    "written, they remove the credential from the source and generate "
+    "again. "
     f"Do not edit their files; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
@@ -123,8 +135,11 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
     summary="A key or namespace given to the ID registry (an external "
     "reference URL), or the key or id of an SBOM element it would record, "
     "holds a user name or password, a query parameter named like a secret "
-    "or an access token (also percent-encoded in a PURL qualifier). The "
-    "registry file stores a key, an id and its namespace as written.",
+    "or an access token (also percent-encoded in a PURL qualifier), or a "
+    "query nested too deeply to read (a value with more than 16 ?) or a PURL "
+    "qualifier encoded too deeply to read (still encoded after five "
+    "decodes). The registry file stores a key, an id and its namespace as "
+    "written.",
     did="Refused the key or namespace and stored nothing (error), or left the "
     "SBOM element out of the registry and wrote the rest (warning). An entry "
     "of a registry file holding one is dropped when the file is loaded, "

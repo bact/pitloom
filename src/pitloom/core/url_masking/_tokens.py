@@ -3,20 +3,47 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The shapes of the access tokens a host issues, found anywhere in a text:
-by the detector (:mod:`pitloom.core.url_masking._detect`), the masker
-(:func:`pitloom.core.url_masking.masked_given_path`) and the account-name
-rule (:func:`pitloom.core.url_masking.is_account_name`).
+"""The shapes of the access tokens a host issues: found by the detector in
+a URL value (:mod:`pitloom.core.url_masking._hits`), hidden anywhere by the
+masker (:func:`pitloom.core.url_masking.masked_given_path`) and kept from
+reading as an account name
+(:func:`pitloom.core.url_masking.is_account_name`).
 
 See also: :mod:`pitloom.core.url_masking._userinfo` (the account-name
 rule). Standard library only.
 
-A shape is the vendor's prefix and a body of the vendor's characters: of
-the vendor's fixed length where it fixes one (GitHub, AWS, Hugging Face,
-npm), else at least the shortest real one. A body a vendor draws at random
-from mixed characters must hold what such a draw holds (a digit, an upper-
-and a lower-case letter), so a slug such as ``glpat-token-rotation-guide``
-is none. Every repetition is bounded, so a search stays linear.
+Each shape is the vendor's prefix and body, as the gitleaks rule set
+(``config/gitleaks.toml``, read 2026-11-16) states them, widened where
+Pitloom's earlier shape found more, so a token found before is found
+still: of the vendor's fixed length where it fixes one (GitHub, AWS,
+Hugging Face, npm, OpenAI, Anthropic, Google), followed by no further body
+character, else a minimum and then every further body character, so that
+a match covers the whole token and masking leaves none of it. A GitLab
+token of 20 characters must hold an upper-case letter in them (a random
+draw misses one about 3 times in 100,000), so a documentation slug such as
+``glpat-token-rotation-guide-v2`` is none. An AWS key id
+is base32, so a word such as ``ASIAPACIFICREGION123`` is none.
+
+Slack: every ``xox[abeoprs]-`` token of two digit groups and 8 letters or
+digits (Pitloom's earlier shape, which also covers the user token), and
+the gitleaks shapes fixed by digit groups or length: bot
+(``xoxb-<10-13 digits>-<10-13 digits>``), legacy (``xoxo-``, ``xoxs-``:
+three digit groups and hex), configuration refresh (``xoxe-``, 146) and
+configuration access (``xoxe.xoxb-``, ``xoxe.xoxp-``, 163 to 166); each
+runs on over every further letter, digit and ``-``. The gitleaks legacy
+workspace (``xoxa-``, ``xoxr-``: 8 to 48 letters or digits) and legacy bot
+(``xoxb-<8-14 digits>-<18-26 letters or digits>``) shapes are not read:
+a documentation word fits them (``xoxr-Configuration``), so such a token
+without the digit groups is missed. An app token (``xapp-``) has an
+upper-case app id, as in Pitloom's earlier shape. A GitLab pipeline
+trigger, OAuth or CI build token outside its gitleaks shape is found as 20
+characters holding a digit, an upper- and a lower-case letter, so a
+CamelCase slug is none. PyPI: any version-2
+macaroon (``AgE``), so a TestPyPI token (location ``test.pypi.org``,
+``AgENdGVzdC5weXBpLm9yZw``) is found as well as a PyPI one (gitleaks
+names only ``AgEIcHlwaS5vcmc``, location ``pypi.org``). Every repetition
+is bounded or followed by nothing that could backtrack, so a search stays
+linear.
 """
 
 from __future__ import annotations
@@ -33,33 +60,69 @@ __all__ = [
 
 #: Not followed by another character of a base-62 body.
 _END = "(?![A-Za-z0-9])"
+#: The 20 characters of a GitLab token, one of them upper case, and the
+#: rest of a longer one.
+_GITLAB = "(?=[A-Za-z0-9_-]{0,19}[A-Z])[A-Za-z0-9_-]{20}[A-Za-z0-9_.-]*"
+#: The 20 characters of an earlier GitLab shape: a digit, an upper-case and
+#: a lower-case letter among them, as a random token holds; the rest of a
+#: longer one.
+_GITLAB_MIXED = (
+    "".join(f"(?=[A-Za-z0-9_-]{{0,19}}{one})" for one in ("[0-9]", "[A-Z]", "[a-z]"))
+    + "[A-Za-z0-9_-]{20}[A-Za-z0-9_.-]*"
+)
+#: The 34 letters of a Hugging Face token.
+_HF = f"[A-Za-z]{{34}}{_END}"
+#: Not followed by another character of a base-64 URL-safe body.
+_END64 = "(?![A-Za-z0-9_-])"
+#: One half of an OpenAI project, service account or admin key.
+_OPENAI = "(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})"
+
+#: The rest of a Slack token: every further letter, digit and ``-``.
+_RUN = "[A-Za-z0-9-]*"
+#: Each Slack token kind's gitleaks shapes beyond the common one, those
+#: fixed by digit groups or length only.
+_SLACK: dict[str, tuple[str, ...]] = {
+    "b": ("[0-9]{10,13}-[0-9]{10,13}",),
+    "e": ("[0-9]-[A-Za-z0-9]{146}",),
+    "o": ("[0-9]+-[0-9]+-[0-9]+-[0-9A-Fa-f]+",),
+    "s": ("[0-9]+-[0-9]+-[0-9]+-[0-9A-Fa-f]+",),
+}
 
 
-def _mixed(chars: str, length: int, *, digit: bool = True) -> str:
-    """A body of *length* characters of the class *chars* holding an upper-
-    and a lower-case letter, and a digit unless *digit* is false."""
-    ahead = f"[{chars}]{{0,{length - 1}}}"
-    need = ("[0-9]", "[A-Z]", "[a-z]") if digit else ("[A-Z]", "[a-z]")
-    return "".join(f"(?={ahead}{one})" for one in need) + f"[{chars}]{{{length}}}"
+def _slack(kind: str) -> str:
+    """The body of an ``xox<kind>-`` Slack token: two digit groups and 8
+    letters or digits, or a gitleaks shape of *kind*, and the rest of it."""
+    common = "[0-9]{1,15}-[0-9]{1,15}-[A-Za-z0-9]{8}"
+    return f"(?:{'|'.join((common, *_SLACK.get(kind, ())))}){_RUN}"
 
 
-_GITLAB = _mixed("A-Za-z0-9_-", 20)
-_HF = _mixed("A-Za-z", 34, digit=False) + _END
-
-#: The access tokens of GitHub, GitLab, Slack, Hugging Face, AWS, PyPI and
-#: npm, as (prefix, the body after it as a regular expression).
+#: The access tokens of GitHub, GitLab, Slack, Hugging Face, AWS, PyPI,
+#: npm, OpenAI, Anthropic and Google, as (prefix, the body after it as a
+#: regular expression). No bare ``sk-``: too many words start so.
 TOKEN_SHAPES: tuple[tuple[str, str], ...] = (
     *((f"gh{kind}_", f"[A-Za-z0-9]{{36}}{_END}") for kind in "porsu"),
     ("github_pat_", f"[A-Za-z0-9]{{22}}_[A-Za-z0-9]{{59}}{_END}"),
-    *((prefix, _GITLAB) for prefix in ("glpat-", "gldt-", "glptt-", "glrt-")),
-    *((prefix, _GITLAB) for prefix in ("gloas-", "glcbt-")),
-    *((f"xox{kind}-", "[0-9]{1,15}-[0-9]{1,15}-[A-Za-z0-9]{8}") for kind in "abeprs"),
-    ("xapp-", "[0-9]{1,3}-[A-Z0-9]{8,15}-[0-9]{1,15}-[A-Za-z0-9]{8}"),
+    *((prefix, _GITLAB) for prefix in ("glpat-", "gldt-", "glrt-")),
+    ("glcbt-", f"(?:[A-Za-z0-9]{{1,5}}_{_GITLAB}|{_GITLAB_MIXED})"),
+    ("glptt-", f"(?:[0-9a-f]{{40}}{_END}|{_GITLAB_MIXED})"),
+    ("gloas-", f"(?:[A-Za-z0-9_-]{{64}}{_END64}|{_GITLAB_MIXED})"),
+    *((f"xox{kind}-", _slack(kind)) for kind in "abeoprs"),
+    *((f"xoxe.xox{kind}-", f"[0-9]-[A-Za-z0-9]{{163,166}}{_RUN}") for kind in "bp"),
+    ("xapp-", "[0-9]{1,3}-[A-Z0-9]{8,15}-[0-9]{1,15}-[A-Za-z0-9]{8,}"),
     ("hf_", _HF),
     ("api_org_", _HF),
-    *((prefix, f"[A-Z0-9]{{16}}{_END}") for prefix in ("AKIA", "ASIA")),
-    ("pypi-", "AgE[A-Za-z0-9_-]{50}"),
+    *((prefix, f"[A-Z2-7]{{16}}{_END}") for prefix in ("AKIA", "ASIA")),
+    ("pypi-", "AgE[A-Za-z0-9_-]{50,}"),
     ("npm_", f"[A-Za-z0-9]{{36}}{_END}"),
+    *(
+        (f"sk-{kind}-", f"{_OPENAI}T3BlbkFJ{_OPENAI}{_END64}")
+        for kind in ("proj", "svcacct", "admin")
+    ),
+    *(
+        (prefix, f"[A-Za-z0-9_-]{{93}}AA{_END64}")
+        for prefix in ("sk-ant-api03-", "sk-ant-admin01-")
+    ),
+    ("AIza", f"[A-Za-z0-9_-]{{35}}{_END64}"),
 )
 #: The prefixes of those tokens.
 TOKEN_PREFIXES = tuple(prefix for prefix, _ in TOKEN_SHAPES)
@@ -78,6 +141,6 @@ def token_prefix(found: re.Match[str]) -> str:
 
 
 def mask_tokens(text: str) -> str:
-    """*text* with each token of a known shape written as its prefix and
-    ``***`` (``ghp_***``)."""
+    """*text* with each token of a known shape, all of it, written as its
+    prefix and ``***`` (``ghp_***``)."""
     return TOKEN_RE.sub(lambda found: f"{token_prefix(found)}***", text)

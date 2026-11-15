@@ -40,9 +40,12 @@ from pitloom.core.url_masking._detect import (
 )
 from pitloom.core.url_masking._hits import (
     PURL_DECODE_ROUNDS,
-    FindingKind,
     is_purl,
-    split_purl,
+    normalised,
+    purl_qualifiers,
+    qualifier_levels,
+    split_enclosed,
+    without_format,
 )
 from pitloom.core.url_masking._mask import masked_given_path
 from pitloom.core.url_masking._params import (
@@ -53,10 +56,10 @@ from pitloom.core.url_masking._params import (
     iter_params,
     mask_free_param,
     mask_param,
+    sub_params,
 )
 from pitloom.core.url_masking._strip import find_urls, rebuilt
 from pitloom.core.url_masking._userinfo import (
-    ACCOUNT_SCHEMES,
     SCP_USERINFO_RE,
     is_account_name,
     is_whole_url,
@@ -66,13 +69,11 @@ from pitloom.core.url_masking._userinfo import (
 )
 
 __all__ = [
-    "ACCOUNT_SCHEMES",
     "CHECKOUT_DIR_PREFIX",
     "CHECKOUT_PLACEHOLDER",
     "DOWNLOAD_DIR_PREFIX",
     "DOWNLOAD_PLACEHOLDER",
     "Finding",
-    "FindingKind",
     "HUB_DIR_PREFIX",
     "PURL_DECODE_ROUNDS",
     "URL_AS_PATH_RE",
@@ -80,19 +81,23 @@ __all__ = [
     "holds_url_credentials",
     "is_account_name",
     "is_purl",
+    "purl_qualifiers",
+    "qualifier_levels",
     "is_secret_name",
     "is_whole_url",
     "keeps_url_credential",
     "keeps_weak_parameter",
     "mask_checkout",
     "masked_given_path",
+    "normalised",
     "sanitize_url",
     "sanitize_url_credentials",
-    "split_purl",
+    "split_enclosed",
     "split_userinfo",
     "strip_url_secrets",
     "url_without_credentials",
     "userinfo_end",
+    "without_format",
 ]
 
 #: ``://``, where a user information may follow, in free text; it ends at
@@ -140,7 +145,7 @@ def _replaced_userinfo(
 
 
 def _mask_url_secrets(match: re.Match[str]) -> str:
-    return PARAM_RE.sub(mask_free_param, match.group(0))
+    return sub_params(PARAM_RE, mask_free_param, match.group(0))
 
 
 def sanitize_url_credentials(text: str) -> str:
@@ -162,10 +167,10 @@ def sanitize_url_credentials(text: str) -> str:
 def sanitize_url(url: str) -> str:
     """:func:`sanitize_url_credentials` for a text that is one URL: the
     userinfo is redacted whole even when it holds a newline or a space, and
-    a secret parameter's value up to the next ``&``, ``;``, ``#`` or the
-    end, over a quote or white space."""
+    a secret parameter's value up to the next ``&``, ``#`` or the end, over
+    a ``;``, a quote or white space."""
     masked = _replaced_userinfo(url, _WHOLE_OPENER, "://***:***@", whole=True)
-    return WHOLE_PARAM_RE.sub(mask_param, masked)
+    return sub_params(WHOLE_PARAM_RE, mask_param, masked)
 
 
 #: A URL at the start of a text, also as ``Path`` collapses its ``//``

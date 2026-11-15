@@ -20,13 +20,18 @@ from typing import Any
 
 from pitloom.core.purl import is_purl, purl_qualifier_values, strip_purl_secrets
 from pitloom.core.url_masking import (
+    holds_url_credentials,
     is_whole_url,
     keeps_url_credential,
+    normalised,
+    split_enclosed,
     strip_url_secrets,
+    without_format,
 )
 from pitloom.messages.url_credentials import (
     id_collision_error,
     warn_url_credential_kept,
+    warn_url_credential_unremoved,
     warn_url_credentials_stripped,
 )
 
@@ -49,8 +54,20 @@ _DIRECT_REFERENCE = re.compile(
 
 def _stripped_text(text: str, seen: list[str]) -> str:
     """*text* without the credentials of its URLs, those of a PURL's
-    qualifier values included; each URL changed is added to *seen*, as
-    :func:`~pitloom.core.url_masking.strip_url_secrets` shows it."""
+    qualifier values included, read as the detector reads it
+    (:func:`~pitloom.core.url_masking.normalised`): without its format
+    characters, which go when something is removed, and inside one pair of
+    enclosing ``<>`` or quotes, which stay. Each URL changed is added to
+    *seen*, as :func:`~pitloom.core.url_masking.strip_url_secrets` shows
+    it."""
+    bare = without_format(text)
+    head, value, tail = split_enclosed(bare)
+    plain = head + _stripped_value_text(value, seen) + tail
+    return text if plain == bare else plain
+
+
+def _stripped_value_text(text: str, seen: list[str]) -> str:
+    """:func:`_stripped_text` of *text*, a value as the detector reads it."""
     if is_purl(text):
         text, changed = strip_purl_secrets(text)
         seen.extend(changed)
@@ -112,14 +129,21 @@ def _kept_urls(text: str) -> list[str]:
     return found
 
 
-def _stripped_value(value: Any, seen: list[str], kept: list[str]) -> Any:
+def _stripped_value(value: Any, seen: list[str], kept: list[tuple[bool, str]]) -> Any:
     """*value*, a decoded JSON value, with the credentials of each URL in
     each string removed (:func:`_stripped_text`); each URL that keeps one is
-    added to *kept*. The same object when nothing in it changed, so a clean
+    added to *kept* as ``(False, url)``, and each string that still holds a
+    credential once stripped
+    (:func:`~pitloom.core.url_masking.holds_url_credentials`) as ``(True,
+    string)``. The same object when nothing in it changed, so a clean
     SBOM is not copied."""
     if isinstance(value, str):
-        kept.extend(_kept_urls(value))
+        kept.extend((False, url) for url in _kept_urls(normalised(value)))
         plain = _stripped_text(value, seen)
+        # What the detector refuses that the strip leaves (PR 2 replaces the
+        # strip with the detector): said, never silent.
+        if holds_url_credentials(plain, account=True):
+            kept.append((True, plain))
         return value if plain == value else plain
     if isinstance(value, list):
         items = [_stripped_value(item, seen, kept) for item in value]
@@ -161,8 +185,11 @@ def strip_graph_credentials(graph: list[dict[str, Any]]) -> None:
     """The user information and secret query parameters of each URL in
     *graph* (a project URL, a dependency's direct URL or PURL, a provenance
     note, an element id and every reference to it), removed in place, with
-    one ``WARNING:`` per URL changed; and one per URL that keeps a value
-    that may be a credential (a ``code`` parameter, an ssh user name).
+    one ``WARNING:`` per URL changed; one per URL that keeps a value that may
+    be a credential (a ``code`` parameter, an ssh user name); and one per
+    value that still holds a credential the removal does not read (an access
+    token, an scp-style password, ``s3:/u:p@h``), which the SBOM states as
+    written.
 
     Raises:
         pitloom.messages.CodedValueError: Two ids are one without their
@@ -171,9 +198,12 @@ def strip_graph_credentials(graph: list[dict[str, Any]]) -> None:
     """
     _check_id_collisions(graph)
     seen: list[str] = []
-    kept: list[str] = []
+    kept: list[tuple[bool, str]] = []
     graph[:] = _stripped_value(graph, seen, kept)
     for url in dict.fromkeys(seen):
         warn_url_credentials_stripped(log, url)
-    for url in dict.fromkeys(kept):
-        warn_url_credential_kept(log, url)
+    for unremoved, url in dict.fromkeys(kept):
+        if unremoved:
+            warn_url_credential_unremoved(log, url)
+        else:
+            warn_url_credential_kept(log, url)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -60,6 +60,12 @@ trip review attention:
   reference was split per topic (`pitloom.messages._topics`): the index and
   seven pages per site, each under 30 KB, and the generator refuses a file
   over the limit.
+
+Noted 2026-11-16 (PR 489, not split there): `id_registry/_registry.py`
+(572), `scripts/generate_message_reference.py` (533) and
+`extract/remote/_git_run.py` (469) are past or near the soft limit, and so
+is `tests/export/test_spdx3_strip.py` (519; split by area, PURL and
+warning tests apart, when PR 2 retires the strip).
 
 None of the code files have crossed the 800-line hard cap, so nothing is
 currently broken -- but per AGENTS.md, a file should be split *before* crossing

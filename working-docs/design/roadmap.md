@@ -225,6 +225,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **Credentials: detect and refuse** (release blocker for 0.25.0):
   replace the SBOM strip with detect, `ERROR:` and a per-value override. See
   [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
+- [ ] **Namespace mixing in one SBOM**: a registry namespace (`ids.example/ns`)
+  appears beside `spdx.org/spdxdocs/demo-<uuid>` ids. Seen during the
+  credential work; unrelated to credentials. Find the cause (which route
+  mints which id), then unify or document it.
 - [ ] **Catalogue PRs 6 to 18** (the remaining families, the licence families
   last): the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and

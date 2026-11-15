@@ -167,7 +167,7 @@ _FIXED = {row[0]: row[1] for row in PROBES}
     ("probe", "held"),
     [
         *(("purl-enc1", True), ("purl-enc5", True), ("purl-enc6", True)),
-        *(("purl-enc-token", True), ("tok-ghp", True), ("tok-akia", True)),
+        *(("purl-enc-token", True), ("tok-ghp_", True), ("tok-AKIA", True)),
         *(("prose-weak", False), ("prose-port", False), ("w-nested-weak", False)),
         *(("prose-url", False), ("prose-scp", False), ("wide-s3", True)),
     ],
