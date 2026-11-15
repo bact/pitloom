@@ -117,7 +117,7 @@ def test_a_url_field_is_read_alike_by_every_decider(seed: int) -> None:
         for word in kept:
             assert word in plain, url
         assert strip_url_secrets(plain, whole=True) == (plain, []), url
-        if holds_url_credentials(url, whole=True):
+        if holds_url_credentials(url):
             assert masked != url, url
         if kind != "none" and not url.startswith("https://outer"):
             split = split_userinfo(url)

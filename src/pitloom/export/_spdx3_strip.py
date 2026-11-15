@@ -39,11 +39,9 @@ log = logging.getLogger(__name__)
 _WORD_BREAK = re.compile(r"[\s\"'<>`]")
 #: The punctuation that ends a sentence or closes a bracket after a URL.
 _TRAILING = ".,;:!?)]}"
-
-
-#: The ``@ URL`` (or ``@URL``) of a PEP 508 direct reference, alone or inside a note:
-#: the URL runs to white space, so a quote in its user information is part of
-#: it, not the end of a word in prose.
+#: The ``@ URL`` (or ``@URL``) of a PEP 508 direct reference, alone or
+#: inside a note: the URL runs to white space, so a quote in its user
+#: information is part of it, not the end of a word in prose.
 _DIRECT_REFERENCE = re.compile(
     r"(?P<head>@\s*)(?P<url>[A-Za-z][A-Za-z0-9+.-]*:[/\\]\S*)"
 )
@@ -59,7 +57,8 @@ def _stripped_text(text: str, seen: list[str]) -> str:
 
     def direct(match: re.Match[str]) -> str:
         url = match["url"]
-        url_end = len(url.rstrip(_TRAILING))  # a sentence's punctuation is the text's
+        # A sentence's punctuation after the URL is the text's.
+        url_end = len(url.rstrip(_TRAILING))
         plain, changed = strip_url_secrets(url[:url_end], whole=True)
         seen.extend(changed)
         return match["head"] + plain + url[url_end:]

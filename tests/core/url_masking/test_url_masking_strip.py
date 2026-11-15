@@ -130,14 +130,14 @@ def test_a_secret_name_is_masked_and_removed(name: str) -> None:
     assert strip_url_secrets(url, whole=True)[0] == "https://h/x?a=1"
     assert "S3CRET" not in masked_given_path(url)
     assert "S3CRET" not in sanitize_url_credentials(url)
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
 
 
 @pytest.mark.parametrize("name", _KEPT + _WEAK + _WEAK_KEYS)
 def test_an_ordinary_or_weak_name_is_kept_in_an_sbom(name: str) -> None:
     url = f"https://h/x?{name}=V&a=1"
     assert strip_url_secrets(url, whole=True) == (url, [])
-    assert not holds_url_credentials(url, whole=True)
+    assert not holds_url_credentials(url)
     weak = name in _WEAK + _WEAK_KEYS
     assert is_secret_name(name) is weak
     assert keeps_weak_parameter(url) is weak
@@ -178,5 +178,5 @@ def test_the_strip_is_linear() -> None:
     started = time.perf_counter()
     for text in shapes:
         strip_url_secrets(text, whole=False)
-        holds_url_credentials(text, whole=False)
+        holds_url_credentials(text)
     assert time.perf_counter() - started < 1

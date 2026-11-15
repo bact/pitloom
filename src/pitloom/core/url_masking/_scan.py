@@ -24,7 +24,7 @@ from pitloom.core.url_masking._params import (
     is_secret_param,
     iter_params,
 )
-from pitloom.core.url_masking._userinfo import userinfo_end
+from pitloom.core.url_masking._userinfo import has_userinfo, userinfo_end
 
 #: A run of scheme characters, ``:`` and a separator: where a URL may start
 #: in a text, the scheme from the run's first letter (``1https://``). Each
@@ -79,15 +79,6 @@ _BOUNDARY: dict[tuple[bool, str], re.Pattern[str]] = {
     for key, (stop, end) in _ENDS.items()
 }
 _STOP = {False: re.compile("/"), True: re.compile(r"[/\s]")}
-#: The schemes read as a URL after one separator even in a path segment
-#: (``/cwd/https:/u:p@h``, a URL a path resolved), the last ``+`` part
-#: (``git+https``). Another scheme after one separator is a URL unless a
-#: ``/`` or ``\\`` comes before it (``/x/T10:/a@b`` is a path).
-_URL_SCHEMES = frozenset(
-    {"http", "https", "ftp", "ftps", "sftp", "ssh", "git", "svn", "hg", "bzr"}
-    | {"s3", "s3a", "s3n", "gs", "hf", "ws", "wss", "file", "rsync", "ldap"}
-    | {"ldaps", "az", "abfs", "abfss", "hdfs", "smb", "webdav", "davs"}
-)
 
 
 def _next_url(text: str, pos: int, end: int) -> tuple[int, int] | None:
@@ -100,19 +91,6 @@ def _next_url(text: str, pos: int, end: int) -> tuple[int, int] | None:
             return letter.start(), separator
         pos = run.end()
     return None
-
-
-def _has_userinfo(text: str, scheme: int, separator: int) -> bool:
-    """Whether the URL whose scheme starts at *scheme* can have a user
-    information: after two separators, after one for a scheme a URL uses
-    (:data:`_URL_SCHEMES`), else after one unless a path separator comes
-    before the scheme (a path segment ``T10:``)."""
-    if text.startswith(("//", "\\\\"), separator):
-        return True
-    name = text[scheme : separator - 1].lower()
-    if name.rpartition("+")[2] in _URL_SCHEMES:
-        return True
-    return not scheme or text[scheme - 1] not in "/\\"
 
 
 class _Scan:
@@ -206,7 +184,7 @@ class _Scan:
         password's: the two cannot be told apart, so a path's ``@`` may be
         masked too, but no password is left shown)."""
         scheme, start = url
-        if not _has_userinfo(self.text, scheme, start):
+        if not has_userinfo(self.text, scheme, start):
             return None
         while start < len(self.text) and self.text[start] in "/\\":
             start += 1
@@ -334,7 +312,8 @@ def _url_spans(
 
 
 def masked_once(text: str, *, line: bool) -> str:
-    """One pass of :func:`pitloom.core.url_masking.masked_given_path` over *text*."""
+    """One pass of :func:`pitloom.core.url_masking.masked_given_path` over
+    *text*."""
     parts: list[str] = []
     done = 0
     scan = _Scan(text, line=line)

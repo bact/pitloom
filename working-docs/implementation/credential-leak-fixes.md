@@ -113,10 +113,8 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   nest the reading without limit.
 - `loom verify-wheel` with a path 1000 directories deep fails in the standard
   library's `glob.glob` (`cli/commands/utils.py`): exit 1, nothing leaks.
-- A weak name nested in a weak name (`?code=1?session=2`,
-  `?ticket=1?q=2?sort_key=X`) makes `holds_url_credentials` true, so a registry key or namespace holding
-  it is refused as a secret; the strip keeps it unchanged. The masker writes
-  `code=***` and `neutral()` writes `code=******` for the nested span.
+- Fixed by the detector (PR 1, "Detector sweep" below): a weak name nested
+  in a weak name (`?code=1?session=2`) made `holds_url_credentials` true.
 - A secret after an ampersand or semicolon that follows a nested secret
   moves into the earlier value (`?code=1?token=T&a=1` strips to
   `?code=1?a=1`). Existed before round 7; no leak, the kept value is wrong.
@@ -213,3 +211,60 @@ fix:
    (`test_a_secret_nested_after_a_weak_value_is_removed`).
 7. A removal for nesting is said as such: the warning's condition ends "or a
    query nested too deeply to read".
+
+## Detector sweep (PR 1)
+
+What the detector reads (user ruling, 2026-11-15): URL-typed fields as a
+whole value; prose is out of scope. `find_url_credentials` and
+`holds_url_credentials` (`core/url_masking/_detect.py`, on the hits of
+`_hits.py`) have no free-text reading: a value is read only when, as a
+whole, it is a URL, a PEP 508 requirement with a direct reference, an
+scp-style address or a PURL (each qualifier value read so, as written and
+after each of 5 percent-decodes). A sentence that mentions a credentialed
+URL, an AWS key or `build:42@ci:linux` is never a finding: secret scanning
+of prose is other tools' job, and refusing README text blocks builds. The
+masker (`_mask.py`, `masked_given_path`) still reads free text, for display
+only, and hides every hit (tokens as `ghp_***`, a qualifier holding a hit
+once decoded as `key=***`), so a refusal message shows nothing it refuses.
+
+Probe corpus `tests/core/url_masking/_probe_corpus.py`: 117 rows with
+planted `S3CRET`/`T0KEN`, each with the base strip's result and the reviewed
+refusal; 17 `prose-` rows must never be refused.
+
+- The strip changed 41 rows; the detector refuses the 35 that are values.
+  The other 6 are prose (a URL, a requirement or a 17-`?` query inside a
+  sentence, and a PURL `note` qualifier whose decoded value is a sentence),
+  which the strip rewrote and the detector leaves, by the ruling.
+- Old `holds_url_credentials` missed 5 values: a `download_url` qualifier
+  encoded once, twice or five times (also `PKG:`) and an encoded `?token=`.
+  A qualifier still changed by the fifth decode is a `nesting` finding.
+- Old holds over-fired: `?code=1?session=2` is now weak only; prose is no
+  longer read at all.
+- A URL value is read as the masker reads it: any scheme after one `/` or
+  after backslashes (`s3:/u:p@h`, `ssh:\\u:p@h`, `s3:/h/x?access_token=`),
+  with a user information unless a path separator precedes the scheme
+  (`/x/T10:/a@b` is a path), and white space or a quote inside it is part
+  of it (`https://h/a b?token=T`, `https://x y:pw@h/x`).
+- Token shapes count only inside a URL value (path segment, query value,
+  user information): 25 shapes (GitHub `gh?_` and `github_pat_` at their
+  fixed lengths, GitLab `glpat-`/`gldt-`/`glptt-`/`glrt-`/`gloas-`/
+  `glcbt-`, Slack `xox?-`/`xapp-`, Hugging Face `hf_`/`api_org_`, AWS
+  `AKIA`/`ASIA`, PyPI `pypi-AgE`, npm `npm_`), also after a percent-encoded
+  character; a randomly drawn body must hold a digit and both cases, so a
+  documentation URL with a slug (`.../glpat-token-rotation-guide-v2`) is
+  none.
+- scp-style addresses count only as the whole value (no white space), with
+  no dotless-host exemption: `build:42@ci:linux` alone is refused.
+- The strip changed too, through the shared prefix table
+  (`_tokens.TOKEN_PREFIXES`): a user name with a token prefix (`hf_`,
+  `pypi-`, `npm_`, `api_org_`, `glrt-`...) is no `ssh` account name, so
+  `ssh://npm_abc@h/r` is now stripped, not kept.
+- Unchanged gaps: `?state=`, a scheme-less `/x?token=` and the rest of
+  "Tracked, not fixed here".
+- Linear on 1 MiB inputs (late `://` or `@`, one-slash schemes, many `?`,
+  many secrets, deep and many PURL qualifiers, tokens, requirement, scp):
+  at most about 5 s for the detector (as a value and as a PURL qualifier)
+  and the masker together, the slowest being 262,144 one-slash schemes;
+  time grows 4x per 4x size. An early
+  version read each scp address of a text to its end (quadratic, found by
+  review); scp is now read only as a whole value.

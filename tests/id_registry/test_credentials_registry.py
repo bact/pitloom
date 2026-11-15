@@ -15,15 +15,25 @@ from __future__ import annotations
 
 import json
 import logging
+import traceback
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core.iri import require_namespace_iri
+from pitloom.core.iri import (
+    NAMESPACE_CHARACTER,
+    NAMESPACE_CREDENTIALS,
+    namespace_problem,
+    require_namespace_iri,
+)
 from pitloom.core.url_masking import holds_url_credentials
 from pitloom.id_registry import FILE_TYPE, IdRegistry, save_registry
+from pitloom.id_registry._credentials import (
+    key_holds_credentials,
+    require_key_without_credentials,
+)
 from pitloom.id_registry._harvest import _import_sbom_element
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import code_of
@@ -143,7 +153,7 @@ def test_id_import_keeps_its_namespace_over_a_credentialed_one(
     with caplog.at_level(logging.WARNING):
         registry.import_sbom(sbom)
     assert registry.namespace == "https://ids.example/own"
-    assert "holds user information or a secret query value" in caplog.text
+    assert "holds user information, a secret query value" in caplog.text
     assert _SECRET not in caplog.text
 
 
@@ -158,7 +168,7 @@ def test_id_import_keeps_its_namespace_over_a_credentialed_one(
 )
 def test_a_value_stored_as_written_refuses_every_credential_shape(value: str) -> None:
     """A namespace and a registry key are refused, masked."""
-    assert holds_url_credentials(value, whole=True)
+    assert holds_url_credentials(value)
     with pytest.raises(ValueError) as caught:
         require_namespace_iri(value)
     assert _SECRET not in str(caught.value)
@@ -172,7 +182,7 @@ def test_a_weak_name_is_kept_in_a_namespace_and_a_key() -> None:
     """``code``, ``session``... are accepted as written (they are often no
     secret), the same rule as in an SBOM."""
     value = "https://h/ns?code=utf8&session=2024"
-    assert not holds_url_credentials(value, whole=True)
+    assert not holds_url_credentials(value)
     assert require_namespace_iri(value) == value
 
 
@@ -260,3 +270,58 @@ def test_a_rebase_drops_a_credentialed_entry_another_run_saved(
     save_registry(registry)
     assert _SECRET not in path.read_text("utf-8")
     assert ("ai_AIPackage", "new") in registry.elements
+
+
+_WIDE = {
+    "s3-one-slash": f"s3:/u:{_SECRET}@h.example/x",
+    "git-https-one-slash": f"git+https:/{_SECRET}@h.example/x",
+    "ssh-backslashes": f"ssh:\\\\u:{_SECRET}@h.example/x",
+    "git-backslashes": f"git:\\\\u:{_SECRET}@h/x",
+    "s3-query": f"s3:/h.example/x?access_token={_SECRET}",
+}
+
+
+@pytest.mark.parametrize("value", list(_WIDE.values()), ids=list(_WIDE))
+def test_a_scheme_after_one_separator_is_refused_on_every_surface(value: str) -> None:
+    """A URL a masker reads after one ``/`` or after backslashes is refused
+    as a namespace, a key and a file's key (a file name holds no scp-style
+    address, but a URL), each shown masked."""
+    # An IRI holds no backslash: such a namespace is refused for that first.
+    assert namespace_problem(value) == (
+        NAMESPACE_CHARACTER if "\\" in value else NAMESPACE_CREDENTIALS
+    )
+    assert holds_url_credentials(value)
+    for type_name in ("software_Package", FILE_TYPE):
+        assert key_holds_credentials(type_name, value)
+        with pytest.raises(ValueError) as e:
+            require_key_without_credentials(type_name, value)
+        assert _SECRET not in str(e.value) and _SECRET not in repr(e.value.args)
+
+
+_GHP = "ghp_T0KEN" + "aB3" * 10 + "x"
+_LEAKS = {
+    "token-in-path": (f"https://h.example/{_GHP}", _GHP[4:]),
+    "encoded-qualifier": (
+        "pkg:generic/x?download_url=https%3A%2F%2Fu%3AS3CRET%40h%2Fx",
+        _SECRET,
+    ),
+}
+
+
+@pytest.mark.parametrize(("value", "raw"), list(_LEAKS.values()), ids=list(_LEAKS))
+def test_a_refusal_never_shows_what_it_refuses(value: str, raw: str) -> None:
+    """A token and a credential encoded in a PURL qualifier are refused as a
+    namespace and a key; the message, its arguments and its traceback hold
+    neither, and the condition names an access token."""
+    errors: list[ValueError] = []
+    for refuse in (
+        lambda: require_namespace_iri(value),
+        lambda: require_key_without_credentials("software_Package", value),
+    ):
+        with pytest.raises(ValueError) as e:
+            refuse()
+        errors.append(e.value)
+    for error in errors:
+        assert "an access token" in str(error)
+        assert raw not in str(error) and raw not in repr(error.args)
+        assert raw not in "".join(traceback.format_exception(error))

@@ -24,6 +24,8 @@ The contract, for every function here:
   :func:`mask_checkout` writes the checkout directory as
   :data:`CHECKOUT_PLACEHOLDER`, and the download directory as
   :data:`DOWNLOAD_PLACEHOLDER`, so two runs read the same.
+* :func:`find_url_credentials` reports the credentials of a value stored as
+  written and never rewrites it (:mod:`pitloom.core.url_masking._detect`).
 """
 
 from __future__ import annotations
@@ -31,6 +33,18 @@ from __future__ import annotations
 import re
 from collections import deque
 
+from pitloom.core.url_masking._detect import (
+    Finding,
+    find_url_credentials,
+    holds_url_credentials,
+)
+from pitloom.core.url_masking._hits import (
+    PURL_DECODE_ROUNDS,
+    FindingKind,
+    is_purl,
+    split_purl,
+)
+from pitloom.core.url_masking._mask import masked_given_path
 from pitloom.core.url_masking._params import (
     PARAM_RE,
     WHOLE_PARAM_RE,
@@ -40,12 +54,13 @@ from pitloom.core.url_masking._params import (
     mask_free_param,
     mask_param,
 )
-from pitloom.core.url_masking._scan import masked_once
-from pitloom.core.url_masking._strip import find_urls, neutral, rebuilt
+from pitloom.core.url_masking._strip import find_urls, rebuilt
 from pitloom.core.url_masking._userinfo import (
     ACCOUNT_SCHEMES,
-    WHOLE_URL,
+    SCP_USERINFO_RE,
     is_account_name,
+    is_whole_url,
+    mask_scp,
     split_userinfo,
     userinfo_end,
 )
@@ -56,10 +71,15 @@ __all__ = [
     "CHECKOUT_PLACEHOLDER",
     "DOWNLOAD_DIR_PREFIX",
     "DOWNLOAD_PLACEHOLDER",
+    "Finding",
+    "FindingKind",
     "HUB_DIR_PREFIX",
+    "PURL_DECODE_ROUNDS",
     "URL_AS_PATH_RE",
+    "find_url_credentials",
     "holds_url_credentials",
     "is_account_name",
+    "is_purl",
     "is_secret_name",
     "is_whole_url",
     "keeps_url_credential",
@@ -68,6 +88,7 @@ __all__ = [
     "masked_given_path",
     "sanitize_url",
     "sanitize_url_credentials",
+    "split_purl",
     "split_userinfo",
     "strip_url_secrets",
     "url_without_credentials",
@@ -118,34 +139,6 @@ def _replaced_userinfo(
     return "".join(parts)
 
 
-#: The ``user:password@`` of an scp-style address (``alice:pw@host:o/r``): no
-#: scheme, so no URL scan finds it. A ``/`` or ``\\`` is not in the
-#: password (a drive or a path), and the host is followed by ``:`` and a path.
-#: A host of two characters or more may be followed by an absolute path
-#: (``host:/srv/r``); a one-character one is a drive (``C:\\``). An image
-#: reference (``python:3.11@sha256:abc``) is not an address.
-_SCP_USERINFO_RE = re.compile(
-    r"(?<![\w.+:@/\\-])[\w.+-]+:[^\s@/\\:]+@"
-    r"(?!(?i:sha\d+|md5|blake\w+):)"
-    r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
-)
-
-
-def is_whole_url(text: str) -> bool:
-    """Whether *text*, as a whole, is one URL or address (a scheme, ``:`` and
-    a ``/`` or ``\\``, or ``user:password@host:path``; no white space), so
-    it is a URL field and not free text that holds a URL: the reading of a
-    value that has no white space to end it (:func:`strip_url_secrets`)."""
-    return WHOLE_URL.fullmatch(text) is not None or (
-        _SCP_USERINFO_RE.match(text) is not None and not any(c.isspace() for c in text)
-    )
-
-
-def _mask_scp(text: str) -> str:
-    """*text* with the user information of an scp-style address masked."""
-    return _SCP_USERINFO_RE.sub("***:***@", text)
-
-
 def _mask_url_secrets(match: re.Match[str]) -> str:
     return PARAM_RE.sub(mask_free_param, match.group(0))
 
@@ -162,7 +155,7 @@ def sanitize_url_credentials(text: str) -> str:
     redacted whole, and ``https://h?contact=me@x.org`` is a query. For a
     text that is one URL, use :func:`sanitize_url`.
     """
-    text = _replaced_userinfo(_mask_scp(text), _FREE_OPENER, "://***:***@", whole=False)
+    text = _replaced_userinfo(mask_scp(text), _FREE_OPENER, "://***:***@", whole=False)
     return _URL_RE.sub(_mask_url_secrets, text)
 
 
@@ -182,73 +175,6 @@ def sanitize_url(url: str) -> str:
 #: one only starts a run of scheme characters, so a search tries each run
 #: once and stays linear (``a1a1...``).
 URL_AS_PATH_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]+:[/\\]")
-#: How many times :func:`masked_given_path` masks a text at most. A ``/`` or
-#: white space in a secret value does not end a user information, so the
-#: masking of one URL uncovers nothing of its own; a later URL masked in
-#: another context (quoted or not) can take away the stop that ended an
-#: earlier URL's (``u@"https:\h&u@:ab:\#sig=/a/b" ?\a/b'u:p@``). Random and
-#: searched texts settle after two masking passes.
-_MASK_PASSES = 4
-
-
-def masked_given_path(text: str, *, line: bool = False) -> str:
-    """*text*, a path as given or a message naming one, with the credentials
-    of each URL in it replaced: the user information by ``***:***``, a
-    secret parameter's value by ``***``; every other character is printed as
-    given, so a path that only looks like a URL keeps its separators. A URL
-    reaches a path check as a path, and a line names it without its
-    credentials. The user information runs to the last ``@`` before the
-    next ``/`` or the end of *text*, and in a message *line* before the next
-    white space (``URL=https://h: unreachable; contact a@b.org`` keeps the
-    address), either not in a secret parameter's value (masking the value
-    would uncover a later ``@``); a quote is a character of it, never its
-    end. When its ``@`` is in a secret value, the rest of that value is
-    masked too (``https://u:p?token=x@h/x`` prints ``https://***:***@***``:
-    RFC 3986 reads ``x@h/x`` as the token's). The rest of a URL runs to the
-    end of *text*, or to the quote closing the one before it: one no
-    backslash escapes, before white space or the end (after at most four
-    characters ending a sentence: ``'...': not found``), so a quote inside
-    a value does not close it. In a *line* a URL that is not quoted ends at
-    the first white space after its user information, and each URL of the
-    line is masked. A secret value runs to the next ``&``, ``;``, ``#`` or
-    the URL's end, over a quote, and over white space unless in a *line*
-    outside quotes. The masked text is masked again until nothing changes,
-    at most :data:`_MASK_PASSES` times (a URL masked in a quoted context
-    can take away the stop that ended an earlier URL's user information),
-    so masking a masked text changes nothing unless a text needs more
-    passes than that; none found so far needs more than two. The one
-    masker of a path as given and of an ``ERROR:`` line
-    (:func:`pitloom.logging_config.print_error`).
-
-    After one separator (``https:/u:p@h``, a ``//`` a path collapsed) a
-    scheme has a user information unless a ``/`` or ``\\`` comes before it
-    (``/x/T10:/a@b`` is a path); a scheme a URL uses has one there too
-    (:data:`_URL_SCHEMES`: ``/cwd/https:/u:p@h``). So a relative path
-    ``backup:/u@h/x`` is read as a collapsed URL and its ``u`` masked: a
-    credential shown costs more than a path's ``@`` hidden.
-
-    Out of scope: a password holding a raw ``/``, or in a *line* white
-    space, is not a user information (RFC 3986 percent-encodes both), so it
-    is not masked. Accepted partial leaks, none showing the start of a
-    secret: in a *line*, a secret value holding a space in a URL that is not
-    quoted is masked to the space (``?token=SEC RET`` prints ``?token=***
-    RET``), and the punctuation ending a sentence or a quotation is kept
-    after a value, so a secret ending in it shows that end
-    (``?token=abc...`` prints ``?token=***...``, ``?token=ab'`` prints
-    ``?token=***'``); in a quoted URL, a secret value holding the URL's
-    quote before white space or the end, after at most four such
-    punctuation characters, is masked to that quote (``'...?token=ab'.
-    cd'`` prints ``'...?token=***'. cd'``); a value ending in a backslash
-    escapes the closing quote, so its URL runs on to the next quote that
-    closes.
-    """
-    text = _mask_scp(text)
-    masked = masked_once(text, line=line)
-    passes = 1
-    while masked != text and passes < _MASK_PASSES:
-        text, masked = masked, masked_once(masked, line=line)
-        passes += 1
-    return masked
 
 
 def url_without_credentials(url: str) -> str:
@@ -305,7 +231,7 @@ def strip_url_secrets(text: str, *, whole: bool) -> tuple[str, list[str]]:
 def _stripped_scp(text: str) -> tuple[str, list[str]]:
     """*text*, an address (``user:password@host:path``), without its user
     information, and the address as a message shows it."""
-    found = _SCP_USERINFO_RE.match(text)
+    found = SCP_USERINFO_RE.match(text)
     if found is None:
         return text, []
     rest = text[found.end() :]
@@ -337,31 +263,6 @@ def keeps_url_credential(url: str, *, whole: bool) -> bool:
     if keeps_weak_parameter(url):
         return True
     return any(found.account for found in find_urls(url, whole=whole) if found.userinfo)
-
-
-def holds_url_credentials(
-    text: str, *, whole: bool, scp: bool = True, account: bool = False
-) -> bool:
-    """Whether *text*, a value Pitloom would store as written (a registry
-    key, a namespace), holds credentials: any user information (an
-    scp-style ``user:password@host:path`` too), a parameter named like a
-    secret (not the weak names, kept as in an SBOM), or anything else the
-    masker would mask (:func:`masked_given_path`) that an SBOM does not
-    keep. With *account*, a user name alone on an ``ssh`` or ``git`` URL
-    that is an account name (``git@``, :func:`is_account_name`) is accepted,
-    as in an SBOM. With *scp* false, only a URL: a file name such as ``meet
-    10:30@ab:c.txt`` is no address. *whole* when *text* is one URL (a
-    registry key, an element id, a namespace: the reading of
-    :func:`strip_url_secrets`)."""
-    if scp and _SCP_USERINFO_RE.search(text):
-        return True
-    urls = find_urls(text, whole=whole)
-    for url in urls:
-        if url.userinfo is not None and not (account and url.account):
-            return True
-        if any(removed for *_, removed in url.params):
-            return True
-    return masked_given_path(text) != _mask_scp(neutral(text, urls))
 
 
 #: The name prefix of the temporary directory a Git URL is checked out in.

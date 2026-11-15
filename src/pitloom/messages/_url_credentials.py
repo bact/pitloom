@@ -26,8 +26,14 @@ from pitloom.core.iri import NAMESPACE_CREDENTIALS
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.25.0"
-#: The phrase of each line, a namespace refusal's too.
-_HOLDS: Final = NAMESPACE_CREDENTIALS
+#: The phrase of each line of the SBOM strip.
+_HOLDS: Final = (
+    "holds user information or a secret query value, or a query nested too "
+    "deeply to read"
+)
+#: The phrase of each refusal of a stored value, a namespace refusal's too
+#: (what :func:`pitloom.core.url_masking.find_url_credentials` refuses).
+_REFUSED: Final = NAMESPACE_CREDENTIALS
 _KEPT: Final = "a code, session, ticket, sid or otp parameter or an ssh user name"
 
 #: A URL of the project's own data, in the SBOM.
@@ -49,25 +55,25 @@ KEPT_LINE: Final = Line(
 #: A registry key the registry would store as written.
 KEY_LINE: Final = Line(
     level="ERROR",
-    template=f"URL=%(url)s: {_HOLDS}; an ID registry key is stored as "
+    template=f"URL=%(url)s: {_REFUSED}; an ID registry key is stored as "
     "written, so it is refused",
 )
 #: A document namespace the registry would store as written.
 NAMESPACE_CREDENTIALS_LINE: Final = Line(
     level="ERROR",
-    template=f"URL=%(url)s: {_HOLDS}; an ID registry namespace is stored as "
+    template=f"URL=%(url)s: {_REFUSED}; an ID registry namespace is stored as "
     "written, so it is refused",
 )
 #: An element whose key or id an import or harvest would store as written.
 KEY_SKIPPED_LINE: Final = Line(
     level="WARNING",
-    template=f"URL=%(url)s: {_HOLDS}; the ID registry stores an element's key "
+    template=f"URL=%(url)s: {_REFUSED}; the ID registry stores an element's key "
     "and id as written, so the element is skipped",
 )
 #: An entry of a registry file whose key or id holds one.
 ENTRY_DROPPED_LINE: Final = Line(
     level="WARNING",
-    template=f"URL=%(url)s: {_HOLDS}; the ID registry entry is dropped and "
+    template=f"URL=%(url)s: {_REFUSED}; the ID registry entry is dropped and "
     "the next save writes the file without it",
 )
 #: Two element ids differ only by credentials.
@@ -116,9 +122,9 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
     ),
     summary="A key or namespace given to the ID registry (an external "
     "reference URL), or the key or id of an SBOM element it would record, "
-    "holds a user name or password, or a query parameter named like a "
-    "secret. The registry file stores a key, an id and its namespace as "
-    "written.",
+    "holds a user name or password, a query parameter named like a secret "
+    "or an access token (also percent-encoded in a PURL qualifier). The "
+    "registry file stores a key, an id and its namespace as written.",
     did="Refused the key or namespace and stored nothing (error), or left the "
     "SBOM element out of the registry and wrote the rest (warning). An entry "
     "of a registry file holding one is dropped when the file is loaded, "

@@ -24,7 +24,7 @@ values.
 | [`credentials-unsafe/git-userinfo`](#credentials-unsafegit-userinfo) | ERROR | A Git URL holds user information (an @ before the first /) that Pitloom cannot split off the command line the way git reads it: a bracket or port that is not valid, an empty host, or an @ git reads as a password where the URL parser sees a query. | 0.25.0 |
 | [`credentials-unsafe/http-clear`](#credentials-unsafehttp-clear) | WARNING | A plain http:// Git URL holds a user name or password: git sends it to the server unencrypted, readable by anyone on the path. | 0.25.0 |
 | [`credentials-unsafe/id-collision`](#credentials-unsafeid-collision) | ERROR | Two element ids of the SBOM (of a merged fragment) differ only by user information or a secret query value, so they would be the same id once the credentials are removed. | 0.25.0 |
-| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key or namespace given to the ID registry (an external reference URL), or the key or id of an SBOM element it would record, holds a user name or password, or a query parameter named like a secret. The registry file stores a key, an id and its namespace as written. | 0.25.0 |
+| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key or namespace given to the ID registry (an external reference URL), or the key or id of an SBOM element it would record, holds a user name or password, a query parameter named like a secret or an access token (also percent-encoded in a PURL qualifier). The registry file stores a key, an id and its namespace as written. | 0.25.0 |
 | [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
@@ -150,8 +150,9 @@ values.
   writes nothing for it (exit 1).
 - **Means**: A key or namespace given to the ID registry (an external reference
   URL), or the key or id of an SBOM element it would record, holds a user name
-  or password, or a query parameter named like a secret. The registry file
-  stores a key, an id and its namespace as written.
+  or password, a query parameter named like a secret or an access token (also
+  percent-encoded in a PURL qualifier). The registry file stores a key, an id
+  and its namespace as written.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Refused the key or namespace and stored nothing (error), or
   left the SBOM element out of the registry and wrote the rest (warning). An
@@ -168,10 +169,10 @@ values.
 - **Lines**:
 
   ```text
-  ERROR: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; an ID registry key is stored as written, so it is refused [credentials-unsafe/registry]
-  ERROR: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; an ID registry namespace is stored as written, so it is refused [credentials-unsafe/registry]
-  WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; the ID registry stores an element's key and id as written, so the element is skipped [credentials-unsafe/registry]
-  WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; the ID registry entry is dropped and the next save writes the file without it [credentials-unsafe/registry]
+  ERROR: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry key is stored as written, so it is refused [credentials-unsafe/registry]
+  ERROR: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry namespace is stored as written, so it is refused [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry stores an element's key and id as written, so the element is skipped [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry entry is dropped and the next save writes the file without it [credentials-unsafe/registry]
   ```
 
 ### `download-network-failed`

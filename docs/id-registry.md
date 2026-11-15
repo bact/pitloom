@@ -358,8 +358,8 @@ and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
-`register()` raises `ValueError` for a key holding user information or a
-secret query value, and harvest and `id import` skip an element whose key
+`register()` raises `ValueError` for a key holding user information, a
+secret query value or an access token, and harvest and `id import` skip an element whose key
 or `spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
 such an entry of the file, with a `WARNING:` (all
 `credentials-unsafe/registry`; see

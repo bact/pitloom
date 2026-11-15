@@ -179,7 +179,7 @@ A line may start with one prefix before its text:
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
-| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information or a secret query value, or a query nested too deeply to read` |
+| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read` |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
