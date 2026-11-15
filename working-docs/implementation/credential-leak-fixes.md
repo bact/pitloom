@@ -9,7 +9,9 @@ Last-Modified: 2026-11-15
 # Credential leak fixes
 
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
-(the catalogue the new messages are in), PR 487.
+(the catalogue the new messages are in),
+[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md)
+(the follow-up that replaces the strip with detect and refuse), PR 487.
 
 What was built to stop URL credentials (user information, secret-named query
 values, git passwords) reaching logs, tracebacks, stdout, git, SBOMs and ID
@@ -111,6 +113,15 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   nest the reading without limit.
 - `loom verify-wheel` with a path 1000 directories deep fails in the standard
   library's `glob.glob` (`cli/commands/utils.py`): exit 1, nothing leaks.
+- A weak name nested in a weak name (`?code=1?session=2`,
+  `?ticket=1?q=2?sort_key=X`) makes `holds_url_credentials` true, so a registry key or namespace holding
+  it is refused as a secret; the strip keeps it unchanged. The masker writes
+  `code=***` and `neutral()` writes `code=******` for the nested span.
+- A secret after an ampersand or semicolon that follows a nested secret
+  moves into the earlier value (`?code=1?token=T&a=1` strips to
+  `?code=1?a=1`). Existed before round 7; no leak, the kept value is wrong.
+- The `credentials-unsafe/registry` summary does not mention the over-16 `?`
+  case; its detail lines do.
 - A password that starts with `?` or `#` right after `user:` is not stripped
   (`h:` before `?` is an empty port); the masker still hides it.
 - The strip of `https://u:"@SECRET?x@h` leaves `SECRET?x@h` as a host; the

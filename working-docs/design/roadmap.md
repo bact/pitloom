@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -219,6 +219,12 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [x] **Catalogue PR 5**: ID registry file errors coded (`FILE=` as
   given); a missing `loom id generate` PATH is an error (#485); ratchet
   398 to 366.
+- [x] **Credential leaks (#487)**: masking at the sinks, git helper, registry
+  refusal; built, unreleased. See
+  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
+- [ ] **Credentials: detect and refuse** (release blocker for 0.25.0):
+  replace the SBOM strip with detect, `ERROR:` and a per-value override. See
+  [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
 - [ ] **Catalogue PRs 6 to 18** (the remaining families, the licence families
   last): the ID registry (with the remote
   registry entries first), lock files, config, project metadata, Git, Hub and
