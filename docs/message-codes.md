@@ -31,7 +31,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Options](message-codes-options.md): 4 codes
 - [Files and text](message-codes-files.md): 11 codes
 - [PyPI](message-codes-pypi.md): 13 codes
-- [Network](message-codes-network.md): 11 codes
+- [Network](message-codes-network.md): 12 codes
 - [ID registry](message-codes-id-registry.md): 4 codes
 - [ID registry ids and keys](message-codes-id-registry-ids.md): 14 codes
 - [Licences](message-codes-licences.md): 1 code
@@ -42,6 +42,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`config-unsafe`](message-codes-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](message-codes-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
 | [`credentials-unsafe`](message-codes-network.md#credentials-unsafe) | WARNING | 0.24.1 |
+| [`credentials-unsafe/id-collision`](message-codes-network.md#credentials-unsafeid-collision) | ERROR | 0.24.1 |
 | [`credentials-unsafe/registry`](message-codes-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.24.1 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |

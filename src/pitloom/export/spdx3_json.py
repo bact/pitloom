@@ -25,7 +25,10 @@ from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
 from pitloom.core.url_masking import strip_url_secrets
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 from pitloom.messages.files import warn_lone_surrogates
-from pitloom.messages.url_credentials import warn_url_credentials_stripped
+from pitloom.messages.url_credentials import (
+    id_collision_error,
+    warn_url_credentials_stripped,
+)
 
 if TYPE_CHECKING:
     from pitloom.core.lfs_pointer import LfsPointer
@@ -163,14 +166,21 @@ def _stripped_urls(value: Any, seen: list[str], ids: dict[str, str]) -> Any:
 
 def _stripped_ids(graph: list[dict[str, Any]], seen: list[str]) -> dict[str, str]:
     """Each element id of *graph* that holds credentials, to the id without
-    them (what its references become too)."""
+    them (what its references become too).
+
+    Raises:
+        pitloom.messages.CodedValueError: Two ids are one without their
+            credentials (``credentials-unsafe/id-collision``)."""
     ids: dict[str, str] = {}
+    held = {str(e[k]) for e in graph for k in ("spdxId", "@id") if k in e}
     for element in graph:
         for key in ("spdxId", "@id"):
             old = element.get(key)
             if isinstance(old, str):
                 new, changed = strip_url_secrets(old)
                 if changed:
+                    if new in held or new in ids.values():
+                        raise id_collision_error(old)
                     ids[old] = new
                     seen.extend(changed)
     return ids

@@ -47,6 +47,13 @@ KEY_SKIPPED_LINE: Final = Line(
     "written, so it is skipped",
 )
 
+#: Two element ids differ only by credentials.
+ID_COLLISION_LINE: Final = Line(
+    level="ERROR",
+    template="URL=%(url)s: another element has this id without its credentials; "
+    "no SBOM is written",
+)
+
 URL_CREDENTIALS: Final = Message(
     code="credentials-unsafe",
     condition="unsafe",
@@ -91,4 +98,26 @@ URL_CREDENTIALS_REGISTRY: Final = Message(
     since=_SINCE,
 )
 
-ENTRIES: Final = (URL_CREDENTIALS, URL_CREDENTIALS_REGISTRY)
+URL_CREDENTIALS_ID_COLLISION: Final = Message(
+    code="credentials-unsafe/id-collision",
+    condition="unsafe",
+    lines=(ID_COLLISION_LINE,),
+    summary="Two element ids of the SBOM (of a merged fragment) differ only by "
+    "user information or a secret query value, so they would be the same id "
+    "once the credentials are removed.",
+    did="Wrote no SBOM.",
+    effect="not-written",
+    actor="user",
+    advice="Tell the user which id, as the line shows it, and that two "
+    "elements carry it with different credentials. They give the elements "
+    "ids without credentials, in the fragment, and run again. Do not edit "
+    f"their fragment; {ASK_FIRST}",
+    subject_key="URL",
+    since=_SINCE,
+)
+
+ENTRIES: Final = (
+    URL_CREDENTIALS,
+    URL_CREDENTIALS_REGISTRY,
+    URL_CREDENTIALS_ID_COLLISION,
+)

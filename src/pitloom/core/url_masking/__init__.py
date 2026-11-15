@@ -79,7 +79,7 @@ _WHOLE_URL_USERINFO_RE = re.compile(r":(?:/{1,2}[^/@][^/]*|\\{1,2}[^/\\@][^/\\]*
 #: reference (``python:3.11@sha256:abc``) is not an address.
 _SCP_USERINFO_RE = re.compile(
     r"(?<![\w.+:@/\\-])[\w.+-]+:[^\s@/\\:]+@"
-    r"(?!(?:sha\d+|md5|blake\w+):)"
+    r"(?!(?i:sha\d+|md5|blake\w+):)"
     r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
 )
 
@@ -263,12 +263,13 @@ def strip_url_secrets(text: str, *, weak: bool = False) -> tuple[str, list[str]]
     return _URL_SCAN_RE.sub(strip, text), changed
 
 
-def holds_url_credentials(text: str) -> bool:
+def holds_url_credentials(text: str, *, scp: bool = True) -> bool:
     """Whether *text*, a value Pitloom would store as written (a registry
     key, a namespace), holds credentials: user information (an scp-style
     ``user:password@host:path`` too) or a parameter named like a secret (not
-    the weak names, kept as in an SBOM)."""
-    return bool(strip_url_secrets(text)[1] or _SCP_USERINFO_RE.search(text))
+    the weak names, kept as in an SBOM). With *scp* false, only a URL: a file
+    name such as ``meet 10:30@ab:c.txt`` is no address."""
+    return bool(strip_url_secrets(text)[1] or (scp and _SCP_USERINFO_RE.search(text)))
 
 
 #: The name prefix of the temporary directory a Git URL is checked out in.

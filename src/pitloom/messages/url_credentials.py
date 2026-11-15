@@ -17,16 +17,20 @@ from pitloom.core.url_masking import masked_given_path
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._url_credentials import (
     GIT_LINE,
+    ID_COLLISION_LINE,
     KEY_LINE,
     KEY_SKIPPED_LINE,
     STRIPPED_LINE,
     URL_CREDENTIALS,
+    URL_CREDENTIALS_ID_COLLISION,
     URL_CREDENTIALS_REGISTRY,
 )
 
 __all__ = [
     "URL_CREDENTIALS",
+    "URL_CREDENTIALS_ID_COLLISION",
     "URL_CREDENTIALS_REGISTRY",
+    "id_collision_error",
     "registry_key_credentials_error",
     "warn_git_credentials_unsent",
     "warn_registry_key_credentials_skipped",
@@ -72,4 +76,14 @@ def registry_key_credentials_error(url: str) -> CodedValueError:
     masked."""
     return CodedValueError(
         URL_CREDENTIALS_REGISTRY, line=KEY_LINE, url=masked_given_path(url)
+    )
+
+
+def id_collision_error(url: str) -> CodedValueError:
+    """The error for an element id *url* that is another's once its
+    credentials are removed, shown masked."""
+    return CodedValueError(
+        URL_CREDENTIALS_ID_COLLISION,
+        line=ID_COLLISION_LINE,
+        url=masked_given_path(url),
     )

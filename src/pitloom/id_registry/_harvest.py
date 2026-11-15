@@ -41,6 +41,7 @@ from pitloom.id_registry._ambiguous import (
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
+    FILE_TYPE,
     RegistryEntry,
     is_utf8_text,
 )
@@ -411,7 +412,9 @@ def _own_sha256(
     return harvest_sha256(obj, hashes) if type_name in types else None
 
 
-def _unrecordable(label: str, key_name: str, spdx_id: str) -> bool:
+def _unrecordable(
+    label: str, key_name: str, spdx_id: str, *, path_key: bool = False
+) -> bool:
     """Whether the element, its key (*label*, *key_name*) or *spdx_id* is
     left out of the registry: a text its UTF-8 file cannot hold, or a key
     that is a URL with credentials; says so with one ``WARNING:``."""
@@ -419,9 +422,10 @@ def _unrecordable(label: str, key_name: str, spdx_id: str) -> bool:
         if not is_utf8_text(text):
             warn_registry_name_skipped(log, what, text)
             return True
-    if holds_url_credentials(key_name):
-        warn_registry_key_credentials_skipped(log, key_name)
-        return True
+    for text in (key_name, spdx_id):
+        if holds_url_credentials(text, scp=not path_key):
+            warn_registry_key_credentials_skipped(log, text)
+            return True
     return False
 
 
@@ -483,7 +487,7 @@ def _import_sbom_element(
     # Reserved even when the element is skipped: its id is never minted.
     registry.reserve_id(spdx_id)
     label = "key" if written.recorded else "name"
-    if _unrecordable(label, key[1], spdx_id):
+    if _unrecordable(label, key[1], spdx_id, path_key=key[0] == FILE_TYPE):
         return
     if state is None:
         state = _Pass.of(registry, [obj], keys)

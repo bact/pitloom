@@ -58,6 +58,7 @@ from pitloom.id_registry._persist import (
 from pitloom.id_registry._sbom_read import document_id, read_sbom_objects
 from pitloom.id_registry._types import (
     DATASET_PACKAGE_TYPE,
+    FILE_TYPE,
     RegistryEntry,
     _element_key,
     _require_names,
@@ -404,7 +405,7 @@ class IdRegistry:
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
-        if holds_url_credentials(name):
+        if holds_url_credentials(name, scp=type_name != FILE_TYPE):
             raise registry_key_credentials_error(name)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None

@@ -46,11 +46,13 @@ from pitloom.messages._remote_fetch import (
 )
 from pitloom.messages._url_credentials import (
     URL_CREDENTIALS,
+    URL_CREDENTIALS_ID_COLLISION,
     URL_CREDENTIALS_REGISTRY,
 )
 
 __all__ = [
     "URL_CREDENTIALS",
+    "URL_CREDENTIALS_ID_COLLISION",
     "URL_CREDENTIALS_REGISTRY",
     "DOWNLOAD_FAILED",
     "DOWNLOAD_FAILED_LINE",

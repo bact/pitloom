@@ -43,9 +43,11 @@ from pitloom.extract.remote._git_credentials import GitCredentials, split_creden
 from pitloom.extract.remote._git_redirect import _probe_url
 from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.id_registry import FILE_TYPE as FILE_KEY_TYPE
 from pitloom.id_registry import IdRegistry
 from pitloom.id_registry._harvest import _import_sbom_element
 from pitloom.logging_config import escape_controls, print_traceback
+from pitloom.messages import code_of
 
 pytestmark = pytest.mark.platform
 
@@ -351,7 +353,8 @@ class _Recorder(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def log_message(self, *_args: object) -> None:
+    # pylint: disable-next=redefined-builtin,unused-argument
+    def log_message(self, format: str, *args: Any) -> None:
         """Keep the test output quiet."""
 
 
@@ -429,3 +432,61 @@ def test_harvest_skips_an_sbom_element_whose_key_holds_a_secret(
         _import_sbom_element(registry, package)
     assert "skipped" in caplog.text and SECRET not in caplog.text
     assert not registry.elements
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        (f"https://u:{SECRET}@h/x#P", "https://h/x#P"),
+        (f"https://h/x?token={SECRET}#P", "https://h/x?token=other#P"),
+    ],
+    ids=["userinfo", "query"],
+)
+def test_two_ids_that_differ_only_by_credentials_are_an_error(
+    first: str, second: str
+) -> None:
+    graph: list[dict[str, Any]] = [{"spdxId": first}, {"spdxId": second}]
+    with pytest.raises(ValueError, match="another element has this id") as caught:
+        spdx3_json._strip_url_credentials(graph)  # pylint: disable=protected-access
+    assert SECRET not in str(caught.value)
+    assert code_of(caught.value) == "credentials-unsafe/id-collision"
+
+
+def test_checkout_of_a_partial_clone_gets_the_credential(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = GitRunner()
+    runner.credentials = GitCredentials("https://h", "u", SECRET)
+    seen: list[GitCredentials | None] = []
+
+    def fake(
+        _cmd: list[str], _left: float, _cap: object, creds: GitCredentials | None
+    ) -> tuple[int, str, str]:
+        seen.append(creds)
+        return 0, "", ""
+
+    monkeypatch.setattr(_git_run, "_capture", fake)
+    monkeypatch.setattr(shutil, "which", lambda _name: "git")
+    runner.run(["-C", str(tmp_path), "checkout", "FETCH_HEAD"], "checkout", echo=False)
+    assert seen == [runner.credentials]
+
+
+def test_harvest_skips_a_credential_id_and_keeps_an_odd_file_name(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    registry = IdRegistry.new("demo", namespace="https://ids.example/ns")
+    package = spdx3.ai_AIPackage()
+    package.spdxId = f"https://u:{SECRET}@ex.org/ns#Pkg-1?token={SECRET}"
+    package.name = "model"
+    odd = spdx3.software_File()
+    odd.spdxId = "https://ids.example/ns#File-1"
+    odd.name = "meet 10:30@ab:c.txt"
+    with caplog.at_level(logging.WARNING):
+        _import_sbom_element(registry, package)
+        _import_sbom_element(registry, odd)
+    assert SECRET not in caplog.text and len(registry.elements) == 1
+    assert registry.register(FILE_KEY_TYPE, "meet 10:30@ab:c.txt")
+
+
+def test_the_digest_exclusion_is_case_insensitive() -> None:
+    assert masked_given_path("node:20@SHA256:abc") == "node:20@SHA256:abc"

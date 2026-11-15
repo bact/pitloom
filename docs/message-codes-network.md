@@ -21,6 +21,7 @@ values.
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature). An SBOM can be published, so it must not carry either. | 0.24.1 |
+| [`credentials-unsafe/id-collision`](#credentials-unsafeid-collision) | ERROR | Two element ids of the SBOM (of a merged fragment) differ only by user information or a secret query value, so they would be the same id once the credentials are removed. | 0.24.1 |
 | [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key given to the ID registry (an external reference URL) holds a user name or password, or a query parameter named like a secret. The registry file stores a key as written. | 0.24.1 |
 | [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
@@ -55,6 +56,25 @@ values.
   ```text
   WARNING: URL=<url>: holds user information or a secret query value; removed from the SBOM [credentials-unsafe]
   WARNING: URL=<url>: credentials holding a line break are not sent to git [credentials-unsafe]
+  ```
+
+### `credentials-unsafe/id-collision`
+
+- **Level**: ERROR. As an ERROR, the command stops for that input and writes
+  nothing for it (exit 1).
+- **Means**: Two element ids of the SBOM (of a merged fragment) differ only by
+  user information or a secret query value, so they would be the same id once
+  the credentials are removed.
+- **SBOM effect**: not-written: no SBOM is written for the input.
+- **Pitloom did**: Wrote no SBOM.
+- **Tell the user**: which id, as the line shows it, and that two elements carry
+  it with different credentials. They give the elements ids without credentials,
+  in the fragment, and run again. Do not edit their fragment; ask first, and
+  with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: URL=<url>: another element has this id without its credentials; no SBOM is written [credentials-unsafe/id-collision]
   ```
 
 ### `credentials-unsafe/registry`

@@ -35,7 +35,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Options](messages-options.md): 4 codes
 - [Files and text](messages-files.md): 11 codes
 - [PyPI](messages-pypi.md): 13 codes
-- [Network](messages-network.md): 11 codes
+- [Network](messages-network.md): 12 codes
 - [ID registry](messages-id-registry.md): 4 codes
 - [ID registry ids and keys](messages-id-registry-ids.md): 14 codes
 - [Licences](messages-licences.md): 1 code
@@ -46,6 +46,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`config-unsafe`](messages-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](messages-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
 | [`credentials-unsafe`](messages-network.md#credentials-unsafe) | WARNING | 0.24.1 |
+| [`credentials-unsafe/id-collision`](messages-network.md#credentials-unsafeid-collision) | ERROR | 0.24.1 |
 | [`credentials-unsafe/registry`](messages-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.24.1 |
 | [`digest-invalid`](messages-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](messages-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |

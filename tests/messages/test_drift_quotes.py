@@ -213,6 +213,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "text-malformed": ("lone surrogates written", "cannot be encoded as UTF-8"),
     "credentials-unsafe": (
         "removed from the SBOM",
+        "without its credentials; no SBOM is written",
         "are not sent to git",
         "an ID registry key is stored as written",
     ),

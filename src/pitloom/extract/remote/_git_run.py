@@ -88,8 +88,9 @@ _SAFE_CONFIG = (
     "filter.lfs.required=false",
 )
 
-#: The git subcommands that contact the server, so need the credential.
-_TALKS_TO_SERVER = frozenset({"clone", "fetch", "ls-remote"})
+#: The git subcommands that contact the server, so need the credential
+#: (``checkout`` of a partial clone fetches the blobs it lacks).
+_TALKS_TO_SERVER = frozenset({"clone", "fetch", "ls-remote", "checkout"})
 
 #: Environment variables that point git at another repository or add
 #: settings; one set by the caller (a git hook) must not reach the fetch.
