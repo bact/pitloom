@@ -4,12 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``credentials-unsafe``: a URL in what the SBOM would state holds user
-information or a secret query value, so it is removed (``WARNING``).
-``credentials-unsafe/registry``: an ID registry key holds one,
-and the registry would store it, so it is refused (``ERROR``).
+information or a secret query value, so it is removed, or a value that only
+sometimes is one, which is kept (``WARNING``).
+``credentials-unsafe/registry``: an ID registry key or namespace holds one,
+and the registry would store it, so it is refused (``ERROR``) or the element
+skipped (``WARNING``). ``credentials-unsafe/id-collision``: two element ids
+differ only by credentials (``ERROR``).
 
 See also: :mod:`pitloom.messages.url_credentials` (the helpers every site
-says them through) and :func:`pitloom.core.url_masking.strip_url_secrets`
+says them through), :mod:`pitloom.messages._url_credentials_git` (the
+family's Git variants) and :func:`pitloom.core.url_masking.strip_url_secrets`
 (what is removed).
 """
 
@@ -17,21 +21,29 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.core.iri import NAMESPACE_CREDENTIALS
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
 _SINCE: Final = "0.24.1"
-_HOLDS: Final = "holds user information or a secret query value"
+#: The phrase of each line, a namespace refusal's too.
+_HOLDS: Final = NAMESPACE_CREDENTIALS
+_KEPT: Final = "a code, session, ticket, sid or otp parameter or an ssh user name"
 
 #: A URL of the project's own data, in the SBOM.
 STRIPPED_LINE: Final = Line(
     level="WARNING",
     template=f"URL=%(url)s: {_HOLDS}; removed from the SBOM",
 )
-#: A Git URL's credentials hold a line break, so they cannot be handed to
-#: ``git`` and the fetch is anonymous.
-GIT_LINE: Final = Line(
+#: Same, and a value that only sometimes is a credential stays.
+STRIPPED_KEPT_LINE: Final = Line(
     level="WARNING",
-    template="URL=%(url)s: credentials holding a line break are not sent to git",
+    template=f"URL=%(url)s: {_HOLDS}; removed from the SBOM, except {_KEPT}, "
+    "which it keeps as written",
+)
+#: A URL whose only possible credential is one the SBOM keeps.
+KEPT_LINE: Final = Line(
+    level="WARNING",
+    template=f"URL=%(url)s: holds {_KEPT} that the SBOM keeps as written",
 )
 #: A registry key the registry would store as written.
 KEY_LINE: Final = Line(
@@ -39,25 +51,29 @@ KEY_LINE: Final = Line(
     template=f"URL=%(url)s: {_HOLDS}; an ID registry key is stored as "
     "written, so it is refused",
 )
-
-#: A key an import or harvest would store as written.
+#: A document namespace the registry would store as written.
+NAMESPACE_CREDENTIALS_LINE: Final = Line(
+    level="ERROR",
+    template=f"URL=%(url)s: {_HOLDS}; an ID registry namespace is stored as "
+    "written, so it is refused",
+)
+#: An element whose key or id an import or harvest would store as written.
 KEY_SKIPPED_LINE: Final = Line(
     level="WARNING",
-    template=f"URL=%(url)s: {_HOLDS}; an ID registry key is stored as "
-    "written, so it is skipped",
+    template=f"URL=%(url)s: {_HOLDS}; the ID registry stores an element's key "
+    "and id as written, so the element is skipped",
 )
-
 #: Two element ids differ only by credentials.
 ID_COLLISION_LINE: Final = Line(
     level="ERROR",
-    template="URL=%(url)s: another element has this id without its credentials; "
-    "no SBOM is written",
+    template="URL=%(url)s: another element has this id once its credentials "
+    "are removed; no SBOM is written",
 )
 
-URL_CREDENTIALS: Final = Message(
+CREDENTIALS_UNSAFE: Final = Message(
     code="credentials-unsafe",
     condition="unsafe",
-    lines=(STRIPPED_LINE, GIT_LINE),
+    lines=(STRIPPED_LINE, STRIPPED_KEPT_LINE, KEPT_LINE),
     summary="A URL a project declares (a dependency's direct URL, a project "
     "URL, a model card's link) holds a user name or password, or a query "
     "parameter named like a secret (token, key, signature). An SBOM can be "
@@ -66,39 +82,44 @@ URL_CREDENTIALS: Final = Message(
     "in the SBOM, its provenance and its comments, and went on; said once "
     "per URL, shown masked. A parameter named code, session, ticket, sid or "
     "otp, and a user name alone on an ssh or git URL (git@), are kept as "
-    "written. A Git URL whose user name or password holds a "
-    "line break is fetched without credentials.",
+    "written, and said too (the log line may still mask the value).",
     effect="thinner",
     actor="user",
     advice="Tell the user which URL, as the line shows it, and that the SBOM "
-    "states it without the credential. A credential in a project's files "
-    "is also in its history: they should consider it exposed and rotate it, "
-    "and check a code or session parameter the SBOM still states. "
+    "states it without the credential, or keeps the value the line names. "
+    "A credential in a project's files is also in its history: they should "
+    "consider it exposed and rotate it, and check that a kept code, session "
+    "or ssh user name is no credential. "
     f"Do not edit their files; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
 
-URL_CREDENTIALS_REGISTRY: Final = Message(
+CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
     code="credentials-unsafe/registry",
     condition="unsafe",
-    lines=(KEY_LINE, KEY_SKIPPED_LINE),
-    summary="A key given to the ID registry (an external reference URL) "
+    lines=(KEY_LINE, NAMESPACE_CREDENTIALS_LINE, KEY_SKIPPED_LINE),
+    summary="A key or namespace given to the ID registry (an external "
+    "reference URL), or the key or id of an SBOM element it would record, "
     "holds a user name or password, or a query parameter named like a "
-    "secret. The registry file stores a key as written.",
-    did="Stored nothing: refused the key (error), or left the SBOM element "
-    "out of the registry and went on (warning).",
-    effect="not-written",
+    "secret. The registry file stores a key, an id and its namespace as "
+    "written.",
+    did="Refused the key or namespace and stored nothing (error), or left the "
+    "SBOM element out of the registry and wrote the rest (warning).",
+    effect="thinner",
     actor="user",
-    advice="Tell the user which value, as the line shows it, and that it "
-    "must be given without the credential. They correct it and run again; "
-    "a credential they typed is exposed in their shell history. Do not edit "
-    f"their registry file; {ASK_FIRST}",
+    advice="Tell the user which value, as the line shows it. For an error, "
+    "they give the value without the credential and run again; a credential "
+    "typed on a command line is exposed in their shell history. For a "
+    "warning, the value came from an SBOM ('loom id import') or the run's own "
+    "data: that element has no stable id, and a credential in a shared SBOM "
+    "or a project's files is exposed. Either way they should rotate it. Do "
+    f"not edit their registry file; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
 )
 
-URL_CREDENTIALS_ID_COLLISION: Final = Message(
+CREDENTIALS_UNSAFE_ID_COLLISION: Final = Message(
     code="credentials-unsafe/id-collision",
     condition="unsafe",
     lines=(ID_COLLISION_LINE,),
@@ -117,7 +138,7 @@ URL_CREDENTIALS_ID_COLLISION: Final = Message(
 )
 
 ENTRIES: Final = (
-    URL_CREDENTIALS,
-    URL_CREDENTIALS_REGISTRY,
-    URL_CREDENTIALS_ID_COLLISION,
+    CREDENTIALS_UNSAFE,
+    CREDENTIALS_UNSAFE_REGISTRY,
+    CREDENTIALS_UNSAFE_ID_COLLISION,
 )

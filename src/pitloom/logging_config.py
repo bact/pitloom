@@ -15,6 +15,7 @@ point invoked Pitloom.
 
 from __future__ import annotations
 
+import http.client
 import io
 import logging
 import os
@@ -25,7 +26,7 @@ import traceback
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, TextIO, cast
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.core.url_masking import mask_checkout, masked_given_path
@@ -112,6 +113,86 @@ class _OneLineFormatter(logging.Formatter):
         return super().formatMessage(record)
 
 
+#: The record attribute :class:`_MaskRecord` sets once it has masked it.
+_MASKED_ATTR = "pitloom_masked"
+
+
+def _masked(text: str) -> str:
+    """*text* with the credentials of each URL in it masked, as a log line
+    masks them (:func:`~pitloom.core.url_masking.masked_given_path`)."""
+    return masked_given_path(text, line=True)
+
+
+# pylint: disable-next=too-few-public-methods
+class _MaskRecord(logging.Filter):
+    """Masks the credentials in a ``pitloom`` record before any handler
+    formats it, the handlers of the root logger included: the handler of
+    :func:`configure_logging` runs it, and a record reaches the root's
+    handlers (an embedder's, ``caplog``'s) only after that handler.
+
+    When masking changes the message, ``msg`` becomes the masked message and
+    ``args`` empty, so a handler calling ``getMessage()`` (or printing
+    ``Arguments:`` on a failure) shows no secret; a record with nothing to
+    mask keeps its ``msg`` and ``args``. A message that cannot be formatted
+    is written as its ``msg`` and the class of the failure, masked. A
+    traceback (``exc_info``) and ``stack_info`` holding a secret are
+    formatted and masked into ``exc_text`` and ``stack_info``; ``exc_info``
+    is kept, so a handler that formats it itself sees the raw exception.
+    The record's other attributes (:data:`CODE_ATTR`) are kept. Idempotent:
+    a record is masked once."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, _MASKED_ATTR, False):
+            return True
+        setattr(record, _MASKED_ATTR, True)
+        try:
+            text = record.getMessage()
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:  # a call site's format error
+            text = f"{record.msg} (arguments not formatted: {type(exc).__name__})"
+            record.msg, record.args = _masked(text), ()
+        else:
+            masked = _masked(text)
+            if masked != text:
+                record.msg, record.args = masked, ()
+        if record.exc_info and not record.exc_text:
+            trace = logging.Formatter().formatException(record.exc_info)
+            if _masked(trace) != trace:
+                record.exc_text = _masked(trace)
+        if record.stack_info:
+            record.stack_info = _masked(record.stack_info)
+        return True
+
+
+if TYPE_CHECKING:
+    _StreamHandler = logging.StreamHandler[TextIO]
+else:
+    _StreamHandler = logging.StreamHandler
+
+
+class _MaskedStreamHandler(_StreamHandler):
+    """The handler of :func:`configure_logging`: :class:`_MaskRecord` masks
+    each record first, and a failure to write one is reported without the
+    message and its arguments, which ``logging.Handler.handleError`` prints
+    as given."""
+
+    def __init__(self, stream: TextIO) -> None:
+        super().__init__(stream)
+        self.addFilter(_MaskRecord())
+
+    def handleError(self, record: logging.LogRecord) -> None:
+        if not logging.raiseExceptions or sys.stderr is None:
+            return
+        failure = type(sys.exc_info()[1]).__name__
+        try:
+            sys.stderr.write(
+                f"--- Logging error: {failure} in a record of {record.name};"
+                " its message and arguments are not shown ---\n"
+            )
+        except OSError:
+            pass
+
+
 def print_traceback() -> None:
     """Print the traceback of the exception being handled to stderr, each
     line indented and escaped by :func:`escape_controls`: a line of an
@@ -182,9 +263,11 @@ def loggable(text: str) -> str:
     The one escaping every message interpolating such text goes through.
     Text holding a code point of
     :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is escaped too,
-    printable or not (U+034F is a printable combining mark). It does not mask
-    the temporary checkout: ``KEY=VALUE`` data on stdout goes through it and
-    must stay as it is (messages are masked by :func:`escape_controls`).
+    printable or not (U+034F is a printable combining mark). It masks
+    nothing, neither the temporary checkout nor a credential: ``KEY=VALUE``
+    data on stdout goes through it and must stay as it is
+    (:func:`pitloom.cli.kv_output.kv_line` masks only a URL's credentials;
+    messages are masked by :func:`escape_controls`).
     """
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
@@ -196,12 +279,16 @@ EXCERPT_CHARS = 120
 
 
 def excerpt(value: object) -> str:
-    """*value* for a warning as one literal, escaped once: on one line, at
-    most :data:`EXCERPT_CHARS` characters, ``...`` after it when cut. A
-    string is its ``repr`` when printable, else its ASCII-escaped literal
-    (:func:`loggable`); any other value is its ``repr``, escaped alike."""
+    """*value* for a warning as one literal, escaped once: on one line, the
+    credentials of a URL in it masked (:func:`_masked`), then at most
+    :data:`EXCERPT_CHARS` characters, ``...`` after it when cut. Masked
+    before it is cut, so a cut never takes away the end of a URL's user
+    information and shows its start. A string is its ``repr`` when
+    printable, else its ASCII-escaped literal (:func:`loggable`); any other
+    value is its ``repr``, escaped alike."""
     is_text = isinstance(value, str)
-    text = " ".join((value if isinstance(value, str) else repr(value)).split())
+    raw = value if isinstance(value, str) else repr(value)
+    text = _masked(" ".join(raw.split()))
     cut = text[:EXCERPT_CHARS]
     escaped = loggable(cut)
     literal = repr(cut) if is_text and escaped == cut else escaped
@@ -262,11 +349,14 @@ def configure_logging(*, debug: bool | None = None) -> None:
     calls do not stack handlers and a concurrent log call sees a complete
     list; a lock serialises the reconfiguration. Propagation to the root
     logger stays on (``caplog`` captures the records), so a host that
-    configures root logging itself may see each line twice.
+    configures root logging itself may see each line twice. The handler
+    masks the credentials in each record before the root's handlers see it
+    (:class:`_MaskRecord`), and reports a failure to write one without its
+    message and arguments.
     """
     level = logging.DEBUG if _debug_requested(debug) else logging.INFO
     logger = logging.getLogger("pitloom")
-    handler = logging.StreamHandler(_uncaptured_stderr())
+    handler = _MaskedStreamHandler(_uncaptured_stderr())
     handler.setLevel(level)
     handler.setFormatter(_OneLineFormatter("%(levelname)s: %(message)s"))
     with _CONFIG_LOCK:
@@ -352,11 +442,33 @@ def one_line(value: object, limit: int | None = None) -> str:
     collapsed to one space, then escaped as :func:`loggable` does, so a
     multi-line exception message interpolated into a log message cannot
     spill untagged continuation lines onto stderr, nor forge a tagged one.
-    An exception with no message yields its class name instead of an empty
-    string. With *limit*, the collapsed text is cut to its first *limit*
-    characters before it is escaped, so the cut never splits an escaped
+    The credentials of a URL in it are masked (:func:`_masked`). An
+    exception with no message yields its class name instead of an empty
+    string. With *limit*, the collapsed text is masked, then cut to its
+    first *limit* characters, then escaped: a cut never takes away the end
+    of a URL's user information and shows its start, nor splits an escaped
     literal and loses its closing quote."""
-    text = " ".join(str(value).split())[:limit]
+    text = " ".join(str(value).split())
     if not text and isinstance(value, BaseException):
         return type(value).__name__
-    return loggable(text)
+    return loggable(_masked(text)[:limit])
+
+
+def failure_reason(failure: BaseException) -> str:
+    """The text of *failure* for a message, as :func:`one_line` writes it.
+
+    An :class:`http.client.InvalidURL` quotes the path of the URL it
+    refused, without its scheme (``'/x?token=...'``), where no URL masking
+    finds a secret parameter: only its text before the first quoted value
+    is written (``URL can't contain control characters.``), its class name
+    when that is empty. The message naming the failure names the URL itself,
+    masked."""
+    if isinstance(failure, http.client.InvalidURL):
+        head = _QUOTED_VALUE.split(str(failure), maxsplit=1)[0].rstrip(" :")
+        return one_line(head) if head.strip() else type(failure).__name__
+    return one_line(failure)
+
+
+#: Where a quoted value (a ``repr``) starts in an exception's text: a quote
+#: at the start or after white space, not an apostrophe (``can't``).
+_QUOTED_VALUE = re.compile(r"(?:^|\s)['\"]")

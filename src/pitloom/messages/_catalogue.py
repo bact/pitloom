@@ -37,6 +37,7 @@ from pitloom.messages import (
     _target_input,
     _text_malformed,
     _url_credentials,
+    _url_credentials_git,
     _usage_unparseable,
     _usage_unusable,
 )
@@ -92,6 +93,7 @@ MESSAGES: Final = _by_code(
         *_registry_conflict.ENTRIES,
         *_registry_keys.ENTRIES,
         *_url_credentials.ENTRIES,
+        *_url_credentials_git.ENTRIES,
     )
 )
 

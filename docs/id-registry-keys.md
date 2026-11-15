@@ -307,3 +307,15 @@ nothing is dropped or rewritten. To keep its ids, delete it and `loom id
 import` the last SBOM a run made with it (every file, model and dataset keeps
 its id, and each package is keyed by the version that SBOM states); `loom id
 generate` alone starts afresh, with new ids.
+
+## Credentials in a key
+
+A key is stored as written, so a URL key (or an scp-style address such as
+`alice:password@host:path`) that holds user information or a secret query
+value (`token`, `api_key`, `signature`...) is refused for `-e` and
+`register()` (`credentials-unsafe/registry`), and skipped, with a warning,
+for an SBOM element that `id import` or a run's harvest reads (its key or
+its `spdxId`). A `code`, `session`, `ticket`, `sid` or `otp` parameter, and
+a user name alone on an `ssh` or `git` URL (`git+ssh://git@github.com/o/r`,
+a repository's address), are kept as written. A `software_File` key is a
+file name, not an address, so it is never refused as an scp-style address.

@@ -43,7 +43,7 @@ NAMESPACE_RELATIVE = (
     "is not an absolute IRI (a scheme is needed, as in https://example.org/ns)"
 )
 NAMESPACE_CHARACTER = "has a character an IRI cannot hold"
-NAMESPACE_CREDENTIALS = "carries a user name, password or secret token"
+NAMESPACE_CREDENTIALS = "holds user information or a secret query value"
 NAMESPACE_PROBLEMS = (
     NAMESPACE_EMPTY,
     NAMESPACE_FRAGMENT,

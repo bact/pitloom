@@ -13,13 +13,13 @@ import logging
 import os
 import re
 import shlex
-import shutil
 import signal
 import subprocess  # nosec B404
 import threading
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from shutil import which as _which
 from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
@@ -31,6 +31,7 @@ from pitloom.core.url_masking import (
 )
 from pitloom.extract.remote import git_url
 from pitloom.extract.remote._git_credentials import (
+    RESET_HELPERS,
     GitCredentials,
     credential_config,
     split_credentials,
@@ -93,11 +94,14 @@ _SAFE_CONFIG = (
 _TALKS_TO_SERVER = frozenset({"clone", "fetch", "ls-remote", "checkout"})
 
 #: Environment variables that point git at another repository or add
-#: settings; one set by the caller (a git hook) must not reach the fetch.
+#: settings, and those that trace what git sends (``GIT_TRACE_CURL``
+#: writes the ``Authorization`` header, in full with ``GIT_TRACE_REDACT=0``);
+#: one set by the caller (a git hook, a debugging shell) must not reach the
+#: fetch.
 _SCRUBBED_ENV = re.compile(
     r"GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|NAMESPACE|COMMON_DIR|"
     r"ALTERNATE_OBJECT_DIRECTORIES|CONFIG_COUNT|CONFIG_PARAMETERS|"
-    r"CONFIG_KEY_\d+|CONFIG_VALUE_\d+)"
+    r"CONFIG_KEY_\d+|CONFIG_VALUE_\d+|TRACE\w*|CURL_VERBOSE|REDACT_COOKIES)"
 )
 
 #: Lines of git's standard error that say what went wrong.
@@ -154,7 +158,11 @@ class GitRunner:
     Every call runs with ``http.followRedirects=false`` (redirects are followed
     by hand, each hop checked), git-lfs off (it fetches from an address the
     repository names), no credential prompt (a private repository fails fast)
-    and only the allowed transports.
+    and only the allowed transports. A URL without user information is
+    fetched with the user's own credential helpers, as ``git clone`` would;
+    once one carried user information, every helper and ask-pass program of
+    the user's is reset for the runner's calls
+    (:mod:`pitloom.extract.remote._git_credentials`).
     """
 
     seconds: float = field(default_factory=lambda: GIT_TIMEOUT_SECONDS)
@@ -166,6 +174,8 @@ class GitRunner:
     #: runner (a ``fetch`` of the remote ``remote add`` made) need it, and it
     #: is never in an argument (:mod:`pitloom.extract.remote._git_credentials`).
     credentials: GitCredentials | None = None
+    #: Whether a URL a call named carried user information (sent or not).
+    userinfo_given: bool = False
 
     def remaining(self) -> float:
         """Seconds left of the shared deadline."""
@@ -185,24 +195,18 @@ class GitRunner:
 
         Raises:
             RemoteSourceError: ``git.not-found`` (no ``git``),
+                ``git.url-invalid`` (a URL whose user information cannot be
+                taken out of the arguments),
                 ``git.timeout`` (the deadline passed), ``git.too-large``
                 (the cap was passed), ``git.output-too-large`` or
                 ``git.clone-failed`` (git failed; the message is its own).
         """
-        git = shutil.which("git")
+        git = _which("git")
         if git is None:
             raise RemoteSourceError(
                 "git.not-found", "git is not installed or not on PATH."
             )
-        args, found = split_credentials(args)
-        self.credentials = found or self.credentials
-        # Only a call that talks to the server gets the credential, in its
-        # helper and its environment: not a hook or helper of a local call.
-        sent = self.credentials if _TALKS_TO_SERVER.intersection(args) else None
-        command = [git]
-        for setting in (*_SAFE_CONFIG, *credential_config(sent)):
-            command += ["-c", setting]
-        command += args
+        command, sent = self._command(git, args)
         if echo:
             log.info(
                 "Git source: $ %s",
@@ -235,6 +239,23 @@ class GitRunner:
         if status != 0:
             raise _failed(what, err, status)
         return out
+
+    def _command(
+        self, git: str, args: list[str]
+    ) -> tuple[list[str], GitCredentials | None]:
+        """The command line of a call of *git* with *args*, their user
+        information taken out and kept, and the credentials it sends."""
+        plain, found = split_credentials(args)
+        self.credentials = found or self.credentials
+        self.userinfo_given = self.userinfo_given or plain != args
+        # Only a call that talks to the server gets the credential, in its
+        # helper and its environment: not a hook or helper of a local call.
+        sent = self.credentials if _TALKS_TO_SERVER.intersection(plain) else None
+        command = [git]
+        settings = credential_config(sent, reset=self.userinfo_given)
+        for setting in (*_SAFE_CONFIG, *settings):
+            command += ["-c", setting]
+        return command + plain, sent
 
     def _timeout(self, what: str) -> RemoteSourceError:
         """``git.timeout``: the shared deadline passed before or during the
@@ -285,16 +306,20 @@ def _failure(err: str, status: int) -> str:
     return loggable(text)
 
 
-def _environment(credentials: GitCredentials | None = None) -> dict[str, str]:
+def _environment(
+    credentials: GitCredentials | None = None, *, reset: bool = False
+) -> dict[str, str]:
     """The environment git runs in: the caller's, without what points git
-    elsewhere, with no prompt, no LFS download, only the allowed transports
-    and English messages (:data:`_LOCALE`)."""
+    elsewhere or traces it, with no terminal prompt, no LFS download, only
+    the allowed transports and English messages (:data:`_LOCALE`); with
+    *reset* (a URL carried user information), no ask-pass program."""
     env = {k: v for k, v in os.environ.items() if not _SCRUBBED_ENV.fullmatch(k)}
     env["GIT_TERMINAL_PROMPT"] = "0"
     env["GIT_LFS_SKIP_SMUDGE"] = "1"
-    # An empty program is no program: no ask-pass of the caller's runs.
-    env["GIT_ASKPASS"] = ""
-    env["SSH_ASKPASS"] = ""
+    if reset:
+        # An empty program is no program: no ask-pass of the caller's runs.
+        env["GIT_ASKPASS"] = ""
+        env["SSH_ASKPASS"] = ""
     if credentials is not None:
         env.update(credentials.environment())
     env["GIT_ALLOW_PROTOCOL"] = ":".join(sorted(git_url.ALLOWED_SCHEMES))
@@ -322,7 +347,7 @@ def _taskkill() -> str | None:
         candidate = os.path.join(root, "System32", "taskkill.exe")
         if os.path.isfile(candidate):
             return candidate
-    return shutil.which("taskkill")
+    return _which("taskkill")
 
 
 def _kill(proc: subprocess.Popen[bytes]) -> None:
@@ -390,12 +415,14 @@ def _capture(
     """Run *command* for at most *seconds*: its exit status (``None`` when
     killed for time), its standard output (``None`` when over
     :data:`MAX_OUTPUT_BYTES`, then killed) and its standard error. With *cap*,
-    it is killed when it passes it (``cap.exceeded``)."""
+    it is killed when it passes it (``cap.exceeded``). *credentials* go to
+    its environment, and no ask-pass program when *command* resets the
+    credential helpers (one rule for its settings and its environment)."""
     with subprocess.Popen(  # nosec B603: argv list, no shell
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=_environment(credentials),
+        env=_environment(credentials, reset=RESET_HELPERS in command),
         # Its own process group, so a kill reaches what git started
         # (git-remote-https holds the pipe open).
         start_new_session=_POSIX,

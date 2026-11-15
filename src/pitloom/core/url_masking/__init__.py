@@ -35,40 +35,80 @@ from pitloom.core.url_masking._params import (
     PARAM_RE,
     WHOLE_PARAM_RE,
     is_secret_name,
+    is_weak_name,
     mask_free_param,
     mask_param,
 )
 from pitloom.core.url_masking._scan import masked_once
+from pitloom.core.url_masking._strip import find_urls, neutral, rebuilt
+from pitloom.core.url_masking._userinfo import (
+    ACCOUNT_SCHEMES,
+    is_account_name,
+    split_userinfo,
+    userinfo_end,
+)
 
 __all__ = [
+    "ACCOUNT_SCHEMES",
     "CHECKOUT_DIR_PREFIX",
     "CHECKOUT_PLACEHOLDER",
     "DOWNLOAD_DIR_PREFIX",
     "DOWNLOAD_PLACEHOLDER",
     "HUB_DIR_PREFIX",
     "URL_AS_PATH_RE",
-    "mask_checkout",
     "holds_url_credentials",
+    "is_account_name",
+    "is_secret_name",
+    "keeps_url_credential",
+    "keeps_weak_parameter",
+    "mask_checkout",
     "masked_given_path",
     "sanitize_url",
     "sanitize_url_credentials",
+    "split_userinfo",
     "strip_url_secrets",
     "url_without_credentials",
+    "userinfo_end",
 ]
 
-#: ``://`` and a userinfo (non-empty, up to the last ``@`` before a ``/`` or
-#: whitespace: a password holding ``?`` or ``#`` is masked whole).
-_URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
-
-
+#: ``://``, where a user information may follow, in free text; it ends at
+#: the first ``/`` or white space.
+_FREE_OPENER = re.compile("://")
+_FREE_STOP = re.compile(r"[/\s]")
 #: A URL in a text, to its end at whitespace.
 _URL_RE = re.compile(r"://\S+")
+#: The same in a text that is one URL, also as ``Path`` collapses its
+#: ``//`` (``https:/u@h``) or a Windows ``Path`` writes it (``https:\\u@h``);
+#: it ends at the first separator of its kind, whatever else it holds.
+_WHOLE_OPENER = re.compile(r":(?:/{1,2}|\\{1,2})")
+_WHOLE_STOP = {"/": re.compile("/"), "\\": re.compile(r"[/\\]")}
 
-#: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
-#: before the first ``/``, whatever characters (a newline, a space, a ``\\``)
-#: it holds. ``:/`` too, for a URL a POSIX path normalisation collapsed, and
-#: ``:\\``, for one a Windows path wrote, where it ends at either separator.
-_WHOLE_URL_USERINFO_RE = re.compile(r":(?:/{1,2}[^/@][^/]*|\\{1,2}[^/\\@][^/\\]*)@")
+
+def _replaced_userinfo(
+    text: str, opener: re.Pattern[str], replacement: str, *, whole: bool
+) -> str:
+    """*text* with each opener and the user information after it
+    (:func:`userinfo_end`, to the first ``/``, or white space unless
+    *whole*) replaced by *replacement*. Each opener's search for its end
+    stops at the next opener at the latest, so the scan is linear."""
+    parts: list[str] = []
+    done = 0
+    for found in opener.finditer(text):
+        start = found.end()
+        if found.start() < done:
+            continue
+        stop = _WHOLE_STOP[found.group()[1]] if whole else _FREE_STOP
+        end = stop.search(text, start)
+        at = userinfo_end(
+            text, start, len(text) if end is None else end.start(), widest=True
+        )
+        if at is not None:
+            parts += (text[done : found.start()], replacement)
+            done = at + 1
+    if not parts:
+        return text
+    parts.append(text[done:])
+    return "".join(parts)
 
 
 #: The ``user:password@`` of an scp-style address (``alice:pw@host:o/r``): no
@@ -100,12 +140,13 @@ def sanitize_url_credentials(text: str) -> str:
 
     Used across extractors, build backends, and error loggers to prevent
     sensitive auth tokens from leaking into error messages or SBOM output.
-    The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
-    so a password holding ``@``, ``?`` or ``#`` is redacted whole. For a text
-    that is one URL, use :func:`sanitize_url`.
+    The userinfo ends at the last ``@`` before the first ``/`` or whitespace
+    (:func:`userinfo_end`), so a password holding ``@``, ``?`` or ``#`` is
+    redacted whole, and ``https://h?contact=me@x.org`` is a query. For a
+    text that is one URL, use :func:`sanitize_url`.
     """
-    text = _mask_scp(text)
-    return _URL_RE.sub(_mask_url_secrets, _URL_USERINFO_RE.sub("://***:***@", text))
+    text = _replaced_userinfo(_mask_scp(text), _FREE_OPENER, "://***:***@", whole=False)
+    return _URL_RE.sub(_mask_url_secrets, text)
 
 
 def sanitize_url(url: str) -> str:
@@ -113,9 +154,8 @@ def sanitize_url(url: str) -> str:
     userinfo is redacted whole even when it holds a newline or a space, and
     a secret parameter's value up to the next ``&``, ``;``, ``#`` or the
     end, over a quote or white space."""
-    return WHOLE_PARAM_RE.sub(
-        mask_param, _WHOLE_URL_USERINFO_RE.sub("://***:***@", url)
-    )
+    masked = _replaced_userinfo(url, _WHOLE_OPENER, "://***:***@", whole=True)
+    return WHOLE_PARAM_RE.sub(mask_param, masked)
 
 
 #: A URL at the start of a text, also as ``Path`` collapses its ``//``
@@ -199,77 +239,82 @@ def url_without_credentials(url: str) -> str:
     host/`` -> ``https://host/``) and with the value of a query parameter
     named like a secret masked (:func:`sanitize_url_credentials`): the URL
     to keep where a credential must not be (a clone's ``.git/config``)."""
-    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://", url))
-
-
-#: The user information of a URL to strip: up to the last ``@`` before a
-#: ``/``, ``?`` or ``#`` (a ``@`` in a query is not one).
-_STRIP_USERINFO_RE = re.compile(r"://([^/\s?#@][^/\s?#]*)@")
-#: Schemes whose user name alone (``git@``) is how the server is reached.
-_USER_ONLY_SCHEMES = frozenset({"ssh", "git+ssh", "ssh+git", "git"})
-#: A URL in a text, from its scheme to white space or a quote. A scheme only
-#: starts at the start of a run of scheme characters, so a search stays
-#: linear.
-_URL_SCAN_RE = re.compile(r"(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]*)://[^\s\"<>]+")
-
-
-def _drop_secret_params(url: str, *, weak: bool) -> str:
-    """*url* without the parameters named like a secret (``?token=x&a=1`` is
-    ``?a=1``), and without a ``?`` or ``#`` left bare. Only names that are
-    secrets whatever their value (:func:`is_secret_name`, not *weak*)."""
-
-    def drop(match: re.Match[str]) -> str:
-        if not is_secret_name(match.group(2), weak=weak):
-            return match.group(0)
-        return "?" if match.group(1) == "?" else ""
-
-    dropped = PARAM_RE.sub(drop, url)
-    if dropped == url:
-        return url
-    # ``?token=x&a=1`` left ``?&a=1``: the next parameter takes the ``?``.
-    dropped = re.sub(r"\?[&;]", "?", dropped).replace("?#", "#")
-    return dropped.rstrip("?&;")
+    return sanitize_url_credentials(
+        _replaced_userinfo(url, _WHOLE_OPENER, "://", whole=True)
+    )
 
 
 def strip_url_secrets(text: str, *, weak: bool = False) -> tuple[str, list[str]]:
     """*text* with, in each URL in it, the user information and each
     parameter named like a secret removed (``https://u:p@h/x?token=T&a=1``
     is ``https://h/x?a=1``): what an SBOM may state of a URL a project
-    declared. A URL ends at white space or a quote (the text may be JSON). A
-    user name alone on an ``ssh`` or ``git`` URL (``git@``) is how a server
-    is reached, not a credential. Also returns each URL changed, masked
-    (:func:`sanitize_url_credentials`), for a message. A text with no URL is
-    returned as it is. Names that hold a secret only sometimes (``code``,
-    ``session``, ``ticket``, ``sid``, ``otp``) are kept as written, unless
-    *weak*."""
+    declared. The URLs and their user information are read as
+    :mod:`pitloom.core.url_masking._strip` says (a URL ends at white space,
+    a quote or an angle bracket, the text may be JSON, and a URL in a
+    parameter value is read on its own). A user name alone on an ``ssh`` or
+    ``git`` URL that is an account name (:func:`is_account_name`: ``git@``)
+    is how a server is reached, not a credential, and is kept. Also returns
+    each URL changed, for a message: what is removed masked, what is kept
+    as written (it is in the SBOM). A text with no URL is returned as it
+    is. Names that hold a secret only sometimes (``code``, ``session``,
+    ``ticket``, ``sid``, ``otp``) are kept as written, unless *weak*."""
     if "://" not in text:
         return text, []
+    parts: list[str] = []
     changed: list[str] = []
-
-    def userinfo(match: re.Match[str], scheme: str) -> str:
-        keeps = scheme.lower() in _USER_ONLY_SCHEMES and ":" not in match.group(1)
-        return match.group(0) if keeps else "://"
-
-    def strip(match: re.Match[str]) -> str:
-        url = match.group(0)
-        plain = _STRIP_USERINFO_RE.sub(
-            lambda found: userinfo(found, match.group(1)), url, count=1
-        )
-        plain = _drop_secret_params(plain, weak=weak)
-        if plain != url:
-            changed.append(sanitize_url_credentials(url))
-        return plain
-
-    return _URL_SCAN_RE.sub(strip, text), changed
+    done = 0
+    for url in find_urls(text, weak=weak):
+        found = rebuilt(text, url)
+        if found is not None:
+            parts += (text[done : url.start], found[0])
+            changed.append(found[1])
+            done = url.end
+    if not parts:
+        return text, []
+    parts.append(text[done:])
+    return "".join(parts), changed
 
 
-def holds_url_credentials(text: str, *, scp: bool = True) -> bool:
+def keeps_weak_parameter(url: str) -> bool:
+    """Whether *url* has a parameter with a name that holds a secret only
+    sometimes (``code``, ``session``...: ``WEAK_SECRET_NAMES`` of
+    :mod:`pitloom.core.url_masking._params`), which
+    :func:`strip_url_secrets` keeps."""
+    return any(is_weak_name(found.group(2)) for found in PARAM_RE.finditer(url))
+
+
+def keeps_url_credential(url: str) -> bool:
+    """Whether :func:`strip_url_secrets` keeps something in *url* that may
+    be a credential: a parameter with a weak name
+    (:func:`keeps_weak_parameter`) or a user name alone on an ``ssh`` or
+    ``git`` URL (:func:`is_account_name`), so a message can say it is kept,
+    not removed."""
+    if keeps_weak_parameter(url):
+        return True
+    return any(found.account for found in find_urls(url) if found.userinfo)
+
+
+def holds_url_credentials(
+    text: str, *, scp: bool = True, account: bool = False
+) -> bool:
     """Whether *text*, a value Pitloom would store as written (a registry
-    key, a namespace), holds credentials: user information (an scp-style
-    ``user:password@host:path`` too) or a parameter named like a secret (not
-    the weak names, kept as in an SBOM). With *scp* false, only a URL: a file
-    name such as ``meet 10:30@ab:c.txt`` is no address."""
-    return bool(strip_url_secrets(text)[1] or (scp and _SCP_USERINFO_RE.search(text)))
+    key, a namespace), holds credentials: any user information (an
+    scp-style ``user:password@host:path`` too), a parameter named like a
+    secret (not the weak names, kept as in an SBOM), or anything else the
+    masker would mask (:func:`masked_given_path`) that an SBOM does not
+    keep. With *account*, a user name alone on an ``ssh`` or ``git`` URL
+    that is an account name (``git@``, :func:`is_account_name`) is accepted,
+    as in an SBOM. With *scp* false, only a URL: a file name such as ``meet
+    10:30@ab:c.txt`` is no address."""
+    if scp and _SCP_USERINFO_RE.search(text):
+        return True
+    urls = find_urls(text) if "://" in text else []
+    for url in urls:
+        if url.userinfo is not None and not (account and url.account):
+            return True
+        if any(removed for *_, removed in url.params):
+            return True
+    return masked_given_path(text) != _mask_scp(neutral(text, urls))
 
 
 #: The name prefix of the temporary directory a Git URL is checked out in.

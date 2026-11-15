@@ -144,7 +144,9 @@ NAMESPACE_CONFLICT_LINE: Final = Line(
     template=f"{REGISTRY_PREFIX}FILE=%(file)s: namespace %(namespace)s is not "
     "--namespace %(given_namespace)s; delete it to change the namespace",
 )
-#: The same, when the two read alike once their credentials are masked.
+#: The same, when the two read alike once masked: a namespace holds no
+#: credential, but a ``code`` or ``session`` value it keeps is masked in a
+#: message (``?code=A`` and ``?code=B``).
 NAMESPACE_CONFLICT_MASKED_LINE: Final = Line(
     level="ERROR",
     template=f"{REGISTRY_PREFIX}FILE=%(file)s: namespace %(namespace)s is not "

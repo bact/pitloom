@@ -26,7 +26,7 @@ from pitloom.core.path_confine import NotRegularFileError
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.provenance import provenance_segment
 from pitloom.core.quote_source import quote_source
-from pitloom.core.url_masking import masked_given_path
+from pitloom.logging_config import failure_reason
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import (
     JSON_MALFORMED,
@@ -257,7 +257,7 @@ def fetch_json(
             where = quote_source(source)
             # An exception names the URL it failed on: masked, since this
             # text reaches a library caller that never passes the log sink.
-            why = masked_given_path(str(exc), line=True)
+            why = failure_reason(exc)
             raise ValueError(f"Cannot read {subject} {where}: {why}") from exc
         raise file_unreadable_error(exc, file=source, use=use) from exc
 

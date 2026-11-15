@@ -71,9 +71,14 @@ Windows drive path works, as in
 blank `NAME` or a package `NAME` that is not a PEP 508 name (`foo==1.0`:
 write `foo@1.0`) is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
-absolute IRI without `#`; default: the project directory's name and a
-random UUID4); an existing registry with another namespace is one `ERROR:`,
-exit 1. A
+absolute IRI without `#`, and without user information or a secret query
+value such as `token`: any user name is refused, `ssh://git@...` too; a
+`code`, `session`, `ticket`, `sid` or `otp` parameter is accepted as
+written; default: the project directory's name and a random UUID4); an
+existing registry with another namespace is one `ERROR:`, exit 1. The
+library's `IdRegistry(namespace=...)` and `IdRegistry.new(namespace=...)`
+refuse such a namespace with a `ValueError`, coded
+`credentials-unsafe/registry` for a credential. A
 registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
 is not a non-empty string, does not load. `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
@@ -350,6 +355,11 @@ and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
+`register()` raises `ValueError` for a key holding user information or a
+secret query value, and harvest and `id import` skip an element whose key
+or `spdxId` holds one, with a `WARNING:` (both
+`credentials-unsafe/registry`; see
+[Credentials in a key](id-registry-keys.md#credentials-in-a-key)).
 `generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
 [input-not-found]`) for a path that is not there, and `ValueError` (`ID
 registry: PATH '<path>' is not inside the project root '<root>'

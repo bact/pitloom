@@ -111,7 +111,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "pypi-url-invalid": (
         "not a PyPI project or release page",
         "PyPI is read over https only",
-        "holds user information",
+        "holds user information; a PyPI URL",
         "only pypi.org is read",
         "is PyPI's old address",
         "a file link is not read yet",
@@ -213,9 +213,13 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "text-malformed": ("lone surrogates written", "cannot be encoded as UTF-8"),
     "credentials-unsafe": (
         "removed from the SBOM",
-        "without its credentials; no SBOM is written",
+        "that the SBOM keeps as written",
+        "once its credentials are removed; no SBOM is written",
         "are not sent to git",
+        "credentials are sent in clear",
         "an ID registry key is stored as written",
+        "an ID registry namespace is stored as written",
+        "so the element is skipped",
     ),
     "url-moved": ("; followed",),
     "url-unsafe": ("redirects to ", "; not fetched"),

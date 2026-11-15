@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-30
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -294,14 +294,21 @@ in the generated SBOM.
 
 ## Credentials in a URL
 
-A URL a project declares (a direct dependency, a project URL) may hold a
-user name or password, or a query parameter named like a secret (`token`,
-`key`, `signature`). An SBOM can be published, so Pitloom states the URL
-without them and says so once per URL, as `WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user information or a secret query value; removed from the SBOM [credentials-unsafe]`.
-
-A parameter named `code`, `session`, `ticket`, `sid` or `otp`, and a user
-name alone on an `ssh` or `git` URL (`git@`), are kept as written. Treat a
-credential that was in a project file as exposed.
+A URL a project declares (a direct dependency, a project URL, a dataset's
+download URL and the PURL built from it) may hold a user name or password,
+or a query parameter named like a secret (`token`, `key`, `signature`,
+`session_id`, `sessionid`). An SBOM can be published, so Pitloom states the
+URL without them and says so once per URL, as
+`WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user
+information or a secret query value; removed from the SBOM
+[credentials-unsafe]`. A parameter named `code`, `session`, `ticket`,
+`sid` or `otp`, which holds a secret only sometimes, and a user name alone
+on an `ssh` or `git` URL (`ssh://git@github.com/o/r`) are kept as written,
+and said too, once per URL: `holds a code, session, ticket, sid or otp
+parameter or an ssh user name that the SBOM keeps as written`. The log line
+may still mask a kept `code` value. A user name that looks like a token
+(`ssh://ghp_...@github.com/o/r`) is removed. Treat a credential that was in
+a project file as exposed.
 
 ## Configuration and flags
 

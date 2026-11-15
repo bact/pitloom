@@ -3,7 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 JSON-LD exporter for generating SBOM documents."""
+"""SPDX 3 JSON-LD exporter for generating SBOM documents.
+
+See also: :mod:`pitloom.export._spdx3_strip` (the credentials removed from
+every URL of the exported graph).
+"""
 
 from __future__ import annotations
 
@@ -22,13 +26,9 @@ from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
-from pitloom.core.url_masking import strip_url_secrets
+from pitloom.export._spdx3_strip import strip_graph_credentials
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 from pitloom.messages.files import warn_lone_surrogates
-from pitloom.messages.url_credentials import (
-    id_collision_error,
-    warn_url_credentials_stripped,
-)
 
 if TYPE_CHECKING:
     from pitloom.core.lfs_pointer import LfsPointer
@@ -137,66 +137,6 @@ def _escape_lone_surrogates(graph: list[dict[str, Any]]) -> None:
     changed = escape_lone_surrogates_in_elements(graph)
     if changed:
         warn_lone_surrogates(log, file=min(changed))
-
-
-def _stripped_urls(value: Any, seen: list[str], ids: dict[str, str]) -> Any:
-    """*value*, a decoded JSON value, with the credentials of each URL in each
-    string removed (:func:`~pitloom.core.url_masking.strip_url_secrets`);
-    each URL changed is added to *seen*, masked. A string that is an
-    element id (*ids*, old to new) becomes the same new id wherever it
-    stands, so a reference never dangles. The same object when nothing in it
-    changed, so a clean SBOM is not copied."""
-    if isinstance(value, str):
-        if value in ids:
-            return ids[value]
-        plain, changed = strip_url_secrets(value)
-        seen.extend(changed)
-        return value if plain == value else plain
-    if isinstance(value, list):
-        items = [_stripped_urls(item, seen, ids) for item in value]
-        return (
-            value if all(a is b for a, b in zip(items, value, strict=True)) else items
-        )
-    if isinstance(value, dict):
-        fields = {key: _stripped_urls(item, seen, ids) for key, item in value.items()}
-        same = all(fields[key] is item for key, item in value.items())
-        return value if same else fields
-    return value
-
-
-def _stripped_ids(graph: list[dict[str, Any]], seen: list[str]) -> dict[str, str]:
-    """Each element id of *graph* that holds credentials, to the id without
-    them (what its references become too).
-
-    Raises:
-        pitloom.messages.CodedValueError: Two ids are one without their
-            credentials (``credentials-unsafe/id-collision``)."""
-    ids: dict[str, str] = {}
-    held = {str(e[k]) for e in graph for k in ("spdxId", "@id") if k in e}
-    for element in graph:
-        for key in ("spdxId", "@id"):
-            old = element.get(key)
-            if isinstance(old, str):
-                new, changed = strip_url_secrets(old)
-                if changed:
-                    if new in held or new in ids.values():
-                        raise id_collision_error(old)
-                    ids[old] = new
-                    seen.extend(changed)
-    return ids
-
-
-def _strip_url_credentials(graph: list[dict[str, Any]]) -> None:
-    """The user information and secret query parameters of each URL in
-    *graph* (a project URL, a dependency's direct URL, a provenance note, an
-    id of a third-party fragment), removed in place, with one ``WARNING:``
-    per URL: the one place every surface's SBOM passes, which a wheel can
-    embed and anyone can publish."""
-    seen: list[str] = []
-    ids = _stripped_ids(graph, seen)
-    graph[:] = _stripped_urls(graph, seen, ids)
-    for url in dict.fromkeys(seen):
-        warn_url_credentials_stripped(log, url)
 
 
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
@@ -631,7 +571,7 @@ class Spdx3JsonExporter:
         data = json.loads(out_f.getvalue())
         _escape_lone_surrogates(data.get("@graph", [data]))
         if "@graph" in data:
-            _strip_url_credentials(data["@graph"])
+            strip_graph_credentials(data["@graph"])
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
             _check_no_duplicate_spdx_ids(data["@graph"])

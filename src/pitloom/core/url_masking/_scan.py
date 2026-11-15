@@ -22,6 +22,7 @@ from pitloom.core.url_masking._params import (
     free_value_end,
     is_secret_name,
 )
+from pitloom.core.url_masking._userinfo import userinfo_end
 
 #: A run of scheme characters, ``:`` and a separator: where a URL may start
 #: in a text, the scheme from the run's first letter (``1https://``). Each
@@ -194,7 +195,10 @@ class _Scan:
         """The span of the user information of the *url* (scheme start,
         separator), or ``None``: to the last ``@`` before the next ``/`` or
         the end of the text, in a *line* before white space too, either not
-        in a secret parameter's value (:meth:`_userinfo_end`). A quote does
+        in a secret parameter's value (:meth:`_userinfo_end`), read by the
+        one rule (:func:`~pitloom.core.url_masking._userinfo.userinfo_end`:
+        a ``?`` or ``#`` before that ``@`` is the user information's only
+        after ``user:password``). A quote does
         not end it (RFC 3986 allows ``'`` there); a ``\\`` does not either
         (after ``:\\``, a Windows path's, it may be a separator or the
         password's: the two cannot be told apart, so a path's ``@`` may be
@@ -211,8 +215,8 @@ class _Scan:
         end = self._userinfo_end(start, self.quote(scheme))
         if first_at >= end:
             return None
-        at = self.text.rfind("@", start, end)
-        return (start, at) if at > start else None
+        at = userinfo_end(self.text, start, end, widest=True)
+        return None if at is None else (start, at)
 
     def value_tail(self, userinfo: tuple[int, int], quote: str) -> int | None:
         """Where the secret parameter value holding the ``@`` that ends the

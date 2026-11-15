@@ -26,13 +26,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.given_path import keep_spelling
-from pitloom.core.iri import (
-    doc_namespace,
-    iri_segment,
-    namespace_problem,
-    require_namespace_iri,
-)
-from pitloom.core.url_masking import holds_url_credentials
+from pitloom.core.iri import doc_namespace, iri_segment, namespace_problem
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -41,6 +35,10 @@ from pitloom.id_registry._counters import (
     Counters,
     id_number,
     merge_counters,
+)
+from pitloom.id_registry._credentials import (
+    require_key_without_credentials,
+    require_registry_namespace,
 )
 from pitloom.id_registry._format import (
     read_registry_file,
@@ -58,7 +56,6 @@ from pitloom.id_registry._persist import (
 from pitloom.id_registry._sbom_read import document_id, read_sbom_objects
 from pitloom.id_registry._types import (
     DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
     RegistryEntry,
     _element_key,
     _require_names,
@@ -81,7 +78,6 @@ from pitloom.messages.options import (
     namespace_conflict_line,
 )
 from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
-from pitloom.messages.url_credentials import registry_key_credentials_error
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -96,6 +92,12 @@ class IdRegistry:
     element has; a lookup decides whether the hash must match
     (:meth:`lookup`). :attr:`id_counters` keeps a retired id from being
     minted again (:meth:`reserve_id`).
+
+    Raises:
+        ValueError: *namespace* cannot be a document namespace
+            (:func:`~pitloom.id_registry._credentials.require_registry_namespace`:
+            ``credentials-unsafe/registry`` when it holds credentials), so
+            no id is minted in it.
     """
 
     def __init__(
@@ -107,7 +109,7 @@ class IdRegistry:
         *,
         id_counters: Counters | None = None,
     ) -> None:
-        self.namespace = namespace
+        self.namespace = require_registry_namespace(namespace)
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
@@ -138,8 +140,9 @@ class IdRegistry:
     ) -> IdRegistry:
         """Create a fresh, empty registry.
 
-        The namespace is *namespace* (an absolute IRI without ``#``; a
-        ``ValueError`` otherwise), else one minted from *project_name* (the
+        The namespace is *namespace* (an absolute IRI without ``#`` or
+        credentials; a ``ValueError`` otherwise, see :class:`IdRegistry`),
+        else one minted from *project_name* (the
         CLI passes the project directory's name) and a random UUID4. It is
         fixed once the registry is created: the registry file is an input, so
         a committed one gives identical ids.
@@ -148,8 +151,6 @@ class IdRegistry:
         """
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
-        else:
-            require_namespace_iri(namespace)
         return cls(namespace=namespace, path=path, project_root=project_root)
 
     @classmethod
@@ -405,8 +406,7 @@ class IdRegistry:
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
-        if holds_url_credentials(name, scp=type_name != FILE_TYPE):
-            raise registry_key_credentials_error(name)
+        require_key_without_credentials(type_name, name)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)

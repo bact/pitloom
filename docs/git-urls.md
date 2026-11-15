@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -266,9 +266,8 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
 - **A downloaded repository is untrusted.** Its own `[tool.pitloom]` settings are
   ignored (`INFO: Git source: the repository's own [tool.pitloom] settings are
   ignored (untrusted) ... [config-unsafe]`; `--config FILE` is yours and
-  applies), and `--allow-build` is reported as having no effect. The URL's
-  user information is not kept: the clone's `.git/config` is rewritten without
-  it right after checkout. A discovery failure shows only the exception type
+  applies), and `--allow-build` is reported as having no effect. A discovery
+  failure shows only the exception type
   ("text not shown for a downloaded repository"), and a line of the
   repository's requirements file is replaced by `<a line of the downloaded
   repository, not shown>`.
@@ -286,6 +285,30 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   dynamic version, `setup.py` (read as a syntax tree), a Poetry build script
   and in-tree backends do not run the repository's code either. A local
   project is not changed: it still runs its own hooks, as a build would.
+- **Credentials in the URL** (`https://user:token@host/...`) never reach
+  `git`'s command line, which any user of the machine can read, nor the
+  clone's `.git/config`: Pitloom takes them out of the URL and hands them to
+  `git` through a credential helper of its own, for that host alone, in the
+  environment of the calls that contact the server. For such a URL every
+  credential helper and ask-pass program of yours (a keychain, Git Credential
+  Manager, `gh`, `~/.git-credentials`) is switched off: none is asked, and
+  nothing is stored in one. A URL without credentials is fetched as `git
+  clone` fetches it, with your own helpers or `.netrc`, the better place for a
+  credential. `git` never prompts on the terminal (a private repository it
+  cannot sign in to fails at once), and the `GIT_TRACE*` and
+  `GIT_CURL_VERBOSE` variables of the calling environment, which can write
+  what `git` sends, are not passed on.
+  - A plain `http://` URL with credentials is fetched with them, and
+    `WARNING: URL=<url>: credentials are sent in clear over http; use https
+    [credentials-unsafe/http-clear]` says so once.
+  - Credentials holding a line break (`%0A`, `%0D`) are not sent: the URL is
+    fetched without them, with `WARNING: URL=<url>: credentials holding a line
+    break are not sent to git [credentials-unsafe/git-line-break]`.
+  - A URL whose user information `git` would read differently from Pitloom
+    (an `@` after a `?` or `#` and before the first `/`, a malformed host or
+    port) is refused before `git` runs: `ERROR: ... Invalid URL: <url>: its
+    user information cannot be taken out of the git command line.`
+    (`git.url-invalid`).
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
   follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
@@ -381,7 +404,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
 | `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |
 | `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
-| `INFO:` | `Git source: $ git …` | each `git` call, credentials masked |
+| `INFO:` | `Git source: $ git …` | each `git` call; a URL's credentials are not among its arguments |
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
 | `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder were not followed` | such links were removed |
 | `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
@@ -394,11 +417,11 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `ERROR:` | `<frame>: …` | the run could not finish (the frame names the command) |
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
-and, in a URL, the value of a query or fragment parameter named `token`, `key`,
-`secret`, `password`, `sig`, `signature` and the like, or ending in `_token`,
-`_secret`, `_key` or `_password`: `?private_token=***`) and with control
-characters escaped. A secret in a parameter with another name is not
-recognised. What a server or `git` says is reduced to
+`***:***@host:path` for an scp-style address, and the value of each query or
+fragment parameter named like a secret, as listed in
+[Credentials in a URL](dependency-sources.md#credentials-in-a-url):
+`?private_token=***`) and with control characters escaped. A secret in a
+parameter with another name is not recognised. What a server or `git` says is reduced to
 one line (its `fatal:`, `error:` and `remote:` lines), so it cannot add a
 tagged line of its own.
 

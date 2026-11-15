@@ -41,8 +41,8 @@ and this project adheres to
   read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` and ID registry `WARNING:` line and `-v` detail masks the
-  credentials and tokens of each URL ([#482], [#486])
+- Every log line, traceback and `-v` detail masks the credentials and tokens of
+  each URL; an SBOM states a project's URLs without them ([#482], [#486], [#487])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -51,18 +51,23 @@ and this project adheres to
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
 
+- `--namespace`, `-e` and `IdRegistry` refuse credentials in a namespace or key;
+  `id import` skips such elements; a merge can fail with `id-collision` ([#487])
+- Git URL fetches reset system credential helpers only for a URL with user
+  information; the password is not in git's arguments ([#487])
+
 ### Fixed
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
-- URL credentials no longer reach logs, tracebacks, `KEY=VALUE` stdout or the
-  SBOM; an SBOM drops a URL's user information and secret parameters
-  (`credentials-unsafe`) ([#487])
-- A Git URL's password is passed to `git` by an ephemeral credential helper,
-  not in its arguments; every system credential helper is switched off for
-  Git URL fetches ([#487])
-- `loom id generate` refuses a `--namespace` or `-e` URL that holds
-  credentials ([#487])
+
+### Security
+
+- Credentials in a URL (user information, secret query values) no longer reach
+  logs, git credential stores, SBOMs or registry files; see the limits in
+  `docs/dependency-sources.md` ([#487])
+- Rotate any credential that appeared in an SBOM, wheel, registry file or CI
+  log from version 0.24.0 or earlier ([#487])
 
 [#481]: https://github.com/bact/pitloom/pull/481
 [#482]: https://github.com/bact/pitloom/pull/482

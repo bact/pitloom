@@ -10,17 +10,30 @@
 ``download_url`` qualifier. The PyPI form is
 :func:`pitloom.core.models.build_pypi_purl`.
 
-See also: https://github.com/package-url/purl-spec (type definitions).
+See also: https://github.com/package-url/purl-spec (type definitions) and
+:mod:`pitloom.export._spdx3_strip` (the SBOM-wide strip that calls
+:func:`strip_purl_secrets`).
 """
 
 from __future__ import annotations
 
 import re
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
-__all__ = ["build_generic_purl", "build_huggingface_purl", "commit_hash"]
+from pitloom.core.url_masking import strip_url_secrets
+
+__all__ = [
+    "build_generic_purl",
+    "build_huggingface_purl",
+    "commit_hash",
+    "is_purl",
+    "purl_qualifier_values",
+    "strip_purl_secrets",
+]
 
 _GIT_SHA = re.compile(r"[0-9a-fA-F]{40}")
+#: The ``safe`` characters of a qualifier value written as a URL.
+_URL_SAFE = "/:"
 
 
 def commit_hash(revision: object) -> str | None:
@@ -59,8 +72,13 @@ def build_generic_purl(
     """Return ``pkg:generic/<name>[@<version>][?checksum=..&download_url=..]``.
 
     *checksum* is ``<algorithm>:<hex>``. Qualifiers are in key order, as the
-    PURL specification canonicalises them.
+    PURL specification canonicalises them. *download_url* goes in without
+    its credentials (:func:`~pitloom.core.url_masking.strip_url_secrets`):
+    encoded, they would pass the SBOM-wide strip unread. The caller states
+    the URL itself elsewhere, where that strip says what it removed.
     """
+    if download_url:
+        download_url = strip_url_secrets(download_url)[0]
     purl = f"pkg:generic/{_encode(name)}"
     if version:
         purl += f"@{_encode(version)}"
@@ -68,8 +86,50 @@ def build_generic_purl(
         f"{key}={_encode(value, safe=safe)}"
         for key, value, safe in (
             ("checksum", checksum, ":"),
-            ("download_url", download_url, "/:"),
+            ("download_url", download_url, _URL_SAFE),
         )
         if value
     ]
     return purl + ("?" + "&".join(qualifiers) if qualifiers else "")
+
+
+def is_purl(text: str) -> bool:
+    """Whether *text* is a Package URL (``pkg:``, any case)."""
+    return text[:4].lower() == "pkg:"
+
+
+def _split(purl: str) -> tuple[str, list[str], str]:
+    """*purl* as (the part before ``?``, its qualifiers, ``#`` and the
+    subpath); no qualifiers when it has no ``?``."""
+    head, mark, rest = purl.partition("?")
+    if not mark:
+        return purl, [], ""
+    query, hash_mark, subpath = rest.partition("#")
+    return head, query.split("&"), hash_mark + subpath
+
+
+def purl_qualifier_values(purl: str) -> list[str]:
+    """Each qualifier value of *purl*, percent-decoded."""
+    return [unquote(item.partition("=")[2]) for item in _split(purl)[1]]
+
+
+def strip_purl_secrets(purl: str) -> tuple[str, list[str]]:
+    """*purl* with the credentials of each URL in a qualifier value removed:
+    each value is percent-decoded, stripped
+    (:func:`~pitloom.core.url_masking.strip_url_secrets`) and, when that
+    changed it, encoded again; an encoded ``@`` or ``?`` would hide them
+    from a strip of the PURL as written. Also returns each URL changed, as
+    :func:`~pitloom.core.url_masking.strip_url_secrets` shows it."""
+    head, qualifiers, tail = _split(purl)
+    changed: list[str] = []
+    kept: list[str] = []
+    for item in qualifiers:
+        key, _, value = item.partition("=")
+        plain, found = strip_url_secrets(unquote(value))
+        if found:
+            item = f"{key}={_encode(plain, safe=_URL_SAFE)}"
+            changed += found
+        kept.append(item)
+    if not changed:
+        return purl, []
+    return f"{head}?{'&'.join(kept)}{tail}", changed

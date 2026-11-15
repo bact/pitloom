@@ -7,6 +7,8 @@
 
 See also: :mod:`pitloom.id_registry._types` for the registry dataclasses,
 :mod:`pitloom.id_registry._ambiguous` for the keys left out,
+:mod:`pitloom.id_registry._harvest._index` (the id index) and
+:mod:`pitloom.id_registry._harvest._skip` (the elements left out),
 :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself (it imports
 this module, so the reverse import is ``TYPE_CHECKING``-only).
 """
@@ -16,12 +18,11 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core.url_masking import holds_url_credentials
 from pitloom.id_registry._ambiguous import (
     GATED_TYPES,
     TWIN_DEBUG,
@@ -38,16 +39,15 @@ from pitloom.id_registry._ambiguous import (
     say_ambiguous_keys,
     unique_file_keys,
 )
+from pitloom.id_registry._harvest._index import SpdxIdIndex
+from pitloom.id_registry._harvest._skip import unrecordable
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
     RegistryEntry,
-    is_utf8_text,
 )
 from pitloom.logging_config import loggable
 from pitloom.messages import emit
-from pitloom.messages.files import warn_registry_name_skipped
 from pitloom.messages.id_registry_ids import (
     GATE_DROPPED_LINE,
     GATE_KEPT_LINE,
@@ -58,7 +58,6 @@ from pitloom.messages.id_registry_ids import (
     REGISTRY_HASH_CONFLICT_GATE,
     REGISTRY_PATH_KEY_UNUSABLE,
 )
-from pitloom.messages.url_credentials import warn_registry_key_credentials_skipped
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -71,7 +70,7 @@ log = logging.getLogger("pitloom.id_registry")
 _HASH_KEPT_TYPES = GATED_TYPES | {DATASET_PACKAGE_TYPE}
 
 __all__ = [
-    "_SpdxIdIndex",
+    "SpdxIdIndex",
     "_harvest_elements",
     "_import_sbom_element",
     "_release_stale_keys_for_id",
@@ -93,48 +92,10 @@ def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
     return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
 
-@dataclass
-class _SpdxIdIndex:
-    """``spdx_id -> keys`` reverse index for a registry's ``elements``
-    table, built per :func:`_harvest_elements` pass and kept in sync as
-    entries are added or removed during it.
-
-    :func:`_release_stale_keys_for_id` uses it to find every OTHER key
-    sharing an id without scanning the whole table per harvested element.
-    """
-
-    keys: dict[str, set[tuple[str, str]]] = field(default_factory=dict)
-
-    @classmethod
-    def from_registry(cls, registry: IdRegistry) -> _SpdxIdIndex:
-        """Build the index from *registry*'s current table contents."""
-        keys: dict[str, set[tuple[str, str]]] = {}
-        for key, entry in registry.elements.items():
-            keys.setdefault(entry.spdx_id, set()).add(key)
-        return cls(keys=keys)
-
-    def set_entry(
-        self, registry: IdRegistry, key: tuple[str, str], entry: RegistryEntry
-    ) -> None:
-        """Write *entry* to ``registry.elements[key]``, keeping this index
-        in sync with both the old spdx_id (if *key* had another) and the
-        new one."""
-        old = registry.elements.get(key)
-        if old is not None:
-            self.keys.get(old.spdx_id, set()).discard(key)
-        registry.elements[key] = entry
-        self.keys.setdefault(entry.spdx_id, set()).add(key)
-
-    def drop(self, registry: IdRegistry, spdx_id: str, key: tuple[str, str]) -> None:
-        """Delete ``registry.elements[key]``, keeping this index in sync."""
-        del registry.elements[key]
-        self.keys.get(spdx_id, set()).discard(key)
-
-
 def _release_stale_keys_for_id(
     registry: IdRegistry,
     spdx_id: str,
-    index: _SpdxIdIndex,
+    index: SpdxIdIndex,
     *,
     key: tuple[str, str],
 ) -> None:
@@ -154,7 +115,7 @@ def _release_stale_keys_for_id(
 
 
 def _held_under(
-    index: _SpdxIdIndex, spdx_id: str, written: WrittenKey
+    index: SpdxIdIndex, spdx_id: str, written: WrittenKey
 ) -> list[tuple[str, str]]:
     """The other keys of *written*'s type holding *spdx_id*, sorted; none
     for a recorded key (R-keep applies to a name only)."""
@@ -197,7 +158,7 @@ def _log_r_kept(written: WrittenKey, held: tuple[str, str], *, imported: bool) -
 
 
 def _r_kept(
-    index: _SpdxIdIndex, objects: list[Any], keys: RecordedKeys | None
+    index: SpdxIdIndex, objects: list[Any], keys: RecordedKeys | None
 ) -> _KeptBy:
     """The (spdxId, written key) pairs of *objects* R-keep skips, decided
     once before the pass so the spdxId order never changes them: the
@@ -235,7 +196,7 @@ class _Pass:
     *index*, R-keep's *kept* (:func:`_r_kept`) and the *ambiguous* keys
     (:func:`~pitloom.id_registry._ambiguous._ambiguous_keys`)."""
 
-    index: _SpdxIdIndex
+    index: SpdxIdIndex
     kept: _KeptBy
     ambiguous: frozenset[tuple[str, str]]
 
@@ -248,7 +209,7 @@ class _Pass:
         stale: KeptPairs = frozenset(),
     ) -> _Pass:
         """The pass over *objects*, *stale* pairs never written."""
-        index = _SpdxIdIndex.from_registry(registry)
+        index = SpdxIdIndex.from_registry(registry)
         kept = _r_kept(index, objects, keys)
         ambiguous = _ambiguous_keys(objects, keys, kept=kept.keys() | stale)
         return cls(index, kept, ambiguous)
@@ -412,23 +373,6 @@ def _own_sha256(
     return harvest_sha256(obj, hashes) if type_name in types else None
 
 
-def _unrecordable(
-    label: str, key_name: str, spdx_id: str, *, path_key: bool = False
-) -> bool:
-    """Whether the element, its key (*label*, *key_name*) or *spdx_id* is
-    left out of the registry: a text its UTF-8 file cannot hold, or a key
-    that is a URL with credentials; says so with one ``WARNING:``."""
-    for what, text in ((label, key_name), ("spdxId", spdx_id)):
-        if not is_utf8_text(text):
-            warn_registry_name_skipped(log, what, text)
-            return True
-    for text in (key_name, spdx_id):
-        if holds_url_credentials(text, scp=not path_key):
-            warn_registry_key_credentials_skipped(log, text)
-            return True
-    return False
-
-
 def _import_sbom_element(
     registry: IdRegistry,
     obj: Any,
@@ -487,7 +431,7 @@ def _import_sbom_element(
     # Reserved even when the element is skipped: its id is never minted.
     registry.reserve_id(spdx_id)
     label = "key" if written.recorded else "name"
-    if _unrecordable(label, key[1], spdx_id, path_key=key[0] == FILE_TYPE):
+    if unrecordable(label, key, spdx_id):
         return
     if state is None:
         state = _Pass.of(registry, [obj], keys)

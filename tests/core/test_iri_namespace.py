@@ -148,6 +148,6 @@ def test_a_namespace_conflict_never_reads_x_is_not_x() -> None:
 )
 def test_a_namespace_with_credentials_is_refused_masked(value: str) -> None:
     assert namespace_problem(value) == NAMESPACE_CREDENTIALS
-    with pytest.raises(ValueError, match="carries a user name") as caught:
+    with pytest.raises(ValueError, match="holds user information") as caught:
         require_namespace_iri(value)
     assert "SECRET" not in str(caught.value)
