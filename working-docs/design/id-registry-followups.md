@@ -162,6 +162,17 @@ nothing and warns once (`path has a skipped directory name`; 2026-10-15).
 - `option-invalid` exits 2 for argparse's lines and 1 for the PATH-outside
   line: one code, two exit statuses, chosen by line. Open: document per line
   in the reference, or align.
+- `shown_key` in `scripts/manual_cli_checks/_order_capture.py` reads a key
+  that is literally a backslash and `n` as a newline: `loggable()` writes a
+  real newline as that same text, so the printed line itself is ambiguous.
+  Harness only (it may pair the wrong key in an order check); the output
+  cannot tell the two apart either. Open: a distinct escape for a literal
+  backslash in a key, or accept and document.
+- Credentials in a URL that is otherwise valid are still accepted and baked
+  into ids: a namespace (a document id adopted on import, `loom id generate
+  --namespace`) into every minted `spdxId`, a `-e NAME` key (a dataset URL)
+  into the registry and the id minted from it. #486 only masks them in
+  messages. Owned by the credential-leaks PR: refuse them.
 
 ### Merge by id: same-type coincidences and re-minted ids
 

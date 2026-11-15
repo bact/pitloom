@@ -185,6 +185,38 @@ def test_import_sbom_adopts_only_a_namespace_iri(
         assert getattr(caplog.records[0], CODE_ATTR) == "sbom-invalid"
 
 
+def test_cli_import_masks_a_document_ids_credentials(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A document id it cannot adopt is said with its URL's credentials
+    masked, on stderr and on the record a library caller logs."""
+    document_id = "https://u:S3CRET@h.example/ns/doc?token=T0KEN#x"
+    sbom_path = tmp_path / "doc.spdx3.json"
+    _write_sbom(
+        sbom_path,
+        spdx3.software_Package(
+            spdxId=f"{_IMPORTED}#Package-1", name="p", creationInfo=_CI
+        ),
+        document_id=document_id,
+    )
+    capsys.readouterr()
+
+    argv = ["id", "import", str(sbom_path), "-o", str(tmp_path / "reg.json")]
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert _run_cli(monkeypatch, argv) == 0
+
+    captured = capsys.readouterr()
+    said = [ln for ln in captured.err.splitlines() if "SBOM namespace" in ln]
+    assert len(said) == 1 and said[0].startswith("WARNING: ")
+    assert "h.example/ns/doc" in said[0]  # the namespace is said, masked
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+    for secret in ("S3CRET", "T0KEN"):
+        assert secret not in captured.err + captured.out + logged
+
+
 def test_import_sbom_returns_an_ambiguous_file_path(tmp_path: Path) -> None:
     """I5: two files under one path are skipped, and returned."""
     ns = _IMPORTED

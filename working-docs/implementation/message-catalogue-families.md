@@ -329,9 +329,12 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   caller's own definition). The reference lists each topic's summaries.
   Since the rule keys on the call, `tests/messages/test_summary_guard.py`
   holds the summaries to the catalogue: every `Summary(...)` is built in
-  `messages/` and listed in `SUMMARIES`, and `say_summary` is only called
-  by that name (an alias, a `functools.partial` or a stored reference
-  fails the test, never hides a line).
+  `messages/` and listed in `SUMMARIES`, `say_summary` is only called
+  by that name, and outside `messages/` a summary imported by name is
+  only its argument (an alias, a `functools.partial`, a stored reference,
+  a `dataclasses.replace`, `type(S)(...)` or `S.__replace__` fails the
+  test, never hides a line; a module attribute `m.S` and a copy inside
+  `messages/` are the guard's stated limits).
   Two here (`id import`'s dataset path key and model file-entry key); PR 7
   adds the other five.
 - New fields in `_fields_registry.py` (`_fields.py` split first):
@@ -343,8 +346,8 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   PR 5's two indexed-file lines say `PATH '<p>'`; the SBOM namespace an
   import cannot adopt is `sbom-invalid` (a new `WARNING` line, `FILE=` the
   SBOM, no prefix, the namespace said once and the reason from a closed
-  table, `core.iri.NAMESPACE_PROBLEMS`). The mint refusal is `registry-malformed`, `FILE=` the
-  registry (`(no file)` for one in memory).
+  table, `core.iri.NAMESPACE_PROBLEMS`). The mint refusal is
+  `registry-malformed`, `FILE=` the registry (`(no file)` for one in memory).
 - `loom.Run`'s registry lines take `ID registry: ` (ruling Q4) and name
   the element kind on a miss too (`model m not found`, was `entity`).
 - Fixed with it: `register()`'s content-changed `INFO:` wrote the key raw

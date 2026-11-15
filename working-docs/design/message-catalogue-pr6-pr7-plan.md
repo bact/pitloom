@@ -149,9 +149,9 @@ re-check `git tag` before merge). Every template starts with
   `%(number)s`. Counts of a decision, not pure counts: coded (R1).
 - **`index-path-no-effect`** (`no-effect`, actor `user`, effect `none`;
   WARNING): `ID registry: PATH %(path)s is under a skipped directory name
-  (%(name)s); not indexed`, the path as typed (`quote_given` today). `loom
-  id generate` only; the library `IdRegistry.generate(explicit=True)` says
-  the same. Advice: name a PATH outside `build/`, `.git/` and the other
+  (%(name)s); not indexed`, the path as typed (the `path` field writes it
+  through `given_path_text`). `loom id generate` only; the library
+  `IdRegistry.generate(explicit=True)` says the same. Advice: name a PATH outside `build/`, `.git/` and the other
   skipped names, or none.
 - **Reused**: `registry-malformed` gains `ID registry: FILE=%(file)s: no
   %(name)s id left to mint in %(namespace)s` (the file as

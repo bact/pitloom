@@ -5,13 +5,23 @@
 
 """The ratchet leaves a ``say_summary`` call out by the definition it
 reaches (``scripts/message_inventory/_scope.py``), so the summaries must be
-the catalogue's own: every ``Summary(...)`` is built in
-``src/pitloom/messages/`` and listed in ``SUMMARIES``, and ``say_summary``
-is only ever called by that name. An alias, a ``functools.partial``, a
-stored reference or a ``dataclasses.replace`` copy of a catalogue summary
-would hide its line from the inventory: an error here, never a silent hide.
-Limit: a copy is found by the name it was imported under
-(``from pitloom.messages... import S``), not through a module attribute.
+the catalogue's own. The AST scan below fails on:
+
+- a ``Summary(...)`` built outside ``src/pitloom/messages/``, or one built
+  inside it but missing from ``SUMMARIES``;
+- ``say_summary`` imported under another name, or named other than as the
+  function of a call (a stored reference, a ``functools.partial``);
+- outside ``messages/``, a summary imported by name
+  (``from pitloom.messages... import S``) named other than as the second
+  positional argument of a ``say_summary(...)`` call: an alias (``T = S``),
+  a ``dataclasses.replace(S, ...)``, ``type(S)(...)`` or
+  ``S.__replace__(...)`` (Python 3.13).
+
+Known limits, not caught: a summary reached through a module attribute
+(``import pitloom.messages.x as m``, then ``m.S``) or ``getattr``; a
+summary re-exported by a module outside ``pitloom.messages`` and imported
+from there; a copy (``replace(S, ...)``) made inside ``messages/`` itself,
+where only an unlisted ``Summary(...)`` call is caught.
 
 See also: tests/scripts/message_inventory/test_summary_scope.py.
 """
@@ -55,13 +65,13 @@ def _summary_names(tree: ast.Module) -> set[str]:
     return names
 
 
-def _copies_a_summary(node: ast.AST, summaries: set[str]) -> bool:
-    """Whether *node* is a ``replace(S, ...)`` of a summary *S*."""
+def _is_say_argument(node: ast.AST, parent: ast.AST | None) -> bool:
+    """Whether *node* is the summary argument of a ``say_summary`` call."""
     return (
-        isinstance(node, ast.Call)
-        and _name(node.func) == "replace"
-        and bool(node.args)
-        and _name(node.args[0]) in summaries
+        isinstance(parent, ast.Call)
+        and _name(parent.func) == _SAY
+        and len(parent.args) > 1
+        and parent.args[1] is node
     )
 
 
@@ -86,8 +96,12 @@ def _module_problems(rel: str, tree: ast.Module) -> list[str]:
             problems.append(f"{rel}:{line}: Summary built outside the catalogue")
         if name == _SAY and not called(node):
             problems.append(f"{rel}:{line}: {_SAY} used but not called")
-        if _copies_a_summary(node, summaries):
-            problems.append(f"{rel}:{line}: a summary copied outside the catalogue")
+        if (
+            isinstance(node, ast.Name)
+            and node.id in summaries
+            and not _is_say_argument(node, parents.get(node))
+        ):
+            problems.append(f"{rel}:{line}: a summary used other than said")
     return sorted(problems, key=lambda problem: int(problem.split(":")[1]))
 
 
@@ -143,10 +157,16 @@ def report(log, messages):
     keep = messages.say_summary
     dataclasses.replace(DATASET_PATH_KEY, template="y %(entity)s")
     dataclasses.replace(KEY_NOT_FOUND)
+    say_summary(log, DATASET_PATH_KEY, entity="a")
+    alias = DATASET_PATH_KEY
+    type(DATASET_PATH_KEY)(template="z", meaning="m", topic="t")
+    DATASET_PATH_KEY.__replace__(template="w %(entity)s")
 """
 
 
 def test_an_adhoc_summary_fails_the_guard(tmp_path: Path) -> None:
+    """Line 16 replaces a plain string and line 17 says a summary: neither
+    is a problem."""
     (tmp_path / "zz_adhoc.py").write_bytes(_ADHOC.encode("utf-8"))
 
     assert summary_problems(tmp_path) == [
@@ -154,5 +174,8 @@ def test_an_adhoc_summary_fails_the_guard(tmp_path: Path) -> None:
         "zz_adhoc.py:7: Summary built outside the catalogue",
         "zz_adhoc.py:12: say_summary used but not called",
         "zz_adhoc.py:14: say_summary used but not called",
-        "zz_adhoc.py:15: a summary copied outside the catalogue",
+        "zz_adhoc.py:15: a summary used other than said",
+        "zz_adhoc.py:18: a summary used other than said",
+        "zz_adhoc.py:19: a summary used other than said",
+        "zz_adhoc.py:20: a summary used other than said",
     ]

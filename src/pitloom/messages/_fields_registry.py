@@ -30,10 +30,12 @@ from pitloom.messages._field_writers import (
 #: one has its own line, or is no document id).
 _PRINTED_PROBLEMS: Final = tuple(p for p in NAMESPACE_PROBLEMS if p != NAMESPACE_EMPTY)
 
-_ENTITY_MEANING: Final = (
-    "as given, a URL's credentials masked; in quotes, escaped, when it holds "
-    "a control character"
+#: How a field naming an element or a namespace writes it; a meaning that
+#: already says where the text comes from takes only the masking part.
+_MASKED_MEANING: Final = (
+    "a URL's credentials masked; in quotes, escaped, when it holds a control character"
 )
+_ENTITY_MEANING: Final = f"as given, {_MASKED_MEANING}"
 
 #: The ID registry's fields.
 REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
@@ -86,14 +88,14 @@ REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             entity_text,
             "<namespace>",
             "a document namespace IRI, as an ID registry file or an SBOM "
-            f"states it, {_ENTITY_MEANING}",
+            f"states it, {_MASKED_MEANING}",
             free=True,
         ),
         "given_namespace": Field(
             r".+",
             entity_text,
             "<given-namespace>",
-            f"the namespace a command line or caller gives, {_ENTITY_MEANING}",
+            f"the namespace a command line or caller gives, {_MASKED_MEANING}",
             free=True,
         ),
         "namespace_problem": Field(
@@ -114,7 +116,7 @@ REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             entity_text,
             "<spdx-id>",
-            f"an element's spdxId, as held or read, {_ENTITY_MEANING}",
+            f"an element's spdxId, as held or read, {_MASKED_MEANING}",
             free=True,
         ),
     }

@@ -159,7 +159,7 @@ A line may start with one prefix before its text:
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
-| `<given-namespace>` | the namespace a command line or caller gives, as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
@@ -168,7 +168,7 @@ A line may start with one prefix before its text:
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
-| `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold` |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
@@ -188,7 +188,7 @@ A line may start with one prefix before its text:
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
-| `<spdx-id>` | an element's spdxId, as held or read, as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<spdx-id>` | an element's spdxId, as held or read, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |

@@ -295,6 +295,12 @@ def _skipped_name_in(root: Path, project_root: Path, is_dir: bool) -> str | None
     )
 
 
+def _path_root(raw_path: Path, project_root: Path) -> Path:
+    """The place a PATH names: as given when absolute, else below
+    *project_root*."""
+    return raw_path if raw_path.is_absolute() else project_root / raw_path
+
+
 def _root_files(
     root: Path, project_root: Path, explicit: bool, shown: str | os.PathLike[str]
 ) -> Iterable[Path]:
@@ -357,8 +363,12 @@ def _root_candidates(
     implicit default root that is not there is left out silently, and one
     that cannot be read or listed gets the shared ``FILE=`` / ``DIR=``
     warning and is left out."""
-    root = raw_path if raw_path.is_absolute() else project_root / raw_path
-    return _root_files(root, project_root, explicit, given_spelling(raw_path))
+    return _root_files(
+        _path_root(raw_path, project_root),
+        project_root,
+        explicit,
+        given_spelling(raw_path),
+    )
 
 
 def _eligible_files(
@@ -410,8 +420,8 @@ def _iter_files(
     for raw_path in paths:
         # A PATH given twice (the same place, spelt alike) is walked, and
         # said, once; one spelling of two places is two PATHs.
-        root = raw_path if raw_path.is_absolute() else project_root / raw_path
-        place = (Path(os.path.normpath(root)), os.fspath(given_spelling(raw_path)))
+        root = os.path.normpath(_path_root(raw_path, project_root))
+        place = (Path(root), os.fspath(given_spelling(raw_path)))
         if place in given:
             continue
         given.add(place)

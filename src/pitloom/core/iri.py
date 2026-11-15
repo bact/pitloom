@@ -22,6 +22,11 @@ from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.core.url_masking import masked_given_path
 
 __all__ = [
+    "NAMESPACE_CHARACTER",
+    "NAMESPACE_EMPTY",
+    "NAMESPACE_FRAGMENT",
+    "NAMESPACE_PROBLEMS",
+    "NAMESPACE_RELATIVE",
     "SPDX_DOCS_BASE",
     "doc_namespace",
     "iri_segment",
