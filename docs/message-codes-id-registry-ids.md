@@ -60,10 +60,10 @@ values.
   outlived the element it named, or one name is pinned for two elements. One id
   never names two elements.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
-- **Pitloom did**: Said by every command that reads an ID registry (generate,
-  project, wheel, embed-wheel, id generate, id import), the build hook, the
-  library and loom.Run. The first element in document order keeps the id; the
-  second gets a new one. The SBOM is written.
+- **Pitloom did**: Said by a document build that looks ids up (generate,
+  project, wheel, env, embed-wheel, the build hook, the library) and loom.Run.
+  The first element in document order keeps the id; the second gets a new one.
+  The SBOM is written.
 - **Tell the user**: which id two elements claim, as the line names them.
   Expected on every run after an ambiguous-name pin. Otherwise the registry
   holds a stale entry: 'loom id generate' re-indexes the project, or 'loom id
@@ -170,9 +170,9 @@ values.
   another element, so they get another id.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Said by every command that reads an ID registry (generate,
-  project, wheel, embed-wheel, id generate, id import), the build hook, the
-  library and loom.Run. Minted a new id; 'loom id generate' and a saving run
-  replace the entry. The SBOM is written.
+  project, wheel, env, embed-wheel, model, enrich, id generate, id import), the
+  build hook, the library and loom.Run. Minted a new id; 'loom id generate' and
+  a saving run replace the entry. The SBOM is written.
 - **Tell the user**: which element changed, as the line names it. Expected after
   a retrain, a new download or an edit; if the content should not have changed,
   they check the file. Do not restore files for them; ask first, and with nobody
@@ -210,10 +210,10 @@ values.
   cap), or the pin records no hash. A pin given its hash later keeps its id.
 - **SBOM effect**: weaker: what the SBOM says is less sure.
 - **Pitloom did**: Said by every command that reads an ID registry (generate,
-  project, wheel, embed-wheel, id generate, id import), the build hook, the
-  library and loom.Run. An entry recording a hash is not vouched for without
-  one: a new id is minted. Otherwise the element is looked up or pinned by its
-  key alone, its content not checked. The SBOM is written.
+  project, wheel, env, embed-wheel, model, enrich, id generate, id import), the
+  build hook, the library and loom.Run. An entry recording a hash is not vouched
+  for without one: a new id is minted. Otherwise the element is looked up or
+  pinned by its key alone, its content not checked. The SBOM is written.
 - **The caller may fix**: The caller may give the element a file the run can
   hash (a loom path= that exists at exit, a dataset below the project root, a
   larger --max-dataset-hash-bytes) so its id is gated by its content.
@@ -277,9 +277,9 @@ values.
   file's own key.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Said by every command that reads an ID registry (generate,
-  project, wheel, embed-wheel, id generate, id import), the build hook, the
-  library and loom.Run. Reused the id held under the other spelling of the path,
-  and counted the files.
+  project, wheel, env, embed-wheel, model, enrich, id generate, id import), the
+  build hook, the library and loom.Run. Reused the id held under the other
+  spelling of the path, and counted the files.
 - **Nothing to do**: Nothing to do: each file keeps one id.
 - **Lines**:
 
@@ -299,10 +299,10 @@ values.
   root. The line says why.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Said by every command that reads an ID registry (generate,
-  project, wheel, embed-wheel, id generate, id import), the build hook, the
-  library and loom.Run. Keyed the element by its name (a loom.Run file outside
-  the root gets a new id; a hashed model with no unique file is not recorded).
-  The SBOM is written.
+  project, wheel, env, embed-wheel, model, enrich, id generate, id import), the
+  build hook, the library and loom.Run. Keyed the element by its name (a
+  loom.Run file outside the root gets a new id; a hashed model with no unique
+  file is not recorded). The SBOM is written.
 - **Nothing to do**: Nothing to do: the id stays stable under the name. A path
   key needs the file below the registry's project root.
 - **Lines**:

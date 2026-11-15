@@ -48,7 +48,8 @@ values.
   ```text
   ERROR: <option> cannot be used <when> [option-conflict]
   ERROR: argument <option>: not allowed with argument <other> [option-conflict]
-  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <value>; delete it to change the namespace [option-conflict]
+  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <given-namespace>; delete it to change the namespace [option-conflict]
+  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <given-namespace> (they differ in masked credentials); delete it to change the namespace [option-conflict]
   ERROR: ID registry: FILE=<file>: project root '<path>' is not '<root>'; delete it to change the project root [option-conflict]
   ```
 

@@ -17,6 +17,7 @@ from pitloom.messages._options import (
     BUILD_PREFIX,
     CANNOT_BE_USED_LINE,
     NAMESPACE_CONFLICT_LINE,
+    NAMESPACE_CONFLICT_MASKED_LINE,
     OPTION_CONFLICT,
     OPTION_INVALID,
     OPTION_MISSING,
@@ -26,6 +27,7 @@ from pitloom.messages._options import (
     PATH_OUTSIDE_LINE,
     PROJECT_ROOT_CONFLICT_LINE,
     REGISTRY_PATH_OUTSIDE_LINE,
+    namespace_conflict_line,
 )
 from pitloom.messages._options_say import (
     usage_code,
@@ -36,6 +38,7 @@ __all__ = [
     "BUILD_PREFIX",
     "CANNOT_BE_USED_LINE",
     "NAMESPACE_CONFLICT_LINE",
+    "NAMESPACE_CONFLICT_MASKED_LINE",
     "OPTION_CONFLICT",
     "OPTION_INVALID",
     "OPTION_MISSING",
@@ -45,6 +48,7 @@ __all__ = [
     "PATH_OUTSIDE_LINE",
     "PROJECT_ROOT_CONFLICT_LINE",
     "REGISTRY_PATH_OUTSIDE_LINE",
+    "namespace_conflict_line",
     "usage_code",
     "warn_option_no_effect",
 ]

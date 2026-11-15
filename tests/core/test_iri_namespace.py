@@ -12,10 +12,19 @@ See also: test_iri.py (``iri_segment``), tests/cli/test_cli_id_namespace_root.py
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
-from pitloom.core.iri import require_namespace_iri
+from pitloom.core.iri import (
+    NAMESPACE_PROBLEMS,
+    NAMESPACE_RELATIVE,
+    namespace_problem,
+    require_namespace_iri,
+)
 from pitloom.id_registry import IdRegistry
+from pitloom.messages import code_of
 
 _VALID = [
     "https://example.org/ns/demo",
@@ -70,3 +79,78 @@ def test_registry_new_takes_an_explicit_namespace() -> None:
 def test_registry_new_rejects_an_invalid_namespace(value: str) -> None:
     with pytest.raises(ValueError, match="namespace"):
         IdRegistry.new("demo", namespace=value)
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("", "namespace is empty"),
+        # '#' is checked before the scheme: a relative text with one says '#'
+        ("rel#x", "namespace 'rel#x' must not contain '#'"),
+        ("rel", f"namespace 'rel' {NAMESPACE_RELATIVE}"),
+        (
+            "https://u:SECRET@h/a b",
+            "namespace 'https://***:***@h/a b' has a character an IRI cannot hold",
+        ),
+    ],
+    ids=["empty", "fragment-first", "relative", "masked"],
+)
+def test_the_refusal_says_one_reason_and_masks_credentials(
+    value: str, message: str
+) -> None:
+    with pytest.raises(ValueError) as caught:
+        require_namespace_iri(value)
+    assert str(caught.value) == message
+    assert namespace_problem(value) in NAMESPACE_PROBLEMS
+
+
+@pytest.mark.platform
+def test_a_registry_file_namespace_is_refused_with_its_credentials_masked(
+    tmp_path: Path,
+) -> None:
+    """The library error, not only the CLI line: the file's text is read."""
+    path = tmp_path / "r.json"
+    data = {
+        "version": 4,
+        "namespace": "https://u:SECRET@h/ns#x",
+        "elements": {},
+        "id_counters": {},
+        "project_root": ".",
+    }
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError) as caught:
+        IdRegistry.load(path)
+
+    assert str(caught.value) == (
+        f"ID registry: FILE={path}: 'namespace' must not contain '#': "
+        "https://***:***@h/ns#x"
+    )
+    assert code_of(caught.value) == "registry-malformed"
+
+
+@pytest.mark.parametrize(
+    ("given", "shown", "note"),
+    [
+        (
+            "https://u:OTHER@h/ns",
+            "https://***:***@h/ns",
+            " (they differ in masked credentials)",
+        ),
+        ("https://h/other", "https://h/other", ""),
+    ],
+    ids=["alike-masked", "differ"],
+)
+def test_a_namespace_conflict_never_reads_x_is_not_x(
+    given: str, shown: str, note: str
+) -> None:
+    registry = IdRegistry.new("demo", namespace="https://u:SECRET@h/ns")
+
+    with pytest.raises(ValueError) as caught:
+        registry.require_namespace(given)
+
+    assert str(caught.value) == (
+        "ID registry: FILE=(no file): namespace https://***:***@h/ns is not "
+        f"--namespace {shown}{note}; delete it to change the namespace"
+    )
+    assert code_of(caught.value) == "option-conflict"

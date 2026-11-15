@@ -176,11 +176,12 @@ def test_import_sbom_adopts_only_a_namespace_iri(
     warnings = [r.getMessage() for r in caplog.records]
     assert len(warnings) == (0 if adopted else 1)
     if warnings:
-        assert warnings[0].startswith(
-            f"FILE={sbom_path}: namespace {document_id} cannot be an ID registry "
-            "namespace ("
+        assert warnings[0].startswith(f"FILE={sbom_path}: SBOM namespace ")
+        # the namespace said once, after the reason
+        assert warnings[0].endswith(
+            f"; the ID registry keeps its own, not {document_id}"
         )
-        assert warnings[0].endswith("; the registry keeps its own")
+        assert warnings[0].count(document_id) == 1
         assert getattr(caplog.records[0], CODE_ATTR) == "sbom-invalid"
 
 

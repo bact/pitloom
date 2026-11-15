@@ -56,7 +56,10 @@ def _lone_sha256() -> dict[str, Any]:
     [
         (_with(project_root=_LONE), "project_root '\\ud800' cannot be encoded"),
         (_lone_sha256(), "sha256 '\\ud800' cannot be encoded"),
-        (_with(namespace=f"https://e.org/{_LONE}"), "'namespace': namespace "),
+        (
+            _with(namespace=f"https://e.org/{_LONE}"),
+            "'namespace' has a character an IRI",
+        ),
         (_with(id_counters={_LONE: 1}), "'id_counters' key '\\ud800' is not"),
     ],
     ids=["project-root", "sha256", "namespace", "counter-key"],

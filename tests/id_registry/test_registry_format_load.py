@@ -78,9 +78,14 @@ _FAILURES: dict[str, tuple[Any, str]] = {
     "empty-namespace": (_set("namespace", ""), "missing a valid 'namespace'"),
     "fragment-namespace": (
         _set("namespace", f"{_NS}#SPDXRef-DOCUMENT"),
-        "'namespace': namespace 'https://spdx.org/spdxdocs/test-1#SPDXRef-DOCUMENT'",
+        "'namespace' must not contain '#': "
+        "https://spdx.org/spdxdocs/test-1#SPDXRef-DOCUMENT",
     ),
-    "relative-namespace": (_set("namespace", "demo"), "'namespace': namespace 'demo'"),
+    "relative-namespace": (
+        _set("namespace", "demo"),
+        "'namespace' is not an absolute IRI (a scheme is needed, as in "
+        "https://example.org/ns): demo",
+    ),
     "unknown-top-key": (_set("files", {}), "unknown top-level key(s): 'files'"),
     "no-elements": (_drop("elements"), "missing 'elements'"),
     "no-project-root": (_drop("project_root"), "missing 'project_root'"),

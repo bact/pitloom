@@ -202,7 +202,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "SBOM is not valid",
         "@graph is not a list",
         "SBOM @graph",
-        "cannot be an ID registry namespace",
+        "the ID registry keeps its own",
     ),
     "sbom-wrong-format": ("named .spdx3.json but not SPDX 3",),
     "target-wrong-format": (
@@ -352,3 +352,20 @@ def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
 )
 def test_the_matcher_reads_the_values_of_a_cap_line(quote: str, expected: bool) -> None:
     assert quote_matches(quote, "over-cap", *_MARKERS["over-cap"]) is expected
+
+
+@pytest.mark.parametrize(
+    ("quote", "expected"),
+    [
+        ("INFO: ID registry: '<type>' <key> not imported: its id is held under", True),
+        ("INFO: ID registry: <type> <key> not imported: its id is held under", True),
+        # the held key prints unquoted: a free value is never one
+        # placeholder in quotes (a quoted field is matched by its shape)
+        ("ID registry: '<type>' <key> not imported: its id is held under '<k>'", False),
+        ("ID registry: 'a_Type' 'k' not imported: its id is held under x", True),
+    ],
+    ids=["shown", "bare", "old-quotes", "value-quoted"],
+)
+def test_a_placeholder_in_quotes_is_a_quoted_field(quote: str, expected: bool) -> None:
+    marker = "its id is held under"
+    assert quote_matches(quote, "registry-conflict", marker) is expected

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,8 @@ and this project adheres to
   read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
+- Every CLI `ERROR:` and ID registry `WARNING:` line and `-v` detail masks the
+  credentials and tokens of each URL ([#482], [#486])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])

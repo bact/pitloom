@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,27 +36,29 @@ create and choose one), [messages.md](messages.md) (every line's code).
   not hashed` -- a dataset pin made before the data existed (or one that
   cannot be hashed) hits any content. Re-run `id generate -e` once the data
   exists: `... pin now gated by its SHA-256` (same id, digest adopted).
-- `INFO: ID registry: <number> file(s) keyed by their path as read: <why>` -- the
-  document's files could not be keyed from the registry's root (project
-  outside the root, including a `--project-dir` outside it, or an archive
-  path); they only match a registry made the same way. An archive read
-  without `--project-dir` (`wheel`, `project <sdist>`, `generate` on either,
-  `embed-wheel`) keys by its own paths, so with a registry root **above** the
-  project (a monorepo) it misses, with no `INFO:` and root-level keys
-  harvested. In a monorepo pass `--project-dir <the project's directory>`
+- `INFO: ID registry: <number> file(s) keyed by their path as read: <why>`
+  -- the document's files could not be keyed from the registry's root
+  (project outside the root, including a `--project-dir` outside it, or an
+  archive path); they only match a registry made the same way. An archive
+  read without `--project-dir` (`wheel`, `project <sdist>`, `generate` on
+  either, `embed-wheel`) keys by its own paths, so with a registry root
+  **above** the project (a monorepo) it misses, with no `INFO:` and
+  root-level keys harvested. In a monorepo pass
+  `--project-dir <the project's directory>`
   (`loom wheel dist/x.whl --project-dir pkgs/demo --id-registry
   loom-id-registry.json`): the archive's files are then keyed below the
   project's prefix, as `project` on a directory, `--allow-build` and the hook
   key them. Nothing else is read from that directory; without a registry it
   only warns that it has no effect.
-- `INFO: ID registry: <number> element(s) matched a registry key through the
-  src/lib layout alias` / `<number> key(s) promoted from a layout alias` -- a built
-  file or model `demo/x.py` reused the id held for `src/demo/x.py` (only a
-  leading `src/` or `lib/`, equal SHA-256, unique candidate); `id generate`
-  moves such a key to its on-disk path, also over that path's entry for older
-  content (`<number> key(s) of changed content took their layout alias's id`), and
-  `id import` writes such a file under the alias (`<number> file(s) imported under
-  their layout alias: their own key holds other content`). Other layouts
+- `INFO: ID registry: <number> element(s) matched a registry key through
+  the src/lib layout alias` / `<number> key(s) promoted from a layout alias`
+  -- a built file or model `demo/x.py` reused the id held for
+  `src/demo/x.py` (only a leading `src/` or `lib/`, equal SHA-256, unique
+  candidate); `id generate` moves such a key to its on-disk path, also over
+  that path's entry for older content (`<number> key(s) of changed content
+  took their layout alias's id`), and `id import` writes such a file under
+  the alias (`<number> file(s) imported under their layout alias: their own
+  key holds other content`). Other layouts
   (`python/`, `packages/`) get no alias: a wheel-only run mints its own ids
   for them.
 - `INFO: ID registry: -e NAME stored as KEY` / `stored by name: <why>` /
@@ -90,9 +92,9 @@ create and choose one), [messages.md](messages.md) (every line's code).
 - `WARNING: ID registry: <id> is registered for both X and Y; the second
   gets a new id [registry-conflict]` -- two elements matched entries
   carrying one id. The first claimant keeps the pinned id and the second
-  mints a fresh one; it does not fail the run. Expected on every run when the pin was made for an ambiguous name
-  (above); otherwise two registry entries share one id, usually a stale one
-  -- mention it to the user.
+  mints a fresh one; it does not fail the run. Expected on every run when
+  the pin was made for an ambiguous name (above); otherwise two registry
+  entries share one id, usually a stale one -- mention it to the user.
 - `WARNING: ID registry: <kind> X not found; minting a new spdxId
   [registry-entry-missing]` -- a `loom.Run` dataset, file or model with no
   entry yet: expected on a first run. `<kind> X: its SHA-256 no longer
@@ -124,9 +126,9 @@ create and choose one), [messages.md](messages.md) (every line's code).
 - `INFO: ID registry: package identity unknown; not looked up or recorded` --
   a wheel with no usable `.dist-info` or `METADATA` name; the registry is not
   touched for its package.
-- `WARNING: FILE=<sbom>: namespace <iri> cannot be an ID registry namespace
-  (...); the registry keeps its own [sbom-invalid]` -- `id import` met an
-  SBOM whose document id is not a valid namespace IRI.
+- `WARNING: FILE=<sbom>: SBOM namespace <why>; the ID registry keeps its
+  own, not <namespace> [sbom-invalid]` -- `id import` met an SBOM whose
+  document id is not a valid namespace IRI.
 - `WARNING: DIR=<dir>: could not list for ID registry indexing; <failure>
   [dir-unlistable]` -- `id generate` left out the files of a directory it
   could not list; if you see it, relay the advice of

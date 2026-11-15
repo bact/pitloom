@@ -26,7 +26,12 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.given_path import keep_spelling
-from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
+from pitloom.core.iri import (
+    doc_namespace,
+    iri_segment,
+    namespace_problem,
+    require_namespace_iri,
+)
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedHashes, RecordedKeys
 from pitloom.id_registry._counters import (
@@ -69,9 +74,9 @@ from pitloom.messages.id_registry_ids import (
     REGISTRY_HASH_MISSING,
 )
 from pitloom.messages.options import (
-    NAMESPACE_CONFLICT_LINE,
     OPTION_CONFLICT,
     PROJECT_ROOT_CONFLICT_LINE,
+    namespace_conflict_line,
 )
 from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
 
@@ -274,10 +279,10 @@ class IdRegistry:
         if namespace != self.namespace:
             raise CodedValueError(
                 OPTION_CONFLICT,
-                line=NAMESPACE_CONFLICT_LINE,
+                line=namespace_conflict_line(self.namespace, namespace),
                 file=self._named(),
                 namespace=self.namespace,
-                value=namespace,
+                given_namespace=namespace,
             )
 
     def require_project_root(self, project_root: Path) -> None:
@@ -488,18 +493,19 @@ class IdRegistry:
     def _adopt_namespace(self, namespace: str, sbom_path: Path) -> None:
         """Take *namespace*, the SBOM *sbom_path*'s, as this registry's, if
         it can be one; else one ``sbom-invalid`` ``WARNING:``."""
-        try:
-            self.namespace = require_namespace_iri(namespace)
-        except ValueError as exc:
-            emit(
-                log,
-                SBOM_INVALID,
-                logging.WARNING,
-                line=SBOM_NAMESPACE_LINE,
-                file=sbom_path,
-                namespace=namespace,
-                failure=exc,
-            )
+        problem = namespace_problem(namespace)
+        if problem is None:
+            self.namespace = namespace
+            return
+        emit(
+            log,
+            SBOM_INVALID,
+            logging.WARNING,
+            line=SBOM_NAMESPACE_LINE,
+            file=sbom_path,
+            namespace=namespace,
+            namespace_problem=problem,
+        )
 
     def harvest(
         self,

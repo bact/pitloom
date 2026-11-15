@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitloom.messages._field_writers import entity_text
 from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import Line, Message
 
@@ -141,8 +142,25 @@ CONFLICT_ARGUMENT_LINE: Final = Line(
 NAMESPACE_CONFLICT_LINE: Final = Line(
     level="ERROR",
     template=f"{REGISTRY_PREFIX}FILE=%(file)s: namespace %(namespace)s is not "
-    "--namespace %(value)s; delete it to change the namespace",
+    "--namespace %(given_namespace)s; delete it to change the namespace",
 )
+#: The same, when the two read alike once their credentials are masked.
+NAMESPACE_CONFLICT_MASKED_LINE: Final = Line(
+    level="ERROR",
+    template=f"{REGISTRY_PREFIX}FILE=%(file)s: namespace %(namespace)s is not "
+    "--namespace %(given_namespace)s (they differ in masked credentials); "
+    "delete it to change the namespace",
+)
+
+
+def namespace_conflict_line(held: str, given: str) -> Line:
+    """The line for a registry's namespace *held* that is not *given*:
+    :data:`NAMESPACE_CONFLICT_MASKED_LINE` when the two print alike once a
+    URL's credentials are masked, so the line never reads ``X is not X``."""
+    alike = entity_text(held) == entity_text(given)
+    return NAMESPACE_CONFLICT_MASKED_LINE if alike else NAMESPACE_CONFLICT_LINE
+
+
 #: ``loom id`` for a registry made for another project directory.
 PROJECT_ROOT_CONFLICT_LINE: Final = Line(
     level="ERROR",
@@ -157,6 +175,7 @@ OPTION_CONFLICT: Final = Message(
         CANNOT_BE_USED_LINE,
         CONFLICT_ARGUMENT_LINE,
         NAMESPACE_CONFLICT_LINE,
+        NAMESPACE_CONFLICT_MASKED_LINE,
         PROJECT_ROOT_CONFLICT_LINE,
     ),
     summary="The command line holds an option the command cannot take in this "

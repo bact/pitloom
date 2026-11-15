@@ -22,9 +22,16 @@ from pitloom.messages._types import ASK_FIRST, Line, Message
 _SINCE: Final = "0.24.1"
 #: Where an id is looked up: every surface that reads a registry.
 LOOKUP_SURFACES: Final = (
-    "every command that reads an ID registry (generate, project, wheel, "
-    "embed-wheel, id generate, id import), the build hook, the library and "
-    "loom.Run"
+    "every command that reads an ID registry (generate, project, wheel, env, "
+    "embed-wheel, model, enrich, id generate, id import), the build hook, the "
+    "library and loom.Run"
+)
+#: Where two elements can claim one id: a document build's many lookups.
+#: 'model' and 'enrich' look one model up; 'id generate' and 'id import'
+#: never claim.
+CLAIM_SURFACES: Final = (
+    "a document build that looks ids up (generate, project, wheel, env, "
+    "embed-wheel, the build hook, the library) and loom.Run"
 )
 
 
@@ -47,7 +54,7 @@ REGISTRY_CONFLICT: Final = Message(
     summary="Two elements of one SBOM match one ID registry entry: a stale "
     "entry outlived the element it named, or one name is pinned for two "
     "elements. One id never names two elements.",
-    did=f"Said by {LOOKUP_SURFACES}. The first element in document order "
+    did=f"Said by {CLAIM_SURFACES}. The first element in document order "
     "keeps the id; the second gets a new one. The SBOM is written.",
     effect="weaker",
     actor="user",

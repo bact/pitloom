@@ -16,7 +16,6 @@ SBOM records none of them, so ``id import`` derives them here. See also:
 
 from __future__ import annotations
 
-import functools
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -117,6 +116,11 @@ def _file_alias(
     return (found[0], own is not None) if len(found) == 1 else None
 
 
+def _path_key_note(name: str, key: str) -> Callable[[], None]:
+    """What says the dataset *name* is keyed by its path *key*."""
+    return lambda: say_summary(log, DATASET_PATH_KEY, entity=name, name=key)
+
+
 def _dataset_key(
     registry: IdRegistry, name: str, file_key: str | None
 ) -> tuple[str, Callable[[], None] | None]:
@@ -134,10 +138,7 @@ def _dataset_key(
         if found.path:
             if found.key == name:
                 return name, None
-            say = functools.partial(
-                say_summary, log, DATASET_PATH_KEY, entity=name, name=found.key
-            )
-            return found.key, say
+            return found.key, _path_key_note(name, found.key)
     outside = any(os.path.lexists(path) for path in paths)
     reason = name_key_reason(paths[0]) if outside else KEY_IMPORT_NOT_FOUND
     return name, lambda: info_name_key(log, "dataset", name, reason)

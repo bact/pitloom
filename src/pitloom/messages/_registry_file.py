@@ -60,7 +60,7 @@ DUPLICATE_KEY_LINE: Final = _line("duplicate key %(name)s")
 #: No ``namespace``, or one that is not a non-empty string.
 NO_NAMESPACE_LINE: Final = _line("missing a valid 'namespace'")
 #: A ``namespace`` that is not a namespace IRI; the reason after it.
-NAMESPACE_LINE: Final = _line("'namespace': %(failure)s")
+NAMESPACE_LINE: Final = _line("'namespace' %(namespace_problem)s: %(namespace)s")
 #: A key the format needs that the file lacks.
 MISSING_KEY_LINE: Final = _line("missing %(name)s")
 #: An ``id_counters`` key that is no id prefix.

@@ -21,12 +21,22 @@ import pytest
 
 from pitloom._loom_caller import warn_registry_miss
 from pitloom.core.given_path import GivenPath, TypedPath
-from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE, IdRegistry
+from pitloom.core.iri import NAMESPACE_FRAGMENT
+from pitloom.core.quote_source import quote_source
+from pitloom.id_registry import (
+    DATASET_PACKAGE_TYPE,
+    FILE_TYPE,
+    Alias,
+    IdRegistry,
+    IdRegistrySession,
+    LookupKey,
+)
 from pitloom.id_registry._counters import MAX_ID_NUMBER
 from pitloom.logging_config import CODE_ATTR
 from pitloom.messages import CodedValueError, code_of, emit
 from pitloom.messages.id_registry_ids import INDEX_PATH_NO_EFFECT, SKIPPED_PATH_LINE
 from pitloom.messages.options import OPTION_INVALID, REGISTRY_PATH_OUTSIDE_LINE
+from pitloom.messages.targets import SBOM_INVALID, SBOM_NAMESPACE_LINE
 from tests.registry_helpers import make_registry
 
 pytestmark = pytest.mark.platform
@@ -127,19 +137,112 @@ def test_a_path_line_names_the_path_as_typed(
 def test_a_skipped_path_is_said_once_per_path_given(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """The same PATH twice: one line, naming it as typed; another PATH in
+    the same directory is another line."""
     (tmp_path / "build").mkdir()
     (tmp_path / "build" / "a.py").write_bytes(b"x = 1\n")
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "b.py").write_bytes(b"y = 1\n")
     registry = IdRegistry.new("proj")
+    build = Path("build")
 
     with caplog.at_level(logging.WARNING, logger="pitloom.id_registry"):
-        registry.generate([tmp_path / "build", tmp_path / "src"], tmp_path)
+        registry.generate([build, build, build / "a.py", Path("src")], tmp_path)
 
-    (said,) = _said(caplog)
-    assert said[1] == "index-path-no-effect"
-    assert "(build); not indexed" in said[0]
+    skipped = "is under a skipped directory name (build); not indexed"
+    assert _said(caplog) == [
+        (f"ID registry: PATH 'build' {skipped}", "index-path-no-effect"),
+        (f"ID registry: PATH {quote_source(build / 'a.py')} {skipped}", _SKIP),
+    ]
     assert [key for _, key in registry.elements] == ["src/b.py"]
+
+
+_SKIP = "index-path-no-effect"
+
+
+def test_one_spelling_of_two_places_is_two_paths(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two library typed paths spelt alike for two directories: each
+    is walked and said, never the second skipped as a repeat."""
+    for part in ("a", "b"):
+        (tmp_path / part / "build").mkdir(parents=True)
+    typed = [TypedPath(GivenPath(tmp_path / part / "build", "build")) for part in "ab"]
+
+    with caplog.at_level(logging.WARNING, logger="pitloom.id_registry"):
+        IdRegistry.new("proj").generate(list(typed), tmp_path)
+
+    skipped = "is under a skipped directory name (build); not indexed"
+    assert _said(caplog) == [(f"ID registry: PATH 'build' {skipped}", _SKIP)] * 2
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reversed"])
+def test_a_layout_alias_tie_lists_the_held_keys_sorted(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, reverse: bool
+) -> None:
+    """The held keys in key order, whatever order the registry holds them."""
+    held = ["src/a/x.py", "lib/a/x.py"]
+    sha = "0" * 64
+    entries = {
+        (FILE_TYPE, key): (f"{_NS}#File-{n}", sha)
+        for n, key in enumerate(held[::-1] if reverse else held, 1)
+    }
+    session = IdRegistrySession(make_registry(entries, project_root=tmp_path))
+    lookup = LookupKey("a/x.py", Alias.LAYOUT, True)
+
+    with caplog.at_level(logging.INFO, logger="pitloom.id_registry"):
+        assert session.lookup_key("a/x.py", FILE_TYPE, lookup, sha256=sha) is None
+
+    assert _said(caplog) == [
+        (
+            "ID registry: a/x.py matches more than one layout alias "
+            "(lib/a/x.py, src/a/x.py); none reused",
+            "registry-key-ambiguous",
+        )
+    ]
+
+
+_SECRET_ID = "https://u:SECRET@h/ns#File-1"
+
+
+def test_an_id_or_namespace_is_printed_with_its_credentials_masked(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An imported SBOM's ids and namespace are read text: a URL's
+    credentials never reach a line."""
+    sha = "0" * 64
+    entries = {
+        (FILE_TYPE, "a.py"): (_SECRET_ID, sha),
+        (FILE_TYPE, "b.py"): (_SECRET_ID, sha),
+    }
+    session = IdRegistrySession(make_registry(entries, project_root=tmp_path))
+
+    with caplog.at_level(logging.WARNING):
+        for key in ("a.py", "b.py"):
+            lookup = LookupKey(key, Alias.NONE, True)
+            session.lookup_key(key, FILE_TYPE, lookup, sha256=sha)
+        emit(
+            _LOG,
+            SBOM_INVALID,
+            logging.WARNING,
+            line=SBOM_NAMESPACE_LINE,
+            file="doc.json",
+            namespace="https://u:SECRET@h/ns#x",
+            namespace_problem=NAMESPACE_FRAGMENT,
+        )
+
+    assert _said(caplog) == [
+        (
+            "ID registry: https://***:***@h/ns#File-1 is registered for both "
+            "a.py and b.py; the second gets a new id",
+            "registry-conflict",
+        ),
+        (
+            "FILE=doc.json: SBOM namespace must not contain '#'; the ID registry "
+            "keeps its own, not https://***:***@h/ns#x",
+            "sbom-invalid",
+        ),
+    ]
 
 
 def test_a_mint_refusal_names_the_registry_file_as_typed(tmp_path: Path) -> None:

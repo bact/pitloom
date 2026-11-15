@@ -73,6 +73,8 @@ SAMPLES: dict[str, object] = {
     "module": "h5py",
     "name": "a.txt",
     "namespace": "https://example.org/ns",
+    "namespace_problem": "must not contain '#'",
+    "given_namespace": "https://example.org/other",
     "number": 2,
     "oid": "0f" * 32,
     "option": "--allow-build",
@@ -276,14 +278,15 @@ def _takes(name: str, run: tuple[object, ...], marker: str) -> bool:
     """Whether field *name* can print as the quote's *run*, which starts
     with text (:func:`_piece_of` reads a wildcard standing for the field):
     the value as the reference shows it (``'<path>'``); for a free field,
-    any text without the family's *marker*; for any other, text of its own
-    shape."""
+    any text without the family's *marker*, but never one placeholder in
+    quotes, which says the field prints quoted when it does not
+    (``'<key>'`` for ``<entity>``); for any other, text of its own shape."""
     field = FIELDS[name]
     if run == _quote_tokens(field.shown):
         return True
     text = "".join(t for t in run if isinstance(t, str))
     if field.free:
-        return marker not in text
+        return marker not in text and run != ("'", _ANY, "'")
     return _ANY not in run and re.fullmatch(field.pattern, text) is not None
 
 

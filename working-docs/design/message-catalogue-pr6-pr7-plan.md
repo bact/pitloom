@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,7 +31,8 @@ belong to other PRs by family: `assemble/spdx3/_fragments_ids.py:56`
 `extract/project/_sdist_scan.py:184` (`ARCHIVE=`, PR 16). So:
 
 - **PR 6: 35 sites** (as planned), 366 -> **331**.
-- **PR 7: 12 sites**, not 15, 331 -> **319**.
+- **PR 7: 12 sites**, not 15, 331 -> **319** (built PR 6 ended at 328:
+  `core/iri.py`'s three namespace raises became one; so 328 -> 316).
 
 Also coded, at zero ratchet effect (bare `"%s"` relays, out of scope
 today): `content_gate_message` (`_harvest.py:312,459,470`) and
@@ -155,11 +156,12 @@ re-check `git tag` before merge). Every template starts with
 - **Reused**: `registry-malformed` gains `ID registry: FILE=%(file)s: no
   %(name)s id left to mint in %(namespace)s` (the file as
   `IdRegistry`'s shown name, `(no file)` without one); its summary already
-  covers a counter out of range. `sbom-invalid` gains a WARNING line
-  `FILE=%(file)s: namespace %(namespace)s is not a namespace IRI;
-  %(failure)s; the ID registry keeps its own` (the SBOM as typed; drops the
-  `ID registry: ` prefix: the subject is the SBOM, see Q2), and its `did`
-  says `id import` goes on.
+  covers a counter out of range. `sbom-invalid` gains a WARNING line,
+  as built: `FILE=%(file)s: SBOM namespace %(namespace_problem)s; the ID
+  registry keeps its own, not %(namespace)s` (the SBOM as typed; the
+  namespace said once, credentials masked, the reason from the closed
+  `core.iri.NAMESPACE_PROBLEMS`; no `ID registry: ` prefix: the subject is
+  the SBOM, see Q2), and its `did` says `id import` goes on.
 
 Decided wording (in the stderr sweep): `loom: ` -> `ID registry: ` on
 rows 5, 6, 9, 15, 18 (Q4); no trailing periods; `%r` and raw values

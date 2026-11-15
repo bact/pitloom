@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,16 +151,16 @@ canonical key, hits the held `demo/x.py` (same SHA-256), keeps its id and the
 harvest replaces the held key with `src/demo/x.py`; one key per id, always.
 Reverse: `loom id generate` records `src/demo/x.py`; a later `loom wheel`
 looks up `demo/x.py`, hits the held key through the alias and leaves the held
-key as it is, with one `INFO: ID registry: <number> element(s) matched a registry key
-through the src/lib layout alias` per document. `id generate` over a
-registry that holds an alias key promotes it to the canonical key (`INFO: ID
-registry: <number> key(s) promoted from a layout alias`). It does so too when the
-canonical key holds older content and the alias the current one (an edit a
-wheel run saw first), as a `loom project` lookup would: the alias's id
-replaces the changed key's, so project and wheel keep one id (`INFO: ID
-registry: <number> key(s) of changed content took their layout alias's id`). Typed
-paths (`loom.Run`, `model`, `enrich`) look up the canonical key, so they
-reuse a wheel-minted id.
+key as it is, with one `INFO: ID registry: <number> element(s) matched a
+registry key through the src/lib layout alias` per document. `id generate`
+over a registry that holds an alias key promotes it to the canonical key
+(`INFO: ID registry: <number> key(s) promoted from a layout alias`). It does
+so too when the canonical key holds older content and the alias the current
+one (an edit a wheel run saw first), as a `loom project` lookup would: the
+alias's id replaces the changed key's, so project and wheel keep one id
+(`INFO: ID registry: <number> key(s) of changed content took their layout
+alias's id`). Typed paths (`loom.Run`, `model`, `enrich`) look up the
+canonical key, so they reuse a wheel-minted id.
 
 ## Monorepo
 
@@ -180,9 +180,9 @@ project but inside the root is keyed from the root. Under `--allow-build`, a
 built file with no source path cannot match its `id generate` key.
 
 When a document's files cannot be keyed from the root, they are keyed by the
-path as read, with one `INFO: ID registry: <number> file(s) keyed by their path as
-read: <reason>`; a `--project-dir` outside the registry's root is one such
-reason (`the project is outside the registry's root`).
+path as read, with one `INFO: ID registry: <number> file(s) keyed by their
+path as read: <reason>`; a `--project-dir` outside the registry's root is
+one such reason (`the project is outside the registry's root`).
 
 ## `-e NAME[:TYPE]`
 
@@ -235,13 +235,13 @@ The script's own string matters only for a dataset with no path below the root.
 - A file whose key is not held with its SHA-256, but whose layout alias is
   (one held key with its SHA-256), is imported under that held key, counted in
   the layout-alias `INFO:`. When its own key holds other content, that key
-  keeps its entry and one `INFO: ID registry: <number> file(s) imported under their
-  layout alias: their own key holds other content` says so.
+  keeps its entry and one `INFO: ID registry: <number> file(s) imported
+  under their layout alias: their own key holds other content` says so.
 - An element whose id is held under another key of its type, one no other
-  element of the SBOM moves, is not imported: `INFO: ID registry: <type>
-  '<key>' not imported: its id is held under '<held key>'`. This is decided
-  before anything is written, so importing the same SBOM again changes
-  nothing.
+  element of the SBOM moves, is not imported: `INFO: ID registry:
+  '<type>' <key> not imported: its id is held under <held key>`. This is
+  decided before anything is written, so importing the same SBOM again
+  changes nothing.
 - A package is keyed by the version it states ([Package
   keys](#package-keys)); one with none, or `NOASSERTION`, by its bare name.
 - A key held by several elements is skipped (see [What a registry

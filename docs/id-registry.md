@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,9 +77,10 @@ exit 1. A
 registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
 is not a non-empty string, does not load. `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
-namespace IRI; otherwise one `WARNING: ID registry: not adopting the
-namespace ...` and the registry keeps its own. It keeps the namespace it
-adopted unless another run changed the file's namespace meanwhile.
+namespace IRI; otherwise one
+`WARNING: FILE=<sbom>: SBOM namespace <why>; the ID registry keeps its
+own, not <namespace> [sbom-invalid]`. It keeps the namespace it adopted
+unless another run changed the file's namespace meanwhile.
 `id import SBOM_FILE` takes `-o`/`--id-registry FILE` and `--project-dir DIR`.
 
 A new registry stores its project root (`--project-dir`, default the current

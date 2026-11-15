@@ -190,21 +190,30 @@ def is_summary(rec: dict[str, Any]) -> bool:
     )
 
 
+def _excluded(rec: dict[str, Any]) -> bool:
+    """Whether *rec* is left out whatever it reaches."""
+    # A helper's call whose text is in the helper body is counted there; but
+    # the body of a catalogue helper (``emit``) is the mechanism, so its
+    # callers count.
+    in_helper_body = (
+        rec["site_kind"] == "helper_call"
+        and rec.get("tmpl_source") == "helper"
+        and not rec.get("helper_def", "").startswith(MECHANISM)
+    )
+    template = rec["template"]
+    return any(
+        (
+            # the logging plumbing and the KEY=VALUE writer
+            rec["file"].endswith(("logging_config.py", "cli/kv_output.py")),
+            rec["file"].startswith(MECHANISM),  # the coding mechanism itself
+            is_summary(rec),  # kind summary: no condition, so no code (R1)
+            in_helper_body,
+            template is not None and bool(PASSTHROUGH_PAT.match(template)),
+            bool(rec.get("relays")),  # another's text said again (_relay.py)
+        )
+    )
+
+
 def in_scope(rec: dict[str, Any]) -> bool:
     """Whether the ratchet counts *rec*."""
-    if rec["file"].endswith(("logging_config.py", "cli/kv_output.py")):
-        return False  # the logging plumbing and the KEY=VALUE writer
-    if rec["file"].startswith(MECHANISM):
-        return False  # the coding mechanism itself
-    if is_summary(rec):
-        return False  # kind summary: no condition, so no code (R1)
-    if rec["site_kind"] == "helper_call" and rec.get("tmpl_source") == "helper":
-        # Its text is in the helper body, counted there; but the body of a
-        # catalogue helper (``emit``) is the mechanism, so its callers count.
-        if not rec.get("helper_def", "").startswith(MECHANISM):
-            return False
-    if rec["template"] is not None and PASSTHROUGH_PAT.match(rec["template"]):
-        return False
-    if rec.get("relays"):
-        return False  # another's text said again (``_relay.py``)
-    return reach(rec) in _VISIBLE
+    return not _excluded(rec) and reach(rec) in _VISIBLE

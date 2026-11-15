@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.given_file import read_given_bytes
-from pitloom.core.iri import is_iri_segment, require_namespace_iri
+from pitloom.core.iri import is_iri_segment, namespace_problem
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
 from pitloom.id_registry._types import (
@@ -187,10 +187,11 @@ def read_registry_file(path: Path) -> RegistryFileContents:
     namespace = data.get("namespace")
     if not isinstance(namespace, str) or not namespace:
         raise _malformed(path, NO_NAMESPACE_LINE)
-    try:
-        require_namespace_iri(namespace)
-    except ValueError as exc:
-        raise _malformed(path, NAMESPACE_LINE, failure=exc) from exc
+    problem = namespace_problem(namespace)
+    if problem is not None:
+        raise _malformed(
+            path, NAMESPACE_LINE, namespace=namespace, namespace_problem=problem
+        )
 
     unknown = sorted(set(data) - _TOP_LEVEL_KEYS)
     if unknown:

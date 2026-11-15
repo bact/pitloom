@@ -16,15 +16,19 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
+from pitloom.core.iri import NAMESPACE_EMPTY, NAMESPACE_PROBLEMS
 from pitloom.messages._field_tables import ELEMENT_KINDS, KEY_REASONS, REGISTRY_PARTS
 from pitloom.messages._field_type import QUOTED, Field
 from pitloom.messages._field_writers import (
     entities_text,
     entity_text,
-    free_text,
     plain_text,
     quoted_text,
 )
+
+#: What a line can say of a namespace it names: never empty (an empty
+#: one has its own line, or is no document id).
+_PRINTED_PROBLEMS: Final = tuple(p for p in NAMESPACE_PROBLEMS if p != NAMESPACE_EMPTY)
 
 _ENTITY_MEANING: Final = (
     "as given, a URL's credentials masked; in quotes, escaped, when it holds "
@@ -79,11 +83,25 @@ REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "namespace": Field(
             r".+",
-            free_text,
+            entity_text,
             "<namespace>",
-            "a document namespace IRI, as an ID registry file states it; in "
-            "quotes, escaped, when it holds a control character",
+            "a document namespace IRI, as an ID registry file or an SBOM "
+            f"states it, {_ENTITY_MEANING}",
             free=True,
+        ),
+        "given_namespace": Field(
+            r".+",
+            entity_text,
+            "<given-namespace>",
+            f"the namespace a command line or caller gives, {_ENTITY_MEANING}",
+            free=True,
+        ),
+        "namespace_problem": Field(
+            "|".join(re.escape(problem) for problem in _PRINTED_PROBLEMS),
+            plain_text,
+            "<why>",
+            "why a text cannot be a document namespace: "
+            + ", ".join(f"`{p}`" for p in _PRINTED_PROBLEMS),
         ),
         "registry_part": Field(
             "|".join(re.escape(part) for part in REGISTRY_PARTS),
@@ -94,10 +112,9 @@ REGISTRY_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
         ),
         "spdx_id": Field(
             r".+",
-            free_text,
+            entity_text,
             "<spdx-id>",
-            "an element's spdxId, as held or read; in quotes, escaped, when it "
-            "holds a control character",
+            f"an element's spdxId, as held or read, {_ENTITY_MEANING}",
             free=True,
         ),
     }

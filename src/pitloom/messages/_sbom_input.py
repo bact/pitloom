@@ -66,8 +66,8 @@ SBOM_GRAPH_ELEMENT_LINE: Final = Line(
 #: the registry's.
 SBOM_NAMESPACE_LINE: Final = Line(
     level="WARNING",
-    template="FILE=%(file)s: namespace %(namespace)s cannot be an ID registry "
-    "namespace (%(failure)s); the registry keeps its own",
+    template="FILE=%(file)s: SBOM namespace %(namespace_problem)s; the ID "
+    "registry keeps its own, not %(namespace)s",
 )
 
 SBOM_INVALID: Final = Message(
@@ -84,8 +84,9 @@ SBOM_INVALID: Final = Message(
     "import'; checked before the format, whatever the file is named), or "
     "spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own "
     "lines before say why). As a WARNING: 'loom id import' into an empty "
-    "registry finds a document namespace that is not an absolute IRI "
-    "without '#'.",
+    "registry finds a document id that cannot be a namespace: not an "
+    "absolute IRI, holding '#', or holding a character an IRI cannot hold "
+    "(a space).",
     did="Wrote nothing: no wheel is changed, no ID is imported. The command "
     "exits 1; the library (embed_wheel_sbom with sbom_path, "
     "IdRegistry.import_sbom) raises ValueError carrying the code for an "

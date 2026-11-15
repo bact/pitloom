@@ -53,7 +53,7 @@ values.
   ```text
   ERROR: ID registry: FILE=<file>: duplicate key <name> [registry-malformed]
   ERROR: ID registry: FILE=<file>: missing a valid 'namespace' [registry-malformed]
-  ERROR: ID registry: FILE=<file>: 'namespace': <failure> [registry-malformed]
+  ERROR: ID registry: FILE=<file>: 'namespace' <why>: <namespace> [registry-malformed]
   ERROR: ID registry: FILE=<file>: missing <name> [registry-malformed]
   ERROR: ID registry: FILE=<file>: 'id_counters' key <name> is not an id prefix [registry-malformed]
   ERROR: ID registry: FILE=<file>: 'id_counters' <name>: <value> is not a whole number from 1 to 9007199254740991 [registry-malformed]

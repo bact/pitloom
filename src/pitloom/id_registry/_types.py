@@ -405,13 +405,16 @@ def _iter_files(
     ``FILE=`` warning, a directory that cannot be listed with the
     ``DIR=`` one, as ``loom project`` does."""
     seen: set[Path] = set()
-    given: set[str] = set()
+    given: set[tuple[Path, str]] = set()
     excluded = None if exclude is None else SameFile(exclude)
     for raw_path in paths:
-        spelling = os.fspath(given_spelling(raw_path))
-        if spelling in given:
-            continue  # a PATH given twice is walked, and said, once
-        given.add(spelling)
+        # A PATH given twice (the same place, spelt alike) is walked, and
+        # said, once; one spelling of two places is two PATHs.
+        root = raw_path if raw_path.is_absolute() else project_root / raw_path
+        place = (Path(os.path.normpath(root)), os.fspath(given_spelling(raw_path)))
+        if place in given:
+            continue
+        given.add(place)
         yield from _eligible_files(
             _root_candidates(raw_path, project_root, explicit),
             project_root,
