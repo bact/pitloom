@@ -20,7 +20,7 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`registry-malformed`](#registry-malformed) | ERROR | An ID registry file is a JSON object but not a registry: a key named twice, a namespace, id counter, project root or entry of the wrong shape, a key the format needs missing, two entries for one key, or a key or spdxId holding a lone surrogate (a \ud800 escape). Most often a hand edit or a merge of two versions of the file. A counter a save would write out of range says the same, before the file is written. | 0.24.1 |
+| [`registry-malformed`](#registry-malformed) | ERROR | An ID registry file is a JSON object but not a registry: a key named twice, a namespace, id counter, project root or entry of the wrong shape, a key the format needs missing, two entries for one key, or a key or spdxId holding a lone surrogate (a \ud800 escape). Most often a hand edit or a merge of two versions of the file. A counter a save would write out of range says the same, before the file is written; so does a mint past the largest id, which only a counter or an id edited to near it reaches. | 0.24.1 |
 | [`registry-unknown-key`](#registry-unknown-key) | ERROR | An ID registry file holds a key its format does not have, at the top level or in an entry. The version is checked first, so a registry from a newer Pitloom says registry-wrong-format instead: the key comes from a hand edit or another tool. | 0.24.1 |
 | [`registry-unusable`](#registry-unusable) | ERROR | An ID registry file cannot record its project root: the file stores the root relative to its own directory, and there is no such path (on Windows, the file and the project on two drives) or it would not load back. Said when the registry is saved. | 0.24.1 |
 | [`registry-wrong-format`](#registry-wrong-format) | ERROR | An ID registry file is of another format version than 4, the one Pitloom reads: an older one (a version 3 file from Pitloom 0.21, whose package keys hold no version, or a version 2 one), a newer one from a later Pitloom, or none at all (no 'version', or one that is not a whole number). It is never migrated. The line states the version found. | 0.24.1 |
@@ -34,7 +34,8 @@ values.
   shape, a key the format needs missing, two entries for one key, or a key or
   spdxId holding a lone surrogate (a \ud800 escape). Most often a hand edit or a
   merge of two versions of the file. A counter a save would write out of range
-  says the same, before the file is written.
+  says the same, before the file is written; so does a mint past the largest id,
+  which only a counter or an id edited to near it reaches.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote nothing. The command exits 1 (the Action step fails),
   the build hook fails the build, and the library raises ValueError carrying the
@@ -53,7 +54,7 @@ values.
   ```text
   ERROR: ID registry: FILE=<file>: duplicate key <name> [registry-malformed]
   ERROR: ID registry: FILE=<file>: missing a valid 'namespace' [registry-malformed]
-  ERROR: ID registry: FILE=<file>: 'namespace': <failure> [registry-malformed]
+  ERROR: ID registry: FILE=<file>: 'namespace' <why>: <namespace> [registry-malformed]
   ERROR: ID registry: FILE=<file>: missing <name> [registry-malformed]
   ERROR: ID registry: FILE=<file>: 'id_counters' key <name> is not an id prefix [registry-malformed]
   ERROR: ID registry: FILE=<file>: 'id_counters' <name>: <value> is not a whole number from 1 to 9007199254740991 [registry-malformed]
@@ -66,6 +67,7 @@ values.
   ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name> is not an object [registry-malformed]
   ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name>: 'spdxId' must be a non-empty string [registry-malformed]
   ERROR: ID registry: FILE=<file>: malformed entry: '<type>' <name>: 'sha256' must be a non-empty string, or left out [registry-malformed]
+  ERROR: ID registry: FILE=<file>: no <name> id left to mint in <namespace> [registry-malformed]
   ```
 
 ### `registry-unknown-key`

@@ -235,3 +235,26 @@ def test_held_is_gated_for_a_file_and_follows_a_layout_alias(
     assert paths.held(reg, ("software_File", "p/x.py"), SHA_B) is None
     assert paths.held(reg, ("software_File", "p/x.py"), None) is None
     assert paths.held(reg, ("software_Package", "p"), SHA_B)
+
+
+@pytest.mark.parametrize(
+    ("shown", "key"),
+    [
+        ("pkg/a.py", "pkg/a.py"),
+        ("'pkg/a.py", "'pkg/a.py"),  # a key that starts with a quote
+        ("'a.py'", "'a.py'"),  # quoted on disk, no control character
+        ("'a\\nb.py'", "a\nb.py"),  # escaped: it holds a control character
+    ],
+    ids=["plain", "leading-quote", "quoted-name", "escaped"],
+)
+def test_a_gate_dropped_line_gives_back_the_key(
+    mcc: dict[str, ModuleType], shown: str, key: str
+) -> None:
+    cap = mcc["_order_capture"]
+    line = (
+        f"INFO: ID registry: content gate dropped for 'software_File' {shown}: "
+        f"imported id {NS}File-7 replaces {NS}File-1 [registry-hash-conflict/gate]"
+    )
+    assert cap.gate_dropped(f"{line}\nINFO: other\n") == [
+        cap.canonical("software_File", key)
+    ]

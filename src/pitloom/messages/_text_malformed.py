@@ -67,7 +67,7 @@ REGISTRY_NAME_SKIPPED_LINE: Final = Line(
 #: A file ``loom id generate`` leaves out of the index for its name.
 REGISTRY_FILE_NAME_LINE: Final = Line(
     level="WARNING",
-    template=f"{REGISTRY_PREFIX}FILE=%(file)s: name {_UNENCODABLE}; not indexed",
+    template=f"{REGISTRY_PREFIX}PATH %(path)s: name {_UNENCODABLE}; not indexed",
 )
 
 TEXT_MALFORMED_REGISTRY: Final = Message(

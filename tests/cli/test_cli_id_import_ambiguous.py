@@ -27,6 +27,7 @@ from tests.id_registry.package_ids_base import build_doc, make_doc, phantom
 from tests.id_registry.surfaces_base import MAIN_KEY
 
 _PREFIX = "INFO: ID registry: not imported (name held by several elements): "
+_CODE = " [registry-key-ambiguous]"
 
 
 def _import(
@@ -66,7 +67,9 @@ def test_id_import_reports_ambiguous_names_in_one_sorted_info_line(
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
     assert lines == [
-        _PREFIX + ", ".join(f"{PACKAGE_TYPE} {n + '@1'!r}" for n in sorted(names))
+        _PREFIX
+        + ", ".join(f"{PACKAGE_TYPE} {n + '@1'!r}" for n in sorted(names))
+        + _CODE
     ]
     registry = IdRegistry.load(registry_path)
     assert registry.lookup(PACKAGE_TYPE, ["foo@1"]) is None  # non-vacuous
@@ -86,7 +89,7 @@ def test_id_import_still_skips_a_name_a_non_reader_shares(
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
-    assert lines == [f"{_PREFIX}{PACKAGE_TYPE} {MAIN_KEY!r}"]
+    assert lines == [f"{_PREFIX}{PACKAGE_TYPE} {MAIN_KEY!r}{_CODE}"]
     assert IdRegistry.load(registry_path).lookup(PACKAGE_TYPE, [MAIN_KEY]) is None
 
 

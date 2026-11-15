@@ -45,12 +45,16 @@ SAMPLES: dict[str, object] = {
     "answered": "other-project",
     "arity": "one argument",
     "card": "model card",
+    "claimant": "src/a.txt",
     "command": "clone",
     "count": 2,
     "declared": "b" * 64,
     "dir": "m/sub",
     "element_type": "software_File",
+    "element_kind": "dataset package",
     "elements": ("model-architecture (written in ai_typeOfModel)",),
+    "entities": ("software_File 'a.txt'", "src/a.txt"),
+    "entity": "data/imdb",
     "entry": "archive/data.pkl",
     "error": "Error while deserializing header: invalid header length",
     "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
@@ -62,12 +66,15 @@ SAMPLES: dict[str, object] = {
     "hosts": "files.pythonhosted.org",
     "input": "wheel file",
     "key": "FIELD",
+    "key_reason": "outside the project root",
     "limit": 1024,
     "fields": ("type_of_model", "properties.tags (kept as raw string)"),
     "measured": "a" * 64,
     "module": "h5py",
     "name": "a.txt",
     "namespace": "https://example.org/ns",
+    "namespace_problem": "must not contain '#'",
+    "given_namespace": "https://example.org/other",
     "number": 2,
     "oid": "0f" * 32,
     "option": "--allow-build",
@@ -86,6 +93,7 @@ SAMPLES: dict[str, object] = {
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "source": "the PyPI JSON API",
+    "spdx_id": "https://example.org/ns#File-1",
     "subcommand": "fragment validate",
     "table": "[tool.pitloom]",
     "target": "https://example.org/x.whl",
@@ -270,14 +278,15 @@ def _takes(name: str, run: tuple[object, ...], marker: str) -> bool:
     """Whether field *name* can print as the quote's *run*, which starts
     with text (:func:`_piece_of` reads a wildcard standing for the field):
     the value as the reference shows it (``'<path>'``); for a free field,
-    any text without the family's *marker*; for any other, text of its own
-    shape."""
+    any text without the family's *marker*, but never one placeholder in
+    quotes, which says the field prints quoted when it does not
+    (``'<key>'`` for ``<entity>``); for any other, text of its own shape."""
     field = FIELDS[name]
     if run == _quote_tokens(field.shown):
         return True
     text = "".join(t for t in run if isinstance(t, str))
     if field.free:
-        return marker not in text
+        return marker not in text and run != ("'", _ANY, "'")
     return _ANY not in run and re.fullmatch(field.pattern, text) is not None
 
 

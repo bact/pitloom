@@ -60,7 +60,7 @@ DUPLICATE_KEY_LINE: Final = _line("duplicate key %(name)s")
 #: No ``namespace``, or one that is not a non-empty string.
 NO_NAMESPACE_LINE: Final = _line("missing a valid 'namespace'")
 #: A ``namespace`` that is not a namespace IRI; the reason after it.
-NAMESPACE_LINE: Final = _line("'namespace': %(failure)s")
+NAMESPACE_LINE: Final = _line("'namespace' %(namespace_problem)s: %(namespace)s")
 #: A key the format needs that the file lacks.
 MISSING_KEY_LINE: Final = _line("missing %(name)s")
 #: An ``id_counters`` key that is no id prefix.
@@ -99,6 +99,8 @@ SHA256_LINE: Final = _line(
     "malformed entry: %(element_type)s %(name)s: 'sha256' must be a non-empty "
     "string, or left out"
 )
+#: No id left to mint: a held counter or id at the largest number.
+MINT_LINE: Final = _line("no %(name)s id left to mint in %(namespace)s")
 
 REGISTRY_MALFORMED: Final = Message(
     code="registry-malformed",
@@ -119,6 +121,7 @@ REGISTRY_MALFORMED: Final = Message(
         ENTRY_LINE,
         SPDX_ID_LINE,
         SHA256_LINE,
+        MINT_LINE,
     ),
     summary="An ID registry file is a JSON object but not a registry: a "
     "key named twice, a namespace, id counter, project root or entry of the "
@@ -126,7 +129,8 @@ REGISTRY_MALFORMED: Final = Message(
     "or a key or spdxId holding a lone surrogate (a \\ud800 escape). Most "
     "often a hand edit or a merge of two versions of the file. A counter a "
     "save would write out of range says the same, before the file is "
-    "written.",
+    "written; so does a mint past the largest id, which only a counter or "
+    "an id edited to near it reaches.",
     did=_DID,
     effect="not-written",
     actor="user",

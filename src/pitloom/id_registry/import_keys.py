@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pitloom.export.hashes import sha256_of
 from pitloom.id_registry._ambiguous import (
-    NO_UNIQUE_FILE,
     DerivedKeys,
     _element_key_of,
     unique_file_keys,
@@ -34,12 +33,21 @@ from pitloom.id_registry._types import (
     FILE_TYPE,
     _element_key,
 )
-from pitloom.id_registry.keys import (
-    LAYOUT_ALIAS_HITS_INFO,
-    alias_candidates,
-    artifact_key,
+from pitloom.id_registry.keys import alias_candidates, artifact_key
+from pitloom.messages import emit, say_summary
+from pitloom.messages.id_registry_ids import (
+    ALIAS_HITS_LINE,
+    ALIAS_IMPORTED_LINE,
+    DATASET_PATH_KEY,
+    KEY_IMPORT_NOT_FOUND,
+    KEY_NOT_FOUND,
+    KEY_OUTSIDE_ROOT,
+    MODEL_FILE_ENTRY_KEY,
+    MODEL_IMPORTED_BY_NAME_LINE,
+    REGISTRY_KEY_MOVED,
+    REGISTRY_PATH_KEY_UNUSABLE,
+    info_name_key,
 )
-from pitloom.logging_config import loggable
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -47,64 +55,20 @@ if TYPE_CHECKING:
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "DATASET_NAME_KEY_INFO",
-    "DATASET_PATH_KEY_INFO",
-    "DATASET_PIN_GATED_INFO",
-    "FILE_ALIAS_OVER_CHANGED_INFO",
-    "IMPORT_NOT_FOUND",
-    "LAYOUT_ALIAS_CHANGED_INFO",
-    "MODEL_FILE_ENTRY_KEY_INFO",
-    "MODEL_NAME_KEY_INFO",
     "ImportPlan",
     "import_keys",
     "name_key_reason",
     "report_imported",
 ]
 
-#: ``log.info()`` formats, once per element: a dataset package keyed by its
-#: name (loom per package per run, ``id import`` per package; arguments:
-#: the name, :func:`name_key_reason` or :data:`IMPORT_NOT_FOUND`), a dataset
-#: ``id import`` keys by a path spelt otherwise than its name (the name, the
-#: key), an imported model left under its name (the name) and one keyed by
-#: the registry's file entry of its SHA-256 (the name, the key).
-DATASET_NAME_KEY_INFO = "ID registry: dataset %s keyed by its name: %s"
-DATASET_PATH_KEY_INFO = "ID registry: dataset %s keyed by its path: %s"
-MODEL_NAME_KEY_INFO = f"ID registry: model %s imported under its name: {NO_UNIQUE_FILE}"
-MODEL_FILE_ENTRY_KEY_INFO = (
-    "ID registry: model %s keyed by the registry's file with its SHA-256: %s"
-)
-#: ``log.info()`` formats, once per run, for a key held with other content
-#: whose layout alias holds the new content: as a run's lookup hits the
-#: alias, the file keeps one id. ``id generate`` moved the alias's entry
-#: over the key; ``id import`` wrote the file under the alias. Argument:
-#: the count.
-LAYOUT_ALIAS_CHANGED_INFO = (
-    "ID registry: %d key(s) of changed content took their layout alias's id"
-)
-FILE_ALIAS_OVER_CHANGED_INFO = (
-    "ID registry: %d file(s) imported under their layout alias: "
-    "their own key holds other content"
-)
-#: ``log.info()`` format for a dataset package pin with no SHA-256 that
-#: ``id generate -e`` gives one: it keeps its id. Argument: the key.
-DATASET_PIN_GATED_INFO = "ID registry: dataset %s pin now gated by its SHA-256"
-#: The ``id import`` reason for a dataset name found neither below the root
-#: nor from the current directory: a loom script declared it relative to
-#: its own directory.
-IMPORT_NOT_FOUND = (
-    "not found: declare paths relative to the registry root "
-    "(id import --project-dir) or run id import from the directory the "
-    "script ran in"
-)
-
 
 class _Note(NamedTuple):
-    """An ``INFO:`` due once the element *spdx_id* is written under *key*."""
+    """An ``INFO:`` due once the element *spdx_id* is written under *key*:
+    *say* logs it."""
 
     spdx_id: str
     key: tuple[str, str]
-    message: str
-    args: tuple[str, ...]
+    say: Callable[[], None]
 
 
 class ImportPlan(NamedTuple):
@@ -123,7 +87,7 @@ class ImportPlan(NamedTuple):
 def name_key_reason(path: str | os.PathLike[str]) -> str:
     """Why an artifact at *path* is keyed by its name: ``not found`` or
     ``outside the project root``."""
-    return "outside the project root" if os.path.lexists(path) else "not found"
+    return KEY_OUTSIDE_ROOT if os.path.lexists(path) else KEY_NOT_FOUND
 
 
 def _directory(get: Callable[[], str | os.PathLike[str]]) -> str | None:
@@ -152,11 +116,16 @@ def _file_alias(
     return (found[0], own is not None) if len(found) == 1 else None
 
 
+def _path_key_note(name: str, key: str) -> Callable[[], None]:
+    """What says the dataset *name* is keyed by its path *key*."""
+    return lambda: say_summary(log, DATASET_PATH_KEY, entity=name, name=key)
+
+
 def _dataset_key(
     registry: IdRegistry, name: str, file_key: str | None
-) -> tuple[str, tuple[str, tuple[str, ...]] | None]:
-    """The key of the imported dataset package *name* and its ``INFO:``
-    (format, arguments), if any: the path key of the first that names a
+) -> tuple[str, Callable[[], None] | None]:
+    """The key of the imported dataset package *name* and what logs its
+    ``INFO:``, if any: the path key of the first that names a
     file or directory below the root of: its one same-hash file's key
     (*file_key*, from the root), *name* from the root, *name* from the
     current directory; else *name*."""
@@ -169,13 +138,10 @@ def _dataset_key(
         if found.path:
             if found.key == name:
                 return name, None
-            return found.key, (
-                DATASET_PATH_KEY_INFO,
-                (loggable(name), loggable(found.key)),
-            )
+            return found.key, _path_key_note(name, found.key)
     outside = any(os.path.lexists(path) for path in paths)
-    reason = name_key_reason(paths[0]) if outside else IMPORT_NOT_FOUND
-    return name, (DATASET_NAME_KEY_INFO, (loggable(name), reason))
+    reason = name_key_reason(paths[0]) if outside else KEY_IMPORT_NOT_FOUND
+    return name, lambda: info_name_key(log, "dataset", name, reason)
 
 
 def _held_files(registry: IdRegistry) -> dict[str, list[str]]:
@@ -213,10 +179,8 @@ class _Planner:
         self.keys[str(obj.spdxId)] = (type_name, key)
         return _element_key(type_name=type_name, name=key)
 
-    def note(
-        self, obj: Any, key: tuple[str, str], said: tuple[str, tuple[str, ...]]
-    ) -> None:
-        self.notes.append(_Note(str(obj.spdxId), key, said[0], said[1]))
+    def note(self, obj: Any, key: tuple[str, str], say: Callable[[], None]) -> None:
+        self.notes.append(_Note(str(obj.spdxId), key, say))
 
     def dataset(self, obj: Any, name: str) -> None:
         sha = sha256_of(obj)
@@ -227,18 +191,33 @@ class _Planner:
 
     def model(self, obj: Any, own: tuple[str, str]) -> None:
         sha = sha256_of(obj)
-        name = loggable(str(obj.name))
+        name = str(obj.name)
         if sha is not None and (file_key := self.files.get(sha)) is not None:
             self.key(obj, AI_PACKAGE_TYPE, file_key)
             return
         held = self.held.get(sha or "", [])
         if len(held) == 1:
-            written = self.key(obj, AI_PACKAGE_TYPE, held[0])
+            file_key = held[0]
+            written = self.key(obj, AI_PACKAGE_TYPE, file_key)
             self.note(
-                obj, written, (MODEL_FILE_ENTRY_KEY_INFO, (name, loggable(held[0])))
+                obj,
+                written,
+                lambda: say_summary(
+                    log, MODEL_FILE_ENTRY_KEY, entity=name, name=file_key
+                ),
             )
             return
-        self.note(obj, own, (MODEL_NAME_KEY_INFO, (name,)))
+        self.note(
+            obj,
+            own,
+            lambda: emit(
+                log,
+                REGISTRY_PATH_KEY_UNUSABLE,
+                logging.INFO,
+                line=MODEL_IMPORTED_BY_NAME_LINE,
+                entity=name,
+            ),
+        )
 
 
 def import_keys(registry: IdRegistry, objects: Iterable[Any]) -> ImportPlan:
@@ -250,9 +229,9 @@ def import_keys(registry: IdRegistry, objects: Iterable[Any]) -> ImportPlan:
     package: :func:`_dataset_key`. A model: the key of the one
     ``software_File`` of *objects* with its SHA-256 (that file's written
     key), the key every run looks the model up by; else of the one held
-    ``software_File`` entry recording it (one
-    :data:`MODEL_FILE_ENTRY_KEY_INFO`); with neither, or no SHA-256 of its
-    own, its name (one :data:`MODEL_NAME_KEY_INFO`). Each note is logged by
+    ``software_File`` entry recording it (one summary,
+    ``MODEL_FILE_ENTRY_KEY``); with neither, or no SHA-256 of its own, its
+    name (one ``registry-path-key-unusable`` ``INFO:``). Each note is logged by
     :func:`report_imported` only when its element is written.
     """
     objects = list(objects)
@@ -273,10 +252,9 @@ def import_keys(registry: IdRegistry, objects: Iterable[Any]) -> ImportPlan:
 
 def report_imported(registry: IdRegistry, plan: ImportPlan) -> None:
     """Log *plan*'s notes for the elements the import wrote, one
-    :data:`~pitloom.id_registry.keys.LAYOUT_ALIAS_HITS_INFO` counting the
-    files written under a layout alias and one
-    :data:`FILE_ALIAS_OVER_CHANGED_INFO` counting those of them whose own
-    key holds other content. An element not written was skipped with its
+    ``registry-key-moved`` ``INFO:`` counting the files written under a
+    layout alias and one counting those of them whose own key holds other
+    content. An element not written was skipped with its
     own line (R-keep, ambiguity, an unencodable name)."""
 
     def written(spdx_id: str, key: tuple[str, str]) -> bool:
@@ -285,10 +263,9 @@ def report_imported(registry: IdRegistry, plan: ImportPlan) -> None:
 
     for note in plan.notes:
         if written(note.spdx_id, note.key):
-            log.info(note.message, *note.args)
+            note.say()
     hits = [spdx_id for spdx_id, key in plan.aliased if written(spdx_id, key)]
-    if hits:
-        log.info(LAYOUT_ALIAS_HITS_INFO, len(hits))
     over = sum(spdx_id in plan.over_changed for spdx_id in hits)
-    if over:
-        log.info(FILE_ALIAS_OVER_CHANGED_INFO, over)
+    for line, number in ((ALIAS_HITS_LINE, len(hits)), (ALIAS_IMPORTED_LINE, over)):
+        if number:
+            emit(log, REGISTRY_KEY_MOVED, logging.INFO, line=line, number=number)

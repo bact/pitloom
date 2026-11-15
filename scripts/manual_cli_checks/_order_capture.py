@@ -27,6 +27,8 @@ from _order_ops import Step
 from packaging.utils import canonicalize_version
 from packaging.version import InvalidVersion, Version
 
+from pitloom.logging_config import loggable
+
 FILE, PACKAGE = "software_File", "software_Package"
 AI, DATASET = "ai_AIPackage", "dataset_DatasetPackage"
 #: The four types a lookup reads (design section 7), with their id
@@ -243,9 +245,20 @@ def project_files(fixture: Path, step: Step, exclude: str | None) -> dict[str, s
 
 
 _GATE_DROPPED = re.compile(
-    r"^INFO: ID registry: content gate dropped for (\S+) (.+): "
-    r"imported id \S+ replaces \S+$"
+    r"^INFO: ID registry: content gate dropped for '(\S+)' (.+): "
+    r"imported id \S+ replaces \S+ \[registry-hash-conflict/gate\]$"
 )
+
+
+def shown_key(shown: str) -> str:
+    """The key a line prints as *shown*: as is, unless it is the escaped
+    literal ``loggable()`` writes for a key holding a control character
+    (a key that only starts with a quote prints as it is)."""
+    try:
+        key = ast.literal_eval(shown)
+    except (ValueError, SyntaxError):
+        return shown
+    return key if isinstance(key, str) and loggable(key) == shown else shown
 
 
 def gate_dropped(stderr: str) -> list[Key]:
@@ -255,7 +268,7 @@ def gate_dropped(stderr: str) -> list[Key]:
     for line in stderr.splitlines():
         match = _GATE_DROPPED.match(line)
         if match:
-            keys.append(canonical(match[1], str(ast.literal_eval(match[2]))))
+            keys.append(canonical(match[1], shown_key(match[2])))
     return keys
 
 

@@ -55,14 +55,17 @@ from pitloom.id_registry import (
     LookupKey,
     join_key,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    MODEL_GATE_MISS_LINE,
+    REGISTRY_HASH_CONFLICT,
+)
 
 log = logging.getLogger(__name__)
 
 _V = TypeVar("_V")
 
 __all__ = [
-    "MODEL_GATE_MISS_INFO",
     "ModelHits",
     "_LineageContext",
     "_SAFETY_RISK_VALUES",
@@ -80,13 +83,6 @@ __all__ = [
     "model_lookup_key",
     "resolve_ai_model_entity_hits",
 ]
-
-#: The one ``INFO:`` for a model whose lookup, gated by its file's SHA-256,
-#: missed while an entry under its key exists: it records no SHA-256, or
-#: another. Argument: the model's label.
-MODEL_GATE_MISS_INFO = (
-    "ID registry: model %s: no registry entry records its SHA-256; a new id is used"
-)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -132,12 +128,19 @@ def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
 
 
 def _info_gate_miss(registry: IdRegistry, claimant: str, key: str) -> None:
-    """:data:`MODEL_GATE_MISS_INFO` for *claimant* when *registry* holds an
+    """The one ``registry-hash-conflict`` ``INFO:`` for a model whose lookup,
+    gated by its file's SHA-256, missed: for *claimant* when *registry* holds an
     entry under *key* (or its display-escaped spelling, as a session tries
     it), whatever its SHA-256. Read only: nothing is claimed."""
     spellings = (key, escape_display_controls(key))
     if any(registry.get(AI_PACKAGE_TYPE, name) is not None for name in spellings):
-        log.info(MODEL_GATE_MISS_INFO, loggable(claimant))
+        emit(
+            log,
+            REGISTRY_HASH_CONFLICT,
+            logging.INFO,
+            line=MODEL_GATE_MISS_LINE,
+            entity=claimant,
+        )
 
 
 def lookup_model_id(
@@ -150,7 +153,7 @@ def lookup_model_id(
     recorded (:meth:`~pitloom.id_registry.IdRegistrySession.lookup_key`),
     gated by *digest*, the model file's SHA-256 (``None``: ungated): an
     entry recording no SHA-256, or another, never hits a gated lookup. Such
-    a miss gives one :data:`MODEL_GATE_MISS_INFO`; every model lookup of
+    a miss gives one ``registry-hash-conflict`` ``INFO:``; every model lookup of
     every surface goes through here."""
     registry = session.registry
     if registry is None or digest is None:

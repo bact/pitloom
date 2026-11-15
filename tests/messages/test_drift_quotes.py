@@ -119,12 +119,58 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "is not a PEP 440 version",
     ),
     "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
+    "index-path-no-effect": ("skipped directory name",),
+    "registry-conflict": (
+        "is registered for both",
+        "another run saved",
+        "but it is read as",
+        "its id is held under",
+        "is held under another type",
+    ),
+    "registry-entry-missing": ("not found; minting a new spdxId",),
+    "registry-hash-conflict": (
+        "content changed for",
+        "no longer matches",
+        "no registry entry records its SHA-256",
+        "content gate ",
+    ),
+    "registry-hash-missing": (
+        "looked up ungated",
+        "pin without SHA-256",
+        "pinned without SHA-256",
+        "pin now gated",
+        "no content was hashed",
+    ),
+    "registry-identity-missing": (
+        "package identity unknown",
+        "stored without a version",
+    ),
+    "registry-key-ambiguous": (
+        "once NFC-normalised",
+        "more than one layout alias",
+        "name held by several elements",
+    ),
+    "registry-key-moved": (
+        "promoted from a layout alias",
+        "through the src/lib layout alias",
+        "took their layout alias's id",
+        "imported under their layout alias",
+    ),
+    "registry-path-key-unusable": (
+        "keyed by its name",
+        "imported under its name",
+        "not recorded: no unique file",
+        "stored by name",
+        "keyed by their path as read",
+        "is outside the project root",
+    ),
     "registry-malformed": (
         "malformed entry: ",
         "duplicate key ",
         "missing a valid 'namespace'",
         "is not a relative POSIX path",
         "cannot be encoded as UTF-8",
+        "id left to mint",
     ),
     "registry-unknown-key": ("unknown top-level key", "has unknown key"),
     "registry-unusable": ("has no path relative to", "cannot be stored as"),
@@ -152,7 +198,12 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "a PyPI page is not a model",
         "a PyPI page is not a Git repository",
     ),
-    "sbom-invalid": ("SBOM is not valid", "@graph is not a list", "SBOM @graph"),
+    "sbom-invalid": (
+        "SBOM is not valid",
+        "@graph is not a list",
+        "SBOM @graph",
+        "the ID registry keeps its own",
+    ),
     "sbom-wrong-format": ("named .spdx3.json but not SPDX 3",),
     "target-wrong-format": (
         "a Hugging Face model, not a project",
@@ -301,3 +352,20 @@ def test_the_matcher_reads_elisions_and_checks_level_code_and_wording(
 )
 def test_the_matcher_reads_the_values_of_a_cap_line(quote: str, expected: bool) -> None:
     assert quote_matches(quote, "over-cap", *_MARKERS["over-cap"]) is expected
+
+
+@pytest.mark.parametrize(
+    ("quote", "expected"),
+    [
+        ("INFO: ID registry: '<type>' <key> not imported: its id is held under", True),
+        ("INFO: ID registry: <type> <key> not imported: its id is held under", True),
+        # the held key prints unquoted: a free value is never one
+        # placeholder in quotes (a quoted field is matched by its shape)
+        ("ID registry: '<type>' <key> not imported: its id is held under '<k>'", False),
+        ("ID registry: 'a_Type' 'k' not imported: its id is held under x", True),
+    ],
+    ids=["shown", "bare", "old-quotes", "value-quoted"],
+)
+def test_a_placeholder_in_quotes_is_a_quoted_field(quote: str, expected: bool) -> None:
+    marker = "its id is held under"
+    assert quote_matches(quote, "registry-conflict", marker) is expected

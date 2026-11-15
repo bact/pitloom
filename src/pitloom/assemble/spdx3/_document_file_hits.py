@@ -22,11 +22,18 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import FilesOrigin, ProjectFile
 from pitloom.id_registry import FILE_TYPE, IdRegistry, IdRegistrySession
 from pitloom.id_registry.keys import LookupKey, file_lookup_key, project_prefix
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    FALLBACK_KEYS_LINE,
+    KEY_PATH_OUTSIDE,
+    KEY_PATH_OUTSIDE_ARCHIVE,
+    KEY_PROJECT_OUTSIDE,
+    REGISTRY_PATH_KEY_UNUSABLE,
+)
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "FALLBACK_KEYS_INFO",
     "FileHits",
     "file_keys",
     "pointer_registry_hashes",
@@ -65,14 +72,6 @@ def _resolve_directory_hits_for_file(
             dir_hits[directory_name] = claimed_id
 
 
-#: The one ``INFO:`` for a document's files keyed by their path as read,
-#: not from the registry's root: the count and the reason.
-FALLBACK_KEYS_INFO = "ID registry: %d file(s) keyed by their path as read: %s"
-_OUTSIDE_ROOT = "the project is outside the registry's root"
-_NO_JOIN = "their path is outside the registry's root"
-_NO_JOIN_ARCHIVE = "their path leads outside the archive's project"
-
-
 def _doc_prefix(doc: DocumentModel, registry: IdRegistry) -> str | None:
     """*doc*'s project prefix in *registry*
     (:func:`~pitloom.id_registry.keys.project_prefix` of
@@ -83,10 +82,10 @@ def _doc_prefix(doc: DocumentModel, registry: IdRegistry) -> str | None:
 
 
 def _fallback_reason(doc: DocumentModel, prefix: str | None) -> str:
-    """Why some of *doc*'s files got no path key (:data:`FALLBACK_KEYS_INFO`)."""
+    """Why some of *doc*'s files got no path key."""
     if doc.files_origin.project_dir is not None and prefix is None:
-        return _OUTSIDE_ROOT
-    return _NO_JOIN_ARCHIVE if doc.files_origin.archive else _NO_JOIN
+        return KEY_PROJECT_OUTSIDE
+    return KEY_PATH_OUTSIDE_ARCHIVE if doc.files_origin.archive else KEY_PATH_OUTSIDE
 
 
 def _file_keys(
@@ -105,7 +104,14 @@ def _file_keys(
     else:
         fallbacks = sum(not lookup.path for lookup in keys.values())
     if fallbacks and (origin.project_dir is not None or origin.archive):
-        log.info(FALLBACK_KEYS_INFO, fallbacks, _fallback_reason(doc, prefix))
+        emit(
+            log,
+            REGISTRY_PATH_KEY_UNUSABLE,
+            logging.INFO,
+            line=FALLBACK_KEYS_LINE,
+            number=fallbacks,
+            key_reason=_fallback_reason(doc, prefix),
+        )
     return keys
 
 
@@ -114,7 +120,7 @@ def file_keys(doc: DocumentModel, registry: IdRegistry) -> dict[str, LookupKey]:
     (:func:`~pitloom.id_registry.keys.file_lookup_key`), by
     ``distribution_path``. The project prefix is computed once, from
     ``doc.files_origin.project_dir``. When files of a document naming its
-    origin get no path key, one ``INFO:`` (:data:`FALLBACK_KEYS_INFO`)
+    origin get no path key, one ``INFO:`` (``registry-path-key-unusable``)
     gives their count and why."""
     return _file_keys(doc, _doc_prefix(doc, registry), registry)
 

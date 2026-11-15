@@ -117,7 +117,8 @@ def test_replay_changes(
     assert len(warnings) == refused
     if refused:
         assert "another run saved" in warnings[0]
-        assert repr("c") in warnings[0]
+        assert "for 'ai_AIPackage' " in warnings[0]
+        assert warnings[0].endswith((" c", " b"))
 
 
 @pytest.mark.parametrize(

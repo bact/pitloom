@@ -144,14 +144,18 @@ def test_the_model_table_lists_every_cause_that_thins_a_model() -> None:
 
 
 def _sections() -> dict[str, list[str]]:
-    """The lines of each code's section, by code, over the docs pages."""
+    """The lines of each code's section, by code, over the docs pages: from
+    its heading to the next heading of any level."""
     found: dict[str, list[str]] = {}
     for topic in TOPIC_TITLES:
+        current: list[str] | None = None
         for line in gen.render_page(_DOCS, topic).splitlines():
             if line.startswith("### `"):
-                found[line.split("`")[1]] = []
-            elif found:
-                found[next(reversed(found))].append(line)
+                current = found[line.split("`")[1]] = []
+            elif line.startswith("#"):
+                current = None
+            elif current is not None:
+                current.append(line)
     return found
 
 

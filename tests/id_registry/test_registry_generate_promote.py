@@ -25,7 +25,6 @@ import pytest
 import pitloom.id_registry._generate as ids_mod
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry, keys
 from pitloom.id_registry._types import _iter_files
-from pitloom.id_registry.import_keys import LAYOUT_ALIAS_CHANGED_INFO
 from tests.id_registry.shared import _files
 from tests.registry_helpers import make_registry
 
@@ -34,6 +33,8 @@ _BYTES = b"print('x')\n"
 _NEW = b"print('y')\n"
 _NFD = "café"
 _NFC = "café"
+
+_CHANGED_ONE = "ID registry: 1 key(s) of changed content took their layout alias's id"
 
 
 def _sha(data: bytes) -> str:
@@ -115,7 +116,7 @@ def test_generate_moves_the_alias_holding_the_new_bytes_over_a_changed_key(
     assert ("demo/x.py" not in ids) is moved
     assert old not in (*ids.values(), registry.register(FILE_TYPE, "n", sha256=None))
     said = [m for m in caplog.messages if "changed" in m]
-    assert len(said) == 1 and (said[0] == LAYOUT_ALIAS_CHANGED_INFO % 1) is moved
+    assert len(said) == 1 and (said[0] == _CHANGED_ONE) is moved
 
 
 @pytest.mark.parametrize("real", [True, False], ids=["real-file", "no-file"])

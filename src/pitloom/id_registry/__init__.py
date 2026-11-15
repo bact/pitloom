@@ -27,7 +27,7 @@ that defines them.
 
 from __future__ import annotations
 
-from pitloom.id_registry._ambiguous import ambiguous_keys_message
+from pitloom.id_registry._ambiguous import say_ambiguous_keys
 from pitloom.id_registry._persist import (
     failed_to_save_message,
     persist_registry,
@@ -85,7 +85,7 @@ __all__ = [
     "RegistryEntry",
     "alias_candidates",
     "alias_tail",
-    "ambiguous_keys_message",
+    "say_ambiguous_keys",
     "artifact_key",
     "failed_to_save_message",
     "info_identity_unknown",

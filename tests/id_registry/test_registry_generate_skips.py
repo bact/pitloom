@@ -107,7 +107,7 @@ def test_unencodable_name_is_skipped_with_the_file_warning(
 
     assert files == [good]
     (warning,) = [r.getMessage() for r in caplog.records]
-    assert warning.startswith("ID registry: FILE='src/bad")
+    assert warning.startswith("ID registry: PATH 'src/bad")
     assert warning.endswith("cannot be encoded as UTF-8 (lone surrogate); not indexed")
 
 

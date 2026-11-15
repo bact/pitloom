@@ -40,8 +40,6 @@ if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
 
 __all__ = [
-    "LAYOUT_ALIAS_HITS_INFO",
-    "LAYOUT_ALIAS_PROMOTED_INFO",
     "LAYOUT_ROOTS",
     "Alias",
     "LookupKey",
@@ -68,15 +66,6 @@ _DATA_DIR_SUFFIX = ".data"
 #: ``packages/``) has none: a wheel-only run mints its own ids for its
 #: files, two keys rather than one id taken from another file.
 LAYOUT_ROOTS = ("src", "lib")
-
-#: ``log.info()`` format for a document's elements (files, models) that
-#: matched a held key through a layout alias. Argument: their count.
-LAYOUT_ALIAS_HITS_INFO = (
-    "ID registry: %d element(s) matched a registry key through the src/lib layout alias"
-)
-#: ``log.info()`` format for the held keys ``id generate`` moved to their
-#: canonical key. Argument: their count.
-LAYOUT_ALIAS_PROMOTED_INFO = "ID registry: %d key(s) promoted from a layout alias"
 
 
 class Alias(Enum):

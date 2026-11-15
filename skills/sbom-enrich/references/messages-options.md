@@ -48,7 +48,8 @@ values.
   ```text
   ERROR: <option> cannot be used <when> [option-conflict]
   ERROR: argument <option>: not allowed with argument <other> [option-conflict]
-  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <value>; delete it to change the namespace [option-conflict]
+  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <given-namespace>; delete it to change the namespace [option-conflict]
+  ERROR: ID registry: FILE=<file>: namespace <namespace> is not --namespace <given-namespace> (they differ in masked credentials); delete it to change the namespace [option-conflict]
   ERROR: ID registry: FILE=<file>: project root '<path>' is not '<root>'; delete it to change the project root [option-conflict]
   ```
 
@@ -79,7 +80,7 @@ values.
   ERROR: ambiguous option: <error> [option-invalid]
   ERROR: build timeout must be 1-<limit> seconds, got <value> [option-invalid]
   ERROR: PATH '<path>' is outside --project-dir '<root>' [option-invalid]
-  ERROR: ID registry: FILE=<file>: not inside the project root '<root>' [option-invalid]
+  ERROR: ID registry: PATH '<path>' is not inside the project root '<root>' [option-invalid]
   ```
 
 ### `option-missing`

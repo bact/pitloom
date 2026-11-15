@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,9 +77,10 @@ exit 1. A
 registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
 is not a non-empty string, does not load. `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
-namespace IRI; otherwise one `WARNING: ID registry: not adopting the
-namespace ...` and the registry keeps its own. It keeps the namespace it
-adopted unless another run changed the file's namespace meanwhile.
+namespace IRI; otherwise one
+`WARNING: FILE=<sbom>: SBOM namespace <why>; the ID registry keeps its
+own, not <namespace> [sbom-invalid]`. It keeps the namespace it adopted
+unless another run changed the file's namespace meanwhile.
 `id import SBOM_FILE` takes `-o`/`--id-registry FILE` and `--project-dir DIR`.
 
 A new registry stores its project root (`--project-dir`, default the current
@@ -274,10 +275,10 @@ document is not written.
 A harvest records a SHA-256 only for `software_File` and `ai_AIPackage`
 entries (the two content-gated types) and never erases one already recorded:
 an element with no hash and another id leaves such an entry as is, with one
-`INFO: ID registry: content gate kept for <type> '<key>': harvested id <id>
+`INFO: ID registry: content gate kept for '<type>' <key>: harvested id <id>
 not recorded over <id>`. `loom id import` is the exception: there the
 imported id wins and the hash goes, with one `INFO: ID registry: content gate
-dropped for <type> '<key>': imported id <id> replaces <id>` per entry, so
+dropped for '<type>' <key>: imported id <id> replaces <id>` per entry, so
 importing an older SBOM of a model gives it that SBOM's id back.
 `dataset_DatasetPackage` elements are the exception: a dataset id is pinned
 deliberately (`-e NAME:dataset_DatasetPackage` or `id import`), never from a
@@ -347,11 +348,12 @@ directory.
 `IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
-skips such a file with the `FILE=` `WARNING:`, and harvest and `id import`
+skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
 `generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
 [input-not-found]`) for a path that is not there, and `ValueError` (`ID
-registry: FILE=<path>: not inside the project root '<root>' [option-invalid]`) for
+registry: PATH '<path>' is not inside the project root '<root>'
+[option-invalid]`) for
 a path outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
 `ERROR: loom id import: FILE=<path>: SBOM @graph is not a list [sbom-invalid]`,

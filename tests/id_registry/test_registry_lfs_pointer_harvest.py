@@ -30,11 +30,8 @@ from pitloom.core.project import ProjectFile
 from pitloom.export.hashes import sha256_of
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from pitloom.id_registry._ambiguous import harvest_sha256, unique_file_keys
-from pitloom.id_registry._harvest import (
-    _harvest_elements,
-    _own_sha256,
-    content_gate_message,
-)
+from pitloom.id_registry._harvest import _harvest_elements, _own_sha256
+from pitloom.messages.id_registry_ids import GATE_KEPT_OLDER_LINE
 from tests._lfs import lfs_pointer_bytes
 from tests.id_registry._registry_harvest_shared import (
     _CI,
@@ -125,8 +122,13 @@ _TWIN_WANT = {
     "other": (
         {_KEY: (_POINTER_ID, _OID)},
         [
-            content_gate_message(
-                (FILE_TYPE, _KEY), _FRAGMENT_ID, _POINTER_ID, older=True
+            GATE_KEPT_OLDER_LINE.render(
+                {
+                    "element_type": FILE_TYPE,
+                    "entity": _KEY,
+                    "spdx_id": _FRAGMENT_ID,
+                    "claimant": _POINTER_ID,
+                }
             )
         ],
     ),

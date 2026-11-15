@@ -157,3 +157,36 @@ REGISTRY_PARTS: Final = (
     "spdxId",
     "type name",
 )
+
+#: What an element is, as a line about its ID registry lookup names it
+#: (``model 'm'``): a closed table.
+ELEMENT_KINDS: Final = ("dataset", "dataset package", "entity", "file", "model")
+
+#: Why an element is keyed by its name, not by its path (or files by their
+#: path as read), as a line about its ID registry key says it: a closed
+#: table. These texts are the reasons' one source; the code that decides
+#: imports them.
+KEY_NOT_FOUND: Final = "not found"
+KEY_OUTSIDE_ROOT: Final = "outside the project root"
+KEY_NOT_A_FILE: Final = "not a regular file"
+KEY_MODEL_PIN: Final = "used only by a model with no file"
+#: ``id import``: a dataset name found neither below the root nor from the
+#: current directory (a loom script declared it relative to its own one).
+KEY_IMPORT_NOT_FOUND: Final = (
+    "not found: declare paths relative to the registry root "
+    "(id import --project-dir) or run id import from the directory the "
+    "script ran in"
+)
+KEY_PROJECT_OUTSIDE: Final = "the project is outside the registry's root"
+KEY_PATH_OUTSIDE: Final = "their path is outside the registry's root"
+KEY_PATH_OUTSIDE_ARCHIVE: Final = "their path leads outside the archive's project"
+KEY_REASONS: Final = (
+    KEY_NOT_FOUND,
+    KEY_OUTSIDE_ROOT,
+    KEY_NOT_A_FILE,
+    KEY_MODEL_PIN,
+    KEY_IMPORT_NOT_FOUND,
+    KEY_PROJECT_OUTSIDE,
+    KEY_PATH_OUTSIDE,
+    KEY_PATH_OUTSIDE_ARCHIVE,
+)

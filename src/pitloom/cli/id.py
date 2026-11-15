@@ -36,9 +36,9 @@ from pitloom.id_registry import (
     FILE_TYPE,
     PACKAGE_TYPE,
     IdRegistry,
-    ambiguous_keys_message,
     failed_to_save_message,
     save_registry,
+    say_ambiguous_keys,
 )
 from pitloom.logging_config import print_error
 from pitloom.messages import (
@@ -372,7 +372,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
         return 1
     _report_registry_written(registry_path, registry)
     if skipped:
-        log.info("%s", ambiguous_keys_message("not imported", skipped))
+        say_ambiguous_keys(log, "not imported", skipped)
     if is_new and not from_project_key:
         _log_config_hint(registry_path, project_dir, slot)
     return 0

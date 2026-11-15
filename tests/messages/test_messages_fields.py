@@ -23,6 +23,8 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
+from pitloom.messages._field_writers import entities_text
+from pitloom.messages._fields import _merged
 from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
@@ -219,3 +221,17 @@ def test_a_frame_breaking_a_rule_is_refused(change: dict[str, Any], match: str) 
 def test_the_relay_frame_writes_the_scan_prefix() -> None:
     values = {"format": AiModelFormat.GGUF, "file": "m/x.gguf"}
     assert RELAY_FRAME.render(values) == "FORMAT=gguf FILE=m/x.gguf: "
+
+
+def test_a_field_named_in_two_tables_is_refused() -> None:
+    """``FIELDS`` merges the general and the ID registry tables: a name in
+    both would let one silently replace the other."""
+    entity = {"entity": FIELDS["entity"]}
+    with pytest.raises(ValueError, match="'entity' is defined twice"):
+        _merged(entity, entity)
+
+
+@pytest.mark.parametrize("value", ["a, b", None], ids=["str", "none"])
+def test_entities_take_a_list_or_tuple_only(value: object) -> None:
+    with pytest.raises(ValueError, match="not a list"):
+        entities_text(value)

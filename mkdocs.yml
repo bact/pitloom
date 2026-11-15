@@ -57,6 +57,7 @@ nav:
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md
           - ID registry: message-codes-id-registry.md
+          - ID registry ids and keys: message-codes-id-registry-ids.md
           - Licences: message-codes-licences.md
       - Resources: resources.md
 

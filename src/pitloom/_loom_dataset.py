@@ -49,11 +49,6 @@ from pitloom._loom_caller import (
     stated_hashes,
 )
 from pitloom._loom_dataset_keys import (
-    HASHLESS_PIN_INFO,
-    NAME_KEY_INFO,
-    PIN_WITHOUT_HASH_INFO,
-    SPELLING_PIN_WARNING,
-    UNGATED_INFO,
     DigestEvidence,
     dataset_digest,
     digest_evidence,
@@ -88,28 +83,25 @@ from pitloom.id_registry import (
     registry_file_path,
 )
 from pitloom.logging_config import loggable
+from pitloom.messages import emit
 from pitloom.messages.files import warn_file_unreadable
+from pitloom.messages.id_registry_ids import (
+    OUTSIDE_ROOT_LINE,
+    REGISTRY_CONFLICT_SPELLING,
+    REGISTRY_PATH_KEY_UNUSABLE,
+    SPELLING_LINE,
+)
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "HASHLESS_PIN_INFO",
-    "NAME_KEY_INFO",
-    "OUTSIDE_ROOT_WARNING",
-    "PIN_WITHOUT_HASH_INFO",
     "REGISTRY_IN_DATASET_WARNING",
-    "UNGATED_INFO",
     "LoomElements",
     "dataset_digest",
     "merkle_root_comment",
     "name_key_reason",
 ]
 
-#: ``log.warning()`` format for a file outside the registry's project root.
-#: Arguments: the path as the caller gave it, the root.
-OUTSIDE_ROOT_WARNING = (
-    "loom: file %r is outside the ID registry's project root %s; minting a new spdxId"
-)
 #: ``log.warning()`` format for the declared registry inside a directory
 #: dataset. Arguments: the registry path, the dataset's name.
 REGISTRY_IN_DATASET_WARNING = (
@@ -345,11 +337,14 @@ class LoomElements:
             else registry.get(DATASET_PACKAGE_TYPE, self._package_key(name).key)
         )
         if other is not None and other.spdx_id != package.spdxId:
-            log.warning(
-                SPELLING_PIN_WARNING,
-                loggable(name),
-                loggable(other.spdx_id),
-                loggable(kept),
+            emit(
+                log,
+                REGISTRY_CONFLICT_SPELLING,
+                logging.WARNING,
+                line=SPELLING_LINE,
+                entity=name,
+                spdx_id=other.spdx_id,
+                claimant=kept,
             )
 
     @staticmethod
@@ -447,7 +442,14 @@ class LoomElements:
             return key, True
         real = os.path.realpath(path)
         if self._first_time("outside", real):
-            log.warning(OUTSIDE_ROOT_WARNING, name, loggable(str(registry.root_dir())))
+            emit(
+                log,
+                REGISTRY_PATH_KEY_UNUSABLE,
+                logging.WARNING,
+                line=OUTSIDE_ROOT_LINE,
+                entity=name,
+                root=registry.root_dir(),
+            )
         return name, False
 
     def _package(

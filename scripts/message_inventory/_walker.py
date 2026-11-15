@@ -308,13 +308,15 @@ def _kind_of(rec: Record) -> str | None:
 def _pick_def(
     mod: Module, name: str, cands: list[tuple[Module, FuncNode, list[Record]]]
 ) -> tuple[Module, FuncNode, list[Record]]:
-    """The definition of helper *name* that *mod* imports, else the first."""
+    """The definition of helper *name* in *mod* itself, else the one it
+    imports, else the first."""
     pick = cands[0]
     src = mod.imports.get(name)
     for cand in cands:
         if src and cand[0].name == src[0]:
             pick = cand
-    return pick
+    own = [cand for cand in cands if cand[0] is mod]
+    return own[0] if own else pick
 
 
 def _message_param(params: list[str], recs: list[Record]) -> str | None:

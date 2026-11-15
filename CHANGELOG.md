@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,13 +24,14 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM, target and ID registry file errors carry a message code;
-  see `docs/message-codes.md` ([#482], [#485])
+- Input, option, SBOM, target and ID registry file, id and key messages carry a
+  message code; see `docs/message-codes.md` ([#482], [#485], [#486])
 
 ### Changed
 
 - Error messages for missing inputs, options and ID registry files are
-  reworded; CLI `ERROR:` lines start `loom <command>:` ([#481], [#482], [#485])
+  reworded; CLI `ERROR:` lines start `loom <command>:`; `loom.Run` registry
+  lines start `ID registry:` ([#481], [#482], [#485], [#486])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
@@ -40,7 +41,8 @@ and this project adheres to
   read; a missing input or ID registry is named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
-- Every CLI `ERROR:` line and `-v` detail masks the credentials and tokens of each URL ([#482])
+- Every CLI `ERROR:` and ID registry `WARNING:` line and `-v` detail masks the
+  credentials and tokens of each URL ([#482], [#486])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -58,6 +60,7 @@ and this project adheres to
 [#482]: https://github.com/bact/pitloom/pull/482
 [#483]: https://github.com/bact/pitloom/pull/483
 [#485]: https://github.com/bact/pitloom/pull/485
+[#486]: https://github.com/bact/pitloom/pull/486
 
 ## [0.24.0] - 2026-11-11
 

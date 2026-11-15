@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -307,3 +307,75 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 - Not coded here: the save wrapper `failed_to_save_message` still prints
   the inner text without its code (PR 7), and the skipped-directory decision
   line (`_types.py`, PR 6).
+
+## ID registry ids and keys (#486, catalogue PR 6)
+
+- New topic `id-registry-ids` (`pitloom.messages.id_registry_ids`), split
+  from `id-registry` for page size. Codes by the condition each line
+  answers (R1): `registry-conflict` (one id, two elements; `/concurrent`
+  another run saved it first, `/held` an import meets an id held under
+  another key, `/spelling` a dataset named two ways, `/type` a name held
+  under another type), `registry-hash-conflict` (`/gate`: a harvest keeps,
+  or an import drops, a content gate), `registry-hash-missing`,
+  `registry-entry-missing`, `registry-path-key-unusable` (keyed by name or
+  by the path as read: closed `key_reason` table), `registry-identity-missing`,
+  `registry-key-ambiguous`, `registry-key-moved` (the layout-alias counts),
+  `index-path-no-effect` (a PATH under a skipped directory name).
+- The summary kind: `Summary` and `say_summary` (`messages/_summary.py`),
+  an `INFO:` of no condition with no code; `scripts/message_inventory`
+  leaves a call out when it reaches that definition
+  (`_scope.is_summary`), never by name or text, and a module's own
+  `say_summary` stays counted (`_walker._pick_def` now prefers the
+  caller's own definition). The reference lists each topic's summaries.
+  Since the rule keys on the call, `tests/messages/test_summary_guard.py`
+  holds the summaries to the catalogue: every `Summary(...)` is built in
+  `messages/` and listed in `SUMMARIES`, `say_summary` is only called
+  by that name, and outside `messages/` a summary imported by name is
+  only its argument (an alias, a `functools.partial`, a stored reference,
+  a `dataclasses.replace`, `type(S)(...)` or `S.__replace__` fails the
+  test, never hides a line; a module attribute `m.S` and a copy inside
+  `messages/` are the guard's stated limits).
+  Two here (`id import`'s dataset path key and model file-entry key); PR 7
+  adds the other five.
+- New fields in `_fields_registry.py` (`_fields.py` split first):
+  `entity`, `entities`, `claimant` (free; a URL's credentials masked, a
+  control character escaped), `spdx_id`, `element_type` (quoted),
+  `element_kind` and `key_reason` (closed). `_fields._merged` refuses a
+  duplicate name across the two tables.
+- FILE= after `ID registry: ` names only the registry file (ruling Q2):
+  PR 5's two indexed-file lines say `PATH '<p>'`; the SBOM namespace an
+  import cannot adopt is `sbom-invalid` (a new `WARNING` line, `FILE=` the
+  SBOM, no prefix, the namespace said once and the reason from a closed
+  table, `core.iri.NAMESPACE_PROBLEMS`). The mint refusal is
+  `registry-malformed`, `FILE=` the registry (`(no file)` for one in memory).
+- `loom.Run`'s registry lines take `ID registry: ` (ruling Q4) and name
+  the element kind on a miss too (`model m not found`, was `entity`).
+- Fixed with it: `register()`'s content-changed `INFO:` wrote the key raw
+  (a newline forged a line), and a dataset's URL was printed with its
+  credentials; both now go through `entity_text`.
+- Ratchet 366 to 328: the 35 coded sites, per module in
+  `tests/fixtures/message-inventory/uncoded.txt`; the two summary calls
+  are out of scope, not coded. `core/iri.py` goes 4 to 1: its three
+  namespace raises are one (`namespace_problem()` gives the reason, which
+  the `sbom-invalid` line now says without the value).
+- `registry-conflict` (one id, two claimants) is said by a document build
+  (generate, project, wheel, env, embed-wheel, the hook, the library) and
+  `loom.Run` only: `model` and `enrich` look one model up, `id generate`
+  and `id import` never claim (checked by real runs, 2026-11-15).
+- A PATH given twice to `id generate` is walked and said once; the
+  skipped-directory line names the PATH as typed.
+- `spdx_id` and `namespace` print through `entity_text` (a URL's
+  credentials masked): an imported SBOM's ids are read text. A registry
+  file's bad `namespace` (`registry-malformed`) says the closed reason and
+  the masked value, and `require_namespace_iri`'s own `ValueError` masks
+  it too, so the library error never holds a password. A `--namespace`
+  conflict whose two sides print alike once masked says `(they differ in
+  masked credentials)` rather than `X is not X`.
+- A PATH repeat is keyed on (normalised place, typed spelling): one
+  spelling of two places is two PATHs.
+- The drift test refuses a free value quoted as one placeholder
+  (`'<key>'` where the line prints `<entity>`); a quoted field still
+  matches its shown form.
+- Left for PR 7: the save wrapper, `ENTITY_STORED_AS_INFO` and the other
+  summaries, `_loom_dataset.py:108` (the registry inside a dataset
+  directory), and the hook's `did` texts (the hook never saves).

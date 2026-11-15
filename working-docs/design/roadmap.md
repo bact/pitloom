@@ -123,7 +123,8 @@ message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
 `licenseid>=0.7.1,<0.8`. The
 ratchet fell from 498 to 469. The generated message reference is over the
 size limit: splitting it comes before the next catalogue PR. Moved to 0.24.0:
-the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18, the licence
+the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18 (3, 5 and
+6 built: #482, #485, #486), the licence
 provenance mapping ([#384](https://github.com/bact/pitloom/pull/384), T14),
 `--report` and SARIF. See
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)

@@ -173,7 +173,7 @@ def test_spellings_of_one_dataset_are_one_package(
         (None, b"changed\n", True, None),
         (_SHA, _CONTENT, True, None),
         (_SHA, b"changed\n", False, "no longer matches"),
-        ("absent", _CONTENT, False, "untracked entity"),
+        ("absent", _CONTENT, False, " not found"),
     ],
     ids=["hashless-any", "equal", "changed", "absent"],
 )
@@ -204,11 +204,11 @@ def test_package_lookup_is_gated_by_its_digest(
     hashless = ["data/t.txt matched a pin without SHA-256; content not checked"]
     assert _infos(caplog) == (hashless if pinned is None else [])
     assert package["name"] == "./data/t.txt"
-    missed = [w for w in _warnings(caplog) if "entity" in w or "matches" in w]
+    missed = [w for w in _warnings(caplog) if "dataset package" in w]
     assert len(missed) == int(not hit)
     if needle is not None:
         assert needle in missed[0]
-        assert "'data/t.txt'" in missed[0]
+        assert missed[0].startswith("ID registry: dataset package data/t.txt")
 
 
 @pytest.mark.parametrize("added", [False, True], ids=["same", "file-added"])

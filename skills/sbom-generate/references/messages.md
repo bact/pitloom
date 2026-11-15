@@ -37,6 +37,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [PyPI](messages-pypi.md): 13 codes
 - [Network](messages-network.md): 9 codes
 - [ID registry](messages-id-registry.md): 4 codes
+- [ID registry ids and keys](messages-id-registry-ids.md): 14 codes
 - [Licences](messages-licences.md): 1 code
 
 | Code | Level | Since |
@@ -56,6 +57,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`file-unreadable/outside-repository`](messages-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
 | [`hf-url-invalid`](messages-targets.md#hf-url-invalid) | ERROR | 0.24.1 |
 | [`hyperparameter-conflict`](messages-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
+| [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.24.1 |
 | [`input-not-found`](messages-targets.md#input-not-found) | ERROR | 0.23.4 |
 | [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.24.1 |
 | [`json-malformed`](messages-files.md#json-malformed) | ERROR | 0.23.0 |
@@ -87,7 +89,20 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`query-no-effect`](messages-network.md#query-no-effect) | INFO | 0.24.0 |
 | [`reader-unsafe`](messages-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](messages-models.md#reader-unsaferemote) | INFO | 0.23.4 |
+| [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.24.1 |
+| [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.24.1 |
+| [`registry-conflict/held`](messages-id-registry-ids.md#registry-conflictheld) | INFO | 0.24.1 |
+| [`registry-conflict/spelling`](messages-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.24.1 |
+| [`registry-conflict/type`](messages-id-registry-ids.md#registry-conflicttype) | WARNING | 0.24.1 |
+| [`registry-entry-missing`](messages-id-registry-ids.md#registry-entry-missing) | WARNING | 0.24.1 |
+| [`registry-hash-conflict`](messages-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.24.1 |
+| [`registry-hash-conflict/gate`](messages-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.24.1 |
+| [`registry-hash-missing`](messages-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.24.1 |
+| [`registry-identity-missing`](messages-id-registry-ids.md#registry-identity-missing) | INFO | 0.24.1 |
+| [`registry-key-ambiguous`](messages-id-registry-ids.md#registry-key-ambiguous) | WARNING, INFO | 0.24.1 |
+| [`registry-key-moved`](messages-id-registry-ids.md#registry-key-moved) | INFO | 0.24.1 |
 | [`registry-malformed`](messages-id-registry.md#registry-malformed) | ERROR | 0.24.1 |
+| [`registry-path-key-unusable`](messages-id-registry-ids.md#registry-path-key-unusable) | WARNING, INFO | 0.24.1 |
 | [`registry-unknown-key`](messages-id-registry.md#registry-unknown-key) | ERROR | 0.24.1 |
 | [`registry-unusable`](messages-id-registry.md#registry-unusable) | ERROR | 0.24.1 |
 | [`registry-wrong-format`](messages-id-registry.md#registry-wrong-format) | ERROR | 0.24.1 |
@@ -99,7 +114,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`release-unpinned/prerelease`](messages-pypi.md#release-unpinnedprerelease) | INFO | 0.24.0 |
 | [`release-unpinned/yanked`](messages-pypi.md#release-unpinnedyanked) | INFO | 0.24.0 |
 | [`release-unusable`](messages-pypi.md#release-unusable) | INFO | 0.24.0 |
-| [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR | 0.24.1 |
+| [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR, WARNING | 0.24.1 |
 | [`sbom-wrong-format`](messages-targets.md#sbom-wrong-format) | ERROR | 0.24.1 |
 | [`target-ambiguous`](messages-targets.md#target-ambiguous) | INFO | 0.23.4 |
 | [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.24.1 |
@@ -129,12 +144,16 @@ A line may start with one prefix before its text:
 | `<answered>` | the project name PyPI answered for, as its answer gives it; in quotes, escaped, when it holds a control character |
 | `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
+| `<claimant>` | the other element, key or spelling that wants the same id or holds it (a path, a name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<kind>` | what the element is: `dataset`, `dataset package`, `entity`, `file`, `model` |
 | `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
+| `<entities>` | names or keys, comma-separated, each as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<entity>` | an element's name or ID registry key (a path, a dataset or model name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
@@ -144,14 +163,17 @@ A line may start with one prefix before its text:
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
+| `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
+| `<key-reason>` | why the element is keyed by its name, or files by their path as read: `not found`, `outside the project root`, `not a regular file`, `used only by a model with no file`, `not found: declare paths relative to the registry root (id import --project-dir) or run id import from the directory the script ran in`, `the project is outside the registry's root`, `their path is outside the registry's root`, `their path leads outside the archive's project` |
 | `<limit>` | the cap, in its unit |
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
-| `<namespace>` | a document namespace IRI, as an ID registry file states it; in quotes, escaped, when it holds a control character |
+| `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold` |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
@@ -170,6 +192,7 @@ A line may start with one prefix before its text:
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
+| `<spdx-id>` | an element's spdxId, as held or read, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |

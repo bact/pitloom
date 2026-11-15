@@ -269,7 +269,9 @@ def test_counters_never_read_below_a_held_id(tmp_path: Path) -> None:
 def test_mint_refuses_past_the_largest_number() -> None:
     registry = IdRegistry(namespace=_NS, id_counters={"File": MAX_ID_NUMBER})
 
-    with pytest.raises(ValueError, match="^ID registry: no File id left to mint"):
+    with pytest.raises(
+        ValueError, match="^ID registry: FILE=.*: no File id left to mint in "
+    ):
         registry.register(FILE_TYPE, "a")
 
     assert not registry.elements

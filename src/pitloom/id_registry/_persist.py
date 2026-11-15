@@ -28,6 +28,11 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._types import RegistryEntry
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    CONCURRENT_LINE,
+    REGISTRY_CONFLICT_CONCURRENT,
+)
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -114,13 +119,15 @@ def replay_changes(base: Table, mine: Table, theirs: Table) -> tuple[Table, int]
             break
         refused.update(now)
     for key, holder in now.items():
-        log.warning(
-            "ID registry: another run saved %s for %s %r first; "
-            "not recording it for %r",
-            _id_of(mine.get(key)),
-            holder[0],
-            holder[1],
-            key[1],
+        emit(
+            log,
+            REGISTRY_CONFLICT_CONCURRENT,
+            logging.WARNING,
+            line=CONCURRENT_LINE,
+            spdx_id=str(_id_of(mine.get(key))),
+            element_type=holder[0],
+            entity=holder[1],
+            claimant=key[1],
         )
     return merged, len({_id_of(mine.get(key)) for key in now})
 

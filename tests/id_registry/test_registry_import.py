@@ -31,6 +31,7 @@ from pitloom.id_registry import (
     IdRegistrySession,
     RegistryEntry,
 )
+from pitloom.logging_config import CODE_ATTR
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.shared import (
     _sha256,
@@ -175,8 +176,45 @@ def test_import_sbom_adopts_only_a_namespace_iri(
     warnings = [r.getMessage() for r in caplog.records]
     assert len(warnings) == (0 if adopted else 1)
     if warnings:
-        assert warnings[0].startswith("ID registry: not adopting the namespace")
-        assert repr(document_id) in warnings[0]
+        assert warnings[0].startswith(f"FILE={sbom_path}: SBOM namespace ")
+        # the namespace said once, after the reason
+        assert warnings[0].endswith(
+            f"; the ID registry keeps its own, not {document_id}"
+        )
+        assert warnings[0].count(document_id) == 1
+        assert getattr(caplog.records[0], CODE_ATTR) == "sbom-invalid"
+
+
+def test_cli_import_masks_a_document_ids_credentials(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A document id it cannot adopt is said with its URL's credentials
+    masked, on stderr and on the record a library caller logs."""
+    document_id = "https://u:S3CRET@h.example/ns/doc?token=T0KEN#x"
+    sbom_path = tmp_path / "doc.spdx3.json"
+    _write_sbom(
+        sbom_path,
+        spdx3.software_Package(
+            spdxId=f"{_IMPORTED}#Package-1", name="p", creationInfo=_CI
+        ),
+        document_id=document_id,
+    )
+    capsys.readouterr()
+
+    argv = ["id", "import", str(sbom_path), "-o", str(tmp_path / "reg.json")]
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert _run_cli(monkeypatch, argv) == 0
+
+    captured = capsys.readouterr()
+    said = [ln for ln in captured.err.splitlines() if "SBOM namespace" in ln]
+    assert len(said) == 1 and said[0].startswith("WARNING: ")
+    assert "h.example/ns/doc" in said[0]  # the namespace is said, masked
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+    for secret in ("S3CRET", "T0KEN"):
+        assert secret not in captured.err + captured.out + logged
 
 
 def test_import_sbom_returns_an_ambiguous_file_path(tmp_path: Path) -> None:
@@ -304,8 +342,8 @@ def test_cli_import_of_an_unhashed_model_says_it_drops_the_gate(
         assert (gate, reloaded) == ([], RegistryEntry(held, sha))
         return
     assert gate == [
-        "INFO: ID registry: content gate dropped for ai_AIPackage 'tiny': "
-        f"imported id {imported} replaces {held}"
+        "INFO: ID registry: content gate dropped for 'ai_AIPackage' tiny: "
+        f"imported id {imported} replaces {held} [registry-hash-conflict/gate]"
     ]
     assert reloaded == RegistryEntry(imported)
 

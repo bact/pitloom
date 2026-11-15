@@ -55,9 +55,11 @@ from pitloom.id_registry import (
     registry_file_path,
     resolve_registry,
 )
+from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import configure_logging, loggable
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import warn_file_unreadable
+from pitloom.messages.id_registry_ids import info_name_key
 from pitloom.messages.pypi import (
     MODEL_URL_LINE,
     PYPI_URL_UNUSABLE,
@@ -134,17 +136,10 @@ def _model_registry_id(
     without a *registry*."""
     if registry is None:
         return None
-    # Imported here: the loom modules import pitloom.assemble (a cycle).
-    # pylint: disable-next=import-outside-toplevel,cyclic-import
-    from pitloom._loom_dataset import name_key_reason
-
-    # pylint: disable-next=import-outside-toplevel,cyclic-import
-    from pitloom._loom_model import NAME_KEY_INFO
-
     stem = model_path.stem
     lookup = artifact_key(registry, path=model_path, name=stem, alias=Alias.CANONICAL)
     if not lookup.path:
-        log.info(NAME_KEY_INFO, loggable(stem), name_key_reason(model_path))
+        info_name_key(log, "model", stem, name_key_reason(model_path))
     session = IdRegistrySession(registry)
     spdx_id = lookup_model_id(
         session, model.own_name or stem, lookup, digest() if lookup.path else None

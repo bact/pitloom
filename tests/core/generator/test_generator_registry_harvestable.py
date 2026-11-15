@@ -34,7 +34,6 @@ from pitloom.id_registry import (
     FILE_TYPE,
     IdRegistry,
 )
-from pitloom.id_registry._ambiguous import MODEL_NOT_RECORDED_INFO
 
 from ..conftest import _write_smoke_project
 
@@ -92,7 +91,12 @@ def test_a_merged_loom_fragment_is_harvested(
 
     saved = IdRegistry.load(registry)
     assert saved.get(AI_PACKAGE_TYPE, "m") is None
-    assert caplog.messages.count(MODEL_NOT_RECORDED_INFO % "m") == 1
+    assert (
+        caplog.messages.count(
+            "ID registry: model m not recorded: no unique file with its SHA-256"
+        )
+        == 1
+    )
     held = saved.get(FILE_TYPE, "data.txt")
     assert held is not None and held.sha256 is not None
     assert not [key for key in saved.elements if key[0] == DATASET_PACKAGE_TYPE]

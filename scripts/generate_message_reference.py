@@ -50,6 +50,7 @@ from pitloom.messages import (
     FIELDS,
     FRAMES,
     MESSAGES,
+    SUMMARIES,
     TOPIC_TITLES,
     Line,
     Message,
@@ -306,6 +307,32 @@ _FRONT: Final = (
 )
 
 
+#: What a page says of its summaries.
+_SUMMARY_RULE: Final = (
+    "A summary is an `INFO:` line that reports what a run did under its own "
+    "rule (a count, the key it wrote), with no condition to name: it carries "
+    "no code, and there is nothing to do."
+)
+
+
+def _summaries(topic: str) -> list[list[str]]:
+    """*topic*'s summaries section, or nothing when it has none."""
+    found = sorted((s for s in SUMMARIES if s.topic == topic), key=lambda s: s.template)
+    if not found:
+        return []
+    items: list[str] = []
+    for summary in found:
+        items += [
+            *wrap(summary.meaning, "- ", "  "),
+            "",
+            "  ```text",
+            f"  INFO: {summary.shown}",
+            "  ```",
+            "",
+        ]
+    return [["## Summaries"], wrap(_SUMMARY_RULE), items[:-1]]
+
+
 def render_page(site: Site, topic: str) -> str:
     """The whole file of *topic*'s page for *site*: LF, ending in one
     newline. It has no ``Created`` or ``Last-Modified`` date, so the output
@@ -320,6 +347,7 @@ def render_page(site: Site, topic: str) -> str:
         ["## Codes"],
         _codes_table(codes),
         *(_section(MESSAGES[code]) for code in codes),
+        *_summaries(topic),
     ]
     return "\n\n".join("\n".join(part) for part in parts) + "\n"
 
