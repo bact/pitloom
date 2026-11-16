@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 -->
 
 # Credentials: detect and refuse, never rewrite
@@ -13,7 +13,59 @@ See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
 [message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the
 message contract the new codes join).
 
-Status: proposed 2026-11-15, not built. Follow-up to PR 487.
+Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489)
+built the detector and keeps the strip; the refusal at the persisted sinks
+and the override (PR 2) are not built. See "Built in PR 1" below.
+
+## Built in PR 1 (PR 489)
+
+- The detector: `find_url_credentials` and `holds_url_credentials`
+  (`core/url_masking/_detect.py`, reading the hits of `_hits.py` and the
+  token shapes of `_tokens.py`). It reads a URL-typed value as a whole
+  (a URL, a PEP 508 requirement with a direct reference, a whole scp-style
+  address, a PURL with its qualifiers and subpath) and never prose (user
+  ruling 2026-11-15); an identifier Pitloom stores is read for a URL or a
+  token anywhere in it. Detail: "Detector sweep (PR 1)" in
+  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
+- A `Finding` holds its kind, its view (left out of `repr`) and the masked
+  text; a weak name or an accepted `ssh` account name is a weak finding,
+  never refused.
+- The registry refusals (namespace, key, element id) and `IdRegistry.load()`
+  use the detector; `load()` still drops the entry, as in PR 487.
+- The SBOM strip stays; a value it leaves that the detector refuses gets a
+  `credentials-unsafe` line, said once and masked ("which the SBOM states
+  as written").
+- The masker (`core/url_masking/_mask.py`) hides every finding, tokens
+  included, in a value and in a line.
+- A timing test per view on adversarial inputs (`test_each_view_is_linear`)
+  and 1 MiB runs of the two shapes that were once quadratic.
+
+Not built: any refusal of the SBOM output, merged fragments, the dataset
+PURL or a Git URL's secret query value; the change of `load()` to refuse;
+the override (fingerprint, flags, `pyproject.toml`, library option); the
+Action's `::add-mask::`; `credentials-unsafe/refused`; the JSON path and
+fingerprint of a finding.
+
+## Corrections after PR 1
+
+Where this plan and the built detector disagree, the code holds:
+
+- Token shapes are read inside a URL-typed value (a path segment, a query
+  value, the user information, a PURL qualifier or subpath) and in a stored
+  identifier, not "anywhere in the graph": prose is out of scope by the
+  ruling. The masker hides tokens anywhere in displayed text.
+- The detector does not share every reading, and so every gap, of the
+  strip: it reads white space and quotes inside a URL field, any scheme
+  after one `/` or after backslashes (`s3:/u:p@h`), a dotless scp-style
+  address as a whole value (`alice:pw@host:repo`, `build:42@ci:linux`),
+  a PURL subpath, and no longer refuses a weak name nested in a weak name.
+  It keeps others (`state=`, `Policy=`, a `/` in a password, a user-less
+  scp address): "Tracked, not fixed here" in credential-leak-fixes.md.
+- A PURL qualifier is decoded at most 5 times (`PURL_DECODE_ROUNDS`), not
+  to a fixed point; a value a sixth decode would still change is a
+  `nesting` finding.
+- Size: `_hits.py`, `_detect.py`, `_mask.py` and `_tokens.py` add about
+  740 source lines, against the estimate of 150 below.
 
 ## Why
 
@@ -92,7 +144,7 @@ Never rewrite persisted data automatically.
 ## Release plan
 
 1. Merge PR 487 (logging, git, registry refusal, catalogue; independent of
-   this change).
+   this change). Done.
 2. Do not cut 0.25.0 until the detect-and-refuse PR lands. Strip in 0.25.0
    and refuse in 0.26.0 would turn builds that succeeded into failures and
    need two advisory stories.
@@ -128,6 +180,7 @@ Never rewrite persisted data automatically.
 
 - Fingerprint length and hash input (whole value or only the credential
   part).
-- Whether the token-shape list is a refusal or a warning by default.
+- Whether the token-shape list is a refusal or a warning by default in the
+  SBOM. In the ID registry a token is refused since PR 1.
 - Whether `loom id import` of a document with a credentialed id refuses or
   skips with the override.

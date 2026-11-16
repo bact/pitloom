@@ -14,13 +14,14 @@ tests/core/url_masking/test_url_masking_credentials.py.
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
 import pytest
 
 from pitloom import __main__
-from pitloom.cli.kv_output import kv_line
+from pitloom.cli.kv_output import kv_line, log_kv
 from tests.assemble.embed_surfaces_shared import demo_project
 from tests.kv_helpers import kv_stdout
 
@@ -46,11 +47,25 @@ def test_a_lookalike_path_is_printed_as_given(value: str) -> None:
         (f"https://u:{SECRET}@h/x", "https://***:***@h/x"),
         (f"https://h/x?token={SECRET}", "https://h/x?token=***"),
         (f"out/https:/u:{SECRET}@h/x.json", "out/https:/***:***@h/x.json"),
+        (f"https://h/a b?token={SECRET}", "https://h/a b?token=***"),
+        (f"https\u200b://h/x?token={SECRET}", "https://h/x?token=***"),
+        (f"a https\u200b://u:{SECRET}@h/x", "a https://***:***@h/x"),
+        (f"\ufeffhttps://h/a b?token={SECRET}", "https://h/a b?token=***"),
     ],
-    ids=["userinfo", "token", "collapsed"],
+    ids=[
+        *("userinfo", "token", "collapsed", "space-in-path"),
+        *("format-in-scheme", "format-in-text", "bom-then-space"),
+    ],
 )
-def test_a_url_value_is_masked(value: str, shown: str) -> None:
+def test_a_url_value_is_masked(
+    value: str, shown: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A value that starts with a URL is read whole: a space in its path
+    does not end it (``-v`` details and stdout alike)."""
     assert kv_line(SOURCE=value) == f"SOURCE={shown}"
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        log_kv(SOURCE=value)
+    assert SECRET not in caplog.text and f"SOURCE={shown}" in caplog.text
 
 
 @pytest.mark.skipif(_WINDOWS, reason="':' is not allowed in a Windows file name")

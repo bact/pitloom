@@ -26,16 +26,25 @@ from pitloom.core.purl import (
     purl_qualifier_values,
     strip_purl_secrets,
 )
+from pitloom.core.url_masking import strip_url_secrets
 from pitloom.export._spdx3_strip import _url_words, strip_graph_credentials
-from pitloom.logging_config import CODE_ATTR
+from pitloom.logging_config import _WARNED_ONCE, CODE_ATTR
 from pitloom.messages import code_of
 from pitloom.messages._url_credentials import (
     KEPT_LINE,
     STRIPPED_KEPT_LINE,
     STRIPPED_LINE,
+    UNREMOVED_LINE,
+)
+from pitloom.messages.url_credentials import (
+    warn_url_credential_unremoved,
+    warn_url_credentials_stripped,
 )
 
 _SECRET = "S3CRET"
+#: What the not-removed line says.
+_AS_WRITTEN = "which the SBOM states as written"
+_MARK_IDS = ["zero-width-space", "bom", "bidi"]
 
 
 def _warnings(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
@@ -107,8 +116,9 @@ def test_a_generic_purl_is_built_from_the_url_without_its_credentials() -> None:
 def test_one_warning_per_url_says_what_is_kept(
     url: str, plain: str, line: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The line names a kept value only when one is kept, and the URL it
-    shows keeps that value as written."""
+    """The line names a kept value only when one is kept; the URL a stripped
+    line shows keeps that value as written, the one a kept line shows is
+    masked whole."""
     graph: list[dict[str, Any]] = [{"d": f"see {url}.", "e": [url]}]
     with caplog.at_level(logging.WARNING):
         strip_graph_credentials(graph)
@@ -116,7 +126,8 @@ def test_one_warning_per_url_says_what_is_kept(
     (said,) = _warnings(caplog)
     assert said.getMessage().endswith(_template_tail(line.template))
     for kept in ("git@", "code=ABC"):
-        assert (kept in said.getMessage()) is (kept in plain)
+        shown = kept in plain and line is not KEPT_LINE
+        assert (kept in said.getMessage()) is shown
 
 
 def test_a_clean_graph_is_left_as_the_same_object_and_said_nothing(
@@ -244,7 +255,7 @@ def test_a_purl_qualifier_that_keeps_a_value_says_so_once(
     assert graph == [{"p": purl, "q": [purl]}]
     (said,) = _warnings(caplog)
     assert said.getMessage().endswith(_template_tail(KEPT_LINE.template))
-    assert "code=ABC" in said.getMessage()
+    assert "code=***" in said.getMessage() and "ABC" not in said.getMessage()
 
 
 def test_two_json_ld_ids_that_differ_only_by_credentials_collide() -> None:
@@ -347,3 +358,162 @@ def test_credentials_in_every_layer_of_nested_encoding_are_stripped() -> None:
     for _ in range(8):
         deep = quote(deep, safe="")
     assert purl_qualifier_values(f"pkg:generic/a?download_url={deep}")
+
+
+@pytest.mark.parametrize(
+    ("purl", "plain"),
+    [
+        (
+            "pkg:generic/x?download_url=https://u:S3CRET@h/a%2Bb.zip",
+            "pkg:generic/x?download_url=https://h/a%2Bb.zip",
+        ),
+        (
+            "pkg:generic/x?vcs_url=g" + "it%2Bhttps://u:S3CRET@h/r",
+            "pkg:generic/x?vcs_url=g" + "it%2Bhttps://h/r",
+        ),
+        (
+            "pkg:generic/x?download_url=https%3A%2F%2Fu%3AS3CRET%40h%2Fa%252Bb",
+            "pkg:generic/x?download_url=https://h/a%252Bb",
+        ),
+        (
+            "pkg:pypi/x@1?a=b#sub/https://u:S3CRET@h",
+            "pkg:pypi/x@1?a=b#sub/https://h",
+        ),
+    ],
+    ids=["as-written", "encoded-scheme", "encoded-once", "subpath"],
+)
+def test_a_qualifier_is_encoded_as_often_as_it_was_decoded(
+    purl: str, plain: str
+) -> None:
+    """A value stripped as written is not encoded again (``%2B`` stays, not
+    ``%252B``, a different file); one stripped after a decode is encoded
+    that many times; a URL in the subpath is stripped too."""
+    assert strip_purl_secrets(purl)[0] == plain
+
+
+def test_a_fragment_parameter_after_an_empty_one_is_stripped() -> None:
+    assert strip_url_secrets("https://h/x#&token=T&a=1", whole=True)[0] == (
+        "https://h/x#a=1"
+    )
+
+
+_GHP = "ghp_T0KEN" + "aB3" * 10 + "x"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "s3:/u:S3CRET@h/x",
+        "hf:/datasets/x?token=S3CRET",
+        "git+ssh:/h/x?token=S3CRET",
+        "hf:\\\\h?access_token=S3CRET",
+        "https://h/?next=alice:S3CRET@host:o/r",
+        "pkg:generic/x@1#alice:S3CRET@host:o/r",
+        "pkg:generic/x?private_token=S3CRET",
+        f"https://h/{_GHP}/x",
+    ],
+    ids=[
+        *("one-slash", "hf-query", "plus-scheme", "backslashes"),
+        *("nested-scp", "subpath-scp", "qualifier-key", "token"),
+    ],
+)
+def test_a_credential_the_strip_does_not_read_is_said_kept(
+    value: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A value the detector refuses that the strip leaves (PR 2 replaces the
+    strip) is said once, masked, as stated as written, never silently."""
+    graph: list[dict[str, Any]] = [
+        {"spdxId": "urn:a", "x": value},
+        {"spdxId": "urn:b", "x": value},
+    ]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    said = [r for r in caplog.records if _AS_WRITTEN in r.getMessage()]
+    assert len(said) == 1 and getattr(said[0], CODE_ATTR) == "credentials-unsafe"
+    assert "S3CRET" not in caplog.text and _GHP[4:] not in caplog.text
+    assert said[0].getMessage().endswith(_template_tail(UNREMOVED_LINE.template))
+
+
+def test_a_value_the_strip_cleans_is_not_said_kept(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    graph: list[dict[str, Any]] = [{"spdxId": "urn:a", "x": "https://u:S3CRET@h/x"}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(graph)
+    assert _AS_WRITTEN not in caplog.text and "removed from the SBOM" in caplog.text
+
+
+@pytest.mark.parametrize("mark", ["\u200b", "\ufeff", "\u202e"], ids=_MARK_IDS)
+@pytest.mark.parametrize(
+    "value",
+    [
+        "pkg:pypi/x@1?token=S3CRET&vcs_url=https://h/x?code=1",
+        "pkg:pypi/x@1?vcs_url=https://u:S3CRET@h/x",
+        "https://u:S3CRET@h/x?code=1",
+        "https://h/x?code=1",
+        "u:S3CRET@h.example:r",
+        "<pkg:pypi/x@1?token=S3CRET>",
+        "<https://u:S3CRET@h/x>",
+    ],
+    ids=[
+        *("purl-kept", "purl-url", "url", "url-kept", "scp"),
+        *("enclosed-purl", "enclosed-url"),
+    ],
+)
+def test_a_format_character_in_front_changes_no_reading(
+    mark: str, value: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A value behind a format character is stripped and said as the same
+    value without it (the format character gone where something is
+    removed), and no line shows a secret: the kept line is masked too."""
+    plain: list[dict[str, Any]] = [{"spdxId": "urn:a", "x": value}]
+    marked: list[dict[str, Any]] = [{"spdxId": "urn:a", "x": mark + value}]
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(plain)
+    expected = [r.getMessage() for r in _warnings(caplog)]
+    caplog.clear()
+    _WARNED_ONCE.clear()
+    with caplog.at_level(logging.WARNING):
+        strip_graph_credentials(marked)
+    assert [r.getMessage() for r in _warnings(caplog)] == expected and expected
+    assert marked[0]["x"] in (plain[0]["x"], mark + value)
+    assert (marked[0]["x"] == mark + value) == (plain[0]["x"] == value)
+    assert "S3CRET" not in caplog.text
+    kept = _template_tail(KEPT_LINE.template)
+    assert not any("code=1" in m for m in expected if m.endswith(kept))
+
+
+@pytest.mark.parametrize(
+    ("value", "plain"),
+    [
+        ("<u:S3CRET@h.example:r>", "<h.example:r>"),
+        ("' u:S3CRET@h.example:r '", "' h.example:r '"),
+        ("<pkg:g/x?u=https://u:S3CRET@h/x>", "<pkg:g/x?u=https://h/x>"),
+        ("< \t>", "< \t>"),
+    ],
+    ids=["angle-scp", "quoted-scp", "angle-purl", "blank-pair"],
+)
+def test_an_enclosed_value_is_stripped_inside_its_pair(value: str, plain: str) -> None:
+    """One enclosing pair is read past, as the detector reads it, and kept;
+    a pair around white space only is left as written."""
+    graph: list[dict[str, Any]] = [{"spdxId": "urn:a", "x": value}]
+    strip_graph_credentials(graph)
+    assert graph[0]["x"] == plain
+
+
+def test_the_stripped_and_the_unremoved_line_of_one_value_are_each_said(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The stripped line and the not-removed line keep apart once-keys, so
+    one value said by both is said twice; two values that mask alike are
+    each said once."""
+    value = "https://h/x?token=ghp_T0KEN"
+    other = "https://h/x?token=ghp_T1KEN"
+    with caplog.at_level(logging.WARNING):
+        for url in (value, value, other):
+            warn_url_credentials_stripped(logging.getLogger("pitloom.t"), url)
+            warn_url_credential_unremoved(logging.getLogger("pitloom.t"), url)
+    lines = [r.getMessage() for r in _warnings(caplog)]
+    unremoved = [line for line in lines if _AS_WRITTEN in line]
+    assert len(unremoved) == 2 and "KEN" not in "".join(unremoved)
+    assert sum("removed from the SBOM" in line for line in lines) == 2

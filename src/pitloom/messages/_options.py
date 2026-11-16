@@ -23,7 +23,7 @@ from pitloom.messages._field_writers import entity_text
 from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 #: The sub-prefix of every line about an option the target or command cannot
 #: act on (``option-no-effect``'s own lines and the other ``Options:`` lines).

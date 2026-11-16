@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -421,8 +421,9 @@ A URL or ref in a message is shown without credentials (`https://***:***@host`,
 `***:***@host:path` for an scp-style address, and the value of each query or
 fragment parameter named like a secret, as listed in
 [Credentials in a URL](dependency-sources.md#credentials-in-a-url):
-`?private_token=***`) and with control characters escaped. A secret in a
-parameter with another name is not recognised. What a server or `git` says
+`?private_token=***`, and an access token's shape anywhere: `ghp_***`)
+and with control characters escaped. Another secret in a parameter with
+another name is not recognised. What a server or `git` says
 is reduced to one line (its `fatal:`, `error:` and `remote:` lines), so it
 cannot add a tagged line of its own.
 

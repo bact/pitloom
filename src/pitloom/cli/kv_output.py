@@ -24,10 +24,25 @@ from pathlib import PurePath
 from pitloom.__about__ import __version__
 from pitloom.core.given_path import GivenPath
 from pitloom.core.quote_source import given_path_text
-from pitloom.core.url_masking import URL_AS_PATH_RE, masked_given_path
+from pitloom.core.url_masking import (
+    URL_AS_PATH_RE,
+    masked_given_path,
+    without_format,
+)
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
+
+
+def _masked(text: str) -> str:
+    """*text*, a value, masked
+    (:func:`~pitloom.core.url_masking.masked_given_path`): read whole when
+    it starts with a URL, so white space in
+    its path does not end it (``https://h/a b?token=***``), else as a message
+    line. Read without its format characters, as the detector reads it
+    (``https\\u200b://``)."""
+    whole = URL_AS_PATH_RE.match(without_format(text)) is not None
+    return masked_given_path(text, line=not whole)
 
 
 def _url_credentials_masked(text: str) -> str:
@@ -42,7 +57,7 @@ def _url_credentials_masked(text: str) -> str:
     rewrite a file name that only looks like an address. An scp-style
     address with a password in a value that also holds a URL is still
     masked; one in a value without a URL is printed as given."""
-    return masked_given_path(text, line=True) if URL_AS_PATH_RE.search(text) else text
+    return _masked(text) if URL_AS_PATH_RE.search(without_format(text)) else text
 
 
 def kv_line(**pairs: object) -> str:
@@ -67,11 +82,12 @@ def _shown(value: object) -> str:
     :class:`~pitloom.core.given_path.GivenPath`) as the user gave it
     (:func:`~pitloom.core.quote_source.given_path_text`), anything else
     (text, bytes, a list of paths) as ``str`` writes it; a URL in either
-    without its credentials, text as a message line (an address after a
-    URL is kept: :func:`~pitloom.core.url_masking.masked_given_path`)."""
+    without its credentials (:func:`_masked`): text read whole when it
+    starts with a URL, else as a message line (an address after a URL is
+    kept: :func:`~pitloom.core.url_masking.masked_given_path`)."""
     if isinstance(value, (PurePath, GivenPath)):
         return given_path_text(value)
-    return masked_given_path(str(value), line=True)
+    return _masked(str(value))
 
 
 def log_kv(**pairs: object) -> None:

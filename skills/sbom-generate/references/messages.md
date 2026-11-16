@@ -61,11 +61,11 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`file-unreadable/not-utf8`](messages-files.md#file-unreadablenot-utf8) | ERROR, WARNING | 0.22.0 |
 | [`file-unreadable/outside-project`](messages-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](messages-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
-| [`hf-url-invalid`](messages-targets.md#hf-url-invalid) | ERROR | 0.24.1 |
+| [`hf-url-invalid`](messages-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
 | [`hyperparameter-conflict`](messages-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
-| [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.24.1 |
+| [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
 | [`input-not-found`](messages-targets.md#input-not-found) | ERROR | 0.23.4 |
-| [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.24.1 |
+| [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.25.0 |
 | [`json-malformed`](messages-files.md#json-malformed) | ERROR | 0.23.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
@@ -80,10 +80,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`model-unreadable`](messages-models.md#model-unreadable) | WARNING | 0.22.0 |
 | [`model-wrong-format`](messages-models.md#model-wrong-format) | ERROR, WARNING | 0.22.0 |
 | [`offline-unusable`](messages-network.md#offline-unusable) | ERROR, WARNING | 0.24.0 |
-| [`option-conflict`](messages-options.md#option-conflict) | ERROR | 0.24.1 |
-| [`option-invalid`](messages-options.md#option-invalid) | ERROR | 0.24.1 |
-| [`option-missing`](messages-options.md#option-missing) | ERROR | 0.24.1 |
-| [`option-no-effect`](messages-options.md#option-no-effect) | WARNING, INFO | 0.24.1 |
+| [`option-conflict`](messages-options.md#option-conflict) | ERROR | 0.25.0 |
+| [`option-invalid`](messages-options.md#option-invalid) | ERROR | 0.25.0 |
+| [`option-missing`](messages-options.md#option-missing) | ERROR | 0.25.0 |
+| [`option-no-effect`](messages-options.md#option-no-effect) | WARNING, INFO | 0.25.0 |
 | [`over-cap`](messages-files.md#over-cap) | ERROR, WARNING | 0.22.0 |
 | [`parameter-count-invalid`](messages-model-fields.md#parameter-count-invalid) | WARNING | 0.22.0 |
 | [`project-not-found`](messages-targets.md#project-not-found) | ERROR | 0.23.4 |
@@ -95,23 +95,23 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`query-no-effect`](messages-network.md#query-no-effect) | INFO | 0.24.0 |
 | [`reader-unsafe`](messages-models.md#reader-unsafe) | INFO | 0.22.0 |
 | [`reader-unsafe/remote`](messages-models.md#reader-unsaferemote) | INFO | 0.23.4 |
-| [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.24.1 |
-| [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.24.1 |
-| [`registry-conflict/held`](messages-id-registry-ids.md#registry-conflictheld) | INFO | 0.24.1 |
-| [`registry-conflict/spelling`](messages-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.24.1 |
-| [`registry-conflict/type`](messages-id-registry-ids.md#registry-conflicttype) | WARNING | 0.24.1 |
-| [`registry-entry-missing`](messages-id-registry-ids.md#registry-entry-missing) | WARNING | 0.24.1 |
-| [`registry-hash-conflict`](messages-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.24.1 |
-| [`registry-hash-conflict/gate`](messages-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.24.1 |
-| [`registry-hash-missing`](messages-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.24.1 |
-| [`registry-identity-missing`](messages-id-registry-ids.md#registry-identity-missing) | INFO | 0.24.1 |
-| [`registry-key-ambiguous`](messages-id-registry-ids.md#registry-key-ambiguous) | WARNING, INFO | 0.24.1 |
-| [`registry-key-moved`](messages-id-registry-ids.md#registry-key-moved) | INFO | 0.24.1 |
-| [`registry-malformed`](messages-id-registry.md#registry-malformed) | ERROR | 0.24.1 |
-| [`registry-path-key-unusable`](messages-id-registry-ids.md#registry-path-key-unusable) | WARNING, INFO | 0.24.1 |
-| [`registry-unknown-key`](messages-id-registry.md#registry-unknown-key) | ERROR | 0.24.1 |
-| [`registry-unusable`](messages-id-registry.md#registry-unusable) | ERROR | 0.24.1 |
-| [`registry-wrong-format`](messages-id-registry.md#registry-wrong-format) | ERROR | 0.24.1 |
+| [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.25.0 |
+| [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.25.0 |
+| [`registry-conflict/held`](messages-id-registry-ids.md#registry-conflictheld) | INFO | 0.25.0 |
+| [`registry-conflict/spelling`](messages-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.25.0 |
+| [`registry-conflict/type`](messages-id-registry-ids.md#registry-conflicttype) | WARNING | 0.25.0 |
+| [`registry-entry-missing`](messages-id-registry-ids.md#registry-entry-missing) | WARNING | 0.25.0 |
+| [`registry-hash-conflict`](messages-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.25.0 |
+| [`registry-hash-conflict/gate`](messages-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.25.0 |
+| [`registry-hash-missing`](messages-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.25.0 |
+| [`registry-identity-missing`](messages-id-registry-ids.md#registry-identity-missing) | INFO | 0.25.0 |
+| [`registry-key-ambiguous`](messages-id-registry-ids.md#registry-key-ambiguous) | WARNING, INFO | 0.25.0 |
+| [`registry-key-moved`](messages-id-registry-ids.md#registry-key-moved) | INFO | 0.25.0 |
+| [`registry-malformed`](messages-id-registry.md#registry-malformed) | ERROR | 0.25.0 |
+| [`registry-path-key-unusable`](messages-id-registry-ids.md#registry-path-key-unusable) | WARNING, INFO | 0.25.0 |
+| [`registry-unknown-key`](messages-id-registry.md#registry-unknown-key) | ERROR | 0.25.0 |
+| [`registry-unusable`](messages-id-registry.md#registry-unusable) | ERROR | 0.25.0 |
+| [`registry-wrong-format`](messages-id-registry.md#registry-wrong-format) | ERROR | 0.25.0 |
 | [`release-file-not-found`](messages-pypi.md#release-file-not-found) | ERROR | 0.24.0 |
 | [`release-file-not-found/compatible-wheel`](messages-pypi.md#release-file-not-foundcompatible-wheel) | ERROR | 0.24.0 |
 | [`release-file-not-found/sdist`](messages-pypi.md#release-file-not-foundsdist) | ERROR | 0.24.0 |
@@ -120,13 +120,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`release-unpinned/prerelease`](messages-pypi.md#release-unpinnedprerelease) | INFO | 0.24.0 |
 | [`release-unpinned/yanked`](messages-pypi.md#release-unpinnedyanked) | INFO | 0.24.0 |
 | [`release-unusable`](messages-pypi.md#release-unusable) | INFO | 0.24.0 |
-| [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR, WARNING | 0.24.1 |
-| [`sbom-wrong-format`](messages-targets.md#sbom-wrong-format) | ERROR | 0.24.1 |
+| [`sbom-invalid`](messages-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
+| [`sbom-wrong-format`](messages-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`target-ambiguous`](messages-targets.md#target-ambiguous) | INFO | 0.23.4 |
-| [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.24.1 |
+| [`target-wrong-format`](messages-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](messages-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`text-malformed`](messages-files.md#text-malformed) | WARNING | 0.23.0 |
-| [`text-malformed/registry`](messages-files.md#text-malformedregistry) | ERROR, WARNING | 0.24.1 |
+| [`text-malformed/registry`](messages-files.md#text-malformedregistry) | ERROR, WARNING | 0.25.0 |
 | [`url-moved`](messages-network.md#url-moved) | INFO | 0.24.0 |
 | [`url-moved/hf-endpoint`](messages-network.md#url-movedhf-endpoint) | INFO | 0.24.0 |
 | [`url-unsafe`](messages-network.md#url-unsafe) | ERROR, WARNING | 0.24.0 |
@@ -179,7 +179,7 @@ A line may start with one prefix before its text:
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
 | `<namespace>` | a document namespace IRI, as an ID registry file or an SBOM states it, a URL's credentials masked; in quotes, escaped, when it holds a control character |
-| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information or a secret query value, or a query nested too deeply to read` |
+| `<why>` | why a text cannot be a document namespace: `must not contain '#'`, `is not an absolute IRI (a scheme is needed, as in https://example.org/ns)`, `has a character an IRI cannot hold`, `holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read` |
 | `<number>` | a whole number: a count, or a length in characters |
 | `<oid>` | the SHA-256 the pointer states, in hex |
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |

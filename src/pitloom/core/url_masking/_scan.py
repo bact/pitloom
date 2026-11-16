@@ -23,8 +23,9 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_secret_param,
     iter_params,
+    param_run,
 )
-from pitloom.core.url_masking._userinfo import userinfo_end
+from pitloom.core.url_masking._userinfo import has_userinfo, userinfo_end
 
 #: A run of scheme characters, ``:`` and a separator: where a URL may start
 #: in a text, the scheme from the run's first letter (``1https://``). Each
@@ -32,6 +33,10 @@ from pitloom.core.url_masking._userinfo import userinfo_end
 _SCHEME_RUN_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z0-9+.-]+:[/\\]")
 _LETTER_RE = re.compile(r"[A-Za-z]")
 _SPACE_RE = re.compile(r"\s")
+#: What ends a user information in a *line*: a ``/`` or white space other
+#: than a tab or a line break, which a URL parser deletes (WHATWG, ``urllib``)
+#: so a password holding one is still the password (``u:S3\\tCRET@h``).
+_LINE_STOP = r"(?:/|(?![\t\n\r])\s)"
 _AT_RE = re.compile("@")
 _HEAD_RE = re.compile(PARAM_HEAD)
 #: The quotes a message puts around a path it names.
@@ -60,7 +65,7 @@ def _ends(line: bool, quote: str) -> tuple[str, str]:
         value_end = rf"[&;#]|{_closing(quote)}"
     else:
         value_end = r"[&;#\s]" if line else "[&;#]"
-    return (r"[/\s]" if line else "/"), value_end
+    return (_LINE_STOP if line else "/"), value_end
 
 
 _ENDS: dict[tuple[bool, str], tuple[str, str]] = {
@@ -78,16 +83,7 @@ _BOUNDARY: dict[tuple[bool, str], re.Pattern[str]] = {
     key: re.compile(rf"(?P<head>{PARAM_HEAD})|(?P<stop>{stop})|(?P<end>{end})")
     for key, (stop, end) in _ENDS.items()
 }
-_STOP = {False: re.compile("/"), True: re.compile(r"[/\s]")}
-#: The schemes read as a URL after one separator even in a path segment
-#: (``/cwd/https:/u:p@h``, a URL a path resolved), the last ``+`` part
-#: (``git+https``). Another scheme after one separator is a URL unless a
-#: ``/`` or ``\\`` comes before it (``/x/T10:/a@b`` is a path).
-_URL_SCHEMES = frozenset(
-    {"http", "https", "ftp", "ftps", "sftp", "ssh", "git", "svn", "hg", "bzr"}
-    | {"s3", "s3a", "s3n", "gs", "hf", "ws", "wss", "file", "rsync", "ldap"}
-    | {"ldaps", "az", "abfs", "abfss", "hdfs", "smb", "webdav", "davs"}
-)
+_STOP = {False: re.compile("/"), True: re.compile(_LINE_STOP)}
 
 
 def _next_url(text: str, pos: int, end: int) -> tuple[int, int] | None:
@@ -100,19 +96,6 @@ def _next_url(text: str, pos: int, end: int) -> tuple[int, int] | None:
             return letter.start(), separator
         pos = run.end()
     return None
-
-
-def _has_userinfo(text: str, scheme: int, separator: int) -> bool:
-    """Whether the URL whose scheme starts at *scheme* can have a user
-    information: after two separators, after one for a scheme a URL uses
-    (:data:`_URL_SCHEMES`), else after one unless a path separator comes
-    before the scheme (a path segment ``T10:``)."""
-    if text.startswith(("//", "\\\\"), separator):
-        return True
-    name = text[scheme : separator - 1].lower()
-    if name.rpartition("+")[2] in _URL_SCHEMES:
-        return True
-    return not scheme or text[scheme - 1] not in "/\\"
 
 
 class _Scan:
@@ -206,7 +189,7 @@ class _Scan:
         password's: the two cannot be told apart, so a path's ``@`` may be
         masked too, but no password is left shown)."""
         scheme, start = url
-        if not _has_userinfo(self.text, scheme, start):
+        if not has_userinfo(self.text, scheme, start):
             return None
         while start < len(self.text) and self.text[start] in "/\\":
             start += 1
@@ -301,7 +284,7 @@ def _secret_values(
             continue
         whole = param
         if param.end() == bound < limit:
-            whole = pattern.match(text, param.start(), limit) or param
+            whole = param_run(pattern, text, param.start(), limit) or param
         value_end = free_value_end(whole) if line else whole.end(3)
         spans.append((whole.start(3), value_end, "***"))
         if whole is not param:
@@ -334,7 +317,8 @@ def _url_spans(
 
 
 def masked_once(text: str, *, line: bool) -> str:
-    """One pass of :func:`pitloom.core.url_masking.masked_given_path` over *text*."""
+    """One pass of :func:`pitloom.core.url_masking.masked_given_path` over
+    *text*."""
     parts: list[str] = []
     done = 0
     scan = _Scan(text, line=line)

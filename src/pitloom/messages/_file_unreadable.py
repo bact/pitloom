@@ -28,7 +28,7 @@ from pitloom.messages._types import ASK_FIRST, Line, Message
 #: (``file-unreadable`` and ``file-unreadable/not-utf8``: to import into an
 #: ID registry or to embed); the entries' other lines print since their own
 #: ``since``.
-_SINCE_SBOM: Final = "0.24.1"
+_SINCE_SBOM: Final = "0.25.0"
 #: What every line ends in when the content is outside the project.
 _OUTSIDE: Final = "outside the project directory"
 

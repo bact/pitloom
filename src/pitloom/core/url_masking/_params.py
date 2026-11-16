@@ -14,7 +14,7 @@ Standard library only.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from urllib.parse import unquote
 
 #: The characters of a parameter name: word characters, ``.``, ``%``, ``-``
@@ -34,6 +34,15 @@ _VALUE_TAIL = ":.,)]'\""
 WHOLE_PARAM_RE = re.compile(rf"([?&;#])({_NAME})=([^&;#]*)")
 #: The ``delimiter name=`` that starts a parameter (of either pattern).
 PARAM_HEAD = rf"[?&;#](?P<name>{_NAME})="
+#: Each pattern as a secret's value runs: over ``;``, which Python's
+#: ``parse_qsl`` (since 3.10) and the WHATWG URL parser read as part of a
+#: value (``?token=S3C;RET``), to ``&``, ``#``, the end (in free text, white
+#: space). A ``;`` still starts a parameter after any other value, and a
+#: parameter it opens (a path parameter) ends at the next one.
+_SECRET_RUN = {
+    PARAM_RE: re.compile(rf"([?&;#])({_NAME})=([^&#\s]*)"),
+    WHOLE_PARAM_RE: re.compile(rf"([?&;#])({_NAME})=([^&#]*)"),
+}
 
 #: Words naming a secret: a parameter is named by one, or its last word is
 #: one (``access_token``, ``db-password``, ``accessToken``,
@@ -186,7 +195,7 @@ def iter_params(
     levels deep. A secret's value is read whole, a ``?`` in it included;
     with *weak* false (the strip, which keeps a weak name's value as
     written) a weak name's value is looked into too."""
-    for param in pattern.finditer(text, start, bound):
+    for param in _top_params(pattern, text, start, bound):
         yield param
         if "?" in param.group(3) and not is_secret_param(param, weak=weak):
             yield from iter_params(
@@ -194,12 +203,57 @@ def iter_params(
             )
 
 
+def param_run(
+    pattern: re.Pattern[str], text: str, start: int, bound: int
+) -> re.Match[str] | None:
+    """The parameter of *text* by *pattern* (:data:`PARAM_RE` or
+    :data:`WHOLE_PARAM_RE`) at *start*, before *bound*: a secret's value
+    (one an SBOM may not state) run over ``;`` (:data:`_SECRET_RUN`) when a
+    ``?``, ``&`` or ``#`` opens it; a path parameter (``;jsessionid=``)
+    ends at the next ``;``."""
+    param = pattern.match(text, start, bound)
+    if (
+        param is not None
+        and param.group(1) != ";"
+        and is_secret_param(param, weak=False)
+    ):
+        return _SECRET_RUN[pattern].match(text, start, bound) or param
+    return param
+
+
+def _top_params(
+    pattern: re.Pattern[str], text: str, start: int, bound: int
+) -> Iterator[re.Match[str]]:
+    """Each parameter of *text* from *start* to *bound* by *pattern*, in
+    order, a secret's value run over ``;`` (:func:`param_run`)."""
+    pos = start
+    while (found := pattern.search(text, pos, bound)) is not None:
+        param = param_run(pattern, text, found.start(), bound) or found
+        yield param
+        pos = param.end()
+
+
+def sub_params(
+    pattern: re.Pattern[str],
+    replace: Callable[[re.Match[str]], str],
+    text: str,
+) -> str:
+    """*text* with each parameter by *pattern* written as *replace* writes
+    it (:meth:`re.Pattern.sub`, a secret's value run over ``;``)."""
+    parts: list[str] = []
+    done = 0
+    for param in _top_params(pattern, text, 0, len(text)):
+        parts += (text[done : param.start()], replace(param))
+        done = param.end()
+    return "".join(parts) + text[done:]
+
+
 def mask_param(match: re.Match[str]) -> str:
     delimiter, name, value = match.groups()
     if is_secret_param(match):
         value = "***"
     elif "?" in value:
-        value = WHOLE_PARAM_RE.sub(mask_param, value)
+        value = sub_params(WHOLE_PARAM_RE, mask_param, value)
     return f"{delimiter}{name}={value}"
 
 
@@ -214,7 +268,7 @@ def mask_free_param(match: re.Match[str]) -> str:
         value = match.group(3)
         if "?" not in value:
             return match.group(0)
-        inner = PARAM_RE.sub(mask_free_param, value)
+        inner = sub_params(PARAM_RE, mask_free_param, value)
         return f"{match.group(1)}{match.group(2)}={inner}"
     tail = match.string[free_value_end(match) : match.end()]
     return f"{match.group(1)}{match.group(2)}=***{tail}"

@@ -19,12 +19,12 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature), or a query with so many nested ? that it cannot be read safely. An SBOM can be published, so it must not carry any. | 0.25.0 |
+| [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature), or a query with so many nested ? that it cannot be read safely, or is an access token's shape or an scp-style address with a password. An SBOM can be published, so it must not carry any. | 0.25.0 |
 | [`credentials-unsafe/git-line-break`](#credentials-unsafegit-line-break) | WARNING | The user name or password of a Git URL holds a line break (an encoded %0A or %0D). A line break would add a line to what the credential helper hands git, so git could be told another value. | 0.25.0 |
 | [`credentials-unsafe/git-userinfo`](#credentials-unsafegit-userinfo) | ERROR | A Git URL holds user information (an @ before the first /) that Pitloom cannot split off the command line the way git reads it: a bracket or port that is not valid, an empty host, or an @ git reads as a password where the URL parser sees a query. | 0.25.0 |
 | [`credentials-unsafe/http-clear`](#credentials-unsafehttp-clear) | WARNING | A plain http:// Git URL holds a user name or password: git sends it to the server unencrypted, readable by anyone on the path. | 0.25.0 |
 | [`credentials-unsafe/id-collision`](#credentials-unsafeid-collision) | ERROR | Two element ids of the SBOM (of a merged fragment) differ only by user information or a secret query value, so they would be the same id once the credentials are removed. | 0.25.0 |
-| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key or namespace given to the ID registry (an external reference URL), or the key or id of an SBOM element it would record, holds a user name or password, or a query parameter named like a secret. The registry file stores a key, an id and its namespace as written. | 0.25.0 |
+| [`credentials-unsafe/registry`](#credentials-unsaferegistry) | ERROR, WARNING | A key or namespace given to the ID registry (an external reference URL), or the key or id of an SBOM element it would record, holds a user name or password, a query parameter named like a secret or an access token (also percent-encoded in a PURL qualifier), or a query nested too deeply to read (a value with more than 16 ?) or a PURL qualifier encoded too deeply to read (still encoded after five decodes). The registry file stores a key, an id and its namespace as written. | 0.25.0 |
 | [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
@@ -41,26 +41,33 @@ values.
 - **Means**: A URL a project declares (a dependency's direct URL, a project URL,
   a model card's link) holds a user name or password, or a query parameter named
   like a secret (token, key, signature), or a query with so many nested ? that
-  it cannot be read safely. An SBOM can be published, so it must not carry any.
+  it cannot be read safely, or is an access token's shape or an scp-style
+  address with a password. An SBOM can be published, so it must not carry any.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Removed the user information and each such parameter from the
   URL in the SBOM, its provenance and its comments, and went on; said once per
   URL, shown masked. A parameter named code, session, ticket, sid or otp, and a
   user name alone on an ssh or git URL (git@), are kept as written, and said too
   (the log line may still mask the value). A parameter whose value holds more
-  than 16 ? is removed as a precaution, not necessarily a credential.
+  than 16 ? is removed as a precaution, not necessarily a credential. A value
+  that holds a credential the removal does not read (an access token's shape, an
+  scp-style password, a URL after one / of a scheme such as s3:/, one in a PURL
+  subpath) is NOT removed: the SBOM states it as written, and this is said once
+  per value, shown masked.
 - **Tell the user**: which URL, as the line shows it, and that the SBOM states
   it without the credential, or keeps the value the line names. A credential in
   a project's files is also in its history: they should consider it exposed and
   rotate it, and check that a kept code, session or ssh user name is no
-  credential. Do not edit their files; ask first, and with nobody to ask, report
-  it only.
+  credential. For a value the SBOM states as written, they remove the credential
+  from the source and generate again. Do not edit their files; ask first, and
+  with nobody to ask, report it only.
 - **Lines**:
 
   ```text
   WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; removed from the SBOM [credentials-unsafe]
   WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; removed from the SBOM, except a code, session, ticket, sid or otp parameter or an ssh user name, which it keeps as written [credentials-unsafe]
   WARNING: URL=<url>: holds a code, session, ticket, sid or otp parameter or an ssh user name that the SBOM keeps as written [credentials-unsafe]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read, which the SBOM states as written; remove it from the source [credentials-unsafe]
   ```
 
 ### `credentials-unsafe/git-line-break`
@@ -150,8 +157,11 @@ values.
   writes nothing for it (exit 1).
 - **Means**: A key or namespace given to the ID registry (an external reference
   URL), or the key or id of an SBOM element it would record, holds a user name
-  or password, or a query parameter named like a secret. The registry file
-  stores a key, an id and its namespace as written.
+  or password, a query parameter named like a secret or an access token (also
+  percent-encoded in a PURL qualifier), or a query nested too deeply to read (a
+  value with more than 16 ?) or a PURL qualifier encoded too deeply to read
+  (still encoded after five decodes). The registry file stores a key, an id and
+  its namespace as written.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Refused the key or namespace and stored nothing (error), or
   left the SBOM element out of the registry and wrote the rest (warning). An
@@ -168,10 +178,10 @@ values.
 - **Lines**:
 
   ```text
-  ERROR: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; an ID registry key is stored as written, so it is refused [credentials-unsafe/registry]
-  ERROR: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; an ID registry namespace is stored as written, so it is refused [credentials-unsafe/registry]
-  WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; the ID registry stores an element's key and id as written, so the element is skipped [credentials-unsafe/registry]
-  WARNING: URL=<url>: holds user information or a secret query value, or a query nested too deeply to read; the ID registry entry is dropped and the next save writes the file without it [credentials-unsafe/registry]
+  ERROR: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry key is stored as written, so it is refused [credentials-unsafe/registry]
+  ERROR: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; an ID registry namespace is stored as written, so it is refused [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry stores an element's key and id as written, so the element is skipped [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry entry is dropped and the next save writes the file without it [credentials-unsafe/registry]
   ```
 
 ### `download-network-failed`

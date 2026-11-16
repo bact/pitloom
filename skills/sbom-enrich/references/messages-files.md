@@ -20,16 +20,16 @@ values.
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
-| [`dir-unlistable`](#dir-unlistable) | ERROR, WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. The ERROR line, for a directory named as a 'loom id generate' PATH, prints since 0.24.1. | 0.22.0 |
-| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, and for the input check, prints since 0.24.1. | 0.22.0 |
-| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, or an ID registry file (an ERROR:, which prints since 0.24.1). | 0.22.0 |
+| [`dir-unlistable`](#dir-unlistable) | ERROR, WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. The ERROR line, for a directory named as a 'loom id generate' PATH, prints since 0.25.0. | 0.22.0 |
+| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, and for the input check, prints since 0.25.0. | 0.22.0 |
+| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, or an ID registry file (an ERROR:, which prints since 0.25.0). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
-| [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.24.1 for an SBOM and an ID registry file. | 0.23.0 |
+| [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
-| [`text-malformed/registry`](#text-malformedregistry) | ERROR, WARNING | A name the ID registry is to hold holds lone surrogates (U+D800 to U+DFFF), which its UTF-8 file cannot hold: a file name that is not UTF-8 (loom id generate), the name or spdxId of an SBOM element (a \ud800 escape; loom id import, or the registry update of a run), or a name given to IdRegistry.register (a -e NAME). The value is shown escaped. | 0.24.1 |
+| [`text-malformed/registry`](#text-malformedregistry) | ERROR, WARNING | A name the ID registry is to hold holds lone surrogates (U+D800 to U+DFFF), which its UTF-8 file cannot hold: a file name that is not UTF-8 (loom id generate), the name or spdxId of an SBOM element (a \ud800 escape; loom id import, or the registry update of a run), or a name given to IdRegistry.register (a -e NAME). The value is shown escaped. | 0.25.0 |
 
 ### `card-malformed`
 
@@ -61,7 +61,7 @@ values.
   writes nothing for it (exit 1).
 - **Means**: A directory could not be listed (no read or search permission): the
   files under it were not seen. The ERROR line, for a directory named as a 'loom
-  id generate' PATH, prints since 0.24.1.
+  id generate' PATH, prints since 0.25.0.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Went on without them: file discovery leaves them out of the
   SBOM (a build backend that lists before it excludes can name a directory it
@@ -94,7 +94,7 @@ values.
   under a directory without search permission says so 'for the input check', not
   that it is not found. The ERROR line for an SBOM given to 'loom id import' or
   to embed, for an ID registry file, for a 'loom id generate' PATH, and for the
-  input check, prints since 0.24.1.
+  input check, prints since 0.25.0.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Read nothing more of it and went on without what it holds, as
   the line says what it was read for: a file scan leaves the file out of the
@@ -135,7 +135,7 @@ values.
   a requirements file or a file a setup.cfg directive lists, a Python file read
   for the model usage scan (a WARNING:), or an SBOM given to embed or to import
   into an ID registry, or an ID registry file (an ERROR:, which prints since
-  0.24.1).
+  0.25.0).
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Went on without what the file holds: the field is not set
   from it, or the usage scan records no model reference from it. For an SBOM,
@@ -210,7 +210,7 @@ values.
   for: a Croissant document, PyPI's release metadata, or an SBOM given to embed
   or to import into an ID registry, or an ID registry file. The lines print
   since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and
-  0.24.1 for an SBOM and an ID registry file.
+  0.25.0 for an SBOM and an ID registry file.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Read nothing of it: the call raises ValueError carrying the
   code (for PyPI's release metadata, RemoteSourceError, code

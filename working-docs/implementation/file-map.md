@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -216,7 +216,7 @@ pitloom/
 │       │   ├── quote_source.py  # Quote a path or file name for a message
 │       │   ├── untrusted_text.py  # Untrusted text shown to a reader, controls made visible
 │       │   ├── temp_dirs.py  # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   ├── url_masking/  # Masking of URL credentials and the temporary Git checkout (__init__.py: public functions; _params.py: secret parameters; _scan.py: URL scanner)
+│       │   ├── url_masking/  # URL credentials: masking, the SBOM strip, the detector, the temporary Git checkout (__init__.py: public functions; _detect.py: detector; _hits.py: what it reads; _mask.py: masker; _tokens.py: token shapes; _userinfo.py: user information rule; _params.py: secret parameters; _scan.py: masker's scanner; _strip.py: strip's URL scanner)
 │       │   ├── walk_rules.py  # Rules shared by every project file walk
 │       │   ├── warning_capture.py  # The one lock on Python's warning state; per-thread warning recorder
 │       │   └── wheel_dist_info.py  # A wheel's own .dist-info: resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused

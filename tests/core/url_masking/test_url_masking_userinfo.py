@@ -63,7 +63,7 @@ def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
     """The strip removes it, the refusal says so, the masker hides it and
     the Git split takes it out, each by the one rule."""
     assert strip_url_secrets(url, whole=True)[0] == plain
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
     assert "S3" not in masked_given_path(url) and "PW" not in masked_given_path(url)
 
 
@@ -81,7 +81,7 @@ def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
 )
 def test_an_at_sign_after_a_host_is_no_user_information(url: str) -> None:
     assert strip_url_secrets(url, whole=True) == (url, [])
-    assert not holds_url_credentials(url, whole=True)
+    assert not holds_url_credentials(url)
     assert masked_given_path(url) == url
 
 
@@ -175,8 +175,8 @@ def test_an_ssh_account_name_is_kept_and_a_token_removed(url: str, kept: bool) -
     user information unless *account* is set."""
     plain, changed = strip_url_secrets(url, whole=True)
     assert (plain == url) is kept and bool(changed) is not kept
-    assert holds_url_credentials(url, whole=True)
-    assert holds_url_credentials(url, whole=True, account=True) is not kept
+    assert holds_url_credentials(url)
+    assert holds_url_credentials(url, account=True) is not kept
     scheme, _, rest = url.partition("://")
     assert is_account_name(scheme, rest.partition("@")[0]) is kept
 

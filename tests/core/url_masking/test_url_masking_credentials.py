@@ -133,7 +133,7 @@ def test_an_ordinary_path_and_address_stay_as_they_are(text: str) -> None:
     ids=["image", "drive", "one-colon"],
 )
 def test_no_credential_is_found_in_an_image_reference_or_a_drive(text: str) -> None:
-    assert not holds_url_credentials(text, whole=False)
+    assert not holds_url_credentials(text)
     assert masked_given_path(text) == text
 
 
@@ -154,6 +154,6 @@ def test_masker_strip_hold_and_refusal_agree(url: str) -> None:
     assert SECRET not in masked_given_path(url)
     plain, changed = strip_url_secrets(url, whole=True)
     assert SECRET not in plain and changed
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
     with pytest.raises(ValueError):
         require_namespace_iri(url)

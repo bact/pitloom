@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -307,8 +307,33 @@ on an `ssh` or `git` URL (`ssh://git@github.com/o/r`) are kept as written,
 and said too, once per URL: `holds a code, session, ticket, sid or otp
 parameter or an ssh user name that the SBOM keeps as written`. The log line
 may still mask a kept `code` value. A user name that looks like a token
-(`ssh://ghp_...@github.com/o/r`) is removed. Treat a credential that was in
-a project file as exposed.
+(`ssh://ghp_...@github.com/o/r`) is removed. A value is read past an
+invisible format character (a zero-width space, a byte order mark, a
+bidirectional mark) and inside one pair of enclosing `<>` or quotes, as a
+client reads it; the format characters go from a value the SBOM states
+without credentials. Treat a credential that was in a project file as
+exposed.
+
+Some credentials are recognised but not removed: the SBOM states the value
+as written and says so once per value, masked, as `holds user information,
+a secret query value or an access token, or a query nested or encoded too
+deeply to read, which the SBOM states as written; remove it from the source
+[credentials-unsafe]`. These are:
+
+- an access token's shape in a URL (`https://h/ghp_.../x`), or as a PURL
+  qualifier value;
+- user information or a secret parameter after a scheme with one `/` or
+  backslashes, other than `http`, `https`, `ftp`, `ws`, `wss` and `file`
+  (`s3:/u:p@h/x`, `hf:/datasets/x?token=...`, `git+ssh:/h/x?token=...`);
+- an scp-style address in a URL's query value
+  (`https://h/?next=alice:pw@host:o/r`) or as a PURL subpath
+  (`pkg:generic/x@1#alice:pw@host:o/r`);
+- a value that is a whole scp-style address with neither a `.` in its host
+  nor a `/` in its path (`build:42@ci:linux`);
+- a PURL qualifier named like a secret (`?private_token=...`).
+
+Pitloom's own log lines also mask an access token's shape (`ghp_***`,
+`AKIA***`) wherever it appears in them.
 
 ### Known gaps
 
@@ -321,15 +346,19 @@ environment variable instead):
 - An scp-style address whose user is a bare token (`TOKEN@host:o/r`, no
   `user:`): not recognised.
 - `state=` and `Policy=` query parameters, and path parameters such as
-  `;jsessionid=`: kept as written.
+  `;jsessionid=`: kept as written. A secret query value runs over a `;`
+  (`?token=a;b`), as Python's `parse_qsl` reads it.
 - A percent-encoded URL nested in another URL, other than in a `pkg:` PURL
   qualifier: not read.
 - A URL inside free text (a description): it ends at white space, a quote or
   an angle bracket, so an apostrophe, quote, space, `<` or `>` in its user
   information is not read as part of it (a URL field, such as a project URL
   or a dependency's direct URL, reads it whole).
-- An scp-style `user:password@host:path` is read only when the host has a `.`
-  or the path a `/`; `build:42@ci:linux` is left as written.
+- An scp-style `user:password@host:path` is removed only when the host has a
+  `.` or the path a `/`; a whole value without (`build:42@ci:linux`, a file
+  name such as `meet-10:30@ab:c.txt` too) is stated as written, with the
+  warning above (an ID registry key or namespace that is that whole value is
+  refused; a file's key is never read as one).
 - A parameter whose value holds more than 16 `?` is removed whole, as a
   precaution: the query is nested too deeply to read, and what is removed may
   not be a credential.
@@ -339,6 +368,27 @@ environment variable instead):
   Hatchling traceback and `urllib3` log lines are not masked; a line break
   in a password can split a traceback line so that its parts are not
   recognised.
+- A URL in a log sentence ends at white space other than a tab or a line
+  break, so a secret after a space in its path (`https://h/a b?token=...`)
+  is shown; a `KEY=VALUE` value that starts with a URL is read whole.
+- An access token in a URL inside free text (a description, or the
+  provenance comment and annotation that quote a dependency's direct URL,
+  `foo @ https://host/ghp_...`) is stated as written, without a warning.
+- An old Slack workspace or bot token without the digit groups
+  (`xoxa-`, `xoxr-`, an `xoxb-` legacy shape) is not recognised, since a
+  documentation word fits its shape.
+- A variation selector (U+FE0F) inside a token ends the token there.
+- Once credentials are removed from a value, every invisible format
+  character in it goes too, a zero-width joiner in prose included.
+- An ID registry key, id or namespace is refused when a URL or an access
+  token appears anywhere in it (`urn:x:https://user:pw@host/ns`); any other
+  value counts only as a whole (a URL inside a name or description is
+  never refused, only masked in Pitloom's logs).
+- A Git password holding `%00` stops the fetch with a plain error; the host
+  of a credential-helper key is not checked for `=`, white space or `!`;
+  `GIT_SSL_NO_VERIFY`, `GIT_SSH_COMMAND`, `GIT_PROXY_COMMAND`,
+  `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_CONFIG` and `GIT_EXEC_PATH`
+  pass from the environment to `git`.
 - A `?token=` value of a Git URL still reaches `git`'s command line (visible
   to other users in `ps`) and the clone's `.git/config`; only user
   information (`https://user:token@host`) is kept off them.

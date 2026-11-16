@@ -27,7 +27,7 @@ _SINCE: Final = "0.23.0"
 _SINCE_PYPI: Final = "0.24.0"
 #: The release that first prints it for an SBOM to embed or import, and for
 #: an ID registry file.
-_SINCE_SBOM: Final = "0.24.1"
+_SINCE_SBOM: Final = "0.25.0"
 
 #: A document the JSON parser refused.
 NOT_JSON_LINE: Final = Line(

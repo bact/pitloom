@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The ``credentials-unsafe`` messages: the one ``WARNING:`` for a URL stripped
-of its credentials or holding one the SBOM keeps, and the errors for a
+of its credentials, holding one the SBOM keeps or holding one the strip does
+not remove, and the errors for a
 registry value that holds some, or a registry file's entry dropped for one.
 
 See also: :mod:`pitloom.messages._url_credentials` (the entries) and
@@ -33,6 +34,7 @@ from pitloom.messages._url_credentials import (
     NAMESPACE_CREDENTIALS_LINE,
     STRIPPED_KEPT_LINE,
     STRIPPED_LINE,
+    UNREMOVED_LINE,
 )
 
 __all__ = [
@@ -45,6 +47,7 @@ __all__ = [
     "warn_registry_entry_credentials_dropped",
     "warn_registry_key_credentials_skipped",
     "warn_url_credential_kept",
+    "warn_url_credential_unremoved",
     "warn_url_credentials_stripped",
 ]
 
@@ -69,15 +72,31 @@ def warn_url_credentials_stripped(log: logging.Logger, url: str) -> None:
 
 def warn_url_credential_kept(log: logging.Logger, url: str) -> None:
     """The one ``WARNING:`` on *log*, once per *url* and process, that *url*
-    (as written) holds a value the SBOM keeps that may be a credential
+    (shown masked) holds a value the SBOM keeps that may be a credential
     (:func:`~pitloom.core.url_masking.keeps_url_credential`)."""
     emit(
         log,
         CREDENTIALS_UNSAFE,
         logging.WARNING,
         line=KEPT_LINE,
-        once=_once(url),
-        url=url,
+        once=f"{_once(url)}:kept",
+        url=masked_given_path(url),
+    )
+
+
+def warn_url_credential_unremoved(log: logging.Logger, value: str) -> None:
+    """The one ``WARNING:`` on *log*, once per *value* and process (two
+    values that mask alike are said each), that *value* (shown masked)
+    holds a credential
+    (:func:`~pitloom.core.url_masking.holds_url_credentials`) the SBOM strip
+    does not remove, so the SBOM states it as written."""
+    emit(
+        log,
+        CREDENTIALS_UNSAFE,
+        logging.WARNING,
+        line=UNREMOVED_LINE,
+        once=f"{_once(value)}:unremoved",
+        url=masked_given_path(value),
     )
 
 

@@ -90,7 +90,7 @@ TEXT_MALFORMED_REGISTRY: Final = Message(
     "shows it escaped, and that it has no pinned id. They rename the file to "
     "a UTF-8 name, or correct the SBOM or the name given, and run again. Do "
     f"not rename or edit files for them; {ASK_FIRST}",
-    since="0.24.1",
+    since="0.25.0",
 )
 
 ENTRIES: Final = (TEXT_MALFORMED, TEXT_MALFORMED_REGISTRY)

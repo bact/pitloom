@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -310,22 +310,30 @@ generate` alone starts afresh, with new ids.
 
 ## Credentials in a key
 
-A key is stored as written, so a URL key (or an scp-style address such as
-`alice:password@host:path`) that holds user information or a secret query
-value (`token`, `api_key`, `signature`...) is refused for `-e` and
+A key is stored as written, so a key that, as a whole value, is a URL, a
+PURL or an scp-style address (`alice:password@host:path`, a dotless one
+such as `build:42@ci:linux` too) and holds user information, a secret query
+value (`token`, `api_key`, `signature`...) or an access token (`ghp_...`),
+or a query nested or encoded too deeply to read (more than 16 `?`, or a
+PURL qualifier still encoded after five decodes), is refused for `-e` and
 `register()` (`credentials-unsafe/registry`), and skipped, with a warning,
 for an SBOM element that `id import` or a run's harvest reads (its key or
-its `spdxId`). A `code`, `session`, `ticket`, `sid` or `otp` parameter, and
-a user name alone on an `ssh` or `git` URL (`git+ssh://git@github.com/o/r`,
-a repository's address), are kept as written. A `software_File` key is a
+its `spdxId`). A credential percent-encoded in a PURL qualifier counts,
+and so does a URL or an access token anywhere in a key or an id (a key is
+an identifier, never prose: `urn:x:https://user:pw@host/ns`,
+`src/https:/user:pw@host/x`). A `code`,
+`session`, `ticket`, `sid` or `otp` parameter, and a user name alone on an
+`ssh` or `git` URL (`git+ssh://git@github.com/o/r`, a repository's
+address), are kept as written. A `software_File` key is a
 file name, not an address, so it is never refused as an scp-style address.
 
 A registry file that already holds such a key or `spdxId` (written by hand,
 or by Pitloom 0.24.0 or earlier) loads without that entry, with one line
 per value, shown masked: `WARNING: URL=https://***:***@host/model: holds
-user information or a secret query value, or a query nested too deeply to
-read; the ID registry entry is dropped and the next save writes the file without it
-[credentials-unsafe/registry]`. The next save (`loom id generate`, `loom id
-import`, or a run that adds an id) writes the file without it, and the
+user information, a secret query value or an access token, or a query
+nested or encoded too deeply to read; the ID registry entry is dropped and
+the next save writes the file without it [credentials-unsafe/registry]`.
+The next save (`loom id generate`, `loom id import`, or a run that adds an
+id) writes the file without it, and the
 element gets a new id. The credential is still in the file's version
 history: rotate it. A file whose `namespace` holds one does not load.

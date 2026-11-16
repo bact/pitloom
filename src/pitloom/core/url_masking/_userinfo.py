@@ -40,9 +40,17 @@ from __future__ import annotations
 
 import re
 
+from pitloom.core.url_masking._tokens import TOKEN_PREFIXES
+
 __all__ = [
     "ACCOUNT_SCHEMES",
+    "SCP_USERINFO_RE",
+    "URL_SCHEMES",
+    "WHOLE_URL",
+    "has_userinfo",
     "is_account_name",
+    "is_whole_url",
+    "mask_scp",
     "split_userinfo",
     "userinfo_end",
 ]
@@ -141,16 +149,35 @@ def split_userinfo(url: str) -> tuple[str, str] | None:
     return url[:start] + url[at + 1 :], url[start:at]
 
 
+#: The schemes read as a URL after one separator even in a path segment
+#: (``/cwd/https:/u:p@h``, a URL a path resolved), the last ``+`` part
+#: (``git+https``). Another scheme after one separator is a URL unless a
+#: ``/`` or ``\\`` comes before it (``/x/T10:/a@b`` is a path).
+URL_SCHEMES = frozenset(
+    {"http", "https", "ftp", "ftps", "sftp", "ssh", "git", "svn", "hg", "bzr"}
+    | {"s3", "s3a", "s3n", "gs", "hf", "ws", "wss", "file", "rsync", "ldap"}
+    | {"ldaps", "az", "abfs", "abfss", "hdfs", "smb", "webdav", "davs"}
+)
+
+
+def has_userinfo(text: str, scheme: int, separator: int) -> bool:
+    """Whether the URL whose scheme starts at *scheme* can have a user
+    information: after two separators, after one for a scheme a URL uses
+    (:data:`URL_SCHEMES`), else after one unless a path separator comes
+    before the scheme (a path segment ``T10:``)."""
+    if text.startswith(("//", "\\\\"), separator):
+        return True
+    name = text[scheme : separator - 1].lower()
+    if name.rpartition("+")[2] in URL_SCHEMES:
+        return True
+    return not scheme or text[scheme - 1] not in "/\\"
+
+
 #: Schemes whose user name alone (``git@``) is how the server is reached.
 ACCOUNT_SCHEMES = frozenset({"ssh", "git+ssh", "ssh+git", "git"})
 #: A plausible account name: lower case, a letter or ``_`` first, at most 32
 #: characters (the POSIX portable user name, ``.`` allowed).
 _ACCOUNT = re.compile(r"[a-z_][a-z0-9_.-]{0,31}")
-#: The prefixes of access tokens a host issues (GitHub, GitLab, Slack).
-_TOKEN_PREFIXES = (
-    *("ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"),
-    *("glpat-", "gldt-", "glptt-", "xoxb-", "xoxp-"),
-)
 #: An account name holds fewer digits than this; more reads as a token.
 _ACCOUNT_DIGITS = 8
 
@@ -161,11 +188,42 @@ def is_account_name(scheme: str, userinfo: str) -> bool:
     alone (no ``:``) on an ``ssh`` or ``git`` scheme (:data:`ACCOUNT_SCHEMES`,
     any case: ``SSH://git@h``), that is a plausible account name (lower
     case, at most 32 characters, fewer than eight digits) and has no
-    token prefix (``ghp_``, ``glpat-``...). ``ssh://git:PW@h`` and
-    ``ssh://ghp_TOKEN@h`` are credentials."""
+    token prefix
+    (:data:`~pitloom.core.url_masking._tokens.TOKEN_PREFIXES`: ``ghp_``,
+    ``glpat-``...).
+    ``ssh://git:PW@h`` and ``ssh://ghp_TOKEN@h`` are credentials."""
     return (
         scheme.lower() in ACCOUNT_SCHEMES
         and _ACCOUNT.fullmatch(userinfo) is not None
-        and not userinfo.startswith(_TOKEN_PREFIXES)
+        and not userinfo.startswith(TOKEN_PREFIXES)
         and sum(char.isdigit() for char in userinfo) < _ACCOUNT_DIGITS
     )
+
+
+#: The ``user:password@`` of an scp-style address (``alice:pw@host:o/r``): no
+#: scheme, so no URL scan finds it. A ``/`` or ``\\`` is not in the
+#: password (a drive or a path), and the host is followed by ``:`` and a path.
+#: A host of two characters or more may be followed by an absolute path
+#: (``host:/srv/r``); a one-character one is a drive (``C:\\``). An image
+#: reference (``python:3.11@sha256:abc``) is not an address.
+SCP_USERINFO_RE = re.compile(
+    r"(?<![\w.+:@/\\-])[\w.+-]+:[^\s@/\\:]+@"
+    r"(?!(?i:sha\d+|md5|blake\w+):)"
+    r"(?=[\w.-]{2,}:(?!//)|[\w.-]:(?![/\\]))"
+)
+
+
+def is_whole_url(text: str) -> bool:
+    """Whether *text*, as a whole, is one URL or address (a scheme, ``:`` and
+    a ``/`` or ``\\``, or ``user:password@host:path``; no white space), so
+    it is a URL field and not free text that holds a URL: the reading of a
+    value that has no white space to end it
+    (:func:`pitloom.core.url_masking.strip_url_secrets`)."""
+    return WHOLE_URL.fullmatch(text) is not None or (
+        SCP_USERINFO_RE.match(text) is not None and not any(c.isspace() for c in text)
+    )
+
+
+def mask_scp(text: str) -> str:
+    """*text* with the user information of an scp-style address masked."""
+    return SCP_USERINFO_RE.sub("***:***@", text)

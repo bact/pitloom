@@ -167,16 +167,19 @@ def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) ->
     [
         ("https://h/p?a=1&token=Zq'V39&b=2", "https://h/p?a=1&token=***&b=2"),
         ('https://h/p?token=Zq"V34', "https://h/p?token=***"),
-        ("https://h/p?token=SEC RET;x=1", "https://h/p?token=***;x=1"),
+        ("https://h/p?token=SEC RET;x=1", "https://h/p?token=***"),
+        ("https://h/p;sid=SEC;x=1", "https://h/p;sid=***;x=1"),
         ("https://h/p?a=b'c#sig=S", "https://h/p?a=b'c#sig=***"),
     ],
-    ids=["single-quote", "double-quote", "space", "kept"],
+    ids=["single-quote", "double-quote", "space", "path-parameter", "kept"],
 )
 def test_sanitize_url_masks_a_secret_value_to_its_delimiter(
     url: str, shown: str
 ) -> None:
-    """In a text that is one URL a value ends at ``&``, ``;``, ``#`` or the
-    end only: a quote is a character of it (RFC 3986 allows one)."""
+    """In a text that is one URL a value ends at ``&``, ``#`` or the end
+    only (at ``;`` too when a ``;`` opened it: a path parameter): a quote
+    and a ``;`` are characters of it, as RFC 3986 and ``parse_qsl`` read
+    them."""
     assert sanitize_url(url) == shown
 
 

@@ -25,7 +25,7 @@ from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._summary import Summary
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-_SINCE: Final = "0.24.1"
+_SINCE: Final = "0.25.0"
 
 
 def _line(level: str, text: str) -> Line:

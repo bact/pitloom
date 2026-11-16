@@ -15,7 +15,10 @@ library only.
 A URL starts at ``scheme://`` (the scheme from the first letter of a run of
 scheme characters: ``1.https://``; a special scheme, ``http``, ``https``,
 ``ftp``, ``ws``, ``wss`` or ``file``, also at ``:/``, ``:\\`` and more
-separators, as a browser reads ``https:/u:p@h``).
+separators, as a browser reads ``https:/u:p@h``). With *wide* (the
+detector), as the masker reads one: any scheme of two letters or more also
+at one ``/`` or ``\\`` or more (:data:`WIDE_URL_START`), with a user
+information unless a path separator comes before it.
 
 Two readings (:mod:`pitloom.core.url_masking._userinfo`). In *free text* a
 URL's user information is read in free text, and its rest runs to white
@@ -41,8 +44,13 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_secret_param,
     iter_params,
+    param_run,
 )
-from pitloom.core.url_masking._userinfo import is_account_name, userinfo_end
+from pitloom.core.url_masking._userinfo import (
+    has_userinfo,
+    is_account_name,
+    userinfo_end,
+)
 
 #: A run of scheme characters holding a letter, followed by ``://``. A run
 #: only starts after a character that is none, and the letter is its first
@@ -50,6 +58,13 @@ from pitloom.core.url_masking._userinfo import is_account_name, userinfo_end
 _URL_START = re.compile(
     r"(?<![A-Za-z0-9+.-])(?:(?i:https?|ftp|wss?|file):[/\\]+"
     r"|[0-9+.-]*[A-Za-z][A-Za-z0-9+.-]*://)"
+)
+#: The same for the detector (*wide*), as the masker reads a URL: any scheme
+#: of two letters or more after one or more ``/`` or ``\\`` too
+#: (``s3:/u:p@h``, ``ssh:\\\\u:p@h``).
+WIDE_URL_START = re.compile(
+    r"(?<![A-Za-z0-9+.-])(?:[0-9+.-]*[A-Za-z][A-Za-z0-9+.-]+:[/\\]+"
+    r"|[0-9+.-]*[A-Za-z]://[/\\]*)"
 )
 _LETTER = re.compile(r"[A-Za-z]")
 #: Where the rest of a URL in free text ends.
@@ -159,10 +174,11 @@ class _Brackets:
 class _Reader:
     """The URLs of a free text, read in order."""
 
-    def __init__(self, text: str, *, whole: bool) -> None:
+    def __init__(self, text: str, *, whole: bool, wide: bool) -> None:
         self.text = text
         self.whole = whole
-        self.starts = _Memo(text, _URL_START)
+        self.wide = wide
+        self.starts = _Memo(text, WIDE_URL_START if wide else _URL_START)
         self._tails = _Memo(text, _URL_TAIL)
         self._slashes = _Memo(text, _SLASH)
         self._brackets = _Brackets(text)
@@ -185,21 +201,27 @@ class _Reader:
         start = run.end()
         found = FoundUrl(scheme, start)
         one = self.whole
-        at = userinfo_end(
-            self.text, start, self._slashes.start(start), free_text=not one
-        )
+        at = None
+        colon = self.text.index(":", scheme)
+        if not self.wide or has_userinfo(self.text, scheme, colon + 1):
+            at = self._userinfo_end(start, self._slashes.start(start))
         host = start
         if at is not None:
             at, host = self._outside_secret_value(start, at, one=one)
         if at is not None:
             found.userinfo = (start, at)
-            name = self.text[scheme : self.text.index(":", scheme)]
+            name = self.text[scheme:colon]
             found.account = is_account_name(name, self.text[start:at])
             found.cut = host = max(host, at + 1)
         rest_end = len(self.text) if one else self._tails.start(host)
         self._field = (host, rest_end) if one else None
         found.end = self._params(found, host, rest_end)
         return found
+
+    def _userinfo_end(self, start: int, end: int) -> int | None:
+        """:func:`userinfo_end` of the authority from *start* to *end*, in
+        this reader's reading."""
+        return userinfo_end(self.text, start, end, free_text=not self.whole)
 
     def _outside_secret_value(
         self, start: int, at: int, *, one: bool
@@ -221,7 +243,7 @@ class _Reader:
                 break
             # The part before the head holds an ``@`` and the same first
             # break, so it has a user information; ``or`` keeps *at* if not.
-            at = userinfo_end(self.text, start, head, free_text=not one) or at
+            at = self._userinfo_end(start, head) or at
         value_end = (_FIELD_VALUE_END if one else _VALUE_END).search(
             self.text, first + 1
         )
@@ -277,17 +299,21 @@ class _Reader:
             whole = param
             if removed and rest is not None and param.end() == bound:
                 end = self._trimmed(*rest)
-                whole = WHOLE_PARAM_RE.match(self.text, param.start(), end) or param
+                run = param_run(WHOLE_PARAM_RE, self.text, param.start(), end)
+                whole = run or param
             found.params.append((whole.start(), whole.start(3), whole.end(), removed))
             if whole is not param:
                 return whole.end()
         return None
 
 
-def find_urls(text: str, *, whole: bool) -> list[FoundUrl]:
+def find_urls(text: str, *, whole: bool, wide: bool = False) -> list[FoundUrl]:
     """Each URL of *text*, in order (the readings: this module's
-    docstring); *whole* when *text* is one URL (a URL field)."""
-    reader = _Reader(text, whole=whole)
+    docstring); *whole* when *text* is one URL (a URL field). With *wide*
+    (the detector), as a masker reads them: a URL of any scheme after one
+    ``/`` or ``\\`` too, with a user information unless a path separator
+    comes before it (:func:`has_userinfo`)."""
+    reader = _Reader(text, whole=whole, wide=wide)
     urls: list[FoundUrl] = []
     while (found := reader.next_url(urls[-1].end if urls else 0)) is not None:
         urls.append(found)
@@ -358,20 +384,3 @@ def rebuilt(text: str, url: FoundUrl) -> tuple[str, str] | None:
     plain.kept(text[pos : url.end])
     shown.append(text[pos : url.end])
     return "".join(plain.parts), "".join(shown)
-
-
-def neutral(text: str, urls: list[FoundUrl]) -> str:
-    """*text* with what the masker masks and an SBOM keeps masked as the
-    masker writes it: an account name's user information and each kept
-    parameter's value named like a secret in a message."""
-    parts: list[str] = []
-    done = 0
-    for url in urls:
-        if url.userinfo is not None:
-            parts += (text[done : url.userinfo[0]], "***:***")
-            done = url.userinfo[1]
-        for _, value, end, _ in url.params:
-            parts += (text[done:value], "***")
-            done = end
-    parts.append(text[done:])
-    return "".join(parts)

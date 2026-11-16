@@ -72,7 +72,7 @@ def test_a_url_field_reads_the_whole_rfc_3986_user_information(
     plain = url.replace(userinfo + "@", "")
     assert is_whole_url(url)
     assert strip_url_secrets(url, whole=True)[0] == plain
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
     assert split_userinfo(url) == (plain, userinfo)
     assert "PW" not in masked_given_path(url)
 
@@ -123,7 +123,7 @@ def test_a_special_scheme_with_other_separators_is_a_url(url: str) -> None:
     ``https://u:p@h``: the strip and the refusal find the password."""
     assert "BSSEC" not in strip_url_secrets(url, whole=True)[0]
     assert "BSSEC" not in strip_url_secrets(f"see {url} ok", whole=False)[0]
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
 
 
 def test_a_path_is_not_read_as_a_url_after_one_separator() -> None:
@@ -166,7 +166,7 @@ def test_a_secret_after_a_second_question_mark_is_a_parameter(
     assert stripped == plain
     if shown is not None:
         assert changed == [shown]
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
     assert "PWQ2" not in masked_given_path(url) and "?sig=S" not in masked_given_path(
         url
     )
@@ -252,7 +252,7 @@ def test_a_query_with_a_thousand_question_marks_is_read_without_nesting(
     started = time.perf_counter()
     stripped = strip_url_secrets(_DEEP, whole=whole)[0]
     assert "S3CRET" not in stripped and "T0KEN" not in stripped
-    assert holds_url_credentials(_DEEP, whole=whole)
+    assert holds_url_credentials(_DEEP)
     shown = masked_given_path(_DEEP) + masked_text(_DEEP)
     assert "S3CRET" not in shown and "T0KEN" not in shown
     strip_url_secrets("https://h/?r=" * 1000, whole=whole)
@@ -295,11 +295,11 @@ def test_a_secret_nested_after_a_weak_value_is_removed(url: str, plain: str) -> 
     masker hides the same secret."""
     assert strip_url_secrets(url, whole=True)[0] == plain
     assert "T0KEN" not in masked_given_path(url)
-    assert holds_url_credentials(url, whole=True)
+    assert holds_url_credentials(url)
 
 
 def test_a_query_nested_too_deeply_is_removed_and_the_message_says_so() -> None:
     """The warning names the nesting, not only a credential."""
     url = "https://h/x?q=a" + "?a" * 17 + "b"
     assert strip_url_secrets(url, whole=True)[0] == "https://h/x"
-    assert NAMESPACE_CREDENTIALS.endswith("nested too deeply to read")
+    assert NAMESPACE_CREDENTIALS.endswith("nested or encoded too deeply to read")
