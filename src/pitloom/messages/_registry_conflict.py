@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Two claims on one ID registry id or key: two elements, two runs, two
-spellings or two types (``registry-conflict``), an element whose content is
+spellings or two types (``registry-conflict``; ``/file-set``: the registry
+file inside what a run describes), an element whose content is
 not what its entry records (``registry-hash-conflict``), and one key that
 several files or entries hold (``registry-key-ambiguous``).
 
@@ -160,6 +161,38 @@ REGISTRY_CONFLICT_TYPE: Final = Message(
     since=_SINCE,
 )
 
+#: The declared registry file inside the project's file set.
+FILE_SET_LINE: Final = _line(
+    "WARNING", "FILE=%(file)s: inside the project's file set; left out of it"
+)
+#: The declared registry file inside a loom.Run directory dataset.
+DATASET_DIR_LINE: Final = _line(
+    "WARNING",
+    "FILE=%(file)s: inside dataset directory %(dir)s; left out of its Merkle root",
+)
+
+REGISTRY_CONFLICT_FILE_SET: Final = Message(
+    code="registry-conflict/file-set",
+    condition="conflict",
+    lines=(FILE_SET_LINE, DATASET_DIR_LINE),
+    summary="The ID registry file named for a run lies inside what the run "
+    "describes: the project's file set, or a directory dataset a loom.Run "
+    "script adds. Each save changes the file, so it would change the hash of "
+    "what holds it.",
+    did="Left the registry file out of the project's files and Merkle root "
+    "(and its copy out of a wheel's or an sdist's members), or out of the "
+    "dataset's Merkle root. Said once per run; for a dataset, once per "
+    "directory. The SBOM is written.",
+    effect="none",
+    actor="user",
+    advice="Tell the user that the registry file is inside the project or "
+    "the dataset and is left out of it, as the line says. Expected for a "
+    "registry kept in the project; for no line, they keep it outside. Do "
+    f"not move files for them; {ASK_FIRST}",
+    subject_key="FILE",
+    since=_SINCE,
+)
+
 #: A loom.Run element whose content changed.
 HASH_CHANGED_WARNING_LINE: Final = _line(
     "WARNING",
@@ -271,6 +304,7 @@ ENTRIES: Final = (
     REGISTRY_CONFLICT_SPELLING,
     REGISTRY_CONFLICT_HELD,
     REGISTRY_CONFLICT_TYPE,
+    REGISTRY_CONFLICT_FILE_SET,
     REGISTRY_HASH_CONFLICT,
     REGISTRY_HASH_CONFLICT_GATE,
     REGISTRY_KEY_AMBIGUOUS,

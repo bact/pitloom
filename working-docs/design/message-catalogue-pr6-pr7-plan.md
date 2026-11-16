@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,10 +15,14 @@ See also: [message-catalogue-migration-plan.md](message-catalogue-migration-plan
 (PR 5, #485), [id-registry-followups.md](id-registry-followups.md)
 ("Message codes after catalogue PR 5").
 
-Status: read-only plan, 2026-11-14, on `main` 99483287 (PR 5 merged). Every
-site below was listed by `PYTHONPATH=src python -m scripts.message_inventory
---jsonl` filtered by `_scope.in_scope` and `coded`, then read in the source.
-Nothing is built. Open questions for the maintainer: section 8.
+Status: PR 6 built (#486); PR 7 built 2026-11-16 (branch `catalogue-pr7`,
+uncommitted; ratchet 328 to 316). What was built, and where it departs from
+this plan (six summaries, not five; more `WARNING` twins; the deserialiser's
+refusal coded `sbom-invalid`): [message-catalogue-families.md](../implementation/message-catalogue-families.md)
+"ID registry saves, left-out files and summaries". The plan as written,
+2026-11-14, on `main` 99483287 (PR 5 merged): every site below was listed
+by `PYTHONPATH=src python -m scripts.message_inventory --jsonl` filtered by
+`_scope.in_scope` and `coded`, then read in the source. Rulings: section 8.
 
 ## 0. Counts against the migration plan
 
@@ -42,180 +46,39 @@ PR 7. Out of both: `_loom_model.py:130,284` and `_loom_caller.py:108,145`
 
 ## 1. PR 6: ids, keys and lookups
 
-### 1.1 Sites
+Built in #486; the site table, entries, fields and helpers as built are in
+[message-catalogue-families.md](../implementation/message-catalogue-families.md)
+("ID registry ids and keys") and the generated `docs/message-codes-id-registry-ids.md`.
+The plan's per-site table (35 sites) is in this file's history. Decisions kept
+for PR 7 and later:
 
-Level as printed today; "D" = an INFO decision (R1: coded by its condition,
-actor `none`, effect `none` unless stated). Codes in 1.2.
-
-| # | Site | Level | Text today (shortened) | Condition | Code |
-| - | - | - | - | - | - |
-| 1 | `id_registry/_session.py:47` (`warn_claim_collision`; callers `_session.py:149`, `assemble/spdx3/_package_ids.py:124`) | WARNING | `%s is registered for both %s and %s; %s gets a new id` | two elements claim one held id | `registry-conflict` |
-| 2 | `id_registry/_persist.py:117` | WARNING | `another run saved %s for %s %r first; not recording it for %r` | a concurrent save took the id | `registry-conflict/concurrent` |
-| 3 | `_loom_dataset.py:348` (`SPELLING_PIN_WARNING`, `_loom_dataset_keys.py:66`) | WARNING | `dataset %s is pinned to %s, but it is read as %s, whose id is used` | two spellings, two pins | `registry-conflict/spelling` |
-| 4 | `id_registry/_harvest.py:167` (`_log_r_kept`) | INFO (import) / DEBUG (harvest) | `%s %r not %s: its id is held under %r` | the id is held under another key (D) | `registry-conflict/held` (INFO line only) |
-| 5 | `_loom_caller.py:212` | WARNING | `loom: registry entry for entity %r exists but under a different type; minting a new spdxId.` | held only under another type | `registry-conflict/type` |
-| 6 | `_loom_caller.py:205` | WARNING | `loom: registry entry for %s %r exists but its SHA-256 no longer matches; minting ...` | content differs from the entry | `registry-hash-conflict` |
-| 7 | `id_registry/_registry.py:402` | INFO | `content changed for %s; minting a new spdxId (old: %s).` | same (D) | `registry-hash-conflict` |
-| 8 | `assemble/spdx3/ai.py:140` (`MODEL_GATE_MISS_INFO`) | INFO | `model %s: no registry entry records its SHA-256; a new id is used` | same (D) | `registry-hash-conflict` |
-| 9 | `_loom_caller.py:198` | WARNING | `loom: registry entry for %s %r records a SHA-256 but no content was hashed; minting ...` | no hash to gate on | `registry-hash-missing` |
-| 10 | `_loom_dataset_keys.py:123` (`UNGATED_INFO`) | INFO | `dataset %s looked up ungated: not hashed` | same (D; effect `weaker`) | `registry-hash-missing` |
-| 11 | `_loom_dataset_keys.py:125` (`HASHLESS_PIN_INFO`) | INFO | `dataset %s matched a pin without SHA-256; content not checked` | same (D; `weaker`) | `registry-hash-missing` |
-| 12, 13 | `cli/_id_entity.py:124,129` (`PIN_WITHOUT_HASH_INFO`) | INFO | `dataset %s pinned without SHA-256: %s` | same (D) | `registry-hash-missing` |
-| 14 | `id_registry/_registry.py:399` (`DATASET_PIN_GATED_INFO`) | INFO | `dataset %s pin now gated by its SHA-256` | the missing hash is now recorded (D) | `registry-hash-missing` |
-| 15 | `_loom_caller.py:219` | WARNING | `loom: %s %r not found in registry; minting a new spdxId (untracked %s).` | no entry | `registry-entry-missing` |
-| 16 | `id_registry/_generate.py:91` (`NFC_CLASH_WARNING`) | WARNING | `%d files have one key once NFC-normalised, none is indexed: %s` | one key, several files | `registry-key-ambiguous` |
-| 17 | `id_registry/_session.py:59` (`_info_alias_tie`) | INFO | `%s matches more than one layout alias (%s); none reused` | same (D) | `registry-key-ambiguous` |
-| 18 | `_loom_dataset.py:450` (`OUTSIDE_ROOT_WARNING`) | WARNING | `loom: file %r is outside the ID registry's project root %s; minting a new spdxId` | no path key | `registry-path-key-unusable` |
-| 19 | `_loom_dataset_keys.py:121` | INFO | `dataset %s keyed by its name: %s` | same (D) | `registry-path-key-unusable` |
-| 20, 21 | `_loom_model.py:345`, `assemble/_model_generator.py:147` (`NAME_KEY_INFO`) | INFO | `model %s keyed by its name: %s` | same (D) | `registry-path-key-unusable` |
-| 22 | `assemble/spdx3/_document_file_hits.py:108` (`FALLBACK_KEYS_INFO`) | INFO | `%d file(s) keyed by their path as read: %s` | same (D) | `registry-path-key-unusable` |
-| 23 | `cli/_id_entity.py:148` (`ENTITY_BY_NAME_INFO`) | INFO | `-e %s stored by name: %s` | same (D) | `registry-path-key-unusable` |
-| 24 | `id_registry/_harvest.py:264` (`MODEL_NOT_RECORDED_INFO`) | INFO | `model %s not recorded: no unique file with its SHA-256` | same (D) | `registry-path-key-unusable` |
-| 25 | `id_registry/_session.py:38` (`info_identity_unknown`) | INFO | `package identity unknown; not looked up or recorded` | no name/version (D) | `registry-identity-missing` |
-| 26 | `cli/_id_entity.py:109` (`ENTITY_NO_VERSION_INFO`) | INFO | `-e %s stored without a version: holds only a package that states none` | same (D) | `registry-identity-missing` |
-| 27 | `id_registry/_generate.py:239` (`LAYOUT_ALIAS_PROMOTED_INFO`) | INFO | `%d key(s) promoted from a layout alias` | key moved (D) | `registry-key-moved` |
-| 28 | `id_registry/_generate.py:241` (`LAYOUT_ALIAS_CHANGED_INFO`) | INFO | `%d key(s) of changed content took their layout alias's id` | same (D) | `registry-key-moved` |
-| 29, 30 | `id_registry/_session.py:299`, `import_keys.py:291` (`LAYOUT_ALIAS_HITS_INFO`) | INFO | `%d element(s) matched a registry key through the src/lib layout alias` | same (D) | `registry-key-moved` |
-| 31 | `id_registry/import_keys.py:294` (`FILE_ALIAS_OVER_CHANGED_INFO`) | INFO | `%d file(s) imported under their layout alias: their own key holds other content` | same (D) | `registry-key-moved` |
-| 32 | `id_registry/import_keys.py:288` (`log.info(note.message, *note.args)`) | INFO | four templates: `DATASET_NAME_KEY_INFO`, `MODEL_NAME_KEY_INFO` (decisions), `DATASET_PATH_KEY_INFO`, `MODEL_FILE_ENTRY_KEY_INFO` (reports) | per template | `registry-path-key-unusable` x2; Summary x2 (1.3) |
-| 33 | `id_registry/_types.py:324` | WARNING | `path has a skipped directory name (%s), skipping: %s` | an explicit PATH under a skipped name | `index-path-no-effect` |
-| 34 | `id_registry/_registry.py:368` | ERROR (raise) | `no {prefix} id left to mint in {namespace}` | a held counter or id at `MAX_ID_NUMBER` (only a hand edit reaches it) | reuse `registry-malformed` |
-| 35 | `id_registry/_registry.py:477` | WARNING | `not adopting the namespace %r: %s; keeping %s` | the imported SBOM's namespace is no IRI | reuse `sbom-invalid` (new WARNING line) |
-| +0 | `_harvest.py:312,459,470` (`content_gate_message`) | INFO | `content gate kept/dropped for ...` | hashed entry vs element | `registry-hash-conflict/gate` |
-| +0 | `cli/id.py:375` (`ambiguous_keys_message`) | INFO | `not imported (name held by several elements): ...` | one name, several elements | `registry-key-ambiguous` |
-
-### 1.2 Entries
-
-New topic `id-registry-ids` ("ID registry: ids and keys", section 4); module
-`pitloom.messages.id_registry_ids`; `since="0.24.1"` (last tag v0.24.0;
-re-check `git tag` before merge). Every template starts with
-`REGISTRY_PREFIX` (rule 2). Field names in 1.4.
-
-- **`registry-conflict`** (`conflict`, actor `user`, effect `weaker`:
-  the second element's id no longer matches earlier SBOMs): `ID registry:
-  %(spdx_id)s is registered for both %(entity)s and %(claimant)s;
-  %(claimant)s gets a new id`. Did (CLI generating commands, hook,
-  library, `loom.Run`): the first claimant in document order keeps the id,
-  the SBOM is written. Advice: a stale entry; re-run `loom id generate` or
-  pin the two apart with `-e`; ask first. Variants (advice differs, D):
-  - `/concurrent`: `ID registry: another run saved %(spdx_id)s for
-    %(element_type)s %(entity)s first; not recording it for %(claimant)s`.
-    Advice: run again to record it; nothing lost in this SBOM.
-  - `/spelling`: `ID registry: dataset %(entity)s is pinned to %(spdx_id)s,
-    but it is read as %(claimant)s, whose id is used`. Advice: name the
-    dataset one way, or drop one pin.
-  - `/held` (INFO, actor `none`): `ID registry: %(element_type)s
-    %(entity)s not imported: its id is held under %(claimant)s`. The DEBUG
-    harvest case stays `log.debug` (frames-forward's dynamic-level rule).
-  - `/type`: `ID registry: %(entity)s is held under another type; minting
-    a new spdxId`.
-- **`registry-hash-conflict`** (`conflict`; WARNING `user`/`weaker`, INFO
-  lines decisions). WARNING (loom.Run): `ID registry: %(element_kind)s
-  %(entity)s: its SHA-256 no longer matches the entry; minting a new
-  spdxId`. INFO: `ID registry: content changed for %(entity)s; minting a
-  new spdxId (old: %(spdx_id)s)`; `ID registry: model %(entity)s: no
-  registry entry records its SHA-256; a new id is used`. Advice: expected
-  after a retrain or an edit; nothing to do unless the content should not
-  have changed. Variant `/gate` (INFO, `none`): the three
-  `content_gate_message` shapes, `ID registry: content gate dropped for
-  %(element_type)s %(entity)s: imported id %(spdx_id)s replaces
-  %(claimant)s` and the two `kept` lines.
-- **`registry-hash-missing`** (`missing`; `none`/`weaker`): lines 9 to
-  14, text kept but for the SDK prefix; the pin reason is `%(why)s` (free:
-  `_pin_digest` joins held records' text). Advice: give the dataset or
-  model a path the run can hash, or accept an ungated id.
-- **`registry-entry-missing`** (`missing`, actor `none`, effect `none`):
-  `ID registry: %(element_kind)s %(entity)s not found; minting a new
-  spdxId`. Stays a WARNING in PR 6 (no level change in a coding PR; on a
-  first run it is expected, as the skill says): a level review goes to
-  [id-registry-followups.md](id-registry-followups.md).
-- **`registry-key-ambiguous`** (`ambiguous`; WARNING `user`/`thinner`,
-  INFO `none`): `ID registry: %(number)s files have one key once
-  NFC-normalised, none is indexed: %(entity)s`; `ID registry: %(entity)s
-  matches more than one layout alias (%(held)s); none reused`; `ID
-  registry: not imported (name held by several elements): %(held)s`.
-- **`registry-path-key-unusable`** (`unusable`; the SDK WARNING
-  `user`/`none`, INFO `none`): `ID registry: file %(entity)s is outside the
-  project root %(root)s; minting a new spdxId`; `ID registry:
-  %(element_kind)s %(entity)s keyed by its name: %(key_reason)s` (model and
-  dataset, four sites, one helper `info_name_key`); `ID registry: model
-  %(entity)s imported under its name: no unique file with its SHA-256`;
-  `ID registry: model %(entity)s not recorded: no unique file with its
-  SHA-256`; `ID registry: -e %(entity)s stored by name: %(key_reason)s`;
-  `ID registry: %(number)s file(s) keyed by their path as read:
-  %(key_reason)s`.
-- **`registry-identity-missing`** (`missing`, `none`): lines 25, 26.
-- **`registry-key-moved`** (`moved`, `none`): lines 27 to 31 with
-  `%(number)s`. Counts of a decision, not pure counts: coded (R1).
-- **`index-path-no-effect`** (`no-effect`, actor `user`, effect `none`;
-  WARNING): `ID registry: PATH %(path)s is under a skipped directory name
-  (%(name)s); not indexed`, the path as typed (the `path` field writes it
-  through `given_path_text`). `loom id generate` only; the library
-  `IdRegistry.generate(explicit=True)` says the same. Advice: name a PATH outside `build/`, `.git/` and the other
-  skipped names, or none.
-- **Reused**: `registry-malformed` gains `ID registry: FILE=%(file)s: no
-  %(name)s id left to mint in %(namespace)s` (the file as
-  `IdRegistry`'s shown name, `(no file)` without one); its summary already
-  covers a counter out of range. `sbom-invalid` gains a WARNING line,
-  as built: `FILE=%(file)s: SBOM namespace %(namespace_problem)s; the ID
-  registry keeps its own, not %(namespace)s` (the SBOM as typed; the
-  namespace said once, credentials masked, the reason from the closed
-  `core.iri.NAMESPACE_PROBLEMS`; no `ID registry: ` prefix: the subject is
-  the SBOM, see Q2), and its `did` says `id import` goes on.
-
-Decided wording (in the stderr sweep): `loom: ` -> `ID registry: ` on
-rows 5, 6, 9, 15, 18 (Q4); no trailing periods; `%r` and raw values
-become fields (row 7 prints `name` raw today: a control character forges a
-line; regression test).
-
-Not in PR 6: the remote registry's unpinned `INFO`, as the remote entries
-are unbuilt (known-bugs `id-registry-and-identity.md` P1, own PR). That PR
-adds it born coded as `revision-unpinned`, which PR 14's Hub "without a
-pinned revision" `WARNING`s join (same advice; topic `network`).
-
-### 1.3 The summary kind (mechanism, R1)
-
-R1 keeps pure counts out of the ratchet by an explicit scope rule; nothing
-builds it yet (PR 4 left its summaries). PR 6 does (row 32 needs it):
-
-- `pitloom.messages._types.Summary(template, level="INFO")`: a `Line`
-  without a code; the same `template_problem` rules and fields.
-- `say_summary(log, S, **values)` in `_emit.py`: renders through the
-  fields (escaping), no `pitloom_code` on the record.
-- Scope rule (`scripts/message_inventory/_scope.py`): a call whose callee
-  is `say_summary` is out of scope, kind `summary`, by the call's shape
-  (as `_relay.py`), never by its text. A test in
-  `tests/test_message_ratchet.py`: a plain `log.info("ID registry: holds
-  %d id(s)")` stays counted.
-- The generator lists a topic's summaries in a "Summaries (no code)"
-  section; `docs/messages.md` gains a short paragraph; `trusted_message`
-  never trusts one (no code).
-
-PR 6 summaries: `DATASET_PATH_KEY_INFO` (`dataset %(entity)s keyed by its
-path: %(name)s`), `MODEL_FILE_ENTRY_KEY_INFO`. `_Note` holds `(spdx_id,
-key, entry or summary, line, values)` and `report_imported` emits it.
-
-### 1.4 Fields, tables, helpers
-
-New fields (`_fields.py`, 462 lines now: split it before adding, at
-~400, e.g. `_fields_registry.py`): `spdx_id` (free, escaped), `claimant`
-(free; a key, a path or `name@version`), `entity` (free; the element's
-name or key as keyed, URL credentials masked through the writer of `file`,
-since a dataset may be named by URL), `held` (free, comma-joined, sorted),
-`element_kind` (closed: `model`, `dataset package`, `dataset`, `file`,
-`entity`, from `_loom_caller._TYPE_WORDS`) and `key_reason` (closed
-`KEY_REASONS` in `_field_tables.py`: `not found`, `outside the project
-root`, `not a regular file`, `used only by a model with no file`, the
-import's not-found text, `the project is outside the registry's root`,
-`their path is outside the registry's root`; a drift test against the
-constants in `import_keys.py`, `cli/_id_entity.py`,
-`_document_file_hits.py`). Existing: `element_type`, `number`, `path`,
-`root`, `namespace`, `why`, `name`, `file`.
-
-Helpers: `warn_claim_collision` (emits), `say_registry_miss` (the four
-`_loom_caller` branches), `info_name_key` (four sites), `info_key_moved`.
-The `*_INFO`/`*_WARNING` constants become `Line`s in the messages module
-(which never imports `pitloom.id_registry`).
+- **Topic and entries.** New topic `id-registry-ids`, module
+  `pitloom.messages.id_registry_ids`; families `registry-conflict` (variants
+  `/concurrent`, `/spelling`, `/held`, `/type`), `registry-hash-conflict`
+  (`/gate`), `registry-hash-missing`, `registry-entry-missing` (stays a
+  `WARNING`: no level change in a coding PR; level review in
+  [id-registry-followups.md](id-registry-followups.md)),
+  `registry-key-ambiguous`, `registry-path-key-unusable`,
+  `registry-identity-missing`, `registry-key-moved`, `index-path-no-effect`.
+  An INFO decision is coded by its condition (R1), actor `none`.
+- **Reuse over new codes.** "No id left to mint" is a `registry-malformed`
+  line; a non-IRI SBOM namespace on import is an `sbom-invalid` `WARNING`
+  line with no `ID registry: ` prefix (its subject is the SBOM, Q2).
+- **Wording.** `loom: ` -> `ID registry: ` (Q4); no trailing periods; `%r`
+  and raw values become fields, a control character escaped (regression
+  test). Every template starts with `REGISTRY_PREFIX` (rule 2).
+- **Summary kind (R1).** `Summary(template, level="INFO")`: a `Line` without
+  a code; `say_summary` renders through the fields with no `pitloom_code`;
+  the inventory scope rule leaves a `say_summary` call out by its shape,
+  never its text (a plain counted `log.info` stays counted); the generator
+  lists a topic's summaries uncoded; `trusted_message` never trusts one.
+- **Fields.** `spdx_id`, `claimant`, `entity` (URL credentials masked),
+  `held` (sorted), closed `element_kind` and closed `KEY_REASONS` with a
+  drift test; `_fields.py` split before it passed ~400 lines. The messages
+  modules never import `pitloom.id_registry`.
+- **Not in PR 6.** The remote registry's unpinned `INFO` (remote entries
+  unbuilt) is born coded `revision-unpinned` in its own PR, which PR 14's
+  Hub "without a pinned revision" `WARNING`s join.
 
 ## 2. PR 7: saves, left-out files, summaries, PR 5 leftovers
 
@@ -342,8 +205,8 @@ scope rule); PR 7 `test_registry_save.py`, `test_file_unwritable.py`.
   with a registry holding a colliding id: the claim line coded; no save
   line, as the hook never saves, asserted), Action through the CLI.
 - **Adversarial**: a newline, `\x1b` and a lone surrogate in a key, an
-  spdxId, a claimant and a dataset name (row 7 prints `name` raw today:
-  fails on base); a URL dataset name with `user:pass@` masked in `entity`;
+  spdxId, a claimant and a dataset name (the content-changed INFO printed
+  `name` raw: fails on base); a URL dataset name with `user:pass@` masked in `entity`;
   a Windows registry path (`.\ids.json`, `C:\p\ids.json` through
   `PureWindowsPath` into the `file` writer) named as typed; the typed
   spelling (`./x/../ids.json`) kept in the save line; said once (claim per

@@ -257,15 +257,12 @@ def test_generate_reports_a_root_that_cannot_be_stored_as_one_error(
         fake.side_effect = ValueError("path is on mount 'C:', start on mount 'D:'")
         assert _generate(monkeypatch, project, registry) == 1
 
-    # Known state until catalogue PR 7 codes the save wrapper
-    # (failed_to_save_message): the registry-unusable line is stacked after
-    # it, the file named twice and no code printed.
+    # The inner line alone, its code kept: the file named once, one prefix.
     (error,) = _errors(capsys)
     assert error == (
-        f"ERROR: loom id generate: ID registry: failed to save '{registry}': "
-        f"ID registry: FILE={registry}: project root '{project.resolve()}' has "
-        "no path relative to the file's directory; path is on mount 'C:', "
-        "start on mount 'D:'"
+        f"ERROR: loom id generate: ID registry: FILE={registry}: project root "
+        f"'{project.resolve()}' has no path relative to the file's directory; "
+        "path is on mount 'C:', start on mount 'D:' [registry-unusable]"
     )
     assert not registry.exists()
 

@@ -28,6 +28,11 @@ from pitloom.messages._file_unreadable_warning import (
     warn_dir_unlistable,
     warn_file_unreadable,
 )
+from pitloom.messages._file_unwritable import (
+    FILE_UNWRITABLE,
+    WRITE_ERROR_LINE,
+    WRITE_LINE,
+)
 from pitloom.messages._json_malformed import (
     JSON_MALFORMED,
     NOT_JSON_LINE,
@@ -74,6 +79,7 @@ __all__ = [
     "FILE_UNREADABLE_NOT_UTF8",
     "FILE_UNREADABLE_OUTSIDE",
     "FILE_UNREADABLE_OUTSIDE_REPOSITORY",
+    "FILE_UNWRITABLE",
     "GIT_OUTPUT_LINE",
     "JSON_MALFORMED",
     "NOT_JSON_LINE",
@@ -88,6 +94,8 @@ __all__ = [
     "TEMP_DIR_UNUSABLE",
     "TEXT_MALFORMED",
     "TEXT_MALFORMED_REGISTRY",
+    "WRITE_ERROR_LINE",
+    "WRITE_LINE",
     "dir_unlistable_error",
     "file_unreadable_error",
     "over_cap_of",

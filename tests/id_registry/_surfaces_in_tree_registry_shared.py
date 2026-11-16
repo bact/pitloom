@@ -19,7 +19,7 @@ import pytest
 
 from pitloom.id_registry import IdRegistry
 
-_NEEDLE = "is inside the project's file set; left out of it"
+_NEEDLE = ": inside the project's file set; left out of it"
 
 
 def _in_tree_registry(tmp_path: Path) -> Path:

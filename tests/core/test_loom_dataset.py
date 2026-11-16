@@ -217,6 +217,7 @@ def test_directory_dataset_has_its_merkle_root_and_no_file(
     assert roots == [expected, expected]
 
 
+@pytest.mark.platform  # the registry's path named in the line
 def test_registry_inside_a_directory_dataset_is_left_out_with_one_warning(
     project: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -238,8 +239,18 @@ def test_registry_inside_a_directory_dataset_is_left_out_with_one_warning(
         for h in p["verifiedUsing"]
     }
     assert roots == {without}
-    left_out = [w for w in _warnings(caplog) if "left out of its Merkle root" in w]
-    assert len(left_out) == 1
+    left_out = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "of its Merkle root" in r.getMessage()
+    ]
+    # Said once for the repeated directory, coded, FILE= first, no "loom:".
+    (record,) = left_out
+    assert record.getMessage() == (
+        f"ID registry: FILE={registry.path}: inside dataset directory corpus; "
+        "left out of its Merkle root"
+    )
+    assert getattr(record, "pitloom_code", None) == "registry-conflict/file-set"
 
 
 def test_registry_alone_in_a_directory_dataset_is_still_said(

@@ -133,14 +133,11 @@ traceback, and takes precedence over that error.
   `ID registry: FILE=<path>: unknown top-level key(s): 'files'
   [registry-unknown-key]`) is one `ERROR:` and exit 1, never silently
   replaced. A registry file that cannot record its project root (on
-  Windows, a file on another drive than the project) is not saved. The
-  library raises it coded (`registry-unusable`); the CLI prints it, for now
-  without the code, after the save line: `ID registry: failed to save
-  '<absolute path>': ID registry: FILE=<path as given>: project root
-  '<root>' has no path relative to the file's directory; <reason>` (the two
-  spell the file differently until that line is coded; `ERROR:` for `loom id`,
-  `WARNING:` where the SBOM is already written). A registry file inside the
-  project always works.
+  Windows, a file on another drive than the project) is not saved: `ID
+  registry: FILE=<path>: project root '<root>' has no path relative to the
+  file's directory; <reason> [registry-unusable]` (`ERROR:` for `loom id`,
+  `WARNING:` where the SBOM is already written; the library raises it
+  coded). A registry file inside the project always works.
 - A registry file is read whole, up to the fixed 50 MiB cap for a JSON
   document: a larger one is not read (`FILE=<path>: larger than the
   <limit>-byte JSON-document cap for the ID registry; not read [over-cap]`,
@@ -229,8 +226,9 @@ Exceptions:
   stem are two models with two ids. A dataset pin with no recorded SHA-256
   hits any content: see [Content gates](id-registry-keys.md#content-gates).
 - A registry inside the project tree is left out of the SBOM's file set
-  (and of a wheel's Merkle root), with one `WARNING: ID registry: <path> is
-  inside the project's file set; left out of it` per run when the file set
+  (and of a wheel's Merkle root), with one `WARNING: ID registry:
+  FILE=<path>: inside the project's file set; left out of it
+  [registry-conflict/file-set]` per run when the file set
   actually contains it; `id generate` does not index it either. With
   `--allow-build`, the copy found in the build-and-read extraction is left
   out too (recognised as a file the build extracted, wherever `TMPDIR` is,
@@ -318,10 +316,14 @@ registry in a read-only directory is written in place, which is not atomic. A
 exists, merges into that file and never overwrites it. There is no lock.
 
 A read-only registry file is never overwritten, on any platform. A failed save
-logs `WARNING: ID registry: failed to save <path>: <reason>` (the registry's
-path, never a temporary file's) and the run's output is already written;
-`loom id generate` and `loom id import` print the same line as their one
-`ERROR:` and exit 1.
+logs one `WARNING:`, what stopped it with its code: a write the system refused
+is `WARNING: FILE=<path>: could not write for the ID registry; <reason>
+[file-unwritable]` (the registry as given, never a temporary file), a file
+that no longer loads its own line. The run's output is already written. `loom
+id generate` and `loom id import` print the same line as their one `ERROR:`
+and exit 1. A library `IdRegistry` with no file logs `WARNING: ID registry: no
+file to save to; the ids this run added are not saved
+[registry-file-missing]`.
 
 Two `loom.Run` blocks that exit at the very same moment against one registry
 can each write the same id for a different model into their fragments: the
@@ -380,9 +382,9 @@ registry: PATH '<path>' is not inside the project root '<root>'
 a path outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
 `ERROR: loom id import: FILE=<path>: SBOM @graph is not a list [sbom-invalid]`,
-as `embed-wheel --sbom` refuses it;
-any other failure without a code is
-`ERROR: loom id import: failed to import SBOM '<path>': <reason>`.
+as `embed-wheel --sbom` refuses it; one the SPDX 3 reader refuses (an object
+with no type) is `ERROR: loom id import: FILE=<path>: SBOM cannot be read as
+SPDX 3; <reason> [sbom-invalid]`.
 
 ## In CI
 

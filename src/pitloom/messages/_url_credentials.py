@@ -185,6 +185,8 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
         REGISTRY_FILE_REFUSED_LINE,
         REGISTRY_FILE_KEPT_LINE,
         KEY_KEPT_LINE,
+        # Said again when a run re-reads its ID registry file to save.
+        Line(level="WARNING", template=REGISTRY_FILE_REFUSED_LINE.template),
     ),
     summary="A key or namespace given to the ID registry (an external "
     "reference URL), or the key or id of an SBOM element it would record, "
@@ -202,7 +204,9 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
     "default, stored the key as written, or loaded the file as it is "
     "(warning). A namespace holding one is refused in either mode (error). "
     "An SBOM element whose key or id holds one is left out of the registry "
-    "in either mode, and the rest written (warning).",
+    "in either mode, and the rest written (warning). A run whose SBOM is "
+    "already written that reads the file again to save, in the refuse mode, "
+    "says the refusal as a warning: nothing is saved and the SBOM stands.",
     effect="thinner",
     actor="user",
     advice="Tell the user which value, as the line shows it. For an error, "

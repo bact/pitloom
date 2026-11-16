@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The registry summary lines: run auto-harvest's ``added N new id(s)`` /
-``updated stale entries`` / ``failed to save``, and ``id generate``/``id
-import``'s ``holds N id(s)``. N counts distinct ids, not keys (D4).
+``updated stale entries`` (or the failed save's own line), and ``id
+generate``/``id import``'s ``holds N id(s)``. N counts distinct ids, not
+keys (D4).
 
 See also: tests/core/generator/test_generator_registry_sync.py (auto-sync
 through the generators), test_registry_harvest.py (the ``harvest()``
@@ -27,7 +28,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import FILE_TYPE, IdRegistry, RegistryEntry
-from pitloom.id_registry._persist import failed_to_save_message
 from tests.id_registry.surfaces_base import _run_cli
 from tests.registry_helpers import make_registry
 
@@ -118,12 +118,20 @@ def test_updated_stale_entries_when_no_entry_is_new(
     assert _infos(caplog) == [f"ID registry: updated stale entries in '{path}'"]
 
 
-@pytest.mark.parametrize("error", [OSError("disk full"), ValueError("drives")])
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        (OSError("disk full"), "file-unwritable"),
+        (ValueError("drives"), "registry-unusable"),
+    ],
+    ids=["os-error", "value-error"],
+)
 def test_a_failed_save_is_one_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, error: Exception
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, error: Exception, code: str
 ) -> None:
     """``ValueError`` too: a project root with no path relative to the
-    registry (two Windows drives) must not break SBOM generation."""
+    registry (two Windows drives) must not break SBOM generation. One coded
+    line naming the file once, never a second ``ID registry: ``."""
     path = tmp_path / "reg.json"
     registry = IdRegistry.new("x", path=path)
     exporter = _exporter(("a.py", f"{_NS}#File-1", "a" * 64))
@@ -133,9 +141,12 @@ def test_a_failed_save_is_one_warning(
         with caplog.at_level(logging.INFO, logger="pitloom"):
             _sync_registry(exporter, registry, True)
 
-    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
-    assert len(warnings) == 1
-    assert warnings[0].startswith(f"ID registry: failed to save '{path}'")
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    text = record.getMessage()
+    assert getattr(record, "pitloom_code", None) == code
+    assert text.count(str(path)) == 1
+    assert text.count("ID registry: ") == (code == "registry-unusable")
+    assert f"FILE={path}: " in text
     assert not _infos(caplog)
 
 
@@ -178,10 +189,3 @@ def test_id_generate_reports_distinct_ids(
     assert len(loaded.elements) == loaded.id_count()
     err = capsys.readouterr().err
     assert f"INFO: ID registry: holds {loaded.id_count()} id(s)\n" in err
-
-
-def test_a_save_message_without_a_file_says_so() -> None:
-    """A registry that has no file names none, instead of ``None``."""
-    assert failed_to_save_message(None, OSError("x")) == (
-        "ID registry: failed to save (no file): x"
-    )

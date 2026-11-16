@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -135,14 +135,18 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   callers) becomes the subject form `ID registry: <file subject>:
   CONDITION`; the PR picks the field (`path` quoted, as the 26 lines write it
   now, is the least change).
-- `failed_to_save_message` wraps `{exc}`: the outer line states its own
-  condition (`registry-unwritable` or the plan's name) with the inner text as
-  `(detail)`. The inner code is not printed (one line, one code), which is
-  right only because the outer condition differs (see "Wrappers" below).
+- A failed save adds no condition, so it states none (built in catalogue
+  PR 7, "Wrappers keep the inner code" below): `failed_to_save_message` is
+  gone and `say_save_failure` says the inner coded line alone, its code
+  kept; an uncoded `OSError` on write is `file-unwritable` (`FILE=<file>:
+  could not write for the ID registry; <failure>`). No `registry-unwritable`
+  was added.
 - One helper, two levels: `unencodable_message` is ERROR at PR 5's sites and
-  WARNING at `_harvest.py:447`; `failed_to_save_message` WARNING at
-  `_persist.py:206`, ERROR at `cli/id.py:221`. One entry with an ERROR and a
-  WARNING line each (decision E).
+  WARNING at `_harvest.py:447`; a failed save is ERROR for `loom id` and
+  WARNING for a run whose SBOM is written. One entry with an ERROR and a
+  WARNING line each (decision E): every entry a save can say has a
+  `WARNING` twin, and a missing one raises `InternalError`, never prints
+  uncoded.
 - `ambiguous_keys_message` is INFO or DEBUG at run time; a `Line` has one
   level. The INFO case goes through `emit`; the DEBUG case stays a plain
   `log.debug` (developer-only, out of scope). Same rule for every dynamic
@@ -155,8 +159,8 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
 - Applied in PR 5 (#485): `registry_file_error` became the subject form
   `ID registry: FILE=<file>: CONDITION` (the file as given, URL masked);
   `unencodable_message` became `text-malformed/registry` (an `ERROR` and
-  two `WARNING` lines). Left: `failed_to_save_message` (PR 7), so the
-  `registry-unusable` code is not yet printed on the CLI.
+  two `WARNING` lines). Catalogue PR 7 removed `failed_to_save_message`:
+  `registry-unusable` now prints with its code on the CLI.
 
 ### PRs 8 and 9: configuration
 

@@ -5,8 +5,9 @@
 
 """``json-malformed``: a JSON document Pitloom was given to read (a
 Croissant document, PyPI's release metadata, an SBOM to embed or import, an
-ID registry file) does not parse, or its top level is no object. ``ERROR``
-only: the read raises.
+ID registry file) does not parse, or its top level is no object. The read
+raises; an ID registry file re-read to save a run's ids says the same as a
+``WARNING`` (:func:`~pitloom.messages._registry_save.say_save_failure`).
 
 See also: :func:`pitloom.extract._extract_utils.fetch_json` (a Croissant
 document), :mod:`pitloom.extract.remote._http_fetch` (PyPI's JSON API),
@@ -41,7 +42,12 @@ NOT_OBJECT_LINE: Final = Line(
 JSON_MALFORMED: Final = Message(
     code="json-malformed",
     condition="malformed",
-    lines=(NOT_JSON_LINE, NOT_OBJECT_LINE),
+    lines=(
+        NOT_JSON_LINE,
+        NOT_OBJECT_LINE,
+        Line(level="WARNING", template=NOT_JSON_LINE.template),
+        Line(level="WARNING", template=NOT_OBJECT_LINE.template),
+    ),
     summary="A JSON document Pitloom was given to read does not parse, or "
     "its top level is not an object; the line says which document by what it "
     "was read for: a Croissant document, PyPI's release metadata, or an SBOM "
@@ -56,7 +62,9 @@ JSON_MALFORMED: Final = Message(
     "read_croissant) fails; for PyPI's release metadata of a PyPI URL, no "
     "SBOM is written; for an SBOM to embed, no wheel is changed; for one to "
     "import, the ID registry is not written; for an ID registry file, no "
-    "registry and no SBOM is written, and the file is left as it is.",
+    "registry and no SBOM is written, and the file is left as it is. As a "
+    "WARNING (an ID registry file read again to save the ids a run added, "
+    "after its SBOM is written), nothing is saved and the SBOM stands.",
     effect="not-written",
     actor="user",
     advice="Tell the user which document is not valid JSON, or not a JSON "

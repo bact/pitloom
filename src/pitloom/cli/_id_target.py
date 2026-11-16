@@ -23,7 +23,8 @@ from pitloom.core.given_path import GivenPath, TypedPath, keep_spelling
 from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, say_summary
+from pitloom.messages.id_registry import CONFIG_HINT_ADD, CONFIG_HINT_CHANGE
 from pitloom.messages.options import OPTION_MISSING
 from pitloom.messages.targets import is_input_file
 from pitloom.messages.url_credentials import say_mode_unread
@@ -223,7 +224,20 @@ def _log_config_hint(registry_path: Path, project_dir: Path, slot: _ConfigSlot) 
         rel = registry_path.relative_to(project_dir).as_posix()
     except ValueError:
         rel = registry_path.as_posix()
-    where = f"{slot.table} in {_TABLE_CONFIG_FILE[slot.table]}"
     value = json.dumps(rel) if slot.table == _PYPROJECT_TABLE else rel
-    action = f"change id-registry in {where} to" if slot.has_key else f"add to {where}"
-    log.info("ID registry: to use this registry, %s: id-registry = %s", action, value)
+    if slot.has_key:
+        say_summary(
+            log,
+            CONFIG_HINT_CHANGE,
+            table=slot.table,
+            file=_TABLE_CONFIG_FILE[slot.table],
+            value=value,
+        )
+    else:
+        say_summary(
+            log,
+            CONFIG_HINT_ADD,
+            table=slot.table,
+            file=_TABLE_CONFIG_FILE[slot.table],
+            value=value,
+        )

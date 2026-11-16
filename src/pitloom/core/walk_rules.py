@@ -28,7 +28,11 @@ from typing import TYPE_CHECKING
 from pitloom.core.file_identity import file_id, stat_id
 from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.core.quote_source import quote_source
+from pitloom.messages import emit
+from pitloom.messages.id_registry_ids import (
+    FILE_SET_LINE,
+    REGISTRY_CONFLICT_FILE_SET,
+)
 
 if TYPE_CHECKING:
     from pitloom.core.project import ProjectFile
@@ -38,7 +42,6 @@ log = logging.getLogger(__name__)
 __all__ = [
     "IGNORED_DIR_NAMES",
     "PROJECT_FILES",
-    "REGISTRY_IN_FILE_SET_WARNING",
     "RegistryCopy",
     "SameFile",
     "same_path",
@@ -72,15 +75,6 @@ IGNORED_DIR_NAMES = frozenset(
         ".hatch",
         "fragments",
     }
-)
-
-#: ``log.warning()`` format for a declared registry inside a project's file
-#: set: left out of project discovery (files and Merkle root) and, as its
-#: copy, of a wheel's or an sdist's members. Argument: the registry path. A
-#: directory dataset has its own (``loom:``-prefixed) warning;
-#: ``id generate`` leaves the registry out of its index silently.
-REGISTRY_IN_FILE_SET_WARNING = (
-    "ID registry: %s is inside the project's file set; left out of it"
 )
 
 
@@ -145,9 +139,18 @@ def same_path(first: Path, second: Path) -> bool:
 
 
 def warn_registry_left_out(registry_path: Path) -> None:
-    """Warn that the declared registry was inside the walked file set and
-    is left out of it."""
-    log.warning(REGISTRY_IN_FILE_SET_WARNING, quote_source(registry_path))
+    """Warn (``registry-conflict/file-set``) that the declared registry
+    *registry_path* was inside the walked file set and is left out of it:
+    of project discovery (files and Merkle root) and, as its copy, of a
+    wheel's or an sdist's members. A directory dataset has its own line;
+    ``id generate`` leaves the registry out of its index silently."""
+    emit(
+        log,
+        REGISTRY_CONFLICT_FILE_SET,
+        logging.WARNING,
+        line=FILE_SET_LINE,
+        file=registry_path,
+    )
 
 
 #: How many leading parts of a project path its installed path may lack:

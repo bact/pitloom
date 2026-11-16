@@ -20,13 +20,10 @@ from hatchling.builders.wheel import WheelBuilder
 
 from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile
-from pitloom.core.walk_rules import (
-    REGISTRY_IN_FILE_SET_WARNING,
-    RegistryCopy,
-    without_registry_copies,
-)
+from pitloom.core.walk_rules import RegistryCopy, without_registry_copies
 from pitloom.extract.wheel import read_wheel
 from pitloom.id_registry import IdRegistry, registry_copy
+from pitloom.messages.id_registry_ids import FILE_SET_LINE
 from tests._symlink import CAN_SYMLINK, case_sensitive
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.core.models_wheel._exclude_path_shared import REG, warnings_of, write_file
@@ -306,4 +303,4 @@ def test_backslash_member_of_a_wheel_is_the_registry(
         kept = without_registry_copies(files, RegistryCopy(registry, project))
     assert "demo/reg.json" not in [f.distribution_path for f in kept]
     assert len(kept) == len(files) - 1
-    assert warnings_of(caplog) == [REGISTRY_IN_FILE_SET_WARNING % f"'{registry}'"]
+    assert warnings_of(caplog) == [FILE_SET_LINE.render({"file": registry})]

@@ -86,6 +86,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "card-malformed",
             "dir-unlistable",
             "file-unreadable",
+            "file-unwritable",
             "json-malformed",
             "over-cap",
             "temp-dir-unusable",
@@ -112,6 +113,7 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
         ),
         "url-credentials": ("credentials-unsafe",),
         "id-registry": (
+            "registry-file-missing",
             "registry-malformed",
             "registry-unknown-key",
             "registry-unusable",

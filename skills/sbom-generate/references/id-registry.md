@@ -195,7 +195,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   For `dataset_DatasetPackage` (file or directory), `ai_AIPackage` and
   `software_File` (regular files), a `NAME` that exists below `--project-dir`
   is stored as its path key plus content digest (`INFO: ID registry: -e NAME
-  stored as KEY` when the key differs from the text); any other
+  stored as KEY` when the key differs from the text, once the registry is
+  written); any other
   `ai_AIPackage` or `software_File` name is stored by name with `INFO: ID
   registry: -e NAME stored by name: <reason>` (an `ai_AIPackage` name applies
   only to a model with no file), and a dataset that is missing, outside the
@@ -260,7 +261,7 @@ it as below with their own frame (`loom id generate` or `loom id import`); other
 commands frame theirs (`loom generate`):
 
 ```text
-ERROR: loom id generate: ID registry: FILE=<path>: version 3, expected 4 (no migration support -- delete it and re-run `loom id generate` or `loom id import`) [registry-wrong-format]
+ERROR: loom id generate: ID registry: FILE=<path>: version 3, expected 4 (no migration support) [registry-wrong-format]
 ```
 
 Relay the `ERROR:`. Deleting the file loses its pins
@@ -287,8 +288,9 @@ added or changed, pass `--id-registry <file>` on each run.
 
 Keep the registry file outside any directory the package build includes
 (the project root, not `src/<package>/`). One inside it is left out of the
-SBOM's file set, with one `WARNING: ID registry: <path> is inside the
-project's file set; left out of it` per run (`id generate` leaves it out
+SBOM's file set, with one `WARNING: ID registry: FILE=<path>: inside the
+project's file set; left out of it [registry-conflict/file-set]` per run
+(`id generate` leaves it out
 silently; also with `--allow-build`, and
 for the copy a built wheel or sdist carries, read by `wheel`, `embed-wheel`
 or `project <sdist>`: matched by its path below `--project-dir`, else below

@@ -25,7 +25,8 @@ values.
 | [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, or an ID registry file (an ERROR:, which prints since 0.25.0). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
-| [`json-malformed`](#json-malformed) | ERROR | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
+| [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). Today the ID registry file, written 'for the ID registry'. | 0.25.0 |
+| [`json-malformed`](#json-malformed) | ERROR, WARNING | A JSON document Pitloom was given to read does not parse, or its top level is not an object; the line says which document by what it was read for: a Croissant document, PyPI's release metadata, or an SBOM given to embed or to import into an ID registry, or an ID registry file. The lines print since 0.23.0 for a Croissant document, 0.24.0 for PyPI's release metadata and 0.25.0 for an SBOM and an ID registry file. | 0.23.0 |
 | [`over-cap`](#over-cap) | ERROR, WARNING | An input is larger than a cap Pitloom puts on what it reads or records, so that a crafted or unusually large input cannot exhaust time, memory or disk. | 0.22.0 |
 | [`temp-dir-unusable`](#temp-dir-unusable) | ERROR, WARNING | A file downloaded from PyPI or a Hugging Face repository could not be written to the temporary directory: the disk is full, the path is too long (Windows), or the directory cannot be written to. | 0.24.0 |
 | [`text-malformed`](#text-malformed) | WARNING | Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which UTF-8 cannot hold: a JSON or YAML \ud800 escape in a file (a model's metadata, a model or dataset card, a Croissant document, an SBOM fragment), or a file name that is not UTF-8. For the SBOM itself, the line names the first element holding one, by its name. | 0.23.0 |
@@ -102,7 +103,8 @@ values.
   verifiedUsing (a model's ID registry lookup is then not gated; a dataset's
   provenance says Evidence: not_measured | Reason: file-unreadable); a project
   setting's field is not set from the file; the usage scan records no model
-  reference from it; ID registry indexing leaves it out of the index; no
+  reference from it; ID registry indexing leaves it out of the index; an ID
+  registry file read again to save the ids a run added is not saved; no
   dependency pins are read from a lock file; a model whose header could not be
   read is not listed as an AI model; a model or dataset card sets none of the
   fields it states. As an ERROR, the call that named the file raises (a
@@ -201,10 +203,36 @@ values.
   WARNING: listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]
   ```
 
+### `file-unwritable`
+
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A file Pitloom writes could not be written: the operating system
+  refused it (no write permission on the file or its directory, a read-only file
+  system, a full disk, a directory where the file should be). Today the ID
+  registry file, written 'for the ID registry'.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Left the file as it was. As an ERROR ('loom id generate',
+  'loom id import'), the registry is not written and the command exits 1. As a
+  WARNING (loom generate, project, wheel and env, the library's generate
+  functions and loom.Run, saving the ids a run added after its SBOM is written),
+  the SBOM stands and the ids are not saved: the next run mints them again.
+- **Tell the user**: which file could not be written and what the system
+  reported, as the line says. They give the account Pitloom runs as write access
+  to the file and its directory, or free disk space, and run again. Do not
+  change permissions or ownership, or delete files, for them; ask first, and
+  with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  ERROR: FILE=<file>: could not write <use>; <failure> [file-unwritable]
+  WARNING: FILE=<file>: could not write <use>; <failure> [file-unwritable]
+  ```
+
 ### `json-malformed`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: A JSON document Pitloom was given to read does not parse, or its
   top level is not an object; the line says which document by what it was read
   for: a Croissant document, PyPI's release metadata, or an SBOM given to embed
@@ -219,7 +247,9 @@ values.
   fails; for PyPI's release metadata of a PyPI URL, no SBOM is written; for an
   SBOM to embed, no wheel is changed; for one to import, the ID registry is not
   written; for an ID registry file, no registry and no SBOM is written, and the
-  file is left as it is.
+  file is left as it is. As a WARNING (an ID registry file read again to save
+  the ids a run added, after its SBOM is written), nothing is saved and the SBOM
+  stands.
 - **Tell the user**: which document is not valid JSON, or not a JSON object, and
   what the parser reported, as the line says. They fix or replace a local file
   (for an SBOM, generate it again; for an ID registry, restore it from version
@@ -231,6 +261,8 @@ values.
   ```text
   ERROR: FILE=<file>: not valid JSON <use>; <failure> [json-malformed]
   ERROR: FILE=<file>: not a JSON object <use> [json-malformed]
+  WARNING: FILE=<file>: not valid JSON <use>; <failure> [json-malformed]
+  WARNING: FILE=<file>: not a JSON object <use> [json-malformed]
   ```
 
 ### `over-cap`
@@ -266,6 +298,7 @@ values.
   ERROR: FILE=<file>: larger than the <limit>-<unit> <cap> cap; not downloaded [over-cap]
   ERROR: the repository is larger than the <limit>-<unit> <cap> cap; git <command> was stopped [over-cap]
   ERROR: git <command> produced more than <size> [over-cap]
+  WARNING: FILE=<file>: larger than the <limit>-<unit> <cap> cap <use>; not read [over-cap]
   ```
 
 ### `temp-dir-unusable`

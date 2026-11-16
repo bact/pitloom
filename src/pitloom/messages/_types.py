@@ -62,6 +62,7 @@ CONDITIONS: Final = frozenset(
         "unreadable",
         "unsafe",
         "unusable",
+        "unwritable",
         "wrong-format",
     }
 )

@@ -7,7 +7,10 @@
 (``registry-malformed``), a key the format does not have
 (``registry-unknown-key``), another format version
 (``registry-wrong-format``), and a project root the file cannot record
-(``registry-unusable``). ``ERROR`` only: nothing is written.
+(``registry-unusable``). As an ``ERROR`` nothing is written; each ``ERROR``
+line has a ``WARNING`` twin, said when a run whose SBOM is already written
+re-reads the file to save the ids it added
+(:func:`~pitloom.messages._registry_save.say_save_failure`).
 
 A registry file that cannot be read, is not UTF-8, is not valid JSON or is
 not a JSON object says ``file-unreadable``, ``file-unreadable/not-utf8`` and
@@ -37,17 +40,27 @@ REGISTRY_VERSION: Final = 4
 #: The largest id counter (:data:`pitloom.id_registry._counters.MAX_ID_NUMBER`;
 #: a drift test holds them equal).
 MAX_COUNTER: Final = 9007199254740991
+#: The runs that save the ids they added after their SBOM is written.
+SAVE_SURFACES: Final = (
+    "loom generate, project, wheel and env, the library's generate functions "
+    "and loom.Run"
+)
 #: What a command, the hook and the library do for every line here.
 _DID: Final = (
-    "Wrote nothing. The command exits 1 (the Action step fails), the build "
-    "hook fails the build, and the library raises ValueError carrying the "
-    "code. 'loom id' writes no registry, and every other command writes no "
-    "SBOM. The file is left as it is. A run that has already written its "
-    "SBOM (loom generate, the build hook, the library) reads the file again "
-    "to save the ids it added. There the line is one WARNING, and the SBOM "
-    "stands. Until that save line is coded, it prints this line after 'ID "
-    "registry: failed to save <file>: ', without the code."
+    "As an ERROR, wrote nothing. The command exits 1 (the Action step "
+    "fails), the build hook fails the build, and the library raises "
+    "ValueError carrying the code. 'loom id' writes no registry, and every "
+    "other command writes no SBOM. The file is left as it is. As a WARNING, "
+    f"a run whose SBOM is already written ({SAVE_SURFACES}) read the file "
+    "again to save the ids it added: nothing is saved and the SBOM stands; "
+    "the next run mints those ids again."
 )
+
+
+def _warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
+    """*lines*, then a ``WARNING`` line of each one's template: the save of a
+    run whose SBOM is already written says the same text as a warning."""
+    return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
 
 
 def _line(condition: str) -> Line:
@@ -105,23 +118,25 @@ MINT_LINE: Final = _line("no %(name)s id left to mint in %(namespace)s")
 REGISTRY_MALFORMED: Final = Message(
     code="registry-malformed",
     condition="malformed",
-    lines=(
-        DUPLICATE_KEY_LINE,
-        NO_NAMESPACE_LINE,
-        NAMESPACE_LINE,
-        MISSING_KEY_LINE,
-        COUNTER_PREFIX_LINE,
-        COUNTER_NUMBER_LINE,
-        COUNTERS_LINE,
-        PROJECT_ROOT_LINE,
-        ELEMENTS_LINE,
-        TYPE_TABLE_LINE,
-        UNENCODABLE_LINE,
-        DUPLICATE_ENTRY_LINE,
-        ENTRY_LINE,
-        SPDX_ID_LINE,
-        SHA256_LINE,
-        MINT_LINE,
+    lines=_warning_twins(
+        (
+            DUPLICATE_KEY_LINE,
+            NO_NAMESPACE_LINE,
+            NAMESPACE_LINE,
+            MISSING_KEY_LINE,
+            COUNTER_PREFIX_LINE,
+            COUNTER_NUMBER_LINE,
+            COUNTERS_LINE,
+            PROJECT_ROOT_LINE,
+            ELEMENTS_LINE,
+            TYPE_TABLE_LINE,
+            UNENCODABLE_LINE,
+            DUPLICATE_ENTRY_LINE,
+            ENTRY_LINE,
+            SPDX_ID_LINE,
+            SHA256_LINE,
+            MINT_LINE,
+        )
     ),
     summary="An ID registry file is a JSON object but not a registry: a "
     "key named twice, a namespace, id counter, project root or entry of the "
@@ -152,7 +167,7 @@ UNKNOWN_ENTRY_KEY_LINE: Final = _line(
 REGISTRY_UNKNOWN_KEY: Final = Message(
     code="registry-unknown-key",
     condition="unknown-key",
-    lines=(UNKNOWN_TOP_KEY_LINE, UNKNOWN_ENTRY_KEY_LINE),
+    lines=_warning_twins((UNKNOWN_TOP_KEY_LINE, UNKNOWN_ENTRY_KEY_LINE)),
     summary="An ID registry file holds a key its format does not have, at "
     "the top level or in an entry. The version is checked first, so a "
     "registry from a newer Pitloom says registry-wrong-format instead: the "
@@ -169,14 +184,13 @@ REGISTRY_UNKNOWN_KEY: Final = Message(
 
 #: A registry of another format version.
 VERSION_LINE: Final = _line(
-    f"version %(value)s, expected {REGISTRY_VERSION} (no migration support -- "
-    "delete it and re-run `loom id generate` or `loom id import`)"
+    f"version %(value)s, expected {REGISTRY_VERSION} (no migration support)"
 )
 
 REGISTRY_WRONG_FORMAT: Final = Message(
     code="registry-wrong-format",
     condition="wrong-format",
-    lines=(VERSION_LINE,),
+    lines=_warning_twins((VERSION_LINE,)),
     summary=f"An ID registry file is of another format version than "
     f"{REGISTRY_VERSION}, the one Pitloom reads: an older one (a version 3 "
     "file from Pitloom 0.21, whose package keys hold no version, or a version "
@@ -211,16 +225,15 @@ ROOT_NOT_STORABLE_LINE: Final = _line(
 REGISTRY_UNUSABLE: Final = Message(
     code="registry-unusable",
     condition="unusable",
-    lines=(NO_RELATIVE_ROOT_LINE, ROOT_NOT_STORABLE_LINE),
+    lines=_warning_twins((NO_RELATIVE_ROOT_LINE, ROOT_NOT_STORABLE_LINE)),
     summary="An ID registry file cannot record its project root: the file "
     "stores the root relative to its own directory, and there is no such "
     "path (on Windows, the file and the project on two drives) or it would "
     "not load back. Said when the registry is saved.",
-    did="Saved nothing: the registry file is not written or changed. 'loom "
-    "id' exits 1; a command whose SBOM is already written goes on with one "
-    "WARNING. Either way, until that save line is coded, it prints this line "
-    "after 'ID registry: failed to save <file>: ', without the code; the "
-    "library raises ValueError carrying it.",
+    did="Saved nothing: the registry file is not written or changed. As an "
+    "ERROR, 'loom id' exits 1 and IdRegistry.save raises ValueError carrying "
+    f"the code. As a WARNING ({SAVE_SURFACES}, whose SBOM is already "
+    "written), the SBOM stands and the ids the run added are not saved.",
     effect="none",
     actor="user",
     advice="Tell the user that the registry file cannot record where the "

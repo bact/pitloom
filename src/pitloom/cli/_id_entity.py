@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import NamedTuple
 
 from pitloom._loom_dataset import dataset_digest
 from pitloom.core import dataset_hash
@@ -29,8 +30,8 @@ from pitloom.id_registry import (
     split_package_key,
 )
 from pitloom.id_registry.import_keys import name_key_reason
-from pitloom.logging_config import loggable
-from pitloom.messages import emit
+from pitloom.messages import emit, say_summary
+from pitloom.messages.id_registry import ENTITY_STORED_AS
 from pitloom.messages.id_registry_ids import (
     ENTITY_BY_NAME_LINE,
     KEY_MODEL_PIN,
@@ -45,13 +46,22 @@ from pitloom.messages.id_registry_ids import (
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "ENTITY_STORED_AS_INFO",
+    "EntityEntry",
     "entity_entry",
+    "say_stored_as",
 ]
 
-#: ``log.info()`` format, once per ``-e``: NAME stored under another
-#: spelling of its path or package key (arguments: NAME, the key).
-ENTITY_STORED_AS_INFO = "ID registry: -e %s stored as %s"
+
+class EntityEntry(NamedTuple):
+    """What ``-e NAME:TYPE`` is stored as."""
+
+    #: The key.
+    key: str
+    #: The SHA-256 it is gated by, or ``None``.
+    sha256: str | None
+    #: Whether the key is NAME spelt otherwise (a path key, a package's
+    #: ``NAME@VERSION`` normalised): :func:`say_stored_as` says it.
+    respelt: bool
 
 
 # pylint: disable-next=too-few-public-methods
@@ -91,22 +101,23 @@ def _pin_digest(
     return None, reasons or "nothing to hash"
 
 
-def _info_stored_as(name: str, key: str) -> None:
-    """The one :data:`ENTITY_STORED_AS_INFO` for ``-e`` NAME stored under
-    *key*; nothing when *key* is NAME as typed."""
-    if key != name:
-        log.info(ENTITY_STORED_AS_INFO, loggable(name), loggable(key))
+def say_stored_as(name: str, entry: EntityEntry) -> None:
+    """The one ``ENTITY_STORED_AS`` summary for ``-e`` NAME stored as
+    *entry*, when its key is NAME respelt. Said once the registry is saved,
+    so a save that fails is not preceded by it."""
+    if entry.respelt:
+        say_summary(log, ENTITY_STORED_AS, entity=name, name=entry.key)
 
 
-def _package_entry(name: str) -> str:
+def _package_entry(name: str) -> EntityEntry:
     """A package's key: :func:`~pitloom.id_registry.package_key` of what NAME
-    states (``NAME@VERSION``, split at its first ``@``). With no version it
-    holds only a package that states none, one
-    ``registry-identity-missing`` ``INFO:``; else, spelt otherwise than NAME, one
-    :data:`ENTITY_STORED_AS_INFO`."""
+    states (``NAME@VERSION``, split at its first ``@``), no hash. With no
+    version it holds only a package that states none, one
+    ``registry-identity-missing`` ``INFO:``, and is not respelt."""
     stated, version = split_package_key(name)
     key = package_key(stated, version)
-    if "@" not in key:  # a name's own "@" is "%40": the "@" is the version's
+    versioned = "@" in key  # a name's own "@" is "%40": the "@" is the version's
+    if not versioned:
         emit(
             log,
             REGISTRY_IDENTITY_MISSING,
@@ -114,9 +125,7 @@ def _package_entry(name: str) -> str:
             line=NO_VERSION_LINE,
             entity=name,
         )
-    else:
-        _info_stored_as(name, key)
-    return key
+    return EntityEntry(key, None, respelt=versioned and key != name)
 
 
 def _dataset_entry(
@@ -130,7 +139,6 @@ def _dataset_entry(
     if not key.path:
         _info_pin_without_hash(name, name_key_reason(path))
         return name, None
-    _info_stored_as(name, key.key)
     digest, reason = _pin_digest(registry, path, max_bytes)
     if digest is None:
         _info_pin_without_hash(key.key, reason)
@@ -159,7 +167,6 @@ def _file_entry(
     ``registry-path-key-unusable`` ``INFO:``."""
     key = artifact_key(registry, path=path, name=name)
     if key.path and is_regular_file(path):
-        _info_stored_as(name, key.key)
         return key.key, sha256_file(path)
     if type_name == AI_PACKAGE_TYPE:
         reason = KEY_MODEL_PIN
@@ -182,18 +189,21 @@ def entity_entry(
     type_name: str,
     name: str,
     max_dataset_hash_bytes: int,
-) -> tuple[str, str | None]:
+) -> EntityEntry:
     """The key and SHA-256 ``-e NAME:TYPE`` is stored under, NAME taken
     from *project_dir*: a dataset by :func:`_dataset_entry` (hashing at most
     *max_dataset_hash_bytes*), a model or a
     file by :func:`_file_entry` (both content-gated when keyed by path), a
     package by :func:`_package_entry` (``NAME@VERSION``, no hash); any
-    other type NAME as given and no hash."""
+    other type NAME as given and no hash. A path key spelt otherwise than
+    NAME is a respelling."""
     if type_name == PACKAGE_TYPE:
-        return _package_entry(name), None
+        return _package_entry(name)
     path = project_dir / name
     if type_name == DATASET_PACKAGE_TYPE:
-        return _dataset_entry(registry, path, name, max_dataset_hash_bytes)
-    if type_name in (AI_PACKAGE_TYPE, FILE_TYPE):
-        return _file_entry(registry, path, type_name, name)
-    return name, None
+        key, digest = _dataset_entry(registry, path, name, max_dataset_hash_bytes)
+    elif type_name in (AI_PACKAGE_TYPE, FILE_TYPE):
+        key, digest = _file_entry(registry, path, type_name, name)
+    else:
+        key, digest = name, None
+    return EntityEntry(key, digest, respelt=key != name)

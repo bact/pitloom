@@ -82,11 +82,12 @@ from pitloom.id_registry import (
     path_key,
     registry_file_path,
 )
-from pitloom.logging_config import loggable
 from pitloom.messages import emit
 from pitloom.messages.files import warn_file_unreadable
 from pitloom.messages.id_registry_ids import (
+    DATASET_DIR_LINE,
     OUTSIDE_ROOT_LINE,
+    REGISTRY_CONFLICT_FILE_SET,
     REGISTRY_CONFLICT_SPELLING,
     REGISTRY_PATH_KEY_UNUSABLE,
     SPELLING_LINE,
@@ -95,18 +96,11 @@ from pitloom.messages.id_registry_ids import (
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
-    "REGISTRY_IN_DATASET_WARNING",
     "LoomElements",
     "dataset_digest",
     "merkle_root_comment",
     "name_key_reason",
 ]
-
-#: ``log.warning()`` format for the declared registry inside a directory
-#: dataset. Arguments: the registry path, the dataset's name.
-REGISTRY_IN_DATASET_WARNING = (
-    "loom: ID registry %s is inside dataset directory %r; left out of its Merkle root"
-)
 
 
 def _dataset_kind(dataset_type: str) -> str:
@@ -485,8 +479,11 @@ class LoomElements:
         left out of the directory dataset *name*."""
         real = os.path.realpath(name)
         if self._first_time("left-out", real):
-            log.warning(
-                REGISTRY_IN_DATASET_WARNING,
-                loggable(str(registry_file_path(self._session.registry))),
-                name,
+            emit(
+                log,
+                REGISTRY_CONFLICT_FILE_SET,
+                logging.WARNING,
+                line=DATASET_DIR_LINE,
+                file=registry_file_path(self._session.registry),
+                dir=name,
             )

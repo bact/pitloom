@@ -69,6 +69,13 @@ SBOM_DUPLICATE_KEY_LINE: Final = Line(
     template="FILE=%(file)s: SBOM holds an object with a key given twice",
 )
 
+#: An SBOM the SPDX 3 reader refuses (an object with no type, a property
+#: of the wrong kind) when it is imported into an ID registry.
+SBOM_UNREADABLE_LINE: Final = Line(
+    level="ERROR",
+    template="FILE=%(file)s: SBOM cannot be read as SPDX 3; %(failure)s",
+)
+
 #: An SBOM imported into an empty ID registry, whose namespace cannot be
 #: the registry's.
 SBOM_NAMESPACE_LINE: Final = Line(
@@ -85,13 +92,16 @@ SBOM_INVALID: Final = Message(
         SBOM_GRAPH_NOT_LIST_LINE,
         SBOM_GRAPH_ELEMENT_LINE,
         SBOM_DUPLICATE_KEY_LINE,
+        SBOM_UNREADABLE_LINE,
         SBOM_NAMESPACE_LINE,
     ),
     summary="An SBOM given to read is JSON but not a valid SPDX 3 document: "
     "its @graph is not a list of objects ('embed-wheel --sbom', 'loom id "
     "import'; checked before the format, whatever the file is named), an "
     "object of it names one key twice (JSON readers disagree on which value "
-    "counts, so what was checked may not be what is embedded), or "
+    "counts, so what was checked may not be what is embedded), the SPDX 3 "
+    "reader refuses it ('loom id import': an object with no type, a property "
+    "of the wrong kind; the reader's text after the line's ';'), or "
     "spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own "
     "lines before say why). As a WARNING: 'loom id import' into an empty "
     "registry finds a document id that cannot be a namespace: not an "
@@ -100,7 +110,8 @@ SBOM_INVALID: Final = Message(
     did="Wrote nothing: no wheel is changed, no ID is imported. The command "
     "exits 1; the library (embed_wheel_sbom with sbom_path, "
     "IdRegistry.import_sbom) raises ValueError carrying the code for an "
-    "@graph that is not a list of objects or a key given twice. As a "
+    "@graph that is not a list of objects, a key given twice or an SBOM the "
+    "SPDX 3 reader refuses. As a "
     "WARNING, the import goes on and the registry keeps the namespace it was "
     "created with.",
     effect="not-written",
