@@ -404,7 +404,9 @@ def _best_time(text: str, line: bool) -> float:
 
 
 #: The ratio of five times the text that a linear masker stays under (about 5,
-#: up to 15 on a loaded runner; a quadratic one gives about 25).
+#: up to 15 on a loaded runner; a quadratic one gives about 25, one with a
+#: linear part as large at 100k characters 15.3). Counting the characters
+#: the masker's patterns scan would be deterministic (roadmap follow-up).
 _RATIO_BOUND = 15
 
 

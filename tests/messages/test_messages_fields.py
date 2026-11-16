@@ -199,6 +199,17 @@ def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) 
         ),
         ("header corrupt at 0x1a: bad magic", "header corrupt at 0x1a: bad magic"),
         ("x at 0x1fooBar", "x at 0x1fooBar"),
+        (
+            "<Wrap object at 0x10112ebf0 wrapping <__main__.A object>>",
+            "<Wrap object wrapping <__main__.A object>>",
+        ),
+        (
+            '<code object f at 0x10107c2f0, file "a.py", line 26>',
+            '<code object f, file "a.py", line 26>',
+        ),
+        ("<cell at 0x10112e5f0: int object>", "<cell: int object>"),
+        ("<weakref at 0x101148cc0; to 'A'>", "<weakref; to 'A'>"),
+        ("bad <A> at 0x1a then <B at 0x2b>", "bad <A> at 0x1a then <B>"),
     ],
     ids=[
         "address",
@@ -207,6 +218,11 @@ def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) 
         "file-name",
         "offset",
         "word",
+        "nested-repr",
+        "code-object",
+        "cell",
+        "weakref",
+        "address-after-a-closed-bracket",
     ],
 )
 def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:

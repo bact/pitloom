@@ -147,8 +147,8 @@ fails the step and is not printed. See [Credentials in URLs](url-credentials.md)
 ```yaml
 - uses: bact/pitloom@v0.24.0
   with:
-    # Needs v0.25.0 or later: with @v0.24.0 GitHub warns "Unexpected
-    # input" and ignores both.
+    # Needs v0.25.0 or later (change the tag above): an older tag warns
+    # "Unexpected input" and ignores both.
     url-credentials: refuse
     accept-url-credentials: |
       sha256:0123456789abcdef

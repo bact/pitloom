@@ -161,6 +161,8 @@ class LoomModels:
         self._recorded: list[str | None] = []
         #: (name, path) of the models said to be keyed by their name.
         self._name_keyed: set[tuple[str, str]] = set()
+        #: Whether this run said its registry has no file to save to.
+        self._no_file_said = False
 
     # pylint: disable-next=too-many-arguments
     def declare(
@@ -352,7 +354,9 @@ class LoomModels:
             )
             return None
         if registry.path is None:
-            warn_no_registry_path()
+            if not self._no_file_said:
+                self._no_file_said = True
+                warn_no_registry_path()
             return None
         session = self._session
         spdx_id = session.register_id(name, AI_PACKAGE_TYPE, lookup.key, sha256=digest)

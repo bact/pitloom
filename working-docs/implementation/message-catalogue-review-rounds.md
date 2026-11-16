@@ -43,10 +43,6 @@ cross-references, drift-test markers for 44 unguarded quotes.
   without `[library-missing]`. Needs a WARNING line on the entry, or a
   forwarded code. Same pattern: `assemble/spdx3/fragments.py` relays a coded
   `json-malformed` / `file-unreadable` text without its code.
-- `registry-file-missing` is said once per model miss in `loom.Run`
-  (`_loom_model.py` `_record`) and once more by `_sync_registry`; a
-  once-per-process key (`log_once`) hides it from every later run, so it
-  needs a per-run flag on `LoomModels` or the session.
 - `failure_text` drops memory addresses only for the `failure` field; about
   30 sites print `one_line(exc)` directly. `MemoryError` is still filed as an
   input fault by `assemble/spdx3/fragments.py:393` and
@@ -89,6 +85,16 @@ cross-references, drift-test markers for 44 unguarded quotes.
   before it: a missing target prints the build-flag WARNING under `project`
   only.
 - `_ai_package.py:197` passes `loggable(where)` into a `file` field.
+
+- The masker's linear-time tests are timing ratios (growth bound 64, ratio
+  bound 15, widened after CI flakes): a scan whose quadratic part is under a
+  quarter of its time at the smaller size passes them. A deterministic
+  complement: wrap the compiled patterns of `core/url_masking/` with a
+  counting proxy that sums `len(text) - pos` per search, and assert the
+  count is linear.
+- `test_models_wheel_dispatch_lock.py` (`*_is_not_serialized`) overlaps four
+  threads inside a 50 ms sleep (use an `Event` or `Barrier`);
+  `test_models_wheel_build_kill.py` counts `killpg` calls in a 0.3 s poll.
 
 ### Open: docs, skills, size
 

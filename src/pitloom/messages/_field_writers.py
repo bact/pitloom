@@ -20,9 +20,28 @@ from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.logging_config import failure_reason, loggable, one_line
 
-#: ``" at 0x7f3a..."`` before the ``>`` that ends an object's default repr:
-#: it differs per run. A path or an offset (``header corrupt at 0x1a``) stays.
-_MEMORY_ADDRESS: Final = re.compile(r" at 0x[0-9a-fA-F]+(?=>)")
+#: A bracket, or `` at 0x...``: the address in an object's default repr
+#: (``<A object at 0x7f3a...>``, ``<cell at 0x10: int object>``) differs per run.
+_ADDRESS_OR_BRACKET: Final = re.compile(r"[<>]| at 0x[0-9a-fA-F]+\b")
+
+
+def _without_addresses(text: str) -> str:
+    """*text* without each `` at 0x...`` inside ``<...>`` (an object's repr);
+    one outside (a path, an offset such as ``header corrupt at 0x1a``) stays."""
+    depth = 0
+    kept = 0
+    out: list[str] = []
+    for found in _ADDRESS_OR_BRACKET.finditer(text):
+        token = found.group()
+        if token == "<":
+            depth += 1
+        elif token == ">":
+            depth = max(depth - 1, 0)
+        elif depth:
+            out.append(text[kept : found.start()])
+            kept = found.end()
+    out.append(text[kept:])
+    return "".join(out)
 
 
 def size_text(size: int) -> str:
@@ -120,7 +139,7 @@ def failure_text(value: object) -> str:
         raise ValueError(f"not an exception: {value!r}")
     if isinstance(value, OSError) and value.strerror:
         return one_line(value.strerror)
-    return _MEMORY_ADDRESS.sub("", failure_reason(value))
+    return _without_addresses(failure_reason(value))
 
 
 def joined(value: object) -> str:
