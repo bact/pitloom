@@ -186,6 +186,12 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   one-character value cannot be a pair), and the kept line's once-key
   suffix `:kept` dropped (a kept URL is never one the strip changed, so it
   never shares the stripped line's key).
+- Accepted false positives (batch-8 check): `glptt-` followed by 40 hex
+  digits is a token, so a Git SHA right after the literal `glptt-` is
+  refused (31 of 20,000 sampled slugs, hashes and words); a 35-character
+  CamelCase slug with a digit after `AIza`
+  (`AIzaGitlabInstallAppRefresh-2000-deploy`) is still a token, since the
+  digit-and-both-cases rule cannot tell it from a random key.
 - Token shapes: the a8425fb5 AWS rows (`AKIAT0KEN12345678901`, `0` and `1`
   outside base32) are none on purpose, unlike every other earlier row,
   which the drift test keeps found; `test.pypi.org` macaroons are read from
@@ -311,7 +317,12 @@ refusal; 17 `prose-` rows must never be refused.
   on purpose. The loose gitleaks legacy shapes (`xoxa-`/`xoxr-` workspace,
   `xoxb-` legacy bot) fit documentation words, so they are not read: such
   a token without the digit groups is missed (UNCERTAIN how many are still
-  in use).
+  in use). A GitLab token's 20 characters, as in a8425fb5, and a Google
+  key's 35 hold a digit, an upper- and a lower-case letter: a random
+  base-64 body lacks a digit about 3.4 times in 100 (GitLab) and 2.6 times
+  in 1,000 (Google), and is then missed; gitleaks needs one upper case only
+  for GitLab, which matched about 1,100 more of 20,000 slugs. Counts after
+  batch 8 unchanged: 133 rows, 43 changed by the strip, 85 refused.
 - A value is read as a reader reads it: format characters (Unicode `Cf`: a
   byte order mark, a zero-width space, also inside a scheme) dropped, and
   one enclosing `<>` or quote pair (`<https://...>`); a finding's view is
@@ -406,7 +417,13 @@ refusal; 17 `prose-` rows must never be refused.
   `core/url_masking` was then timed on runs of white space, `[`, `@`, `:`,
   `/`, `%` and token prefixes at two sizes, flagging a growth beyond
   linear.
-  The test (`test_each_view_is_linear`) checks each view's time ratio at
-  4 KiB and 16 KiB (best of three, bound 8x), about 6 s serial under
-  coverage, and catches the old requirement pattern; two 1 MiB rows
-  (white space, scp runs) are skipped when a coverage tracer runs.
+  The test (`test_each_view_is_linear`) times one run of each view at a
+  size grown from 1 KiB by 4 times until it takes 3 ms and 4 clock steps
+  (`perf_counter`), then at 16 times that size: the growth must stay under
+  32 (linear 16, quadratic 256), the least of up to three tries. The file
+  takes about 16 s serial and 14.7 s under coverage (Python 3.10, macOS),
+  3 min on an emulated 15.6 ms clock. It fails a8425fb5's requirement
+  pattern (growth 251, 252), an scp masker reading to the end per match
+  (`scp` 145, `query-scp` 103) and a `?` count redone from each place to
+  the end (`many-marks` 160, `semicolons` 91). Two 1 MiB rows (white
+  space, scp runs) are skipped when a coverage tracer runs.

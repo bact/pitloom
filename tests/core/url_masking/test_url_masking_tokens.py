@@ -75,20 +75,23 @@ def test_no_character_of_a_token_survives_the_masker(prefix: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "body",
-    ["a" * 19 + "A", "A" + "a" * 19, "a" * 9 + "A" + "a" * 10],
-    ids=["upper-last", "upper-first", "upper-middle"],
+    ("prefix", "length"),
+    [("glpat-", 20), ("gldt-", 20), ("glrt-", 20), ("AIza", 35)],
+    ids=["glpat", "gldt", "glrt", "aiza"],
 )
-def test_a_gitlab_token_needs_one_upper_case_letter_anywhere(body: str) -> None:
-    assert find_url_credentials(f"https://h/glpat-{body}")
-    assert not find_url_credentials(f"https://h/glpat-{body.lower()}")
-
-
-def test_a_gitlab_token_needs_no_digit() -> None:
-    """As the gitleaks rule states: 20 characters, one upper case, no digit
-    needed (a mixed-case slug of 20 is found); 19 is none."""
-    assert find_url_credentials("https://h/glpat-TokenRotationGuideXy")
-    assert not find_url_credentials("https://h/glpat-TokenRotationGuideX")
+@pytest.mark.parametrize("at", ["first", "middle", "last"])
+def test_a_random_body_needs_a_digit_and_both_cases_anywhere(
+    prefix: str, length: int, at: str
+) -> None:
+    """A GitLab token's 20 characters, a Google key's 35, hold a digit, an
+    upper- and a lower-case letter, each at any place; without any one of
+    them it is no token (a CamelCase or a SHOUTING slug)."""
+    place = {"first": 0, "middle": length // 2, "last": length - 3}[at]
+    for char, filler in (("7", "Xy"), ("Q", "x7"), ("q", "X7")):
+        without = (filler * length)[:length]
+        body = without[:place] + char + without[place + 1 :]
+        assert find_url_credentials(f"https://h/{prefix}{body}")
+        assert not find_url_credentials(f"https://h/{prefix}{without}")
 
 
 @pytest.mark.parametrize(
@@ -125,6 +128,10 @@ def test_a_token_of_a_fixed_length_is_none_when_longer(token: str) -> None:
         *("xapp-1-Overview-2024-update", "glptt-HowToRotatePipelineTrig"),
         *("gloas-ApplicationSecretRotation", "xoxb-12345678-ReleaseNotesForVersion2"),
         *("xapp-1-Overview-2024-updatenotes", "glcbt-ContinuousBuildTokenGuide"),
+        *("glpat-ApiProjectPypiInstallSetupPypiBuild", "glpat-NPM_OVERVIEW_LEGACY74"),
+        *("glrt-ServiceAnthropicAnthropicApi",),
+        *("gldt-TOKEN_ACCESS_RELEASE_PYPI_NOTES_DOCS269",),
+        *("AIzaGitlabInstallAppRefreshDeployGuides",),
     ],
     ids=[
         *("pat-slug", "glpat-slug", "xoxb-slug", "xapp-slug", "pypi-slug"),
@@ -133,6 +140,8 @@ def test_a_token_of_a_fixed_length_is_none_when_longer(token: str) -> None:
         *("openai-slug", "google-slug", "sk-hash", "sha256"),
         *("xoxr-word", "xoxa-word", "xoxa-uuid", "xapp-words", "glptt-camel"),
         *("gloas-camel", "xoxb-legacy-words", "xapp-long-words", "glcbt-camel"),
+        *("glpat-camel", "glpat-shouting", "glrt-camel", "gldt-shouting"),
+        *("aiza-camel",),
     ],
 )
 def test_a_slug_in_a_url_is_no_token(text: str) -> None:

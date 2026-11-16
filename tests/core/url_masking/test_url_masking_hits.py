@@ -15,6 +15,7 @@ test_url_masking_tokens.py (token shapes) in this folder.
 
 from __future__ import annotations
 
+import functools
 import sys
 import time
 from collections.abc import Callable
@@ -282,33 +283,69 @@ def _views(text: str) -> None:
         view(text)
 
 
-def _best(view: Callable[[str], object], text: str) -> float:
-    """The least time of five runs of *view* on *text*: the run a loaded
-    machine slowed least."""
-    times = []
-    for _ in range(5):
-        started = time.monotonic()
-        view(text)
-        times.append(time.monotonic() - started)
-    return min(times)
+def _timed(view: Callable[[str], object], text: str) -> float:
+    started = time.perf_counter()
+    view(text)
+    return time.perf_counter() - started
+
+
+@functools.cache
+def _tick() -> float:
+    """The step of the clock: what two readings differ by at least (100 ns
+    on Windows' ``perf_counter``, 15.6 ms on a coarse clock)."""
+    steps = []
+    for _ in range(3):
+        started = now = time.perf_counter()
+        while now == started:
+            now = time.perf_counter()
+        steps.append(now - started)
+    return min(steps)
+
+
+#: The size factor between the two samples, and the growth a linear scan
+#: stays well under (16 times the size: 16 times the time; a quadratic one
+#: grows 256 times, one with a linear part as large still 136 times).
+_FACTOR = 16
+_GROWTH = 32
+#: The least size, and the most, of the smaller sample.
+_FIRST = 1 << 10
+_LAST = 1 << 19
+
+
+def _growth(view: Callable[[str], object], shape: Callable[[int], str]) -> float:
+    """How many times longer *view* takes on *shape* at 16 times the size:
+    the smaller size the first, from 1 KiB up by 4 times, whose one run
+    takes 3 ms and 4 clock steps at least, so the clock reads it; 1.0 when
+    even 512 KiB runs faster (no scan of that size is slow)."""
+    floor = max(0.003, 4 * _tick())
+    size = _FIRST
+    while (small := _timed(view, shape(size))) < floor:
+        if size >= _LAST:
+            return 1.0
+        size *= 4
+    return _timed(view, shape(_FACTOR * size)) / small
 
 
 @pytest.mark.parametrize("name", list(_SHAPES), ids=list(_SHAPES))
 def test_each_view_is_linear(name: str) -> None:
-    """For each view, sixteen times the text takes about sixteen times as
-    long, never 256 (a quadratic scan): 2 KiB against 32 KiB, best of five,
-    passing up to four times the linear slope plus 20 ms for a loaded
-    machine, so it is cheap under coverage too."""
+    """For each view, 16 times the text takes about 16 times as long,
+    never 256 (a quadratic scan), with the smaller text sized so that one
+    run is measured (3 ms and 4 clock steps at least): the growth must stay
+    under 32, the least of three tries, so a loaded machine or a coarse
+    clock passes and a quadratic scan fails by twice the bound or more."""
     for view in _VIEWS:
-        small = _best(view, _SHAPES[name](2048))
-        large = _best(view, _SHAPES[name](32768))
-        assert large < 64 * small + 0.02, (small, large)
+        growth = _growth(view, _SHAPES[name])
+        for _ in range(2):
+            if growth < _GROWTH:
+                break
+            growth = min(growth, _growth(view, _SHAPES[name]))
+        assert growth < _GROWTH, f"growth {growth:.1f}"
 
 
 @pytest.mark.skipif(_COVERED, reason="a coverage tracer slows the scan many times")
 @pytest.mark.parametrize("name", ["requirement-space", "scp"])
 def test_a_mebibyte_ends_in_seconds(name: str) -> None:
     """The two shapes that once took minutes, at 1 MiB, end in seconds."""
-    started = time.monotonic()
+    started = time.perf_counter()
     _views(_SHAPES[name](1 << 20))
-    assert time.monotonic() - started < 40
+    assert time.perf_counter() - started < 40

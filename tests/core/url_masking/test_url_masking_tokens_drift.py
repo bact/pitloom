@@ -82,7 +82,9 @@ def test_every_string_the_earlier_shapes_matched_is_matched_still() -> None:
     """A seeded sample, and a fine-grained GitHub token followed by ``_``
     (once lost to a narrower end), which an earlier shape matched."""
     pat = "github_pat_" + "aB3" * 7 + "a_" + "aB3" * 19 + "aB_x"
-    assert _EARLIER_RE.match(pat) and TOKEN_RE.match(pat)
+    shortest_app = "xapp-1-A0T0KEN12-1-abcd1234"
+    for text in (pat, shortest_app):
+        assert _EARLIER_RE.match(text) and TOKEN_RE.match(text)
     draw = random.Random(489)
     prefixes = [prefix for prefix, _ in _EARLIER]
     matched = 0

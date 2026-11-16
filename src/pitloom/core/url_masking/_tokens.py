@@ -19,10 +19,13 @@ still: of the vendor's fixed length where it fixes one (GitHub, AWS,
 Hugging Face, npm, OpenAI, Anthropic, Google), followed by no further body
 character, else a minimum and then every further body character, so that
 a match covers the whole token and masking leaves none of it. A GitLab
-token of 20 characters must hold an upper-case letter in them (a random
-draw misses one about 3 times in 100,000), so a documentation slug such as
-``glpat-token-rotation-guide-v2`` is none. An AWS key id
-is base32, so a word such as ``ASIAPACIFICREGION123`` is none.
+token's 20 characters must hold a digit, an upper- and a lower-case letter
+(Pitloom's earlier rule), so a documentation slug such as
+``glpat-ApiProjectPypiInstallSetup`` is none; a random 20-character body
+lacks a digit about 3 times in 100 and is then missed. A Google API key's
+35 characters must hold the same three (a random body lacks one about 3
+times in 1,000). An AWS key id is base32, so a word such as
+``ASIAPACIFICREGION123`` is none.
 
 Slack: every ``xox[abeoprs]-`` token of two digit groups and 8 letters or
 digits (Pitloom's earlier shape, which also covers the user token), and
@@ -36,9 +39,8 @@ workspace (``xoxa-``, ``xoxr-``: 8 to 48 letters or digits) and legacy bot
 a documentation word fits them (``xoxr-Configuration``), so such a token
 without the digit groups is missed. An app token (``xapp-``) has an
 upper-case app id, as in Pitloom's earlier shape. A GitLab pipeline
-trigger, OAuth or CI build token outside its gitleaks shape is found as 20
-characters holding a digit, an upper- and a lower-case letter, so a
-CamelCase slug is none. PyPI: any version-2
+trigger, OAuth or CI build token is found in its gitleaks shape or as such
+20 characters. PyPI: any version-2
 macaroon (``AgE``), so a TestPyPI token (location ``test.pypi.org``,
 ``AgENdGVzdC5weXBpLm9yZw``) is found as well as a PyPI one (gitleaks
 names only ``AgEIcHlwaS5vcmc``, location ``pypi.org``). Every repetition
@@ -60,16 +62,20 @@ __all__ = [
 
 #: Not followed by another character of a base-62 body.
 _END = "(?![A-Za-z0-9])"
-#: The 20 characters of a GitLab token, one of them upper case, and the
-#: rest of a longer one.
-_GITLAB = "(?=[A-Za-z0-9_-]{0,19}[A-Z])[A-Za-z0-9_-]{20}[A-Za-z0-9_.-]*"
-#: The 20 characters of an earlier GitLab shape: a digit, an upper-case and
-#: a lower-case letter among them, as a random token holds; the rest of a
-#: longer one.
-_GITLAB_MIXED = (
-    "".join(f"(?=[A-Za-z0-9_-]{{0,19}}{one})" for one in ("[0-9]", "[A-Z]", "[a-z]"))
-    + "[A-Za-z0-9_-]{20}[A-Za-z0-9_.-]*"
-)
+#: The kinds of character a random token body holds one of at least.
+_MIXED = ("[0-9]", "[A-Z]", "[a-z]")
+
+
+def _mixed(chars: str, length: int) -> str:
+    """*length* characters of the class *chars*, a digit, an upper- and a
+    lower-case letter among them."""
+    ahead = f"[{chars}]{{0,{length - 1}}}"
+    return "".join(f"(?={ahead}{one})" for one in _MIXED) + f"[{chars}]{{{length}}}"
+
+
+#: The 20 characters of a GitLab token, a digit, an upper- and a
+#: lower-case letter among them, and the rest of a longer one.
+_GITLAB = _mixed("A-Za-z0-9_-", 20) + "[A-Za-z0-9_.-]*"
 #: The 34 letters of a Hugging Face token.
 _HF = f"[A-Za-z]{{34}}{_END}"
 #: Not followed by another character of a base-64 URL-safe body.
@@ -103,9 +109,9 @@ TOKEN_SHAPES: tuple[tuple[str, str], ...] = (
     *((f"gh{kind}_", f"[A-Za-z0-9]{{36}}{_END}") for kind in "porsu"),
     ("github_pat_", f"[A-Za-z0-9]{{22}}_[A-Za-z0-9]{{59}}{_END}"),
     *((prefix, _GITLAB) for prefix in ("glpat-", "gldt-", "glrt-")),
-    ("glcbt-", f"(?:[A-Za-z0-9]{{1,5}}_{_GITLAB}|{_GITLAB_MIXED})"),
-    ("glptt-", f"(?:[0-9a-f]{{40}}{_END}|{_GITLAB_MIXED})"),
-    ("gloas-", f"(?:[A-Za-z0-9_-]{{64}}{_END64}|{_GITLAB_MIXED})"),
+    ("glcbt-", f"(?:[A-Za-z0-9]{{1,5}}_)?{_GITLAB}"),
+    ("glptt-", f"(?:[0-9a-f]{{40}}{_END}|{_GITLAB})"),
+    ("gloas-", f"(?:[A-Za-z0-9_-]{{64}}{_END64}|{_GITLAB})"),
     *((f"xox{kind}-", _slack(kind)) for kind in "abeoprs"),
     *((f"xoxe.xox{kind}-", f"[0-9]-[A-Za-z0-9]{{163,166}}{_RUN}") for kind in "bp"),
     ("xapp-", "[0-9]{1,3}-[A-Z0-9]{8,15}-[0-9]{1,15}-[A-Za-z0-9]{8,}"),
@@ -122,7 +128,7 @@ TOKEN_SHAPES: tuple[tuple[str, str], ...] = (
         (prefix, f"[A-Za-z0-9_-]{{93}}AA{_END64}")
         for prefix in ("sk-ant-api03-", "sk-ant-admin01-")
     ),
-    ("AIza", f"[A-Za-z0-9_-]{{35}}{_END64}"),
+    ("AIza", _mixed("A-Za-z0-9_-", 35) + _END64),
 )
 #: The prefixes of those tokens.
 TOKEN_PREFIXES = tuple(prefix for prefix, _ in TOKEN_SHAPES)
