@@ -36,6 +36,8 @@ and this project adheres to
   `[tool.pitloom]` key or `credentials=`) ([#490])
 - Reference fields (`createdBy`, `from`, `to`, ...), identifiers and Pitloom's
   JSON statements and comment segments are checked too ([#490])
+- GitHub Action inputs `url-credentials` and `accept-url-credentials`;
+  `::add-mask::` for credential parts of URLs in source inputs ([#491])
 
 ### Changed
 
@@ -52,7 +54,8 @@ and this project adheres to
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
-  access tokens ([#482], [#486], [#487], [#489])
+  access tokens; `urllib3` and `requests` lines too ([#482], [#486], [#487],
+  [#489], [#491])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -69,6 +72,13 @@ and this project adheres to
   when `PitloomConfig` is built ([#490])
 - `embed-wheel --sbom` and `id import` refuse an SBOM with a JSON object that
   holds a key twice ([#490])
+- Credentials in encoded query and fragment values and in a `u:?pw@host`
+  password are found ([#491])
+- Git URLs: a NUL in user information and a host no host name spells are
+  refused before git runs; more `GIT_*` variables are dropped ([#491])
+- `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
+  deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
+  ([#491])
 
 ### Fixed
 
@@ -92,6 +102,7 @@ and this project adheres to
 [#487]: https://github.com/bact/pitloom/pull/487
 [#489]: https://github.com/bact/pitloom/pull/489
 [#490]: https://github.com/bact/pitloom/pull/490
+[#491]: https://github.com/bact/pitloom/pull/491
 
 ## [0.24.0] - 2026-11-11
 
