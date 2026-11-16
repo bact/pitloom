@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.walk_rules import REGISTRY_IN_FILE_SET_WARNING
+from pitloom.messages.id_registry_ids import FILE_SET_LINE
 
 
 def warnings_of(caplog: pytest.LogCaptureFixture) -> list[str]:
-    needle = REGISTRY_IN_FILE_SET_WARNING.split("%s")[1]
+    needle = FILE_SET_LINE.template.split("%(file)s")[1]
     return [r.getMessage() for r in caplog.records if needle in r.getMessage()]
 
 

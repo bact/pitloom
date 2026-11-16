@@ -44,6 +44,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "generate() reads the wheel",
     ),
     "file-unreadable": ("could not read ",),
+    "file-unwritable": ("could not write ",),
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "hf-url-invalid": ("not a valid Hugging Face URL",),
     "input-not-found": (
@@ -126,6 +127,8 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "but it is read as",
         "its id is held under",
         "is held under another type",
+        "inside the project's file set",
+        "inside dataset directory",
     ),
     "registry-entry-missing": ("not found; minting a new spdxId",),
     "registry-hash-conflict": (
@@ -172,6 +175,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "cannot be encoded as UTF-8",
         "id left to mint",
     ),
+    "registry-file-missing": ("no file to save to",),
     "registry-unknown-key": ("unknown top-level key", "has unknown key"),
     "registry-unusable": ("has no path relative to", "cannot be stored as"),
     "registry-wrong-format": (", expected 4",),
@@ -202,6 +206,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "SBOM is not valid",
         "@graph is not a list",
         "SBOM @graph",
+        "SBOM cannot be read as SPDX 3",
         "the ID registry keeps its own",
     ),
     "sbom-wrong-format": ("named .spdx3.json but not SPDX 3",),

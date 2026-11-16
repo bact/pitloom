@@ -94,6 +94,9 @@ INPUT_NOT_FOUND: Final = Message(
         WHEEL_PATTERN_TOO_DEEP_LINE,
         NO_FRAGMENT_FILE_LINE,
         NO_ID_PATHS_LINE,
+        # Said again when a run re-reads its ID registry file to save.
+        Line(level="WARNING", template=INPUT_LINE.template),
+        Line(level="WARNING", template=INPUT_NOT_FILE_LINE.template),
     ),
     summary="A path named for Pitloom to read does not exist: a model file, "
     "wheel, sdist, project directory, configuration, ID registry or SBOM file, "
@@ -113,7 +116,9 @@ INPUT_NOT_FOUND: Final = Message(
     "the code (IdRegistry.generate for a path to index that is not there), "
     "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
-    "folder.",
+    "folder. As a WARNING, an ID registry file was gone (or no longer a "
+    "file) when a run whose SBOM is already written read it again to save "
+    "the ids it added: nothing is saved and the SBOM stands.",
     effect="not-written",
     actor="user",
     advice="Tell the user which path was not found, as the line names it "

@@ -9,7 +9,6 @@ pitloom._embed_stale 1
 pitloom._embed_wheel 6
 pitloom._loom_active_run 3
 pitloom._loom_caller 2
-pitloom._loom_dataset 1
 pitloom._loom_dataset_meta 2
 pitloom._loom_model 2
 pitloom._sbom_io 2
@@ -29,8 +28,6 @@ pitloom.assemble.spdx3.deps_installed 3
 pitloom.assemble.spdx3.deps_originator 1
 pitloom.assemble.spdx3.fragments 5
 pitloom.assemble.spdx3.provenance 5
-pitloom.cli._id_entity 1
-pitloom.cli._id_target 1
 pitloom.cli.commands._embed_wheel_batch 3
 pitloom.cli.commands.embed_wheel 1
 pitloom.cli.commands.enrich 1
@@ -39,7 +36,6 @@ pitloom.cli.commands.merge 1
 pitloom.cli.commands.utils 4
 pitloom.cli.commands.validate_wheel 3
 pitloom.cli.commands.verify_wheel 6
-pitloom.cli.id 5
 pitloom.core._config_keys 1
 pitloom.core._config_legacy 5
 pitloom.core._config_parse 19
@@ -65,7 +61,6 @@ pitloom.core.project 1
 pitloom.core.provenance 2
 pitloom.core.requirements 3
 pitloom.core.temp_dirs 1
-pitloom.core.walk_rules 1
 pitloom.core.wheel_dist_info 4
 pitloom.embed 3
 pitloom.enrich 1
@@ -119,6 +114,5 @@ pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 5
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
-pitloom.id_registry._persist 3
 pitloom.plugins._hatch_config 3
 pitloom.plugins.hatch 8

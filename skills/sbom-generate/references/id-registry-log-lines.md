@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,7 +61,8 @@ create and choose one), [messages.md](messages.md) (every line's code).
   key holds other content`). Other layouts
   (`python/`, `packages/`) get no alias: a wheel-only run mints its own ids
   for them.
-- `INFO: ID registry: -e NAME stored as KEY` / `stored by name: <why>` /
+- `INFO: ID registry: -e NAME stored as KEY` (said once the registry is
+  written) / `stored by name: <why>` /
   `stored without a version: holds only a package that states none` --
   `id generate -e` (see above). `INFO: ID registry: dataset|model X keyed by
   its name: <why>` -- `id import`/`loom` kept a name key because no file
@@ -82,13 +83,14 @@ create and choose one), [messages.md](messages.md) (every line's code).
   not recorded over <id>` (or `element id <id> with an older SHA-256 not
   recorded over <id>`) -- a run met such an element, or a merged fragment's
   stale one; the entry is kept, never rolled back.
-- An `ERROR:` with `ID registry:` is a real failure: see `messages.md`;
-  `failed to save <path>: <reason>` has no code yet, `<reason>` says why.
-- `WARNING: ID registry: failed to save <path>: <reason>` -- a run could
-  not write the registry (read-only file, full disk); its SBOM is written.
-  The path is the registry's, never a temporary file's.
-  `id generate`/`id import` print the same text as their one `ERROR:`, exit
-  1, the file left as it was.
+- An `ERROR:` with `ID registry:` is a real failure: see `messages.md`.
+- `WARNING: FILE=<path>: could not write for the ID registry; <reason>
+  [file-unwritable]` -- a run could not write the registry (read-only file,
+  full disk); its SBOM is written. A registry that no longer loads says its
+  own line as a `WARNING:` with its code. `id generate`/`id import` print the
+  same text as their one `ERROR:`, exit 1, the file left as it was.
+  `WARNING: ID registry: no file to save to; the ids this run added are not
+  saved [registry-file-missing]` -- a library `IdRegistry` with no path.
 - `WARNING: ID registry: <id> is registered for both X and Y; the second
   gets a new id [registry-conflict]` -- two elements matched entries
   carrying one id. The first claimant keeps the pinned id and the second
@@ -106,9 +108,9 @@ create and choose one), [messages.md](messages.md) (every line's code).
 - `WARNING: ID registry: X is held under another type; minting a new spdxId
   [registry-conflict/type]` -- a key the registry holds only as another
   type; the element gets a fresh id.
-- `WARNING: loom: ID registry <path> is inside dataset directory 'X'; left
-  out of its Merkle root` -- the registry file sits in a dataset directory;
-  move it outside (once per directory per run).
+- `WARNING: ID registry: FILE=<path>: inside dataset directory X; left out
+  of its Merkle root [registry-conflict/file-set]` -- the registry file sits
+  in a dataset directory; move it outside (once per directory per run).
 - `WARNING: loom: model X has no path=; not hashed, looked up by name only`
   (or `... is not a file at exit ...`) -- the model is matched by name and
   gets no hash; add `path=` to the `set_model()`/`use_model()` call.
@@ -133,8 +135,8 @@ create and choose one), [messages.md](messages.md) (every line's code).
   [dir-unlistable]` -- `id generate` left out the files of a directory it
   could not list; if you see it, relay the advice of
   [messages-files.md](messages-files.md#dir-unlistable).
-- `WARNING: ID registry: <path> is inside the project's file set; left out
-  of it` -- keep the registry outside the
+- `WARNING: ID registry: FILE=<path>: inside the project's file set; left
+  out of it [registry-conflict/file-set]` -- keep the registry outside the
   package tree ([id-registry.md](id-registry.md)).
 
 A declared registry that is missing or invalid (a version 3 file included)

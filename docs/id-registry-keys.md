@@ -190,7 +190,8 @@ one such reason (`the project is outside the registry's root`).
 For `dataset_DatasetPackage`, `ai_AIPackage` and `software_File`, a `NAME` that
 is an existing regular file (a dataset: a file or a directory) below the
 project root is stored under its canonical path key, with its digest. When the
-key differs from the text typed, `INFO: ID registry: -e <name> stored as <key>`.
+key differs from the text typed, `INFO: ID registry: -e <name> stored as <key>`,
+said once the registry is written (a save that fails says only its error).
 Any other `software_File` or `ai_AIPackage` name is stored by name with
 `INFO: ID registry: -e <name> stored by name: <reason>` (`not found`, `outside
 the project root`, `not a regular file`; an `ai_AIPackage` name applies only to
@@ -300,8 +301,8 @@ import` writes for a `loom model` SBOM).
 
 Pitloom 0.22.0 and later write version 4, whose package keys hold the
 version. A version 3 file is refused on every command, with one ``ERROR: loom <command>:
-ID registry: FILE=<path>: version 3, expected 4 (no migration support -- delete
-it and re-run `loom id generate` or `loom id import`) [registry-wrong-format]``,
+ID registry: FILE=<path>: version 3, expected 4 (no migration support)
+[registry-wrong-format]``,
 and is left as it is:
 nothing is dropped or rewritten. To keep its ids, delete it and `loom id
 import` the last SBOM a run made with it (every file, model and dataset keeps

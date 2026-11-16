@@ -33,12 +33,12 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Model fields](messages-model-fields.md): 5 codes
 - [Targets](messages-targets.md): 14 codes
 - [Options](messages-options.md): 4 codes
-- [Files and text](messages-files.md): 11 codes
+- [Files and text](messages-files.md): 12 codes
 - [PyPI](messages-pypi.md): 13 codes
 - [Network](messages-network.md): 9 codes
 - [URL credentials](messages-url-credentials.md): 8 codes
-- [ID registry](messages-id-registry.md): 4 codes
-- [ID registry ids and keys](messages-id-registry-ids.md): 14 codes
+- [ID registry](messages-id-registry.md): 5 codes
+- [ID registry ids and keys](messages-id-registry-ids.md): 15 codes
 - [Licences](messages-licences.md): 1 code
 
 | Code | Level | Since |
@@ -64,12 +64,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`file-unreadable/not-utf8`](messages-files.md#file-unreadablenot-utf8) | ERROR, WARNING | 0.22.0 |
 | [`file-unreadable/outside-project`](messages-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](messages-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
+| [`file-unwritable`](messages-files.md#file-unwritable) | ERROR, WARNING | 0.25.0 |
 | [`hf-url-invalid`](messages-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
 | [`hyperparameter-conflict`](messages-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](messages-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
-| [`input-not-found`](messages-targets.md#input-not-found) | ERROR | 0.23.4 |
+| [`input-not-found`](messages-targets.md#input-not-found) | ERROR, WARNING | 0.23.4 |
 | [`input-not-found/fragment`](messages-targets.md#input-not-foundfragment) | WARNING | 0.25.0 |
-| [`json-malformed`](messages-files.md#json-malformed) | ERROR | 0.23.0 |
+| [`json-malformed`](messages-files.md#json-malformed) | ERROR, WARNING | 0.23.0 |
 | [`lfs-pointer`](messages-models.md#lfs-pointer) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer-malformed`](messages-models.md#lfs-pointer-malformed) | ERROR, WARNING | 0.22.0 |
 | [`lfs-pointer/shipped`](messages-models.md#lfs-pointershipped) | WARNING | 0.22.0 |
@@ -100,21 +101,23 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`reader-unsafe/remote`](messages-models.md#reader-unsaferemote) | INFO | 0.23.4 |
 | [`registry-conflict`](messages-id-registry-ids.md#registry-conflict) | WARNING | 0.25.0 |
 | [`registry-conflict/concurrent`](messages-id-registry-ids.md#registry-conflictconcurrent) | WARNING | 0.25.0 |
+| [`registry-conflict/file-set`](messages-id-registry-ids.md#registry-conflictfile-set) | WARNING | 0.25.0 |
 | [`registry-conflict/held`](messages-id-registry-ids.md#registry-conflictheld) | INFO | 0.25.0 |
 | [`registry-conflict/spelling`](messages-id-registry-ids.md#registry-conflictspelling) | WARNING | 0.25.0 |
 | [`registry-conflict/type`](messages-id-registry-ids.md#registry-conflicttype) | WARNING | 0.25.0 |
 | [`registry-entry-missing`](messages-id-registry-ids.md#registry-entry-missing) | WARNING | 0.25.0 |
+| [`registry-file-missing`](messages-id-registry.md#registry-file-missing) | WARNING | 0.25.0 |
 | [`registry-hash-conflict`](messages-id-registry-ids.md#registry-hash-conflict) | WARNING, INFO | 0.25.0 |
 | [`registry-hash-conflict/gate`](messages-id-registry-ids.md#registry-hash-conflictgate) | INFO | 0.25.0 |
 | [`registry-hash-missing`](messages-id-registry-ids.md#registry-hash-missing) | WARNING, INFO | 0.25.0 |
 | [`registry-identity-missing`](messages-id-registry-ids.md#registry-identity-missing) | INFO | 0.25.0 |
 | [`registry-key-ambiguous`](messages-id-registry-ids.md#registry-key-ambiguous) | WARNING, INFO | 0.25.0 |
 | [`registry-key-moved`](messages-id-registry-ids.md#registry-key-moved) | INFO | 0.25.0 |
-| [`registry-malformed`](messages-id-registry.md#registry-malformed) | ERROR | 0.25.0 |
+| [`registry-malformed`](messages-id-registry.md#registry-malformed) | ERROR, WARNING | 0.25.0 |
 | [`registry-path-key-unusable`](messages-id-registry-ids.md#registry-path-key-unusable) | WARNING, INFO | 0.25.0 |
-| [`registry-unknown-key`](messages-id-registry.md#registry-unknown-key) | ERROR | 0.25.0 |
-| [`registry-unusable`](messages-id-registry.md#registry-unusable) | ERROR | 0.25.0 |
-| [`registry-wrong-format`](messages-id-registry.md#registry-wrong-format) | ERROR | 0.25.0 |
+| [`registry-unknown-key`](messages-id-registry.md#registry-unknown-key) | ERROR, WARNING | 0.25.0 |
+| [`registry-unusable`](messages-id-registry.md#registry-unusable) | ERROR, WARNING | 0.25.0 |
+| [`registry-wrong-format`](messages-id-registry.md#registry-wrong-format) | ERROR, WARNING | 0.25.0 |
 | [`release-file-not-found`](messages-pypi.md#release-file-not-found) | ERROR | 0.24.0 |
 | [`release-file-not-found/compatible-wheel`](messages-pypi.md#release-file-not-foundcompatible-wheel) | ERROR | 0.24.0 |
 | [`release-file-not-found/sdist`](messages-pypi.md#release-file-not-foundsdist) | ERROR | 0.24.0 |
@@ -210,7 +213,7 @@ A line may start with one prefix before its text:
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 | `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
-| `<use>` | what the file was read for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read or written for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
 | `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |

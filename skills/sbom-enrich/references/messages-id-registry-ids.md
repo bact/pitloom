@@ -22,6 +22,7 @@ values.
 | [`index-path-no-effect`](#index-path-no-effect) | WARNING | A PATH given to 'loom id generate' (or IdRegistry.generate) is in a directory the file walk always skips (build/, .git/, a virtual environment), so it indexes nothing. | 0.25.0 |
 | [`registry-conflict`](#registry-conflict) | WARNING | Two elements of one SBOM match one ID registry entry: a stale entry outlived the element it named, or one name is pinned for two elements. One id never names two elements. | 0.25.0 |
 | [`registry-conflict/concurrent`](#registry-conflictconcurrent) | WARNING | Two runs saved the ID registry at once and both took one id, minted from the same counter or moved to another key: the file keeps the other run's key for it. | 0.25.0 |
+| [`registry-conflict/file-set`](#registry-conflictfile-set) | WARNING | The ID registry file named for a run lies inside what the run describes: the project's file set, or a directory dataset a loom.Run script adds. Each save changes the file, so it would change the hash of what holds it. | 0.25.0 |
 | [`registry-conflict/held`](#registry-conflictheld) | INFO | 'loom id import' meets an element whose id the registry holds under another key that no element of the SBOM moves: the held key keeps it. | 0.25.0 |
 | [`registry-conflict/spelling`](#registry-conflictspelling) | WARNING | A loom.Run script names one dataset two ways, and the ID registry pins the later spelling to another id than the first. | 0.25.0 |
 | [`registry-conflict/type`](#registry-conflicttype) | WARNING | A loom.Run script looks a model up by a name the ID registry holds only under another element type. | 0.25.0 |
@@ -92,6 +93,29 @@ values.
 
   ```text
   WARNING: ID registry: another run saved <spdx-id> for '<type>' <entity> first; not recording it for <claimant> [registry-conflict/concurrent]
+  ```
+
+### `registry-conflict/file-set`
+
+- **Level**: WARNING.
+- **Means**: The ID registry file named for a run lies inside what the run
+  describes: the project's file set, or a directory dataset a loom.Run script
+  adds. Each save changes the file, so it would change the hash of what holds
+  it.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Left the registry file out of the project's files and Merkle
+  root (and its copy out of a wheel's or an sdist's members), or out of the
+  dataset's Merkle root. Said once per run; for a dataset, once per directory.
+  The SBOM is written.
+- **Tell the user**: that the registry file is inside the project or the dataset
+  and is left out of it, as the line says. Expected for a registry kept in the
+  project; for no line, they keep it outside. Do not move files for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: ID registry: FILE=<file>: inside the project's file set; left out of it [registry-conflict/file-set]
+  WARNING: ID registry: FILE=<file>: inside dataset directory <dir>; left out of its Merkle root [registry-conflict/file-set]
   ```
 
 ### `registry-conflict/held`

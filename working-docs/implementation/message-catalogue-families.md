@@ -336,7 +336,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   test, never hides a line; a module attribute `m.S` and a copy inside
   `messages/` are the guard's stated limits).
   Two here (`id import`'s dataset path key and model file-entry key); PR 7
-  adds the other five.
+  adds six.
 - New fields in `_fields_registry.py` (`_fields.py` split first):
   `entity`, `entities`, `claimant` (free; a URL's credentials masked, a
   control character escaped), `spdx_id`, `element_type` (quoted),
@@ -379,6 +379,64 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 - Left for PR 7: the save wrapper, `ENTITY_STORED_AS_INFO` and the other
   summaries, `_loom_dataset.py:108` (the registry inside a dataset
   directory), and the hook's `did` texts (the hook never saves).
+
+## ID registry saves, left-out files and summaries (catalogue PR 7)
+
+- A failed save says the line of what stopped it, never a wrapper:
+  `failed_to_save_message` is gone, and with it `ID registry: failed to
+  save '<absolute path>': ID registry: FILE=<as given>: ...` (the file
+  twice, two spellings, no code). One helper,
+  `say_save_failure(log, exc, *, file, fatal)` (`messages/_registry_save_say.py`;
+  entries and summaries in `_registry_save.py`, split so `_catalogue` never
+  imports `_emit`): `ERROR` for `loom id generate`/`import` (the output is
+  the registry), the `WARNING` twin for a run whose SBOM is written
+  (`loom generate`, `project`, `wheel`, `env`, the library,
+  `loom.Run`). A coded failure says its own text with its code (its entry's
+  line at that level, `relay_extra`); an uncoded `OSError`
+  is the write the system refused; any other uncoded failure is an
+  `InternalError` (none is reachable: `save()`'s no-path raise is guarded).
+- New condition `unwritable` (ruling Q1, 25 words now) and family
+  `file-unwritable` (topic `files`): `FILE=<file>: could not write <use>;
+  <failure>`, `ERROR` and `WARNING`, `use` from `READ_USES` (`for the ID
+  registry`; the field now says "read or written for"). The failure is
+  the `strerror`, so a temporary file's name never shows (the old line
+  could print `.reg.json.<hex>.tmp` from `os.replace`).
+- `WARNING` twins (same template): every `ERROR` line of
+  `registry-malformed`, `-unknown-key`, `-wrong-format`, `-unusable`
+  (built by `_warning_twins`), both `json-malformed` lines, and, found by
+  the save tests, `input-not-found`'s `<input> not found: <path>` (and its
+  `is not a file` line: a registry deleted mid-run) and `over-cap`'s JSON
+  document line, and `credentials-unsafe/registry`'s "is not loaded" line
+  (another run wrote a credential entry while this one refuses them). A
+  coded failure whose entry has no line at the level raises
+  `InternalError` rather than print uncoded (`relay_extra` itself still
+  returns `None`, which the scanner's relay relies on).
+- `registry-file-missing` (`missing`, actor `caller`): `ID registry: no
+  file to save to; the ids this run added are not saved`, for an
+  `IdRegistry` with no path (`warn_no_registry_path` keeps its name and
+  callers).
+- `registry-conflict/file-set` (topic `id-registry-ids`, with its
+  family): `ID registry: FILE=<file>: inside the project's file set; left
+  out of it` and `... inside dataset directory <dir>; left out of its
+  Merkle root` (no `loom:`); said once per run (embed batch memo) and per
+  directory (`loom.Run`), as before. `REGISTRY_IN_FILE_SET_WARNING` and
+  `REGISTRY_IN_DATASET_WARNING` are gone.
+- Summaries (six, not five: the configuration hint is one per action, so
+  each template is literal): `holds`, `added N new id(s) to`, `updated
+  stale entries in`, `-e NAME stored as KEY`, the add and change hints.
+  The `-e` line is said after the save succeeds: `entity_entry` returns an
+  `EntityEntry` whose `respelt` says whether to say it (a package with no
+  version never is, as before); a repeated `-e` is said once.
+- `cli/id.py` drops its two `print_error(str(exc), code=...)` blocks and
+  `_import_failure_text`: `cli_error_handler` relays the same line. A `{}`
+  SBOM (or an element with no type) used to reach it uncoded from the
+  SPDX 3 deserialiser; `read_sbom_objects` now raises `sbom-invalid`
+  (`FILE=<sbom>: SBOM cannot be read as SPDX 3; <failure>`).
+- `did` texts: PR 5's said the build hook re-reads the file to save; the
+  hook never saves. `VERSION_LINE` lost its `delete it and re-run`
+  bracket (wrong for a newer file; the advice is the entry's).
+- Ratchet 328 to 316 (`_persist` 3, `cli.id` 5, `_id_entity`, `_id_target`,
+  `walk_rules`, `_loom_dataset` 1 each).
 
 ## `credentials-unsafe` subjects (#489)
 

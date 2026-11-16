@@ -196,7 +196,9 @@ values.
   default, stored the key as written, or loaded the file as it is (warning). A
   namespace holding one is refused in either mode (error). An SBOM element whose
   key or id holds one is left out of the registry in either mode, and the rest
-  written (warning).
+  written (warning). A run whose SBOM is already written that reads the file
+  again to save, in the refuse mode, says the refusal as a warning: nothing is
+  saved and the SBOM stands.
 - **Tell the user**: which value, as the line shows it. For an error, they give
   the value without the credential and run again; a credential typed on a
   command line is exposed in their shell history. For a warning, the value came
@@ -217,6 +219,7 @@ values.
   ERROR: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file '<path>' is not loaded; remove the entry [credentials-unsafe/registry]
   WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file '<path>' is loaded as it is; remove the entry [credentials-unsafe/registry]
   WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; the ID registry stores the key as written [credentials-unsafe/registry]
+  WARNING: URL=<url>: holds user information, a secret query value or an access token, or a query nested or encoded too deeply to read; ID registry file '<path>' is not loaded; remove the entry [credentials-unsafe/registry]
   ```
 
 ### `credentials-unsafe/written`

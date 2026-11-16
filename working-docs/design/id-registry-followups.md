@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,9 +126,10 @@ nothing and warns once (`path has a skipped directory name`; 2026-10-15).
 - A missing explicit `loom id generate` PATH is an `ERROR:`
   (`input-not-found`, kind `PATH`), exit 1, nothing written; a default root
   that is absent stays quiet; a file gone below a listed PATH is left out.
-- `registry-unusable` (a project root the file cannot record) is not
+- ~~`registry-unusable` (a project root the file cannot record) is not
   printed on the CLI: `failed_to_save_message` relays the inner text without
-  its code. PR 7 codes the save wrapper.
+  its code.~~ Catalogue PR 7: the wrapper is gone; a failed save says its
+  own coded line (`say_save_failure`).
 - ~~The skipped-directory `WARNING:` stays uncoded until PR 6.~~ Coded
   `index-path-no-effect` in #486.
 - A partly indexed registry on a library raise: a missing or unreadable
@@ -147,18 +148,24 @@ nothing and warns once (`path has a skipped directory name`; 2026-10-15).
 - The build hook never saves the registry (`plugins/hatch.py` calls
   `resolve_registry` and `assemble_spdx3`, never `persist_registry`), yet
   PR 5's `_DID` and `REGISTRY_UNUSABLE.did` say it re-reads the file to
-  save. PR 7 rewrites both.
+  save. Rewritten in catalogue PR 7.
 - A mint refusal on a registry with no file names it `FILE=(no file)`
   (`registry-malformed`, #486): a sentinel, not a path. Open: a line
   without the subject for an in-memory registry.
 - `loom id generate ""` (an empty PATH) is the project directory itself and
   indexes the whole project, silently. Open: refuse it, or say so.
 - `loom id generate -e ...` logs the `INFO:` that an entity is stored by name
-  before an `ERROR:` that then writes nothing (as on `main`). Open: log it
-  after the save.
-- `VERSION_LINE` says "delete it and re-run" for every version, a newer one
-  included, while the advice says to keep a newer file. Kept on purpose for
-  now; revisit with PR 7.
+  before an `ERROR:` that then writes nothing (as on `main`). Catalogue PR 7
+  moved `-e NAME stored as KEY` after the save; the coded decisions (`stored
+  by name`, `pinned without SHA-256`, `stored without a version`) are still
+  said before it. Open: hold those too.
+- ~~`VERSION_LINE` says "delete it and re-run" for every version, a newer one
+  included.~~ Catalogue PR 7 dropped the bracket; the advice is the entry's.
+- ~~A save failure whose inner line has no `WARNING` twin prints uncoded.~~
+  `credentials-unsafe/registry`'s "is not loaded" line (a run refusing
+  credentials meets an entry another run saved with one) has its twin, and
+  `say_save_failure` raises `InternalError` for any coded failure without
+  one, so a future gap fails loudly instead of printing uncoded.
 - `option-invalid` exits 2 for argparse's lines and 1 for the PATH-outside
   line: one code, two exit statuses, chosen by line. Open: document per line
   in the reference, or align.

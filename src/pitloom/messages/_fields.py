@@ -378,7 +378,7 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             "|".join(re.escape(use) for use in READ_USES),
             plain_text,
             "<use>",
-            "what the file was read for, or the directory listed for: "
+            "what the file was read or written for, or the directory listed for: "
             + ", ".join(f"`{use}`" for use in READ_USES),
         ),
         "value": Field(

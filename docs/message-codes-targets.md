@@ -23,14 +23,14 @@ values.
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
 | [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.25.0 |
-| [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file, or a PATH given to 'loom id generate' to index, on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for (or a wheel pattern nested too deeply to expand: its line says so). The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.25.0. | 0.23.4 |
+| [`input-not-found`](#input-not-found) | ERROR, WARNING | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file, or a PATH given to 'loom id generate' to index, on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for (or a wheel pattern nested too deeply to expand: its line says so). The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.25.0. | 0.23.4 |
 | [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.25.0 |
 | [`model-ambiguous`](#model-ambiguous) | ERROR, INFO | A folder named for an AI model SBOM holds several AI model files, and no file was named: one SBOM describes one model. | 0.23.4 |
 | [`model-ambiguous/over-cap`](#model-ambiguousover-cap) | ERROR | A folder named for an AI model SBOM holds more files whose names could be AI models than its cap, and no file was named: which of them are models is not known, and one SBOM describes one model. | 0.23.4 |
 | [`project-not-found`](#project-not-found) | ERROR | A folder read as a Python project holds no project config (pyproject.toml, setup.cfg or setup.py). | 0.23.4 |
 | [`project-not-found/model-files`](#project-not-foundmodel-files) | ERROR | A project SBOM was asked for a folder of a Git URL that holds no Python project (pyproject.toml, setup.cfg or setup.py) but files whose names could be AI models. | 0.23.4 |
 | [`project-or-model-not-found`](#project-or-model-not-found) | ERROR | A folder named for an SBOM holds neither a Python project (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file of a supported format. | 0.23.4 |
-| [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), an object of it names one key twice (JSON readers disagree on which value counts, so what was checked may not be what is embedded), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING: 'loom id import' into an empty registry finds a document id that cannot be a namespace: not an absolute IRI, holding '#', or holding a character an IRI cannot hold (a space). | 0.25.0 |
+| [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), an object of it names one key twice (JSON readers disagree on which value counts, so what was checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id import': an object with no type, a property of the wrong kind; the reader's text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING: 'loom id import' into an empty registry finds a document id that cannot be a namespace: not an absolute IRI, holding '#', or holding a character an IRI cannot hold (a space). | 0.25.0 |
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.25.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.25.0 |
@@ -105,8 +105,8 @@ values.
 
 ### `input-not-found`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
 - **Means**: A path named for Pitloom to read does not exist: a model file,
   wheel, sdist, project directory, configuration, ID registry or SBOM file, or a
   PATH given to 'loom id generate' to index, on disk (or something else is
@@ -124,7 +124,10 @@ values.
   build, and the library raises FileNotFoundError carrying the code
   (IdRegistry.generate for a path to index that is not there), ValueError for a
   fragments directory that holds no JSON file, or RemoteSourceError (code
-  git.path-not-found) for a Git URL's file or folder.
+  git.path-not-found) for a Git URL's file or folder. As a WARNING, an ID
+  registry file was gone (or no longer a file) when a run whose SBOM is already
+  written read it again to save the ids it added: nothing is saved and the SBOM
+  stands.
 - **Tell the user**: which path was not found, as the line names it (for a Git
   URL, a path in the repository). They check the path, or the URL's branch and
   path, and run again. Do not guess another path or branch and run for them; ask
@@ -143,6 +146,8 @@ values.
   ERROR: no wheel file matches '<path>': the pattern nests too deeply to expand; name each wheel file without a pattern [input-not-found]
   ERROR: no JSON fragment file in '<path>' [input-not-found]
   ERROR: no source or data directory under '<path>'; pass PATH arguments [input-not-found]
+  WARNING: <input> not found: '<path>' [input-not-found]
+  WARNING: <input> not found: '<path>' is not a file [input-not-found]
   ```
 
 ### `input-not-found/fragment`
@@ -275,17 +280,20 @@ values.
   @graph is not a list of objects ('embed-wheel --sbom', 'loom id import';
   checked before the format, whatever the file is named), an object of it names
   one key twice (JSON readers disagree on which value counts, so what was
-  checked may not be what is embedded), or spdx3-validate refuses it
-  ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING:
-  'loom id import' into an empty registry finds a document id that cannot be a
-  namespace: not an absolute IRI, holding '#', or holding a character an IRI
-  cannot hold (a space).
+  checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id
+  import': an object with no type, a property of the wrong kind; the reader's
+  text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom
+  --validate'; its own lines before say why). As a WARNING: 'loom id import'
+  into an empty registry finds a document id that cannot be a namespace: not an
+  absolute IRI, holding '#', or holding a character an IRI cannot hold (a
+  space).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote nothing: no wheel is changed, no ID is imported. The
   command exits 1; the library (embed_wheel_sbom with sbom_path,
   IdRegistry.import_sbom) raises ValueError carrying the code for an @graph that
-  is not a list of objects or a key given twice. As a WARNING, the import goes
-  on and the registry keeps the namespace it was created with.
+  is not a list of objects, a key given twice or an SBOM the SPDX 3 reader
+  refuses. As a WARNING, the import goes on and the registry keeps the namespace
+  it was created with.
 - **Tell the user**: which SBOM is not valid, and what the validator reported.
   They fix or regenerate it and run again. Do not edit the SBOM for them; ask
   first, and with nobody to ask, report it only.
@@ -296,6 +304,7 @@ values.
   ERROR: FILE=<file>: SBOM @graph is not a list [sbom-invalid]
   ERROR: FILE=<file>: SBOM @graph holds an element that is not an object [sbom-invalid]
   ERROR: FILE=<file>: SBOM holds an object with a key given twice [sbom-invalid]
+  ERROR: FILE=<file>: SBOM cannot be read as SPDX 3; <failure> [sbom-invalid]
   WARNING: FILE=<file>: SBOM namespace <why>; the ID registry keeps its own, not <namespace> [sbom-invalid]
   ```
 

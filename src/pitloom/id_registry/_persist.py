@@ -23,12 +23,16 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.rebase``,
 from __future__ import annotations
 
 import logging
-import os
 from typing import TYPE_CHECKING, NamedTuple
 
-from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._types import RegistryEntry
-from pitloom.messages import emit
+from pitloom.messages import emit, say_summary
+from pitloom.messages.id_registry import (
+    ADDED_IDS,
+    STALE_UPDATED,
+    say_save_failure,
+    warn_no_registry_file,
+)
 from pitloom.messages.id_registry_ids import (
     CONCURRENT_LINE,
     REGISTRY_CONFLICT_CONCURRENT,
@@ -43,7 +47,6 @@ __all__ = [
     "Rebase",
     "added_ids",
     "new_id_count",
-    "failed_to_save_message",
     "persist_registry",
     "replay_changes",
     "save_registry",
@@ -160,20 +163,10 @@ def _id_of(entry: RegistryEntry | None) -> str | None:
     return entry.spdx_id if entry is not None else None
 
 
-def failed_to_save_message(
-    path: str | os.PathLike[str] | None, exc: BaseException
-) -> str:
-    """The one line for a registry save that failed: ``ID registry: failed
-    to save <path>: <reason>``. A ``WARNING:`` where the run's output is
-    already written (:func:`persist_registry`), an ``ERROR:`` for ``id
-    generate``/``id import``, whose output is the registry."""
-    where = "(no file)" if path is None else quote_source(path)
-    return f"ID registry: failed to save {where}: {exc}"
-
-
 def warn_no_registry_path() -> None:
-    """Log the one ``WARNING:`` for a registry with no file to save to."""
-    log.warning("ID registry: no file path resolved; skipping auto-update.")
+    """Log the one ``WARNING:`` for a registry with no file to save to
+    (``registry-file-missing``)."""
+    warn_no_registry_file(log)
 
 
 def save_registry(registry: IdRegistry) -> Rebase:
@@ -197,10 +190,11 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     *new_ids* counts the distinct ids the run added; *changed* says whether
     it changed anything at all. With no file path: the no-path ``WARNING:``.
     Nothing changed: nothing. Else :func:`save_registry`, and one ``INFO:``
-    when it wrote, counting the new ids the save adds to the file, at most
-    *new_ids* (so neither another run's ids nor a refused one count). A
-    failure, the re-read included, is one ``WARNING:`` and otherwise
-    ignored: the run's own output is already written.
+    summary when it wrote, counting the new ids the save adds to the file,
+    at most *new_ids* (so neither another run's ids nor a refused one
+    count). A failure, the re-read included, is its own line as one
+    ``WARNING:`` (:func:`~pitloom.messages.id_registry.say_save_failure`)
+    and otherwise ignored: the run's own output is already written.
     """
     if registry.path is None:
         warn_no_registry_path()
@@ -210,20 +204,16 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     try:
         rebased = save_registry(registry)
     except (OSError, ValueError) as exc:
-        log.warning("%s", failed_to_save_message(registry.path, exc))
+        say_save_failure(log, exc, file=registry.path, fatal=False)
         return
     if not rebased.pending:
         return
     added = min(new_ids, rebased.added)
     if added:
-        log.info(
-            "ID registry: added %d new id(s) to %s", added, quote_source(registry.path)
-        )
+        say_summary(log, ADDED_IDS, number=added, path=registry.path)
     else:
         # Changed, but no new id: a stale key was released in the same pass
         # another claimed its id, an id was promoted to its lookup key (see
         # pitloom.id_registry._harvest._release_stale_keys_for_id), or an
         # entry's hash changed.
-        log.info(
-            "ID registry: updated stale entries in %s", quote_source(registry.path)
-        )
+        say_summary(log, STALE_UPDATED, path=registry.path)

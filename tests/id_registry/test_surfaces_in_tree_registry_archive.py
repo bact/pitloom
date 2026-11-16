@@ -151,13 +151,13 @@ def test_archive_copy_of_the_registry_is_left_out_once(
         with caplog.at_level(logging.WARNING):
             assert run(archive, registry, out, monkeypatch) in (None, 0)
         sboms.append(out.read_text(encoding="utf-8"))
-        warned.append([w.split(" is ")[0] for w in _left_out_warnings(caplog)])
+        warned.append([w.split(": inside ")[0] for w in _left_out_warnings(caplog)])
 
     names = _file_names(sboms[0])
     assert "demo/__init__.py" in sboms[0]  # not vacuous
     assert ("demo-1.0.0/reg.json" if sdist else "reg.json") in names
     assert sboms[1] == sboms[0]
-    one = [f"ID registry: '{registry}'"]
+    one = [f"ID registry: FILE={registry}"]
     assert warned == [one if route.endswith("-project") else [], one]
 
 

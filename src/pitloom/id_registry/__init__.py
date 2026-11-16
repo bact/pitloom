@@ -35,7 +35,6 @@ from pitloom.id_registry._credentials import (
     require_key_without_credentials,
 )
 from pitloom.id_registry._persist import (
-    failed_to_save_message,
     persist_registry,
     save_registry,
     warn_no_registry_path,
@@ -94,7 +93,6 @@ __all__ = [
     "say_ambiguous_keys",
     "artifact_key",
     "check_key_credentials",
-    "failed_to_save_message",
     "info_identity_unknown",
     "is_layout_alias",
     "join_key",

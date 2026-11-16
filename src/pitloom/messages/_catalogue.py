@@ -18,6 +18,7 @@ from pitloom.messages import (
     _card_malformed,
     _config_unsafe,
     _file_unreadable,
+    _file_unwritable,
     _input_not_found,
     _json_malformed,
     _lfs_pointer,
@@ -31,6 +32,7 @@ from pitloom.messages import (
     _registry_conflict,
     _registry_file,
     _registry_keys,
+    _registry_save,
     _remote_fetch,
     _sbom_input,
     _sbom_target,
@@ -74,6 +76,7 @@ MESSAGES: Final = _by_code(
         *_model_stub.ENTRIES,
         *_model_field.ENTRIES,
         *_file_unreadable.ENTRIES,
+        *_file_unwritable.ENTRIES,
         *_usage_unparseable.ENTRIES,
         *_usage_unusable.ENTRIES,
         *_text_malformed.ENTRIES,
@@ -92,10 +95,14 @@ MESSAGES: Final = _by_code(
         *_registry_file.ENTRIES,
         *_registry_conflict.ENTRIES,
         *_registry_keys.ENTRIES,
+        *_registry_save.ENTRIES,
         *_url_credentials.ENTRIES,
         *_url_credentials_git.ENTRIES,
     )
 )
 
 #: Every summary: an ``INFO:`` line of no condition, printed without a code.
-SUMMARIES: Final[tuple[Summary, ...]] = (*_registry_keys.SUMMARIES,)
+SUMMARIES: Final[tuple[Summary, ...]] = (
+    *_registry_keys.SUMMARIES,
+    *_registry_save.SUMMARIES,
+)

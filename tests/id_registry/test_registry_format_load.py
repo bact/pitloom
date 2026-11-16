@@ -211,10 +211,10 @@ def test_load_old_version_message_is_exact_and_file_untouched(
     with pytest.raises(ValueError) as excinfo:
         IdRegistry.load(path)
 
+    # The advice is the entry's, by version: the line says no "delete it".
     assert str(excinfo.value) == (
         f"ID registry: FILE={path}: version {old['version']}, "
-        "expected 4 (no migration support "
-        "-- delete it and re-run `loom id generate` or `loom id import`)"
+        "expected 4 (no migration support)"
     )
     assert path.read_bytes() == before
 

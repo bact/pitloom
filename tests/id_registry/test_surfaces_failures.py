@@ -134,10 +134,7 @@ _CONTENT_VALUES = [None, "{", _V3_FILE]
 def _reason(content: str | None) -> str:
     """The regex every surface's message contains for *content*."""
     if content == _V3_FILE:
-        return (
-            r"ID registry: FILE=.*: version 3, expected 4 \(no migration support "
-            r"-- delete it and re-run `loom id generate` or `loom id import`\)"
-        )
+        return r"ID registry: FILE=.*: version 3, expected 4 \(no migration support\)"
     if content is None:
         return r"ID registry file not found: "
     return r"FILE=.*: not valid JSON for the ID registry; "

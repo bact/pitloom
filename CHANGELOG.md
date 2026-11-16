@@ -84,6 +84,9 @@ and this project adheres to
 
 - PyTorch type of model is the top-level object's class (`Linear` for a full
   save, none for a `dict` checkpoint), not the first class found ([#483])
+- A failed ID registry save prints one coded line naming the file as given
+  (`file-unwritable` for a refused write); left-out and save lines are coded
+  ([#492])
 
 ### Security
 
@@ -103,6 +106,7 @@ and this project adheres to
 [#489]: https://github.com/bact/pitloom/pull/489
 [#490]: https://github.com/bact/pitloom/pull/490
 [#491]: https://github.com/bact/pitloom/pull/491
+[#492]: https://github.com/bact/pitloom/pull/492
 
 ## [0.24.0] - 2026-11-11
 

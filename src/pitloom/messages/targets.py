@@ -52,6 +52,7 @@ from pitloom.messages._sbom_input import (
     SBOM_INVALID,
     SBOM_NAMESPACE_LINE,
     SBOM_NOT_VALID_LINE,
+    SBOM_UNREADABLE_LINE,
     SBOM_WRONG_FORMAT,
 )
 from pitloom.messages._sbom_target import (
@@ -115,6 +116,7 @@ __all__ = [
     "SBOM_GRAPH_NOT_LIST_LINE",
     "SBOM_INVALID",
     "SBOM_NOT_VALID_LINE",
+    "SBOM_UNREADABLE_LINE",
     "SBOM_WRONG_FORMAT",
     "TARGET_AMBIGUOUS",
     "TARGET_WRONG_FORMAT",
