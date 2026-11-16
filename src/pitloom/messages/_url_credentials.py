@@ -160,9 +160,10 @@ CREDENTIALS_UNSAFE: Final = Message(
     "refuse mode, refused (credentials-unsafe/refused) unless the user "
     "accepts that value by its fingerprint; one that may be a credential "
     "only, common in example and OAuth URLs, is warned of in either mode.",
-    did="Wrote the SBOM with the value as written; said once per value "
-    "of each SBOM, "
-    "shown masked. Nothing is removed or rewritten.",
+    did="Did not refuse the value: the SBOM is written with it as written, "
+    "unless another value is refused (credentials-unsafe/refused), which "
+    "refuses the whole SBOM; said once per value of each SBOM, shown masked. "
+    "Nothing is removed or rewritten.",
     effect="none",
     actor="user",
     advice="Tell the user which value, as the line shows it, and that the "
@@ -205,7 +206,7 @@ CREDENTIALS_UNSAFE_REGISTRY: Final = Message(
     "(warning). A namespace holding one is refused in either mode (error). "
     "An SBOM element whose key or id holds one is left out of the registry "
     "in either mode, and the rest written (warning). A run whose SBOM is "
-    "already written that reads the file again to save, in the refuse mode, "
+    "already built that reads the file again to save, in the refuse mode, "
     "says the refusal as a warning: nothing is saved and the SBOM stands.",
     effect="thinner",
     actor="user",
@@ -251,10 +252,12 @@ CREDENTIALS_UNSAFE_WRITTEN: Final = Message(
     "so they should consider it exposed, rotate it and remove it from the "
     "source, then generate again. Offer to turn on url-credentials = "
     '"refuse" in [tool.pitloom] (--refuse-url-credentials on the command '
-    "line) so that CI refuses such an SBOM from then on. Only once they "
+    "line, url-credentials: refuse on the GitHub Action) so that CI refuses "
+    "such an SBOM from then on. Only once they "
     "have confirmed that one value is no secret (an example URL in a "
     "README) do they accept that value alone by its fingerprint "
-    "(--accept-url-credential, accept-url-credentials in [tool.pitloom]), "
+    "(--accept-url-credential, accept-url-credentials in [tool.pitloom], the "
+    "GitHub Action's accept-url-credentials input), "
     f"which quiets this line. Do not edit their files; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
@@ -296,8 +299,9 @@ CREDENTIALS_UNSAFE_REFUSED: Final = Message(
     "confirmed that one value is no secret (an example URL in a README) do "
     "they accept that value alone, the way the line gives with its "
     "fingerprint: --accept-url-credential, accept-url-credentials in "
-    "[tool.pitloom] (also for the command line), or the library's "
-    "credentials argument. Do not suggest turning the refuse mode off to "
+    "[tool.pitloom] (also for the command line), the GitHub Action's "
+    "accept-url-credentials input, or the library's credentials argument. "
+    "Do not suggest turning the refuse mode off to "
     f"get past it. Do not edit their files; {ASK_FIRST}",
     subject_key="URL",
     since=_SINCE,
@@ -311,8 +315,9 @@ CREDENTIALS_UNSAFE_ACCEPTED: Final = Message(
     "credential, and the user accepted it by its fingerprint "
     "(--accept-url-credential, accept-url-credentials in [tool.pitloom], the "
     "library's CredentialPolicy(accepted=...)), in either mode.",
-    did="Wrote the SBOM with the value as written; said once per value of "
-    "each SBOM, shown masked.",
+    did="Did not refuse the value: the SBOM is written with it as written, "
+    "unless another value is refused (credentials-unsafe/refused), which "
+    "refuses the whole SBOM; said once per value of each SBOM, shown masked.",
     effect="none",
     actor="user",
     advice="Tell the user which value the SBOM states as written, as the "

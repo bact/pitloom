@@ -125,7 +125,7 @@ values.
   fragments directory that holds no JSON file, or RemoteSourceError (code
   git.path-not-found) for a Git URL's file or folder. As a WARNING, an ID
   registry file was gone (or no longer a file) when a run whose SBOM is already
-  written read it again to save the ids it added: nothing is saved and the SBOM
+  built read it again to save the ids it added: nothing is saved and the SBOM
   stands.
 - **Tell the user**: which path was not found, as the line names it (for a Git
   URL, a path in the repository). They check the path, or the URL's branch and

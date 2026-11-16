@@ -84,8 +84,8 @@ values.
   key for it.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Saved the registry with the other run's entry; this run's key
-  for the id is not recorded. The SBOM already written keeps the id; the next
-  run mints a new one for that key.
+  for the id is not recorded. The SBOM keeps the id; the next run mints a new
+  one for that key.
 - **Tell the user**: that another run saved the registry at the same time, as
   the line says. Running once more records the element under a new id; runs that
   share a registry are best run one at a time. Do not run again for them; ask

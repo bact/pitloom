@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.extract.remote.huggingface import read_huggingface
 from pitloom.id_registry._sbom_read import read_sbom_objects
@@ -56,6 +57,21 @@ def test_an_sbom_graph_of_the_wrong_shape_is_sbom_invalid(
     assert str(caught.value) == f"FILE={sbom}: {said}"
     assert raised_as(caught.value, SBOM_INVALID)
     assert caught.value.__cause__ is None and "S3CRETX" not in str(caught.value)
+
+
+def test_a_memory_error_in_the_sbom_reader_is_not_sbom_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Running out of memory is the machine's, not a verdict on the SBOM."""
+    sbom = tmp_path / "ok.json"
+    sbom.write_bytes(b'{"@graph": []}')
+
+    def _out_of_memory(*_args: object, **_kwargs: object) -> None:
+        raise MemoryError
+
+    monkeypatch.setattr(spdx3.JSONLDDeserializer, "read", _out_of_memory)
+    with pytest.raises(MemoryError):
+        read_sbom_objects(sbom)
 
 
 @pytest.mark.parametrize(

@@ -204,8 +204,8 @@ The skills require `pitloom>=0.24.0`. See
 ### After 0.24.0: message catalogue and licence provenance
 
 Planned for 0.24.0 (ruling of 2026-11-04), not built when it was cut; the
-release is not decided. Several design docs still say "0.24.0" for these items
-and need the new target once it is set. Each item is its own PR; the order and
+target is now 0.25.0, which is **not released** (user, 2026-11-16). Several
+design docs still say "0.24.0" for these items. Each item is its own PR; the order and
 counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md).
 
 - [x] **Frames (catalogue PR 4)**: the uniform `loom <command>:` prefix on
@@ -224,10 +224,9 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
 - [x] **Credentials: detect, warn or refuse, PR 2**: the SBOM strip replaced
   by detect; warns by default, refuses opt in (`url-credentials = "refuse"`),
-  per-value fingerprint override; built, not merged (no longer a 0.25.0
-  blocker). See
+  per-value fingerprint override; merged (#490, 2026-11-16), unreleased. See
   [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
-- [x] **Credentials PR 3** (built, in review): the Action's `url-credentials`
+- [x] **Credentials PR 3** (#491, merged 2026-11-16): the Action's `url-credentials`
   and `accept-url-credentials` inputs with `::add-mask::`, Git hardening (a
   Git URL's query never reaches git: spy test), encoded query and fragment
   values, `urllib3` log masking. Same doc, "Built in PR 3".
@@ -235,10 +234,28 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   appears beside `spdx.org/spdxdocs/demo-<uuid>` ids. Seen during the
   credential work; unrelated to credentials. Find the cause (which route
   mints which id), then unify or document it.
-- [ ] **Catalogue PRs 6 to 18** (the remaining families, the licence families
-  last): the ID registry (with the remote
-  registry entries first), lock files, config, project metadata, Git, Hub and
-  build, fragments and wheels, miscellany, licence.
+- [x] **Catalogue PRs 6 (#486) and 7 (#492)**: ID registry id, key and
+  conflict messages; then save, file-set and summary lines (`file-unwritable`,
+  `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
+  to 328 to 316.
+- [ ] **Catalogue PRs 8 to 18** (the remaining families, the licence families
+  last): the remote registry entries, lock files, config, project metadata,
+  Git, Hub and build, fragments and wheels, miscellany, licence. Next: a
+  consistency re-check of the merged families (follow-up of #492).
+- [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
+  0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
+  flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
+  line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
+- [ ] **Small follow-ups from the #492 review**: a library registry path with a
+  NUL byte raises `InternalError` after the SBOM is written (one warning
+  before); `tests/core/url_masking/test_url_masking_hits.py::test_each_view_is_linear`
+  flaked twice on CI runners (bound 32, locally 16-19x): widen the bound or
+  take the best of two timings. Catalogue nits left: `credentials-unsafe/git-userinfo`
+  quotes its URL (`URL='...'`), its siblings do not (docs `git-urls.md` and
+  the git-url skill reference quote it); `SBOM_NOT_VALID_LINE` says "no wheel
+  was written", every `did` "no wheel is changed"; `_field_tables.py:114`
+  "license" prose; `require_key_without_credentials` has no caller; in refuse
+  mode the `weak` and `accepted` lines are said before a refusal.
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See

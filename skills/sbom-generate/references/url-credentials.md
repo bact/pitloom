@@ -85,15 +85,16 @@ the whole field value. Never try to recover the masked part.
 3. **Offer the `refuse` mode for CI** (for a `written` line): `[tool.pitloom]
    url-credentials = "refuse"` in `pyproject.toml` (`setup.cfg`:
    `[tool:pitloom] url-credentials = refuse`), or `--refuse-url-credentials`
-   on the command line or in the Action's `args:`. Ask before editing the
-   file.
+   on the command line, or `url-credentials: refuse` as an input of the
+   GitHub Action. Ask before editing the file.
 4. **Only once the user confirms that this value is no secret** (an example
    URL in documentation, a placeholder), offer to accept that value alone,
    with the fingerprint from the line. On the command line: re-run with
    `--accept-url-credential sha256:<hex>` (repeatable, one per value), or
    list it in `pyproject.toml`: `[tool.pitloom] accept-url-credentials =
    ["sha256:<hex>"]` (`setup.cfg`: `[tool:pitloom]`, one per line; ask before
-   editing the file). The build hook reads that list (it has no flag); a
+   editing the file); the Action takes them as its `accept-url-credentials`
+   input (comma or line separated). The build hook reads that list (it has no flag); a
    library caller passes `credentials=CredentialPolicy(accepted=["sha256:<hex>"])`.
    `loom merge` and `embed-wheel --sbom FILE` read the flags only. Later runs
    then print `WARNING: ... [credentials-unsafe/accepted]` instead (both

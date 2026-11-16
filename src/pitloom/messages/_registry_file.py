@@ -8,9 +8,9 @@
 (``registry-unknown-key``), another format version
 (``registry-wrong-format``), and a project root the file cannot record
 (``registry-unusable``). As an ``ERROR`` nothing is written; each ``ERROR``
-line has a ``WARNING`` twin, said when a run whose SBOM is already written
+line has a ``WARNING`` twin, said when a run whose SBOM is already built
 re-reads the file to save the ids it added
-(:func:`~pitloom.messages._registry_save.say_save_failure`).
+(:func:`~pitloom.messages._registry_save_say.say_save_failure`).
 
 A registry file that cannot be read, is not UTF-8, is not valid JSON or is
 not a JSON object says ``file-unreadable``, ``file-unreadable/not-utf8`` and
@@ -40,10 +40,11 @@ REGISTRY_VERSION: Final = 4
 #: The largest id counter (:data:`pitloom.id_registry._counters.MAX_ID_NUMBER`;
 #: a drift test holds them equal).
 MAX_COUNTER: Final = 9007199254740991
-#: The runs that save the ids they added after their SBOM is written.
+#: The runs that save the ids they added after their SBOM is built.
 SAVE_SURFACES: Final = (
-    "loom generate, project, wheel and env, the library's generate functions "
-    "and loom.Run"
+    "loom generate (a project, wheel or environment), project, wheel and "
+    "env, the library's generate_project_sbom, generate_wheel_sbom and "
+    "generate_env_sbom, and loom.Run"
 )
 #: What a command, the hook and the library do for every line here.
 _DID: Final = (
@@ -51,7 +52,7 @@ _DID: Final = (
     "fails), the build hook fails the build, and the library raises "
     "ValueError carrying the code. 'loom id' writes no registry, and every "
     "other command writes no SBOM. The file is left as it is. As a WARNING, "
-    f"a run whose SBOM is already written ({SAVE_SURFACES}) read the file "
+    f"a run whose SBOM is already built ({SAVE_SURFACES}) read the file "
     "again to save the ids it added: nothing is saved and the SBOM stands; "
     "the next run mints those ids again."
 )
@@ -59,7 +60,7 @@ _DID: Final = (
 
 def _warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
     """*lines*, then a ``WARNING`` line of each one's template: the save of a
-    run whose SBOM is already written says the same text as a warning."""
+    run whose SBOM is already built says the same text as a warning."""
     return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
 
 
@@ -233,7 +234,7 @@ REGISTRY_UNUSABLE: Final = Message(
     did="Saved nothing: the registry file is not written or changed. As an "
     "ERROR, 'loom id' exits 1 and IdRegistry.save raises ValueError carrying "
     f"the code. As a WARNING ({SAVE_SURFACES}, whose SBOM is already "
-    "written), the SBOM stands and the ids the run added are not saved.",
+    "built), the SBOM stands and the ids the run added are not saved.",
     effect="none",
     actor="user",
     advice="Tell the user that the registry file cannot record where the "

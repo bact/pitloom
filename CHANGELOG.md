@@ -24,8 +24,9 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM, target and ID registry file, id and key messages carry a
-  message code; see `docs/message-codes.md` ([#482], [#485], [#486])
+- Input, option, SBOM, target, ID registry file, id, key, save and file-set
+  messages carry a message code; see `docs/message-codes.md` ([#482], [#485],
+  [#486], [#492])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -79,6 +80,8 @@ and this project adheres to
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
+- `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
+  stored as` is said once the registry is saved ([#492])
 
 ### Fixed
 

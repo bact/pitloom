@@ -194,7 +194,7 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     at most *new_ids* (so neither another run's ids nor a refused one
     count). A failure, the re-read included, is its own line as one
     ``WARNING:`` (:func:`~pitloom.messages.id_registry.say_save_failure`)
-    and otherwise ignored: the run's own output is already written.
+    and otherwise ignored: the run's own output is already built.
     """
     if registry.path is None:
         warn_no_registry_path()

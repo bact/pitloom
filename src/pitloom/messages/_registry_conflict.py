@@ -82,7 +82,7 @@ REGISTRY_CONFLICT_CONCURRENT: Final = Message(
     "minted from the same counter or moved to another key: the file keeps "
     "the other run's key for it.",
     did="Saved the registry with the other run's entry; this run's key for "
-    "the id is not recorded. The SBOM already written keeps the id; the next "
+    "the id is not recorded. The SBOM keeps the id; the next "
     "run mints a new one for that key.",
     effect="none",
     actor="user",

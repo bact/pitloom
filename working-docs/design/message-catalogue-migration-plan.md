@@ -23,7 +23,7 @@ and 1c (#446); the reference split (#480) PR 4, the frames
 ([message-frames.md](../implementation/message-frames.md)), and PR 3, the
 input, option, SBOM and target errors (#482), and PR 5, the ID registry
 file errors (#485), and PR 6, the ID registry ids and keys (#486), are
-built. Left: PR 7 onward
+merged, and PR 7 (#492). Left: PR 8 onward
 and T14. This file is the
 reference for what remains and what ships in which release.
 
@@ -58,9 +58,10 @@ The earlier decision of 2026-10-30 (everything in 0.23.0) is superseded.
 Update 2026-11-14: v0.24.0 is tagged (#475) without the catalogue PRs; PR 4
 (#481) merged after the tag. The "Cut" column below therefore says "next": a
 PR ships in the next release after the last tag when it merges, and its new
-entries take that release as `since`. PR 3 uses 0.24.1 (maintainer,
-2026-11-13). PR 3 (#482) is built: the ratchet fell from 454 (after PR 4) to
-398. PR 5 (#485) is built: 398 to 366.
+entries take that release as `since`. PR 3 was to use 0.24.1 (maintainer,
+2026-11-13); the next release is 0.25.0 (not released), the `since` of
+these entries. PR 3 (#482) is merged: the ratchet fell from 454 (after PR 4) to
+398. PR 5 (#485) is merged: 398 to 366.
 
 ## Sizes
 
@@ -104,7 +105,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 4 | next | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
 | 5 | next (built, #485) | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs); built: `registry-malformed`, `registry-unknown-key`, `registry-wrong-format`, `registry-unusable`, `text-malformed/registry`, `option-invalid`/`option-conflict` lines, `dir-unlistable` `ERROR` line, `input-not-found` kind `PATH` | user / not-written | -29, now -30; built -32 (398 to 366, #485) | M; Opus |
 | 6 | next (built, #486) | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`); built: `registry-conflict` (+ `/concurrent`, `/held`, `/spelling`, `/type`), `registry-hash-conflict` (+ `/gate`), `registry-hash-missing`, `registry-entry-missing`, `registry-path-key-unusable`, `registry-identity-missing`, `registry-key-ambiguous`, `registry-key-moved`, `index-path-no-effect`; two summaries (`say_summary`, out of the ratchet by its definition); the `loom.Run` lines take `ID registry: ` (Q4); `unpinned` waits for the remote registry | user / weaker | -35, now -35; built -35, and -3 in `core/iri.py` from one namespace raise (366 to 328, #486) | M; Opus |
-| 7 | next | registry-not-saved 5; registry-left-out 6; registry-summary 4 | `registry-unwritable`? (`unusable`?); left-out as `registry-conflict/file-set`? | user / none | -15, now -15 | S-M; Sonnet, Opus review |
+| 7 | next (merged, #492) | registry-not-saved 5; registry-left-out 6; registry-summary 4 | built: `file-unwritable`, `registry-file-missing`, `registry-conflict/file-set`, WARNING twins of the registry and `json-malformed` lines, six summaries | user / none | -15, now -15; built -12 (328 to 316, #492) | S-M; Sonnet, Opus review |
 | 8 | next | config-invalid 46 by the classifier, all `ERROR` (`core/_config_parse.py` 19, `_config_read.py` 5, `_config_parse_scan.py` 3; 39 config; `iri.py`'s 4 and `_models_wheel_types.py`'s 3 are not config: option-invalid (PR 3), registry key encoding (PR 5), caller misuse (PR 17)) | ONE `config-invalid` via a helper `say_config_invalid(key, value, expected)` with a closed `expected` table (helper first) | user (R3) / not-written | -46, now -46 | L; Opus helper, Sonnet sites |
 | 9 | next | config-file-unusable 5; config-moved 6; config-unknown-key 2; config-value-ignored 1 | `config-unusable`, `config-moved`, `config-unknown-key`; value-ignored folds into `option-no-effect` | user / none or not-written | -14, now -14 | S-M; Sonnet |
 | 10 | next | lock-file-ignored 20 (pylock 7, requirements 4, uv 3); lock-file-unreadable 1 (`_lock_io.py:106`); the readers live in `extract/lock/` | `lock-file-malformed`, `lock-file-unusable`, `file-unreadable` reuse; the `over N bytes` text is detail | user / thinner | -21, now -21 | M; Opus |

@@ -14,9 +14,9 @@ See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
 message contract the new codes join).
 
 Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
-merged) built the detector; PR 2 (PR 490, built 2026-11-16, not yet merged) built
+merged) built the detector; PR 2 (#490, merged 2026-11-16, unreleased) built
 the check at the persisted sinks, the two modes and the per-value override,
-and deleted the strip. PR 3 (built 2026-11-16, not yet merged): the Action
+and deleted the strip. PR 3 (#491, merged 2026-11-16, unreleased): the Action
 inputs and masks, the Git hardening, detector and masker extras ("Built in
 PR 3" below).
 

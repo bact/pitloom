@@ -380,7 +380,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   summaries, `_loom_dataset.py:108` (the registry inside a dataset
   directory), and the hook's `did` texts (the hook never saves).
 
-## ID registry saves, left-out files and summaries (catalogue PR 7)
+## ID registry saves, left-out files and summaries (catalogue PR 7, #492)
 
 - A failed save says the line of what stopped it, never a wrapper:
   `failed_to_save_message` is gone, and with it `ID registry: failed to
@@ -446,5 +446,6 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   for the scp case would split the family for one shape.
 - `credentials-unsafe` gained a line for a value the SBOM strip leaves that
   the detector refuses ("which the SBOM states as written"),
-  said once per value, masked; PR 2 replaces the strip with the detector
-  and retires the line.
+  said once per value, masked; PR 2 (#490) replaced the strip with the
+  detector and retired the line (`credentials-unsafe/written`, `/refused` and
+  `/accepted` took its place: warn by default, refuse opt-in).

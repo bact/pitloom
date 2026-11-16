@@ -7,7 +7,7 @@
 Croissant document, PyPI's release metadata, an SBOM to embed or import, an
 ID registry file) does not parse, or its top level is no object. The read
 raises; an ID registry file re-read to save a run's ids says the same as a
-``WARNING`` (:func:`~pitloom.messages._registry_save.say_save_failure`).
+``WARNING`` (:func:`~pitloom.messages._registry_save_say.say_save_failure`).
 
 See also: :func:`pitloom.extract._extract_utils.fetch_json` (a Croissant
 document), :mod:`pitloom.extract.remote._http_fetch` (PyPI's JSON API),
@@ -64,7 +64,7 @@ JSON_MALFORMED: Final = Message(
     "import, the ID registry is not written; for an ID registry file, no "
     "registry and no SBOM is written, and the file is left as it is. As a "
     "WARNING (an ID registry file read again to save the ids a run added, "
-    "after its SBOM is written), nothing is saved and the SBOM stands.",
+    "after its SBOM is built), nothing is saved and the SBOM stands.",
     effect="not-written",
     actor="user",
     advice="Tell the user which document is not valid JSON, or not a JSON "

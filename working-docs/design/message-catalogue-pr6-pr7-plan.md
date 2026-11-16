@@ -15,8 +15,8 @@ See also: [message-catalogue-migration-plan.md](message-catalogue-migration-plan
 (PR 5, #485), [id-registry-followups.md](id-registry-followups.md)
 ("Message codes after catalogue PR 5").
 
-Status: PR 6 built (#486); PR 7 built 2026-11-16 (branch `catalogue-pr7`,
-uncommitted; ratchet 328 to 316). What was built, and where it departs from
+Status: PR 6 merged (#486); PR 7 merged (#492, 2026-11-16; ratchet 328 to
+316). What was built, and where it departs from
 this plan (six summaries, not five; more `WARNING` twins; the deserialiser's
 refusal coded `sbom-invalid`): [message-catalogue-families.md](../implementation/message-catalogue-families.md)
 "ID registry saves, left-out files and summaries". The plan as written,
@@ -253,12 +253,12 @@ asked):
 
 - Added: "Input, option, SBOM, target and ID registry errors and decisions
   carry a message code; see `docs/message-codes.md` ([#482], [#485],
-  [#486], [#PR7])".
+  [#486], [#492])".
 - Changed, the reworded bullet gains: "`loom.run` ID registry lines start
   `ID registry:`" ([#486]).
 - Fixed (PR 7; 0.24.0 printed `ID registry: failed to save '<abs>': ID
   registry file ...`): "A failed ID registry save prints one line naming
-  the file as given, with its code ([#PR7])".
+  the file as given, with its code ([#492])".
 
 ## 8. Rulings (maintainer, 2026-11-14: all four as recommended)
 

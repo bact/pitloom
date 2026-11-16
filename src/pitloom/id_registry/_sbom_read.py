@@ -44,6 +44,8 @@ def read_sbom_objects(sbom_path: Path) -> list[Any]:
     raw = io.BytesIO(given.text.encode("utf-8"))
     try:
         spdx3.JSONLDDeserializer().read(raw, object_set)
+    except MemoryError:  # the machine's, not the SBOM's
+        raise
     # The deserialiser raises TypeError, ValueError and others on content it
     # cannot follow (an object with no type): all are the SBOM's.
     # pylint: disable-next=broad-exception-caught

@@ -7,7 +7,9 @@
 ``credentials-unsafe/git-line-break``, credentials holding a line break are
 not handed to ``git`` (the fetch is anonymous), and
 ``credentials-unsafe/http-clear``, credentials of a plain ``http://`` URL go
-to the server in clear (the fetch goes on). Both ``WARNING``.
+to the server in clear (the fetch goes on). Both ``WARNING``; the
+``credentials-unsafe/git-userinfo`` variant (a URL whose user information
+cannot be taken out) is an ``ERROR``, said by the git reader.
 
 See also: :mod:`pitloom.messages._url_credentials` (the family's other
 entries), :mod:`pitloom.messages.url_credentials_git` (the helpers that say
