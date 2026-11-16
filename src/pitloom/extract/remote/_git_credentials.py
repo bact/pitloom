@@ -43,8 +43,15 @@ __all__ = [
     "RESET_HELPERS",
     "GitCredentials",
     "credential_config",
+    "host_is_plain",
     "split_credentials",
 ]
+
+#: A host name as DNS spells one (letters, digits, ``-``, ``_``, ``.``, not
+#: starting with ``-`` or ``.``) or an IPv6 address (``urlsplit`` drops its
+#: brackets). Anything else (``=``, ``!``, white space, ``;``) names no host,
+#: and would end or extend git's ``-c credential.<origin>.helper=`` key.
+_PLAIN_HOST = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*|[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*")
 
 #: An empty value resets the list of helpers (a system or global one).
 RESET_HELPERS = "credential.helper="
@@ -95,6 +102,13 @@ def credential_config(credentials: GitCredentials | None, *, reset: bool) -> lis
     return settings
 
 
+def host_is_plain(host: str) -> bool:
+    """Whether *host* (a ``urlsplit`` hostname) is a plain ASCII host name
+    or IPv6 address (:data:`_PLAIN_HOST`): not percent-encoded, not
+    holding a character no host name holds."""
+    return _PLAIN_HOST.fullmatch(host) is not None
+
+
 def _git_authority(arg: str) -> str:
     """What git reads as the authority of the URL *arg*: up to the first
     ``/`` after ``://``, a ``?`` or ``#`` included (git takes the user
@@ -141,7 +155,9 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
     Raises:
         RemoteSourceError: ``git.url-invalid``, *arg* holds an ``@`` in
             what git reads as the authority, but no user information and
-            host the masker and Python split it into the way git would.
+            host the masker and Python split it into the way git would, a
+            host that is not plain (:func:`host_is_plain`), or a NUL in its
+            user information (no environment variable can hold one).
     """
     if "://" not in arg or "@" not in _git_authority(arg):
         return arg, None
@@ -157,10 +173,13 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
         _refuse(arg)
     netloc = origin.partition("://")[2]
     plain = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
-    if not parts.hostname or "@" in _git_authority(plain):
+    host = parts.hostname or ""
+    if not host_is_plain(host) or "@" in _git_authority(plain):
         _refuse(arg)
     shown = sanitize_url(arg)
     user, _, password = (unquote(part) for part in userinfo.partition(":"))
+    if "\x00" in user + password:
+        _refuse(arg)
     if re.search(r"[\r\n]", user + password):
         # A line break would add a line to what the helper writes.
         warn_git_credentials_line_break(log, shown)

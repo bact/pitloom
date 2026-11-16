@@ -50,6 +50,7 @@ from pitloom.core.url_masking import (
     sanitize_url,
     sanitize_url_credentials,
 )
+from pitloom.extract.remote._git_credentials import host_is_plain
 from pitloom.extract.remote._git_folder import (
     checkout_folder,
     checkout_has_file,
@@ -229,7 +230,8 @@ def _prepare(
     url: str, work_dir: str, runner: GitRunner, policy: RemoteFetchPolicy
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
-    shown = loggable(sanitize_url(url))
+    # The second pass masks what is no URL: an scp-style address.
+    shown = loggable(sanitize_url_credentials(sanitize_url(url)))
     if is_pypi_url(url):
         # PyPI is no Git host: refused, never cloned.
         raise RemoteSourceError(
@@ -269,7 +271,7 @@ def _read_url(url: str, shown: str) -> GitPage:
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, a scheme other than http(s),
-            a host that is not plain ASCII (:func:`_host_as_typed`,
+            a host that is not plain (:func:`_host_as_typed`,
             ``url-unsafe/host-spelling``) or a path that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
@@ -288,15 +290,17 @@ def _read_url(url: str, shown: str) -> GitPage:
 
 
 def _host_as_typed(url: str) -> bool:
-    """Whether the host of *url* is plain ASCII, not percent-encoded: curl
-    maps any other spelling (``pypi%2Eorg``, a full-width dot) to a host
-    the URL's text does not name, which no check of that text (a PyPI host
-    is never cloned) would see.
+    """Whether the host of *url* is plain (:func:`host_is_plain`; no host at
+    all is left to the later checks): curl maps another spelling
+    (``pypi%2Eorg``, a full-width dot) to a host the URL's text does not
+    name, which no check of that text (a PyPI host is never cloned) would
+    see, and a host holding ``=``, ``!`` or white space, or starting with
+    ``-``, names none.
 
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""
     host = urlsplit(url).hostname or ""
-    return host.isascii() and "%" not in host
+    return not host or host_is_plain(host)
 
 
 def _resolve(

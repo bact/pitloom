@@ -40,10 +40,15 @@ a URL you give to fetch).
 A value of a [field read](#fields-read) holds a credential when it holds:
 
 - user information in a URL (`https://user:password@host/x`, `https://token@host/x`),
-  after any scheme (`s3:/user:pw@host/x`, `ftp://...`);
+  after any scheme (`s3:/user:pw@host/x`, `ftp://...`), also a password that
+  starts with `?` or `#` (`https://user:?pw@host/x`, which a client reads as
+  host `user` and a query);
 - a query or fragment parameter named like a secret (`token`, `access_token`,
   `api_key`, `client_key`, `password`, `secret`, `signature`, `key`,
-  `session_id`), also percent-encoded in a PURL qualifier;
+  `session_id`, a `;jsessionid=` path parameter), also percent-encoded in a
+  PURL qualifier;
+- any of these in a URL's query value or fragment once percent-decoded, up to
+  five times (`?next=https%3A%2F%2Fuser%3Apw%40host`), as in a PURL qualifier;
 - an access token's shape anywhere in it (GitHub, GitLab, Slack, Hugging Face,
   AWS key id, PyPI, npm, OpenAI, Anthropic and Google API key prefixes);
 - an scp-style address with a password (`alice:password@host:o/r`; a dotless
@@ -231,14 +236,19 @@ See [Credentials in a key](id-registry-keys.md#credentials-in-a-key).
 Pitloom reads the shapes above; these are not detected, so keep such
 credentials out of URLs:
 
-- A `/` in a password (`https://u:p/w@host/x`), and a password that starts with
-  `?` or `#` right after `user:`. A `|` in a requirement's password is one
-  too: Pitloom writes it as `/` in the SBOM.
+- A `/` in a password (`https://u:p/w@host/x`). A `|` in a requirement's
+  password is one too: Pitloom writes it as `/` in the SBOM.
+- A password that starts with `?` or `#` right after `user:` and holds `=` or
+  `&` (`https://u:?a=b@host/x`): it reads as a host, an empty port and a query.
+  Conversely, `https://host:?mirror@cdn/x` is found as a credential: accept
+  its fingerprint.
 - The no-slash form `https:u:p@host` (a client may read it as a URL).
 - An scp-style address whose user is a bare token (`TOKEN@host:o/r`).
-- `state=` and `Policy=` query parameters.
-- A percent-encoded URL nested in another URL, other than in a `pkg:` PURL
-  qualifier (`?next=https%3A%2F%2Fu%3Ap%40h`).
+- A URL in a query value or fragment percent-encoded more than five times,
+  and a path without a scheme there once decoded (`?next=%2Fx%3Ftoken%3DT`).
+- `state=` (OAuth's anti-forgery value) and CloudFront's `Policy=` and
+  `Key-Pair-Id=` are no secret by decision: the `Signature=` beside them is
+  found.
 - A value wrapped in `<>` twice (`<<https://u:pw@host/x>>`), or a direct
   reference's URL wrapped in `<>` (`foo @ <https://u:pw@host/x>`).
 - An access token followed by `;` or `#` in a PURL qualifier, and a token with
@@ -261,9 +271,10 @@ credentials out of URLs:
   only warned of, as a weak value.
 - A file name in a URL field that is scp-shaped (`meet-10:30@ab:c.txt`) is
   found as a credential: accept its fingerprint.
-- Logs that are not Pitloom's own: a third-party library's warning, a
-  Hatchling traceback and `urllib3` lines are not masked, and a line break in a
-  password can split a traceback line so that its parts are not recognised.
+- Logs that are not Pitloom's own: a third-party library's warning or log line
+  and a Hatchling traceback are not masked (`urllib3` and `requests` log lines
+  are, once Pitloom has set up its logging), and a line break in a password can
+  split a traceback line so that its parts are not recognised.
 - The GitHub Action does not `::add-mask::` its source inputs.
 - A `?token=` value of a Git URL still reaches `git`'s command line (visible to
   other users in `ps`) and the clone's `.git/config`; only user information

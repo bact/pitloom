@@ -69,6 +69,41 @@ def test_no_trace_setting_of_the_caller_reaches_git(
     assert env["GIT_SSL_CAINFO"] == "ca.pem"
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "GIT_SSL_NO_VERIFY",
+        "GIT_SSH",
+        "GIT_SSH_COMMAND",
+        "GIT_SSH_VARIANT",
+        "GIT_PROXY_COMMAND",
+        "GIT_EXEC_PATH",
+        "GIT_TEMPLATE_DIR",
+        "GIT_CONFIG",
+        "GIT_REDIRECT_STDIN",
+        "GIT_REDIRECT_STDOUT",
+        "GIT_REDIRECT_STDERR",
+    ],
+)
+def test_a_caller_setting_that_runs_a_program_or_drops_tls_is_scrubbed(
+    name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another ``git-remote-https`` (``GIT_EXEC_PATH``), an ssh program, a
+    template hook, TLS checks off or git's output moved: none reaches the
+    fetch; the files naming the user's own configuration stay."""
+    kept = {
+        "GIT_CONFIG_GLOBAL": "g",
+        "GIT_CONFIG_SYSTEM": "s",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "HOME": "h",
+    }
+    for key, value in {name: "x", **kept}.items():
+        monkeypatch.setenv(key, value)
+    env = _git_run._environment()  # pylint: disable=protected-access
+    assert name not in env
+    assert {key: env.get(key) for key in kept} == kept
+
+
 def test_no_representation_holds_the_credential() -> None:
     _, found = split_credentials([f"https://{TOKEN}:{SECRET}@h/r"])
     assert found is not None and SECRET in found.environment().values()
@@ -85,14 +120,35 @@ def test_no_representation_holds_the_credential() -> None:
         f"https://u:{SECRET}@/r",
         f"https://h?x=u:{SECRET}@b/r",
         f"https://u:{SECRET}@h?q@x/r",
+        f"https://u:a%00{SECRET}@h/r",
+        f"https://u%00{TOKEN}:{SECRET}@h/r",
+        f"https://u:{SECRET}@a=b/r",
+        f"https://u:{SECRET}@-oProxyCommand=x/r",
+        f"https://u:{SECRET}@!cmd/r",
+        f"https://u:{SECRET}@a%20b/r",
     ],
-    ids=["bad-ipv6", "bad-port", "no-host", "query-at", "two-at"],
+    ids=[
+        "bad-ipv6",
+        "bad-port",
+        "no-host",
+        "query-at",
+        "two-at",
+        "nul-password",
+        "nul-user",
+        "host-equals",
+        "host-option",
+        "host-bang",
+        "host-space",
+    ],
 )
 def test_a_url_whose_userinfo_cannot_be_split_off_is_refused_masked(
     url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Git reads user information up to an ``@`` before the first ``/``;
-    a URL Python cannot split the same way never reaches git."""
+    a URL Python cannot split the same way never reaches git, nor does a
+    NUL (no environment variable holds one: ``Popen`` raised a bare
+    ``ValueError``) or a host whose ``=`` would end the helper's ``-c``
+    key early."""
 
     def started(*_args: object) -> tuple[int, str, str]:
         raise AssertionError("git started")
@@ -102,7 +158,8 @@ def test_a_url_whose_userinfo_cannot_be_split_off_is_refused_masked(
     with pytest.raises(RemoteSourceError) as caught:
         GitRunner().run(["ls-remote", "--", url], "ls-remote", echo=False)
     assert caught.value.code == "git.url-invalid"
-    assert SECRET not in str(caught.value)
+    assert caught.value.pitloom_code == "credentials-unsafe/git-userinfo"
+    assert SECRET not in str(caught.value) and TOKEN not in str(caught.value)
 
 
 @pytest.mark.parametrize(
@@ -121,8 +178,9 @@ def test_an_at_sign_git_reads_as_no_userinfo_is_left_as_given(url: str) -> None:
         (f"https://u:p?{SECRET}@h/r", "u", f"p?{SECRET}"),
         (f"https://a@b:{SECRET}@h/r", "a@b", SECRET),
         (f"https://{SECRET}@h/r", SECRET, ""),
+        (f"https://u:a%09%1B%7F{SECRET}@h/r", "u", f"a\t\x1b\x7f{SECRET}"),
     ],
-    ids=["hash", "question-mark", "at-in-user", "token-as-user"],
+    ids=["hash", "question-mark", "at-in-user", "token-as-user", "control"],
 )
 def test_user_information_is_split_where_git_and_the_masker_end_it(
     url: str, user: str, password: str

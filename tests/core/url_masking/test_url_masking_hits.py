@@ -261,6 +261,11 @@ _SHAPES: dict[str, Callable[[int], str]] = {
     "tabs": lambda n: "https://u:" + "\t" * (n // 2) + "@" + "\t@" * (n // 4),
     "openai": lambda n: "sk-proj-" + "a" * n + "T3BlbkFJ",
     "embedded": lambda n: "urn:x:" + "s3:/a" * (n // 5),
+    "query-deep": lambda n: "https://h/x?n=" + "%25" * (n // 3),
+    "query-many": lambda n: "https://h/x?" + "u=https%3A%2F%2F&" * (n // 17),
+    "query-nested": lambda n: "https://h/?n=" + "https%3A%2F%2Fh%2F%3Fn%3D" * (n // 25),
+    "fragment-deep": lambda n: "https://h/x#" + "%253F%253D" * (n // 10),
+    "break-password": lambda n: "https://u:?" + "a" * n + "@h" + "?x@" * (n // 3),
 }
 
 
@@ -340,9 +345,13 @@ def test_each_view_is_linear(name: str) -> None:
 
 
 @pytest.mark.skipif(_COVERED, reason="a coverage tracer slows the scan many times")
-@pytest.mark.parametrize("name", ["requirement-space", "scp"])
+@pytest.mark.parametrize(
+    "name",
+    ["requirement-space", "scp", "query-many", "query-nested"],
+)
 def test_a_mebibyte_ends_in_seconds(name: str) -> None:
-    """The two shapes that once took minutes, at 1 MiB, end in seconds."""
+    """The two shapes that once took minutes, and the decoded query values,
+    at 1 MiB, end in seconds."""
     started = time.perf_counter()
     _views(_SHAPES[name](1 << 20))
     assert time.perf_counter() - started < 40

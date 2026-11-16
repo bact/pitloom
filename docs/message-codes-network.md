@@ -28,7 +28,7 @@ values.
 | [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
 | [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
 | [`url-unsafe/hf-endpoint`](#url-unsafehf-endpoint) | WARNING | huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL, or one holding user information, a query or a fragment. The Hugging Face token must not be sent over plain http. | 0.24.0 |
-| [`url-unsafe/host-spelling`](#url-unsafehost-spelling) | ERROR | A Git URL's host holds a non-ASCII character (a full-width or ideographic dot, a full-width letter, an international name not in its xn-- form) or a percent-encoding. git (through curl) maps it to another host than the URL's text names, past every check that reads that text (a PyPI host is never cloned). | 0.24.0 |
+| [`url-unsafe/host-spelling`](#url-unsafehost-spelling) | ERROR | A Git URL's host holds a non-ASCII character (a full-width or ideographic dot, a full-width letter, an international name not in its xn-- form) or a percent-encoding. git (through curl) maps it to another host than the URL's text names, past every check that reads that text (a PyPI host is never cloned). Or it holds a character no host name holds (=, !, ;, white space, a leading - or .), the shape of an option or a setting smuggled into git's command line. | 0.24.0 |
 
 ### `download-network-failed`
 
@@ -204,7 +204,9 @@ values.
   ideographic dot, a full-width letter, an international name not in its xn--
   form) or a percent-encoding. git (through curl) maps it to another host than
   the URL's text names, past every check that reads that text (a PyPI host is
-  never cloned).
+  never cloned). Or it holds a character no host name holds (=, !, ;, white
+  space, a leading - or .), the shape of an option or a setting smuggled into
+  git's command line.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Started no git process, fetched nothing and wrote no SBOM
   (git.url-invalid).
@@ -215,5 +217,5 @@ values.
 - **Lines**:
 
   ```text
-  ERROR: URL=<url>: the host is not plain ASCII or is percent-encoded, which git would resolve to a host the URL does not spell; write it in ASCII (an international name in its xn-- form); nothing fetched [url-unsafe/host-spelling]
+  ERROR: URL=<url>: the host is not plain ASCII, is percent-encoded or holds a character no host name holds (=, !, white space, a leading -), which git would resolve to a host the URL does not spell or read as an option; write it in ASCII (an international name in its xn-- form); nothing fetched [url-unsafe/host-spelling]
   ```

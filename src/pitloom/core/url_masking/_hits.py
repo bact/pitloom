@@ -41,7 +41,10 @@ character (Unicode ``Cf``: a byte order mark, a zero-width space), a tab,
 a CR or an LF anywhere in it, nor a C0 control at its start (``urllib``
 drops each), nor one pair of ``<>`` or quotes enclosing it (:func:`normalised`).
 A URL's query value is read as a whole scp-style address too
-(``?next=u:p@h:o/r``), a URL in it as a URL; a PURL qualifier value as a
+(``?next=u:p@h:o/r``), a URL in it as a URL; each query or fragment value
+and the whole fragment of a URL also after each percent-decode, as a
+qualifier value is (``?next=https%3A%2F%2Fu%3Ap%40h``), but with no
+``nesting`` hit when still encoded; a PURL qualifier value as a
 whole value or an access token; a PURL subpath, a path, for a URL anywhere
 in it, an access token or a whole scp-style address. A URL inside a value
 of no kind above (``urn:x:https://u:p@h``) is not read, unless the value is
@@ -108,6 +111,9 @@ _ENCLOSING = {"<": ">", '"': '"', "'": "'"}
 _SPACE = re.compile(r"\s")
 #: A query value of a URL (to the next ``&``, ``;`` or ``#``).
 _QUERY_VALUE = re.compile(r"[?&;]([^&;#=?]*)=([^&;#]*)")
+#: A query or fragment parameter value of a URL, to the next ``&``, ``;``
+#: or ``#``.
+_ANY_PARAM_VALUE = re.compile(r"[?&;#][^&;#=?]*=([^&;#]*)")
 
 #: What a hit is: a user information or a parameter named like a secret
 #: (``secret``), an account name (``account``), a weak name (``weak``), an
@@ -135,10 +141,12 @@ def is_purl(text: str) -> bool:
     return text[:4].lower() == "pkg:"
 
 
-def _url_hits(url: str, *, account: bool) -> list[Hit]:
+def _url_hits(url: str, *, account: bool, decode: bool = True) -> list[Hit]:
     """The hits of *url*, a value that is one URL (a URL inside it, such as
     ``?r=https://...``, is read on its own): each user information,
-    parameter named like a secret or weak, and token shape."""
+    parameter named like a secret or weak, and token shape; with *decode*,
+    those of each query value and fragment once percent-decoded too
+    (:func:`_decoded_value_hits`)."""
     hits: list[Hit] = []
     for found in find_urls(url):
         span = url[found.start : found.end]
@@ -160,8 +168,47 @@ def _url_hits(url: str, *, account: bool) -> list[Hit]:
             for value in _QUERY_VALUE.finditer(url, found.start, found.end)
             if _is_scp(value[2])
         )
+        if decode:
+            hits += _decoded_value_hits(url, found.start, found.end, account=account)
     hits += (Hit("token", found.group()) for found in TOKEN_RE.finditer(url))
     return hits
+
+
+def _decoded_value_hits(url: str, start: int, end: int, *, account: bool) -> list[Hit]:
+    """The hits of each query or fragment parameter value of the URL of
+    *url* from *start* to *end*, and of its whole fragment, read as a whole
+    value or an access token (as a PURL qualifier value is) after each
+    percent-decode that changes it, at most :data:`PURL_DECODE_ROUNDS`
+    (``?next=https%3A%2F%2Fu%3Ap%40h``); as written, the scan of the URL
+    reads them. A decoded value is read without decoding it again, so each
+    character is read a bounded number of times. A value still encoded
+    after the last decode is not read deeper, and is no hit: a redirect
+    chain may encode a plain URL many times."""
+    values = [found[1] for found in _ANY_PARAM_VALUE.finditer(url, start, end)]
+    mark = url.find("#", start, end)
+    if mark >= 0:
+        values.append(url[mark + 1 : end])
+    hits: list[Hit] = []
+    for value in values:
+        if "%" not in value:
+            continue
+        for level in qualifier_levels(value)[0][1:]:
+            hits += _decoded_level_hits(normalised(level), account=account)
+    return hits
+
+
+def _decoded_level_hits(value: str, *, account: bool) -> list[Hit]:
+    """:func:`_qualifier_value_hits` of *value*, one decode depth of a URL's
+    query value or fragment, a URL in it read without decoding again."""
+    value = value.strip()
+    if WIDE_URL_START.match(value) is not None:
+        hits = _url_hits(value, account=account, decode=False)
+    elif _is_scp(value):
+        hits = [Hit("scp", value)]
+    else:
+        hits = []
+    token = TOKEN_RE.fullmatch(value)
+    return hits if token is None else [*hits, Hit("token", token.group())]
 
 
 def _is_scp(value: str) -> bool:
@@ -332,7 +379,9 @@ def _embedded_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:
     stores at one decode depth: an id built from a name percent-encodes it
     (``https:%2F%2Fu:p@h``), so each depth is read (:func:`_levels_hits`)."""
     del scp
-    return _url_hits(text, account=account)
+    # Each depth of the whole text is read, so a value in it is not decoded
+    # again on its own.
+    return _url_hits(text, account=account, decode=False)
 
 
 def _whole_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:

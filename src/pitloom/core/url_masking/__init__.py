@@ -68,6 +68,7 @@ __all__ = [
     "is_account_name",
     "is_secret_name",
     "mask_checkout",
+    "mask_free_params",
     "masked_given_path",
     "sanitize_url",
     "sanitize_url_credentials",
@@ -137,6 +138,18 @@ def sanitize_url_credentials(text: str) -> str:
     """
     text = _replaced_userinfo(mask_scp(text), _FREE_OPENER, "://***:***@", whole=False)
     return _URL_RE.sub(_mask_url_secrets, text)
+
+
+def mask_free_params(text: str) -> str:
+    """*text*, free text, with the value of each query or fragment parameter
+    named like a secret masked, with or without a URL around it: an HTTP
+    client's log line names a request's target without its scheme and
+    host (``"GET /x?token=T HTTP/1.1"`` prints ``"GET /x?token=*** ..."``).
+    A value ends at white space, before the punctuation ending a sentence
+    or a quotation. Linear; a text with no ``=`` is returned as it is."""
+    if "=" not in text:
+        return text
+    return sub_params(PARAM_RE, mask_free_param, text)
 
 
 def sanitize_url(url: str) -> str:

@@ -11,7 +11,9 @@ Last-Modified: 2026-11-16
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (the catalogue the new messages are in),
 [credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md)
-(PR 2: the strip replaced by detect and refuse, built), PR 487.
+(PR 2: the strip replaced by detect and refuse, built), PR 487,
+[credential-leak-fixes-pr3-detector.md](credential-leak-fixes-pr3-detector.md)
+(PR 3: detector and masker extras, third-party logs, wheel patterns).
 
 What was built to stop URL credentials (user information, secret-named query
 values, git passwords) reaching logs, tracebacks, stdout, git, SBOMs and ID
@@ -76,7 +78,9 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   here".
 - **Sinks**: every record of the `pitloom` and `pitloom.*` loggers is masked
   (`msg`, `args`, tracebacks, `handleError`) on any handler at any level,
-  root and embedder handlers included; records of third-party loggers are
+  root and embedder handlers included; records of `urllib3` and `requests`
+  (and their children) are masked only where they hold a credential, a
+  request target's query included (PR 3); other third-party loggers are
   not covered; `excerpt()`
   and `one_line()` mask before they cut; `kv_line` masks only a value that
   holds a URL; `InvalidURL` text is cut to its class.
@@ -106,7 +110,14 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   the masker is refused (`git.url-invalid`); a line break in a password is
   refused (`credentials-unsafe/git-line-break`). The password never reaches
   `.git/config`, since git is never given it (the post-clone rewrite of
-  `remote.origin.url` was removed as dead code).
+  `remote.origin.url` was removed as dead code). PR 3: a NUL in the user
+  information and a host no host name spells (`=`, `!`, `;`, white space, a
+  leading `-` or `.`) are refused before git runs (`git-userinfo`,
+  `url-unsafe/host-spelling`); the scrub also drops `GIT_EXEC_PATH`,
+  `GIT_SSH`, `GIT_SSH_COMMAND`, `GIT_SSH_VARIANT`, `GIT_PROXY_COMMAND`,
+  `GIT_TEMPLATE_DIR`, `GIT_SSL_NO_VERIFY`, `GIT_CONFIG` and
+  `GIT_REDIRECT_*`; the scheme refusal masks an scp-style password too.
+  See "Git argv spy (PR 3)" below.
 - **Names**: secret-named parameters include bracketed and double-encoded
   forms, joined words (`accesstoken`), and the `session_id` family; ordinary
   names (`sort_key`, `tokenizer`, `country_code`) are kept.
@@ -117,11 +128,15 @@ Since PR 2 a gap of the detector is "not detected": the value is neither
 refused nor rewritten, so it reaches the SBOM or registry file as written,
 silently. Rechecked against the PR 2 tree on 2026-11-16.
 
-- Not detected, and not masked: a `/` in a password; `state=`; CloudFront
-  `Policy=`; an scp-style `S3CRET@host:o/r` (no `user:`); a
-  percent-encoded URL nested in a query value outside a `pkg:` string
-  (`?next=https%3A%2F%2Fu%3Ap%40h`). `@[::1]` hosts and `;jsessionid=`
+- Not detected, and not masked: a `/` in a password; an scp-style
+  `S3CRET@host:o/r` (no `user:`). `@[::1]` hosts and `;jsessionid=`
   path parameters are read by the detector and the masker.
+- Not detected (PR 3), the masker hides it: a URL in a query value or
+  fragment encoded more than five times (a redirect chain may encode a
+  plain URL so; no `nesting` hit, unlike a PURL qualifier); a scheme-less
+  path in a decoded query value (`?next=%2Fx%3Ftoken%3DT`); a password
+  that starts with `?` or `#` after `user:` and holds `=` or `&`
+  (`https://u:?a=b@h`: a query by its shape).
 - Not detected after PR 490 (each run through the detector on 2026-11-16): a
   `|` in a requirement's password (Pitloom writes it as `/`); the no-slash
   `https:u:p@h` form; a JSON statement's or metadata *key* that is a
@@ -132,15 +147,19 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
   nested too deeply for `json.loads` (a merged fragment can hold one); a
   GitLab (`glpat-`) or Google (`AIza`) key lacking a digit or either letter
   case; a legacy OpenAI `sk-` key without `proj-`, `svcacct-` or `admin-`.
-- Third-party `warnings.warn` text, Hatchling's own traceback and `urllib3`
-  log lines print the raw text; the Action does not `::add-mask::` its source
-  inputs and has no input of its own for the credential flags (PR 3); a line break in a password can split a traceback line so that its
+- Third-party `warnings.warn` text, Hatchling's own traceback and the log
+  lines of a library other than `urllib3` and `requests` print the raw
+  text; a line break in a password can split a traceback line so that its
   parts are not recognised.
+- The Action's `::add-mask::` (PR 3) comes after the runner has printed the
+  step's inputs: a credential typed as text in a workflow is in that echo
+  (and in the workflow file); only `${{ secrets.X }}` is masked from the
+  start. A piece under 6 characters, and the decoded form of a
+  percent-encoded password, are not masked.
 - An `ssh` account name is weak (warned, never refused) even when it looks
   like a value (`ssh://abcdeftokenvalue@h`).
-- A `?token=` value of a Git URL still reaches git's argv (visible in `ps`)
-  and the clone's `.git/config`; only user information is kept off them.
-  Its refusal before the fetch is PR 3.
+- The helper's two variables are in git's environment (readable by the same
+  user, as `/proc/<pid>/environ` or `ps -E`; not by another user).
 - Prose (a description, a README, a comment other than Pitloom's
   provenance line) is never read, by the ruling: a credential there
   reaches the SBOM as written. Secret scanning of prose is other tools'
@@ -148,10 +167,6 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
 - A non-secret parameter value with more than 16 `?` is read as a secret
   (refused in an SBOM, masked in a message), so a crafted query cannot
   nest the reading without limit.
-- `loom verify-wheel` with a path 1000 directories deep fails in the standard
-  library's `glob.glob` (`cli/commands/utils.py`): exit 1, nothing leaks.
-- A password that starts with `?` or `#` right after `user:` is not
-  detected (`h:` before `?` is an empty port); the masker still hides it.
 - An scp-style address is detected only as a whole value (no white space,
   no dotless-host exemption: `build:42@ci:linux` alone is refused); one
   inside a longer value or prose is not.
@@ -159,7 +174,8 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
   `secret`, `signing`, `subscription`, ...) is weak (warned, never
   refused).
 - Log masking covers `pitloom` and `pitloom.*` records made through the record
-  factory; third-party loggers, `logging.makeLogRecord`, an `extra` key, the
+  factory, and `urllib3`/`requests` records holding a credential; other
+  third-party loggers, `logging.makeLogRecord`, an `extra` key, the
   exception object in `exc_info` and output before `configure_logging` are not.
 - Release decision: the change ships as 0.25.0, with the advisory framing;
   every unreleased catalogue entry says `since` 0.25.0 (the last tag is
@@ -199,14 +215,51 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
   rule (UNCERTAIN beyond the two locations checked): any `pypi-AgE` body of
   50 or more characters is a token, where gitleaks names only the
   `pypi.org` location (`AgEIcHlwaS5vcmc`).
-- For PR 3 (Git hardening), not this PR: a Git password holding `%00`
-  raises a bare `ValueError`, not a `RemoteSourceError` (no leak;
-  `_git_credentials.py:164`, `_git_run.py:324`, `_git_run.py:425`); the
-  `-c credential.<origin>.helper` key takes a host holding `=`, white space
-  or `!` unchecked (it could not run a helper); the environment scrub passes
-  `GIT_SSL_NO_VERIFY`, `GIT_SSH_COMMAND`, `GIT_PROXY_COMMAND`,
-  `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_CONFIG` and
-  `GIT_EXEC_PATH`.
+- Kept on purpose in git's environment (PR 3): `HOME`, `GIT_CONFIG_GLOBAL`,
+  `GIT_CONFIG_SYSTEM`, `GIT_CONFIG_NOSYSTEM` (they choose which of the
+  user's own files git reads, as for `git clone`; the real-git tests set
+  them), and `GIT_ASKPASS`/`SSH_ASKPASS` for a URL without user
+  information. The user's configuration is trusted as theirs:
+  `url.<x>.insteadOf`, `http.sslVerify` and `http.proxy` there apply.
+
+## Git argv spy (PR 3)
+
+`tests/extract/remote/test_git_credentials_argv.py` runs real `git`
+against a loopback smart-HTTP server and spies on the command line and
+environment of every git process of a fetch (`_git_run._capture`,
+`_git_run._environment`), then reads every file of the clone. Result on
+the PR 3 tree (git 2.56, macOS, 2026-11-16):
+
+| URL holds | git's argv | git's environment | clone's files |
+|-----------|------------|-------------------|---------------|
+| `alice:S3CRET@` | none | `PITLOOM_GIT_PASSWORD`, server calls only | none |
+| `ghp_...@` (token as user) | none | `PITLOOM_GIT_USER`, server calls only | none |
+| `?token=`, `?access_token=` | none | none | none |
+| `#token=` | none | none | none |
+| `/-/tree/main?private_token=` (redirected page) | none | none | none |
+| scp `oauth2:S3CRET@h:o/r`, `ssh://u:S3CRET@h/r` | no git process | - | - |
+
+The gap listed here before ("a `?token=` value still reaches git's argv
+and `.git/config`") was stale: `parse_git_page` builds every repository
+URL without query or fragment (`urlunsplit(..., "", "")`, the
+`(query and fragment ignored)` `INFO:`), and `resolve_git_url` builds each
+redirect hop the same way, so `clone_url` at `git.py` `clone --` and
+`remote add origin` never holds one. Decision: keep dropping it; git is
+given no query secret (git does not sign in with one either), and the
+URL as given is still checked in the SBOM. Mutation check: keeping
+`parts.query` in `parse_git_page` fails the query rows.
+
+The spy found one leak, fixed: the scheme refusal's text (`Cannot fetch
+...: only http and https URLs are fetched`) printed an scp-style password
+as given (`sanitize_url` reads a URL only); `_prepare` now masks with
+`sanitize_url_credentials` too. A NUL in the user information raised a
+bare `ValueError: embedded null byte` from `Popen` (no leak); it is now
+`git.url-invalid`, `credentials-unsafe/git-userinfo`, masked. A tab, an
+escape and DEL in a password reach the server as typed (real-git test).
+A host holding `=` made git fail with `invalid key: credential.https://a`
+(the `-c` key ended at the `=`; no helper ran), and `!cmd`, a space or
+`-oProxyCommand=x` reached curl (`Bad hostname`) after a redirect probe
+resolved them; all are now refused before any probe or git process.
 
 ## URL field vs free text
 
@@ -223,8 +276,14 @@ strip and the mode with it; two readings are left:
   only, free text included, always the widest reading (fail closed:
   `userinfo_end(..., widest=True)`): it may hide a host, never a password.
 - **Empty port**: `h:` before `?` is a host (`https://h:?x=a@b`), so the
-  refusal and the Git split leave it; the masker still hides `u:?pw@h`
-  (gap listed under "Tracked, not fixed here").
+  Git split leaves it, as `urllib` and git read it. Since PR 3 the detector
+  reads `user:` and a password that starts with the break as user
+  information when that password, to the first `@` after the break, is not
+  empty and holds no `=` or `&` (`https://u:?pw@h`, `https://u:#pw@h`,
+  `https://:?pw@h`; `userinfo_end(..., break_password=True)`): every client
+  reads host `u` there, but the value states the password. Accepted false
+  positive: `https://host:?mirror@cdn/x` (a query without `=` after an empty
+  port), warned (or refused in `refuse` mode) and accepted by fingerprint.
 
 Call sites and their reading:
 
@@ -392,8 +451,9 @@ refusal; 17 `prose-` rows must never be refused.
   (`_tokens.TOKEN_PREFIXES`): a user name with a token prefix (`hf_`,
   `pypi-`, `npm_`, `api_org_`, `glrt-`...) is no `ssh` account name, so
   `ssh://npm_abc@h/r` was stripped, not kept (refused since PR 2).
-- Unchanged gaps: `?state=`, a scheme-less `/x?token=` and the rest of
-  "Tracked, not fixed here".
+- Unchanged gaps: a scheme-less `/x?token=` and the rest of
+  "Tracked, not fixed here" (`?state=` is no secret since PR 3:
+  [credential-leak-fixes-pr3-detector.md](credential-leak-fixes-pr3-detector.md)).
 - Linear on 1 MiB inputs (late `://` or `@`, one-slash schemes, many `?`,
   many secrets, deep and many PURL qualifiers, tokens, requirements with
   long white space or `[`, scp, subpaths, query scp values): 8 such inputs

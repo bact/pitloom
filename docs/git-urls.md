@@ -108,7 +108,10 @@ from the server's own branches and tags, longest match first.
   form): a host with a non-ASCII character or a percent-encoding is refused
   before git runs
   ([`url-unsafe/host-spelling`](message-codes-network.md#url-unsafehost-spelling)),
-  since git would resolve it to a host the URL's text does not spell.
+  since git would resolve it to a host the URL's text does not spell; so is a
+  host holding a character no host name holds (`=`, `!`, `;`, white space,
+  a leading `-` or `.`), the shape of an option or of a setting smuggled into
+  git's command line.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 
@@ -297,7 +300,11 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   credential. `git` never prompts on the terminal (a private repository it
   cannot sign in to fails at once), and the `GIT_TRACE*` and
   `GIT_CURL_VERBOSE` variables of the calling environment, which can write
-  what `git` sends, are not passed on. This is how the URL you give is
+  what `git` sends, are not passed on. A secret in the URL's query or
+  fragment (`?token=`, `?access_token=`, `#token=`) is never given to `git`:
+  the query and fragment are dropped before the clone URL is built (`INFO:
+  ... (query and fragment ignored)`), so `git` cannot sign in with one either.
+  This is how the URL you give is
   fetched and shown (masked) in messages; it is not a rewrite of the SBOM: a
   URL field of the SBOM that holds a credential is refused, as on every
   target ([Credentials in URLs](url-credentials.md)).
@@ -311,8 +318,10 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
     (an empty host after the `@`, for one) is refused before `git` runs:
     `ERROR: loom project: URL='https://***:***@/o/r': user information
     cannot be taken out of the git command line; not fetched
-    [credentials-unsafe/git-userinfo]`. A malformed host or port is refused
-    as an invalid URL (`git.url-invalid`).
+    [credentials-unsafe/git-userinfo]`. So is a user name or password
+    holding a NUL (`%00`), which cannot be handed to `git`. A malformed host
+    or port is refused as an invalid URL (`git.url-invalid`). Other control
+    characters (a tab, an escape) are sent as typed.
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
   follows a redirect on its own: Pitloom follows the Git server's redirect itself, one hop at a time
@@ -322,7 +331,15 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   error text) per call. Ctrl-C stops `git` and what it started. `git` runs
   with only the http(s) transports, git-lfs off (a repository's LFS settings
   could name another host; LFS files are not downloaded) and without
-  `GIT_DIR`-style variables of the calling environment.
+  `GIT_DIR`-style variables of the calling environment, nor those that run
+  another program or turn a check off (`GIT_EXEC_PATH`, `GIT_SSH`,
+  `GIT_SSH_COMMAND`, `GIT_SSH_VARIANT`, `GIT_PROXY_COMMAND`,
+  `GIT_TEMPLATE_DIR`, `GIT_SSL_NO_VERIFY`, `GIT_CONFIG`,
+  `GIT_REDIRECT_STDIN`/`STDOUT`/`STDERR`). Your own configuration is read
+  as `git clone` reads it (`HOME`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`,
+  `GIT_CONFIG_NOSYSTEM` are kept), and so are your ask-pass programs
+  (`GIT_ASKPASS`, `SSH_ASKPASS`, `core.askPass`) unless the URL carries
+  credentials.
 - **Git LFS files are pointers.** LFS is off, so a file kept in LFS is a small
   pointer file in the checkout, and Pitloom never fetches its content. The SBOM
   lists it with the pointer's `oid` as its SHA-256 (no SHA-512; the hash

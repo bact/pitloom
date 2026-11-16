@@ -25,7 +25,9 @@ only when the *head*, the text before the first break, reads as
 holds an ``@``. But when the head's last ``@`` is followed by a host
 (``https://u:PW@h?mail=a@b.org``, ``https://TOKEN@h?c=me@x.org``), the user
 information ends at that ``@``, as ``urllib`` and git read it. Else there is
-none (``https://h?contact=me@x.org``). An empty user information
+none (``https://h?contact=me@x.org``), except for the detector, which reads
+``user:`` and a password that starts with the break as one (``u:?pw@h``:
+:func:`userinfo_end` with *break_password*). An empty user information
 (``https://@h``) is none.
 """
 
@@ -72,8 +74,32 @@ def _reads_as_password(head: str, *, widest: bool) -> bool:
     return _PORT.fullmatch(rest) is None
 
 
+def _break_password_end(text: str, start: int, first: int, at: int) -> int | None:
+    """The ``@`` ending the user information of *text* from *start* when,
+    its first break at *first* and its last ``@`` at *at*, it reads as
+    ``user:`` and a password that starts with that break (``u:?pw@h``,
+    ``u:#pw@h``): a user name (maybe empty), a ``:`` and nothing else
+    before the break, and a password to the first ``@`` after it, not
+    empty, holding no ``=`` or ``&``, which a query or fragment parameter
+    would (``https://h:?x=a@b`` stays a host and a query). ``None`` for
+    any other."""
+    user, colon, rest = text[start:first].partition(":")
+    if not colon or rest or user.startswith("["):
+        return None
+    end = text.find("@", first + 1, at + 1)
+    password = text[first + 1 : end]
+    if not password or "=" in password or "&" in password:
+        return None
+    return end
+
+
 def userinfo_end(
-    text: str, start: int, end: int, *, widest: bool = False
+    text: str,
+    start: int,
+    end: int,
+    *,
+    widest: bool = False,
+    break_password: bool = False,
 ) -> int | None:
     """The index of the ``@`` that ends the user information of the
     authority of *text* that starts at *start* (after ``scheme://``) and
@@ -83,15 +109,21 @@ def userinfo_end(
     head that reads as ``user:password`` or holds an ``@`` always runs to
     the last ``@``, never to the head's: masking ``https://u:PW@h?m=a@b.org``
     as ``https://***:***@b.org`` hides the host, but no password the head's
-    ``@`` only seems to end (``https://u:"@SECRET?x@h``). Reads *text* from
+    ``@`` only seems to end (``https://u:"@SECRET?x@h``). With
+    *break_password* (the detector), ``u:?pw@h`` and ``u:#pw@h`` end at
+    that ``@`` too (:func:`_break_password_end`), though ``urllib`` and git
+    read ``u`` as the host and ``pw@h`` as a query: the value still states
+    the password; the Git split keeps their reading. Reads *text* from
     *start* to *end* at most three times."""
     at = text.rfind("@", start, end)
     if at <= start:
         return None
-    return _ruled_end(text, start, at, widest=widest)
+    return _ruled_end(text, start, at, widest=widest, break_password=break_password)
 
 
-def _ruled_end(text: str, start: int, at: int, *, widest: bool) -> int | None:
+def _ruled_end(
+    text: str, start: int, at: int, *, widest: bool, break_password: bool
+) -> int | None:
     """The rule of :func:`userinfo_end` on the user information from *start*
     to the ``@`` at *at*."""
     first = _URL_BREAKS.search(text, start, at)
@@ -106,6 +138,8 @@ def _ruled_end(text: str, start: int, at: int, *, widest: bool) -> int | None:
         return inner if inner > start else None
     if inner >= start or _reads_as_password(text[start : first.start()], widest=widest):
         return at
+    if break_password:
+        return _break_password_end(text, start, first.start(), at)
     return None
 
 

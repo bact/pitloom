@@ -175,13 +175,14 @@ class _Recorder(http.server.BaseHTTPRequestHandler):
 
 
 def test_real_git_receives_the_credential_through_the_helper_unmangled() -> None:
-    """Real ``git`` runs the helper: a password with ``\\``, ``$`` and a
-    quote reaches the server as typed, and a stored helper is not asked."""
+    """Real ``git`` runs the helper: a password with ``\\``, ``$``, a
+    quote, a tab and an escape reaches the server as typed, and a stored
+    helper is not asked."""
     _Recorder.seen.clear()
     server = http.server.HTTPServer(("127.0.0.1", 0), _Recorder)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    password = 'p\\a$b"c'
+    password = 'p\\a$b"c\t\x1bd'
     try:
         url = f"http://us%40er:{urllib.parse.quote(password, safe='')}@127.0.0.1:"
         url += f"{server.server_port}/r.git"
