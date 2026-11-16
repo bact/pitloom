@@ -76,7 +76,9 @@ def test_surface_leaves_the_declared_registry_out_once(
     assert outcome in (None, 0)
     warnings = _left_out_warnings(caplog)
     assert len(warnings) == 1, caplog.records
-    assert warnings[0].startswith(f"ID registry: FILE={registry}: ")
+    # ``FILE=`` names the path as declared: ``_own_key_toml`` writes it with
+    # forward slashes, so a Windows path is not ``str(registry)``.
+    assert warnings[0].startswith(f"ID registry: FILE={registry.as_posix()}: ")
     out = tmp_path / "out.spdx3.json"
     if out.exists():
         assert "reg.json" not in out.read_text(encoding="utf-8")
