@@ -234,6 +234,9 @@ def _measured() -> bool:
 
 
 _COVERED = _measured()
+#: A secret at each decode depth to five, then one deeper: every round of
+#: the masker shows one, so what is still encoded is hidden.
+_DECOYS = "".join(f"p{depth}={encoded('/x?token=1', depth)}&" for depth in range(1, 7))
 #: Each adversarial shape, at about *n* characters. Every shape that once
 #: found a quadratic scan is kept (white space for the requirement pattern,
 #: ``,a:b@cc:d`` scp runs, many ``?``, one-slash schemes, a deep PURL).
@@ -262,6 +265,15 @@ _SHAPES: dict[str, Callable[[int], str]] = {
     "tabs": lambda n: "https://u:" + "\t" * (n // 2) + "@" + "\t@" * (n // 4),
     "openai": lambda n: "sk-proj-" + "a" * n + "T3BlbkFJ",
     "embedded": lambda n: "urn:x:" + "s3:/a" * (n // 5),
+    "query-deep": lambda n: "https://h/x?n=" + "%25" * (n // 3),
+    "query-many": lambda n: "https://h/x?" + "u=https%3A%2F%2F&" * (n // 17),
+    "query-nested": lambda n: "https://h/?n=" + "https%3A%2F%2Fh%2F%3Fn%3D" * (n // 25),
+    "fragment-deep": lambda n: "https://h/x#" + "%253F%253D" * (n // 10),
+    "break-password": lambda n: "https://u:?" + "a" * n + "@h" + "?x@" * (n // 3),
+    "query-relative": lambda n: "https://h/?n=" + "%2Fx%3Ftoken%3D" * (n // 15),
+    "query-marks": lambda n: "https://h/?n=" + "%3Fq%3D1" * (n // 8),
+    "deep-segments": lambda n: "https://h/?" + "a=%25252525252541&" * (n // 18),
+    "decoys": lambda n: "https://h/?" + _DECOYS * (n // len(_DECOYS)),
     "scheme-marks": lambda n: "a://?" * (n // 5),
     "ats": lambda n: "x://" + "@" * n,
     "closers": lambda n: "https://h/" + ")" * n,
@@ -348,9 +360,13 @@ def test_each_view_is_linear(name: str) -> None:
 
 
 @pytest.mark.skipif(_COVERED, reason="a coverage tracer slows the scan many times")
-@pytest.mark.parametrize("name", ["requirement-space", "scp"])
+@pytest.mark.parametrize(
+    "name",
+    ["requirement-space", "scp", "query-many", "query-nested"],
+)
 def test_a_mebibyte_ends_in_seconds(name: str) -> None:
-    """The two shapes that once took minutes, at 1 MiB, end in seconds."""
+    """The two shapes that once took minutes, and the decoded query values,
+    at 1 MiB, end in seconds."""
     started = time.perf_counter()
     _views(_SHAPES[name](1 << 20))
     assert time.perf_counter() - started < 40

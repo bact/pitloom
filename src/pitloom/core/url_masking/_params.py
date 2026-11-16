@@ -272,3 +272,15 @@ def mask_free_param(match: re.Match[str]) -> str:
         return f"{match.group(1)}{match.group(2)}={inner}"
     tail = match.string[free_value_end(match) : match.end()]
     return f"{match.group(1)}{match.group(2)}=***{tail}"
+
+
+def mask_free_params(text: str) -> str:
+    """*text*, free text, with the value of each query or fragment parameter
+    named like a secret masked, with or without a URL around it: an HTTP
+    client's log line names a request's target without its scheme and
+    host (``"GET /x?token=T HTTP/1.1"`` prints ``"GET /x?token=*** ..."``).
+    A value ends at white space, before the punctuation ending a sentence
+    or a quotation. Linear; a text with no ``=`` is returned as it is."""
+    if "=" not in text:
+        return text
+    return sub_params(PARAM_RE, mask_free_param, text)

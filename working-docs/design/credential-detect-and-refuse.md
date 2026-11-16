@@ -16,7 +16,9 @@ message contract the new codes join).
 Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
 merged) built the detector; PR 2 (PR 490, built 2026-11-16, not yet merged) built
 the check at the persisted sinks, the two modes and the per-value override,
-and deleted the strip. Left for PR 3: "Not built" below.
+and deleted the strip. PR 3 (built 2026-11-16, not yet merged): the Action
+inputs and masks, the Git hardening, detector and masker extras ("Built in
+PR 3" below).
 
 ## Decision record: warn by default (2026-11-16)
 
@@ -142,15 +144,32 @@ says "refused", read "refused in the `refuse` mode, warned of in `warn`".
   `tests/core/test_credential_policy.py`,
   `tests/cli/test_cli_credential_flags.py`.
 
-## Not built (PR 3)
+## Built in PR 3
 
-- A Git URL's secret query value (`?token=`) is not refused before the
-  fetch: it still reaches git's argv and `.git/config` (the SBOM written
-  afterwards is still checked).
-- The Action: no input of its own for the two flags, no `::add-mask::` for
-  its source inputs.
-- The Git hardening items listed for PR 3 in
-  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
+Built 2026-11-16 (branch `credential-hardening`). Detail and evidence:
+[credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
+("Git argv spy (PR 3)") and
+[credential-leak-fixes-pr3-detector.md](../implementation/credential-leak-fixes-pr3-detector.md).
+
+- **The Action**: inputs `url-credentials` (`warn` default; `refuse` adds
+  `--refuse-url-credentials`) and `accept-url-credentials` (commas or line
+  breaks; each entry becomes `--accept-url-credential FP`, a malformed entry
+  fails the step and is not printed). `scripts/action/url-credentials.sh`
+  prints `::add-mask::` first for the URL-capable inputs (`project-path`,
+  `model`, `args`, `accept-url-credentials`: user information, password,
+  query, fragment, whole; a piece under 6 characters is not masked). GitHub
+  echoes a step's inputs before it runs, so only `${{ secrets.X }}` is hidden
+  from that echo.
+- **Git**: a Git URL's `?token=` was never a gap: the query and fragment are
+  dropped before the clone URL is built, so git never receives them
+  (`tests/extract/remote/test_git_credentials_argv.py` spies on every git
+  argv and environment and reads the clone's files). Fixed: the scheme
+  refusal printed an scp-style password; a NUL in the user information
+  and a host no host name spells are refused before git runs; the git
+  environment scrub drops more variables.
+- **Detector and masker**: decoded query and fragment values, a password
+  starting with `?` or `#`, third-party log masking (`urllib3`, `requests`),
+  wheel-pattern handling (`glob` recursion, bracket names).
 
 ## Built in PR 1 (PR 489)
 
@@ -224,7 +243,8 @@ Never rewrite persisted data automatically.
 - **Displayed sinks** (logs, tracebacks, `KEY=VALUE` lines, error text):
   keep best-effort masking. Corruption there is harmless.
 - **Git**: keep the ephemeral per-origin helper (transport, not rewritten
-  data). Add one refusal: a Git URL with a secret query value.
+  data). (A refusal of a secret query value was planned; PR 3 found the query
+  never reaches git, so none was added.)
 - Rejected: warn and accept by default (opt-in security). A published SBOM
   cannot be recalled, a warning scrolls past in CI, and the unsafe outcome
   would be the silent one.
@@ -240,7 +260,7 @@ Never rewrite persisted data automatically.
 | Dataset PURL | built from the stripped URL | refuse (nothing safe to build from) | built (refused at the SBOM check) |
 | Logs, tracebacks, `KEY=VALUE`, `print_error` | mask | unchanged | unchanged |
 | Git URL userinfo | helper, never argv or `.git/config` | unchanged | unchanged |
-| Git URL secret query value | reaches argv and `.git/config` (tracked gap) | refuse | not built (PR 3) |
+| Git URL secret query value | reaches argv and `.git/config` (tracked gap) | refuse | not needed (PR 3): the query is dropped before git is given the URL |
 | Weak names (`code`, `session`, `ticket`, `sid`, `otp`) | kept, truthful warning | `WARNING:` only, never a refusal (OAuth examples in a README must not block a build) | built |
 
 ## Detector
@@ -268,7 +288,7 @@ Never rewrite persisted data automatically.
   default makes it moot).
 - The library API carries it in the shared options object, not a new
   keyword per entry point. The Action passes both through and starts
-  `::add-mask::` for its source inputs (not built: PR 3).
+  `::add-mask::` for its source inputs (built in PR 3).
 - Skills explain the fingerprint override and never suggest the global flag
   first.
 

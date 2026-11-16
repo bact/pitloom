@@ -10,7 +10,8 @@ Windows reads ``.git.``, ``.git ``, ``GIT~1`` and ``.git::$DATA``); a
 branch named with an encoded ``/`` (Bitbucket's ``feature%2Fx``) is still
 read, as is a name that starts with ``.git`` (``.github``). A host that is
 not plain ASCII, or is percent-encoded, is refused before any git process
-starts (curl would map it to another host), and before ``offline``.
+starts (curl would map it to another host), and before ``offline``; so is
+one no host name spells (``=``, ``!``, white space, a leading ``-``).
 
 See also: :mod:`tests.extract.remote.test_git_url` (the page forms) and
 :mod:`tests.extract.remote.test_git_target_named` and
@@ -212,6 +213,64 @@ def test_an_invalid_url_is_refused_before_offline(url: str) -> None:
     assert _refusal(url, offline=True).code == "git.url-invalid"
 
 
+@pytest.mark.parametrize(
+    ("url", "shown"),
+    [
+        ("https://-oProxyCommand=x/o/r", "https://-oProxyCommand=x/o/r"),
+        (
+            "https://u:S3CRET@-oProxyCommand=x/o/r",
+            "https://***:***@-oProxyCommand=x/o/r",
+        ),
+        ("https://u:S3CRET@host=x/o/r", "https://***:***@host=x/o/r"),
+        ("https://u:S3CRET@a=b/o/r", "https://***:***@a=b/o/r"),
+        ("https://!cmd/o/r", "https://!cmd/o/r"),
+        ("https://a b/o/r", "https://a b/o/r"),
+        ("https://h.example;x/o/r", "https://h.example;x/o/r"),
+        ("https://.h.example/o/r", "https://.h.example/o/r"),
+        ("https://u:S3CRET@[v1.evil.com]/o/r", "https://***:***@[v1.evil.com]/o/r"),
+        ("https://[v1.x]/o/r", "https://[v1.x]/o/r"),
+        ("https://[fe80::1%25eth0]/o/r", "https://[fe80::1%25eth0]/o/r"),
+    ],
+    ids=[
+        "option",
+        "option-userinfo",
+        "key",
+        "equals",
+        "bang",
+        "space",
+        "semi",
+        "dot",
+        "bracketed-name",
+        "ipvfuture",
+        "zone-id",
+    ],
+)
 @pytest.mark.usefixtures("no_git")
-def test_an_international_host_in_its_xn_form_passes() -> None:
-    assert _refusal("https://xn--bcher-kva.example/o/r", True).code == "git.offline"
+def test_a_host_no_host_name_spells_is_refused_masked(url: str, shown: str) -> None:
+    """``=`` would end git's ``-c credential.<origin>.helper=`` key early,
+    a leading ``-`` is an option's shape, a bracketed name loses its
+    brackets and becomes a DNS name (the credential sent there): refused
+    before any git process or probe, the credential masked. A zone id is
+    refused too (a known false refusal)."""
+    error = _refusal(url, offline=False)
+    assert error.code == "git.url-invalid"
+    assert raised_as(error, URL_HOST_SPELLING)
+    assert str(error) == GIT_HOST_SPELLING_LINE.render({"url": shown})
+    assert "S3CRET" not in str(error)
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "xn--bcher-kva.example",
+        "h_x.example",
+        "h.example.",
+        "[::1]",
+        "[::ffff:1.2.3.4]",
+        "127.0.0.1:8080",
+    ],
+    ids=["idn", "underscore", "trailing-dot", "ipv6", "ipv4-mapped", "port"],
+)
+@pytest.mark.usefixtures("no_git")
+def test_a_plain_host_passes(host: str) -> None:
+    assert _refusal(f"https://{host}/o/r", True).code == "git.offline"

@@ -133,13 +133,36 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 
 A URL field of the SBOM that holds a credential is a `WARNING:` annotation
 per value by default, and the step passes with the SBOM written. To fail the
-step instead (recommended), pass `args: '--refuse-url-credentials'`, or set
-`url-credentials = "refuse"` in `[tool.pitloom]` (the project's, or the file of
-the `config` input: a model file reads no project file); each value is then an
-`ERROR:` annotation. Accept one value you know is no secret with
-`args: '--accept-url-credential sha256:...'` (the fingerprint the line prints),
-or `accept-url-credentials` in `[tool.pitloom]`. The action has no input for
-any of these. See [Credentials in URLs](url-credentials.md).
+step instead (recommended in CI), set the input `url-credentials: refuse`
+(`--refuse-url-credentials`), or `url-credentials = "refuse"` in
+`[tool.pitloom]` (the project's, or the file of the `config` input: a model
+file reads no project file); each value is then an `ERROR:` annotation. The
+input's default, `warn`, passes no flag, so it cannot turn off a `refuse` set
+in `[tool.pitloom]`. Accept a value you know is no secret with
+`accept-url-credentials` (the fingerprints the lines print, separated by
+commas or line breaks; each becomes `--accept-url-credential`), or
+`accept-url-credentials` in `[tool.pitloom]`. An entry that is no fingerprint
+fails the step and is not printed. See [Credentials in URLs](url-credentials.md).
+
+```yaml
+- uses: bact/pitloom@v0.24.0
+  with:
+    url-credentials: refuse
+    accept-url-credentials: |
+      sha256:0123456789abcdef
+```
+
+The step first masks (`::add-mask::`) the credential-shaped parts of each URL
+in `project-path`, `model`, `args` and `accept-url-credentials` (`https://`
+or `https:/`): the user information, the password, the query and fragment,
+each `name=value` pair and each value, without a quote, bracket, `,` or `;`
+around the URL. A part shorter than 6 characters is not masked, since a mask
+hides every occurrence of its characters in the log; a query value of 6 or
+more characters is masked even when it is no secret; a password holding a
+space is not masked whole. The masks cover what the step prints later (`loom`'s
+lines, the annotations) and the later steps, not the inputs themselves: GitHub
+prints step inputs before the step runs. Give a credential through a secret
+(`${{ secrets.NAME }}`), never as text in the workflow.
 
 ### Annotations
 
@@ -201,6 +224,8 @@ Inputs (all optional):
 | `allow-build` | `false` | **SECURITY:** `"true"` lets Pitloom invoke the scanned project's own PEP 517 build backend (subprocess; may install build-requires from the network) to discover a wheel's real file list. Executes third-party build-time code from the project being scanned -- only enable for a project whose build script you trust. No `[tool.pitloom]` equivalent; defaults to `"false"`, not empty, since there's no config layer to defer to. Applies in project/embed-wheel mode; explicitly set in model mode, it has no effect and logs `::warning::allow-build has no effect in model mode (no project-directory file discovery there)`. See [`--allow-build`](allow-build.md). |
 | `no-build-isolation` | `false` | With `allow-build: "true"`, skip creating an isolated build environment and use the runner's already-installed build backend instead. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)`. |
 | `build-timeout` | *(empty)* | Seconds or `h`/`m`/`s` duration, e.g. `900` or `1h30m`, capping how long an `allow-build` build may run before Pitloom kills it and falls back to static discovery. Passed verbatim to `loom --build-timeout`, which validates it -- no shell-side parsing. Empty uses Pitloom's own default of 20 minutes. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::build-timeout has no effect in model mode (no project-directory file discovery there)`. See [`--build-timeout`](allow-build.md#timing-out-a-build). |
+| `url-credentials` | `warn` | `refuse` fails the step when a URL value of the SBOM holds a credential (`--refuse-url-credentials`); `warn` passes no flag, so `[tool.pitloom] url-credentials` decides (warn by default). Anything else fails the step. Recommended in CI: `refuse`. |
+| `accept-url-credentials` | *(empty)* | Fingerprints (`sha256:` and 16 to 64 lowercase hex digits), separated by commas or line breaks, each passed as `--accept-url-credential`. An entry of another shape fails the step, masked and not printed. |
 | `args` | *(empty)* | Extra raw flags passed through to the `loom` command, e.g. `--verify --validate` when `embed-wheel` is set. |
 | `pitloom-version` | *(empty)* | Pitloom version or specifier, e.g. `0.24.0` or `>=0.23,<1.0`. Empty installs the version of the pinned ref; see [What the pin covers](#what-the-pin-covers). |
 | `python-version` | *(empty)* | Passed to `actions/setup-python`. Empty uses the Python on `PATH`, falling back to `3.x` with a warning; see [Python selection](#python-selection). |

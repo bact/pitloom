@@ -15,6 +15,8 @@ library only.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from urllib.parse import unquote
 
 from pitloom.core.url_masking._hits import (
     PURL_DECODE_ROUNDS,
@@ -24,6 +26,7 @@ from pitloom.core.url_masking._hits import (
     subpath_hits,
     without_format,
 )
+from pitloom.core.url_masking._params import mask_free_params
 from pitloom.core.url_masking._scan import masked_once
 from pitloom.core.url_masking._tokens import TOKEN_RE, mask_tokens
 from pitloom.core.url_masking._userinfo import mask_scp
@@ -87,7 +90,9 @@ def _masked_purls(text: str) -> str:
 _MASK_PASSES = 4
 
 
-def masked_given_path(text: str, *, line: bool = False) -> str:
+def masked_given_path(
+    text: str, *, line: bool = False, free_params: bool = False
+) -> str:
     """*text*, a path as given or a message naming one, with the credentials
     of each URL in it replaced: the user information by ``***:***``, a
     secret parameter's value by ``***``; every other character is printed as
@@ -164,40 +169,90 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     deeper depth can break what a shallower one shows
     (``u:se%252Fcret@h`` decodes to ``u:se/cret@h``, no user information),
     so it is never what is printed. A text that decoding shows nothing more
-    in is printed as given.
+    in is printed as given, except a parameter value or fragment still
+    encoded after the last decode (``?next=...%2525...``): it is printed as
+    ``***`` (:func:`_masked_deep_values`), since what it hides cannot be
+    read; when every round showed a credential (decoys, each a level
+    deeper), each value still encoded is printed so.
+
+    With *free_params* (a log line), the value of a parameter named like a
+    secret is masked with or without a URL around it, at every decode depth
+    too (:func:`~pitloom.core.url_masking.mask_free_params`: a request
+    target ``GET /x?token=T``).
     """
-    masked = _masked_formats(text, line=line)
+    masked = _masked_formats(text, line=line, free_params=free_params)
     for _ in range(PURL_DECODE_ROUNDS):
         if "%" not in masked:
-            break
-        shown = _first_masked_level(qualifier_levels(masked)[0][1:], line=line)
+            return masked
+        shown = _first_masked_level(
+            qualifier_levels(masked)[0][1:], line=line, free_params=free_params
+        )
         if shown is None:
-            break
+            return _masked_deep_values(masked, _deeper_than_read)
         masked = shown
-    return masked
+    # Every round showed a credential (decoys, each a level deeper): what is
+    # still encoded was not read to its end, so it is not printed.
+    return _masked_deep_values(masked, _still_encoded)
 
 
-def _first_masked_level(levels: list[str], *, line: bool) -> str | None:
+#: A query or fragment parameter, or a fragment, in a text: its delimiter
+#: and what follows it to the next delimiter or white space.
+_SEGMENT = re.compile(r"([?&;#])([^?&;#\s]*)")
+
+
+def _deeper_than_read(value: str) -> bool:
+    """Whether *value* is still encoded after
+    :data:`~pitloom.core.url_masking._hits.PURL_DECODE_ROUNDS` decodes."""
+    return "%25" in value and qualifier_levels(value)[1]
+
+
+def _still_encoded(value: str) -> bool:
+    """Whether a decode changes *value*."""
+    return "%" in value and unquote(value) != value
+
+
+def _masked_deep_values(text: str, hides: Callable[[str], bool]) -> str:
+    """*text* with each parameter value (after its first ``=``) or fragment
+    (:data:`_SEGMENT`) that *hides* is true of written as ``***``
+    (:func:`_deeper_than_read`, :func:`_still_encoded`). Linear: each
+    segment is decoded a bounded number of times."""
+    if "%" not in text:
+        return text
+
+    def masked(found: re.Match[str]) -> str:
+        mark, segment = found.groups()
+        name, equals, value = segment.partition("=")
+        if not equals:
+            name, value = "", segment
+        return f"{mark}{name}{equals}***" if hides(value) else found.group()
+
+    return _SEGMENT.sub(masked, text)
+
+
+def _first_masked_level(
+    levels: list[str], *, line: bool, free_params: bool
+) -> str | None:
     """The first of *levels* (decode depths, shallowest first) that the
     masker changes, masked; ``None`` when it changes none."""
     for level in levels:
-        shown = _masked_formats(level, line=line)
+        shown = _masked_formats(level, line=line, free_params=free_params)
         if shown != level:
             return shown
     return None
 
 
-def _masked_formats(text: str, *, line: bool) -> str:
+def _masked_formats(text: str, *, line: bool, free_params: bool) -> str:
     """:func:`masked_given_path` of *text* as written: a format character
     dropped when that shows a credential."""
     plain = without_format(text)
     if plain != text:
-        masked = _masked(plain, line=line)
-        return masked if masked != plain else _masked(text, line=line)
-    return _masked(text, line=line)
+        masked = _masked(plain, line=line, free_params=free_params)
+        if masked != plain:
+            return masked
+    return _masked(text, line=line, free_params=free_params)
 
 
-def _masked(text: str, *, line: bool) -> str:
+def _masked(text: str, *, line: bool, free_params: bool) -> str:
     """:func:`masked_given_path` of *text* as it is."""
     text = mask_scp(mask_tokens(_masked_purls(text)))
     masked = masked_once(text, line=line)
@@ -205,4 +260,4 @@ def _masked(text: str, *, line: bool) -> str:
     while masked != text and passes < _MASK_PASSES:
         text, masked = masked, masked_once(masked, line=line)
         passes += 1
-    return masked
+    return mask_free_params(masked) if free_params else masked

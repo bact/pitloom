@@ -272,12 +272,15 @@ OFFLINE_UNUSABLE: Final = Message(
     since=_SINCE,
 )
 
-#: A Git URL whose host git would resolve to one its text does not spell.
+#: A Git URL whose host git would resolve to one its text does not spell,
+#: or that is no host name.
 GIT_HOST_SPELLING_LINE: Final = Line(
     level="ERROR",
-    template="URL=%(url)s: the host is not plain ASCII or is percent-encoded, "
-    "which git would resolve to a host the URL does not spell; write it in "
-    "ASCII (an international name in its xn-- form); nothing fetched",
+    template="URL=%(url)s: the host is not plain ASCII, is percent-encoded "
+    "or holds a character no host name holds (=, !, white space, a leading "
+    "-), which git would resolve to a host the URL does not spell or read "
+    "as an option; write it in ASCII (an international name in its xn-- "
+    "form); nothing fetched",
 )
 
 #: A Git URL's host spelled with what a resolver maps to another character.
@@ -289,7 +292,11 @@ URL_HOST_SPELLING: Final = Message(
     "ideographic dot, a full-width letter, an international name not in "
     "its xn-- form) or a percent-encoding. git (through curl) maps it to "
     "another host than the URL's text names, past every check that reads "
-    "that text (a PyPI host is never cloned).",
+    "that text (a PyPI host is never cloned). Or it holds a character no "
+    "host name holds (=, !, ;, white space, a leading - or .), the shape of "
+    "an option or a setting smuggled into git's command line, or is a name "
+    "in brackets ([v1.x]), which would lose them and name a DNS host. An "
+    "IPv6 zone id ([fe80::1%25eth0]) is refused too.",
     did="Started no git process, fetched nothing and wrote no SBOM (git.url-invalid).",
     effect="not-written",
     actor="user",

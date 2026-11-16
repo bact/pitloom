@@ -201,12 +201,29 @@ inputs:
       mode.
     required: false
     default: "false"
+  url-credentials:
+    description: >-
+      "refuse" fails the step when a URL value of the SBOM holds a
+      credential (--refuse-url-credentials); "warn" (default) passes no
+      flag: the SBOM is written with a warning, unless the project's
+      [tool.pitloom] url-credentials is "refuse". Recommended in CI: refuse.
+    required: false
+    default: "warn"
+  accept-url-credentials:
+    description: >-
+      Fingerprints (sha256: and 16 to 64 lowercase hex digits), separated
+      by commas or line breaks, of URL values to accept, each passed as
+      --accept-url-credential. An entry of another shape fails the step
+      and is not printed.
+    required: false
+    default: ""
   args:
     description: >-
       Extra raw flags passed through to the loom command, e.g.
-      "--refuse-url-credentials" to fail the step when a URL value of the
-      SBOM holds a credential (by default it is written with a warning), and
-      "--accept-url-credential sha256:..." to accept one such value.
+      '--creator-name "CI Bot"'. The step masks (::add-mask::) the
+      credential-shaped parts of a URL in args, project-path, model and
+      accept-url-credentials in its later output only: GitHub prints step
+      inputs before the step runs, so give a credential as a secret.
     required: false
     default: ""
   pitloom-version:
@@ -312,9 +329,16 @@ runs:
         PL_BUILD_TIMEOUT: ${{ inputs.build-timeout }}
         PL_TRUST_MODEL_FILES: ${{ inputs.trust-model-files }}
         PL_ALLOW_SIGNED_WHEEL: ${{ inputs.allow-signed-wheel }}
+        PL_URL_CREDENTIALS: ${{ inputs.url-credentials }}
+        PL_ACCEPT_URL_CREDENTIALS: ${{ inputs.accept-url-credentials }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
+
+        # First: a mask hides what is printed after it, not before.
+        . "${GITHUB_ACTION_PATH//\\//}/scripts/action/url-credentials.sh"
+        mask_url_secrets "${PL_PROJECT_PATH}" "${PL_MODEL}" "${PL_ARGS}" \
+          "${PL_ACCEPT_URL_CREDENTIALS}"
 
         # python_bin/python_text: used by the embed-wheel steps below and
         # the PL_ARGS shlex split; only those paths require a python.
@@ -475,6 +499,9 @@ runs:
           else
             echo "::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)"
           fi
+        fi
+        if ! add_url_credential_args "${PL_URL_CREDENTIALS}" "${PL_ACCEPT_URL_CREDENTIALS}"; then
+          exit 1
         fi
         if [ -n "${PL_ARGS//[[:space:]]/}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

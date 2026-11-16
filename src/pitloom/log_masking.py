@@ -33,24 +33,74 @@ _STABLE_ARG_TYPES = (str, int, float, bool, type(None))
 
 def masked_text(text: str) -> str:
     """*text* with the credentials of each URL in it masked, as a log line
-    masks them (:func:`~pitloom.core.url_masking.masked_given_path`). A text
+    masks them (:func:`~pitloom.core.url_masking.masked_given_path`), and
+    the value of each parameter named like a secret with or without a URL
+    around it, at each decode depth (``GET /x?token=***``, a traceback's
+    ``url: /y?token=***``). A text
     with a line break is first masked as one text, not as a line, so a
     password holding a line break is masked whole, not left in pieces.
     Never raises: when the masker fails the text is :data:`UNSHOWN_MESSAGE`,
     never the raw text."""
     try:
         if text.splitlines() != [text]:  # a line break, as splitlines reads one
-            text = masked_given_path(text)
-        return masked_given_path(text, line=True)
+            text = masked_given_path(text, free_params=True)
+        return masked_given_path(text, line=True, free_params=True)
     # pylint: disable-next=broad-exception-caught
     except Exception:  # RecursionError and any other failure of the masker
         return UNSHOWN_MESSAGE
 
 
+#: The third-party loggers (and their ``.*`` children) whose records are
+#: masked too, only where they hold a credential: the HTTP clients Pitloom
+#: fetches through, whose ``DEBUG`` lines name a request's target with its
+#: query (``"GET /x?token=T HTTP/1.1"``).
+THIRD_PARTY_LOGGERS = ("urllib3", "requests")
+
+
+def _is_under(name: object, roots: tuple[str, ...]) -> bool:
+    """Whether the logger *name* is one of *roots* or a child of one."""
+    return isinstance(name, str) and any(
+        name == root or name.startswith(f"{root}.") for root in roots
+    )
+
+
 def _is_pitloom_record(record: logging.LogRecord) -> bool:
     """Whether *record* was logged on ``pitloom`` or a ``pitloom.*`` logger."""
-    name = record.name
-    return isinstance(name, str) and (name == "pitloom" or name.startswith("pitloom."))
+    return _is_under(record.name, ("pitloom",))
+
+
+def mask_third_party_record(record: logging.LogRecord) -> None:
+    """Mask the credentials in *record*, a :data:`THIRD_PARTY_LOGGERS`
+    record, only where its text holds one: then ``msg`` becomes the masked
+    text and ``args`` empty (new objects, the caller's ``args`` untouched);
+    else the record is left as it was made, so other handlers see its
+    template and arguments. Its traceback and ``stack_info`` are masked as
+    a ``pitloom`` record's are. Never raises; a message that cannot be
+    formatted is replaced as a ``pitloom`` record's is
+    (:func:`_set_unformatted`), so ``Handler.handleError`` never prints its
+    raw arguments."""
+    try:
+        text = record.getMessage()
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # the library's own format error
+        _set_unformatted(record, exc)
+    else:
+        masked = masked_text(text)
+        if masked != text:
+            record.msg, record.args = masked, ()
+    _mask_trace(record)
+
+
+def _set_unformatted(record: logging.LogRecord, failure: Exception) -> None:
+    """Set the message of *record*, whose arguments could not be formatted
+    (*failure*), to its masked ``msg`` and the class of the failure, without
+    arguments; :data:`UNSHOWN_MESSAGE` when even that cannot be built."""
+    try:
+        text = f"{record.msg} (arguments not formatted: {type(failure).__name__})"
+    # pylint: disable-next=broad-exception-caught
+    except Exception:  # a msg whose __str__ raises
+        text = UNSHOWN_MESSAGE
+    record.msg, record.args = masked_text(text), ()
 
 
 def _is_exactly(value: object, types: tuple[type, ...]) -> bool:
@@ -90,8 +140,7 @@ def _mask_message(record: logging.LogRecord) -> None:
         text = record.getMessage()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:  # a call site's format error
-        text = f"{record.msg} (arguments not formatted: {type(exc).__name__})"
-        record.msg, record.args = masked_text(text), ()
+        _set_unformatted(record, exc)
         return
     masked = masked_text(text)
     if masked != text or not _keeps_template(record):
@@ -144,8 +193,12 @@ class MaskingRecordFactory:
     its level and wherever it is attached (a ``pitloom.*`` child logger,
     ``pitloom``, the root, ``caplog``).
 
-    Not covered: a record of any other logger (a third-party library's,
-    such as ``urllib3``), passed on as made; a record not made through the
+    A record of a :data:`THIRD_PARTY_LOGGERS` logger (``urllib3``,
+    ``requests``) is masked only where it holds a credential
+    (:func:`mask_third_party_record`).
+
+    Not covered: a record of any other logger (another third-party
+    library's), passed on as made; a record not made through the
     factory (:func:`logging.makeLogRecord`), which only the handler of
     :func:`~pitloom.logging_config.configure_logging` masks, for itself and
     the handlers after it; an attribute set after the record is made (an
@@ -163,6 +216,8 @@ class MaskingRecordFactory:
         record = self.previous(*args, **kwargs)
         if _is_pitloom_record(record):
             mask_record(record)
+        elif _is_under(record.name, THIRD_PARTY_LOGGERS):
+            mask_third_party_record(record)
         return record
 
 

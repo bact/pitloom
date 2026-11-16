@@ -45,6 +45,7 @@ from pitloom.core.url_masking._params import (
     WHOLE_PARAM_RE,
     is_secret_name,
     mask_free_param,
+    mask_free_params,
     mask_param,
     sub_params,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "is_account_name",
     "is_secret_name",
     "mask_checkout",
+    "mask_free_params",
     "masked_given_path",
     "sanitize_url",
     "sanitize_url_credentials",

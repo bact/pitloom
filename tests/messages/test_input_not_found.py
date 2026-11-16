@@ -87,8 +87,8 @@ def test_each_line_is_a_file_not_found_error_with_its_code(
 
 
 def test_the_caller_names_the_line() -> None:
-    """Seven lines name a path alone: none is chosen for the caller."""
-    with pytest.raises(ValueError, match="7 name of its ERROR lines"):
+    """Eight lines name a path alone: none is chosen for the caller."""
+    with pytest.raises(ValueError, match="8 name of its ERROR lines"):
         raise CodedFileNotFoundError(INPUT_NOT_FOUND, path="a")
 
 

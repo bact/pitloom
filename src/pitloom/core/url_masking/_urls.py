@@ -144,8 +144,9 @@ class _Reader:
         return found
 
     def _userinfo_end(self, start: int, end: int) -> int | None:
-        """:func:`userinfo_end` of the authority from *start* to *end*."""
-        return userinfo_end(self.text, start, end)
+        """:func:`userinfo_end` of the authority from *start* to *end*, a
+        password that starts with a break included (``u:?pw@h``)."""
+        return userinfo_end(self.text, start, end, break_password=True)
 
     def _outside_secret_value(self, start: int, at: int) -> tuple[int, int]:
         """The ``@`` ending the user information from *start* to *at*, and

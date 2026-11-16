@@ -93,15 +93,22 @@ _SAFE_CONFIG = (
 #: (``checkout`` of a partial clone fetches the blobs it lacks).
 _TALKS_TO_SERVER = frozenset({"clone", "fetch", "ls-remote", "checkout"})
 
-#: Environment variables that point git at another repository or add
-#: settings, and those that trace what git sends (``GIT_TRACE_CURL``
-#: writes the ``Authorization`` header, in full with ``GIT_TRACE_REDACT=0``);
-#: one set by the caller (a git hook, a debugging shell) must not reach the
-#: fetch.
+#: Environment variables that point git at another repository, add
+#: settings, run another program (``GIT_EXEC_PATH``'s ``git-remote-https``,
+#: ``GIT_SSH_COMMAND``, a ``GIT_TEMPLATE_DIR`` hook), turn TLS checks off
+#: or move git's output; and those that trace what git sends
+#: (``GIT_TRACE_CURL`` writes the ``Authorization`` header, in full with
+#: ``GIT_TRACE_REDACT=0``). One set by the caller (a git hook, a debugging
+#: shell) must not reach the fetch. Those choosing which of the user's own
+#: configuration files git reads (``HOME``, ``GIT_CONFIG_GLOBAL``,
+#: ``GIT_CONFIG_SYSTEM``, ``GIT_CONFIG_NOSYSTEM``) stay, as for ``git
+#: clone``.
 _SCRUBBED_ENV = re.compile(
     r"GIT_(DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|NAMESPACE|COMMON_DIR|"
-    r"ALTERNATE_OBJECT_DIRECTORIES|CONFIG_COUNT|CONFIG_PARAMETERS|"
-    r"CONFIG_KEY_\d+|CONFIG_VALUE_\d+|TRACE\w*|CURL_VERBOSE|REDACT_COOKIES)"
+    r"ALTERNATE_OBJECT_DIRECTORIES|CONFIG|CONFIG_COUNT|CONFIG_PARAMETERS|"
+    r"CONFIG_KEY_\d+|CONFIG_VALUE_\d+|TRACE\w*|CURL_VERBOSE|REDACT_COOKIES|"
+    r"EXEC_PATH|TEMPLATE_DIR|SSH|SSH_COMMAND|SSH_VARIANT|PROXY_COMMAND|"
+    r"SSL_NO_VERIFY|REDIRECT_STDIN|REDIRECT_STDOUT|REDIRECT_STDERR)"
 )
 
 #: Lines of git's standard error that say what went wrong.

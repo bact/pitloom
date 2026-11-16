@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import glob
+import os
 from collections.abc import Callable, Mapping
 from functools import wraps
 from pathlib import Path
@@ -45,6 +46,7 @@ from pitloom.messages.models import (
 from pitloom.messages.targets import (
     INPUT_NOT_FOUND,
     NO_WHEEL_MATCH_LINE,
+    WHEEL_PATTERN_TOO_DEEP_LINE,
     is_input_file,
     say_input_not_found,
 )
@@ -108,32 +110,15 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     wheel_paths: list[Path] = []
     had_error = False
     for pattern in patterns:
-        if glob.has_magic(pattern):
-            hits = [p for p in glob.glob(pattern) if Path(p).is_file()]
-            # A case-insensitive file system lets ``*.whl`` match ``x.WHL``.
-            refused = [p for p in hits if refuse_non_wheel_like(p)]
-            matched = [_given(p) for p in hits if is_wheel_path(p)]
-            if refused:
-                had_error = True
-                continue
-            if not matched:
-                print_error(
-                    NO_WHEEL_MATCH_LINE.render({"path": masked_given_path(pattern)}),
-                    code=INPUT_NOT_FOUND.code,
-                )
-                had_error = True
-                continue
-            wheel_paths.extend(matched)
-        else:
-            if refuse_non_wheel(pattern):
-                had_error = True
-                continue
-            p = _given(pattern)
-            # A regular file only: a directory named .whl is not a wheel.
-            if not input_file_or_say(p, "wheel file", shown=pattern):
-                had_error = True
-                continue
-            wheel_paths.append(p)
+        found = (
+            _pattern_wheels(pattern)
+            if glob.has_magic(pattern)
+            else _named_wheel(pattern)
+        )
+        if found is None:
+            had_error = True
+            continue
+        wheel_paths.extend(found)
     if had_error:
         return []
     # One wheel once, however many spellings (letter case, hard links) reach
@@ -142,6 +127,59 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     for wheel in wheel_paths:
         unique.setdefault(file_id(wheel) or wheel.resolve(), wheel)
     return list(unique.values())
+
+
+def _pattern_wheels(pattern: str) -> list[Path] | None:
+    """The wheels the glob *pattern* matches, or ``None`` having printed
+    why there are none (a match not spelt ``.whl``, no match, a pattern
+    ``glob`` cannot expand)."""
+    hits = _glob_files(pattern)
+    if hits is None:
+        return None
+    # A case-insensitive file system lets ``*.whl`` match ``x.WHL``.
+    refused = [p for p in hits if refuse_non_wheel_like(p)]
+    matched = [_given(p) for p in hits if is_wheel_path(p)]
+    if refused:
+        return None
+    if not matched:
+        print_error(
+            NO_WHEEL_MATCH_LINE.render({"path": masked_given_path(pattern)}),
+            code=INPUT_NOT_FOUND.code,
+        )
+        return None
+    return matched
+
+
+def _named_wheel(name: str) -> list[Path] | None:
+    """The wheel file *name* (no pattern) as a list of one, or ``None``
+    having printed why it is none."""
+    if refuse_non_wheel(name):
+        return None
+    path = _given(name)
+    # A regular file only: a directory named .whl is not a wheel.
+    if not input_file_or_say(path, "wheel file", shown=name):
+        return None
+    return [path]
+
+
+def _glob_files(pattern: str) -> list[str] | None:
+    """The regular files *pattern* matches; *pattern* itself when it matches
+    none but names a regular file as written (``dist[1]/x.whl``: a shell
+    keeps a pattern that matches nothing, so its ``[1]`` reaches us as
+    typed). ``None``, having printed the ``input-not-found`` ``ERROR:``,
+    when ``glob`` cannot expand it (a pattern nested past its recursion
+    limit)."""
+    try:
+        hits = [p for p in glob.glob(pattern) if os.path.isfile(p)]
+    except RecursionError:
+        print_error(
+            WHEEL_PATTERN_TOO_DEEP_LINE.render({"path": masked_given_path(pattern)}),
+            code=INPUT_NOT_FOUND.code,
+        )
+        return None
+    if not hits and os.path.isfile(pattern):
+        return [pattern]
+    return hits
 
 
 def _given(path: str) -> Path:

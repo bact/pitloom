@@ -336,7 +336,8 @@ fields read, the other surfaces (library, build hook, Action, `embed-wheel
 URLs](url-credentials.md).
 
 Pitloom's own log lines also mask a credential they print (`https://***:***@host`,
-`ghp_***`), whether or not the SBOM is refused.
+`ghp_***`), whether or not the SBOM is refused, and so do the `urllib3` and
+`requests` lines of a download (`GET /x?token=***`).
 
 ## Configuration and flags
 

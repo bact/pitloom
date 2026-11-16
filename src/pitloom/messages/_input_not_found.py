@@ -61,6 +61,13 @@ INPUT_NOT_DIR_LINE: Final = Line(
 NO_WHEEL_MATCH_LINE: Final = Line(
     level="ERROR", template="no wheel file matches %(path)s"
 )
+#: A wheel pattern nested too deeply for the standard library's ``glob`` to
+#: expand (its recursion limit).
+WHEEL_PATTERN_TOO_DEEP_LINE: Final = Line(
+    level="ERROR",
+    template="no wheel file matches %(path)s: the pattern nests too deeply "
+    "to expand; name each wheel file without a pattern",
+)
 #: A fragments directory that holds no JSON file.
 NO_FRAGMENT_FILE_LINE: Final = Line(
     level="ERROR", template="no JSON fragment file in %(path)s"
@@ -84,6 +91,7 @@ INPUT_NOT_FOUND: Final = Message(
         INPUT_NOT_FILE_LINE,
         INPUT_NOT_DIR_LINE,
         NO_WHEEL_MATCH_LINE,
+        WHEEL_PATTERN_TOO_DEEP_LINE,
         NO_FRAGMENT_FILE_LINE,
         NO_ID_PATHS_LINE,
     ),
@@ -94,7 +102,8 @@ INPUT_NOT_FOUND: Final = Message(
     "directory), the file or folder a Git URL names in the repository at its "
     "branch (a symbolic link there is not followed, so it counts as absent: "
     "its line says it is a link), or a pattern or directory that holds "
-    "nothing of what was asked for. The lines for a model file and for a Git "
+    "nothing of what was asked for (or a wheel pattern nested too deeply to "
+    "expand: its line says so). The lines for a model file and for a Git "
     f"URL's file or folder print since 0.23.4, the others since {_SINCE}.",
     did="Wrote nothing: no SBOM is written; for 'loom id', the ID registry "
     "is not written; for 'loom embed-wheel', no wheel is changed; a check "

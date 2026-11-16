@@ -20,8 +20,8 @@ For CI, turn the `refuse` mode on:
 url-credentials = "refuse"
 ```
 
-or pass `--refuse-url-credentials` (in the GitHub Action: `args:
-'--refuse-url-credentials'`). The library takes
+or pass `--refuse-url-credentials` (in the GitHub Action: `url-credentials:
+refuse`). The library takes
 `credentials=CredentialPolicy(refuse=True)` or
 `PitloomConfig(url_credentials="refuse")`. Any other value of the setting is an
 error (`ERROR: loom <command>: [tool.pitloom] url-credentials: must be "warn"
@@ -40,10 +40,15 @@ a URL you give to fetch).
 A value of a [field read](#fields-read) holds a credential when it holds:
 
 - user information in a URL (`https://user:password@host/x`, `https://token@host/x`),
-  after any scheme (`s3:/user:pw@host/x`, `ftp://...`);
+  after any scheme (`s3:/user:pw@host/x`, `ftp://...`), also a password that
+  starts with `?` or `#` (`https://user:?pw@host/x`, which a client reads as
+  host `user` and a query);
 - a query or fragment parameter named like a secret (`token`, `access_token`,
   `api_key`, `client_key`, `password`, `secret`, `signature`, `key`,
-  `session_id`), also percent-encoded in a PURL qualifier;
+  `session_id`, a `;jsessionid=` path parameter), also percent-encoded in a
+  PURL qualifier;
+- any of these in a URL's query value or fragment once percent-decoded, up to
+  five times (`?next=https%3A%2F%2Fuser%3Apw%40host`), as in a PURL qualifier;
 - an access token's shape anywhere in it (GitHub, GitLab, Slack, Hugging Face,
   AWS key id, PyPI, npm, OpenAI, Anthropic and Google API key prefixes);
 - an scp-style address with a password (`alice:password@host:o/r`; a dotless
@@ -169,7 +174,7 @@ line is the same on every surface.
 | Hatchling build hook | The build goes on, with the `WARNING:` lines | The build fails; each `ERROR:` line starts `Pitloom build hook: ` | `url-credentials = "refuse"` in `[tool.pitloom]` | `accept-url-credentials` in `[tool.pitloom]` |
 | Python API | Returns; the `WARNING:` lines are logged | `ValueError` carrying the code `credentials-unsafe/refused` (the `ERROR:` lines are logged) | `credentials=CredentialPolicy(refuse=True)`, or `PitloomConfig(url_credentials="refuse")` | `credentials=CredentialPolicy(accepted=["<fingerprint>"])`, or `PitloomConfig(accept_url_credentials=...)` |
 | `loom.Run` | The fragment is written when the run ends | Refused when the run ends: no fragment is written | `credentials=` as above, or the config's `url-credentials` | `credentials=` as above |
-| GitHub Action | The step passes | The step fails | `args: '--refuse-url-credentials'`, or `url-credentials` in the project's or the `config` file's `[tool.pitloom]` | `args: '--accept-url-credential sha256:...'`, or `accept-url-credentials` there |
+| GitHub Action | The step passes | The step fails | the `url-credentials: refuse` input (`warn` is the default), or `url-credentials` in the project's or the `config` file's `[tool.pitloom]` | the `accept-url-credentials` input (fingerprints separated by commas or line breaks, each passed as `--accept-url-credential`), or `accept-url-credentials` in `[tool.pitloom]` |
 
 - `loom project`, `generate`, `wheel`, `model`, `env` and `enrich` read
   `url-credentials` and the `accept-url-credentials` list through `--config`
@@ -231,14 +236,31 @@ See [Credentials in a key](id-registry-keys.md#credentials-in-a-key).
 Pitloom reads the shapes above; these are not detected, so keep such
 credentials out of URLs:
 
-- A `/` in a password (`https://u:p/w@host/x`), and a password that starts with
-  `?` or `#` right after `user:`. A `|` in a requirement's password is one
-  too: Pitloom writes it as `/` in the SBOM.
+- A `/` in a password (`https://u:p/w@host/x`). A `|` in a requirement's
+  password is one too: Pitloom writes it as `/` in the SBOM.
+- A password that starts with `?` or `#` right after `user:` and holds `=` or
+  `&` (`https://u:?a=b@host/x`): it reads as a host, an empty port and a query.
+  Conversely, `https://host:?mirror@cdn/x` is found as a credential, and a
+  message masks `host`: nothing in the text tells a host and an empty port
+  from a user name and an empty password. Accept its fingerprint.
 - The no-slash form `https:u:p@host` (a client may read it as a URL).
 - An scp-style address whose user is a bare token (`TOKEN@host:o/r`).
-- `state=` and `Policy=` query parameters.
-- A percent-encoded URL nested in another URL, other than in a `pkg:` PURL
-  qualifier (`?next=https%3A%2F%2Fu%3Ap%40h`).
+- A credential in a query value or fragment percent-encoded more than five
+  times (a redirect chain may encode an ordinary URL that often, so it is not
+  flagged); a message prints such a value as `***`.
+- A query value that decodes to a time and a host-like word
+  (`?v=10%3A30%40ab%3Ac`, which reads `10:30@ab:c`) is found as an scp-style
+  password: accept its fingerprint.
+- A secret-named pair at the start of a query value, plain or encoded
+  (`?next=access_token=T`, `?next=access_token%3DT`): a value is no query, and
+  search and filter values hold such pairs (`?filter=auth%3Dbasic`,
+  `?u=key%3Dvalue`). After a `?`, `&` or `;` inside the value it is found
+  (`?next=%2Fcb%3Ftoken%3DT`), and so is `key`, `auth` or `sig` there even when
+  it holds no secret (`?return_to=%2Fsettings%3Fkey%3Dtheme`): accept its
+  fingerprint.
+- `state=` (OAuth's anti-forgery value) and CloudFront's `Policy=` and
+  `Key-Pair-Id=` are no secret by decision: the `Signature=` beside them is
+  found.
 - A value wrapped in `<>` twice (`<<https://u:pw@host/x>>`), or a direct
   reference's URL wrapped in `<>` (`foo @ <https://u:pw@host/x>`).
 - An access token followed by `;` or `#` in a PURL qualifier, and a token with
@@ -261,13 +283,22 @@ credentials out of URLs:
   only warned of, as a weak value.
 - A file name in a URL field that is scp-shaped (`meet-10:30@ab:c.txt`) is
   found as a credential: accept its fingerprint.
-- Logs that are not Pitloom's own: a third-party library's warning, a
-  Hatchling traceback and `urllib3` lines are not masked, and a line break in a
-  password can split a traceback line so that its parts are not recognised.
-- The GitHub Action does not `::add-mask::` its source inputs.
-- A `?token=` value of a Git URL still reaches `git`'s command line (visible to
-  other users in `ps`) and the clone's `.git/config`; only user information
-  (`https://user:token@host`) is kept off them.
+- Logs that are not Pitloom's own: a third-party library's warning or log line
+  and a Hatchling traceback are not masked (`urllib3` and `requests` log lines
+  are, once Pitloom has set up its logging), and a line break in a password can
+  split a traceback line so that its parts are not recognised.
+- The GitHub Action prints `::add-mask::` for the credential-shaped parts of a
+  URL in its `project-path`, `model`, `args` and `accept-url-credentials`
+  inputs (user information, password, query and fragment; a piece under 6
+  characters is not masked) before anything else, but GitHub prints a step's
+  inputs before the step runs: a credential typed as text in a workflow is in
+  that echo and in the workflow file. Only a `${{ secrets.NAME }}` value is
+  hidden from the start. The decoded form of a percent-encoded password is not
+  masked either.
+- A Git URL's query and fragment are dropped before the clone URL is built, so
+  a `?token=` value never reaches `git`'s command line or the clone's
+  `.git/config`; the URL as given is still checked in the SBOM. User
+  information (`https://user:token@host`) is kept off them too.
 
 Pitloom is not a secret scanner. A credential that no rule here matches, or
 that stands in prose, is written to the SBOM as it is in the source.

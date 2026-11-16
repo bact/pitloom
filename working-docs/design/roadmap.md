@@ -227,9 +227,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   per-value fingerprint override; built, not merged (no longer a 0.25.0
   blocker). See
   [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
-- [ ] **Credentials PR 3**: refuse a Git URL's secret query value before the
-  fetch, the Action's inputs and `::add-mask::`, Git hardening. Same doc,
-  "Not built (PR 3)".
+- [x] **Credentials PR 3** (built, in review): the Action's `url-credentials`
+  and `accept-url-credentials` inputs with `::add-mask::`, Git hardening (a
+  Git URL's query never reaches git: spy test), encoded query and fragment
+  values, `urllib3` log masking. Same doc, "Built in PR 3".
 - [ ] **Namespace mixing in one SBOM**: a registry namespace (`ids.example/ns`)
   appears beside `spdx.org/spdxdocs/demo-<uuid>` ids. Seen during the
   credential work; unrelated to credentials. Find the cause (which route
