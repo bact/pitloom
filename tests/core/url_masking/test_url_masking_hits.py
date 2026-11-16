@@ -22,6 +22,7 @@ from collections.abc import Callable
 import pytest
 
 from pitloom.core.url_masking import find_url_credentials, masked_given_path
+from pitloom.core.url_masking._urls import find_urls
 from tests.core.url_masking._probe_corpus import PLANTED, encoded, marks
 
 
@@ -261,12 +262,19 @@ _SHAPES: dict[str, Callable[[int], str]] = {
     "tabs": lambda n: "https://u:" + "\t" * (n // 2) + "@" + "\t@" * (n // 4),
     "openai": lambda n: "sk-proj-" + "a" * n + "T3BlbkFJ",
     "embedded": lambda n: "urn:x:" + "s3:/a" * (n // 5),
+    "scheme-marks": lambda n: "a://?" * (n // 5),
+    "ats": lambda n: "x://" + "@" * n,
+    "closers": lambda n: "https://h/" + ")" * n,
+    "spaced-userinfo": lambda n: "https://" + "u:p " * (n // 4),
+    "digits-scheme": lambda n: "1" * n + "://",
+    "query-words": lambda n: "https://h?" + "token" * (n // 5),
 }
 
 
 #: Each view of a text: the detector (a value, a PURL qualifier, an
 #: identifier) and the masker (a value, a line).
 _VIEWS: tuple[Callable[[str], object], ...] = (
+    find_urls,
     find_url_credentials,
     lambda text: find_url_credentials("pkg:x/y?u=" + text),
     lambda text: find_url_credentials(text, embedded=True),

@@ -15,8 +15,6 @@ test_url_masking_query.py (the masking of a parameter), all in this folder.
 
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from pitloom.core.url_masking import (
@@ -192,21 +190,5 @@ def test_an_ordinary_or_weak_name_is_not_refused(name: str) -> None:
     assert is_secret_name(name) is weak
 
 
-def test_the_scan_is_linear() -> None:
-    """An adversarial value of 40,000 characters is scanned in well under a
-    second (a quadratic scan takes seconds)."""
-    shapes = [
-        "a://h?a=" * 5_000,
-        "https://" + "u:p " * 10_000,
-        "https://h?" + "token" * 8_000,
-        "1" * 40_000 + "://",
-        "x://" + "@" * 40_000,
-        "https://h/" + ")" * 40_000,
-        "a://?" * 8_000,
-        "ab:/" * 10_000,
-    ]
-    started = time.perf_counter()
-    for text in shapes:
-        find_urls(text)
-        holds_url_credentials(text)
-    assert time.perf_counter() - started < 1
+# The scanner's linear time is tested by the growth-ratio test of
+# test_url_masking_hits.py: ``find_urls`` is one of its views.
