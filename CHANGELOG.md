@@ -81,7 +81,7 @@ and this project adheres to
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
 - `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
-  stored as` is said once the registry is saved ([#492])
+  stored as` is said once the registry is saved ([#492], [#494])
 
 ### Fixed
 
@@ -110,6 +110,7 @@ and this project adheres to
 [#490]: https://github.com/bact/pitloom/pull/490
 [#491]: https://github.com/bact/pitloom/pull/491
 [#492]: https://github.com/bact/pitloom/pull/492
+[#494]: https://github.com/bact/pitloom/pull/494
 
 ## [0.24.0] - 2026-11-11
 
