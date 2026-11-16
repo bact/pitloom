@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 -->
 
 # Credentials: detect, warn or refuse, never rewrite
@@ -65,7 +65,7 @@ says "refused", read "refused in the `refuse` mode, warned of in `warn`".
 
 ## Built in PR 2
 
-- **SBOM refused, never rewritten** (`export/_spdx3_credentials.py`,
+- **SBOM refused, never rewritten** (`export/_spdx3_credentials/`,
   `check_graph_credentials`), last in `Spdx3JsonExporter.to_json`, so on
   every surface (CLI, library, Hatchling hook, `loom.run` fragments,
   `merge`, `enrich`), and on the file `embed-wheel --sbom` embeds. One
@@ -296,7 +296,8 @@ Never rewrite persisted data automatically.
 
 1. Merge PR 487 (logging, git, registry refusal, catalogue; independent of
    this change). Done.
-2. Do not cut 0.25.0 until the detect-and-refuse PR lands. Strip in 0.25.0
+2. Do not cut 0.25.0 until the detect-and-refuse PR lands (moot: #490
+   merged). Strip in 0.25.0
    and refuse in 0.26.0 would turn builds that succeeded into failures and
    need two advisory stories. Lifted once PR 2 merges.
 3. Catalogue codes with `since` 0.25.0 that never shipped (`credentials-unsafe`

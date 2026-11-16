@@ -84,6 +84,7 @@ class GivenPath(str):
         self.given = os.fspath(given_spelling(given))
         return self
 
+    # str's own __getnewargs__ takes no spelling.
     def __getnewargs__(self) -> tuple[str, str]:  # type: ignore[override]
         """The arguments :meth:`__new__` needs, so :mod:`copy` and
         :mod:`pickle` (``dataclasses.asdict`` of a configuration holding

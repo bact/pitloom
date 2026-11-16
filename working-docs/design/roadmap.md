@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,8 +37,8 @@ User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
 1.0. 0.24.0 shipped 2026-11-11 with the breaking changes only; the catalogue
-and provenance work planned for it is under "After 0.24.0" below, its release
-not decided. No date for 1.0. 0.23.1 to 0.23.4, patches for LicenseID 0.7.2,
+and provenance work planned for it is under "After 0.24.0" below, targeting
+0.25.0 (not released). No date for 1.0. 0.23.1 to 0.23.4, patches for LicenseID 0.7.2,
 0.7.3, 0.8.1 and 0.8.4, came between 0.23.0 and 0.24.0.
 
 ### 0.21.0
@@ -121,10 +121,9 @@ message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
 #444) and for model fields read in part and unusable libraries (PRs 1b and
 1c, #446); no agent files in the sdist or wheel (#435). Requires
 `licenseid>=0.7.1,<0.8`. The
-ratchet fell from 498 to 469. The generated message reference is over the
-size limit: splitting it comes before the next catalogue PR. Moved to 0.24.0:
-the uniform `loom <command>:` frame (PR 4), catalogue PRs 3 to 18 (3, 5 and
-6 built: #482, #485, #486), the licence
+ratchet fell from 498 to 469. The generated message reference was split in
+#480. Moved to 0.24.0: the uniform `loom <command>:` frame (PR 4), catalogue
+PRs 3 to 18 (3 to 7 built: #481, #482, #485, #486, #492), the licence
 provenance mapping ([#384](https://github.com/bact/pitloom/pull/384), T14),
 `--report` and SARIF. See
 [message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
@@ -246,16 +245,11 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
   line at the cut, keeping "0.24.0 or later" on the PyPI-URL lines.
-- [ ] **Small follow-ups from the #492 review**: a library registry path with a
-  NUL byte raises `InternalError` after the SBOM is written (one warning
-  before); `tests/core/url_masking/test_url_masking_hits.py::test_each_view_is_linear`
-  flaked twice on CI runners (bound 32, locally 16-19x): widen the bound or
-  take the best of two timings. Catalogue nits left: `credentials-unsafe/git-userinfo`
-  quotes its URL (`URL='...'`), its siblings do not (docs `git-urls.md` and
-  the git-url skill reference quote it); `SBOM_NOT_VALID_LINE` says "no wheel
-  was written", every `did` "no wheel is changed"; `_field_tables.py:114`
-  "license" prose; `require_key_without_credentials` has no caller; in refuse
-  mode the `weak` and `accepted` lines are said before a refusal.
+- [ ] **Review follow-ups** (the #492 and #480-#494 reviews): the open
+  catalogue, code-shape, docs and size items are listed in
+  [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
+  also a NUL byte in a library registry path raises `InternalError`, and
+  `test_each_view_is_linear` flaked twice on CI runners (bound 32).
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See

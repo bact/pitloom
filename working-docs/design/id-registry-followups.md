@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -365,7 +365,7 @@ matrix").
 - ~~**A read-only registry on `id generate`/`id import`**~~ gives `ERROR:
   [Errno 13] Permission denied: '<path>'`, without the `ID registry:
   failed to save <path>` wording every other surface uses (`O4/*`).
-  Resolved 2026-10-15: one helper (`failed_to_save_message`) words it on
+  Resolved 2026-10-15: one helper (`failed_to_save_message`, since #492 `say_save_failure`) words it on
   every surface; `id generate`/`id import` print it as the one `ERROR:`
   and exit 1, the file untouched.
 
@@ -476,7 +476,7 @@ model is a new model, and hashed `ai_AIPackage` elements are
 auto-harvested (D15); unhashed ones stay excluded. See
 [ai-model-id-stability.md](ai-model-id-stability.md).
 Resolved by registry v3: harvest records a hashed `ai_AIPackage` with its
-sha256 and never erases a recorded one (`id_registry/_harvest.py`), so
+sha256 and never erases a recorded one (`id_registry/_harvest/`), so
 `id import` no longer loses the hash. The ungated lookups elsewhere are a
 separate, open hazard (below).
 

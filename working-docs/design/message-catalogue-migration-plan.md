@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-30
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -102,7 +102,7 @@ read-only Opus plan settles them. Actor and effect are as decision G.
 | 1c | 0.23.0 | none (coded sites gain a code) | `library-unusable` (planned as a variant of `library-missing`; its own family on review, final), helper `optional_libraries.import_failed(requirement, exc)` for about 11 sites | user / thinner | 0; built 0 (#446) | S-M; Opus; may ride with 1b |
 | 2b | 0.23.0 | card-unreadable 3 (`enrich/readme.py` 2, `_loom_dataset_meta.py` 1); source-unreadable 5 and over-cap 2 (`fetch_json`, `extract/_extract_utils.py`); croissant passthrough 1; `id_registry/_types.py` indexing read 1; `core/path_confine.py` passthrough 1; lone surrogate (`warn_lone_surrogates`, 6 callers, helper in `logging_config.py`, out of scope); `find_card_file` silent (adds a line) | `card-malformed`, `text-malformed` (weaker); reuse `file-unreadable` (first `ERROR` template), `dir-unlistable`, `over-cap`; JSON parse as `json-malformed` (R4) | user / thinner (`text-malformed`: weaker) | -13, now -13 (helper move: 0); built -10 (#444) | M; Opus |
 | 3 | next (built, #482) | usage-error 16; input-not-found 25 (26 by the classifier; `_license_text_match.py:94` is PR 18's); sbom-input-invalid 7; option-no-effect 1 (helper body, about 7 calls); not-a-model 2; hf-input-invalid 1 | `input-not-found` (helper first); `option-no-effect`; `option-invalid`, `option-conflict`; `sbom-malformed` or `sbom-invalid`; `target-wrong-format` | caller (first use) / not-written | -52, now -52; built -56 (454 to 398, #482) | M-L; Opus plan, Sonnet helper and sites |
-| 4 | next | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
+| 4 | next (built, #481) | command-failed-wrapper 1 (13 calls of `cli_error_handler`); command-summary 6; hook-status 6; env-decision 4; env-tool-failed 2; interrupted 1; CLI passthrough 11 (`cli/commands/utils.py` 3, `cli/id.py` 3, `cli/options.py` 3, `_sbom_io.py` 2) | `interrupted` (bare); env tool as `tool-unusable`?; summaries per R1; passthrough forwards the code (`relay_extra`, `code_of`) (R6) | per entry | about -31, now -31 | L (many stderr tests); Opus |
 | 5 | next (built, #485) | registry-file-invalid 24 (`id_registry/_format.py` 20); the `PATH` error 1 (`_types.py:364`); unknown-key 2; escaped-text 3 (plan: 2) | `registry-malformed`, `registry-unknown-key`, `file-unreadable` `ERROR` form, `registry-invalid` (if the advice differs); built: `registry-malformed`, `registry-unknown-key`, `registry-wrong-format`, `registry-unusable`, `text-malformed/registry`, `option-invalid`/`option-conflict` lines, `dir-unlistable` `ERROR` line, `input-not-found` kind `PATH` | user / not-written | -29, now -30; built -32 (398 to 366, #485) | M; Opus |
 | 6 | next (built, #486) | registry-collision 7; registry-miss-new-id 7; registry-key-decision 20 (INFO); `import_keys.py` passthrough 1 | `registry-conflict`; `registry-entry-missing`; decisions per R1; the remote registry's unpinned `INFO` born coded (`unpinned`); built: `registry-conflict` (+ `/concurrent`, `/held`, `/spelling`, `/type`), `registry-hash-conflict` (+ `/gate`), `registry-hash-missing`, `registry-entry-missing`, `registry-path-key-unusable`, `registry-identity-missing`, `registry-key-ambiguous`, `registry-key-moved`, `index-path-no-effect`; two summaries (`say_summary`, out of the ratchet by its definition); the `loom.Run` lines take `ID registry: ` (Q4); `unpinned` waits for the remote registry | user / weaker | -35, now -35; built -35, and -3 in `core/iri.py` from one namespace raise (366 to 328, #486) | M; Opus |
 | 7 | next (merged, #492) | registry-not-saved 5; registry-left-out 6; registry-summary 4 | built: `file-unwritable`, `registry-file-missing`, `registry-conflict/file-set`, WARNING twins of the registry and `json-malformed` lines, six summaries | user / none | -15, now -15; built -12 (328 to 316, #492) | S-M; Sonnet, Opus review |
@@ -245,7 +245,7 @@ entries are in [known-bugs.md](known-bugs.md). List decided 2026-10-30:
 - 0.23.0 (with the LicenseID adoption, merged as #437 to #440): the
   Hatchling hook finds no licence database in an isolated build. Fixed in
   #437: a declared value needs none.
-- To re-check against the merged adoption (stage E sweep, else T14 in 0.24.0):
+- To re-check against the merged adoption (stage E sweep, else T14, after PR 18):
   a top match that holds only part of its licence is concluded; two
   `SPDX-License-Identifier` tags, one stated, conclude only the stated one.
 

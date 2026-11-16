@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -140,7 +140,7 @@ Fixed with it (verified in code):
   re-reads the file to save; PR 7 rewrites both.
 - `VERSION_LINE` loses its bracket advice: `version %(value)s, expected 4
   (no migration support)`. The advice is the entry's, by version; the line
-  said "delete it" to a newer file too. Unreleased (0.24.1), no `replaces`.
+  said "delete it" to a newer file too. Unreleased (0.25.0), no `replaces`.
 - `loom id generate -e` logs its decision `INFO:`s before an `ERROR:` that
   writes nothing: `entity_entry` returns its notes, said after `_save`
   succeeds.
@@ -313,6 +313,6 @@ asserts no stderr line holds it twice); wording pinned by
 `test_registry_harvest_content_gate.py`, `tests/cli/test_cli_id*.py`,
 `tests/id_registry/*` (one family at a time); realpath, case and
 `os.replace` on Windows; determinism (messages only: the SBOM diff vs
-`main` is empty with `--creation-datetime` pinned); `since` 0.24.1 moves if
+`main` is empty with `--creation-datetime` pinned); `since` 0.25.0 moves if
 a tag is cut between the PRs; skill bodies (251 and 319 bytes headroom:
 edit references); the page guard (measure per family).

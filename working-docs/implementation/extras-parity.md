@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-11-14
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -215,11 +215,11 @@ warning helpers moved to `extract/_author_warnings.py`.
 
 Every cap warns through `warn_over_cap` (decided 2026-10-12): the model
 scan bounds, labels, names and per-wheel budget, the wheel/sdist header
-block and the sdist config member read `<KEY>=…: larger than the <limit>-
+block and the sdist config member read `<KEY>=...: larger than the <limit>-
 <unit> <purpose> cap; <outcome>`. `Cap.after("FORMAT=x")` keeps a model's
 key order; `ModelOverCap` and `HeaderBlockOverCap` carry the `Cap`, a
 reader's record carries it for the scanner's relay (`over_cap_of`). The
-frame (`FORMAT=… FILE=…`, `metadata not read`, `identity unknown`,
+frame (`FORMAT=... FILE=...`, `metadata not read`, `identity unknown`,
 `no label recorded`) is kept; the inner phrases were unified. An archive
 member is `FILE=<archive>:<member>`, as the licence cap already was. The
 guard (`tests/test_cap_warnings.py`) follows a `Cap` across modules

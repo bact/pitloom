@@ -19,7 +19,7 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id' with a --project-dir (the current directory when not given) other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.25.0 |
+| [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id generate' with a --project-dir (the current directory when not given), or 'loom id import' with an explicit one, other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.25.0 |
 | [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a URL credential fingerprint is not one: an accept-url-credentials in [tool.pitloom] that is no array or has an entry that is no fingerprint (named by its position, from 0), or one given to the library; the line never shows the value, which may be a credential pasted by mistake. Or a url-credentials in [tool.pitloom] (PitloomConfig.url_credentials in the library) is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.25.0 |
 | [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. | 0.25.0 |
@@ -31,13 +31,14 @@ values.
 - **Means**: The command line holds an option the command cannot take in this
   case (-o/--output with several wheels), or one an existing ID registry
   contradicts: 'loom id generate --namespace' for a registry made with another
-  namespace, or 'loom id' with a --project-dir (the current directory when not
-  given) other than the one the registry was made for. The 'not allowed with'
-  line is reserved for options of a mutually exclusive group; no command has one
-  yet.
+  namespace, or 'loom id generate' with a --project-dir (the current directory
+  when not given), or 'loom id import' with an explicit one, other than the one
+  the registry was made for. The 'not allowed with' line is reserved for options
+  of a mutually exclusive group; no command has one yet.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Ran nothing: the command exits 1, and an ID registry is left
-  as it is.
+- **Pitloom did**: Ran nothing: the command exits 1 (2 for the 'not allowed
+  with' line), the library (IdRegistry) raises ValueError carrying the code, and
+  an ID registry is left as it is.
 - **The caller may fix**: The caller may drop the option, run the command once
   per input, or, for an ID registry, pass the namespace or project directory the
   registry holds (or name another registry file), and run again. Deleting a

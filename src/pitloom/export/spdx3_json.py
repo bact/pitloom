@@ -587,6 +587,8 @@ class Spdx3JsonExporter:
             pitloom.messages.CodedValueError: ``credentials-unsafe/refused``
                 (the ``refuse`` mode), after one ``ERROR:`` line per refused
                 value.
+            RuntimeError: two elements share an ``spdxId`` (a construction
+                bug).
         """
         out_f = io.BytesIO()
         serializer = spdx3.JSONLDSerializer()

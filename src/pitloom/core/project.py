@@ -79,7 +79,7 @@ class ProjectFile:
             file's header, in order. Empty when none are present.
         file_type: The raw ``SPDX-FileType:`` tag value, untranslated.
         spdx_license_identifier: The file's own ``SPDX-License-Identifier:``
-            expression, independent of the project's overall license.
+            expression, independent of the project's overall licence.
         content_type: A real IANA media type detected from the file's
             content/filename (``magika`` or a filename-extension
             fallback), or asserted directly by a

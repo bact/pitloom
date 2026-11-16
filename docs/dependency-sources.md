@@ -73,7 +73,7 @@ does.
 
 Each Poetry dependency is read as poetry-core writes it: its version
 constraint (`^1.0` is `>=1.0,<2.0`), `extras` (`name[a,b]`), a `git` or
-`url` source (`name @ git+https://…@rev`) and its `markers`, `python` and
+`url` source (`name @ git+https://...@rev`) and its `markers`, `python` and
 `platform` keys as one marker. Where two or more of those keys combine,
 poetry-core simplifies the joined marker and Pitloom keeps each term: the
 same environments match. A `path` dependency is skipped with a `WARNING:`

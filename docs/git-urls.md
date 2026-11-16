@@ -309,8 +309,8 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   ... (query and fragment ignored)`), so `git` cannot sign in with one either.
   This is how the URL you give is
   fetched and shown (masked) in messages; it is not a rewrite of the SBOM: a
-  URL field of the SBOM that holds a credential is refused, as on every
-  target ([Credentials in URLs](url-credentials.md)).
+  URL field of the SBOM that holds a credential is warned of, or refused in
+  the `refuse` mode, as on every target ([Credentials in URLs](url-credentials.md)).
   - A plain `http://` URL with credentials is fetched with them, and
     `WARNING: URL=<url>: credentials are sent in clear over http; use https
     [credentials-unsafe/http-clear]` says so once.
@@ -438,7 +438,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
 | `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
-| `ERROR:` | `<frame>: …` | the run could not finish (the frame names the command) |
+| `ERROR:` | `<frame>: ...` | the run could not finish (the frame names the command) |
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
 `***:***@host:path` for an scp-style address, and the value of each query or

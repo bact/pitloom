@@ -147,6 +147,7 @@ fails the step and is not printed. See [Credentials in URLs](url-credentials.md)
 ```yaml
 - uses: bact/pitloom@v0.24.0
   with:
+    # New in 0.25.0: a tag before it ignores these two inputs.
     url-credentials: refuse
     accept-url-credentials: |
       sha256:0123456789abcdef

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -379,7 +379,8 @@ clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
   checks only structured version fields, and could also assert the
   skills' floor is at most `__about__.__version__` (it would fail until
   the release bump lands).
-  The floor moved to 0.24.1 on 2026-11-14 (PR #482: the message codes
+  The floor moved to 0.24.1 on 2026-11-14 (0.24.1 was never released: it is
+  raised to 0.25.0 at the cut, roadmap "0.25.0 cut sweep"; PR #482: the message codes
   `input-not-found`, `sbom-invalid`, `hf-url-invalid`, `file-unreadable`
   for the input check and their wording); feature floors (PyPI URL
   targets, 0.24.0) stay.

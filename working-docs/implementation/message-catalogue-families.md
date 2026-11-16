@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -272,7 +272,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   fixed. Another stack is left: a load or save failure inside
   `failed_to_save_message` still prints `ID registry: failed to save
   '<absolute path>': ID registry: FILE=<path as given>: ...`: the file twice,
-  spelt two ways, and no code (PR 7).
+  spelt two ways, and no code (fixed in #492).
 - Reused by advice: `file-unreadable` (`/not-utf8`) and `json-malformed`
   read `for the ID registry` (a new `READ_USES` value); a version or key
   literal that `pitloom.messages` cannot import (`4`, `MAX_ID_NUMBER`) is a
@@ -306,7 +306,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   path, so a `; ` in it cannot split the line.
 - Not coded here: the save wrapper `failed_to_save_message` still prints
   the inner text without its code (PR 7), and the skipped-directory decision
-  line (`_types.py`, PR 6).
+  line (`_types.py`, PR 6). The save wrapper was fixed in #492.
 
 ## ID registry ids and keys (#486, catalogue PR 6)
 

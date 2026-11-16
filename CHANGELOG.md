@@ -42,24 +42,24 @@ and this project adheres to
 
 ### Changed
 
-- Error messages for missing inputs, options and ID registry files are
-  reworded; CLI `ERROR:` lines start `loom <command>:`; `loom.Run` registry
-  lines start `ID registry:` ([#481], [#482], [#485], [#486])
+- Missing-input, option and ID registry file errors are reworded; CLI `ERROR:`
+  lines start `loom <command>:`, `loom.Run` registry lines `ID registry:`
+  ([#481], [#482], [#485], [#486])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
   over 50 MiB, an `@graph` that is not a list of objects) ([#482])
-- A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
-  and `generate_project_sbom()` too) get a coded error; a padded Hub URL is
-  read; a missing input or ID registry is named as given ([#482])
+- A `.whl` directory, a file given to `merge` and a malformed Hub URL get a
+  coded error; a padded Hub URL is read; a missing input or ID registry is
+  named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
   access tokens; `urllib3` and `requests` lines too ([#482], [#486], [#487],
   [#489], [#491])
-- A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
-  with no `general.license.name` gives no licence; a Hub card's `N/A` falls
-  back to licence files ([#483])
+- A GGUF `general.license` placeholder (`other`, `N/A`, ...) with no
+  `general.license.name` gives no licence; a Hub card's `N/A` falls back to
+  licence files ([#483])
 - Safetensors `ss_base_model_version` (the base model) is no longer read as the
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),

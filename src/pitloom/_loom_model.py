@@ -19,9 +19,10 @@ shared file stem keeps or gets its own id; the element's name stays the
 declared one. A ``src/``/``lib/`` path also hits the held key of its
 installed path with that hash (``CANONICAL`` layout alias: a wheel
 minted it); the hit registers nothing. A file outside the root is keyed
-by the name (one ``INFO:``, once per model, ``registry-path-key-unusable``). A miss
-is registered when the registry has a file and ``update-id-registry`` is
-not false; :meth:`LoomModels.persist` saves it after the fragment is written.
+by the name (one ``INFO:``, once per name and path,
+``registry-path-key-unusable``). A miss is registered when the registry has a
+file and ``update-id-registry`` is not false; :meth:`LoomModels.persist`
+saves it after the fragment is written.
 Without a usable ``path=`` (none, not a file at exit, unreadable), the
 model is looked up by name only, an entry recording a SHA-256 is a miss (no
 content vouches for it), and nothing is registered. A Git LFS pointer file

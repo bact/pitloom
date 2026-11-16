@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ built), [message-catalogue-migration-plan.md](message-catalogue-migration-plan.m
 
 Status: design, 2026-11-14, written during PR 3 from three read-only surveys
 of `main` plus the PR 3 tree. Tags: (V) verified in code, (I) inferred.
-Nothing here is built. It settles how a prefix before a catalogued line is
+Rule 2 is built for PRs 5 to 7 (#485, #486, #492); the rest is not. It settles how a prefix before a catalogued line is
 spelt and matched, so each later PR applies a rule instead of debating one.
 Codes themselves stay each PR's plan (decision L makes them promises).
 
@@ -363,7 +363,7 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
   (`file-unreadable` would become `unreadable`). May land with PR 14 or
   alone.
 - **`since`**: a new entry takes the next release after the last tag at the
-  time it merges. PR 3 uses 0.24.1 (maintainer, 2026-11-13); later PRs check
+  time it merges. PRs 3 to 7 use 0.25.0 (the next release; 0.24.1 was not cut); later PRs check
   `git tag` before choosing.
 - **Topic pages** (`messages/_topics.py`, page guard 30 KB): new topics
   `id-registry` (5 to 7), `config` (8, 9), `lock-files` (10, 11),

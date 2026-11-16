@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 -->
 
 # Credential leak fixes
@@ -21,7 +21,8 @@ registry files, what was decided, and what is left.
 
 Since PR 2 a persisted value is **refused, never rewritten**: the SBOM
 strip, the registry load-drop and the id-collision rewrite are deleted, and
-an SBOM or registry file holding a credential is refused
+an SBOM or registry file holding a credential is warned of by default
+(`credentials-unsafe/written`) and refused in the `refuse` mode
 (`credentials-unsafe/refused`, `credentials-unsafe/registry`); displayed text
 (logs, tracebacks, `KEY=VALUE`, `ERROR:` lines) is still **masked**. What PR
 2 decided: "Built in PR 2" in
@@ -165,7 +166,7 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
   reaches the SBOM as written. Secret scanning of prose is other tools'
   job.
 - A non-secret parameter value with more than 16 `?` is read as a secret
-  (refused in an SBOM, masked in a message), so a crafted query cannot
+  (warned of, or refused in the `refuse` mode, in an SBOM; masked in a message), so a crafted query cannot
   nest the reading without limit.
 - An scp-style address is detected only as a whole value (no white space,
   no dotless-host exemption: `build:42@ci:linux` alone is refused); one

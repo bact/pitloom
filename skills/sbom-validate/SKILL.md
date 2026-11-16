@@ -160,7 +160,7 @@ given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
 `.dist-info/sboms/` entries needs `--sbom-filename NAME` on either command, else
 `ERROR:`.
 
-A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
+A wheel Pitloom refuses gets one `ERROR: loom <command>: ARCHIVE=... -- wheel refused` and
 exit 1; the other wheels are still checked (an unexpected `validate-wheel`
 error, `ERROR: loom validate-wheel: ...`, stops the batch instead).
 `verify-wheel` reads only the member names, the own `.dist-info`'s

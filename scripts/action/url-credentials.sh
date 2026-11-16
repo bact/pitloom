@@ -50,7 +50,8 @@ _url_mask_piece() {
   if [ "${#piece}" -lt "${_url_mask_min}" ]; then
     return 0
   fi
-  # The runner decodes %25, %0D and %0A in a workflow command's value.
+  # The runner decodes %25, %0D and %0A in a workflow command's value (a
+  # value holds no LF: the input is read per line).
   piece=${piece//'%'/%25}
   piece=${piece//$'\r'/%0D}
   printf '::add-mask::%s\n' "${piece}"
@@ -77,7 +78,7 @@ _url_mask_params() {
 }
 
 # Whether the word $1, which holds ":/", starts a URL: before its first ":/",
-# once an option prefix (--model=, name=) and a leading quote or bracket are
+# once an option prefix (--sbom=, name=) and a leading quote or bracket are
 # dropped, a scheme of two or more characters (so C:/x and 123:/x are
 # paths). One rule for "://" and for one slash (https:/u:p@h), which a URL
 # parser reads as a URL too.

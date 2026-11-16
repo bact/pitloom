@@ -168,8 +168,8 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, *arg* holds an ``@`` in
-            what git reads as the authority, but no user information and
-            host the masker and Python split it into the way git would, or a
+            what git reads as the authority, but the masker and Python do not
+            split it into user information and host as git does, or a
             NUL in its user information (no environment variable can hold
             one); ``url-unsafe/host-spelling``, a host that is not plain
             (:func:`host_is_plain`), as the typed URL is refused.

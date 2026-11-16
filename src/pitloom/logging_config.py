@@ -64,9 +64,11 @@ _WARNED_ONCE: set[tuple[str, str]] = set()
 
 
 def escape_controls(text: str) -> str:
-    """*text* with the temporary checkout of a Git URL masked
-    (:func:`~pitloom.core.url_masking.mask_checkout`), each character that is
-    not printable, and each code point of
+    """*text* with each URL's credentials
+    (:func:`~pitloom.core.url_masking.masked_given_path`) and each temporary
+    checkout or download directory
+    (:func:`~pitloom.core.url_masking.mask_checkout`) masked, each character
+    that is not printable, and each code point of
     :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its ASCII
     escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
     letters included, is kept. Unlike :func:`loggable` it never quotes, so a
@@ -183,9 +185,9 @@ def error_frame(prefix: str) -> Iterator[None]:
 
     The CLI's entry points open it, so a Ctrl-C before a subcommand is known
     is framed too. It is per context: a worker thread does not inherit it, so
-    an ``ERROR`` record logged from a worker would be unframed (none is
-    today). The Hatchling hook writes its own frame into its record's text and
-    runs where no frame is open.
+    an ``ERROR`` record logged from a worker would be unframed (none is).
+    The Hatchling hook writes its own frame into its record's text and runs
+    where no frame is open.
 
     :func:`print_error` and the formatter of :func:`configure_logging` read it
     when the line is written."""

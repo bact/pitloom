@@ -160,8 +160,9 @@ a licence relationship goes to <target>, which is not an AnyLicenseInfo; point
 it at a LicenseExpression [license-relationship-invalid]` or `WARNING:
 RELATIONSHIP=<name>: a licence relationship starts at <target>, which is not a
 package, file or snippet; start it at one [license-relationship-invalid]`, then
-`ERROR: loom merge: Fragment merge left a licence relationship of the wrong type; fix the
-fragment [license-relationship-invalid]`. Fix the fragment you drafted;
+`ERROR: loom <command>: Fragment merge left a licence relationship of the wrong
+type; fix the fragment [license-relationship-invalid]` (the command is the one
+running the merge: `loom project` here, `loom merge` for a direct merge). Fix the fragment you drafted;
 regenerating the base does not help.
 
 If the base already has an `MIT` expression, the merge keeps the base's

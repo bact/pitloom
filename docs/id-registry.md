@@ -251,7 +251,7 @@ Exceptions:
   not record it, and a pinned id goes to the first of them, with a
   `WARNING:`. `loom id import` skips every key held by several elements, with
   one `INFO: ID registry: not imported (name held by several elements): <type>
-  '<key>', ...` line.
+  '<key>', ... [registry-key-ambiguous]` line.
 - A `project` run of a project with a dynamic version states `unknown` and so
   keys its own package by name alone; a wheel or hook run of it states the
   version: the two give that package two ids.

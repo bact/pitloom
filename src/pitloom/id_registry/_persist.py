@@ -176,7 +176,8 @@ def save_registry(registry: IdRegistry) -> Rebase:
 
     Raises:
         OSError, ValueError: the re-read or the write failed; the file is
-            left as it was.
+            left as it was, unless its directory refuses a temporary file
+            and the write in place fails part-way.
     """
     rebased = registry.rebase()
     if rebased.pending:

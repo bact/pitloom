@@ -7,7 +7,9 @@
 
 Every SPDX document namespace and every ``spdxId`` built from a name goes
 through :func:`iri_segment`, so a name with a space or ``#`` yields a valid
-IRI. The element's ``name`` keeps the original text.
+IRI. The element's ``name`` keeps the original text. The module also checks
+that a text can be a document namespace (:func:`namespace_problem`,
+:func:`require_namespace_iri`), a credential in it included.
 
 See also: :mod:`pitloom.core.untrusted_text` (the invisible and bidi
 controls percent-encoded here).
