@@ -20,7 +20,7 @@ values.
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature), or a query with so many nested ? that it cannot be read safely. An SBOM can be published, so it must not carry any. | 0.25.0 |
+| [`credentials-unsafe`](#credentials-unsafe) | WARNING | A URL a project declares (a dependency's direct URL, a project URL, a model card's link) holds a user name or password, or a query parameter named like a secret (token, key, signature), or a query with so many nested ? that it cannot be read safely, or is an access token's shape or an scp-style address with a password. An SBOM can be published, so it must not carry any. | 0.25.0 |
 | [`credentials-unsafe/git-line-break`](#credentials-unsafegit-line-break) | WARNING | The user name or password of a Git URL holds a line break (an encoded %0A or %0D). A line break would add a line to what the credential helper hands git, so git could be told another value. | 0.25.0 |
 | [`credentials-unsafe/git-userinfo`](#credentials-unsafegit-userinfo) | ERROR | A Git URL holds user information (an @ before the first /) that Pitloom cannot split off the command line the way git reads it: a bracket or port that is not valid, an empty host, or an @ git reads as a password where the URL parser sees a query. | 0.25.0 |
 | [`credentials-unsafe/http-clear`](#credentials-unsafehttp-clear) | WARNING | A plain http:// Git URL holds a user name or password: git sends it to the server unencrypted, readable by anyone on the path. | 0.25.0 |
@@ -42,7 +42,8 @@ values.
 - **Means**: A URL a project declares (a dependency's direct URL, a project URL,
   a model card's link) holds a user name or password, or a query parameter named
   like a secret (token, key, signature), or a query with so many nested ? that
-  it cannot be read safely. An SBOM can be published, so it must not carry any.
+  it cannot be read safely, or is an access token's shape or an scp-style
+  address with a password. An SBOM can be published, so it must not carry any.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Removed the user information and each such parameter from the
   URL in the SBOM, its provenance and its comments, and went on; said once per

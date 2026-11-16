@@ -11,8 +11,8 @@ See also: test_url_masking_detect.py (the tests that read it).
 
 Each row is ``(id, text, strip_changes, refused)``. *strip_changes* is
 whether the SBOM strip (``pitloom.export._spdx3_strip``, to be retired in
-PR 2)
-changed the text, computed once on the tree before the detector. *refused*
+PR 2) changed the text, computed once on the tree before the detector.
+*refused*
 is whether the detector refuses it (an account name accepted), reviewed row
 by row. The detector reads a URL-typed value as a whole and no prose: every
 text the strip changed is refused, except a ``prose-`` row (a sentence that
@@ -82,7 +82,7 @@ TOKENS: dict[str, tuple[str, str]] = {
 }
 _IN_URL = "https://h.example/x?q="
 
-#: (id, text, whether the retired strip changed it, whether it is refused).
+#: (id, text, whether the strip changed it, whether it is refused).
 PROBES: tuple[tuple[str, str, bool, bool], ...] = (
     ("empty", "", False, False),
     # User information.

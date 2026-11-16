@@ -35,8 +35,9 @@ log = logging.getLogger(__name__)
 
 
 def _masked(text: str) -> str:
-    """*text*, a value, masked (:func:`~pitloom.core.url_masking.\
-masked_given_path`): read whole when it starts with a URL, so white space in
+    """*text*, a value, masked
+    (:func:`~pitloom.core.url_masking.masked_given_path`): read whole when
+    it starts with a URL, so white space in
     its path does not end it (``https://h/a b?token=***``), else as a message
     line. Read without its format characters, as the detector reads it
     (``https\\u200b://``)."""
@@ -81,8 +82,9 @@ def _shown(value: object) -> str:
     :class:`~pitloom.core.given_path.GivenPath`) as the user gave it
     (:func:`~pitloom.core.quote_source.given_path_text`), anything else
     (text, bytes, a list of paths) as ``str`` writes it; a URL in either
-    without its credentials, text as a message line (an address after a
-    URL is kept: :func:`~pitloom.core.url_masking.masked_given_path`)."""
+    without its credentials (:func:`_masked`): text read whole when it
+    starts with a URL, else as a message line (an address after a URL is
+    kept: :func:`~pitloom.core.url_masking.masked_given_path`)."""
     if isinstance(value, (PurePath, GivenPath)):
         return given_path_text(value)
     return _masked(str(value))

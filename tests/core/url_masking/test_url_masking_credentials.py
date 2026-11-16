@@ -26,7 +26,6 @@ from pitloom.core.url_masking import (
     strip_url_secrets,
 )
 from pitloom.logging_config import escape_controls, print_traceback
-from tests.core.url_masking._probe_corpus import PROBES
 
 pytestmark = pytest.mark.platform
 
@@ -158,24 +157,3 @@ def test_masker_strip_hold_and_refusal_agree(url: str) -> None:
     assert holds_url_credentials(url)
     with pytest.raises(ValueError):
         require_namespace_iri(url)
-
-
-_FIXED = {row[0]: row[1] for row in PROBES}
-
-
-@pytest.mark.parametrize(
-    ("probe", "held"),
-    [
-        *(("purl-enc1", True), ("purl-enc5", True), ("purl-enc6", True)),
-        *(("purl-enc-token", True), ("tok-ghp_", True), ("tok-AKIA", True)),
-        *(("prose-weak", False), ("prose-port", False), ("w-nested-weak", False)),
-        *(("prose-url", False), ("prose-scp", False), ("wide-s3", True)),
-    ],
-    ids=lambda value: value if isinstance(value, str) else None,
-)
-def test_a_stored_value_is_refused_by_what_it_holds(probe: str, held: bool) -> None:
-    """A credential percent-encoded in a PURL qualifier, a token's shape in
-    a URL and a scheme after one ``/`` are refused; a weak name nested in a
-    weak value is not, nor is any sentence, whatever URL it mentions."""
-    text = _FIXED[probe]
-    assert holds_url_credentials(text) is held

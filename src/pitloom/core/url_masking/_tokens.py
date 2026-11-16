@@ -14,13 +14,13 @@ rule). Standard library only.
 
 Each shape is the vendor's prefix and body, as the gitleaks rule set
 (``config/gitleaks.toml``, read 2026-11-16) states them, widened where
-Pitloom's earlier shape found more, so a token found before is found
-still: of the vendor's fixed length where it fixes one (GitHub, AWS,
-Hugging Face, npm, OpenAI, Anthropic, Google), followed by no further body
-character, else a minimum and then every further body character, so that
-a match covers the whole token and masking leaves none of it. A GitLab
+Pitloom's own shape finds more: of the vendor's fixed length where it
+fixes one (GitHub, AWS, Hugging Face, npm, OpenAI, Anthropic, Google),
+followed by no further body character, else a minimum and then every
+further body character, so that a match covers the whole token and
+masking leaves none of it. A GitLab
 token's 20 characters must hold a digit, an upper- and a lower-case letter
-(Pitloom's earlier rule), so a documentation slug such as
+(Pitloom's own rule), so a documentation slug such as
 ``glpat-ApiProjectPypiInstallSetup`` is none; a random 20-character body
 lacks a digit about 3 times in 100 and is then missed. A Google API key's
 35 characters must hold the same three (a random body lacks one about 3
@@ -28,7 +28,7 @@ times in 1,000). An AWS key id is base32, so a word such as
 ``ASIAPACIFICREGION123`` is none.
 
 Slack: every ``xox[abeoprs]-`` token of two digit groups and 8 letters or
-digits (Pitloom's earlier shape, which also covers the user token), and
+digits (Pitloom's own shape, which also covers the user token), and
 the gitleaks shapes fixed by digit groups or length: bot
 (``xoxb-<10-13 digits>-<10-13 digits>``), legacy (``xoxo-``, ``xoxs-``:
 three digit groups and hex), configuration refresh (``xoxe-``, 146) and
@@ -38,7 +38,7 @@ workspace (``xoxa-``, ``xoxr-``: 8 to 48 letters or digits) and legacy bot
 (``xoxb-<8-14 digits>-<18-26 letters or digits>``) shapes are not read:
 a documentation word fits them (``xoxr-Configuration``), so such a token
 without the digit groups is missed. An app token (``xapp-``) has an
-upper-case app id, as in Pitloom's earlier shape. A GitLab pipeline
+upper-case app id, as in Pitloom's own shape. A GitLab pipeline
 trigger, OAuth or CI build token is found in its gitleaks shape or as such
 20 characters. PyPI: any version-2
 macaroon (``AgE``), so a TestPyPI token (location ``test.pypi.org``,

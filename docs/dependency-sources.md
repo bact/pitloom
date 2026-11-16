@@ -328,7 +328,12 @@ deeply to read, which the SBOM states as written; remove it from the source
 - an scp-style address in a URL's query value
   (`https://h/?next=alice:pw@host:o/r`) or as a PURL subpath
   (`pkg:generic/x@1#alice:pw@host:o/r`);
+- a value that is a whole scp-style address with neither a `.` in its host
+  nor a `/` in its path (`build:42@ci:linux`);
 - a PURL qualifier named like a secret (`?private_token=...`).
+
+Pitloom's own log lines also mask an access token's shape (`ghp_***`,
+`AKIA***`) wherever it appears in them.
 
 ### Known gaps
 
@@ -349,9 +354,11 @@ environment variable instead):
   an angle bracket, so an apostrophe, quote, space, `<` or `>` in its user
   information is not read as part of it (a URL field, such as a project URL
   or a dependency's direct URL, reads it whole).
-- An scp-style `user:password@host:path` is read only when the host has a `.`
-  or the path a `/`; `build:42@ci:linux` is left as written in an SBOM (an ID
-  registry key or namespace that is that whole value is refused).
+- An scp-style `user:password@host:path` is removed only when the host has a
+  `.` or the path a `/`; a whole value without (`build:42@ci:linux`, a file
+  name such as `meet-10:30@ab:c.txt` too) is stated as written, with the
+  warning above (an ID registry key or namespace that is that whole value is
+  refused; a file's key is never read as one).
 - A parameter whose value holds more than 16 `?` is removed whole, as a
   precaution: the query is nested too deeply to read, and what is removed may
   not be a credential.
@@ -364,9 +371,9 @@ environment variable instead):
 - A URL in a log sentence ends at white space other than a tab or a line
   break, so a secret after a space in its path (`https://h/a b?token=...`)
   is shown; a `KEY=VALUE` value that starts with a URL is read whole.
-- An access token in the path of a dependency's direct URL
-  (`foo @ https://host/ghp_...`) is stated as written in the SBOM's
-  provenance comment and annotation, without a warning.
+- An access token in a URL inside free text (a description, or the
+  provenance comment and annotation that quote a dependency's direct URL,
+  `foo @ https://host/ghp_...`) is stated as written, without a warning.
 - An old Slack workspace or bot token without the digit groups
   (`xoxa-`, `xoxr-`, an `xoxb-` legacy shape) is not recognised, since a
   documentation word fits its shape.

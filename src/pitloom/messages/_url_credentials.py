@@ -96,7 +96,8 @@ CREDENTIALS_UNSAFE: Final = Message(
     summary="A URL a project declares (a dependency's direct URL, a project "
     "URL, a model card's link) holds a user name or password, or a query "
     "parameter named like a secret (token, key, signature), or a query with "
-    "so many nested ? that it cannot be read safely. An SBOM can be "
+    "so many nested ? that it cannot be read safely, or is an access "
+    "token's shape or an scp-style address with a password. An SBOM can be "
     "published, so it must not carry any.",
     did="Removed the user information and each such parameter from the URL "
     "in the SBOM, its provenance and its comments, and went on; said once "

@@ -43,7 +43,8 @@ A URL's query value is read as a whole scp-style address too
 (``?next=u:p@h:o/r``), a URL in it as a URL; a PURL qualifier value as a
 whole value or an access token; a PURL subpath, a path, for a URL anywhere
 in it, an access token or a whole scp-style address. A URL inside a value
-of no kind above (``urn:x:https://u:p@h``) is not read.
+of no kind above (``urn:x:https://u:p@h``) is not read, unless the value is
+an identifier Pitloom stores (*embedded*, :func:`iter_hits`).
 
 In a URL a hit is a user information (an account name on an ``ssh`` or
 ``git`` URL apart), a parameter named like a secret, a parameter value
@@ -79,10 +80,10 @@ __all__ = [
     "Hit",
     "is_purl",
     "iter_hits",
+    "normalised",
     "purl_qualifiers",
     "qualifier_hits",
     "qualifier_levels",
-    "normalised",
     "split_enclosed",
     "subpath_hits",
     "without_format",

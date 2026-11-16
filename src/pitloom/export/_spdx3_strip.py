@@ -140,8 +140,7 @@ def _stripped_value(value: Any, seen: list[str], kept: list[tuple[bool, str]]) -
     if isinstance(value, str):
         kept.extend((False, url) for url in _kept_urls(normalised(value)))
         plain = _stripped_text(value, seen)
-        # What the detector refuses that the strip leaves (PR 2 replaces the
-        # strip with the detector): said, never silent.
+        # What the detector refuses that the strip leaves: said, never silent.
         if holds_url_credentials(plain, account=True):
             kept.append((True, plain))
         return value if plain == value else plain

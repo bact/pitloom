@@ -188,7 +188,9 @@ def is_account_name(scheme: str, userinfo: str) -> bool:
     alone (no ``:``) on an ``ssh`` or ``git`` scheme (:data:`ACCOUNT_SCHEMES`,
     any case: ``SSH://git@h``), that is a plausible account name (lower
     case, at most 32 characters, fewer than eight digits) and has no
-    token prefix (:data:`TOKEN_PREFIXES`: ``ghp_``, ``glpat-``...).
+    token prefix
+    (:data:`~pitloom.core.url_masking._tokens.TOKEN_PREFIXES`: ``ghp_``,
+    ``glpat-``...).
     ``ssh://git:PW@h`` and ``ssh://ghp_TOKEN@h`` are credentials."""
     return (
         scheme.lower() in ACCOUNT_SCHEMES

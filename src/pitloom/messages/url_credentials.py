@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The ``credentials-unsafe`` messages: the one ``WARNING:`` for a URL stripped
-of its credentials or holding one the SBOM keeps, and the errors for a
+of its credentials, holding one the SBOM keeps or holding one the strip does
+not remove, and the errors for a
 registry value that holds some, or a registry file's entry dropped for one.
 
 See also: :mod:`pitloom.messages._url_credentials` (the entries) and

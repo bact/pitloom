@@ -15,7 +15,10 @@ library only.
 A URL starts at ``scheme://`` (the scheme from the first letter of a run of
 scheme characters: ``1.https://``; a special scheme, ``http``, ``https``,
 ``ftp``, ``ws``, ``wss`` or ``file``, also at ``:/``, ``:\\`` and more
-separators, as a browser reads ``https:/u:p@h``).
+separators, as a browser reads ``https:/u:p@h``). With *wide* (the
+detector), as the masker reads one: any scheme of two letters or more also
+at one ``/`` or ``\\`` or more (:data:`WIDE_URL_START`), with a user
+information unless a path separator comes before it.
 
 Two readings (:mod:`pitloom.core.url_masking._userinfo`). In *free text* a
 URL's user information is read in free text, and its rest runs to white

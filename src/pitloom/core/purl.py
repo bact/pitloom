@@ -108,11 +108,11 @@ def _stripped(value: str) -> tuple[str, list[str]]:
 
 def _stripped_once(value: str) -> tuple[str, list[str]]:
     """*value* with the credentials of its URL removed at the least depth of
-    percent-encoding that shows them (:func:`~pitloom.core.url_masking.\
-qualifier_levels`), and encoded again exactly that many times, so what an
-    inner value was encoded as stays: ``...%3Fa%3D100%2525`` keeps its
-    ``%25``, and a value as written (depth 0) is not encoded at all.
-    Unchanged when no depth shows any."""
+    percent-encoding that shows them
+    (:func:`~pitloom.core.url_masking.qualifier_levels`), and encoded again
+    exactly that many times, so what an inner value was encoded as stays:
+    ``...%3Fa%3D100%2525`` keeps its ``%25``, and a value as written
+    (depth 0) is not encoded at all. Unchanged when no depth shows any."""
     for depth, level in enumerate(qualifier_levels(value)[0]):
         plain, found = _stripped(level)
         if found:
@@ -147,10 +147,12 @@ def purl_qualifier_values(purl: str) -> list[str]:
 
 def strip_purl_secrets(purl: str) -> tuple[str, list[str]]:
     """*purl* with the credentials of each URL in a qualifier value removed:
-    each value is percent-decoded (until it no longer changes), stripped
-    (:func:`~pitloom.core.url_masking.strip_url_secrets`) and, when that
-    changed it, encoded again; an encoded ``@`` or ``?`` would hide them
-    from a strip of the PURL as written. A ``#`` and the subpath stay in the
+    each value is percent-decoded to the least depth that shows them (at
+    most :data:`~pitloom.core.url_masking.PURL_DECODE_ROUNDS` times),
+    stripped (:func:`~pitloom.core.url_masking.strip_url_secrets`) and, when
+    that changed it, encoded again (:func:`_stripped_at_depth`); an encoded
+    ``@`` or ``?`` would hide them from a strip of the PURL as written. A
+    ``#`` and the subpath stay in the
     last value (:func:`~pitloom.core.url_masking.purl_qualifiers`), so a URL
     in the subpath is stripped too. Also returns each URL changed, as
     :func:`~pitloom.core.url_masking.strip_url_secrets` shows it."""

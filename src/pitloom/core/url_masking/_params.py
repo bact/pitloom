@@ -210,7 +210,7 @@ def param_run(
     :data:`WHOLE_PARAM_RE`) at *start*, before *bound*: a secret's value
     (one an SBOM may not state) run over ``;`` (:data:`_SECRET_RUN`) when a
     ``?``, ``&`` or ``#`` opens it; a path parameter (``;jsessionid=``)
-    ends at the next ``;`` as before."""
+    ends at the next ``;``."""
     param = pattern.match(text, start, bound)
     if (
         param is not None

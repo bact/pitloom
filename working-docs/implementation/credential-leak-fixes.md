@@ -82,10 +82,13 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 
 ## Tracked, not fixed here
 
-- A `/` or white space in a password; `@[::1]` hosts; `state=`; CloudFront
-  `Policy=`; `;jsessionid=` path parameters; an scp-style `S3CRET@host:o/r`
-  (no `user:`) is masked nowhere; a percent-encoded URL nested in a
-  parameter outside a `pkg:` string.
+- Found by none of the strip, the detector and the masker: a `/` in a
+  password; `state=`; CloudFront `Policy=`; an scp-style `S3CRET@host:o/r`
+  (no `user:`); a percent-encoded URL nested in a query value outside a
+  `pkg:` string (`?next=https%3A%2F%2Fu%3Ap%40h`). White space in the
+  password of a URL field is read by the detector and the masker, not the
+  strip. `@[::1]` hosts and `;jsessionid=` path parameters are read by all
+  three (checked 2026-11-16).
 - Third-party `warnings.warn` text, Hatchling's own traceback and `urllib3`
   log lines print the raw text; the Action does not `::add-mask::` its source
   inputs; a line break in a password can split a traceback line so that its
@@ -114,8 +117,6 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   nest the reading without limit.
 - `loom verify-wheel` with a path 1000 directories deep fails in the standard
   library's `glob.glob` (`cli/commands/utils.py`): exit 1, nothing leaks.
-- Fixed by the detector (PR 1, "Detector sweep" below): a weak name nested
-  in a weak name (`?code=1?session=2`) made `holds_url_credentials` true.
 - A secret after an ampersand or semicolon that follows a nested secret
   moves into the earlier value (`?code=1?token=T&a=1` strips to
   `?code=1?a=1`). Existed before round 7; no leak, the kept value is wrong.
@@ -132,20 +133,17 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 - Log masking covers `pitloom` and `pitloom.*` records made through the record
   factory; third-party loggers, `logging.makeLogRecord`, an `extra` key, the
   exception object in `exc_info` and output before `configure_logging` are not.
-- Every unreleased catalogue entry says `since` 0.25.0 (the last tag is
-  v0.24.0; the release ships as 0.25.0). Release decision: the skills'
-  `pitloom >= 0.24.x` floors are not raised here; the release cut does.
+- Release decision: the change ships as 0.25.0, with the advisory framing;
+  every unreleased catalogue entry says `since` 0.25.0 (the last tag is
+  v0.24.0). The skills' `pitloom >= 0.24.x` floors are not raised here; the
+  release cut does.
 - The user-facing list is "Known gaps" in `docs/dependency-sources.md`.
-- Namespace mixing seen in one SBOM: a registry namespace (`ids.example/ns`)
-  beside `spdx.org/spdxdocs/demo-<uuid>` ids; unrelated to credentials.
 - Not run: the `!f()` helper on Windows (Git for Windows ships the sh it
   needs; the real-git tests are POSIX-only), a SIGKILL during the clone
-  itself, pyrefly from the worktree path (run from the repository root; the
-  baseline is 11 errors in untouched files).
+  itself, pyrefly from the worktree path (run from the repository root;
+  today it reports 7 errors, all in files this work does not touch).
 - `pitloom.loom` programs can now see `register()` raise for a credentialed
   key.
-- The advisory framing is the release decision; the change ships as 0.25.0
-  (catalogue `since` 0.25.0).
 - The SBOM strip (live until PR 2) does not remove what it does not read:
   `s3:/u:p@h/x`, `hf:/datasets/x?token=`, `git+ssh:/h/x?token=`,
   `hf:\\h?access_token=` (its URL start knows only `http`, `https`, `ftp`,
@@ -195,8 +193,10 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 - Token shapes: the a8425fb5 AWS rows (`AKIAT0KEN12345678901`, `0` and `1`
   outside base32) are none on purpose, unlike every other earlier row,
   which the drift test keeps found; `test.pypi.org` macaroons are read from
-  the version-2 macaroon layout (`AgE` + location), not from a published
-  rule (UNCERTAIN beyond the two locations checked).
+  the version-2 macaroon layout (`AgE`), not from a published
+  rule (UNCERTAIN beyond the two locations checked): any `pypi-AgE` body of
+  50 or more characters is a token, where gitleaks names only the
+  `pypi.org` location (`AgEIcHlwaS5vcmc`).
 - `_check_id_collisions` compares element ids only: a reference to an id
   that is no element of the graph can strip onto an existing element's id
   silently. PR 2 deletes the strip.
@@ -234,16 +234,15 @@ reads a URL-typed value as a whole only.
 - **Masker** (`masked_given_path`, `sanitize_url_credentials`): always the
   widest reading (fail closed): it may hide a host, never a password.
 - **Empty port**: `h:` before `?` is a host (`https://h:?x=a@b`), so the
-  strip, refusal and Git split leave it; the masker still hides `u:?pw@h`.
-  Gap: a password that starts with `?` or `#` right after `user:` is not
-  stripped.
+  strip, refusal and Git split leave it; the masker still hides `u:?pw@h`
+  (gap listed under "Tracked, not fixed here").
 
 Call sites and their mode:
 
 | Site | Mode |
 |------|------|
 | `export/_spdx3_strip._stripped_text` (every string of the graph) | `is_whole_url(text)` decides: a string that is one URL or address is a field, else free text |
-| `core/purl.strip_purl_secrets`, `build_generic_purl` (qualifier value, decoded to a fixed point) | `is_whole_url(value)` |
+| `core/purl.strip_purl_secrets`, `build_generic_purl` (qualifier value, decoded at most `PURL_DECODE_ROUNDS` = 5 times) | `is_whole_url(value)` |
 | `export/_spdx3_strip._kept_urls`, `messages/url_credentials` (kept warning) | as the strip |
 | `core/iri.namespace_problem`, `id_registry/_credentials` (namespace, key, element id) | detector (`find_url_credentials`, whole value only) |
 | `extract/remote/_git_credentials` (`split_userinfo`) | field |
@@ -296,10 +295,10 @@ URL, an AWS key or `build:42@ci:linux` is never a finding: secret scanning
 of prose is other tools' job, and refusing README text blocks builds. An
 identifier Pitloom stores (an ID registry key, id or namespace) is never
 prose, so a URL or a token anywhere in it is read too (`embedded`:
-`urn:x:https://u:p@h/ns`, `src/https:/u:p@h/x`); 51,423 real file names
-(this tree, the venv's `lib`, the fixtures, `spdx-python-model`) gave no
-refusal the whole-value reading does not. The masker (`_mask.py`, `masked_given_path`) still reads free text, for display
-only, and hides every hit (tokens as `ghp_***`, a qualifier holding a hit
+`urn:x:https://u:p@h/ns`, `src/https:/u:p@h/x`); the 105,836 file names and
+relative paths of this tree, the venv's `lib` and `spdx-python-model` gave no
+refusal. The masker (`_mask.py`,
+`masked_given_path`) still reads free text, for display only, and hides every hit (tokens as `ghp_***`, a qualifier holding a hit
 once decoded as `key=***`), so a refusal message shows nothing it refuses.
 
 Probe corpus `tests/core/url_masking/_probe_corpus.py`: 133 rows with
@@ -338,12 +337,12 @@ refusal; 17 `prose-` rows must never be refused.
   with a URL is read whole (`cli/kv_output.py`); a URL in a log sentence
   still ends at other white space (documented gap).
 - One PURL splitter (`purl_qualifiers`: a `#` stays in the last qualifier)
-  and one decode loop (`qualifier_levels`) serve the detector, the masker
-  and the strip (`core/purl.py`); a differential test compares the four
+  and one decode loop (`qualifier_levels`), both in
+  `core/url_masking/_hits.py`, serve the detector, the masker and the
+  strip (`core/purl.py`); a differential test compares the four
   deciders on 600 random PURLs.
-- The strip leaves some values the detector refuses (an access token, a
-  one-slash scheme other than the six it knows, a nested or subpath
-  scp-style address, a secret-named PURL qualifier): each is said once,
+- The strip leaves some values the detector refuses (listed under
+  "Tracked, not fixed here"): each is said once,
   masked, "which the SBOM states as written" (`UNREMOVED_LINE`),
   on generate, the library, the hook, `embed-wheel` and `merge` (a property
   and an element id).
@@ -379,21 +378,26 @@ refusal; 17 `prose-` rows must never be refused.
   (path segment, query value, user information, also after a
   percent-encoded character), as a whole PURL qualifier value, or in a
   subpath: GitHub `gh[porsu]_` (36) and `github_pat_` (22 `_` 59), GitLab
-  `glpat-`/`gldt-`/`glrt-` (20 or more, one upper case among the first 20,
-  no digit needed: a random draw misses about 3 in 100,000, and a lower-case
-  slug such as `glpat-token-rotation-guide-v2` is none), `glcbt-`, `glptt-`
-  (40 hex), `gloas-` (64), OpenAI `sk-proj-`/`sk-svcacct-`/`sk-admin-`
+  `glpat-`/`gldt-`/`glrt-` (20 or more, a digit, an upper- and a lower-case
+  letter among the first 20, as in a8425fb5, so a slug such as
+  `glpat-token-rotation-guide-v2` is none), `glcbt-` (optional `<1-5>_`
+  then the same 20), `glptt-` (40 hex, or the same 20), `gloas-` (64, or
+  the same 20), OpenAI `sk-proj-`/`sk-svcacct-`/`sk-admin-`
   (58 or 74, `T3BlbkFJ`, 58 or 74), Anthropic `sk-ant-api03-`/
-  `sk-ant-admin01-` (93 then `AA`), Google `AIza` (35), Slack `xoxb-`/`xoxp-`/`xoxe-`/`xapp-` (the
-  legacy `xoxa-`/`xoxr-`/`xoxs-` dropped), Hugging Face `hf_`/`api_org_`
-  (34 letters), AWS `AKIA`/`ASIA` (16 base32: `ASIAPACIFICREGION123` is
-  none, AWS's example `AKIAIOSFODNN7EXAMPLE` is one), PyPI
-  `pypi-AgEIcHlwaS5vcmc` (50 or more), npm `npm_` (36). A fixed-length body
+  `sk-ant-admin01-` (93 then `AA`), Google `AIza` (35, the same three
+  kinds of character), Slack `xox[abeoprs]-` (two digit groups and 8
+  letters or digits, a8425fb5's shape) and the gitleaks shapes fixed by
+  digit groups or length (`xoxb-`, `xoxe-`, legacy `xoxo-`/`xoxs-`,
+  `xoxe.xoxb-`/`xoxe.xoxp-`) and `xapp-` (the loose gitleaks legacy
+  workspace and bot shapes are not read, see above), Hugging Face
+  `hf_`/`api_org_` (34 letters), AWS `AKIA`/`ASIA` (16 base32:
+  `ASIAPACIFICREGION123` is none, AWS's example `AKIAIOSFODNN7EXAMPLE` is
+  one), PyPI `pypi-AgE` (50 or more: any version-2 macaroon, TestPyPI
+  included), npm `npm_` (36). A fixed-length body
   followed by another body character is none; an open-ended body runs to
   its last body character, so masking leaves nothing of it. UNCERTAIN:
-  newer GitLab token formats and TestPyPI tokens (another location in
-  the macaroon), which the shape may not match; the OpenAI, Anthropic and
-  Google shapes are gitleaks' (read 2026-11-16), not the vendors' own
+  newer GitLab token formats, which the shape may not match; the OpenAI,
+  Anthropic and Google shapes are gitleaks' (read 2026-11-16), not the vendors' own
   documents. No bare `sk-` (too many words and hashes start so), and no
   legacy OpenAI `sk-` key.
 - scp-style addresses count only as a whole value (no white space), with
@@ -406,13 +410,13 @@ refusal; 17 `prose-` rows must never be refused.
   "Tracked, not fixed here".
 - Linear on 1 MiB inputs (late `://` or `@`, one-slash schemes, many `?`,
   many secrets, deep and many PURL qualifiers, tokens, requirements with
-  long white space or `[`, scp, subpaths, query scp values): at most about
-  6 s for the detector (as a value and as a PURL qualifier) and the masker
-  (message and line) together, the slowest being 262,144 one-slash
-  schemes. Two quadratic reads were found by review and fixed: each scp
+  long white space or `[`, scp, subpaths, query scp values): 8 such inputs
+  of 1 MiB took 0.1 to 2.9 s for the detector and the masker (message and
+  line) together (macOS, Python 3.10; the growth-ratio tests bound the
+  rest). Two quadratic reads were found by review and fixed: each scp
   address of a text read to its end (scp is now read only as a whole
   value), and the requirement pattern's two adjacent `\s*` around optional
-  extras (`"a" + " " * n + "x"`: about 20 minutes at 1 MiB; now one `\s*`
+  extras (`"a" + " " * n + "x"`; now one `\s*`
   inside the optional extras group). Every regular expression of
   `core/url_masking` was then timed on runs of white space, `[`, `@`, `:`,
   `/`, `%` and token prefixes at two sizes, flagging a growth beyond
