@@ -297,7 +297,10 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   credential. `git` never prompts on the terminal (a private repository it
   cannot sign in to fails at once), and the `GIT_TRACE*` and
   `GIT_CURL_VERBOSE` variables of the calling environment, which can write
-  what `git` sends, are not passed on.
+  what `git` sends, are not passed on. This is how the URL you give is
+  fetched and shown (masked) in messages; it is not a rewrite of the SBOM: a
+  URL field of the SBOM that holds a credential is refused, as on every
+  target ([Credentials in URLs](url-credentials.md)).
   - A plain `http://` URL with credentials is fetched with them, and
     `WARNING: URL=<url>: credentials are sent in clear over http; use https
     [credentials-unsafe/http-clear]` says so once.
@@ -420,7 +423,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
 `***:***@host:path` for an scp-style address, and the value of each query or
 fragment parameter named like a secret, as listed in
-[Credentials in a URL](dependency-sources.md#credentials-in-a-url):
+[Credentials in URLs](url-credentials.md):
 `?private_token=***`, and an access token's shape anywhere: `ghp_***`)
 and with control characters escaped. Another secret in a parameter with
 another name is not recognised. What a server or `git` says

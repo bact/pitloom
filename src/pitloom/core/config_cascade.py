@@ -49,6 +49,7 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.given_path import GivenPath
 from pitloom.core.model_extract_limit import (
@@ -117,6 +118,13 @@ class ConfigOverrides:
             wheel. Like ``build_options``, no ``[tool.pitloom]`` cascade (a config must
             not opt in) and :func:`apply_overrides` never touches it; only a
             standalone wheel embed reads it, and any other embed warns.
+        credentials: ``--accept-url-credential`` and
+            ``--allow-url-credentials``. Unlike every other field it adds to
+            the config rather than replacing it: :func:`apply_overrides`
+            unites its fingerprints with the config's
+            ``accept-url-credentials`` and ORs ``allow_all`` into
+            ``allow_url_credentials``, so a flag never drops a fingerprint
+            the project accepts.
         build_options: ``--allow-build`` and its companion flags (see
             :class:`~pitloom.core.build_options.BuildOptions`). No
             ``[tool.pitloom]`` cascade, and read by ``embed-wheel`` alone:
@@ -143,6 +151,7 @@ class ConfigOverrides:
     max_model_extract_bytes: int | None = None
     max_download_bytes: int | None = None
     trust_model_files: bool | None = None
+    credentials: CredentialPolicy | None = None
     build_options: BuildOptions = BuildOptions()
 
 
@@ -279,9 +288,23 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["max_download_bytes"] = require_download_override(
             overrides.max_download_bytes
         )
+    if overrides.credentials is not None:
+        changes.update(_united_credentials(cfg, overrides.credentials))
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)
     return merged
+
+
+def _united_credentials(
+    cfg: PitloomConfig, credentials: CredentialPolicy
+) -> dict[str, Any]:
+    """The credential fields of *cfg* with *credentials* added: the union of
+    the fingerprints (sorted, each once) and either's ``allow_all``."""
+    united = cfg.credential_policy.union(credentials)
+    return {
+        "accept_url_credentials": tuple(sorted(united.accepted)),
+        "allow_url_credentials": united.allow_all,
+    }
 
 
 def resolve_standalone_config(

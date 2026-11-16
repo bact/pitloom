@@ -64,7 +64,7 @@ def _shown(text: str, key: str, raw: str) -> None:
 
 
 @_PARAMS
-def test_load_drops_the_entry_and_leaves_the_file_as_it_was(
+def test_load_refuses_the_file_and_leaves_it_as_it_was(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, raw: str
 ) -> None:
     path = tmp_path / "ids.json"
@@ -78,12 +78,11 @@ def test_load_drops_the_entry_and_leaves_the_file_as_it_was(
     }
     path.write_text(json.dumps(document), "utf-8")
     before = path.read_bytes()
-    with caplog.at_level(logging.WARNING):
-        registry = IdRegistry.load(path)
-    assert not registry.elements and path.read_bytes() == before
-    (said,) = caplog.records
-    assert getattr(said, CODE_ATTR) == _REGISTRY
-    _shown(caplog.text, key, raw)
+    with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as caught:
+        IdRegistry.load(path)
+    assert path.read_bytes() == before and not caplog.records
+    assert code_of(caught.value) == _REGISTRY
+    _shown(str(caught.value), key, raw)
 
 
 @_PARAMS

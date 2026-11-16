@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -432,29 +431,6 @@ def test_to_json_with_describe_relationship_adds_description() -> None:
     graph = json.loads(exporter.to_json(describe_relationship=True))["@graph"]
     rel = next(e for e in graph if e.get("spdxId") == ids["relationship_id"])
     assert rel["description"] == "app dependsOn: requests"
-
-
-def test_to_file_writes_json_to_path(tmp_path: Path) -> None:
-    exporter = Spdx3JsonExporter()
-    _build_minimal_document(exporter)
-    out_path = tmp_path / "sbom.spdx3.json"
-
-    exporter.to_file(str(out_path))
-
-    written = json.loads(out_path.read_text(encoding="utf-8"))
-    assert "@graph" in written
-    names = {e.get("name") for e in written["@graph"] if "name" in e}
-    assert {"app", "requests"} <= names
-
-
-def test_to_file_pretty_matches_to_json_pretty(tmp_path: Path) -> None:
-    exporter = Spdx3JsonExporter()
-    _build_minimal_document(exporter)
-    out_path = tmp_path / "sbom-pretty.spdx3.json"
-
-    exporter.to_file(str(out_path), pretty=True)
-
-    assert out_path.read_text(encoding="utf-8") == exporter.to_json(pretty=True)
 
 
 def _h(algorithm: str, value: str) -> spdx3.Hash:

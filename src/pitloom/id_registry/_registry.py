@@ -47,7 +47,7 @@ from pitloom.id_registry._format import (
 )
 from pitloom.id_registry._generate import index_files
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
-from pitloom.id_registry._harvest._skip import without_credentials
+from pitloom.id_registry._harvest._skip import require_no_credentialed_entries
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -167,10 +167,10 @@ class IdRegistry:
         :class:`~pitloom.core.given_path.TypedPath` keeps its spelling, and
         :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
-        :func:`~pitloom.id_registry.resolve.resolve_registry`. An entry
-        whose key or id holds credentials is dropped, with a ``WARNING:``
-        (``credentials-unsafe/registry``), so a save writes the file without
-        it; a namespace holding them is refused.
+        :func:`~pitloom.id_registry.resolve.resolve_registry`. A file with
+        an entry whose key or id holds credentials, or a namespace that
+        does, is refused (``credentials-unsafe/registry``, the value shown
+        masked): nothing is dropped or rewritten, the user edits the file.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
@@ -183,9 +183,10 @@ class IdRegistry:
             )
         path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
+        require_no_credentialed_entries(contents.elements, path)
         registry = cls(
             namespace=contents.namespace,
-            elements=without_credentials(contents.elements),
+            elements=dict(contents.elements),
             path=path,
             project_root=contents.project_root,
             id_counters=contents.id_counters,
@@ -209,7 +210,8 @@ class IdRegistry:
 
         Raises:
             FileNotFoundError: the file is no longer there, or not a file.
-            ValueError: the file cannot be loaded.
+            ValueError: the file cannot be loaded, or an entry holds a
+                credential (:meth:`load`); this object is left unchanged.
         """
         base = self._on_disk or {}
         if self.path is None or (
@@ -219,9 +221,9 @@ class IdRegistry:
                 refused=0, pending=True, added=new_id_count(self.elements, base)
             )
         contents = read_registry_file(self.path)
-        merged, refused = replay_changes(base, self.elements, contents.elements)
         # An entry another run saved meanwhile is held to load()'s rule.
-        merged = without_credentials(merged)
+        require_no_credentialed_entries(contents.elements, self.path)
+        merged, refused = replay_changes(base, self.elements, contents.elements)
         self.elements.clear()
         self.elements.update(merged)
         if contents.namespace != self._on_disk_namespace or (

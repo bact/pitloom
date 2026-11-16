@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3.document import build_deployed
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.env import read_environment
@@ -44,6 +45,7 @@ def generate_env_sbom(
     update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate a Deployed SPDX 3 SBOM for the current installed environment.
 
@@ -56,6 +58,9 @@ def generate_env_sbom(
     steers whether each installed package's originator enrichment fetches a
     remote authors file. The per-file ``contentType`` half needs file
     scanning, which reading an installed environment never performs.
+
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the credentials *pitloom_config* accepts.
     """
     configure_logging()
     cfg = resolve_standalone_config(
@@ -68,6 +73,7 @@ def generate_env_sbom(
             describe_relationship=describe_relationship,
             update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            credentials=credentials,
         ),
     )
     # Resolved before the expensive read_environment() call (pipdeptree)
@@ -88,12 +94,14 @@ def generate_env_sbom(
         **cfg.assemble_options,
     )
 
-    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
-
+    # Before the registry is written: a refused SBOM leaves it unchanged.
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,
         describe_relationship=bool(cfg.describe_relationship),
+        credentials=cfg.credential_policy,
     )
+
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     write_sbom_output(sbom_json, output_path)
 

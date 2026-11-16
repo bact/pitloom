@@ -12,6 +12,7 @@ from typing import TypedDict
 
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
 from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
@@ -187,6 +188,25 @@ class PitloomConfig:
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()
     offline: bool = False
     use_lockfile: bool = True
+    #: ``accept-url-credentials``: fingerprints of URL field values let into
+    #: the SBOM with their credential (:mod:`pitloom.core.credential_policy`).
+    accept_url_credentials: tuple[str, ...] = ()
+    #: ``--allow-url-credentials``: every credential let in. Never read from
+    #: ``[tool.pitloom]`` (CLI and library only).
+    allow_url_credentials: bool = False
+
+    @property
+    def credential_policy(self) -> CredentialPolicy:
+        """Return the CredentialPolicy of these settings.
+
+        Raises:
+            ValueError: an ``accept_url_credentials`` entry is not a
+                fingerprint (a config built in code is never parsed).
+        """
+        return CredentialPolicy(
+            accepted=frozenset(self.accept_url_credentials),
+            allow_all=self.allow_url_credentials,
+        )
 
     @property
     def provenance(self) -> ProvenanceConfig:

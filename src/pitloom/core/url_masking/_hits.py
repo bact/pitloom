@@ -9,7 +9,7 @@ and the masker hides (:func:`pitloom.core.url_masking.masked_given_path`), so
 the two never disagree.
 
 See also: :mod:`pitloom.core.url_masking._detect` (the field rule),
-:mod:`pitloom.core.url_masking._strip` (the URL scanner),
+:mod:`pitloom.core.url_masking._urls` (the URL scanner),
 :mod:`pitloom.core.url_masking._params` (the secret and weak names),
 :mod:`pitloom.core.url_masking._tokens` (the token shapes) and
 :mod:`pitloom.core.purl` (which builds a PURL with the helpers here).
@@ -19,9 +19,9 @@ A value is read by what it is, as a whole, never as prose that holds URLs:
 
 * a URL (a scheme and ``/`` or ``\\`` at its start, as a masker reads one:
   ``s3:/u:p@h`` and ``ssh:\\\\u:p@h`` too), read as ``urllib`` reads it
-  (:func:`~pitloom.core.url_masking._strip.find_urls`, ``whole`` and
-  ``wide``), to its end: white space is a character of it, so a value that
-  starts with a URL is read whole, and every URL in it too (conservative:
+  (:func:`~pitloom.core.url_masking._urls.find_urls`), to its end: white
+  space is a character of it, so a value that starts with a URL is read
+  whole, and every URL in it too (conservative:
   ``https://h/x see https://u:p@h2/y`` is refused);
 * a PEP 508 requirement with a direct reference (``name @ URL``, with
   extras and a marker), whose URL is read so;
@@ -70,8 +70,8 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_weak_name,
 )
-from pitloom.core.url_masking._strip import WIDE_URL_START, find_urls
 from pitloom.core.url_masking._tokens import TOKEN_RE
+from pitloom.core.url_masking._urls import WIDE_URL_START, find_urls
 from pitloom.core.url_masking._userinfo import SCP_USERINFO_RE
 
 __all__ = [
@@ -137,7 +137,7 @@ def _url_hits(url: str, *, account: bool) -> list[Hit]:
     ``?r=https://...``, is read on its own): each user information,
     parameter named like a secret or weak, and token shape."""
     hits: list[Hit] = []
-    for found in find_urls(url, whole=True, wide=True):
+    for found in find_urls(url):
         span = url[found.start : found.end]
         if found.userinfo is not None:
             hits.append(
@@ -145,10 +145,10 @@ def _url_hits(url: str, *, account: bool) -> list[Hit]:
                 if found.account
                 else Hit("secret", span)
             )
-        for _, value, end, removed in found.params:
+        for _, value, end, refused in found.params:
             if url.count("?", value, end) > MAX_QUERY_MARKS:
                 hits.append(Hit("nesting", span))
-            elif removed:
+            elif refused:
                 hits.append(Hit("secret", span))
             else:
                 hits.append(Hit("weak", span, weak=True))

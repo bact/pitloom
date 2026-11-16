@@ -4,10 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A URL with a thousand ``?`` in its query, planted in a project URL, is
-stripped (not a ``RecursionError``) and no secret reaches the SBOM, stdout or
-stderr, on every command that reads a project.
+refused (exit 1, one ``ERROR:`` with its fingerprint, no SBOM; not a
+``RecursionError``) on every command that reads a project, with no secret on
+stdout or stderr; accepted by that fingerprint, the SBOM states it as
+written.
 
-See also: tests/test_credential_surfaces.py (the planted-secret routes) and
+See also: tests/test_credential_surfaces.py (the planted-secret routes),
+tests/test_credential_surfaces_accept.py (the override on each surface) and
 tests/core/url_masking/test_url_masking_modes.py (the reading itself).
 """
 
@@ -15,16 +18,20 @@ tests/core/url_masking/test_url_masking_modes.py (the reading itself).
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
 import pytest
 
 from pitloom.__main__ import main
+from pitloom.core.credential_policy import fingerprint
 
 pytestmark = pytest.mark.platform
 
 _DEEP = "ftp://u:S3CRET@h.invalid/x?" + "q=1?" * 1000 + "token=T0KEN"
+_SECRETS = ("S3CRET", "T0KEN")
+_FINGERPRINT_RE = re.compile(r"--accept-url-credential (sha256:[0-9a-f]{16})\b")
 
 
 def _project(tmp_path: Path) -> Path:
@@ -41,8 +48,19 @@ def _project(tmp_path: Path) -> Path:
     return proj
 
 
+def _run(
+    argv: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[int, str, str]:
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    code = main()
+    seen = capsys.readouterr()
+    return code, seen.out, seen.err
+
+
 @pytest.mark.parametrize("command", ["generate", "project"])
-def test_a_deeply_nested_query_is_stripped_not_a_crash(
+def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
     command: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -50,12 +68,29 @@ def test_a_deeply_nested_query_is_stripped_not_a_crash(
 ) -> None:
     out = tmp_path / "o.json"
     argv = [command, str(_project(tmp_path)), "-o", str(out), "--offline"]
-    monkeypatch.setattr(sys, "argv", ["loom", *argv])
-    assert main() == 0
-    seen = capsys.readouterr()
-    text = out.read_text(encoding="utf-8") + seen.out + seen.err
-    assert "S3CRET" not in text and "T0KEN" not in text
-    assert "Traceback" not in text
+
+    code, stdout, stderr = _run(argv, monkeypatch, capsys)
+    assert code == 1
+    assert not out.exists()
+    assert "Traceback" not in stderr
+    assert not any(secret in stdout + stderr for secret in _SECRETS)
+    refused = [
+        line
+        for line in stderr.splitlines()
+        if line.startswith("ERROR: ") and line.endswith("[credentials-unsafe/refused]")
+    ]
+    assert len(refused) == 2  # the value's line, then the closing count
+    offered = _FINGERPRINT_RE.findall(stderr)
+    assert offered == [fingerprint(_DEEP)]
+
+    code, stdout, stderr = _run(
+        [*argv, "--accept-url-credential", offered[0]], monkeypatch, capsys
+    )
+    assert code == 0
+    assert "ERROR: " not in stderr
+    assert "[credentials-unsafe/accepted]" in stderr
+    assert not any(secret in stdout + stderr for secret in _SECRETS)
+    assert _DEEP in out.read_text(encoding="utf-8")
 
 
 def test_a_url_that_cannot_be_masked_never_prints_raw(

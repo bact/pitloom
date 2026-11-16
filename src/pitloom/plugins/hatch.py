@@ -443,7 +443,10 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         # canonical SBOM regardless of the project's [tool.pitloom] pretty
         # setting or any --pretty CLI flag.  Canonicalization is required by
         # the SPDX JSON Serialization Scheme.
-        sbom_json = exporter.to_json(pretty=False)
+        # The pyproject.toml list only: --allow-url-credentials is never read here.
+        sbom_json = exporter.to_json(
+            pretty=False, credentials=pitloom_config.credential_policy
+        )
 
         staging_dir, sbom_staging_path = _stage_sbom_file(sbom_json, sbom_filename)
         try:

@@ -233,21 +233,20 @@ _NS = "https://ids.example/ns"
     ],
     ids=["key", "id", "id-token"],
 )
-def test_load_drops_a_credentialed_entry_and_a_save_writes_without_it(
+def test_load_refuses_a_credentialed_entry_and_leaves_the_file_alone(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, spdx_id: str
 ) -> None:
-    """The file's other entries and counters are kept; one masked warning;
-    a rebase of the unchanged file keeps it dropped."""
+    """Nothing is dropped or rewritten: the file is not loaded, the error
+    names the file and the value masked, and the bytes stay as they were."""
     path = _registry_file(tmp_path / "ids.json", _NS, key, spdx_id)
-    with caplog.at_level(logging.WARNING):
-        registry = IdRegistry.load(path)
-        assert save_registry(registry).pending
-    assert list(registry.elements) == [("ai_AIPackage", "ok")]
-    (said,) = caplog.records
-    assert getattr(said, CODE_ATTR) == _REGISTRY and _SECRET not in caplog.text
-    assert "entry is dropped" in said.getMessage()
-    saved = path.read_text("utf-8")
-    assert _SECRET not in saved and '"AIPackage": 3' in saved
+    before = path.read_bytes()
+    with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as caught:
+        IdRegistry.load(path)
+    assert code_of(caught.value) == _REGISTRY
+    assert _SECRET not in str(caught.value) and "ids.json" in str(caught.value)
+    assert "not loaded" in str(caught.value)
+    assert not caplog.records
+    assert path.read_bytes() == before
 
 
 def test_load_refuses_a_file_whose_namespace_holds_credentials(
@@ -260,16 +259,22 @@ def test_load_refuses_a_file_whose_namespace_holds_credentials(
     assert _SECRET not in str(caught.value)
 
 
-def test_a_rebase_drops_a_credentialed_entry_another_run_saved(
+def test_a_rebase_refuses_an_entry_another_run_saved_meanwhile(
     tmp_path: Path,
 ) -> None:
+    """The refusal leaves the object as it was and the file byte-identical:
+    the save does not happen."""
     path = _registry_file(tmp_path / "ids.json", _NS, "model", f"{_NS}#AIPackage-1")
     registry = IdRegistry.load(path)
     registry.register("ai_AIPackage", "new")
     _registry_file(path, _NS, f"https://u:{_SECRET}@h/m", f"{_NS}#AIPackage-1")
-    save_registry(registry)
-    assert _SECRET not in path.read_text("utf-8")
-    assert ("ai_AIPackage", "new") in registry.elements
+    before = path.read_bytes()
+    held = dict(registry.elements)
+    with pytest.raises(ValueError) as caught:
+        save_registry(registry)
+    assert code_of(caught.value) == _REGISTRY and _SECRET not in str(caught.value)
+    assert registry.elements == held
+    assert path.read_bytes() == before
 
 
 _WIDE = {

@@ -18,6 +18,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.credential_policy import ACCEPT_KEY
 from pitloom.core.config import (
     _MOVED_CREATION_KEYS,
     KNOWN_KEYS,
@@ -39,6 +40,7 @@ from pitloom.extract.project._setup_cfg_directives import (
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
+    split_cfg_list,
 )
 from pitloom.extract.project._setuptools_options import (
     SetupOption,
@@ -446,6 +448,8 @@ def _read_pitloom_config_from_cfg(
             tool_pitloom["fragment"] = {
                 "files": [f.strip() for f in v.splitlines() if f.strip()]
             }
+        elif k == ACCEPT_KEY:
+            tool_pitloom[k] = split_cfg_list(v)
         else:
             tool_pitloom[k] = coerce_cfg_value("", k, v)
 

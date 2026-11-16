@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -145,6 +145,11 @@ updated, as with `embed-wheel`), and relationship descriptions are not written.
 Each of them set to `true` in `[tool.pitloom]` gets one
 `INFO: Options: ... has no effect` line (`false` agrees with the hook, so is
 silent); harvest ids with `loom project` instead.
+
+A URL field of the SBOM that holds a credential fails the build, unless
+`accept-url-credentials` in `[tool.pitloom]` lists its fingerprint (the hook has
+no flag, and no way to accept every value); see [Credentials in
+URLs](url-credentials.md).
 
 Creator/tool metadata uses the same `[[tool.pitloom.creator]]` /
 `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]` tables the

@@ -25,6 +25,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
@@ -241,6 +242,7 @@ def generate_model_sbom(
     shown: str | None = None,
     max_download_bytes: int | None = None,
     check_url: Callable[[str], None] | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -270,6 +272,9 @@ def generate_model_sbom(
     caller that copied it to a temporary directory names it as its user
     knows it (its path in a Git repository). The SBOM names the file by its
     own name alone either way.
+
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the credentials *pitloom_config* accepts.
 
     Raises:
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
@@ -303,6 +308,7 @@ def generate_model_sbom(
             pretty=pretty,
             describe_relationship=describe_relationship,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            credentials=credentials,
         ),
     )
     enrichment_results: list[EnrichmentResult] = []
@@ -346,6 +352,7 @@ def generate_model_sbom(
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,
         describe_relationship=bool(cfg.describe_relationship),
+        credentials=cfg.credential_policy,
     )
 
     write_sbom_output(sbom_json, output_path)
@@ -365,6 +372,7 @@ def enrich_model(
     id_registry: str | Path | IdRegistry | None = None,
     use_lockfile: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Run enrichment only for a local model file.
 
@@ -373,7 +381,9 @@ def enrich_model(
     or from the model file's directory. The registry is *id_registry*,
     else the explicit config's ``id-registry``; with *project_target*, the
     project's own ``id-registry`` key applies instead, since that project
-    is the document the fragment will merge into.
+    is the document the fragment will merge into, and the credentials its
+    config accepts join those of *pitloom_config* and *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`).
     """
     configure_logging()
     source_str = str(source)
@@ -389,7 +399,10 @@ def enrich_model(
         settle_inert(ENRICH_STANDALONE, source_str, {"use_lockfile": use_lockfile})
     elif is_sdist_archive(Path(project_target)):
         settle_inert(SDIST, project_target, {"use_lockfile": use_lockfile})
-    cfg = resolve_standalone_config(pitloom_config, ConfigOverrides(pretty=pretty))
+    cfg = resolve_standalone_config(
+        pitloom_config, ConfigOverrides(pretty=pretty, credentials=credentials)
+    )
+    accepted = cfg.credential_policy
 
     model_path = Path(source)
     # Registry resolved before _read_local_model()/run_enrichers() below -- a
@@ -417,6 +430,7 @@ def enrich_model(
         base_doc_identity = _doc_identity_of(
             project_dir, base_metadata, resolved_registry
         )
+        accepted = accepted.union(base_config.credential_policy)
 
     model = _read_local_model(model_path)
     # Calling enrich_model() is itself the opt-in, so the config's enrich
@@ -443,7 +457,7 @@ def enrich_model(
         registry=resolved_registry,
     )
 
-    fragment_json = exporter.to_json(pretty=cfg.pretty)
+    fragment_json = exporter.to_json(pretty=cfg.pretty, credentials=accepted)
 
     write_sbom_output(fragment_json, output_path)
 

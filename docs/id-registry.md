@@ -84,8 +84,8 @@ refuse such a namespace with a `ValueError`, coded
 `credentials-unsafe/registry` for a credential. A
 registry whose `namespace` is not a valid namespace IRI (one holding a
 credential included), or whose `spdxId` is not a non-empty string, does not
-load; an entry whose key or `spdxId` holds a credential is dropped with a
-`WARNING:` (see
+load, and neither does one with an entry whose key or `spdxId` holds a
+credential: it is refused, left as it is, and you remove the entry (see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)). `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
 namespace IRI; otherwise one
@@ -365,9 +365,9 @@ skip such an element with a `WARNING:` (both `text-malformed/registry`).
 secret query value or an access token, or a query nested or encoded too
 deeply to read (a PURL qualifier and a dotless scp-style address
 included), and harvest and `id import` skip an element whose key or
-`spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
-such an entry of the file, with a `WARNING:` (all
-`credentials-unsafe/registry`; see
+`spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` and
+`IdRegistry.rebase()` raise `ValueError` for a file that holds such an entry
+and leave it as it is (all `credentials-unsafe/registry`; see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)).
 `generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
 [input-not-found]`) for a path that is not there, and `ValueError` (`ID

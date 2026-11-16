@@ -26,6 +26,11 @@ and this project adheres to
 
 - Input, option, SBOM, target and ID registry file, id and key messages carry a
   message code; see `docs/message-codes.md` ([#482], [#485], [#486])
+- An SBOM with a credential in a URL field is refused (exit 1, none written);
+  `--accept-url-credential` or `accept-url-credentials` accepts one value,
+  `--allow-url-credentials` all ([#489], [#PR2])
+- `embed-wheel --sbom` and `merge` check an SBOM for such credentials; an
+  accepted file is embedded unchanged ([#489], [#PR2])
 
 ### Changed
 
@@ -42,8 +47,7 @@ and this project adheres to
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
-  access tokens; an SBOM states a project's URLs without them ([#482], [#486],
-  [#487], [#489])
+  access tokens ([#482], [#486], [#487], [#489])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -52,8 +56,8 @@ and this project adheres to
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
 - `--namespace`, `-e` and `IdRegistry` refuse credentials (tokens, embedded
-  URLs too) in a namespace or key; `id import` and `load()` drop such entries;
-  `id-collision` in merge ([#487], [#489])
+  URLs too) in a namespace or key; `id import` skips such an element; `load()`
+  and `rebase()` refuse a file that holds one ([#487], [#489], [#PR2])
 - Git URL fetches reset system credential helpers only for a URL with user
   information; the password is not in git's arguments ([#487])
 
@@ -64,9 +68,9 @@ and this project adheres to
 
 ### Security
 
-- Credentials in a URL are removed from SBOMs (a warning names any left) and
-  kept out of registry files; gaps in `docs/dependency-sources.md` ([#487],
-  [#489])
+- A credential found in a URL field is refused, not written to an SBOM or a
+  registry file; prose is not read and some shapes are not detected: see
+  `docs/url-credentials.md` ([#487], [#489], [#PR2])
 - Rotate any credential an SBOM, wheel, registry file or log of 0.24.0 or
   earlier held; remove it from git credential stores (`git credential reject`)
   ([#487])

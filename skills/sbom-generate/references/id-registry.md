@@ -232,9 +232,11 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   a key, id or namespace counts: `urn:x:https://u:pw@h/ns`) is refused for
   `-e`, and
   an imported element with one is skipped (`credentials-unsafe/registry`). A
-  registry file entry holding one is dropped on load with a `WARNING:` (same
-  code; the next save writes the file without it, the element gets a new id);
-  a file whose namespace holds one does not load. An
+  registry file with an entry or a namespace holding one is not loaded and
+  never rewritten (`ERROR: URL=<url>: ...; ID registry file <file> is not
+  loaded; remove the entry [credentials-unsafe/registry]`, the run stops):
+  tell the user which entry, as the line masks it, that a committed file
+  keeps it in history (rotate it), and leave the edit to them. An
   existing registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
   (`--project-dir`, default the current directory, for both `generate` and

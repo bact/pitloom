@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Final, NoReturn
 
 from pitloom.__about__ import __version__
+from pitloom.cli._parser_credentials import add_credential_arguments
 from pitloom.cli.commands.embed_wheel import add_parser as add_embed_wheel
 from pitloom.cli.commands.enrich import add_parser as add_enrich
 from pitloom.cli.commands.env import add_parser as add_env
@@ -218,6 +219,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
             "Deliberately has no [tool.pitloom] equivalent."
         ),
     )
+    add_credential_arguments(parent)
     parent.add_argument(
         "--max-model-extract-bytes",
         type=positive_byte_ceiling,

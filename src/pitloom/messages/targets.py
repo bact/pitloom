@@ -16,6 +16,8 @@ from __future__ import annotations
 from pitloom.messages._config_unsafe import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_BUILD_CODE,
+    CONFIG_UNSAFE_CLI_ONLY,
+    CONFIG_UNSAFE_CLI_ONLY_LINE,
     CONFIG_UNSAFE_PYPI_LINE,
     CONFIG_UNSAFE_REMOTE_LINE,
 )
@@ -76,6 +78,8 @@ from pitloom.messages._target_input import (
 __all__ = [
     "CONFIG_UNSAFE",
     "CONFIG_UNSAFE_BUILD_CODE",
+    "CONFIG_UNSAFE_CLI_ONLY",
+    "CONFIG_UNSAFE_CLI_ONLY_LINE",
     "CONFIG_UNSAFE_PYPI_LINE",
     "CONFIG_UNSAFE_REMOTE_LINE",
     "FRAGMENT_LINE",

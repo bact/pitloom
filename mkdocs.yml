@@ -40,6 +40,7 @@ nav:
   - Reference:
       - Configuration: configuration.md
       - Dependency sources: dependency-sources.md
+      - Credentials in URLs: url-credentials.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
       - Metadata provenance, artefact metadata: metadata-provenance-artifact-metadata.md

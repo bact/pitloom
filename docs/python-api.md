@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -149,6 +149,14 @@ Other arguments that mirror a CLI flag or config key:
   `max-download-bytes`. Other targets warn that it has no effect; a value
   that is not an integer of at least 1 (`True` included) raises `ValueError`
   on every target.
+- `credentials=CredentialPolicy(...)` (every generator function,
+  `loom.Run`; `ConfigOverrides.credentials` for `embed_wheel_sbom()`):
+  `--accept-url-credential` (`accepted=`) and `--allow-url-credentials`
+  (`allow_all=True`), added to the config's `accept-url-credentials`. Without
+  it, an SBOM with a URL field that holds a credential raises `ValueError`
+  (`credentials-unsafe/refused`) and nothing is written; see [Credentials in
+  URLs](url-credentials.md#by-surface). `IdRegistry.register()` raises for a
+  key that holds one.
 - `id_registry=`: `--id-registry`; see [Loom ID
   registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an
@@ -484,8 +492,8 @@ work happens.
 
 `loom.run` reads no `[tool.pitloom]` of its own. Pass `pitloom_config=` (a
 `PitloomConfig`, or the path of a TOML file holding `[tool.pitloom]`, relative
-to the current directory) to set `id-registry`, `update-id-registry` or
-`max-dataset-hash-bytes`; no other key has an effect there. `id_registry=` wins
+to the current directory) to set `id-registry`, `update-id-registry`, `max-dataset-hash-bytes` or
+`accept-url-credentials`; no other key has an effect there. `id_registry=` wins
 over the config's `id-registry`, and `max_dataset_hash_bytes=` over its
 `max-dataset-hash-bytes`. A config file that is missing, unreadable or invalid
 raises `ValueError` as the run begins.
@@ -510,6 +518,8 @@ fragments](fragments.md) and [API reference](api.md#fragment-merging).
   [`--allow-build`](allow-build.md#from-python) -- their library arguments.
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies.
+- [Credentials in URLs](url-credentials.md) -- why an SBOM is refused, and
+  `credentials=`.
 - [Hatchling build hook](hatchling-build-hook.md) -- how registered
   fragments get merged automatically at build time.
 - [Creation metadata](creation-metadata.md) and [Metadata

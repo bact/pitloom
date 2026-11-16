@@ -328,12 +328,16 @@ address), are kept as written. A `software_File` key is a
 file name, not an address, so it is never refused as an scp-style address.
 
 A registry file that already holds such a key or `spdxId` (written by hand,
-or by Pitloom 0.24.0 or earlier) loads without that entry, with one line
-per value, shown masked: `WARNING: URL=https://***:***@host/model: holds
-user information, a secret query value or an access token, or a query
-nested or encoded too deeply to read; the ID registry entry is dropped and
-the next save writes the file without it [credentials-unsafe/registry]`.
-The next save (`loom id generate`, `loom id import`, or a run that adds an
-id) writes the file without it, and the
-element gets a new id. The credential is still in the file's version
-history: rotate it. A file whose `namespace` holds one does not load.
+or by Pitloom 0.24.0 or earlier) is **not loaded**, and is left as it is:
+nothing is dropped or rewritten. `IdRegistry.load()` and
+`IdRegistry.rebase()` (the re-read before a save) raise, and every command
+that reads the registry stops with one `ERROR:`, shown masked: `ERROR:
+URL=https://***:***@host/model: holds user information, a secret query value
+or an access token, or a query nested or encoded too deeply to read; ID
+registry file <file> is not loaded; remove the entry
+[credentials-unsafe/registry]`. Remove that entry from the file yourself
+(the first in key order is named, the key's when both the key and the id hold
+one), and run again. The credential is still in the file's version history:
+rotate it. A file whose `namespace` holds one does not load either. The same
+rule, and the fields of an SBOM it covers: [Credentials in
+URLs](url-credentials.md#id-registry).

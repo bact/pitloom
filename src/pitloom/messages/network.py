@@ -46,7 +46,8 @@ from pitloom.messages._remote_fetch import (
 )
 from pitloom.messages._url_credentials import (
     CREDENTIALS_UNSAFE,
-    CREDENTIALS_UNSAFE_ID_COLLISION,
+    CREDENTIALS_UNSAFE_ACCEPTED,
+    CREDENTIALS_UNSAFE_REFUSED,
     CREDENTIALS_UNSAFE_REGISTRY,
 )
 from pitloom.messages._url_credentials_git import (
@@ -60,10 +61,11 @@ from pitloom.messages._url_credentials_git import (
 
 __all__ = [
     "CREDENTIALS_UNSAFE",
+    "CREDENTIALS_UNSAFE_ACCEPTED",
     "CREDENTIALS_UNSAFE_GIT_LINE_BREAK",
     "CREDENTIALS_UNSAFE_GIT_USERINFO",
     "CREDENTIALS_UNSAFE_HTTP_CLEAR",
-    "CREDENTIALS_UNSAFE_ID_COLLISION",
+    "CREDENTIALS_UNSAFE_REFUSED",
     "CREDENTIALS_UNSAFE_REGISTRY",
     "DOWNLOAD_FAILED",
     "DOWNLOAD_FAILED_LINE",

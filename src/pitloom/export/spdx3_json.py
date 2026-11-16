@@ -5,8 +5,8 @@
 
 """SPDX 3 JSON-LD exporter for generating SBOM documents.
 
-See also: :mod:`pitloom.export._spdx3_strip` (the credentials removed from
-every URL of the exported graph).
+See also: :mod:`pitloom.export._spdx3_credentials` (the refusal of a URL
+field of the exported graph that holds a credential).
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._sbom_io import write_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.lfs_pointer import size_text
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.core.untrusted_text import escape_lone_surrogates_in_elements
-from pitloom.export._spdx3_strip import strip_graph_credentials
+from pitloom.export._spdx3_credentials import check_graph_credentials
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 from pitloom.messages.files import warn_lone_surrogates
 
@@ -39,6 +39,9 @@ log = logging.getLogger(__name__)
 # itself doesn't mandate an extension. Canonical home for every module that
 # needs to name or recognise an SPDX3 JSON-LD SBOM file.
 SPDX3_JSONLD_EXTENSION = ".spdx3.json"
+
+#: The default of :meth:`Spdx3JsonExporter.to_json`: no credential accepted.
+_ACCEPT_NONE = CredentialPolicy()
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:
@@ -548,8 +551,17 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(document)
 
-    def to_json(self, pretty: bool = False, describe_relationship: bool = False) -> str:
-        """Export to JSON-LD string.
+    def to_json(
+        self,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+        *,
+        credentials: CredentialPolicy = _ACCEPT_NONE,
+    ) -> str:
+        """Export to JSON-LD string, refused when a URL-typed field holds a
+        credential *credentials* does not accept
+        (:func:`pitloom.export._spdx3_credentials.check_graph_credentials`,
+        run last, on the graph as written).
 
         Args:
             pretty: If True, indent output with 2 spaces for human readability,
@@ -561,9 +573,16 @@ class Spdx3JsonExporter:
             describe_relationship: If True, add a ``description`` of the form
                 ``<from name> <relationship type>: <to names>`` to every
                 ``Relationship``.
+            credentials: The credentials the output may hold; the default
+                accepts none, so a caller that forgets to pass the run's
+                policy fails closed.
 
         Returns:
             str: JSON-LD representation
+
+        Raises:
+            pitloom.messages.CodedValueError: ``credentials-unsafe/refused``,
+                after one ``ERROR:`` line per refused value.
         """
         out_f = io.BytesIO()
         serializer = spdx3.JSONLDSerializer()
@@ -571,23 +590,15 @@ class Spdx3JsonExporter:
         data = json.loads(out_f.getvalue())
         _escape_lone_surrogates(data.get("@graph", [data]))
         if "@graph" in data:
-            strip_graph_credentials(data["@graph"])
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
             _check_no_duplicate_spdx_ids(data["@graph"])
             if describe_relationship:
                 _annotate_relationships(data["@graph"])
             data["@graph"].sort(key=_graph_sort_key)
+        # Last, on the graph as written; a lone element is written without
+        # one and checked as well.
+        check_graph_credentials(data.get("@graph", [data]), credentials)
         if pretty:
             return canonical_json_indented(data)
         return rfc8785.dumps(data).decode("utf-8")
-
-    def to_file(self, file_path: str, pretty: bool = False) -> None:
-        """Export to JSON-LD file.
-
-        Args:
-            file_path: Path to write the JSON-LD file
-            pretty: If True, indent output with 2 spaces for human readability.
-                    If False (default), produce RFC 8785 (JCS) canonical output.
-        """
-        write_text_lf(file_path, self.to_json(pretty=pretty))

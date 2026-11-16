@@ -5,7 +5,7 @@
 
 """Tests for :mod:`pitloom.core.url_masking`: credentials in a URL in free
 text (:func:`sanitize_url_credentials`), in a text that is one URL
-(:func:`sanitize_url`, :func:`url_without_credentials`), and the module's
+(:func:`sanitize_url`), and the module's
 import contract.
 
 See also: test_url_masking_query.py (credentials in a URL),
@@ -25,11 +25,7 @@ from pathlib import Path
 import pytest
 
 import pitloom.core.url_masking
-from pitloom.core.url_masking import (
-    sanitize_url,
-    sanitize_url_credentials,
-    url_without_credentials,
-)
+from pitloom.core.url_masking import sanitize_url, sanitize_url_credentials
 
 
 @pytest.mark.parametrize(
@@ -227,7 +223,7 @@ def test_every_public_function_is_exported() -> None:
         and callable(value)
         and getattr(value, "__module__", "") == module.__name__
     }
-    assert "url_without_credentials" in public
+    assert "sanitize_url" in public
     assert public <= set(module.__all__)
 
 
@@ -245,18 +241,3 @@ def test_the_masking_package_imports_the_standard_library_only() -> None:
     own = "pitloom.core.url_masking."
     outside = {name.partition(".")[0] for name in imported if not name.startswith(own)}
     assert imported and outside <= set(sys.stdlib_module_names)
-
-
-@pytest.mark.parametrize(
-    ("url", "kept"),
-    [
-        ("https://u:SECRET@h/o/r.git", "https://h/o/r.git"),
-        ("https://SECRET@h:8080/r", "https://h:8080/r"),
-        ("https://u:p@ss@SECRET@h/r", "https://h/r"),
-        ("https://h/r?private_token=SECRET", "https://h/r?private_token=***"),
-        ("https://h/r", "https://h/r"),
-    ],
-    ids=["user-password", "token-port", "at-in-password", "query", "none"],
-)
-def test_the_url_kept_on_disk_has_no_credentials(url: str, kept: str) -> None:
-    assert url_without_credentials(url) == kept

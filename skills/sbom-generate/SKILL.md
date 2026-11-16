@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-14
+# Last-Modified: 2026-11-16
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -21,9 +21,9 @@ description: >-
   "signed wheel / RECORD.jws", "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
   taking too long"), stable ids ("pin ids", "keep ids stable", "create or update
-  an ID registry", "loom id generate/import") and the usage scan
-  ("which files use this model"). Checking: sbom-validate; enriching:
-  sbom-enrich.
+  an ID registry", "loom id generate/import"), the usage scan
+  ("which files use this model"), "holds a credential" errors.
+  Checking: sbom-validate.
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.24.1 (pip, uvx
@@ -281,6 +281,10 @@ ends in a `[code]` (`[lfs-pointer]`, `[over-cap]`), read
 `references/messages.md` for what it means and what to tell the user; relay its advice, never run the fix. A
 `[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
 read is left out: never change permissions, ownership or files yourself.
+`ERROR: ... holds a credential ... [credentials-unsafe/refused]`: no SBOM
+written (exit 1); read `references/url-credentials.md` before answering.
+**Never suggest `--allow-url-credentials`**; offer the fingerprint only once
+the user confirms the value is no secret.
 
 ## Known limitations -- say so, don't paper over it
 

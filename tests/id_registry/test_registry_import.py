@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -140,7 +141,12 @@ def _write_sbom(
             rootElement=[str(elements[0].spdxId)],
         )
     )
-    path.write_text(exporter.to_json(), encoding="utf-8")
+    # A document id holding a credential is the case under test: the fixture
+    # writes it as given.
+    path.write_text(
+        exporter.to_json(credentials=CredentialPolicy(allow_all=True)),
+        encoding="utf-8",
+    )
 
 
 @pytest.mark.parametrize(

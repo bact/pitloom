@@ -11,11 +11,21 @@ Last-Modified: 2026-11-16
 See also: [message-catalogue-and-skills.md](../design/message-catalogue-and-skills.md)
 (the catalogue the new messages are in),
 [credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md)
-(the follow-up that replaces the strip with detect and refuse), PR 487.
+(PR 2: the strip replaced by detect and refuse, built), PR 487.
 
 What was built to stop URL credentials (user information, secret-named query
 values, git passwords) reaching logs, tracebacks, stdout, git, SBOMs and ID
 registry files, what was decided, and what is left.
+
+Since PR 2 a persisted value is **refused, never rewritten**: the SBOM
+strip, the registry load-drop and the id-collision rewrite are deleted, and
+an SBOM or registry file holding a credential is refused
+(`credentials-unsafe/refused`, `credentials-unsafe/registry`); displayed text
+(logs, tracebacks, `KEY=VALUE`, `ERROR:` lines) is still **masked**. What PR
+2 decided: "Built in PR 2" in
+[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md).
+Below, "strip" and "kept" describe PR 487 and PR 1 unless a line says
+otherwise.
 
 ## Root cause
 
@@ -26,15 +36,18 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 ## Decisions (user)
 
 - Credentials in user-written project data are STRIPPED from the SBOM with a
-  catalogued `WARNING:` (`credentials-unsafe`), once per URL.
+  catalogued `WARNING:` (`credentials-unsafe`), once per URL. Reversed in
+  PR 2: refused (`ERROR:`, no SBOM) unless accepted by fingerprint.
 - Namespaces and registry keys with credentials are REFUSED, not masked.
 - An id that holds credentials (a merged third-party fragment's) and every
   reference to it are stripped to the same new id; two ids that differ only
-  by credentials are an error (`credentials-unsafe/id-collision`).
+  by credentials are an error (`credentials-unsafe/id-collision`). Retired
+  in PR 2: such an id is refused like any other read field.
 - Weak names (`code`, `session`, `ticket`, `sid`, `otp`) are KEPT in the
   SBOM, namespaces and keys, and masked in logs; the warning says they are
-  kept (`credentials-unsafe`, "kept" line). `session_id` and `sessionid` are
-  secrets. A `git@`-style account name on an ssh/git URL is kept and said.
+  kept (`credentials-unsafe`; since PR 2 "the SBOM states it as
+  written"). `session_id` and `sessionid` are secrets. A `git@`-style
+  account name on an ssh/git URL is kept and said.
 - Plain `http://` with credentials: `credentials-unsafe/http-clear` warning,
   then proceed.
 - System git credential helpers, `core.askPass` and `GIT_ASKPASS`/`SSH_ASKPASS`
@@ -46,8 +59,9 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 - **One rule** (`core/url_masking/_userinfo.py`): user information ends at
   the last `@` before the first `/`; a `?` or `#` before that `@` belongs to
   it only when the text before it reads as `user:password` (so
-  `https://h?contact=me@x.org` stays a query). The masker, `strip_url_secrets`,
-  `holds_url_credentials` and git's `split_credentials` use it
+  `https://h?contact=me@x.org` stays a query). The masker, the detector
+  (`find_url_credentials`, `holds_url_credentials`) and git's
+  `split_credentials` use it
   (`split_userinfo`, `userinfo_end`); a differential test keeps the masker no
   weaker than the others, except the gaps listed under "Tracked, not fixed
   here".
@@ -57,15 +71,20 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   not covered; `excerpt()`
   and `one_line()` mask before they cut; `kv_line` masks only a value that
   holds a URL; `InvalidURL` text is cut to its class.
-- **SBOM**: `export/_spdx3_strip.py` strips the whole `@graph` at the one
-  place every surface passes (`Spdx3JsonExporter.to_json`), including
-  `pkg:` qualifier values; the dataset PURL is built from the stripped URL.
+- **SBOM** (PR 2): `export/_spdx3_credentials.py` reads the URL-typed
+  fields of the whole `@graph` (and Pitloom's provenance notes) at the one
+  place every surface passes (`Spdx3JsonExporter.to_json`), plus
+  `embed-wheel --sbom`, and refuses the SBOM when one holds a credential
+  the run does not accept by fingerprint; nothing is rewritten. The dataset
+  PURL is built from the URL as given and refused with it. PR 487's
+  `export/_spdx3_strip.py` and `core/url_masking/_strip.py` are deleted
+  (the URL scanner moved to `core/url_masking/_urls.py`).
 - **Registry**: `IdRegistry()`, `register()` and `-e` refuse a credentialed
   namespace or key (`id_registry/_credentials.py`); `id import` and harvest
-  skip such an element with a warning; `IdRegistry.load()` (and the re-read
-  before a save) drops such an entry of the file with a warning
-  (`ENTRY_DROPPED_LINE`, same code), so the next save writes the file
-  without it; a credentialed namespace in the file is refused. A
+  skip such an element with a warning; since PR 2 `IdRegistry.load()` and
+  `rebase()` (the re-read before a save) refuse a file holding such an
+  entry or namespace (`REGISTRY_FILE_REFUSED_LINE`, same code) and never
+  rewrite it (PR 487 dropped the entry). A
   `software_File` key is a file name, never refused as an scp-style
   address.
 - **Git**: the user information is taken out of git's arguments and handed to
@@ -82,54 +101,41 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 
 ## Tracked, not fixed here
 
-- Found by none of the strip, the detector and the masker: a `/` in a
-  password; `state=`; CloudFront `Policy=`; an scp-style `S3CRET@host:o/r`
-  (no `user:`); a percent-encoded URL nested in a query value outside a
-  `pkg:` string (`?next=https%3A%2F%2Fu%3Ap%40h`). White space in the
-  password of a URL field is read by the detector and the masker, not the
-  strip. `@[::1]` hosts and `;jsessionid=` path parameters are read by all
-  three (checked 2026-11-16).
+Since PR 2 a gap of the detector is "not detected": the value is neither
+refused nor rewritten, so it reaches the SBOM or registry file as written,
+silently. Rechecked against the PR 2 tree on 2026-11-16.
+
+- Not detected, and not masked: a `/` in a password; `state=`; CloudFront
+  `Policy=`; an scp-style `S3CRET@host:o/r` (no `user:`); a
+  percent-encoded URL nested in a query value outside a `pkg:` string
+  (`?next=https%3A%2F%2Fu%3Ap%40h`). `@[::1]` hosts and `;jsessionid=`
+  path parameters are read by the detector and the masker.
 - Third-party `warnings.warn` text, Hatchling's own traceback and `urllib3`
   log lines print the raw text; the Action does not `::add-mask::` its source
-  inputs; a line break in a password can split a traceback line so that its
+  inputs and has no input of its own for the credential flags (PR 3); a line break in a password can split a traceback line so that its
   parts are not recognised.
-- An `ssh` account name is kept with a "kept" warning even when it looks
+- An `ssh` account name is weak (warned, never refused) even when it looks
   like a value (`ssh://abcdeftokenvalue@h`).
 - A `?token=` value of a Git URL still reaches git's argv (visible in `ps`)
   and the clone's `.git/config`; only user information is kept off them.
-- In free text (a description) a URL ends at white space, a quote or an
-  angle bracket, so an apostrophe, quote, space, `<` or `>` in its user
-  information is not read as part of it. This is a regression from round 4,
-  which read such a password in prose; accepted because the same reading
-  rewrote prose (`Open http://host:<port> ... mail a@b.org`), which is worse
-  than a rare password with such a character in a description. A URL field
-  (a project URL, a dependency URL, an id) reads it whole.
-- An scp-style `user:password@host:path` is stripped only when the host has a
-  `.` or the path a `/` or starts with `~`; `build:42@ci:linux` and
-  `meeting-10:30@room:notes.txt` are left as written, so such a password with
-  a dotless host and a slashless path is not stripped.
-- A qualifier value of a PURL is encoded again exactly as many times as it
-  was decoded to show the credentials (none for a value stripped as
-  written: `a%2Bb.zip` stays, PR 1); other encodings inside it are
-  unchanged.
+  Its refusal before the fetch is PR 3.
+- Prose (a description, a README, a comment other than Pitloom's
+  provenance line) is never read, by the ruling: a credential there
+  reaches the SBOM as written. Secret scanning of prose is other tools'
+  job.
 - A non-secret parameter value with more than 16 `?` is read as a secret
-  (removed from an SBOM, masked in a message), so a crafted query cannot
+  (refused in an SBOM, masked in a message), so a crafted query cannot
   nest the reading without limit.
 - `loom verify-wheel` with a path 1000 directories deep fails in the standard
   library's `glob.glob` (`cli/commands/utils.py`): exit 1, nothing leaks.
-- A secret after an ampersand or semicolon that follows a nested secret
-  moves into the earlier value (`?code=1?token=T&a=1` strips to
-  `?code=1?a=1`). Existed before round 7; no leak, the kept value is wrong.
-- The `credentials-unsafe/registry` summary does not mention the over-16 `?`
-  case; its detail lines do.
-- A password that starts with `?` or `#` right after `user:` is not stripped
-  (`h:` before `?` is an empty port); the masker still hides it.
-- The strip of `https://u:"@SECRET?x@h` leaves `SECRET?x@h` as a host; the
-  masker hides it.
-- A scp-style address with a password inside prose is not stripped; only a
-  field that is one address is.
+- A password that starts with `?` or `#` right after `user:` is not
+  detected (`h:` before `?` is an empty port); the masker still hides it.
+- An scp-style address is detected only as a whole value (no white space,
+  no dotless-host exemption: `build:42@ci:linux` alone is refused); one
+  inside a longer value or prose is not.
 - A `_key` parameter name outside the listed kinds (`api`, `access`,
-  `secret`, `signing`, `subscription`, ...) is kept with a "kept" warning.
+  `secret`, `signing`, `subscription`, ...) is weak (warned, never
+  refused).
 - Log masking covers `pitloom` and `pitloom.*` records made through the record
   factory; third-party loggers, `logging.makeLogRecord`, an `extra` key, the
   exception object in `exc_info` and output before `configure_logging` are not.
@@ -137,53 +143,27 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   every unreleased catalogue entry says `since` 0.25.0 (the last tag is
   v0.24.0). The skills' `pitloom >= 0.24.x` floors are not raised here; the
   release cut does.
-- The user-facing list is "Known gaps" in `docs/dependency-sources.md`.
+- The user-facing list is "Not detected" in `docs/url-credentials.md`.
 - Not run: the `!f()` helper on Windows (Git for Windows ships the sh it
   needs; the real-git tests are POSIX-only), a SIGKILL during the clone
   itself, pyrefly from the worktree path (run from the repository root;
   today it reports 7 errors, all in files this work does not touch).
 - `pitloom.loom` programs can now see `register()` raise for a credentialed
   key.
-- The SBOM strip (live until PR 2) does not remove what it does not read:
-  `s3:/u:p@h/x`, `hf:/datasets/x?token=`, `git+ssh:/h/x?token=`,
-  `hf:\\h?access_token=` (its URL start knows only `http`, `https`, `ftp`,
-  `ws`, `wss`, `file` after `:/`), an scp-style address nested in a query
-  value or a PURL subpath, a `?private_token=` PURL qualifier and a token in
-  a URL path. Not widened (PR 2 deletes the strip): each such value the
-  detector refuses is said once, masked, as stated as written
-  (`credentials-unsafe`, "which the SBOM states as written"); a token in a
-  URL path inside free text (a provenance comment) is not (batch-6 item
-  (a) below). The strip reads a value as the detector does
-  (`normalised`: past format characters, which go from a stripped value,
-  and inside one enclosing `<>` or quote pair).
-- For PR 2 (from the batch-5 re-check), not fixed here: (a) a token
-  followed by `;` or `#` in a PURL qualifier (`pkg:pypi/x@1?type=AIza<35>;x`)
-  gets no finding, though the masker and the registry catch it; (b) a
-  value wrapped twice (`<<https://u:S3CRET@h/x>>`,
-  `pkg @ <https://u:S3CRET@h/x>`) is stripped by the strip while the
-  detector is silent (one-pair rule); (c) `kv_line` reads a value whole
-  only when it starts with a URL; after `<`, a BOM or a space it falls back
-  to line mode (stdout values are paths only today); (d) masking twice
-  differs from masking once for
-  `pkg:pypi/x@1?vcs_url=ssh://git:S3\tCRET@h/x` (no leak).
-- For PR 2 (from the batch-6 check), not fixed here: (a) a requirement
-  such as `foo @ https://e.example/h/ghp_<36>` reaches the SBOM's
-  provenance comment and annotation silently: the detector does not read a
-  token in a URL path inside free text and the strip never removes a
-  token, so "each such value is said once" is false for this case; PR 2
-  refuses the dependency field before any derived text is written. (b)
-  U+FE0F (a variation selector) is `Mn`, not `Cf`: inside a token it
-  splits the token; the detector and the masker agree where it ends. (c)
-  Once the strip removes something from a value it drops every format
-  character of the value, prose included (a zero-width joiner in emoji or
-  Indic text is lost); documented in `docs/dependency-sources.md`. (d)
-  Warnings built from JSON annotation statements come out garbled
-  (`URL=https://***:***@e.example/h"}},"kind":"fields","schema":`,
-  `URL=u200bhttps://...`); older. (e) Two mutants survive and look
-  equivalent: `end - start > 1` read as `>= 1` in `split_enclosed` (a
-  one-character value cannot be a pair), and the kept line's once-key
-  suffix `:kept` dropped (a kept URL is never one the strip changed, so it
-  never shares the stripped line's key).
+- From the batch-5 re-check, still not detected after PR 2: (a) a token
+  followed by `;` or `#` in a PURL qualifier (`pkg:pypi/x@1?type=AIza<35>;x`;
+  the masker and the registry catch it); (b) a value wrapped twice
+  (`<<https://u:S3CRET@h/x>>`, `pkg @ <https://u:S3CRET@h/x>`; one-pair
+  rule). Not leaks of display: (c) `kv_line` reads a value whole only when
+  it starts with a URL; after `<`, a BOM or a space it falls back to line
+  mode (stdout values are paths only today); (d) masking twice differs from
+  masking once for `pkg:pypi/x@1?vcs_url=ssh://git:S3\tCRET@h/x` (no leak).
+- From the batch-6 check: (a) a requirement such as
+  `foo @ https://e.example/h/ghp_<36>` is refused since PR 2 (the dependency
+  field and Pitloom's provenance notes are read as whole values); (b)
+  U+FE0F (a variation selector) is `Mn`, not `Cf`: inside a token it splits
+  the token; the detector and the masker agree where it ends. Its (c), (d)
+  and (e) were faults of the strip and its warnings, deleted in PR 2.
 - Accepted false positives (batch-8 check): `glptt-` followed by 40 hex
   digits is a token, so a Git SHA right after the literal `glptt-` is
   refused (31 of 20,000 sampled slugs, hashes and words); a 35-character
@@ -197,9 +177,6 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   rule (UNCERTAIN beyond the two locations checked): any `pypi-AgE` body of
   50 or more characters is a token, where gitleaks names only the
   `pypi.org` location (`AgEIcHlwaS5vcmc`).
-- `_check_id_collisions` compares element ids only: a reference to an id
-  that is no element of the graph can strip onto an existing element's id
-  silently. PR 2 deletes the strip.
 - For PR 3 (Git hardening), not this PR: a Git password holding `%00`
   raises a bare `ValueError`, not a `RemoteSourceError` (no leak;
   `_git_credentials.py:164`, `_git_run.py:324`, `_git_run.py:425`); the
@@ -212,46 +189,34 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
 ## URL field vs free text
 
 One scanner served two jobs with conflicting rules, so round 5 made the
-mode explicit: `whole=` on `strip_url_secrets`, `keeps_url_credential` and
-`find_urls`, `free_text=` on `userinfo_end`, no default. The detector
-(`find_url_credentials`, `holds_url_credentials`, PR 1) has no mode: it
-reads a URL-typed value as a whole only.
+mode explicit (`whole=` on the strip and its helpers). PR 2 deleted the
+strip and the mode with it; two readings are left:
 
-- **URL field** (`whole=True` for the strip): the value *is* one URL or
-  address. Read as `urllib`/git read it: no quote, `<`, `>`, backtick or
-  space ends anything, nothing is trimmed from its end, a user information
-  may hold any RFC 3986 character (`o'brien:pw@h`). A special scheme
-  (`http`, `https`, `ftp`, `ws`, `wss`, `file`) is also read after `:/`,
-  `:\\`, `:///`. An address `user:password@host:path` loses its password.
-- **Free text** (`whole=False` for the strip): prose or JSON that holds
-  URLs. The authority ends hard at white space, a quote, `<`, `>` or a
-  backtick before the last `@` is looked for, so `http://host:port ... mail
-  a@b.org` is byte-identical. A password with such a character is a known
-  gap.
-- **Detector** (`find_url_credentials`): a whole value only, never prose
-  ("Detector sweep (PR 1)" below); a URL value is read as a URL field, and
-  as the masker reads a scheme (`find_urls(..., wide=True)`).
-- **Masker** (`masked_given_path`, `sanitize_url_credentials`): always the
-  widest reading (fail closed): it may hide a host, never a password.
+- **Detector** (`find_url_credentials`, `holds_url_credentials`): a
+  URL-typed value as a whole only, never prose ("Detector sweep (PR 1)"
+  below). Read as `urllib`/git read a URL field: no quote, `<`, `>`,
+  backtick or space ends anything, a user information may hold any RFC 3986
+  character (`o'brien:pw@h`), and a scheme is read as the masker reads one.
+- **Masker** (`masked_given_path`, `sanitize_url_credentials`): display
+  only, free text included, always the widest reading (fail closed:
+  `userinfo_end(..., widest=True)`): it may hide a host, never a password.
 - **Empty port**: `h:` before `?` is a host (`https://h:?x=a@b`), so the
-  strip, refusal and Git split leave it; the masker still hides `u:?pw@h`
+  refusal and the Git split leave it; the masker still hides `u:?pw@h`
   (gap listed under "Tracked, not fixed here").
 
-Call sites and their mode:
+Call sites and their reading:
 
-| Site | Mode |
-|------|------|
-| `export/_spdx3_strip._stripped_text` (every string of the graph) | `is_whole_url(text)` decides: a string that is one URL or address is a field, else free text |
-| `core/purl.strip_purl_secrets`, `build_generic_purl` (qualifier value, decoded at most `PURL_DECODE_ROUNDS` = 5 times) | `is_whole_url(value)` |
-| `export/_spdx3_strip._kept_urls`, `messages/url_credentials` (kept warning) | as the strip |
-| `core/iri.namespace_problem`, `id_registry/_credentials` (namespace, key, element id) | detector (`find_url_credentials`, whole value only) |
+| Site | Reading |
+|------|---------|
+| `export/_spdx3_credentials` (URL-typed fields of the graph, provenance notes; `embed-wheel --sbom`) | detector, each field as a whole value |
+| `core/iri.namespace_problem`, `id_registry/_credentials` (namespace, key, element id; `load()`, `rebase()`) | detector, `embedded` (a URL or token anywhere in it) |
 | `extract/remote/_git_credentials` (`split_userinfo`) | field |
 | masker call sites (logs, `kv_line`, `ERROR:` lines, path checks) | masker |
 
-Name rules: a name the masker masks is removed from an SBOM, or weak (kept
-and told as kept). A `_key` name that is no kind of secret key (`sort_key`)
-is weak. A name after a second `?` is a parameter; a secret's value is read
-whole.
+Name rules: a name the masker masks is refused in an SBOM, or weak (warned,
+stated as written). A `_key` name that is no kind of secret key
+(`sort_key`) is weak. A name after a second `?` is a parameter; a secret's
+value is read whole.
 
 ## Verification
 
@@ -268,19 +233,20 @@ fix:
    `masked_text` never raises, so an error or a log line whose masking fails
    is a fixed text (`test_the_log_text_of_a_failing_masker_is_a_fixed_text`,
    `test_a_url_that_cannot_be_masked_never_prints_raw`).
-2. The same URL in a project's `[project.urls]` no longer fails `generate`
-   or `project` (`tests/test_credential_deep_query_surfaces.py`).
+2. The same URL in a project's `[project.urls]` no longer crashes
+   `generate` or `project`; since PR 2 it is refused with a fingerprint and
+   accepted by it (`tests/test_credential_deep_query_surfaces.py`).
 3. A PEP 508 `name@URL` with no space is read as a direct reference
    (`test_a_pep_508_direct_reference_reads_its_url_as_a_field[no-space]`).
 4. A string that only looks like an scp address is not rewritten
    (`test_a_string_that_only_looks_like_an_address_is_not_rewritten`).
 5. Punctuation after a direct reference's URL in prose is kept
    (`...[comma]`, `...[full-stop]`).
-6. A secret nested after a weak name's value (`?code=1?token=T`) is removed:
-   `iter_params(..., weak=False)` from the strip
-   (`test_a_secret_nested_after_a_weak_value_is_removed`).
-7. A removal for nesting is said as such: the warning's condition ends "or a
-   query nested too deeply to read".
+6. A secret nested after a weak name's value (`?code=1?token=T`) is found
+   (`iter_params(..., weak=False)`; removed by the strip until PR 2, refused
+   since).
+7. A finding for nesting is said as such: the condition ends "or a query
+   nested too deeply to read".
 
 ## Detector sweep (PR 1)
 
@@ -338,14 +304,12 @@ refusal; 17 `prose-` rows must never be refused.
   still ends at other white space (documented gap).
 - One PURL splitter (`purl_qualifiers`: a `#` stays in the last qualifier)
   and one decode loop (`qualifier_levels`), both in
-  `core/url_masking/_hits.py`, serve the detector, the masker and the
-  strip (`core/purl.py`); a differential test compares the four
+  `core/url_masking/_hits.py`, serve the detector and the masker (and, in
+  PR 1, the strip in `core/purl.py`); a differential test compares the
   deciders on 600 random PURLs.
-- The strip leaves some values the detector refuses (listed under
-  "Tracked, not fixed here"): each is said once,
-  masked, "which the SBOM states as written" (`UNREMOVED_LINE`),
-  on generate, the library, the hook, `embed-wheel` and `merge` (a property
-  and an element id).
+- In PR 1 the strip left some values the detector refuses, each said once
+  as "stated as written" (`UNREMOVED_LINE`); PR 2 deleted both, and such a
+  value is refused.
 - Old `holds_url_credentials` missed 5 values: a `download_url` qualifier
   encoded once, twice or five times (also `PKG:`) and an encoded `?token=`.
   A qualifier still changed by the fifth decode is a `nesting` finding.
@@ -405,7 +369,7 @@ refusal; 17 `prose-` rows must never be refused.
 - The strip changed too, through the shared prefix table
   (`_tokens.TOKEN_PREFIXES`): a user name with a token prefix (`hf_`,
   `pypi-`, `npm_`, `api_org_`, `glrt-`...) is no `ssh` account name, so
-  `ssh://npm_abc@h/r` is now stripped, not kept.
+  `ssh://npm_abc@h/r` was stripped, not kept (refused since PR 2).
 - Unchanged gaps: `?state=`, a scheme-less `/x?token=` and the rest of
   "Tracked, not fixed here".
 - Linear on 1 MiB inputs (late `://` or `@`, one-slash schemes, many `?`,

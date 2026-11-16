@@ -135,7 +135,7 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     After one separator (``https:/u:p@h``, a ``//`` a path collapsed) a
     scheme has a user information unless a ``/`` or ``\\`` comes before it
     (``/x/T10:/a@b`` is a path); a scheme a URL uses has one there too
-    (:data:`~pitloom.core.url_masking._userinfo.URL_SCHEMES`:
+    (:func:`~pitloom.core.url_masking._userinfo.has_userinfo`:
     ``/cwd/https:/u:p@h``). So a relative path
     ``backup:/u@h/x`` is read as a collapsed URL and its ``u`` masked: a
     credential shown costs more than a path's ``@`` hidden.

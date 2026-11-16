@@ -5,9 +5,8 @@
 
 """What the detector reads in a URL-typed value
 (:mod:`pitloom.core.url_masking._hits`): scp-style addresses, nested
-queries, PURL qualifiers at each decode depth, PEP 508 requirements (no
-narrower than the SBOM strip's direct reference), and each view's time on
-adversarial 1 MiB texts.
+queries, PURL qualifiers at each decode depth, PEP 508 requirements, and
+each view's time on adversarial 1 MiB texts.
 
 See also: test_url_masking_detect.py (the detector) and
 test_url_masking_tokens.py (token shapes) in this folder.
@@ -23,7 +22,6 @@ from collections.abc import Callable
 import pytest
 
 from pitloom.core.url_masking import find_url_credentials, masked_given_path
-from pitloom.export._spdx3_strip import _DIRECT_REFERENCE, _TRAILING
 from tests.core.url_masking._probe_corpus import PLANTED, encoded, marks
 
 
@@ -116,16 +114,15 @@ _REQUIREMENTS = [
 
 
 @pytest.mark.parametrize("text", _REQUIREMENTS)
-def test_a_requirement_is_read_no_narrower_than_the_strip(text: str) -> None:
-    """Drift guard while the SBOM strip lives (retired in PR 2): on a value
-    that is one requirement, each URL the strip's direct-reference pattern
-    reads as holding a credential is refused by the detector."""
-    for found in _DIRECT_REFERENCE.finditer(text):
-        url = found["url"]
-        url = url[: len(url.rstrip(_TRAILING))]
-        if any(secret in url for secret in PLANTED):
-            assert find_url_credentials(text), text
-    assert _DIRECT_REFERENCE.search(text) or text.endswith("s3:/u:S3CRET@h.example/x")
+def test_a_requirement_with_a_credential_in_its_url_is_refused(text: str) -> None:
+    """A value that is one requirement (extras, no space around ``@``, a
+    marker, a quote in the user information, a trailing comma, a scheme
+    after one ``/``) is refused, and neither a finding nor the masker shows
+    the credential."""
+    found = find_url_credentials(text)
+    assert any(not f.weak for f in found), text
+    shown = masked_given_path(text) + "".join(f.shown for f in found)
+    assert not any(secret in shown for secret in PLANTED), text
 
 
 @pytest.mark.parametrize(

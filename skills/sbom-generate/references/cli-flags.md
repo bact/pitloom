@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -96,6 +96,12 @@ where they differ, and a flag with no effect on a target logs
   no effect). Both registry flags: [id-registry.md](id-registry.md).
   `--project-dir DIR` on `wheel`/`project <sdist>` keys their files below
   DIR in a registry rooted above it (reads nothing from DIR).
+- `--accept-url-credential sha256:<hex>` (repeatable; also `loom merge`)
+  -- let one URL value that holds a credential into the SBOM, by the
+  fingerprint its `[credentials-unsafe/refused]` line prints. Only after the
+  user confirms that value is no secret: see
+  [url-credentials.md](url-credentials.md). `--allow-url-credentials` lets
+  every such value in: never suggest it.
 - `--describe-relationship` (relationship text), `--max-source-metadata-bytes
   BYTES` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
   `--no-build-isolation` ([build-timeout.md](build-timeout.md)): only when

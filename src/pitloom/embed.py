@@ -214,7 +214,11 @@ def embed_wheel_sbom(
         FileNotFoundError: Nothing is at *wheel_path*, or not a regular
             file (``input-not-found``, carrying the code).
         pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
-            (``file-unreadable``: a directory on its way refuses search).
+            (``file-unreadable``: a directory on its way refuses search), or
+            a URL field of the SBOM holds a credential the run does not
+            accept (``credentials-unsafe/refused``; the SBOM at
+            *sbom_path* is checked as given, by ``overrides.credentials``
+            alone, and never rewritten). The wheel is left as it was.
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).
     """

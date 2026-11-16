@@ -43,6 +43,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import (
     EMBED_PROJECT,
@@ -56,6 +57,7 @@ from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.core.walk_rules import without_registry_copies
+from pitloom.export._spdx3_credentials import check_graph_credentials
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
@@ -76,12 +78,20 @@ from pitloom.logging_config import loggable
 log = logging.getLogger(__name__)
 
 
-def _read_external_sbom(sbom_path: Path | str) -> str:
+def _read_external_sbom(sbom_path: Path | str, credentials: CredentialPolicy) -> str:
     """The SBOM at *sbom_path* as written (:func:`~pitloom._sbom_format.
     read_given_sbom`), so what is embedded, and what ``-o`` copies, is the
     file. A dropped UTF-8 byte order mark is said with one ``WARNING:``: the
-    embedded bytes differ from the file's."""
+    embedded bytes differ from the file's. Refused, never rewritten, when a
+    URL field holds a credential *credentials* does not accept
+    (:func:`~pitloom.export._spdx3_credentials.check_graph_credentials`).
+
+    Raises:
+        pitloom.messages.CodedValueError: ``credentials-unsafe/refused``.
+    """
     given = read_given_sbom(sbom_path)
+    graph = given.document.get("@graph", [given.document])
+    check_graph_credentials(graph, credentials)
     if given.dropped_bom:
         log.warning(
             "SBOM %s: byte order mark dropped (JSON text must not have one)",
@@ -288,7 +298,10 @@ def _generate_embed_sbom_json(
         _settle_embed_options(
             EMBED_SBOM, wheel_metadata.name, given, overrides, file_cache
         )
-        return _read_external_sbom(sbom_path), sbom_basename
+        # Only the run's own flags: ``pitloom_config`` and the project's
+        # config have no effect on a given SBOM.
+        credentials = overrides.credentials or CredentialPolicy()
+        return _read_external_sbom(sbom_path, credentials), sbom_basename
 
     if project_dir is None:
         _settle_build_options(
@@ -417,4 +430,4 @@ def _build_sbom_standalone_wheel(
         ),
         **cfg.assemble_options,
     )
-    return exporter.to_json(pretty=False)
+    return exporter.to_json(pretty=False, credentials=cfg.credential_policy)

@@ -38,31 +38,18 @@ from pitloom.core.url_masking._detect import (
     find_url_credentials,
     holds_url_credentials,
 )
-from pitloom.core.url_masking._hits import (
-    PURL_DECODE_ROUNDS,
-    is_purl,
-    normalised,
-    purl_qualifiers,
-    qualifier_levels,
-    split_enclosed,
-    without_format,
-)
+from pitloom.core.url_masking._hits import without_format
 from pitloom.core.url_masking._mask import masked_given_path
 from pitloom.core.url_masking._params import (
     PARAM_RE,
     WHOLE_PARAM_RE,
     is_secret_name,
-    is_weak_name,
-    iter_params,
     mask_free_param,
     mask_param,
     sub_params,
 )
-from pitloom.core.url_masking._strip import find_urls, rebuilt
 from pitloom.core.url_masking._userinfo import (
-    SCP_USERINFO_RE,
     is_account_name,
-    is_whole_url,
     mask_scp,
     split_userinfo,
     userinfo_end,
@@ -75,27 +62,16 @@ __all__ = [
     "DOWNLOAD_PLACEHOLDER",
     "Finding",
     "HUB_DIR_PREFIX",
-    "PURL_DECODE_ROUNDS",
     "URL_AS_PATH_RE",
     "find_url_credentials",
     "holds_url_credentials",
     "is_account_name",
-    "is_purl",
     "is_secret_name",
-    "is_whole_url",
-    "keeps_url_credential",
-    "keeps_weak_parameter",
     "mask_checkout",
     "masked_given_path",
-    "normalised",
-    "purl_qualifiers",
-    "qualifier_levels",
     "sanitize_url",
     "sanitize_url_credentials",
-    "split_enclosed",
     "split_userinfo",
-    "strip_url_secrets",
-    "url_without_credentials",
     "userinfo_end",
     "without_format",
 ]
@@ -132,7 +108,6 @@ def _replaced_userinfo(
             text,
             start,
             len(text) if end is None else end.start(),
-            free_text=False,
             widest=True,
         )
         if at is not None:
@@ -180,94 +155,6 @@ def sanitize_url(url: str) -> str:
 #: one only starts a run of scheme characters, so a search tries each run
 #: once and stays linear (``a1a1...``).
 URL_AS_PATH_RE = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]+:[/\\]")
-
-
-def url_without_credentials(url: str) -> str:
-    """*url*, one URL, without its user information (``https://user:pass@
-    host/`` -> ``https://host/``) and with the value of a query parameter
-    named like a secret masked (:func:`sanitize_url_credentials`): the URL
-    to keep where a credential must not be (a clone's ``.git/config``)."""
-    return sanitize_url_credentials(
-        _replaced_userinfo(url, _WHOLE_OPENER, "://", whole=True)
-    )
-
-
-def strip_url_secrets(text: str, *, whole: bool) -> tuple[str, list[str]]:
-    """*text* with, in each URL in it, the user information and each
-    parameter named like a secret removed (``https://u:p@h/x?token=T&a=1``
-    is ``https://h/x?a=1``): what an SBOM may state of a URL a project
-    declared. *whole* when *text* is one URL (a URL field: a project URL,
-    an id, a PURL qualifier value; :func:`is_whole_url`): it is read as
-    ``urllib`` and git read it, so a quote, an angle bracket or a space in
-    its user information is part of it (``https://o'brien:pw@h``), and an
-    address ``user:password@host:path`` loses its password (when its host
-    has a ``.`` or its path a ``/``: ``build:42@ci:linux`` is no address). Else
-    *text* is free text, where a URL ends at white space, a quote or an angle bracket
-    (:mod:`pitloom.core.url_masking._strip`, the text may be JSON, a URL in
-    a parameter value is read on its own), and prose that only looks like
-    one (``http://host:port ... mail a@b.org``) is never rewritten. A user
-    name alone on an ``ssh`` or ``git`` URL that is an account name
-    (:func:`is_account_name`: ``git@``) is how a server is reached, not a
-    credential, and is kept. Also returns each URL changed, for a message:
-    what is removed masked, what is kept as written (it is in the SBOM). A
-    text with no URL is returned as it is. Names that hold a secret only
-    sometimes (``code``, ``session``, ``ticket``, ``sid``, ``otp``) are kept
-    as written."""
-    if "@" not in text and "=" not in text:
-        return text, []
-    parts: list[str] = []
-    changed: list[str] = []
-    done = 0
-    for url in find_urls(text, whole=whole):
-        found = rebuilt(text, url)
-        if found is not None:
-            parts += (text[done : url.start], found[0])
-            changed.append(found[1])
-            done = url.end
-    if parts:
-        parts.append(text[done:])
-        text = "".join(parts)
-    if whole:
-        text, scp = _stripped_scp(text)
-        changed += scp
-    return text, changed
-
-
-def _stripped_scp(text: str) -> tuple[str, list[str]]:
-    """*text*, an address (``user:password@host:path``), without its user
-    information, and the address as a message shows it."""
-    found = SCP_USERINFO_RE.match(text)
-    if found is None:
-        return text, []
-    rest = text[found.end() :]
-    host, _, path = rest.partition(":")
-    # ``meeting-10:30@room:notes.txt`` is not one: a host with no dot and a
-    # path with no ``/`` is too like a time or a label to rewrite.
-    if "." not in host and "/" not in path and not path.startswith("~"):
-        return text, []
-    return rest, ["***:***@" + rest]
-
-
-def keeps_weak_parameter(url: str) -> bool:
-    """Whether *url* has a parameter with a name that holds a secret only
-    sometimes (``code``, ``session``...: ``WEAK_SECRET_NAMES`` of
-    :mod:`pitloom.core.url_masking._params`), which
-    :func:`strip_url_secrets` keeps."""
-    return any(
-        is_weak_name(found.group(2))
-        for found in iter_params(PARAM_RE, url, 0, len(url))
-    )
-
-
-def keeps_url_credential(url: str, *, whole: bool) -> bool:
-    """Whether :func:`strip_url_secrets` keeps something in *url* that may
-    be a credential: a parameter with a weak name
-    (:func:`keeps_weak_parameter`) or a user name alone on an ``ssh`` or
-    ``git`` URL (:func:`is_account_name`), so a message can say it is kept,
-    not removed."""
-    if keeps_weak_parameter(url):
-        return True
-    return any(found.account for found in find_urls(url, whole=whole) if found.userinfo)
 
 
 #: The name prefix of the temporary directory a Git URL is checked out in.

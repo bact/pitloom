@@ -10,13 +10,13 @@ the detector must never refuse.
 See also: test_url_masking_detect.py (the tests that read it).
 
 Each row is ``(id, text, strip_changes, refused)``. *strip_changes* is
-whether the SBOM strip (``pitloom.export._spdx3_strip``, to be retired in
-PR 2) changed the text, computed once on the tree before the detector.
-*refused*
-is whether the detector refuses it (an account name accepted), reviewed row
-by row. The detector reads a URL-typed value as a whole and no prose: every
-text the strip changed is refused, except a ``prose-`` row (a sentence that
-mentions a URL, a token or an address), which is never refused.
+whether the SBOM strip (PR 487, replaced by the refusal) changed the text,
+computed once on the tree before the detector and kept as a record.
+*refused* is whether the detector refuses it (an account name accepted),
+reviewed row by row. The detector reads a URL-typed value as a whole and no
+prose: every text the strip changed is refused, except a ``prose-`` row (a
+sentence that mentions a URL, a token or an address), which is never
+refused.
 """
 
 from __future__ import annotations

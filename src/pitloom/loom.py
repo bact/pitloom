@@ -18,6 +18,7 @@ from pathlib import Path
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.models import _clear_doc_counters
 from pitloom.id_registry import IdRegistry
 
@@ -90,13 +91,19 @@ class Run(contextlib.ContextDecorator):
             not given), ``id-registry`` (when *id_registry* is not given;
             a relative path in a config file is relative to that file's
             directory) and ``update-id-registry`` (``false``: no model is
-            registered). Every other key does not apply to loom.
+            registered) and ``accept-url-credentials``. Every other key
+            does not apply to loom.
         max_dataset_hash_bytes: The most bytes read to hash one dataset (a
             file, or all files of a directory together); a dataset over it
             gets no hash and a ``WARNING:``. An integer of at least 1
             (``0`` is an error, not "unlimited"; ``ValueError`` at
             ``__enter__``). Beats the config's ``max-dataset-hash-bytes``;
             default 4 GiB.
+        credentials: A ``pitloom.core.credential_policy.CredentialPolicy``
+            naming URL field values that hold a credential and may stay in
+            the fragment, added to the config's ``accept-url-credentials``.
+            A field with a credential that neither accepts is refused when
+            the run ends, and no fragment is written.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -109,6 +116,7 @@ class Run(contextlib.ContextDecorator):
         *,
         pitloom_config: PitloomConfig | str | Path | None = None,
         max_dataset_hash_bytes: int | None = None,
+        credentials: CredentialPolicy | None = None,
     ):
         self.output_file = str(output_file)
         self.pretty = pretty
@@ -116,6 +124,7 @@ class Run(contextlib.ContextDecorator):
         self.id_registry = id_registry
         self.pitloom_config = pitloom_config
         self.max_dataset_hash_bytes = max_dataset_hash_bytes
+        self.credentials = credentials
         #: The run active at the latest ``__enter__``.
         self.previous_run: _ActiveRun | None = None
         #: One per open ``__enter__``: a recursive ``@loom.run`` function
@@ -134,6 +143,7 @@ class Run(contextlib.ContextDecorator):
             id_registry=self.id_registry,
             pitloom_config=self.pitloom_config,
             max_dataset_hash_bytes=self.max_dataset_hash_bytes,
+            credentials=self.credentials,
         )
         return _active_run
 

@@ -34,6 +34,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import WHEEL, settle_inert
 from pitloom.core.models import merkle_root_of_files
@@ -71,6 +72,7 @@ def generate_wheel_sbom(
     project_dir: Path | str | None = None,
     check_url: Callable[[str], None] | None = None,
     max_download_bytes: int | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
 
@@ -99,6 +101,9 @@ def generate_wheel_sbom(
     root (a registry above the project, a monorepo), as ``embed-wheel
     --project-dir`` keys them. Nothing is read from it; without a registry
     it has no effect, with one ``WARNING:``.
+
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the credentials an explicit *pitloom_config* accepts.
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -159,6 +164,7 @@ def generate_wheel_sbom(
             trust_model_files=trust_model_files,
             pitloom_config=pitloom_config,
             project_dir=project_dir,
+            credentials=credentials,
         )
     return generate_wheel_sbom_with_metadata(
         wheel_path,
@@ -179,6 +185,7 @@ def generate_wheel_sbom(
         project_dir=project_dir,
         check_url=check_url,
         max_download_bytes=max_download_bytes,
+        credentials=credentials,
     )[0]
 
 
@@ -203,6 +210,7 @@ def generate_wheel_sbom_with_metadata(
     check_url: Callable[[str], None] | None = None,
     max_download_bytes: int | None = None,
     acquisition: Acquisition | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> tuple[str, ProjectMetadata]:
     """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
     the wheel, for a caller that goes on to use the wheel's declared identity
@@ -253,6 +261,7 @@ def generate_wheel_sbom_with_metadata(
             max_source_metadata_bytes=max_source_metadata_bytes,
             max_model_extract_bytes=max_model_extract_bytes,
             scan_model_usage=scan_model_usage,
+            credentials=credentials,
         ),
     )
     # Resolved before the expensive read_wheel()/find_phantom_dependencies()
@@ -294,12 +303,14 @@ def generate_wheel_sbom_with_metadata(
         **cfg.assemble_options,
     )
 
-    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
-
+    # Before the registry is written: a refused SBOM leaves it unchanged.
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,
         describe_relationship=bool(cfg.describe_relationship),
+        credentials=cfg.credential_policy,
     )
+
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     write_sbom_output(sbom_json, output_path)
 

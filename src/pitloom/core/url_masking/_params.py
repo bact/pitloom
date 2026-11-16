@@ -53,7 +53,7 @@ _SECRET_WORDS = (
     *("passphrase", "passcode", "bearer", "creds"),
 )
 #: Names that hold a secret only sometimes (``code=utf8``, ``session=2024``):
-#: masked in a message, never removed from an SBOM. ``session_id`` and its
+#: masked in a message, never refused. ``session_id`` and its
 #: spellings are no weak name: they are secrets (:data:`_SECRET_NAMES`).
 WEAK_SECRET_NAMES = frozenset({"code", "session", "ticket", "sid", "otp"})
 #: Names of a parameter that hold a secret, matched whole (as
@@ -82,7 +82,7 @@ _DECODE_ROUNDS = 3
 
 #: The kinds of key that are secrets: ``api_key`` is, ``sort_key`` and
 #: ``primary-key`` are not (a name ending in ``_key`` that none of these
-#: starts is weak: masked in a message, kept in an SBOM).
+#: starts is weak: masked in a message, never refused).
 _KEY_KINDS = (
     *("api", "access", "secret", "private", "signing", "auth", "ssh"),
     *("session", "license", "encryption", "subscription", "application"),
@@ -91,8 +91,8 @@ _KEY_KINDS = (
 )
 #: Such a name whole (``api_key``).
 _SECRET_KEYS = tuple(f"{kind}_key" for kind in _KEY_KINDS)
-#: The words whose ending makes a name a secret to remove from an SBOM.
-_STRIP_WORDS = tuple(w for w in _SECRET_WORDS if w not in {"key", "sig", "auth"})
+#: The words whose ending makes a name a secret the detector refuses.
+_REFUSED_WORDS = tuple(w for w in _SECRET_WORDS if w not in {"key", "sig", "auth"})
 #: Words a name may end in without a separator (``accesstoken``,
 #: ``secretkey``, ``AccountKey``).
 _JOINED_WORDS = (
@@ -100,9 +100,9 @@ _JOINED_WORDS = (
     *("sessionid", "privatekey"),
     *(f"{kind}key" for kind in _KEY_KINDS),
 )
-#: The endings that make a name removed from an SBOM.
-_STRIP_ENDINGS = (
-    *(f"_{word}" for word in (*_STRIP_WORDS, *_SECRET_KEYS)),
+#: The endings that make a name refused.
+_REFUSED_ENDINGS = (
+    *(f"_{word}" for word in (*_REFUSED_WORDS, *_SECRET_KEYS)),
     *_JOINED_WORDS,
 )
 #: The endings that make a name masked in a message.
@@ -141,30 +141,30 @@ def plain_name(name: str) -> str:
 def is_weak_name(name: str) -> bool:
     """Whether the parameter *name* holds a secret only sometimes
     (:data:`WEAK_SECRET_NAMES`, or a name ending in ``_key`` that is no
-    kind of secret key: ``sort_key``): kept in an SBOM, masked in a
+    kind of secret key: ``sort_key``): never refused, masked in a
     message."""
     plain = plain_name(name)
     return plain in WEAK_SECRET_NAMES or (
-        plain.endswith("_key") and not plain.endswith(_STRIP_ENDINGS)
+        plain.endswith("_key") and not plain.endswith(_REFUSED_ENDINGS)
     )
 
 
 def is_secret_name(name: str, *, weak: bool = True) -> bool:
     """Whether the parameter *name* names a secret (:data:`_SECRET_NAMES`,
     :data:`_SECRET_ENDINGS`), read as :func:`plain_name`; with *weak* false
-    (the removal from an SBOM), only a whole name or an ending that is a
-    secret whatever the value: ``sort_key`` and the weak names
-    (:data:`WEAK_SECRET_NAMES`) are kept."""
+    (the refusal of the detector), only a whole name or an ending that is
+    a secret whatever the value: ``sort_key`` and the weak names
+    (:data:`WEAK_SECRET_NAMES`) are not."""
     plain = plain_name(name)
     if plain in _SECRET_NAMES or plain in _SECRET_KEYS:
         return True
     if weak:
         return plain in WEAK_SECRET_NAMES or plain.endswith(_MASK_ENDINGS)
-    return plain.endswith(_STRIP_ENDINGS)
+    return plain.endswith(_REFUSED_ENDINGS)
 
 
 #: The most ``?`` a non-secret parameter's value may hold: a value with more
-#: is read as a secret (the strip removes it, a message masks it), so a
+#: is read as a secret (the detector refuses it, a message masks it), so a
 #: crafted ``?q=1?q=1?...`` cannot nest the reading without limit.
 MAX_QUERY_MARKS = 16
 
@@ -193,8 +193,8 @@ def iter_params(
     (``?q=1?token=T``: a ``?`` is a character of a query, but a server or a
     client reads a parameter after it), at most :data:`MAX_QUERY_MARKS`
     levels deep. A secret's value is read whole, a ``?`` in it included;
-    with *weak* false (the strip, which keeps a weak name's value as
-    written) a weak name's value is looked into too."""
+    with *weak* false (the detector, which only tells of a weak name)
+    a weak name's value is looked into too."""
     for param in _top_params(pattern, text, start, bound):
         yield param
         if "?" in param.group(3) and not is_secret_param(param, weak=weak):

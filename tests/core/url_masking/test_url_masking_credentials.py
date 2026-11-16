@@ -4,27 +4,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A secret planted in a URL is masked by every sink that writes text (the
-log formatter, a traceback, ``KEY=VALUE`` stdout), removed by the SBOM strip
-and read as one rule by the masker, the strip and the refusal of a stored
-value.
+log formatter, a traceback, ``KEY=VALUE`` stdout), and read as one rule by
+the masker and the refusal of a stored value.
 
-See also: test_url_masking_userinfo.py, test_url_masking_strip.py and
+See also: test_url_masking_userinfo.py, test_url_masking_detect.py and
 test_url_masking_given_path.py in this folder.
 """
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from pitloom.cli.kv_output import kv_line
 from pitloom.core.iri import require_namespace_iri
-from pitloom.core.url_masking import (
-    holds_url_credentials,
-    masked_given_path,
-    strip_url_secrets,
-)
+from pitloom.core.url_masking import holds_url_credentials, masked_given_path
 from pitloom.logging_config import escape_controls, print_traceback
 
 pytestmark = pytest.mark.platform
@@ -57,41 +50,6 @@ def test_every_sink_masks_a_secret_the_caller_forgot(
 
 
 @pytest.mark.parametrize(
-    "shape", _SHAPES[:2] + _SHAPES[3:4], ids=["userinfo", "token", "encoded-name"]
-)
-def test_the_stripped_url_keeps_what_is_not_secret(shape: str) -> None:
-    plain, changed = strip_url_secrets(f"see {shape}, ok", whole=False)
-    assert SECRET not in plain and plain.startswith("see ") and changed
-    assert SECRET not in "".join(changed)
-
-
-@pytest.mark.parametrize(
-    ("text", "plain"),
-    [
-        ("https://u:p@h/x?token=T&a=1", "https://h/x?a=1"),
-        ("https://h/x?a=1&key=K", "https://h/x?a=1"),
-        ("https://h/x?token=T&b=2&sig=S", "https://h/x?b=2"),
-        ("https://h/x?token=T", "https://h/x"),
-        ("https://h/p?x=1#frag", "https://h/p?x=1#frag"),
-        ("foo @ https://u:p@h/x.whl#sig=Q", "foo @ https://h/x.whl"),
-        ("https://h/p?token=T#frag", "https://h/p#frag"),
-        ('{"n":"https://h/x?token=T"}', '{"n":"https://h/x"}'),
-        ("https://h/x#access_token=x&state=y", "https://h/x#state=y"),
-        ("https://h/x?accesstoken=Z&a=1", "https://h/x?a=1"),
-        ("https://h/x?a=1#sig=Q", "https://h/x?a=1"),
-        (
-            "https://h/x?tokenizer=bert&max_tokens=3",
-            "https://h/x?tokenizer=bert&max_tokens=3",
-        ),
-    ],
-)
-def test_a_secret_parameter_is_dropped_whole(text: str, plain: str) -> None:
-    """A fragment stays a fragment and a joined name is a secret."""
-    assert strip_url_secrets(text, whole=False)[0] == plain
-    assert not strip_url_secrets(plain, whole=False)[1]  # idempotent, nothing to report
-
-
-@pytest.mark.parametrize(
     "text",
     [
         "ssh://git@github.com/o/r.git",
@@ -101,15 +59,8 @@ def test_a_secret_parameter_is_dropped_whole(text: str, plain: str) -> None:
         "python:3.11@sha256:deadbeef and sip:alice@example.org:5060",
     ],
 )
-def test_the_sbom_strip_leaves_what_is_no_credential(text: str) -> None:
-    assert strip_url_secrets(text, whole=False) == (text, [])
-
-
-def test_the_provenance_json_of_a_stripped_url_still_parses() -> None:
-    note = json.dumps({"note": f"foo @ https://a:{SECRET}@h/x.whl?token={SECRET}"})
-    plain, changed = strip_url_secrets(note, whole=False)
-    assert json.loads(plain) == {"note": "foo @ https://h/x.whl"} and changed
-    assert SECRET not in "".join(changed)
+def test_what_is_no_credential_is_not_refused(text: str) -> None:
+    assert not holds_url_credentials(text, account=True)
 
 
 @pytest.mark.parametrize(
@@ -148,12 +99,10 @@ def test_no_credential_is_found_in_an_image_reference_or_a_drive(text: str) -> N
     ],
     ids=["question", "hash", "plain", "user-only", "percent-at"],
 )
-def test_masker_strip_hold_and_refusal_agree(url: str) -> None:
-    """One definition of user information: where the masker masks, the strip
-    removes, ``holds_url_credentials`` says so, and a namespace is refused."""
+def test_masker_hold_and_refusal_agree(url: str) -> None:
+    """One definition of user information: where the masker masks,
+    ``holds_url_credentials`` says so, and a namespace is refused."""
     assert SECRET not in masked_given_path(url)
-    plain, changed = strip_url_secrets(url, whole=True)
-    assert SECRET not in plain and changed
     assert holds_url_credentials(url)
     with pytest.raises(ValueError):
         require_namespace_iri(url)

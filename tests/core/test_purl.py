@@ -5,14 +5,20 @@
 
 """Tests for the ``pkg:huggingface`` and ``pkg:generic`` PURL builders.
 
-See also: tests/assemble/test_ai_package_purl.py (where they are used).
+See also: tests/assemble/test_ai_package_purl.py (where they are used) and
+tests/export/test_spdx3_credentials.py (the refusal of a credential).
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
+from spdx_python_model.bindings.v3_0_1 import model as spdx_model
 
 from pitloom.core.purl import build_generic_purl, build_huggingface_purl
+from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.messages import code_of
 
 _SHA = "0123456789abcdef0123456789abcdef01234567"
 
@@ -75,3 +81,31 @@ def test_generic_purl(kwargs: dict[str, str], expected: str) -> None:
 
 def test_generic_purl_encodes_the_name() -> None:
     assert build_generic_purl("a/b c@d") == "pkg:generic/a%2Fb%20c%40d"
+
+
+def test_a_credential_in_the_download_url_is_kept_and_the_exporter_refuses_it() -> None:
+    """The builder never rewrites *download_url*: the PURL states it as
+    given (encoded), and the SBOM exporter refuses it."""
+    url = "https://u:S3CRET@h.example/d.csv?token=T0KEN"
+    purl = build_generic_purl("d.csv", download_url=url)
+    assert purl == (
+        "pkg:generic/d.csv?download_url="
+        "https://u:S3CRET%40h.example/d.csv%3Ftoken%3DT0KEN"
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_package(
+        spdx_model.software_Package(
+            spdxId="urn:a#P",
+            name="d",
+            software_packageUrl=purl,
+            creationInfo=spdx_model.CreationInfo(
+                specVersion="3.0.1",
+                created=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                createdBy=["urn:agent"],
+            ),
+        )
+    )
+    with pytest.raises(ValueError) as caught:
+        exporter.to_json()
+    assert code_of(caught.value) == "credentials-unsafe/refused"
+    assert "S3CRET" not in str(caught.value) and "T0KEN" not in str(caught.value)

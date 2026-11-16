@@ -9,13 +9,87 @@ Last-Modified: 2026-11-16
 # Credentials: detect and refuse, never rewrite
 
 See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
-(what PR 487 built and its tracked gaps),
+(what PR 487 built and the gaps still tracked),
 [message-catalogue-and-skills.md](message-catalogue-and-skills.md) (the
 message contract the new codes join).
 
-Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489)
-built the detector and keeps the strip; the refusal at the persisted sinks
-and the override (PR 2) are not built. See "Built in PR 1" below.
+Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
+merged) built the detector; PR 2 (built 2026-11-16, not yet merged) built
+the refusal at the persisted sinks and the override and deleted the strip.
+Left for PR 3: "Not built" below.
+
+## Built in PR 2
+
+- **SBOM refused, never rewritten** (`export/_spdx3_credentials.py`,
+  `check_graph_credentials`), last in `Spdx3JsonExporter.to_json`, so on
+  every surface (CLI, library, Hatchling hook, `loom.run` fragments,
+  `merge`, `enrich`), and on the file `embed-wheel --sbom` embeds. One
+  `ERROR: URL=<masked>: holds a credential (<element> <pointer>,
+  sha256:<16 hex>); remove it from the source, or accept this value with
+  --accept-url-credential sha256:<16 hex>` per distinct value, in graph
+  order, then a closing count naming no URL
+  (`credentials-unsafe/refused`); exit 1, no SBOM written. The raised
+  error's text and `args` name no URL and it has no context.
+- **What is read**: the fields of `URL_FIELDS` (every `anyURI` field of the
+  SPDX 3.0.1 model, ids and namespaces with the `embedded` reading, an
+  `identifier` only for a `packageUrl` or `urlScheme` type; a drift test
+  keeps the list complete), each as a whole value. Pitloom's provenance
+  notes are read too, as whole values: an annotation's
+  `fields.<field>.note` and the note of each entry of a `Metadata
+  provenance:` comment line (the same value, so the same fingerprint). Any
+  other comment, a name, a description or other prose is not.
+- **Weak** values (`code`, `session`, `ticket`, `sid`, `otp`, a `_key`
+  name that is no kind of secret key, an `ssh` account name) warn
+  (`credentials-unsafe`, "the SBOM states it as written"), never refuse.
+  Token shapes refuse in the SBOM, as in the registry.
+- **Fingerprint** (`core/credential_policy.py`): `sha256:` and the first 16
+  lowercase hex digits of the SHA-256 of the whole field value as it stands
+  in the output (UTF-8, `surrogatepass`); an accepted entry may be 16 to 64
+  digits (a prefix of the full digest); uppercase is refused, and a bad
+  entry is never quoted (it may be a pasted credential). The **pointer** is
+  RFC 6901 within the element; for a provenance note it goes on into the
+  statement's JSON (`/statement/fields/<field>/note`) or the comment entry
+  (`/comment/<field>/note`).
+- **Override**: `--accept-url-credential FP` (repeatable, every generating
+  command and `merge`), `[tool.pitloom] accept-url-credentials = [...]`,
+  library `PitloomConfig(accept_url_credentials=...)` or a `credentials=`
+  `CredentialPolicy`; the CLI list adds to the config's, never replaces it.
+  An accepted value is stated with `WARNING: ...
+  [credentials-unsafe/accepted]`; an accepted fingerprint matching no value
+  warns (`option-no-effect`, `FINGERPRINT=`). Global
+  `--allow-url-credentials`: CLI and library
+  (`PitloomConfig(allow_url_credentials=True)`) only;
+  `allow-url-credentials` in `[tool.pitloom]` is ignored with `WARNING:
+  allow-url-credentials: CLI only; ignored in [tool.pitloom]`
+  (`config-unsafe/cli-only`). The Hatchling hook reads the `pyproject.toml`
+  list only; `embed-wheel --sbom` reads the run's flags only (no project
+  configuration applies to a given SBOM).
+- **Registry**: `IdRegistry.load()` and `rebase()` refuse a file with a
+  credentialed entry or namespace and leave it as it is (`ERROR: ... ID
+  registry file <file> is not loaded; remove the entry`); `loom id import`
+  still skips such an element with a `WARNING:` and takes no override.
+- **Deleted**: `core/url_masking/_strip.py` (its URL scanner moved to
+  `_urls.py`), `export/_spdx3_strip.py`, `strip_purl_secrets` and the
+  stripped PURL of `build_generic_purl` (the dataset PURL is built from the
+  URL as given and refused with it), the stripped, kept and unremoved
+  lines, `credentials-unsafe/id-collision` and the id and reference
+  rewrite, the registry load-drop.
+- Tests: `tests/test_credential_surfaces_accept.py` (the override on each
+  surface), `tests/test_credential_deep_query_surfaces.py` (a 1000-`?` URL
+  refused, then accepted by its fingerprint),
+  `tests/export/test_spdx3_credentials*.py`,
+  `tests/core/test_credential_policy.py`,
+  `tests/cli/test_cli_credential_flags.py`.
+
+## Not built (PR 3)
+
+- A Git URL's secret query value (`?token=`) is not refused before the
+  fetch: it still reaches git's argv and `.git/config` (the SBOM written
+  afterwards is still checked).
+- The Action: no input of its own for the two flags, no `::add-mask::` for
+  its source inputs.
+- The Git hardening items listed for PR 3 in
+  [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
 
 ## Built in PR 1 (PR 489)
 
@@ -31,20 +105,16 @@ and the override (PR 2) are not built. See "Built in PR 1" below.
   text; a weak name or an accepted `ssh` account name is a weak finding,
   never refused.
 - The registry refusals (namespace, key, element id) and `IdRegistry.load()`
-  use the detector; `load()` still drops the entry, as in PR 487.
-- The SBOM strip stays; a value it leaves that the detector refuses gets a
-  `credentials-unsafe` line, said once and masked ("which the SBOM states
-  as written").
+  use the detector; `load()` still dropped the entry, as in PR 487 (PR 2
+  refuses).
+- The SBOM strip stayed; a value it left that the detector refuses got a
+  `credentials-unsafe` line (PR 2 deleted both).
 - The masker (`core/url_masking/_mask.py`) hides every finding, tokens
   included, in a value and in a line.
 - A timing test per view on adversarial inputs (`test_each_view_is_linear`)
   and 1 MiB runs of the two shapes that were once quadratic.
 
-Not built: any refusal of the SBOM output, merged fragments, the dataset
-PURL or a Git URL's secret query value; the change of `load()` to refuse;
-the override (fingerprint, flags, `pyproject.toml`, library option); the
-Action's `::add-mask::`; `credentials-unsafe/refused`; the JSON path and
-fingerprint of a finding.
+Not built in PR 1: everything under "Built in PR 2" above.
 
 ## Corrections after PR 1
 
@@ -100,17 +170,17 @@ Never rewrite persisted data automatically.
 
 ## Sink table
 
-| Sink | Today (PR 487) | Proposed |
-|------|----------------|----------|
-| SBOM output (`Spdx3JsonExporter.to_json`, after merge and enrichment) | strip + `credentials-unsafe` warning | refuse; every offender in one error |
-| Merged fragment ids and references | strip together, `id-collision` error | refuse; with an override pass through unchanged |
-| Registry namespace and key | refuse | unchanged |
-| `IdRegistry.load()` | drops the entry, next save rewrites the file | refuse and name the entry; the user edits the file |
-| Dataset PURL | built from the stripped URL | refuse (nothing safe to build from) |
-| Logs, tracebacks, `KEY=VALUE`, `print_error` | mask | unchanged |
-| Git URL userinfo | helper, never argv or `.git/config` | unchanged |
-| Git URL secret query value | reaches argv and `.git/config` (tracked gap) | refuse |
-| Weak names (`code`, `session`, `ticket`, `sid`, `otp`) | kept, truthful warning | `WARNING:` only, never a refusal (OAuth examples in a README must not block a build) |
+| Sink | PR 487 | Proposed | PR 2 |
+|------|--------|----------|------|
+| SBOM output (`Spdx3JsonExporter.to_json`, after merge and enrichment) | strip + `credentials-unsafe` warning | refuse; every offender in one error | built (one line per value, then a count) |
+| Merged fragment ids and references | strip together, `id-collision` error | refuse; with an override pass through unchanged | built |
+| Registry namespace and key | refuse | unchanged | unchanged |
+| `IdRegistry.load()` | drops the entry, next save rewrites the file | refuse and name the entry; the user edits the file | built (`rebase()` too) |
+| Dataset PURL | built from the stripped URL | refuse (nothing safe to build from) | built (refused at the SBOM check) |
+| Logs, tracebacks, `KEY=VALUE`, `print_error` | mask | unchanged | unchanged |
+| Git URL userinfo | helper, never argv or `.git/config` | unchanged | unchanged |
+| Git URL secret query value | reaches argv and `.git/config` (tracked gap) | refuse | not built (PR 3) |
+| Weak names (`code`, `session`, `ticket`, `sid`, `otp`) | kept, truthful warning | `WARNING:` only, never a refusal (OAuth examples in a README must not block a build) | built |
 
 ## Detector
 
@@ -137,7 +207,7 @@ Never rewrite persisted data automatically.
   later lets a real token through silently (precedent: `--allow-build`).
 - The library API carries it in the shared options object, not a new
   keyword per entry point. The Action passes both through and starts
-  `::add-mask::` for its source inputs.
+  `::add-mask::` for its source inputs (not built: PR 3).
 - Skills explain the fingerprint override and never suggest the global flag
   first.
 
@@ -147,11 +217,14 @@ Never rewrite persisted data automatically.
    this change). Done.
 2. Do not cut 0.25.0 until the detect-and-refuse PR lands. Strip in 0.25.0
    and refuse in 0.26.0 would turn builds that succeeded into failures and
-   need two advisory stories.
+   need two advisory stories. Lifted once PR 2 merges.
 3. Catalogue codes with `since` 0.25.0 that never shipped (`credentials-unsafe`
    stripped and kept lines, `credentials-unsafe/id-collision`) are retired
    or renamed freely. Add `credentials-unsafe/refused`. Regenerate the
-   reference and update every `SKILL.md` that quotes the warning.
+   reference and update every `SKILL.md` that quotes the warning. Done in
+   PR 2 (`credentials-unsafe/accepted` and `config-unsafe/cli-only` added
+   too; `sbom-generate`'s `references/url-credentials.md` holds the skill
+   flow).
 
 ## Deleted and added (rough, not measured)
 
@@ -162,6 +235,10 @@ Never rewrite persisted data automatically.
 - Added: detector about 150 lines, override plumbing about 120 (CLI,
   pyproject, hook, library, `_matrix_plan.py`), messages about 40, tests
   about 400.
+- Measured in PR 2 (source lines): deleted `_strip.py` (386) and
+  `_spdx3_strip.py` (208); added `_spdx3_credentials.py` (339),
+  `credential_policy.py` (196), `_parser_credentials.py` (90) and `_urls.py`
+  (220, the scanner kept from `_strip.py`).
 
 ## Traps
 
@@ -173,14 +250,15 @@ Never rewrite persisted data automatically.
 - Fingerprint on the exact serialised string, so it is stable across
   platforms.
 - Refusal text must not itself leak; test the raw traceback path.
-- `docs/dependency-sources.md` "Known gaps" says "not detected" instead of
-  "not stripped".
+- The user-facing gaps say "not detected", not "not stripped" (PR 2: "Not
+  detected" in `docs/url-credentials.md`).
 
-## Open questions
+## Open questions (settled in PR 2)
 
-- Fingerprint length and hash input (whole value or only the credential
-  part).
-- Whether the token-shape list is a refusal or a warning by default in the
-  SBOM. In the ID registry a token is refused since PR 1.
-- Whether `loom id import` of a document with a credentialed id refuses or
-  skips with the override.
+- Fingerprint length and hash input: 16 hex digits printed (16 to 64
+  accepted) of the SHA-256 of the whole field value, not of the credential
+  part (a credential part would need the detector's span, and a value
+  changed anywhere must be reviewed again).
+- Token shapes refuse in the SBOM, as in the ID registry.
+- `loom id import` of a document with a credentialed id skips the element
+  with a `WARNING:`; it takes no override.

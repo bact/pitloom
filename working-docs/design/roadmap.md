@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -222,9 +222,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [x] **Credential leaks (#487)**: masking at the sinks, git helper, registry
   refusal; built, unreleased. See
   [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
-- [ ] **Credentials: detect and refuse** (release blocker for 0.25.0):
-  replace the SBOM strip with detect, `ERROR:` and a per-value override. See
+- [x] **Credentials: detect and refuse, PR 2**: the SBOM strip replaced by
+  detect, `ERROR:` and a per-value fingerprint override; built, not merged
+  (release blocker for 0.25.0, lifted when it merges). See
   [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
+- [ ] **Credentials PR 3**: refuse a Git URL's secret query value before the
+  fetch, the Action's inputs and `::add-mask::`, Git hardening. Same doc,
+  "Not built (PR 3)".
 - [ ] **Namespace mixing in one SBOM**: a registry namespace (`ids.example/ns`)
   appears beside `spdx.org/spdxdocs/demo-<uuid>` ids. Seen during the
   credential work; unrelated to credentials. Find the cause (which route

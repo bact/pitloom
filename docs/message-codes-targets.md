@@ -22,6 +22,7 @@ values.
 | --- | --- | --- | --- |
 | [`config-unsafe`](#config-unsafe) | INFO | The [tool.pitloom] settings of a project fetched from a Git URL, or of an sdist downloaded from a PyPI URL, if it has any, are not applied: they could point Pitloom at files, a registry or the network as the project chooses, and the project is untrusted. | 0.23.4 |
 | [`config-unsafe/build-code`](#config-unsafebuild-code) | WARNING | The build configuration of a project fetched from a Git URL names Python code of the repository that listing the wheel's files would run: a Hatchling metadata hook, a setuptools cmdclass or attr version, a PDM build hook (pdm_build.py or custom-hook) or run-setuptools; or a setup.cfg [global] section, which sets setuptools' own options (where it reads files from, which command code it loads). The repository is untrusted, so that code is not run and those options are not set. The line names the file that holds the settings and the settings ignored. | 0.23.4 |
+| [`config-unsafe/cli-only`](#config-unsafecli-only) | WARNING | The project's configuration sets a key that only the command line takes (allow-url-credentials): set once in a committed file, it would keep applying to values nobody reviewed, so a file cannot set it. | 0.25.0 |
 | [`hf-url-invalid`](#hf-url-invalid) | ERROR | A Hugging Face target is neither a Hub model URL (https://huggingface.co/<owner>/<name>) nor a model id (<owner>/<name>). | 0.25.0 |
 | [`input-not-found`](#input-not-found) | ERROR | A path named for Pitloom to read does not exist: a model file, wheel, sdist, project directory, configuration, ID registry or SBOM file, or a PATH given to 'loom id generate' to index, on disk (or something else is there: the line says it is not a file, or not a directory), the file or folder a Git URL names in the repository at its branch (a symbolic link there is not followed, so it counts as absent: its line says it is a link), or a pattern or directory that holds nothing of what was asked for. The lines for a model file and for a Git URL's file or folder print since 0.23.4, the others since 0.25.0. | 0.23.4 |
 | [`input-not-found/fragment`](#input-not-foundfragment) | WARNING | An SBOM fragment the project configures ([tool.pitloom.fragment]) does not exist. | 0.25.0 |
@@ -79,6 +80,24 @@ values.
 
   ```text
   WARNING: FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]
+  ```
+
+### `config-unsafe/cli-only`
+
+- **Level**: WARNING.
+- **Means**: The project's configuration sets a key that only the command line
+  takes (allow-url-credentials): set once in a committed file, it would keep
+  applying to values nobody reviewed, so a file cannot set it.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Ignored the setting: the run goes on as if it were not there.
+- **Tell the user**: the setting has no effect in the file. To accept one URL
+  value that holds what reads as a credential, they list its fingerprint in
+  accept-url-credentials instead. Do not move the setting to a command line for
+  them; ask first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: <setting>: CLI only; ignored in <table> [config-unsafe/cli-only]
   ```
 
 ### `hf-url-invalid`

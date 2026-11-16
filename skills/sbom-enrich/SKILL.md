@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-14
+# Last-Modified: 2026-11-16
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -296,7 +296,9 @@ its advice, never run the fix. Expect the dangling-reference `WARNING:` plus
 both` line on every run is expected. `ERROR: loom <command>: ID registry: FILE=...: version 3,
 expected 4 ... [registry-wrong-format]` means an old-format registry: never delete or rewrite it from this
 skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
-non-interactive stop and report the `ERROR:`.
+non-interactive stop and report the `ERROR:`. A
+`[credentials-unsafe/refused]` `ERROR:` (no SBOM written): follow
+`sbom-generate`'s "Check stderr"; never suggest `--allow-url-credentials`.
 
 ## See also
 

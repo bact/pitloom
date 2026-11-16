@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The credential detector (:func:`pitloom.core.url_masking.find_url_credentials`):
-a URL-typed value read as a whole, never prose; no weaker than the SBOM
-strip (to be retired in PR 2) on such values; never showing what it
-finds; the masker hiding all it refuses; weak names told and not refused.
+a URL-typed value read as a whole, never prose; no weaker on such values
+than the SBOM strip it replaced (the corpus records what that changed);
+never showing what it finds; the masker hiding all it refuses; weak names
+told and not refused.
 
 See also: _probe_corpus.py (the corpus), test_url_masking_hits.py (each
 kind of value and 1 MiB timings), test_url_masking_tokens.py (token shapes),

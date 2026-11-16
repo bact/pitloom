@@ -45,6 +45,7 @@ from pitloom.core._config_types import (
     PitloomConfig,
 )
 from pitloom.core.creation import Creator, Tool
+from pitloom.core.credential_policy import read_accept_key
 from pitloom.core.file_names import (
     CONFIG_BASENAME_LABEL,
     is_plain_file_name,
@@ -438,6 +439,9 @@ def parse_pitloom_config(
         content_type_overrides=content_type_overrides,
         offline=offline,
         use_lockfile=use_lockfile,
+        accept_url_credentials=read_accept_key(
+            pitloom_data, table="[tool:pitloom]" if is_setup_cfg else "[tool.pitloom]"
+        ),
     )
 
 
