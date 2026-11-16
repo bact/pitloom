@@ -30,7 +30,10 @@ that defines them.
 from __future__ import annotations
 
 from pitloom.id_registry._ambiguous import say_ambiguous_keys
-from pitloom.id_registry._credentials import require_key_without_credentials
+from pitloom.id_registry._credentials import (
+    check_key_credentials,
+    require_key_without_credentials,
+)
 from pitloom.id_registry._persist import (
     failed_to_save_message,
     persist_registry,
@@ -90,6 +93,7 @@ __all__ = [
     "alias_tail",
     "say_ambiguous_keys",
     "artifact_key",
+    "check_key_credentials",
     "failed_to_save_message",
     "info_identity_unknown",
     "is_layout_alias",

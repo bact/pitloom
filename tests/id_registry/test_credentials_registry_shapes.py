@@ -79,7 +79,7 @@ def test_load_refuses_the_file_and_leaves_it_as_it_was(
     path.write_text(json.dumps(document), "utf-8")
     before = path.read_bytes()
     with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as caught:
-        IdRegistry.load(path)
+        IdRegistry.load(path, refuse_credentials=True)
     assert path.read_bytes() == before and not caplog.records
     assert code_of(caught.value) == _REGISTRY
     _shown(str(caught.value), key, raw)
@@ -115,13 +115,16 @@ def _run(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
 
 @_PARAMS
 def test_cli_e_refuses_and_id_import_skips(tmp_path: Path, key: str, raw: str) -> None:
-    """``loom id generate -e`` refuses the key with exit 1 and writes no
-    registry; ``loom id import`` of an SBOM element with that key skips it,
-    and neither says the key as written."""
+    """``loom id generate -e --refuse-url-credentials`` refuses the key
+    with exit 1 and writes no registry; ``loom id import`` of an SBOM
+    element with that key skips it (in either mode), and neither says the
+    key as written."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_bytes(b"x\n")
     done = _run(
-        tmp_path, "id", "generate", "-o", "r.json", "-e", f"{key}:ai_AIPackage", "src"
+        tmp_path,
+        *("id", "generate", "-o", "r.json", "-e", f"{key}:ai_AIPackage", "src"),
+        "--refuse-url-credentials",
     )
     err = done.stderr.decode()
     assert done.returncode == 1 and f"[{_REGISTRY}]" in err

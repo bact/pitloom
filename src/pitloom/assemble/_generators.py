@@ -301,6 +301,7 @@ def generate_project_sbom(
         id_registry,
         cfg.id_registry,
         registry_base_dir(target_path),
+        refuse_credentials=cfg.credential_policy.refuse,
     )
     sdist_project_dir = (
         archive_project_dir(project_dir, resolved_registry, target_path)

@@ -144,7 +144,7 @@ def _write_sbom(
     # A document id holding a credential is the case under test: the fixture
     # writes it as given.
     path.write_text(
-        exporter.to_json(credentials=CredentialPolicy(allow_all=True)),
+        exporter.to_json(credentials=CredentialPolicy()),
         encoding="utf-8",
     )
 

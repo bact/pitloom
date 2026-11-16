@@ -6,7 +6,7 @@
 """Tests for the ``pkg:huggingface`` and ``pkg:generic`` PURL builders.
 
 See also: tests/assemble/test_ai_package_purl.py (where they are used) and
-tests/export/test_spdx3_credentials.py (the refusal of a credential).
+tests/export/test_spdx3_credentials.py (the check of a credential).
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import pytest
 from spdx_python_model.bindings.v3_0_1 import model as spdx_model
 
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.purl import build_generic_purl, build_huggingface_purl
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.messages import code_of
@@ -83,9 +84,9 @@ def test_generic_purl_encodes_the_name() -> None:
     assert build_generic_purl("a/b c@d") == "pkg:generic/a%2Fb%20c%40d"
 
 
-def test_a_credential_in_the_download_url_is_kept_and_the_exporter_refuses_it() -> None:
+def test_a_credential_in_the_download_url_is_kept_and_refusable() -> None:
     """The builder never rewrites *download_url*: the PURL states it as
-    given (encoded), and the SBOM exporter refuses it."""
+    given (encoded), and the SBOM exporter refuses it in the refuse mode."""
     url = "https://u:S3CRET@h.example/d.csv?token=T0KEN"
     purl = build_generic_purl("d.csv", download_url=url)
     assert purl == (
@@ -106,6 +107,6 @@ def test_a_credential_in_the_download_url_is_kept_and_the_exporter_refuses_it() 
         )
     )
     with pytest.raises(ValueError) as caught:
-        exporter.to_json()
+        exporter.to_json(credentials=CredentialPolicy(refuse=True))
     assert code_of(caught.value) == "credentials-unsafe/refused"
     assert "S3CRET" not in str(caught.value) and "T0KEN" not in str(caught.value)

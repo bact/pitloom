@@ -17,12 +17,13 @@ description: >-
   provenance". Combined asks (hand off to
   sbom-enrich): "generate SBOM and enrich it", "complete/full SBOM", "SBOM
   meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements". PEP 770 wheel
-  embedding ("embed the SBOM in this wheel", "SBOM into dist/*.whl",
-  "signed wheel / RECORD.jws", "--allow-signed-wheel"),
+  embedding ("embed the SBOM in this wheel", "signed wheel / RECORD.jws",
+  "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
   taking too long"), stable ids ("pin ids", "keep ids stable", "create or update
-  an ID registry", "loom id generate/import"), the usage scan
-  ("which files use this model"), "holds a credential" errors.
+  an ID registry", "loom id generate/import"), usage scan
+  ("which files use this model"), "warns about a credential"/"holds a
+  credential" lines.
   Checking: sbom-validate.
 license: Apache-2.0
 compatibility: >-
@@ -281,10 +282,10 @@ ends in a `[code]` (`[lfs-pointer]`, `[over-cap]`), read
 `references/messages.md` for what it means and what to tell the user; relay its advice, never run the fix. A
 `[file-unreadable]` or `[dir-unlistable]` line means content Pitloom could not
 read is left out: never change permissions, ownership or files yourself.
-`ERROR: ... holds a credential ... [credentials-unsafe/refused]`: no SBOM
-written (exit 1); read `references/url-credentials.md` before answering.
-**Never suggest `--allow-url-credentials`**; offer the fingerprint only once
-the user confirms the value is no secret.
+A `[credentials-unsafe/written]` `WARNING:` (the SBOM holds a credential, exit
+0) or `[credentials-unsafe/refused]` `ERROR:` (no SBOM, exit 1): read
+`references/url-credentials.md` first; offer the fingerprint only once the
+user confirms the value is no secret.
 
 ## Known limitations -- say so, don't paper over it
 

@@ -51,7 +51,7 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
 }
 
 #: Typed ``PitloomConfig`` fields no config file sets: CLI and library only.
-_NOT_FROM_CONFIG = frozenset({"allow_url_credentials"})
+_NOT_FROM_CONFIG: frozenset[str] = frozenset()
 
 #: INI spelling -> the TOML literal it must read as.
 _BOOL_VALUES = {

@@ -265,15 +265,16 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--trust-model-files": [
         _v("--trust-model-files", "changes", "--trust-model-files")
     ],
-    # No fixture holds a credential, so accepting one changes nothing; an
-    # uppercase or short fingerprint is an argparse refusal.
+    # No fixture holds a credential, so accepting one, or refusing it,
+    # changes nothing; an uppercase or short fingerprint is an argparse
+    # refusal.
     "--accept-url-credential": [
         _v("fingerprint", "same", "--accept-url-credential", "sha256:" + "0" * 16),
         _v("uppercase", "exit:2", "--accept-url-credential", "sha256:" + "A" * 16),
         _v("15 hex", "exit:2", "--accept-url-credential", "sha256:" + "0" * 15),
     ],
-    "--allow-url-credentials": [
-        _v("--allow-url-credentials", "same", "--allow-url-credentials")
+    "--refuse-url-credentials": [
+        _v("--refuse-url-credentials", "same", "--refuse-url-credentials")
     ],
     "--content-type-method": [
         _v(

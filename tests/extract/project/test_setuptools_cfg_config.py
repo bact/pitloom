@@ -208,7 +208,7 @@ _LONGER = "sha256:fedcba98765432100123"
 def test_read_setup_cfg_accept_url_credentials_is_a_list(value: str) -> None:
     """``accept-url-credentials`` is a list in ``setup.cfg`` too: one
     fingerprint per line, or separated by commas or white space."""
-    content = f"[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
+    content = "[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
     content += f"accept-url-credentials = {value}\n"
     expected = tuple(sorted(e for e in (_PRINTED, _LONGER) if e in value))
     with tempfile.TemporaryDirectory() as d:
@@ -229,3 +229,16 @@ def test_read_setup_cfg_accept_url_credentials_error_names_its_table() -> None:
     message = str(exc_info.value)
     assert message.startswith("[tool:pitloom] accept-url-credentials entry 1:")
     assert "ghp_secretvalue" not in message
+
+
+@pytest.mark.parametrize(
+    ("value", "refuse"), [("refuse", True), ("warn", False)], ids=["refuse", "warn"]
+)
+def test_read_setup_cfg_url_credentials_mode(value: str, refuse: bool) -> None:
+    content = "[metadata]\nname = pkg\nversion = 1.0\n[tool:pitloom]\n"
+    content += f"url-credentials = {value}\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_bytes(content.encode())
+        _, config = read_setup_cfg(Path(d))
+    assert config.url_credentials == value
+    assert config.credential_policy.refuse is refuse

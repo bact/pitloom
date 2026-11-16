@@ -79,9 +79,10 @@ cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
 whatever it is called or holds.
 
 An external SBOM is also checked for a credential in a URL field: it is
-embedded unchanged, or refused (exit 1, no wheel written) unless
-`--accept-url-credential` or `--allow-url-credentials` accepts it; a
-`[tool.pitloom]` list does not apply to a file Pitloom did not make. See
+embedded unchanged, with a `WARNING:` per value, or, with
+`--refuse-url-credentials`, refused (exit 1, no wheel written) unless
+`--accept-url-credential` accepts it; a `[tool.pitloom]` setting does not apply
+to a file Pitloom did not make. See
 [Credentials in URLs](url-credentials.md).
 
 Embedding again replaces an earlier SBOM only when Pitloom made it, it is a

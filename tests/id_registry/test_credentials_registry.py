@@ -90,7 +90,7 @@ def test_namespaces_kept_alike_once_masked_say_so() -> None:
 def test_register_refuses_a_credential_key_and_accepts_an_account(
     type_name: str, name: str, refused: bool
 ) -> None:
-    registry = IdRegistry(namespace="https://ids.example/ns")
+    registry = IdRegistry(namespace="https://ids.example/ns", refuse_credentials=True)
     if refused:
         with pytest.raises(ValueError, match="key is stored as written") as e:
             registry.register(type_name, name)
@@ -126,6 +126,24 @@ def test_a_run_harvest_skips_a_credentialed_key_or_id(
     assert getattr(said, CODE_ATTR) == _REGISTRY and _SECRET not in caplog.text
     assert not registry.elements
     assert "stores an element's key and id as written" in said.getMessage()
+
+
+def test_a_run_harvest_keeps_an_id_minted_from_an_ssh_account(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The id an SBOM writes for a model named by an ``ssh`` account (weak
+    there) is harvested, as its key is; with a password it is skipped."""
+    name = "ssh://git@github.com/o/m"
+    kept = IdRegistry(namespace="https://ids.example/ns")
+    kept_set = spdx3.SHACLObjectSet()
+    kept_set.add(_package(f"https://ids.example/ns/{name}#P-1", name))
+    with caplog.at_level(logging.WARNING):
+        assert kept.harvest(kept_set)[0] == 1
+    assert not caplog.records
+    skipped = IdRegistry(namespace="https://ids.example/ns")
+    skipped_set = spdx3.SHACLObjectSet()
+    skipped_set.add(_package(f"https://ids.example/ns/ssh://git:{_SECRET}@h#P", "m"))
+    assert skipped.harvest(skipped_set)[0] == 0
 
 
 def test_id_import_keeps_its_namespace_over_a_credentialed_one(
@@ -173,9 +191,9 @@ def test_a_value_stored_as_written_refuses_every_credential_shape(value: str) ->
         require_namespace_iri(value)
     assert _SECRET not in str(caught.value)
     with pytest.raises(ValueError):
-        IdRegistry.new("demo", namespace="https://ids.example/ns").register(
-            "ai_AIPackage", value
-        )
+        IdRegistry.new(
+            "demo", namespace="https://ids.example/ns", refuse_credentials=True
+        ).register("ai_AIPackage", value)
 
 
 def test_a_weak_name_is_kept_in_a_namespace_and_a_key() -> None:
@@ -241,7 +259,7 @@ def test_load_refuses_a_credentialed_entry_and_leaves_the_file_alone(
     path = _registry_file(tmp_path / "ids.json", _NS, key, spdx_id)
     before = path.read_bytes()
     with caplog.at_level(logging.WARNING), pytest.raises(ValueError) as caught:
-        IdRegistry.load(path)
+        IdRegistry.load(path, refuse_credentials=True)
     assert code_of(caught.value) == _REGISTRY
     assert _SECRET not in str(caught.value) and "ids.json" in str(caught.value)
     assert "not loaded" in str(caught.value)
@@ -265,7 +283,7 @@ def test_a_rebase_refuses_an_entry_another_run_saved_meanwhile(
     """The refusal leaves the object as it was and the file byte-identical:
     the save does not happen."""
     path = _registry_file(tmp_path / "ids.json", _NS, "model", f"{_NS}#AIPackage-1")
-    registry = IdRegistry.load(path)
+    registry = IdRegistry.load(path, refuse_credentials=True)
     registry.register("ai_AIPackage", "new")
     _registry_file(path, _NS, f"https://u:{_SECRET}@h/m", f"{_NS}#AIPackage-1")
     before = path.read_bytes()

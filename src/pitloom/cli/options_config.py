@@ -97,7 +97,7 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     ``project_dir`` comes from the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on
     a command that has it. ``credentials`` is the
     :class:`~pitloom.core.credential_policy.CredentialPolicy` of
-    ``--accept-url-credential``/``--allow-url-credentials``, ``None`` when
+    ``--accept-url-credential``/``--refuse-url-credentials``, ``None`` when
     neither was given.
     """
     options: dict[str, Any] = {

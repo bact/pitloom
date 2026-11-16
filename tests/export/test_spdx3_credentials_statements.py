@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.export._spdx3_credentials import (
     PITLOOM_SCHEMA_PREFIX,
+    GraphFinding,
     check_graph_credentials,
     find_graph_credentials,
 )
@@ -44,6 +45,13 @@ _SCHEMAS = {
     "unification": _A.UNIFICATION_SCHEMA_URL,
     "fields": PitloomV1Encoder.schema_url,
 }
+
+
+def _one(graph: list[dict[str, Any]]) -> GraphFinding:
+    """The one finding of *graph*."""
+    found = find_graph_credentials(graph)
+    assert len(found) == 1, found
+    return found[0]
 
 
 def _element(statement: dict[str, Any]) -> dict[str, Any]:
@@ -111,10 +119,10 @@ def test_each_string_of_a_pitloom_statement_is_refused_with_its_place(
     name: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     statement, pointer = _STATEMENTS[name]
-    (found,) = find_graph_credentials([_element(statement)])
+    found = _one([_element(statement)])
     assert (found.element, found.pointer, found.value) == ("urn:a", pointer, _URL)
     with caplog.at_level(logging.ERROR), pytest.raises(ValueError) as caught:
-        check_graph_credentials([_element(statement)], CredentialPolicy())
+        check_graph_credentials([_element(statement)], CredentialPolicy(refuse=True))
     assert code_of(caught.value) == "credentials-unsafe/refused"
     assert _SECRET not in caplog.text
 
@@ -195,7 +203,9 @@ def test_a_model_metadata_url_is_refused_end_to_end(
     )
     out = tmp_path / "o.json"
     with caplog.at_level(logging.ERROR), pytest.raises(ValueError) as caught:
-        generate_model_sbom(model, output_path=out)
+        generate_model_sbom(
+            model, output_path=out, credentials=CredentialPolicy(refuse=True)
+        )
     assert code_of(caught.value) == "credentials-unsafe/refused"
     assert not out.exists() and _SECRET not in caplog.text
     assert caplog.text.count("holds a credential") == 1

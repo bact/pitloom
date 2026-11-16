@@ -96,12 +96,15 @@ where they differ, and a flag with no effect on a target logs
   no effect). Both registry flags: [id-registry.md](id-registry.md).
   `--project-dir DIR` on `wheel`/`project <sdist>` keys their files below
   DIR in a registry rooted above it (reads nothing from DIR).
+- `--refuse-url-credentials` (also `loom merge`, `loom id generate`/`import`)
+  -- write no SBOM (exit 1) when a URL value holds a credential; by default
+  it is written with a `[credentials-unsafe/written]` warning. Same as
+  `[tool.pitloom] url-credentials = "refuse"`; offer it for CI.
 - `--accept-url-credential sha256:<hex>` (repeatable; also `loom merge`)
-  -- let one URL value that holds a credential into the SBOM, by the
-  fingerprint its `[credentials-unsafe/refused]` line prints. Only after the
-  user confirms that value is no secret: see
-  [url-credentials.md](url-credentials.md). `--allow-url-credentials` lets
-  every such value in: never suggest it.
+  -- accept one URL value that holds a credential, by the fingerprint its
+  `[credentials-unsafe/written]` or `[credentials-unsafe/refused]` line
+  prints. Only after the user confirms that value is no secret: see
+  [url-credentials.md](url-credentials.md).
 - `--describe-relationship` (relationship text), `--max-source-metadata-bytes
   BYTES` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
   `--no-build-isolation` ([build-timeout.md](build-timeout.md)): only when

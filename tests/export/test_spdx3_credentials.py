@@ -3,12 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :mod:`pitloom.export._spdx3_credentials`: an SBOM whose URL
-field holds a credential is refused (one ``ERROR:`` per distinct value),
-stated as written when the run accepts it, warned of when the value is weak
-only, and never rewritten.
+"""Tests for :mod:`pitloom.export._spdx3_credentials` in the ``refuse``
+mode: an SBOM whose URL field holds a credential is refused (one ``ERROR:``
+per distinct value), stated as written when the run accepts it, warned of
+when the value is weak only, and never rewritten.
 
-See also: tests/test_credential_surfaces.py and
+See also: tests/export/test_spdx3_credentials_modes.py (the ``warn`` mode,
+the default, against ``refuse``), tests/test_credential_surfaces.py and
 tests/test_credential_surfaces_accept.py (every surface end to end).
 """
 
@@ -47,7 +48,10 @@ _URL = f"https://u:{_SECRET}@h.example/x"
 _REFUSED = "credentials-unsafe/refused"
 _ACCEPTED = "credentials-unsafe/accepted"
 _PROVENANCE = "https://pitloom.dev/provenance/fields/1"
-_ALLOW = CredentialPolicy(allow_all=True)
+#: The ``refuse`` mode, no value accepted.
+_REFUSE = CredentialPolicy(refuse=True)
+#: Every value written, said once each (the default ``warn`` mode).
+_WARN = CredentialPolicy()
 
 
 def _one(graph: list[dict[str, Any]]) -> GraphFinding:
@@ -186,7 +190,7 @@ def test_each_url_field_is_refused_with_its_place(
     element, pointer = _FIELDS[name]
     graph = [copy.deepcopy(element)]
     with caplog.at_level(logging.ERROR):
-        error = _refuse(graph, CredentialPolicy())
+        error = _refuse(graph, _REFUSE)
     assert code_of(error) == _REFUSED and graph == [element]
     (line,) = [r.getMessage() for r in caplog.records]
     assert f" {pointer}, sha256:" in line and "1 URL value(s)" in str(error)
@@ -216,7 +220,7 @@ def test_a_field_not_read_is_never_refused(
 ) -> None:
     graph = [{"spdxId": "urn:a", **element}]
     with caplog.at_level(logging.WARNING):
-        check_graph_credentials(graph, CredentialPolicy())
+        check_graph_credentials(graph, _REFUSE)
     assert not caplog.records
 
 
@@ -228,11 +232,16 @@ def test_a_location_hint_reads_no_scp_address_where_a_url_field_does() -> None:
     assert find_graph_credentials([{"software_downloadLocation": value}])
 
 
-def test_an_account_name_is_weak_in_a_url_field_and_refused_in_an_id() -> None:
+@pytest.mark.parametrize(
+    "field", ["software_downloadLocation", "spdxId"], ids=["url-field", "id"]
+)
+def test_an_account_name_is_weak_and_its_password_refused(field: str) -> None:
+    """An ``ssh`` account name alone reaches the server, in a URL field and
+    in an id (a model named so); with a password it is refused in both."""
     value = "ssh://git@github.com/o/r"
-    in_field = _one([{"software_downloadLocation": value}])
-    in_id = _one([{"spdxId": value}])
-    assert in_field.finding.weak and not in_id.finding.weak
+    assert _one([{field: value}]).finding.weak
+    with_password = value.replace("git@", f"git:{_SECRET}@")
+    assert not _one([{field: with_password}]).finding.weak
 
 
 def test_one_value_in_two_places_is_one_error_at_the_first() -> None:
@@ -251,16 +260,22 @@ def test_one_value_in_two_places_is_one_error_at_the_first() -> None:
         ("urn:c", "/software_homePage"),
     ]
     assert found[0].fingerprint == fingerprint(_URL)
-    assert "2 URL value(s)" in str(_refuse(graph, CredentialPolicy()))
+    assert "2 URL value(s)" in str(_refuse(graph, _REFUSE))
 
 
 def test_a_weak_value_seen_first_does_not_hide_the_same_value_refused() -> None:
-    """``ssh://git@...`` is weak in a URL field, refused as an id: the
-    refusal wins wherever it stands."""
-    value = "ssh://git@github.com/o/r"
-    graph = [{"spdxId": "urn:a", "software_homePage": value}, {"spdxId": value}]
+    """``?to\\u200bken=`` is weak in a URL field (``&code=``), refused in a
+    Pitloom note, which reads the escape as the character: the refusal
+    wins wherever it stands."""
+    value = "https://h/x?to\\u200bken=S&code=1"
+    graph = [
+        {"spdxId": "urn:a", "software_homePage": value},
+        {"spdxId": "urn:b", "contentType": "application/json"}
+        | {"statement": _statement(value)},
+    ]
+    assert _one(graph[:1]).finding.weak
     found = _one(graph)
-    assert not found.finding.weak and found.pointer == "/spdxId"
+    assert not found.finding.weak and found.element == "urn:b"
 
 
 @pytest.mark.parametrize(
@@ -272,7 +287,9 @@ def test_a_value_accepted_by_its_fingerprint_is_kept_and_said(
     graph = [{"spdxId": "urn:a", "software_homePage": _URL}]
     before = copy.deepcopy(graph)
     with caplog.at_level(logging.WARNING):
-        check_graph_credentials(graph, CredentialPolicy(accepted=frozenset([entry])))
+        check_graph_credentials(
+            graph, CredentialPolicy(accepted=frozenset([entry]), refuse=True)
+        )
     assert graph == before and _codes(caplog) == [_ACCEPTED]
     assert fingerprint(_URL) in caplog.text and _SECRET not in caplog.text
 
@@ -283,7 +300,7 @@ def test_a_fingerprint_accepts_only_its_own_value(
     """Of two values the one fingerprinted is accepted, the other refused."""
     other = f"{_URL}/other"
     graph = [{"spdxId": "urn:a", "software_homePage": _URL, "build_buildType": other}]
-    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]))
+    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]), refuse=True)
     with caplog.at_level(logging.WARNING):
         error = _refuse(graph, policy)
     assert "1 URL value(s)" in str(error)
@@ -297,28 +314,8 @@ def test_the_fingerprint_of_the_url_inside_a_value_does_not_accept_it() -> None:
     value = f"dep @ {_URL}"
     found = _one([{"software_homePage": value}])
     assert found.finding.view == _URL != value
-    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]))
+    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]), refuse=True)
     _refuse([{"software_homePage": value}], policy)
-
-
-def test_allow_all_keeps_every_value_and_says_each(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    graph = [{"spdxId": _URL, "software_homePage": f"{_URL}/2"}]
-    with caplog.at_level(logging.WARNING):
-        check_graph_credentials(graph, CredentialPolicy(allow_all=True))
-    assert _codes(caplog) == [_ACCEPTED, _ACCEPTED]
-    assert "--allow-url-credentials" in caplog.text and _SECRET not in caplog.text
-
-
-def test_a_fingerprint_is_preferred_over_allow_all_in_what_is_said(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]), allow_all=True)
-    with caplog.at_level(logging.WARNING):
-        check_graph_credentials([{"software_homePage": _URL}], policy)
-    assert "--allow-url-credentials" not in caplog.text
-    assert fingerprint(_URL) in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -328,9 +325,7 @@ def test_a_weak_value_is_warned_of_and_never_refused(
     value: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        check_graph_credentials(
-            [{"software_downloadLocation": value}], CredentialPolicy()
-        )
+        check_graph_credentials([{"software_downloadLocation": value}], _REFUSE)
     assert _codes(caplog) == ["credentials-unsafe"]
     assert "ABC" not in caplog.text
 
@@ -339,7 +334,9 @@ def test_a_fingerprint_that_matches_no_value_is_said_stale(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     stale = fingerprint("https://u:p@elsewhere.example/")
-    policy = CredentialPolicy(accepted=frozenset([stale, fingerprint(_URL)]))
+    policy = CredentialPolicy(
+        accepted=frozenset([stale, fingerprint(_URL)]), refuse=True
+    )
     with caplog.at_level(logging.WARNING):
         check_graph_credentials([{"software_homePage": _URL}], policy)
     assert _codes(caplog) == [_ACCEPTED, "option-no-effect"]
@@ -349,10 +346,37 @@ def test_a_fingerprint_that_matches_no_value_is_said_stale(
 def test_a_fingerprint_is_stale_on_a_clean_graph_too(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]))
+    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]), refuse=True)
     with caplog.at_level(logging.WARNING):
         check_graph_credentials([{"software_homePage": "https://h/"}], policy)
     assert _codes(caplog) == ["option-no-effect"]
+
+
+def test_an_inherited_fingerprint_accepts_but_is_never_said_stale(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The project's list an enrichment fragment inherits was given for the
+    project's SBOM: it accepts a value here, and matching none is no news."""
+    other = fingerprint("https://u:p@elsewhere.example/")
+    policy = _REFUSE.inheriting(
+        CredentialPolicy(accepted=frozenset([fingerprint(_URL), other]))
+    )
+    with caplog.at_level(logging.WARNING):
+        check_graph_credentials([{"software_homePage": _URL}], policy)
+    assert _codes(caplog) == [_ACCEPTED]
+
+
+def test_a_stale_fingerprint_names_the_sbom_it_matches_nothing_in(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    policy = CredentialPolicy(accepted=frozenset([fingerprint(_URL)]), refuse=True)
+    with caplog.at_level(logging.WARNING):
+        for doc in ("urn:doc-a", "urn:doc-b"):
+            graph = [{"spdxId": "urn:p"}, {"type": "SpdxDocument", "spdxId": doc}]
+            check_graph_credentials(graph, policy)
+        check_graph_credentials([{"spdxId": "urn:lone"}], policy)
+    named = [m.rsplit(" SBOM ", 1)[1] for m in caplog.messages]
+    assert named == ["urn:doc-a", "urn:doc-b", "urn:lone"]
 
 
 def test_the_refusal_carries_no_secret_anywhere() -> None:
@@ -360,7 +384,7 @@ def test_the_refusal_carries_no_secret_anywhere() -> None:
     Hatchling hook prints it raw) hold no credential; the repr of a finding
     neither."""
     graph = [{"spdxId": f"urn:x:{_URL}", "software_homePage": f"{_URL}?token=T0KEN"}]
-    error = _refuse(graph, CredentialPolicy())
+    error = _refuse(graph, _REFUSE)
     assert error.__context__ is None and error.__cause__ is None
     shown = "".join(traceback.format_exception(type(error), error, None))
     shown += str(error) + repr(error.args) + repr(find_graph_credentials(graph))
@@ -373,7 +397,7 @@ def test_the_refusal_inside_an_except_block_has_no_context() -> None:
         try:
             raise KeyError(_URL)
         except KeyError:
-            check_graph_credentials([{"software_homePage": _URL}], CredentialPolicy())
+            check_graph_credentials([{"software_homePage": _URL}], _REFUSE)
     error = caught.value
     assert code_of(error) == _REFUSED and error.__suppress_context__
     shown = "".join(traceback.format_exception(type(error), error, None))
@@ -395,7 +419,7 @@ def test_a_long_value_is_checked_in_linear_time() -> None:
         {"software_homePage": "@ " * 2**19},
         {"spdxId": "urn:" + "x:" * 2**19},
     ]
-    check_graph_credentials(graph, CredentialPolicy())
+    check_graph_credentials(graph, _REFUSE)
     assert time.perf_counter() - started < 5
 
 
@@ -447,17 +471,19 @@ def _exporter(*packages: tuple[str, str]) -> Spdx3JsonExporter:
 
 
 @pytest.mark.parametrize("count", [1, 2], ids=["lone-element", "graph"])
-def test_the_exporter_refuses_by_default_and_writes_an_accepted_value_as_is(
+def test_the_exporter_refuses_in_the_refuse_mode_and_writes_an_accepted_value(
     count: int,
 ) -> None:
     """A lone element is written without ``@graph`` and checked too."""
     exporter = _exporter(*[("urn:a#P", _URL), ("urn:b#P", "https://h/")][:count])
-    assert ("@graph" in exporter.to_json(credentials=_ALLOW)) is (count == 2)
+    assert ("@graph" in exporter.to_json(credentials=_WARN)) is (count == 2)
     with pytest.raises(ValueError) as caught:
-        exporter.to_json()
+        exporter.to_json(credentials=_REFUSE)
     assert code_of(caught.value) == _REFUSED
     text = exporter.to_json(
-        credentials=CredentialPolicy(accepted=frozenset([fingerprint(_URL)]))
+        credentials=CredentialPolicy(
+            accepted=frozenset([fingerprint(_URL)]), refuse=True
+        )
     )
     assert json.dumps(_URL) in text
 
@@ -469,6 +495,6 @@ def test_the_exporter_reports_in_output_order(
     the SBOM would hold them, whatever order they were added in."""
     exporter = _exporter(("urn:z#P", f"{_URL}/z"), ("urn:a#P", f"{_URL}/a"))
     with caplog.at_level(logging.ERROR), pytest.raises(ValueError):
-        exporter.to_json()
+        exporter.to_json(credentials=_REFUSE)
     lines = [r.getMessage() for r in caplog.records[:2]]
     assert "urn:a#P" in lines[0] and "urn:z#P" in lines[1]

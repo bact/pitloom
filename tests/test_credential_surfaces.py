@@ -3,16 +3,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""An SBOM whose project URL, dependency URL, dataset URL or element id
-holds a credential is refused on every surface, with no secret in stdout,
-stderr or a log record, and nothing written: ``loom generate`` (to a file
-and with ``-o -``), the library, the Hatchling hook, ``embed-wheel`` (with
-and without ``--sbom``), ``merge`` and the Croissant dataset route; an ID
-registry namespace or key is refused by the registry's command, library and
-file.
+"""In the ``refuse`` mode, an SBOM whose project URL, dependency URL,
+dataset URL or element id holds a credential is refused on every surface,
+with no secret in stdout, stderr or a log record, and nothing written:
+``loom generate`` (to a file and with ``-o -``), the library, the Hatchling
+hook (``url-credentials = "refuse"`` in ``pyproject.toml``),
+``embed-wheel`` (with and without ``--sbom``), ``merge`` and the Croissant
+dataset route; an ID registry namespace or key is refused by the
+registry's command, library and file.
 
-See also: tests/test_credential_surfaces_accept.py (the same surfaces with
-the value accepted), tests/export/test_spdx3_credentials.py (the check) and
+See also: tests/test_credential_surfaces_warn.py (the same surfaces in the
+default ``warn`` mode), tests/test_credential_surfaces_accept.py (the
+value accepted), tests/export/test_spdx3_credentials.py (the check) and
 tests/id_registry/test_credentials_registry.py (the registry rule).
 """
 
@@ -53,7 +55,7 @@ _NS = "https://u:S3CRET@ids.example/ns"
 _WHEN = "2026-01-01T00:00:00Z"
 REFUSED = "credentials-unsafe/refused"
 #: A fingerprint as a refusal prints it, for the user to pass back.
-_OFFERED = re.compile(r"--accept-url-credential (sha256:[0-9a-f]{16})")
+_OFFERED = re.compile(r", (sha256:[0-9a-f]{16})\); remove it")
 
 
 class Refused(Exception):
@@ -73,7 +75,9 @@ def _toml_list(items: Sequence[str]) -> str:
     return "[" + ", ".join(f"'{item}'" for item in items) + "]"
 
 
-def _project(tmp: Path, home: str, accept: Sequence[str] = ()) -> Path:
+def _project(
+    tmp: Path, home: str, accept: Sequence[str] = (), refusing: bool = False
+) -> Path:
     proj = tmp / "proj"
     (proj / "testpkg").mkdir(parents=True)
     (proj / "testpkg" / "__init__.py").write_text("", encoding="utf-8")
@@ -83,7 +87,8 @@ def _project(tmp: Path, home: str, accept: Sequence[str] = ()) -> Path:
         "[project]\nname = 'testpkg'\nversion = '0.1.0'\n"
         f"dependencies = ['{DEP}']\n[project.urls]\nHomepage = '{home}'\n"
         "[tool.hatch.metadata]\nallow-direct-references = true\n"
-        f"[tool.pitloom]\naccept-url-credentials = {_toml_list(accept)}\n",
+        f"[tool.pitloom]\naccept-url-credentials = {_toml_list(accept)}\n"
+        + ('url-credentials = "refuse"\n' if refusing else ""),
         encoding="utf-8",
     )
     return proj
@@ -94,39 +99,57 @@ def _cli(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> int:
     return main()
 
 
-def _flags(accept: Sequence[str]) -> list[str]:
-    return [arg for fp in accept for arg in ("--accept-url-credential", fp)]
+def _flags(accept: Sequence[str], refusing: bool) -> list[str]:
+    flags = [arg for fp in accept for arg in ("--accept-url-credential", fp)]
+    return flags + (["--refuse-url-credentials"] if refusing else [])
 
 
-def _ok(argv: list[str], mp: pytest.MonkeyPatch, accept: Sequence[str]) -> None:
-    if _cli(argv + _flags(accept), mp) != 0:
+def _ok(
+    argv: list[str], mp: pytest.MonkeyPatch, accept: Sequence[str], refusing: bool
+) -> None:
+    if _cli(argv + _flags(accept, refusing), mp) != 0:
         raise Refused(argv[0])
 
 
-def _generate(tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
+def _mode(refusing: bool) -> str:
+    """The ``url-credentials`` value of *refusing*."""
+    return "refuse" if refusing else "warn"
+
+
+def _generate(
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
     out = tmp / "o.json"
     argv = ["generate", str(_project(tmp, home)), "-o", str(out), "--offline"]
-    _ok(argv + ["--creation-datetime", _WHEN], mp, accept)
+    _ok(argv + ["--creation-datetime", _WHEN], mp, accept, refusing)
     return out.read_text(encoding="utf-8")
 
 
-def _stdout(tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
+def _stdout(
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
     argv = ["generate", str(_project(tmp, home)), "-o", "-", "--offline"]
-    _ok(argv + ["--creation-datetime", _WHEN], mp, accept)
+    _ok(argv + ["--creation-datetime", _WHEN], mp, accept, refusing)
     return ""  # the SBOM is on stdout, checked with it
 
 
-def _library(tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
+def _library(
+    tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
     out = tmp / "o.json"
-    config = PitloomConfig(accept_url_credentials=tuple(accept))
+    config = PitloomConfig(
+        accept_url_credentials=tuple(accept), url_credentials=_mode(refusing)
+    )
     generate_project_sbom(
         _project(tmp, home), output_path=out, offline=True, pitloom_config=config
     )
     return out.read_text(encoding="utf-8")
 
 
-def _hook(tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
-    return hook_sbom(_project(tmp, home, accept))
+def _hook(
+    tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
+    return hook_sbom(_project(tmp, home, accept, refusing))
 
 
 def wheel_of(tmp: Path, home: str) -> Path:
@@ -145,39 +168,45 @@ def embedded(wheel: Path) -> str:
 
 
 def _embed_wheel(
-    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
 ) -> str:
     wheel = wheel_of(tmp, home)
     _ok(
         ["embed-wheel", str(wheel), "--offline", "--creation-datetime", _WHEN],
         mp,
         accept,
+        refusing,
     )
     return embedded(wheel)
 
 
-def given_sbom(tmp: Path, mp: pytest.MonkeyPatch, home: str) -> Path:
-    """A ``demo`` 1.0 SBOM holding *home*, written with every credential
-    allowed: what ``embed-wheel --sbom`` is then given."""
+def given_sbom(
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: Sequence[str] = ()
+) -> Path:
+    """A ``demo`` 1.0 SBOM holding *home*, written in the default ``warn``
+    mode (*accept* accepted, so said as accepted, not written): what
+    ``embed-wheel --sbom`` is then given."""
     sbom = tmp / "given.spdx3.json"
     (tmp / "given").mkdir()
     wheel = wheel_of(tmp / "given", home)
     argv = ["wheel", str(wheel), "-o", str(sbom), "--offline"]
-    argv += ["--allow-url-credentials", "--creation-datetime", _WHEN]
-    assert _cli(argv, mp) == 0
+    argv += ["--creation-datetime", _WHEN]
+    assert _cli(argv + _flags(accept, False), mp) == 0
     return sbom
 
 
 def _embed_given(
-    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
 ) -> str:
-    sbom = given_sbom(tmp, mp, home)
+    sbom = given_sbom(tmp, mp, home, accept)
     wheel = wheel_of(tmp, "https://e.example/h")
-    _ok(["embed-wheel", str(wheel), "--sbom", str(sbom)], mp, accept)
+    _ok(["embed-wheel", str(wheel), "--sbom", str(sbom)], mp, accept, refusing)
     return embedded(wheel)
 
 
-def _merge(tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
+def _merge(
+    tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
     fragments = tmp / "fragments"
     fragments.mkdir()
     data = json.loads(FRAGMENT_FIXTURE.read_text(encoding="utf-8"))
@@ -185,11 +214,13 @@ def _merge(tmp: Path, mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> s
         if "software_downloadLocation" in element:
             element["software_downloadLocation"] = home
     (fragments / "a.json").write_text(json.dumps(data), encoding="utf-8")
-    _ok(["merge", str(fragments), "-o", str(tmp / "o.json")], mp, accept)
+    _ok(["merge", str(fragments), "-o", str(tmp / "o.json")], mp, accept, refusing)
     return (tmp / "o.json").read_text(encoding="utf-8")
 
 
-def _croissant(tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str]) -> str:
+def _croissant(
+    tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str], refusing: bool
+) -> str:
     card = tmp / "croissant.json"
     card.write_text(
         json.dumps(
@@ -204,11 +235,15 @@ def _croissant(tmp: Path, _mp: pytest.MonkeyPatch, home: str, accept: list[str])
     )
     dataset = DatasetReference(role="trainedOn", metadata=read_croissant(card))
     sbom = build_model(AiModelMetadata(name="m", datasets=[dataset]), CREATED)
-    config = PitloomConfig(accept_url_credentials=tuple(accept))
+    config = PitloomConfig(
+        accept_url_credentials=tuple(accept), url_credentials=_mode(refusing)
+    )
     return sbom.to_json(credentials=config.credential_policy)
 
 
-Surface = Callable[[Path, pytest.MonkeyPatch, str, list[str]], str]
+#: A surface run with a project URL, the fingerprints it accepts and
+#: whether it is in the ``refuse`` mode; the SBOM it wrote.
+Surface = Callable[[Path, pytest.MonkeyPatch, str, list[str], bool], str]
 
 SURFACES: dict[str, Surface] = {
     "cli-generate": _generate,
@@ -222,10 +257,26 @@ SURFACES: dict[str, Surface] = {
 }
 
 
+#: How each surface's refusal says to accept a value: the command line's
+#: option, the hook's ``pyproject.toml`` list, the library's argument.
+_ADVICE = {
+    "cli-generate": " or accept this value with --accept-url-credential sha256:",
+    "cli-stdout": " or accept this value with --accept-url-credential sha256:",
+    "embed-wheel": " or accept this value with --accept-url-credential sha256:",
+    "embed-wheel-sbom": " or accept this value with --accept-url-credential sha256:",
+    "merge": " or accept this value with --accept-url-credential sha256:",
+    "hook": " or accept this value by listing it in [tool.pitloom] "
+    "accept-url-credentials",
+    "library": ' or accept this value with credentials=CredentialPolicy(accepted=["',
+    "croissant": ' or accept this value with credentials=CredentialPolicy(accepted=["',
+}
+
+
 def refuse(surface: str, tmp: Path, mp: pytest.MonkeyPatch, home: str) -> str:
-    """Run *surface* expecting a refusal; the error's text."""
+    """Run *surface* in the ``refuse`` mode expecting a refusal; the error's
+    text."""
     with pytest.raises((ValueError, Refused)) as caught:
-        SURFACES[surface](tmp, mp, home, [])
+        SURFACES[surface](tmp, mp, home, [], True)
     if not isinstance(caught.value, Refused):
         assert code_of(caught.value) == REFUSED
     return str(caught.value)
@@ -252,6 +303,19 @@ def test_a_planted_secret_is_refused_and_reaches_no_stream(
     assert not leaks(out, err, caplog.text, error)
     assert said_refused(err, caplog) and offered(err + caplog.text)
     assert not (tmp_path / "o.json").exists() and "@graph" not in out
+    # The given SBOM of embed-wheel --sbom was written with warnings first.
+    refused = [
+        r.getMessage()
+        for r in caplog.records
+        if "holds a credential (" in r.getMessage()
+        and getattr(r, CODE_ATTR, "") == REFUSED
+    ]
+    assert refused and all(_ADVICE[surface] in m for m in refused)
+    if surface == "hook":
+        # Every ERROR line carries the hook's frame, the refusals too.
+        errors = [line for line in err.splitlines() if line.startswith("ERROR: ")]
+        assert len(errors) == len(refused) + 1
+        assert all(line.startswith("ERROR: Pitloom build hook: ") for line in errors)
     if surface.startswith("embed-wheel"):
         assert not embedded(tmp_path / "demo-1.0-py3-none-any.whl")
 
@@ -268,7 +332,8 @@ def _merge_id(tmp: Path, mp: pytest.MonkeyPatch) -> None:
     (fragments / "a.json").write_text(
         text.replace(old, f"https://e.example/{_GHP}#tiny"), encoding="utf-8"
     )
-    _ok(["merge", str(fragments), "-o", str(tmp / "o.json")], mp, [])
+    argv = ["merge", str(fragments), "-o", str(tmp / "o.json")]
+    _ok(argv, mp, [], True)
 
 
 def test_a_merged_element_id_holding_a_token_is_refused(
@@ -322,9 +387,9 @@ def _registry_surfaces(tmp: Path, mp: pytest.MonkeyPatch) -> dict[str, object]:
     calls: dict[str, Callable[[], object]] = {
         "library-new": lambda: IdRegistry.new("demo", namespace=_NS),
         "constructor": lambda: IdRegistry(namespace=_NS),
-        "register": lambda: IdRegistry(namespace="https://h/ns").register(
-            "ai_AIPackage", HOME
-        ),
+        "register": lambda: IdRegistry(
+            namespace="https://h/ns", refuse_credentials=True
+        ).register("ai_AIPackage", HOME),
     }
     for name, call in calls.items():
         with pytest.raises(ValueError) as caught:
@@ -336,7 +401,8 @@ def _registry_surfaces(tmp: Path, mp: pytest.MonkeyPatch) -> dict[str, object]:
     with pytest.raises(SystemExit) as stopped:
         _cli(base + ["--namespace", _NS, str(tmp / "src")], mp)
     found["cli-namespace"] = stopped.value.code
-    found["cli-key"] = _cli(base + ["-e", f"{HOME}:ai_AIPackage", "src"], mp)
+    key = ["-e", f"{HOME}:ai_AIPackage", "--refuse-url-credentials", "src"]
+    found["cli-key"] = _cli(base + key, mp)
     (tmp / "bad.json").write_text(
         json.dumps({"version": 4, "namespace": _NS, "project_root": "."}),
         encoding="utf-8",
@@ -386,7 +452,7 @@ def test_a_project_with_planted_secrets_is_refused_in_a_real_process(
 ) -> None:
     """Stdout and stderr (also under ``-v``) hold no secret, each value is
     named once with its fingerprint, and no SBOM is written."""
-    proj = _project(tmp_path, HOME)
+    proj = _project(tmp_path, HOME, refusing=True)
     args = ["generate", str(proj), "-o", str(tmp_path / "out.json")]
     done = run(tmp_path, *args, *(["-v"] if verbose else []))
     err = done.stderr.decode()
@@ -399,14 +465,14 @@ def test_a_project_with_planted_secrets_is_refused_in_a_real_process(
 def test_the_import_route_and_the_generate_route_store_no_credential_key(
     tmp_path: Path,
 ) -> None:
-    """``-e`` is refused before anything is said about the entity; an
-    imported SBOM element with the same key is skipped; neither stores it."""
+    """``-e`` is refused (the ``refuse`` mode) before anything is said about
+    the entity; an imported SBOM element with the same key is skipped (in
+    either mode); neither stores it."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x\n", encoding="utf-8")
     key = f"https://u:{SECRETS[0]}@h/m"
-    done = run(
-        tmp_path, "id", "generate", "-o", "reg.json", "-e", key + ":ai_AIPackage", "src"
-    )
+    argv = ["generate", "-o", "reg.json", "-e", key + ":ai_AIPackage", "src"]
+    done = run(tmp_path, "id", *argv, "--refuse-url-credentials")
     err = done.stderr.decode()
     assert done.returncode == 1 and "[credentials-unsafe/registry]" in err
     assert "stored by name" not in err and not leaks(err)

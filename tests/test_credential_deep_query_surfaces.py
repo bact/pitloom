@@ -4,10 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A URL with a thousand ``?`` in its query, planted in a project URL, is
-refused (exit 1, one ``ERROR:`` with its fingerprint, no SBOM; not a
-``RecursionError``) on every command that reads a project, with no secret on
-stdout or stderr; accepted by that fingerprint, the SBOM states it as
-written.
+written with one ``WARNING:`` by default (exit 0) and, with
+``--refuse-url-credentials``, refused (exit 1, one ``ERROR:`` with its
+fingerprint, no SBOM; never a ``RecursionError``) on every command that reads
+a project, with no secret on stdout or stderr; accepted by that fingerprint,
+the SBOM states it as written.
 
 See also: tests/test_credential_surfaces.py (the planted-secret routes),
 tests/test_credential_surfaces_accept.py (the override on each surface) and
@@ -60,6 +61,28 @@ def _run(
 
 
 @pytest.mark.parametrize("command", ["generate", "project"])
+def test_a_deeply_nested_query_is_written_with_a_warning_by_default(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    out = tmp_path / "o.json"
+    argv = [command, str(_project(tmp_path)), "-o", str(out), "--offline"]
+    code, stdout, stderr = _run(argv, monkeypatch, capsys)
+    assert code == 0 and "ERROR: " not in stderr and "Traceback" not in stderr
+    warned = [
+        line
+        for line in stderr.splitlines()
+        if line.startswith("WARNING: ")
+        and line.endswith("[credentials-unsafe/written]")
+    ]
+    assert len(warned) == 1 and f", {fingerprint(_DEEP)}); " in warned[0]
+    assert not any(secret in stdout + stderr for secret in _SECRETS)
+    assert _DEEP in out.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("command", ["generate", "project"])
 def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
     command: str,
     tmp_path: Path,
@@ -68,6 +91,7 @@ def test_a_deeply_nested_query_is_refused_then_accepted_by_fingerprint(
 ) -> None:
     out = tmp_path / "o.json"
     argv = [command, str(_project(tmp_path)), "-o", str(out), "--offline"]
+    argv.append("--refuse-url-credentials")
 
     code, stdout, stderr = _run(argv, monkeypatch, capsys)
     assert code == 1

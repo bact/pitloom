@@ -86,5 +86,5 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help="Indent JSON output with 2 spaces.",
     )
     # Not built from the shared parent parser: its own copy of the flags.
-    add_credential_arguments(merge_parser)
+    add_credential_arguments(merge_parser, reads_config=False)
     merge_parser.set_defaults(func=_run_merge_command)

@@ -6,7 +6,7 @@ Created: 2026-11-15
 Last-Modified: 2026-11-16
 -->
 
-# Credentials: detect and refuse, never rewrite
+# Credentials: detect, warn or refuse, never rewrite
 
 See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
 (what PR 487 built and the gaps still tracked),
@@ -14,9 +14,52 @@ See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
 message contract the new codes join).
 
 Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
-merged) built the detector; PR 2 (built 2026-11-16, not yet merged) built
-the refusal at the persisted sinks and the override and deleted the strip.
-Left for PR 3: "Not built" below.
+merged) built the detector; PR 2 (PR 490, built 2026-11-16, not yet merged) built
+the check at the persisted sinks, the two modes and the per-value override,
+and deleted the strip. Left for PR 3: "Not built" below.
+
+## Decision record: warn by default (2026-11-16)
+
+User decision, reversing "Decision" below for the default: **Pitloom runs in
+CI and build hooks and must not break them by default.** Credential handling
+is a policy with two modes:
+
+- `warn` (default): detect, say one loud `WARNING: ...
+  [credentials-unsafe/written]` per value (masked value, element, pointer,
+  fingerprint, and how the surface turns `refuse` on), write the SBOM as it
+  is, exit 0. The hook does not fail the build.
+- `refuse` (opt in): what PR 2 first built: one `ERROR:` per value, a count
+  line, no SBOM, registry unchanged, exit 1.
+- Setting: `[tool.pitloom] url-credentials = "warn" | "refuse"` (`setup.cfg`
+  too; another value is `option-invalid`), `--refuse-url-credentials` (parent
+  parser, `merge`, `loom id generate`/`import`), library
+  `CredentialPolicy(refuse=True)` and `PitloomConfig.url_credentials`, through
+  the existing cascade (`ConfigOverrides.credentials`; the flag turns
+  `refuse` on, never off). `to_json()`'s default policy warns: a forgotten
+  call site warns rather than fails.
+- Fingerprint accept stays: in `refuse` it lets a value through; in either
+  mode an accepted value gets the quieter `credentials-unsafe/accepted` line
+  instead of the `written` one.
+- Removed: the global `--allow-url-credentials`, `CredentialPolicy.allow_all`,
+  `PitloomConfig.allow_url_credentials`, the `allow-url-credentials` key
+  (now an ordinary unknown key) and `config-unsafe/cli-only`. With `warn` the
+  default, an allow-all switch has nothing left to do.
+- Registry: a key given (`register()`, `id generate -e`) and a registry
+  file's entries follow the mode (`warn`: stored or loaded with a `WARNING:`;
+  `refuse`: refused as before; `IdRegistry(refuse_credentials=...)`). A
+  credentialed namespace is refused in both modes (it ends up in every id).
+  Harvest and `id import` skip a credentialed element in both modes (it never
+  breaks a run). `loom id` reads the project's `url-credentials` only without
+  `-o`, as for the registry location. A registry passed in to a run that
+  refuses is turned to `refuse` (`IdRegistry.refuse_mode()`, entries
+  checked).
+- The `credentials-unsafe` family moved to its own reference page (URL
+  credentials), as the network page passed the size limit.
+- Release: 0.25.0 is no longer blocked by this change (item 2 of "Release
+  plan" is moot: the default no longer turns a passing build into a failure).
+
+The text below describes PR 2 as first built (refuse by default); where it
+says "refused", read "refused in the `refuse` mode, warned of in `warn`".
 
 ## Built in PR 2
 
@@ -25,19 +68,28 @@ Left for PR 3: "Not built" below.
   every surface (CLI, library, Hatchling hook, `loom.run` fragments,
   `merge`, `enrich`), and on the file `embed-wheel --sbom` embeds. One
   `ERROR: URL=<masked>: holds a credential (<element> <pointer>,
-  sha256:<16 hex>); remove it from the source, or accept this value with
-  --accept-url-credential sha256:<16 hex>` per distinct value, in graph
-  order, then a closing count naming no URL
-  (`credentials-unsafe/refused`); exit 1, no SBOM written. The raised
-  error's text and `args` name no URL and it has no context.
+  sha256:<16 hex>); remove it from the source, or accept this value ...` per
+  distinct value, in graph order, the end naming how the surface accepts it
+  (CLI `with --accept-url-credential <fp>`, Hatchling hook `by listing it in
+  [tool.pitloom] accept-url-credentials`, library `with
+  credentials=CredentialPolicy(accepted=["<fp>"])`; a `credential_advice`
+  context the entry point sets), then a closing count naming no URL (`<n>
+  URL value(s) in the SBOM hold credentials; the SBOM is refused`, the same
+  on every surface); exit 1, no SBOM written. The hook's lines start
+  `Pitloom build hook: `. The raised error's text and `args` name no URL
+  and it has no context.
 - **What is read**: the fields of `URL_FIELDS` (every `anyURI` field of the
   SPDX 3.0.1 model, ids and namespaces with the `embedded` reading, an
-  `identifier` only for a `packageUrl` or `urlScheme` type; a drift test
-  keeps the list complete), each as a whole value. Pitloom's provenance
-  notes are read too, as whole values: an annotation's
-  `fields.<field>.note` and the note of each entry of a `Metadata
-  provenance:` comment line (the same value, so the same fingerprint). Any
-  other comment, a name, a description or other prose is not.
+  `identifier` of any type, and the 40 reference fields (`createdBy`,
+  `suppliedBy`, `creationInfo`, `from`, `to`, `subject`, `rootElement`,
+  `element`, ...) read as ids when they hold one; a drift test keeps the
+  list complete), each as a whole value; an id is also read percent-decoded.
+  Pitloom's own provenance is read too, as whole values: every string of a
+  JSON statement whose `schema` starts `https://pitloom.dev/` (a field
+  provenance note split into its notes) and each segment (`Note`, `Value`)
+  of each entry of a `Metadata provenance:` comment line (the same value, so
+  the same fingerprint). Any other comment, a name, a description or other
+  prose is not.
 - **Weak** values (`code`, `session`, `ticket`, `sid`, `otp`, a `_key`
   name that is no kind of secret key, an `ssh` account name) warn
   (`credentials-unsafe`, "the SBOM states it as written"), never refuse.
@@ -54,19 +106,28 @@ Left for PR 3: "Not built" below.
   command and `merge`), `[tool.pitloom] accept-url-credentials = [...]`,
   library `PitloomConfig(accept_url_credentials=...)` or a `credentials=`
   `CredentialPolicy`; the CLI list adds to the config's, never replaces it.
-  An accepted value is stated with `WARNING: ...
+  `setup.cfg` holds the list as `[tool:pitloom] accept-url-credentials` (one
+  per line, or comma or whitespace separated; a bad entry is named by its
+  position). `PitloomConfig` rejects a bad fingerprint when built. An
+  accepted value is stated with `WARNING: ...
   [credentials-unsafe/accepted]`; an accepted fingerprint matching no value
-  warns (`option-no-effect`, `FINGERPRINT=`). Global
-  `--allow-url-credentials`: CLI and library
-  (`PitloomConfig(allow_url_credentials=True)`) only;
-  `allow-url-credentials` in `[tool.pitloom]` is ignored with `WARNING:
-  allow-url-credentials: CLI only; ignored in [tool.pitloom]`
-  (`config-unsafe/cli-only`). The Hatchling hook reads the `pyproject.toml`
-  list only; `embed-wheel --sbom` reads the run's flags only (no project
-  configuration applies to a given SBOM).
+  warns once per fingerprint and SBOM (`option-no-effect`, `FINGERPRINT=`,
+  naming the SBOM's `SpdxDocument` id, else its first element); a fingerprint
+  an enrichment fragment inherits from the project's list
+  (`CredentialPolicy.inherited`) is never said stale. (A global
+  `--allow-url-credentials` with a `config-unsafe/cli-only` warning for the
+  file key was built first, then removed by the 2026-11-16 decision record.)
+  The Hatchling hook reads the `pyproject.toml` settings only; `embed-wheel --sbom` and `merge` (`generate_merged_sbom()`
+  takes only `credentials=`) read the run's flags only (no project
+  configuration applies to a given SBOM). The Action's model mode reads no
+  project file, only the `config` input's.
+- **Duplicate keys**: `read_given_sbom` (`embed-wheel --sbom`, `loom id
+  import`) refuses a JSON object that names a key twice (`sbom-invalid`):
+  readers disagree on which value counts, so what is checked could differ
+  from what is embedded. `merge` fragments are not read this way.
 - **Registry**: `IdRegistry.load()` and `rebase()` refuse a file with a
   credentialed entry or namespace and leave it as it is (`ERROR: ... ID
-  registry file <file> is not loaded; remove the entry`); `loom id import`
+  registry file '<path>' is not loaded; remove the entry`); `loom id import`
   still skips such an element with a `WARNING:` and takes no override.
 - **Deleted**: `core/url_masking/_strip.py` (its URL scanner moved to
   `_urls.py`), `export/_spdx3_strip.py`, `strip_purl_secrets` and the
@@ -202,9 +263,9 @@ Never rewrite persisted data automatically.
 - Per value: `[tool.pitloom] accept-url-credentials = ["sha256:<prefix>"]`
   and `--accept-url-credential <fingerprint>` (repeatable). The error prints
   the fingerprint. Fits CLI > pyproject > defaults and stays deterministic.
-- Global: `--allow-url-credentials`, CLI only, one `WARNING:` per URL. No
-  `pyproject.toml` equivalent: a global boolean set once for an example URL
-  later lets a real token through silently (precedent: `--allow-build`).
+- Global: `--allow-url-credentials`, CLI only, one `WARNING:` per URL.
+  Built in PR 2, then removed (decision record 2026-11-16: the `warn`
+  default makes it moot).
 - The library API carries it in the shared options object, not a new
   keyword per entry point. The Action passes both through and starts
   `::add-mask::` for its source inputs (not built: PR 3).
@@ -222,9 +283,10 @@ Never rewrite persisted data automatically.
    stripped and kept lines, `credentials-unsafe/id-collision`) are retired
    or renamed freely. Add `credentials-unsafe/refused`. Regenerate the
    reference and update every `SKILL.md` that quotes the warning. Done in
-   PR 2 (`credentials-unsafe/accepted` and `config-unsafe/cli-only` added
-   too; `sbom-generate`'s `references/url-credentials.md` holds the skill
-   flow).
+   PR 2 (`credentials-unsafe/accepted` added too, then
+   `credentials-unsafe/written` for the `warn` mode; `config-unsafe/cli-only`
+   was added and removed again; `sbom-generate`'s
+   `references/url-credentials.md` holds the skill flow).
 
 ## Deleted and added (rough, not measured)
 
@@ -242,9 +304,9 @@ Never rewrite persisted data automatically.
 
 ## Traps
 
-- Refusing in the Hatchling hook fails `python -m build` in CI on a README
-  example such as `https://user:pass@example.com`. Expect it; the error
-  must name the field and the override.
+- Refusing in the Hatchling hook fails `python -m build` in CI on a URL field
+  value such as `https://user:pass@example.com`: why `refuse` is opt in
+  (2026-11-16). The error must name the field and the override.
 - Detection runs after merge and enrichment (`sbom-enrich` adds README
   prose), at the single writer.
 - Fingerprint on the exact serialised string, so it is stable across

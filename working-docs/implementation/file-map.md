@@ -147,7 +147,7 @@ pitloom/
 │       │   ├── options_config.py  # args -> library kwargs/ConfigOverrides map; --config loading
 │       │   ├── options_resolve.py  # CLI > --config > pyproject.toml > default resolution
 │       │   ├── parser.py  # argparse tree: parent parser + every subcommand
-│       │   ├── _parser_credentials.py  # --accept-url-credential, --allow-url-credentials -> CredentialPolicy
+│       │   ├── _parser_credentials.py  # --accept-url-credential, --refuse-url-credentials -> CredentialPolicy
 │       │   └── verbose.py  # --verbose effective-options report (project targets only)
 │       ├── core/                   # Format-neutral data models (no SBOM lib deps)
 │       │   ├── _config_keys.py  # Keys of [tool.pitloom] and the warning for any other key
@@ -226,7 +226,10 @@ pitloom/
 │       │   ├── base.py  # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py  # README.md/MODEL_CARD.md YAML frontmatter enricher
 │       ├── export/                 # Layer 4 -- serialise to physical format
-│       │   ├── _spdx3_credentials.py  # Refuse an SBOM whose URL-typed field holds a credential (check_graph_credentials)
+│       │   ├── _spdx3_credentials/  # Warn of or refuse an SBOM whose URL-typed field holds a credential; __init__ re-exports
+│       │   │   ├── _check.py  # check_graph_credentials(): warn/refuse/accept per policy, stale fingerprints
+│       │   │   ├── _fields.py  # URL_FIELDS, REFERENCE_FIELDS, NOT_READ, Reading; statement/comment separators
+│       │   │   └── _find.py  # find_graph_credentials(), GraphFinding: the walk of fields, statements, comments
 │       │   ├── hashes.py  # sha256_of, file_digests_of: read an element's SHA-256/SHA-512
 │       │   ├── spdx3_describe.py  # One way to name an SPDX 3 element or value in a message
 │       │   └── spdx3_json.py  # SPDX 3 JSON-LD serialiser

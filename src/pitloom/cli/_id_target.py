@@ -26,6 +26,7 @@ from pitloom.id_registry import DATASET_PACKAGE_TYPE
 from pitloom.messages import CodedValueError
 from pitloom.messages.options import OPTION_MISSING
 from pitloom.messages.targets import is_input_file
+from pitloom.messages.url_credentials import say_mode_unread
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -77,6 +78,33 @@ def _read_project_config(project_dir: Path) -> tuple[PitloomConfig, str]:
         else _PYPROJECT_TABLE
     )
     return pitloom_config, table
+
+
+def resolve_id_refuse(
+    flag: bool | None, project_dir: Path, *, read_config: bool, best_effort: bool
+) -> bool:
+    """Whether `loom id` refuses a key or registry file entry that holds a
+    credential: *flag* (``--refuse-url-credentials``), else, with
+    *read_config* (no ``-o``, or an explicit ``--project-dir``), the
+    project's own ``url-credentials`` (:func:`_read_project_config`, which
+    it raises like unless *best_effort*), else the ``warn`` mode's
+    ``False``. With ``-o`` and no ``--project-dir`` the working directory's
+    config is not read, as for the registry's location; with ``-o`` and
+    ``--project-dir`` (*best_effort*) a project whose config cannot be read
+    (a bare ``setup()``) does not fail the run, as
+    :func:`_resolve_id_registry_target` reads its ``id-registry`` then: a
+    ``WARNING:`` says the ``warn`` mode is used."""
+    if flag is True:
+        return True
+    if not read_config:
+        return False
+    try:
+        return _read_project_config(project_dir)[0].credential_policy.refuse
+    except (ValueError, OSError) as exc:
+        if not best_effort:
+            raise
+        say_mode_unread(project_dir, exc)
+        return False
 
 
 def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]:

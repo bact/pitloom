@@ -297,8 +297,9 @@ both` line on every run is expected. `ERROR: loom <command>: ID registry: FILE=.
 expected 4 ... [registry-wrong-format]` means an old-format registry: never delete or rewrite it from this
 skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
 non-interactive stop and report the `ERROR:`. A
+`[credentials-unsafe/written]` `WARNING:` (the SBOM holds a credential) or
 `[credentials-unsafe/refused]` `ERROR:` (no SBOM written): follow
-`sbom-generate`'s "Check stderr"; never suggest `--allow-url-credentials`.
+`sbom-generate`'s "Check stderr".
 
 ## See also
 

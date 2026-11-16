@@ -337,6 +337,15 @@ drift is silent.
   non-interactive stop) is in the new `references/url-credentials.md`;
   `cli-flags.md` names the flags and `id-registry.md` the registry file
   refusal (it said the entry was dropped).
+  **Revised the same day (warn by default):** `--allow-url-credentials` was
+  removed; the default writes the SBOM with `WARNING: ...
+  [credentials-unsafe/written]`, and `--refuse-url-credentials` or
+  `url-credentials = "refuse"` restore the refusal. Descriptions unchanged
+  ("holds a credential" matches both lines). The "Check stderr" lines now
+  name the `written` warning and the `refused` error and point to the
+  reference (rotate, offer `refuse` for CI, fingerprint only once the value
+  is confirmed no secret); `sbom-enrich`'s hand-off names both codes; the
+  reference's last step is "never suggest turning `refuse` off".
 
 ## Portability across clients (2026-09-29, PR #235)
 

@@ -28,7 +28,7 @@ from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url, split_userinfo
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.messages.network import (
+from pitloom.messages.url_credentials import (
     CREDENTIALS_UNSAFE_GIT_USERINFO,
     GIT_USERINFO_LINE,
 )

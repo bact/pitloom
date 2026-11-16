@@ -110,11 +110,20 @@ class _ActiveRun:
         # directly to the module global -- an exception here means that
         # assignment never happens). Of the config, loom reads only the
         # registry (the id_registry argument wins), its update switch, the
-        # dataset hash ceiling (the max_dataset_hash_bytes argument wins) and
-        # the credentials it accepts (united with the credentials argument).
+        # dataset hash ceiling (the max_dataset_hash_bytes argument wins), the
+        # credentials it accepts and its url-credentials mode (united with
+        # the credentials argument, which can turn refusal on, never off).
         configure_logging()
         config = loom_config(pitloom_config)
-        resolved = resolve_registry(id_registry, config.id_registry, Path.cwd())
+        self.credentials = config.credential_policy.union(
+            credentials or CredentialPolicy()
+        )
+        resolved = resolve_registry(
+            id_registry,
+            config.id_registry,
+            Path.cwd(),
+            refuse_credentials=self.credentials.refuse,
+        )
         max_hash_bytes = (
             require_max_dataset_hash_bytes(
                 config.max_dataset_hash_bytes, "pitloom_config"
@@ -125,9 +134,6 @@ class _ActiveRun:
             )
         )
         self.update_id_registry: bool = config.update_id_registry
-        self.credentials = config.credential_policy.union(
-            credentials or CredentialPolicy()
-        )
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())

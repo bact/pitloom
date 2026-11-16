@@ -78,7 +78,7 @@ def test_a_provenance_comment_note_is_refused_with_its_place(
     assert (found.element, found.pointer) == ("urn:a", _POINTER)
     assert found.value == _DEP and found.fingerprint == fingerprint(_DEP)
     with caplog.at_level(logging.ERROR), pytest.raises(ValueError) as caught:
-        check_graph_credentials(graph, CredentialPolicy())
+        check_graph_credentials(graph, CredentialPolicy(refuse=True))
     assert code_of(caught.value) == "credentials-unsafe/refused"
     assert f" {_POINTER}, sha256:" in caplog.text and _SECRET not in caplog.text
 
@@ -176,7 +176,7 @@ def test_a_literal_escape_in_a_source_reads_back_as_its_character() -> None:
 )
 def test_an_ordinary_comment_is_never_read(comment: str) -> None:
     check_graph_credentials(
-        [{"spdxId": "urn:a", "comment": comment}], CredentialPolicy()
+        [{"spdxId": "urn:a", "comment": comment}], CredentialPolicy(refuse=True)
     )
 
 
@@ -192,7 +192,9 @@ def test_every_provenance_format_is_refused_end_to_end(
         b"[project]\nname = 'testpkg'\nversion = '0.1.0'\n"
         + f"dependencies = ['{_DEP}']\n".encode()
     )
-    config = PitloomConfig(provenance_format=provenance_format)
+    config = PitloomConfig(
+        provenance_format=provenance_format, url_credentials="refuse"
+    )
     out = tmp_path / "o.json"
     with caplog.at_level(logging.ERROR), pytest.raises(ValueError) as caught:
         generate_project_sbom(

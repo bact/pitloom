@@ -91,7 +91,8 @@ class Run(contextlib.ContextDecorator):
             not given), ``id-registry`` (when *id_registry* is not given;
             a relative path in a config file is relative to that file's
             directory) and ``update-id-registry`` (``false``: no model is
-            registered) and ``accept-url-credentials``. Every other key
+            registered), ``accept-url-credentials`` and
+            ``url-credentials``. Every other key
             does not apply to loom.
         max_dataset_hash_bytes: The most bytes read to hash one dataset (a
             file, or all files of a directory together); a dataset over it
@@ -101,9 +102,11 @@ class Run(contextlib.ContextDecorator):
             default 4 GiB.
         credentials: A ``pitloom.core.credential_policy.CredentialPolicy``
             naming URL field values that hold a credential and may stay in
-            the fragment, added to the config's ``accept-url-credentials``.
-            A field with a credential that neither accepts is refused when
-            the run ends, and no fragment is written.
+            the fragment, added to the config's ``accept-url-credentials``;
+            its ``refuse`` turns the config's ``url-credentials`` mode to
+            ``refuse``. A field with a credential that neither accepts is
+            warned of when the run ends (the ``warn`` mode, the default), or
+            refused and no fragment written (the ``refuse`` mode).
     """
 
     # pylint: disable-next=too-many-arguments

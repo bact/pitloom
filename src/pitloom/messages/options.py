@@ -13,6 +13,7 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 
 from __future__ import annotations
 
+from pitloom.messages._fields_credentials import FINGERPRINT as FINGERPRINT_PATTERN
 from pitloom.messages._options import (
     BUILD_PREFIX,
     CANNOT_BE_USED_LINE,
@@ -20,6 +21,7 @@ from pitloom.messages._options import (
     FINGERPRINT_ENTRY_LINE,
     FINGERPRINT_LINE,
     FINGERPRINT_SHAPE,
+    MODE_UNREAD_LINE,
     NAMESPACE_CONFLICT_LINE,
     NAMESPACE_CONFLICT_MASKED_LINE,
     OPTION_CONFLICT,
@@ -30,8 +32,11 @@ from pitloom.messages._options import (
     OUTPUT_REQUIRED_LINE,
     PATH_OUTSIDE_LINE,
     PROJECT_ROOT_CONFLICT_LINE,
+    REFUSE_ARGUMENT_LINE,
     REGISTRY_PATH_OUTSIDE_LINE,
     STALE_FINGERPRINT_LINE,
+    URL_CREDENTIALS_MODE_ARGUMENT_LINE,
+    URL_CREDENTIALS_MODE_LINE,
     namespace_conflict_line,
 )
 from pitloom.messages._options_say import (
@@ -45,6 +50,7 @@ __all__ = [
     "FINGERPRINT_ARRAY_LINE",
     "FINGERPRINT_ENTRY_LINE",
     "FINGERPRINT_LINE",
+    "FINGERPRINT_PATTERN",
     "FINGERPRINT_SHAPE",
     "NAMESPACE_CONFLICT_LINE",
     "NAMESPACE_CONFLICT_MASKED_LINE",
@@ -56,8 +62,12 @@ __all__ = [
     "OUTPUT_REQUIRED_LINE",
     "PATH_OUTSIDE_LINE",
     "PROJECT_ROOT_CONFLICT_LINE",
+    "REFUSE_ARGUMENT_LINE",
     "REGISTRY_PATH_OUTSIDE_LINE",
+    "MODE_UNREAD_LINE",
     "STALE_FINGERPRINT_LINE",
+    "URL_CREDENTIALS_MODE_ARGUMENT_LINE",
+    "URL_CREDENTIALS_MODE_LINE",
     "namespace_conflict_line",
     "usage_code",
     "warn_option_no_effect",

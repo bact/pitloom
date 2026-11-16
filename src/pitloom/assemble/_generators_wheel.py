@@ -267,7 +267,12 @@ def generate_wheel_sbom_with_metadata(
     # Resolved before the expensive read_wheel()/find_phantom_dependencies()
     # calls below -- a declared-but-missing/malformed registry should fail
     # fast, never after paying for a full wheel read first.
-    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    resolved_registry = resolve_registry(
+        id_registry,
+        cfg.id_registry,
+        Path.cwd(),
+        refuse_credentials=cfg.credential_policy.refuse,
+    )
     origin_dir = archive_project_dir(project_dir, resolved_registry, wheel_path)
     project_metadata, project_files = read_wheel(wheel_path_obj)
     # A copy of an in-tree registry the build put in the wheel: neither a

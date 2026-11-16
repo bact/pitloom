@@ -216,7 +216,8 @@ def embed_wheel_sbom(
         pitloom.messages.CodedValueError: *wheel_path* cannot be looked at
             (``file-unreadable``: a directory on its way refuses search), or
             a URL field of the SBOM holds a credential the run does not
-            accept (``credentials-unsafe/refused``; the SBOM at
+            accept in the ``refuse`` mode (``credentials-unsafe/refused``;
+            the SBOM at
             *sbom_path* is checked as given, by ``overrides.credentials``
             alone, and never rewritten). The wheel is left as it was.
         OSError: The file itself cannot be opened (its own permissions, a
@@ -235,7 +236,9 @@ def embed_wheel_sbom(
         # external SBOM never touches the registry, so only without
         # *sbom_path*. The resolved registry replaces *id_registry*, so
         # _generate_embed_sbom_json() does not load the file again.
-        id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
+        id_registry = _resolve_embed_registry(
+            project_dir, pitloom_config, id_registry, eff_overrides.credentials
+        )
     # Before the SBOM is generated: that may run a build.
     refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
     # The wheel's split Author-email is warned about only where its authors

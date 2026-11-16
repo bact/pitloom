@@ -222,9 +222,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [x] **Credential leaks (#487)**: masking at the sinks, git helper, registry
   refusal; built, unreleased. See
   [credential-leak-fixes.md](../implementation/credential-leak-fixes.md).
-- [x] **Credentials: detect and refuse, PR 2**: the SBOM strip replaced by
-  detect, `ERROR:` and a per-value fingerprint override; built, not merged
-  (release blocker for 0.25.0, lifted when it merges). See
+- [x] **Credentials: detect, warn or refuse, PR 2**: the SBOM strip replaced
+  by detect; warns by default, refuses opt in (`url-credentials = "refuse"`),
+  per-value fingerprint override; built, not merged (no longer a 0.25.0
+  blocker). See
   [credential-detect-and-refuse.md](credential-detect-and-refuse.md).
 - [ ] **Credentials PR 3**: refuse a Git URL's secret query value before the
   fetch, the Action's inputs and `::add-mask::`, Git hardening. Same doc,

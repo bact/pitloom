@@ -3,10 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The helpers that say a refused or accepted URL credential: each line
-has exactly one level tag and its code, masks the secret, names the
-fingerprint where it takes one, and stays one line when the URL holds a
-line break.
+"""The helpers that say a URL credential written (the ``warn`` mode),
+refused (the ``refuse`` mode) or accepted: each line has exactly one level
+tag and its code, masks the secret, names the fingerprint where it takes
+one, and stays one line when the URL holds a line break.
 
 See also: :mod:`pitloom.messages.url_credentials`.
 """
@@ -23,13 +23,19 @@ from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import configure_logging
 from pitloom.messages import code_of, trusted_message
 from pitloom.messages.url_credentials import (
+    ADVICE_CLI,
+    ADVICE_CONFIG,
+    ADVICE_LIBRARY,
+    credential_advice,
     refused_error,
     registry_file_refused_error,
     say_accepted,
-    say_config_cli_only,
     say_refused,
     say_stale_fingerprint,
     say_weak,
+    say_written,
+    warn_registry_file_entry_kept,
+    warn_registry_key_kept,
 )
 
 #: A registry file is named by a path, spelt per platform.
@@ -62,24 +68,101 @@ def _one_line(lines: list[str], level: str, code: str) -> str:
     return line
 
 
+#: Each surface's way of accepting a value, as its refusal ends.
+_ADVICE_ENDS = {
+    ADVICE_CLI: f"accept this value with --accept-url-credential {_FINGERPRINT}",
+    ADVICE_CONFIG: "accept this value by listing it in [tool.pitloom] "
+    "accept-url-credentials",
+    ADVICE_LIBRARY: "accept this value with "
+    f'credentials=CredentialPolicy(accepted=["{_FINGERPRINT}"])',
+}
+
+
+@pytest.mark.parametrize("advice", sorted(_ADVICE_ENDS))
 @pytest.mark.parametrize("url", [_URL, _BROKEN], ids=["plain", "line-break"])
-def test_say_refused_masks_and_names_the_fingerprint_twice(
-    capsys: pytest.CaptureFixture[str], url: str
+def test_say_refused_masks_and_names_the_way_its_surface_accepts(
+    capsys: pytest.CaptureFixture[str], url: str, advice: str
 ) -> None:
-    lines = _lines(
-        capsys,
-        lambda: say_refused(
-            url,
-            f"https://bob:{_SECRET}@h/el",
-            "software_downloadLocation",
-            _FINGERPRINT,
-        ),
+    def say() -> None:
+        with credential_advice(advice):
+            say_refused(
+                url,
+                f"https://bob:{_SECRET}@h/el",
+                "software_downloadLocation",
+                _FINGERPRINT,
+            )
+
+    line = _one_line(_lines(capsys, say), "ERROR", "credentials-unsafe/refused")
+    assert f"software_downloadLocation, {_FINGERPRINT}); " in line
+    end = f"; remove it from the source, or {_ADVICE_ENDS[advice]}"
+    assert line.endswith(f"{end} [credentials-unsafe/refused]")
+    assert "allow" not in line
+
+
+#: Each surface's way of turning the refuse mode on, as its warning ends.
+_REFUSE_ENDS = {
+    ADVICE_CLI: "refuse such values with --refuse-url-credentials",
+    ADVICE_CONFIG: 'refuse such values with [tool.pitloom] url-credentials = "refuse"',
+    ADVICE_LIBRARY: "refuse such values with credentials=CredentialPolicy(refuse=True)",
+}
+
+
+@pytest.mark.parametrize("advice", sorted(_REFUSE_ENDS))
+@pytest.mark.parametrize("url", [_URL, _BROKEN], ids=["plain", "line-break"])
+def test_say_written_every_time_names_the_way_its_surface_refuses(
+    capsys: pytest.CaptureFixture[str], url: str, advice: str
+) -> None:
+    def twice() -> None:
+        with credential_advice(advice):
+            for _ in range(2):
+                say_written(
+                    url,
+                    f"https://bob:{_SECRET}@h/el",
+                    "software_downloadLocation",
+                    _FINGERPRINT,
+                )
+
+    code = "credentials-unsafe/written"
+    first, second = _lines(capsys, twice)
+    assert first == second, "a second SBOM holding the value names it again"
+    line = _one_line([first], "WARNING", code)
+    assert f"software_downloadLocation, {_FINGERPRINT}); " in line
+    end = (
+        "; the SBOM states it as written; remove it from the source, or "
+        f"{_REFUSE_ENDS[advice]}"
     )
-    line = _one_line(lines, "ERROR", "credentials-unsafe/refused")
-    assert line.count(_FINGERPRINT) == 2
-    assert "software_downloadLocation" in line
-    assert "--accept-url-credential " in line
-    assert "--allow-url-credentials" not in line
+    assert line.endswith(f"{end} [{code}]")
+
+
+def test_say_written_names_each_value(capsys: pytest.CaptureFixture[str]) -> None:
+    other = "sha256:fedcba9876543210"
+
+    def two() -> None:
+        say_written(_URL, "SPDXRef-a", "software_homePage", _FINGERPRINT)
+        say_written(_URL + "y", "SPDXRef-a", "software_homePage", other)
+
+    assert len(_lines(capsys, two)) == 2
+
+
+def test_say_written_takes_only_a_fingerprint() -> None:
+    with pytest.raises(ValueError, match="is not a fingerprint"):
+        say_written(_URL, "SPDXRef-a", "software_homePage", "sha256:0123")
+
+
+def test_the_library_advice_is_the_default_and_restored_on_exit(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def say() -> None:
+        with pytest.raises(KeyError), credential_advice(ADVICE_CLI):
+            raise KeyError
+        say_refused(_URL, "SPDXRef-a", "software_homePage", _FINGERPRINT)
+
+    assert "CredentialPolicy(" in _lines(capsys, say)[0]
+
+
+def test_credential_advice_takes_only_a_known_surface() -> None:
+    with pytest.raises(InternalError), credential_advice("hook"):
+        pass
 
 
 def test_say_refused_is_said_every_time(capsys: pytest.CaptureFixture[str]) -> None:
@@ -97,22 +180,23 @@ def test_say_refused_takes_only_a_fingerprint() -> None:
         say_refused(_URL, "SPDXRef-a", "software_homePage", "sha256:0123")
 
 
-@pytest.mark.parametrize(
-    ("fingerprint", "wanted"),
-    [(_FINGERPRINT, f"that {_FINGERPRINT} accepts"), (None, "--allow-url-credentials")],
-    ids=["fingerprint", "global"],
-)
+@pytest.mark.parametrize("advice", [ADVICE_CLI, ADVICE_LIBRARY])
 @pytest.mark.parametrize("url", [_URL, _BROKEN], ids=["plain", "line-break"])
-def test_say_accepted_once_per_value(
-    capsys: pytest.CaptureFixture[str], url: str, fingerprint: str | None, wanted: str
+def test_say_accepted_every_time(
+    capsys: pytest.CaptureFixture[str], url: str, advice: str
 ) -> None:
     def twice() -> None:
-        say_accepted(url, fingerprint)
-        say_accepted(url, fingerprint)
+        with credential_advice(advice):
+            say_accepted(url, _FINGERPRINT)
+            say_accepted(url, _FINGERPRINT)
 
-    line = _one_line(_lines(capsys, twice), "WARNING", "credentials-unsafe/accepted")
-    assert wanted in line
-    assert "the SBOM states it as written" in line or "keeps it as written" in line
+    first, second = _lines(capsys, twice)
+    assert first == second
+    line = _one_line([first], "WARNING", "credentials-unsafe/accepted")
+    assert line.endswith(
+        f"that {_FINGERPRINT} accepts; the SBOM states it as written "
+        "[credentials-unsafe/accepted]"
+    )
 
 
 @pytest.mark.parametrize(
@@ -120,38 +204,43 @@ def test_say_accepted_once_per_value(
     [f"https://h/x?code={_SECRET}", f"https://h/x?code={_SECRET}\nERROR: forged"],
     ids=["plain", "line-break"],
 )
-def test_say_weak_once_per_value(capsys: pytest.CaptureFixture[str], url: str) -> None:
+def test_say_weak_every_time(capsys: pytest.CaptureFixture[str], url: str) -> None:
     def twice() -> None:
         say_weak(url)
         say_weak(url)
 
-    line = _one_line(_lines(capsys, twice), "WARNING", "credentials-unsafe")
+    first, second = _lines(capsys, twice)
+    assert first == second
+    line = _one_line([first], "WARNING", "credentials-unsafe")
     assert "the SBOM states it as written" in line
 
 
 def test_say_stale_fingerprint(capsys: pytest.CaptureFixture[str]) -> None:
     def twice() -> None:
-        say_stale_fingerprint(_FINGERPRINT)
-        say_stale_fingerprint(_FINGERPRINT)
+        say_stale_fingerprint(_FINGERPRINT, "urn:doc-a")
+        say_stale_fingerprint(_FINGERPRINT, "urn:doc-a")
 
     line = _one_line(_lines(capsys, twice), "WARNING", "option-no-effect")
     assert line == (
-        f"WARNING: Options: FINGERPRINT={_FINGERPRINT}: matches no URL of this "
-        "SBOM [option-no-effect]"
+        f"WARNING: Options: FINGERPRINT={_FINGERPRINT}: matches no URL of the "
+        "SBOM urn:doc-a [option-no-effect]"
     )
 
 
-@pytest.mark.parametrize("table", ["[tool.pitloom]", "[tool:pitloom]"])
-def test_say_config_cli_only(capsys: pytest.CaptureFixture[str], table: str) -> None:
-    def twice() -> None:
-        say_config_cli_only("allow-url-credentials", table=table)
-        say_config_cli_only("allow-url-credentials", table=table)
+def test_say_stale_fingerprint_once_per_sbom(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A batch (``embed-wheel`` of several wheels) names each SBOM."""
 
-    line = _one_line(_lines(capsys, twice), "WARNING", "config-unsafe/cli-only")
-    assert line == (
-        f"WARNING: allow-url-credentials: CLI only; ignored in {table} "
-        "[config-unsafe/cli-only]"
-    )
+    def batch() -> None:
+        for document in ("urn:doc-b", "urn:doc-c", "urn:doc-b"):
+            say_stale_fingerprint(_FINGERPRINT, document)
+
+    lines = _lines(capsys, batch)
+    assert [line.split(" SBOM ")[1] for line in lines] == [
+        "urn:doc-b [option-no-effect]",
+        "urn:doc-c [option-no-effect]",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -160,7 +249,7 @@ def test_say_config_cli_only(capsys: pytest.CaptureFixture[str], table: str) -> 
 def test_refused_error_names_no_url(count: int, wanted: str) -> None:
     exc = refused_error(count)
     assert code_of(exc) == "credentials-unsafe/refused"
-    assert str(exc) == f"{wanted} in the SBOM hold credentials; no SBOM is written"
+    assert str(exc) == f"{wanted} in the SBOM hold credentials; the SBOM is refused"
     assert trusted_message(f"ERROR: {exc} [credentials-unsafe/refused]") is not None
 
 
@@ -177,7 +266,7 @@ def test_registry_file_refused_error(key: str, file: str | Path) -> None:
     text = str(exc)
     assert code_of(exc) == "credentials-unsafe/registry"
     assert _SECRET not in text and "\n" not in text
-    assert f"ID registry file {file} is not loaded; remove the entry" in text
+    assert f"ID registry file '{file}' is not loaded; remove the entry" in text
     assert sum(text.count(tag) for tag in _LEVELS) == (key == _BROKEN)
     assert trusted_message(f"ERROR: {text} [credentials-unsafe/registry]") is not None
 
@@ -188,3 +277,24 @@ def test_the_helpers_log_under_pitloom(caplog: pytest.LogCaptureFixture) -> None
         say_weak("https://h/?session=1")
     (record,) = caplog.records
     assert record.name.startswith("pitloom.")
+
+
+@pytest.mark.parametrize("key", [_URL, _BROKEN], ids=["plain", "line-break"])
+def test_registry_warnings_in_the_warn_mode_once_per_value(
+    capsys: pytest.CaptureFixture[str], key: str
+) -> None:
+    log = logging.getLogger("pitloom.id_registry")
+
+    def twice() -> None:
+        for _ in range(2):
+            warn_registry_key_kept(log, key)
+            warn_registry_file_entry_kept(log, "ids.json", key)
+
+    code = "credentials-unsafe/registry"
+    kept, loaded = _lines(capsys, twice)
+    assert _one_line([kept], "WARNING", code).endswith(
+        f"; the ID registry stores the key as written [{code}]"
+    )
+    assert _one_line([loaded], "WARNING", code).endswith(
+        f"; ID registry file 'ids.json' is loaded as it is; remove the entry [{code}]"
+    )

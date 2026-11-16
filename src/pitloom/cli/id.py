@@ -23,6 +23,12 @@ from pitloom.cli._id_target import (
     _normalized_absolute,
     _resolve_id_registry_target,
     resolve_dataset_hash_ceiling,
+    resolve_id_refuse,
+)
+from pitloom.cli._parser_credentials import (
+    REFUSE_HELP_ID_GENERATE,
+    REFUSE_HELP_ID_IMPORT,
+    add_refuse_argument,
 )
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.kv_output import print_kv
@@ -36,8 +42,8 @@ from pitloom.id_registry import (
     FILE_TYPE,
     PACKAGE_TYPE,
     IdRegistry,
+    check_key_credentials,
     failed_to_save_message,
-    require_key_without_credentials,
     save_registry,
     say_ambiguous_keys,
 )
@@ -79,10 +85,12 @@ def _load_or_create_registry(
     *,
     namespace: str | None = None,
     project_root: Path | None = None,
+    refuse_credentials: bool = False,
 ) -> IdRegistry:
     """Load the registry at *registry_path*, or create a fresh one if
     nothing exists there yet, with *namespace* and *project_root* (both
-    only for a new registry: an existing one keeps its own).
+    only for a new registry: an existing one keeps its own), in the
+    ``url-credentials`` mode *refuse_credentials*.
 
     Raises ``ValueError`` (from :meth:`~pitloom.id_registry.IdRegistry.load`)
     when *registry_path* exists but doesn't load, or ``FileNotFoundError``
@@ -94,8 +102,9 @@ def _load_or_create_registry(
             path=registry_path,
             namespace=namespace,
             project_root=project_root,
+            refuse_credentials=refuse_credentials,
         )
-    return IdRegistry.load(registry_path)
+    return IdRegistry.load(registry_path, refuse_credentials=refuse_credentials)
 
 
 def _namespace_arg(text: str) -> str:
@@ -265,6 +274,19 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     return paths
 
 
+def _id_refuse(args: argparse.Namespace, project_dir: Path) -> bool:
+    """Whether this `loom id` run refuses a credential (see
+    :func:`pitloom.cli._id_target.resolve_id_refuse`): the project's config
+    is read without ``-o``, or best-effort with ``-o`` and an explicit
+    ``--project-dir``."""
+    return resolve_id_refuse(
+        args.refuse_url_credentials,
+        project_dir,
+        read_config=args.id_registry is None or args.project_dir is not None,
+        best_effort=args.id_registry is not None,
+    )
+
+
 def _open_generate_registry(
     args: argparse.Namespace, project_dir: Path, registry_path: Path, is_new: bool
 ) -> IdRegistry:
@@ -275,6 +297,7 @@ def _open_generate_registry(
         project_dir.name,
         namespace=args.namespace,
         project_root=project_dir,
+        refuse_credentials=_id_refuse(args, project_dir),
     )
     if not is_new:
         registry.require_project_root(project_dir)
@@ -295,7 +318,7 @@ def _register_entities(
     )
     for type_name, name in entities:
         # Before entity_entry says anything about the entity.
-        require_key_without_credentials(type_name, name)
+        check_key_credentials(type_name, name, refuse=registry.refuse_credentials)
         key, sha256 = entity_entry(registry, project_dir, type_name, name, ceiling)
         registry.register(type_name, key, sha256=sha256)
 
@@ -355,7 +378,10 @@ def _run_id_import(args: argparse.Namespace) -> int:
         )
         is_new = not os.path.lexists(registry_path)
         registry = _load_or_create_registry(
-            registry_path, sbom_path.stem, project_root=project_dir
+            registry_path,
+            sbom_path.stem,
+            project_root=project_dir,
+            refuse_credentials=_id_refuse(args, project_dir),
         )
         if not is_new and args.project_dir is not None:
             registry.require_project_root(project_dir)
@@ -465,6 +491,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "@VERSION holds only a package that states no version."
         ),
     )
+    add_refuse_argument(gen_parser, REFUSE_HELP_ID_GENERATE)
     gen_parser.add_argument(
         "--max-dataset-hash-bytes",
         type=positive_byte_ceiling,
@@ -513,5 +540,6 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "existing registry)."
         ),
     )
+    add_refuse_argument(imp_parser, REFUSE_HELP_ID_IMPORT)
 
     id_parser.set_defaults(func=_run_id_command)

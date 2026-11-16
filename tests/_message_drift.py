@@ -93,7 +93,7 @@ SAMPLES: dict[str, object] = {
     "registry_part": "spdxId",
     "requirement": "pitloom[gguf]",
     "seconds": 30,
-    "setting": "allow-url-credentials",
+    "setting": "url-credentials",
     "settings": ("tool.setuptools.cmdclass", "metadata.version"),
     "size": 3,
     "source": "the PyPI JSON API",

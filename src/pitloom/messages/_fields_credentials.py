@@ -5,7 +5,7 @@
 
 """The values the lines of a refused or accepted URL credential name: the
 element and the field that hold it, the fingerprint that accepts it, and a
-setting the command line alone takes.
+setting that accepts it or sets the mode.
 
 See also: :mod:`pitloom.messages._fields` (every field, these included) and
 :mod:`pitloom.messages._url_credentials` (the lines).
@@ -22,7 +22,8 @@ from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import entity_text, free_text, plain_text
 
 #: A fingerprint of a URL-typed value: ``sha256:`` and at least 16 lower-case
-#: hex digits of the SHA-256 of the value as serialised.
+#: hex digits of the SHA-256 of the value as serialised. The one spelling:
+#: :data:`pitloom.core.credential_policy.FINGERPRINT_RE` compiles it.
 FINGERPRINT: Final = r"sha256:[0-9a-f]{16,64}"
 
 #: The fields of a URL credential's lines.
@@ -32,7 +33,8 @@ CREDENTIAL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             entity_text,
             "<element>",
-            "the SBOM element that holds the value, by its spdxId, a URL's "
+            "the SBOM element that holds the value (for a fingerprint that "
+            "matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's "
             "credentials masked; in quotes, escaped, when it holds a control "
             "character",
             free=True,
@@ -50,9 +52,9 @@ CREDENTIAL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             "<pointer>",
             "the field of the element that holds the value, as an RFC 6901 "
             "JSON pointer into it (`/software_downloadLocation`, "
-            "`/externalRef/0/locator/0`); for a note of Pitloom's own "
-            "provenance, on into the annotation's statement "
-            "(`/statement/fields/<field>/note`) or the comment's provenance "
+            "`/externalRef/0/locator/0`); for a statement Pitloom writes, on "
+            "into it (`/statement/metadata/<key>`, "
+            "`/statement/fields/<field>/note`), or into the comment's provenance "
             "line (`/comment/<field>/note`), a part no JSON pointer resolves "
             "on the element; in quotes, escaped, when it holds a control "
             "character",
@@ -62,7 +64,8 @@ CREDENTIAL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             SETTING,
             plain_text,
             "<setting>",
-            "a [tool.pitloom] setting as the file names it (`allow-url-credentials`)",
+            "a [tool.pitloom] setting as the file names it "
+            "(`accept-url-credentials`, `url-credentials`)",
         ),
     }
 )

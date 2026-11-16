@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 
 from pitloom.core.url_masking._hits import (
+    PURL_DECODE_ROUNDS,
     purl_qualifiers,
     qualifier_hits,
     qualifier_levels,
@@ -153,7 +154,42 @@ def masked_given_path(text: str, *, line: bool = False) -> str:
     punctuation characters, is masked to that quote (``'...?token=ab'. cd'``
     prints ``'...?token=***'. cd'``); a value ending in a backslash escapes
     the closing quote, so its URL runs on to the next quote that closes.
+
+    A credential shown only once the text is percent-decoded (an id built
+    from a name encodes its ``/``: ``https:%2F%2Fu:p@h``) is masked at the
+    shallowest decode depth that shows it, which is then what is printed
+    (:func:`~pitloom.core.url_masking._hits.qualifier_levels`, as the
+    detector reads an identifier), and that text is read again, at most
+    :data:`~pitloom.core.url_masking._hits.PURL_DECODE_ROUNDS` times: a
+    deeper depth can break what a shallower one shows
+    (``u:se%252Fcret@h`` decodes to ``u:se/cret@h``, no user information),
+    so it is never what is printed. A text that decoding shows nothing more
+    in is printed as given.
     """
+    masked = _masked_formats(text, line=line)
+    for _ in range(PURL_DECODE_ROUNDS):
+        if "%" not in masked:
+            break
+        shown = _first_masked_level(qualifier_levels(masked)[0][1:], line=line)
+        if shown is None:
+            break
+        masked = shown
+    return masked
+
+
+def _first_masked_level(levels: list[str], *, line: bool) -> str | None:
+    """The first of *levels* (decode depths, shallowest first) that the
+    masker changes, masked; ``None`` when it changes none."""
+    for level in levels:
+        shown = _masked_formats(level, line=line)
+        if shown != level:
+            return shown
+    return None
+
+
+def _masked_formats(text: str, *, line: bool) -> str:
+    """:func:`masked_given_path` of *text* as written: a format character
+    dropped when that shows a credential."""
     plain = without_format(text)
     if plain != text:
         masked = _masked(plain, line=line)

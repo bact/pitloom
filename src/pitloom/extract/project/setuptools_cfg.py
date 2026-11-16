@@ -18,13 +18,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.credential_policy import ACCEPT_KEY
 from pitloom.core.config import (
     _MOVED_CREATION_KEYS,
     KNOWN_KEYS,
     PitloomConfig,
     parse_pitloom_config,
 )
+from pitloom.core.credential_policy import ACCEPT_KEY
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import provenance_segment, provenance_source
 from pitloom.core.quote_source import quote_source

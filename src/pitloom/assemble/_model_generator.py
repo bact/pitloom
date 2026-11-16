@@ -201,7 +201,10 @@ def project_document_id(project_dir: Path) -> str:
     configure_logging()
     metadata, config, _path = resolve_project_with_lockfile(project_dir, None)
     registry = resolve_registry(
-        None, config.id_registry, registry_base_dir(project_dir)
+        None,
+        config.id_registry,
+        registry_base_dir(project_dir),
+        refuse_credentials=config.credential_policy.refuse,
     )
     doc_name, doc_uuid = _doc_identity_of(project_dir, metadata, registry)
     return generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid)
@@ -328,7 +331,12 @@ def generate_model_sbom(
         # Resolved before _read_local_model()/run_enrichers() below -- a
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
-        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+        resolved_registry = resolve_registry(
+            id_registry,
+            cfg.id_registry,
+            Path.cwd(),
+            refuse_credentials=cfg.credential_policy.refuse,
+        )
         model = _read_local_model(model_path, shown)
         digest = _model_file_digests(model_path)
         entity_spdx_id = _model_registry_id(
@@ -410,7 +418,12 @@ def enrich_model(
     # after paying for a model read and enrichment first.
     if project_target is None:
         base_doc_identity = None
-        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+        resolved_registry = resolve_registry(
+            id_registry,
+            cfg.id_registry,
+            Path.cwd(),
+            refuse_credentials=accepted.refuse,
+        )
     else:
         # The project the fragment merges into, resolved as its base SBOM
         # is: its identity and registry come from the config that SBOM
@@ -421,16 +434,19 @@ def enrich_model(
         base_metadata, base_config, _ = resolve_project_with_lockfile(
             project_dir, use_lockfile, pitloom_config
         )
+        # Accepted, but given for the project's SBOM, not this fragment: a
+        # fingerprint of them that matches nothing here is not stale.
+        accepted = accepted.inheriting(base_config.credential_policy)
         # An sdist's directory is not its project, as in its base SBOM.
         resolved_registry = resolve_registry(
             id_registry,
             base_config.id_registry,
             registry_base_dir(project_dir),
+            refuse_credentials=accepted.refuse,
         )
         base_doc_identity = _doc_identity_of(
             project_dir, base_metadata, resolved_registry
         )
-        accepted = accepted.union(base_config.credential_policy)
 
     model = _read_local_model(model_path)
     # Calling enrich_model() is itself the opt-in, so the config's enrich

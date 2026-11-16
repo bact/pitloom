@@ -315,10 +315,17 @@ PURL or an scp-style address (`alice:password@host:path`, a dotless one
 such as `build:42@ci:linux` too) and holds user information, a secret query
 value (`token`, `api_key`, `signature`...) or an access token (`ghp_...`),
 or a query nested or encoded too deeply to read (more than 16 `?`, or a
-PURL qualifier still encoded after five decodes), is refused for `-e` and
-`register()` (`credentials-unsafe/registry`), and skipped, with a warning,
-for an SBOM element that `id import` or a run's harvest reads (its key or
-its `spdxId`). A credential percent-encoded in a PURL qualifier counts,
+PURL qualifier still encoded after five decodes), is stored with a
+`WARNING:` for `-e` and `register()` by default (`WARNING: URL=<url>: ...; the
+ID registry stores the key as written [credentials-unsafe/registry]`), and
+refused in the `refuse` mode (`--refuse-url-credentials`, `url-credentials =
+"refuse"`, `refuse_credentials=True`); it is skipped, with a warning, in either
+mode, for an SBOM element that `id import` or a run's harvest reads (its key
+or its `spdxId`). `loom id generate` and `loom id import` read the project's
+`url-credentials` when no `-o` is given, as for the registry's location, or
+when `--project-dir` is given (with `-o`, a config that cannot be read is
+warned of and the `warn` mode applies). A credential percent-encoded in a PURL
+qualifier counts,
 and so does a URL or an access token anywhere in a key or an id (a key is
 an identifier, never prose: `urn:x:https://user:pw@host/ns`,
 `src/https:/user:pw@host/x`). A `code`,
@@ -328,16 +335,20 @@ address), are kept as written. A `software_File` key is a
 file name, not an address, so it is never refused as an scp-style address.
 
 A registry file that already holds such a key or `spdxId` (written by hand,
-or by Pitloom 0.24.0 or earlier) is **not loaded**, and is left as it is:
-nothing is dropped or rewritten. `IdRegistry.load()` and
-`IdRegistry.rebase()` (the re-read before a save) raise, and every command
-that reads the registry stops with one `ERROR:`, shown masked: `ERROR:
+by a run in the `warn` mode, or by Pitloom 0.24.0 or earlier) is loaded as it
+is by default, with one `WARNING:` per entry (`...; ID registry file '<path>'
+is loaded as it is; remove the entry`). In the `refuse` mode it is **not
+loaded**, and is left as it is: nothing is dropped or rewritten.
+`IdRegistry.load()` and `IdRegistry.rebase()` (the re-read before a save)
+raise, and every command that reads the registry stops with one `ERROR:`,
+shown masked: `ERROR:
 URL=https://***:***@host/model: holds user information, a secret query value
 or an access token, or a query nested or encoded too deeply to read; ID
-registry file <file> is not loaded; remove the entry
+registry file '<path>' is not loaded; remove the entry
 [credentials-unsafe/registry]`. Remove that entry from the file yourself
 (the first in key order is named, the key's when both the key and the id hold
 one), and run again. The credential is still in the file's version history:
-rotate it. A file whose `namespace` holds one does not load either. The same
+rotate it. A file whose `namespace` holds one does not load, in either
+mode. The same
 rule, and the fields of an SBOM it covers: [Credentials in
 URLs](url-credentials.md#id-registry).

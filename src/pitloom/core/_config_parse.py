@@ -45,7 +45,7 @@ from pitloom.core._config_types import (
     PitloomConfig,
 )
 from pitloom.core.creation import Creator, Tool
-from pitloom.core.credential_policy import read_accept_key
+from pitloom.core.credential_policy import read_accept_key, read_mode_key
 from pitloom.core.file_names import (
     CONFIG_BASENAME_LABEL,
     is_plain_file_name,
@@ -398,6 +398,7 @@ def parse_pitloom_config(
     )
     offline = _read_offline_setting(pitloom_data)
     use_lockfile = _read_use_lockfile_setting(pitloom_data)
+    table = "[tool:pitloom]" if is_setup_cfg else "[tool.pitloom]"
 
     creators = _read_creators(pitloom_data)
     tools = _apply_no_creation_tool(creation_data, _read_tools(pitloom_data))
@@ -439,9 +440,8 @@ def parse_pitloom_config(
         content_type_overrides=content_type_overrides,
         offline=offline,
         use_lockfile=use_lockfile,
-        accept_url_credentials=read_accept_key(
-            pitloom_data, table="[tool:pitloom]" if is_setup_cfg else "[tool.pitloom]"
-        ),
+        accept_url_credentials=read_accept_key(pitloom_data, table=table),
+        url_credentials=read_mode_key(pitloom_data, table=table),
     )
 
 

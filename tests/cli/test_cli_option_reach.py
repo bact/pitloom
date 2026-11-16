@@ -167,7 +167,7 @@ _REACH: dict[str, Callable[[dict[str, Any]], bool]] = {
         getattr(_creation(kw), "creation_comment", None) == _MARKER
     ),
     "--accept-url-credential": lambda kw: _policy(kw).accepted == {_FINGERPRINT},
-    "--allow-url-credentials": lambda kw: _policy(kw).allow_all is True,
+    "--refuse-url-credentials": lambda kw: _policy(kw).refuse is True,
 }
 
 

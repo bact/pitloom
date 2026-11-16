@@ -23,9 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core._config_legacy import _table
-from pitloom.core.credential_policy import ALLOW_KEY
 from pitloom.logging_config import warn_once
-from pitloom.messages.url_credentials import say_config_cli_only
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +35,6 @@ KNOWN_KEYS: dict[str, frozenset[str]] = {
     "": frozenset(
         {
             "accept-url-credentials",
-            "allow-url-credentials",
             "content-type",
             "creation",
             "creation-comment",
@@ -62,6 +59,7 @@ KNOWN_KEYS: dict[str, frozenset[str]] = {
             "sbom-basename",
             "scan-model-usage",
             "update-id-registry",
+            "url-credentials",
             "use-lockfile",
         }
     ),
@@ -112,12 +110,6 @@ KNOWN_ENTRY_KEYS: dict[tuple[str, str], frozenset[str]] = {
         }
     ),
 }
-
-
-#: ``[tool.pitloom]`` keys that are known but never read: a setting only the
-#: command line takes, which a project's own file must not make (a later run
-#: would inherit it unseen).
-CLI_ONLY_KEYS: frozenset[str] = frozenset({ALLOW_KEY})
 
 
 def _label(is_setup_cfg: bool, name: str) -> str:
@@ -192,17 +184,6 @@ def _entry_label(is_setup_cfg: bool, name: str, key: str) -> str:
     return f"[[tool.pitloom.{'.'.join(filter(None, (name, key)))}]]"
 
 
-def _warn_cli_only(pitloom_data: dict[str, Any], *, is_setup_cfg: bool) -> None:
-    """One ``WARNING:`` per :data:`CLI_ONLY_KEYS` key present in
-    *pitloom_data* (:func:`~pitloom.messages.url_credentials.say_config_cli_only`,
-    said once per key and table): the key is ignored, whatever its value
-    (which is never quoted)."""
-    label = _label(is_setup_cfg, "")
-    for key in sorted(CLI_ONLY_KEYS):
-        if key in pitloom_data:
-            say_config_cli_only(key, table=label)
-
-
 def warn_unknown_keys(
     pitloom_data: dict[str, Any], *, is_setup_cfg: bool, source: str | None = None
 ) -> None:
@@ -215,11 +196,7 @@ def warn_unknown_keys(
     *is_setup_cfg* names the table as ``[tool:pitloom]`` does; *source* is
     the file it came from, named in the message and part of what a warning
     is deduplicated on (``None`` for a table that did not come from a file).
-
-    A known key that only the command line may set (:data:`CLI_ONLY_KEYS`)
-    warns too: it is ignored.
     """
-    _warn_cli_only(pitloom_data, is_setup_cfg=is_setup_cfg)
     for name, known in KNOWN_KEYS.items():
         table = pitloom_data.get(name) if name else pitloom_data
         if isinstance(table, dict):

@@ -150,13 +150,28 @@ Other arguments that mirror a CLI flag or config key:
   that is not an integer of at least 1 (`True` included) raises `ValueError`
   on every target.
 - `credentials=CredentialPolicy(...)` (every generator function,
-  `loom.Run`; `ConfigOverrides.credentials` for `embed_wheel_sbom()`):
-  `--accept-url-credential` (`accepted=`) and `--allow-url-credentials`
-  (`allow_all=True`), added to the config's `accept-url-credentials`. Without
-  it, an SBOM with a URL field that holds a credential raises `ValueError`
-  (`credentials-unsafe/refused`) and nothing is written; see [Credentials in
-  URLs](url-credentials.md#by-surface). `IdRegistry.register()` raises for a
-  key that holds one.
+  `loom.Run`; `ConfigOverrides.credentials` for `embed_wheel_sbom()`;
+  `generate_merged_sbom()`, keyword only, which reads no config):
+  `--accept-url-credential` (`accepted=`) and `--refuse-url-credentials`
+  (`refuse=True`), added to the config's `accept-url-credentials` and
+  `url-credentials` (`PitloomConfig(url_credentials="refuse")`; `refuse=True`
+  turns refusal on, never off). By default (the `warn` mode) an SBOM with a URL
+  field that holds a credential is written, and one `WARNING:` per value is
+  logged, ending with `credentials=CredentialPolicy(refuse=True)`. In the
+  `refuse` mode it raises `ValueError` (`credentials-unsafe/refused`) and
+  nothing is written; the `ERROR:` line of each value is logged and ends with
+  the way to accept it (`credentials=CredentialPolicy(accepted=["<fingerprint>"])`);
+  see [Credentials in URLs](url-credentials.md#by-surface). A `PitloomConfig`
+  or `CredentialPolicy` whose fingerprint or mode is not one raises
+  `ValueError` when it is built, not at its first use.
+  `IdRegistry.register()` stores a key that holds one with a `WARNING:`, or
+  raises for it when the registry was made with `refuse_credentials=True`.
+  An `IdRegistry` passed as `id_registry=` takes the run's mode: one loaded
+  in the default `warn` mode (an entry that holds a credential said with a
+  `WARNING:` at load) and passed to a run that refuses is checked again and
+  raises `ValueError` (`credentials-unsafe/registry`) for that entry; one
+  made with `refuse_credentials=True` stays in the `refuse` mode in a `warn`
+  run.
 - `id_registry=`: `--id-registry`; see [Loom ID
   registry](id-registry.md#from-python).
 - `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an

@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The one rule for a credential in what the ID registry stores as written:
-a key, an element id and the namespace.
+a key, an element id and the namespace. A key given follows the run's
+``url-credentials`` mode (refused in ``refuse``, stored with a ``WARNING:``
+in ``warn``); a namespace is refused in either mode.
 
 See also: :func:`pitloom.core.url_masking.holds_url_credentials` (what a
 credential is), :mod:`pitloom.id_registry._registry` (``register()`` and
@@ -13,6 +15,8 @@ harvest leaves out) and :mod:`pitloom.cli.id` (``id generate -e``).
 """
 
 from __future__ import annotations
+
+import logging
 
 from pitloom.core.iri import (
     NAMESPACE_CREDENTIALS,
@@ -24,9 +28,11 @@ from pitloom.id_registry._types import FILE_TYPE
 from pitloom.messages.url_credentials import (
     registry_key_credentials_error,
     registry_namespace_credentials_error,
+    warn_registry_key_kept,
 )
 
 __all__ = [
+    "check_key_credentials",
     "id_holds_credentials",
     "key_holds_credentials",
     "require_key_without_credentials",
@@ -49,20 +55,40 @@ def key_holds_credentials(type_name: str, name: str) -> bool:
 
 def id_holds_credentials(spdx_id: str) -> bool:
     """Whether the element id *spdx_id* holds credentials, a URL anywhere
-    in it included: any user information counts, as in a namespace."""
-    return holds_url_credentials(spdx_id, embedded=True)
+    in it included. An ``ssh`` or ``git`` account name alone (``git@``) is
+    none, as in a key and in an SBOM's id (a model named
+    ``ssh://git@github.com/o/m`` mints one); a namespace still refuses it."""
+    return holds_url_credentials(spdx_id, account=True, embedded=True)
+
+
+log = logging.getLogger("pitloom.id_registry")
+
+
+def check_key_credentials(type_name: str, name: str, *, refuse: bool) -> None:
+    """When the registry key *name* of *type_name* holds credentials
+    (:func:`key_holds_credentials`): raise with *refuse* (the ``refuse``
+    mode), else one ``WARNING:`` that it is stored as written.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``credentials-unsafe/registry``,
+            the key shown masked, with *refuse* only.
+    """
+    if not key_holds_credentials(type_name, name):
+        return
+    if refuse:
+        raise registry_key_credentials_error(name)
+    warn_registry_key_kept(log, name)
 
 
 def require_key_without_credentials(type_name: str, name: str) -> None:
     """Raise unless the registry key *name* of *type_name* holds no
-    credentials (:func:`key_holds_credentials`).
+    credentials: :func:`check_key_credentials` in the ``refuse`` mode.
 
     Raises:
         pitloom.messages.CodedValueError: ``credentials-unsafe/registry``,
             the key shown masked.
     """
-    if key_holds_credentials(type_name, name):
-        raise registry_key_credentials_error(name)
+    check_key_credentials(type_name, name, refuse=True)
 
 
 def require_registry_namespace(namespace: str) -> str:

@@ -422,10 +422,13 @@ Available on `project`/`generate`/`model`/`enrich`/`wheel`/`embed-wheel`/`env`
   beats `--config`'s `max-model-extract-bytes` (512 MiB by default). A
   positive integer: `0` or a negative value exits 2, even where it has no
   effect.
-- `--accept-url-credential FINGERPRINT` (repeatable) and
-  `--allow-url-credentials` (also on `merge`) -- let one URL field value that
-  holds a credential, or every one, into the SBOM; otherwise it is refused and
-  no SBOM is written. See [Credentials in URLs](url-credentials.md).
+- `--refuse-url-credentials` (also on `merge`, `id generate` and `id import`)
+  -- write no SBOM (exit 1) when a URL field value holds a credential; by
+  default the SBOM is written with one `WARNING:` per value. Same as
+  `url-credentials = "refuse"` in `[tool.pitloom]`; recommended in CI.
+  `--accept-url-credential FINGERPRINT` (repeatable, also on `merge`) accepts
+  one such value: it is no longer refused, and is warned of more quietly. See
+  [Credentials in URLs](url-credentials.md).
 
 `--enrich`/`--no-enrich`: see [Enrich an SBOM](#enrich-an-sbom).
 `--allow-build`/`--no-build-isolation`/`--build-timeout` (only on `project`/

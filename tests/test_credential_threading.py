@@ -3,13 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The credential policy is threaded through every route to the SBOM, and a
-refused SBOM leaves the ID registry as it was.
+"""The credential policy is threaded through every route to the SBOM: in
+the ``refuse`` mode a refused SBOM leaves the ID registry as it was; in the
+default ``warn`` mode the same run writes the SBOM and saves its ids.
 
 Every public SBOM-producing entry point takes ``credentials``, and it is
-united with the config's ``accept-url-credentials``, never replacing it. The
-SBOM is serialised (and so checked) before the registry is saved and before
-the output is written.
+united with the config's ``accept-url-credentials`` and ``url-credentials``,
+never replacing them. The SBOM is serialised (and so checked) before the
+registry is saved and before the output is written.
 
 See also: tests/test_credential_surfaces.py (the surfaces and their streams),
 tests/export/test_spdx3_credentials.py (the check itself) and
@@ -64,7 +65,9 @@ _NS = "https://ids.example/ns"
 HOME = "https://b:T0KEN@e.example/h?api_key=S3CRET"
 DEP = "foo @ https://a:S3CRET@h.example/x.whl?token=T0KEN"
 #: A fingerprint as a refusal prints it.
-_OFFERED = re.compile(r"--accept-url-credential (sha256:[0-9a-f]{16})")
+_OFFERED = re.compile(r", (sha256:[0-9a-f]{16})\); remove it")
+#: The ``refuse`` mode, nothing accepted.
+_REFUSE = CredentialPolicy(refuse=True)
 
 #: Every public entry point that writes an SBOM or a fragment, by name.
 ENTRY_POINTS: dict[str, Callable[..., object]] = {
@@ -206,29 +209,34 @@ def _offered(text: str) -> list[str]:
     return sorted(set(_OFFERED.findall(text)))
 
 
+@pytest.mark.parametrize("by", ["keyword", "config"])
 @pytest.mark.parametrize("route", sorted(ROUTES))
 def test_a_refused_sbom_leaves_the_registry_and_the_output_alone(
-    route: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    route: str, by: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Refused (the ``credentials`` keyword's ``refuse``, or the config's
+    ``url-credentials``); the default ``warn`` run writes and saves."""
     monkeypatch.chdir(tmp_path)
     registry = _registry(tmp_path)
     before = registry.read_bytes()
+    keyword = _REFUSE if by == "keyword" else None
+    config = PitloomConfig(url_credentials="refuse") if by == "config" else None
     with pytest.raises(ValueError) as caught:
-        ROUTES[route](tmp_path, registry, None, None)
+        ROUTES[route](tmp_path, registry, keyword, config)
     assert code_of(caught.value) == _REFUSED
     assert registry.read_bytes() == before
     assert not (tmp_path / "o.json").exists()
-    # Not vacuous: the same run with the credentials allowed does save ids.
-    ROUTES[route](tmp_path, registry, CredentialPolicy(allow_all=True), None)
+    # Not vacuous: the same run in the warn mode does save ids.
+    ROUTES[route](tmp_path, registry, None, None)
     assert registry.read_bytes() != before
-    assert (tmp_path / "o.json").is_file()
+    assert "S3CRET" in (tmp_path / "o.json").read_text(encoding="utf-8")
 
 
 def _fingerprints(
     route: str, tmp: Path, registry: Path, caplog: pytest.LogCaptureFixture
 ) -> list[str]:
     with pytest.raises(ValueError):
-        ROUTES[route](tmp, registry, None, None)
+        ROUTES[route](tmp, registry, _REFUSE, None)
     return _offered(caplog.text)
 
 
@@ -245,8 +253,8 @@ def test_the_keyword_is_united_with_the_config_never_replacing_it(
     registry = _registry(tmp_path)
     first, second = _fingerprints(route, tmp_path, registry, caplog)
     config = PitloomConfig(accept_url_credentials=(first,))
-    only_config = CredentialPolicy()
-    only_keyword = CredentialPolicy(accepted=frozenset({second}))
+    only_config = _REFUSE
+    only_keyword = CredentialPolicy(accepted=frozenset({second}), refuse=True)
     for given, policy in ((config, only_config), (None, only_keyword)):
         with pytest.raises(ValueError) as caught:
             ROUTES[route](tmp_path, registry, policy, given)
@@ -255,19 +263,21 @@ def test_the_keyword_is_united_with_the_config_never_replacing_it(
     assert (tmp_path / "o.json").is_file()
 
 
-def test_the_hook_reads_the_pyproject_list_only(
+def test_the_hook_reads_the_pyproject_mode_and_list(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``allow-url-credentials`` in ``pyproject.toml`` allows nothing; the
-    ``accept-url-credentials`` list does."""
+    """The hook writes by default; ``url-credentials = "refuse"`` refuses
+    unless the ``accept-url-credentials`` list accepts every value."""
     monkeypatch.chdir(tmp_path)
+    assert "S3CRET" in hook_sbom(_project(tmp_path))
+    refusing = 'url-credentials = "refuse"\n'
     with pytest.raises(ValueError) as caught:
-        hook_sbom(_project(tmp_path, "allow-url-credentials = true\n"))
+        hook_sbom(_project(tmp_path, refusing))
     assert code_of(caught.value) == _REFUSED
     listed = ", ".join(f"'{fp}'" for fp in _offered(caplog.text))
     assert listed.count("sha256:") == 2
-    sbom = hook_sbom(_project(tmp_path, f"accept-url-credentials = [{listed}]\n"))
-    assert "S3CRET" in sbom
+    accepting = f"{refusing}accept-url-credentials = [{listed}]\n"
+    assert "S3CRET" in hook_sbom(_project(tmp_path, accepting))
 
 
 def test_a_loom_run_refuses_a_fragment_and_saves_no_model_id(
@@ -292,11 +302,11 @@ def test_a_loom_run_refuses_a_fragment_and_saves_no_model_id(
             active.add_dataset("d", croissant=card)
 
     with pytest.raises(ValueError) as caught:
-        run(None)
+        run(_REFUSE)
     assert code_of(caught.value) == _REFUSED
     assert registry.read_bytes() == before
     assert not out.parent.exists()
-    run(CredentialPolicy(allow_all=True))
+    run(None)
     assert out.is_file() and registry.read_bytes() != before
 
 
@@ -313,17 +323,47 @@ def test_merge_and_embed_take_the_policy_too(
         if "software_downloadLocation" in element:
             element["software_downloadLocation"] = HOME
     (fragments / "a.json").write_text(json.dumps(data), encoding="utf-8")
-    allow = CredentialPolicy(allow_all=True)
     with pytest.raises(ValueError) as caught:
-        generate_merged_sbom(fragments, output_path=tmp_path / "m.json")
+        generate_merged_sbom(
+            fragments, output_path=tmp_path / "m.json", credentials=_REFUSE
+        )
     assert code_of(caught.value) == _REFUSED and not (tmp_path / "m.json").exists()
-    assert "S3CRET" in generate_merged_sbom(fragments, credentials=allow)
+    assert "S3CRET" in generate_merged_sbom(fragments)
 
     wheel = _wheel(tmp_path)
+    refusing = ConfigOverrides(offline=True, credentials=_REFUSE)
     with pytest.raises(ValueError) as caught:
-        embed_wheel_sbom(wheel, overrides=ConfigOverrides(offline=True))
+        embed_wheel_sbom(wheel, overrides=refusing)
     assert code_of(caught.value) == _REFUSED
     with zipfile.ZipFile(wheel) as zf:
         assert not [n for n in zf.namelist() if "/sboms/" in n]
-    overrides = ConfigOverrides(offline=True, credentials=allow)
+    overrides = ConfigOverrides(offline=True)
     assert "S3CRET" in embed_wheel_sbom(wheel, overrides=overrides)[2]
+
+
+def _safetensors(path: Path) -> Path:
+    header = json.dumps({"w": {"dtype": "F32", "shape": [1], "data_offsets": [0, 4]}})
+    data = header.encode()
+    path.write_bytes(len(data).to_bytes(8, "little") + data + b"\0\0\0\0")
+    return path
+
+
+@pytest.mark.parametrize("given", [False, True], ids=["inherited", "given"])
+def test_an_enrich_fragment_says_stale_only_what_this_run_was_given(
+    given: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The project's list accepts in the fragment too, but was given for the
+    project's SBOM: matching nothing in the fragment is said only for a
+    fingerprint given to this run."""
+    listed = "sha256:0123456789abcdef"
+    proj = _project(tmp_path, f"accept-url-credentials = ['{listed}']\n")
+    own = CredentialPolicy(accepted=frozenset([listed])) if given else None
+    with caplog.at_level("WARNING", logger="pitloom"):
+        enrich_model(
+            _safetensors(tmp_path / "m.safetensors"),
+            output_path=tmp_path / "f.json",
+            project_target=str(proj),
+            credentials=own,
+        )
+    stale = [m for m in caplog.messages if "matches no URL" in m]
+    assert len(stale) == given and (tmp_path / "f.json").exists()

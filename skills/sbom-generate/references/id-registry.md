@@ -226,17 +226,21 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   generate` only, `id import` has no such option) sets a reproducible one. A
   namespace holding user information (any user name, `ssh://git@...` too), a
   secret query value or an access token, or a query nested or encoded too
-  deeply to read, is refused; a key holding one (a URL, a PURL whose
-  qualifier holds one once percent-decoded, or an scp-style address, a
-  dotless one such as `build:42@ci:linux` too; a URL or a token anywhere in
-  a key, id or namespace counts: `urn:x:https://u:pw@h/ns`) is refused for
-  `-e`, and
-  an imported element with one is skipped (`credentials-unsafe/registry`). A
-  registry file with an entry or a namespace holding one is not loaded and
-  never rewritten (`ERROR: URL=<url>: ...; ID registry file <file> is not
-  loaded; remove the entry [credentials-unsafe/registry]`, the run stops):
-  tell the user which entry, as the line masks it, that a committed file
-  keeps it in history (rotate it), and leave the edit to them. An
+  deeply to read, is refused in either mode; a key holding one (a URL, a
+  PURL whose qualifier holds one once percent-decoded, or an scp-style
+  address, a dotless one such as `build:42@ci:linux` too; a URL or a token
+  anywhere in a key, id or namespace counts: `urn:x:https://u:pw@h/ns`) is
+  stored for `-e` with a `WARNING: ...; the ID registry stores the key as
+  written`, or refused with `--refuse-url-credentials` (or the project's
+  `url-credentials = "refuse"`, read only without `-o`), and an imported
+  element with one is skipped in either mode (`credentials-unsafe/registry`).
+  A registry file with an entry holding one is loaded with `WARNING:
+  URL=<url>: ...; ID registry file <file> is loaded as it is; remove the
+  entry`, or in the `refuse` mode not loaded and never rewritten (`ERROR:
+  ...; ID registry file <file> is not loaded; remove the entry`, the run
+  stops); one whose namespace holds one never loads. Either way tell the
+  user which entry, as the line masks it, that a committed file keeps it in
+  history (rotate it), and leave the edit to them. An
   existing registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
   (`--project-dir`, default the current directory, for both `generate` and

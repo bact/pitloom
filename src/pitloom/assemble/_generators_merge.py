@@ -49,9 +49,10 @@ def generate_merged_sbom(
     fragments. The same fragments give the same bytes, whatever the
     directory or the order the files were written in.
 
-    A fragment field holding a credential is refused unless *credentials*
-    (:class:`~pitloom.core.credential_policy.CredentialPolicy`) accepts it;
-    fragments have no ``[tool.pitloom]`` to add to it.
+    A fragment field holding a credential that *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`) does not
+    accept is warned of, or, in its ``refuse`` mode, refused; fragments
+    have no ``[tool.pitloom]`` to add to it.
 
     Raises:
         FileNotFoundError: *fragments_dir* does not exist, or is not a

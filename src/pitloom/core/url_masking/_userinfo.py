@@ -169,9 +169,11 @@ def is_account_name(scheme: str, userinfo: str) -> bool:
     token prefix
     (:data:`~pitloom.core.url_masking._tokens.TOKEN_PREFIXES`: ``ghp_``,
     ``glpat-``...).
-    ``ssh://git:PW@h`` and ``ssh://ghp_TOKEN@h`` are credentials."""
+    ``ssh://git:PW@h`` and ``ssh://ghp_TOKEN@h`` are credentials. A scheme
+    read glued to the text before it by ``-`` (an id minted from a name:
+    ``#AIPackage-ssh://git@h``) is read by its part after the last ``-``."""
     return (
-        scheme.lower() in _ACCOUNT_SCHEMES
+        scheme.lower().rpartition("-")[2] in _ACCOUNT_SCHEMES
         and _ACCOUNT.fullmatch(userinfo) is not None
         and not userinfo.startswith(TOKEN_PREFIXES)
         and sum(char.isdigit() for char in userinfo) < _ACCOUNT_DIGITS

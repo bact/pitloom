@@ -3,9 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``--accept-url-credential`` and ``--allow-url-credentials``: on every
-command that writes an SBOM, checked as fingerprints without echoing the
-value, and united with ``[tool.pitloom] accept-url-credentials``.
+"""``--accept-url-credential`` and ``--refuse-url-credentials``: on every
+command that writes an SBOM (``loom id`` takes the second alone), checked
+as fingerprints without echoing the value, and united with
+``[tool.pitloom] accept-url-credentials`` and ``url-credentials``.
 
 See also: :mod:`tests.core.test_credential_policy` (the policy itself).
 """
@@ -25,16 +26,19 @@ from pitloom.core.credential_policy import CredentialPolicy
 
 _A = "sha256:" + "a" * 16
 _B = "sha256:" + "b" * 20
-_FLAGS = ("--accept-url-credential", "--allow-url-credentials")
+_ACCEPT = "--accept-url-credential"
+_REFUSE = "--refuse-url-credentials"
+_FLAGS = (_ACCEPT, _REFUSE)
 
-#: Leaf commands that write no SBOM, so take neither flag.
-_NO_SBOM = {
-    "verify-wheel": "reads a wheel's SBOM, writes none",
-    "validate-wheel": "reads a wheel's SBOM, writes none",
-    "fragment validate": "reads an SBOM, writes none",
-    "fragment list": "lists fragments, writes no SBOM",
-    "id generate": "writes an ID registry, which refuses credentials itself",
-    "id import": "writes an ID registry, which refuses credentials itself",
+#: Leaf commands that write no SBOM, and the flags each takes all the same.
+_NO_SBOM: dict[str, tuple[str, ...]] = {
+    "verify-wheel": (),  # reads a wheel's SBOM, writes none
+    "validate-wheel": (),  # reads a wheel's SBOM, writes none
+    "fragment validate": (),  # reads an SBOM, writes none
+    "fragment list": (),  # lists fragments, writes no SBOM
+    # An ID registry key or file entry follows the mode; no fingerprint.
+    "id generate": (_REFUSE,),
+    "id import": (_REFUSE,),
 }
 
 
@@ -66,8 +70,16 @@ def test_every_sbom_command_takes_both_flags() -> None:
     assert set(_NO_SBOM) <= set(leaves), sorted(set(_NO_SBOM) - set(leaves))
     for path, parser in sorted(leaves.items()):
         has = set(_FLAGS) & _options(parser)
-        expected = set() if path in _NO_SBOM else set(_FLAGS)
+        expected = set(_NO_SBOM.get(path, _FLAGS))
         assert has == expected, path
+
+
+@pytest.mark.parametrize("command", ["generate", "import"])
+def test_id_takes_the_refuse_flag(command: str) -> None:
+    target = "s.json" if command == "import" else "."
+    assert _parse("id", command, target).refuse_url_credentials is None
+    args = _parse("id", command, target, _REFUSE)
+    assert args.refuse_url_credentials is True
 
 
 def _parse(*argv: str) -> argparse.Namespace:
@@ -85,11 +97,13 @@ def test_flags_give_a_policy(command: tuple[str, ...]) -> None:
         _A,
         "--accept-url-credential",
         _B,
-        "--allow-url-credentials",
+        _REFUSE,
     )
     assert credential_policy_from_args(args) == CredentialPolicy(
-        accepted=frozenset({_A, _B}), allow_all=True
+        accepted=frozenset({_A, _B}), refuse=True
     )
+    refuse_only = credential_policy_from_args(_parse(*command, _REFUSE))
+    assert refuse_only == CredentialPolicy(refuse=True)
 
 
 @pytest.mark.parametrize(
@@ -112,25 +126,29 @@ def test_a_bad_fingerprint_is_refused_without_echo(
 
 
 def test_cli_and_pyproject_fingerprints_unite() -> None:
-    cfg = parse_pitloom_config(
-        {
-            "tool": {
-                "pitloom": {"accept-url-credentials": [_A], "allow-url-credentials": 1}
-            }
-        }
-    )
+    cfg = parse_pitloom_config({"tool": {"pitloom": {"accept-url-credentials": [_A]}}})
     args = _parse("wheel", "x.whl", "--accept-url-credential", _B)
     merged = apply_overrides(cfg, overrides_from_options(run_options(args, cfg)))
     assert merged.accept_url_credentials == (_A, _B)
-    assert not merged.allow_url_credentials
+    assert merged.url_credentials == "warn"
     flagged = apply_overrides(
         cfg,
-        overrides_from_options(
-            run_options(_parse("wheel", "x.whl", "--allow-url-credentials"), cfg)
-        ),
+        overrides_from_options(run_options(_parse("wheel", "x.whl", _REFUSE), cfg)),
     )
     assert flagged.accept_url_credentials == (_A,)
-    assert flagged.allow_url_credentials
+    assert flagged.url_credentials == "refuse"
+
+
+def test_a_flag_without_refuse_keeps_the_pyproject_refuse_mode() -> None:
+    """CLI > pyproject > default, as far as a store-true flag goes: there is
+    no flag to turn the project's refusal off."""
+    cfg = parse_pitloom_config({"tool": {"pitloom": {"url-credentials": "refuse"}}})
+    args = _parse("wheel", "x.whl", _ACCEPT, _B)
+    merged = apply_overrides(cfg, overrides_from_options(run_options(args, cfg)))
+    assert merged.url_credentials == "refuse"
+    assert merged.credential_policy == CredentialPolicy(
+        accepted=frozenset({_B}), refuse=True
+    )
 
 
 def test_omitted_flags_leave_the_config_unchanged() -> None:

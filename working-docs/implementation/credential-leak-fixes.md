@@ -27,6 +27,15 @@ an SBOM or registry file holding a credential is refused
 Below, "strip" and "kept" describe PR 487 and PR 1 unless a line says
 otherwise.
 
+Revised 2026-11-16 (still PR 2): the default is now **warn**: the SBOM is
+written with `WARNING: ... [credentials-unsafe/written]`; refusing is opt in
+(`url-credentials = "refuse"`, `--refuse-url-credentials`,
+`CredentialPolicy(refuse=True)`). A registry key or file entry follows the
+mode; a credentialed namespace is refused in both. Where this page says
+"refused" for PR 2, read "refused in the `refuse` mode". Decision record:
+"Decision record: warn by default" in
+[credential-detect-and-refuse.md](../design/credential-detect-and-refuse.md).
+
 ## Root cause
 
 Masking was per call site, so a forgotten site leaked, and the places that
@@ -71,8 +80,10 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   not covered; `excerpt()`
   and `one_line()` mask before they cut; `kv_line` masks only a value that
   holds a URL; `InvalidURL` text is cut to its class.
-- **SBOM** (PR 2): `export/_spdx3_credentials.py` reads the URL-typed
-  fields of the whole `@graph` (and Pitloom's provenance notes) at the one
+- **SBOM** (PR 2, PR 490): `export/_spdx3_credentials/` reads the URL-typed
+  fields of the whole `@graph` (the reference fields as ids too, an `identifier`
+  of any type, an id percent-decoded, every string of Pitloom's JSON statements
+  and each segment of its provenance comment) at the one
   place every surface passes (`Spdx3JsonExporter.to_json`), plus
   `embed-wheel --sbom`, and refuses the SBOM when one holds a credential
   the run does not accept by fingerprint; nothing is rewritten. The dataset
@@ -83,7 +94,8 @@ refusal, git splitter). Fixes act at the sinks and from one shared rule.
   namespace or key (`id_registry/_credentials.py`); `id import` and harvest
   skip such an element with a warning; since PR 2 `IdRegistry.load()` and
   `rebase()` (the re-read before a save) refuse a file holding such an
-  entry or namespace (`REGISTRY_FILE_REFUSED_LINE`, same code) and never
+  entry or namespace (`REGISTRY_FILE_REFUSED_LINE`, the path quoted, same
+  code) and never
   rewrite it (PR 487 dropped the entry). A
   `software_File` key is a file name, never refused as an scp-style
   address.
@@ -110,6 +122,16 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
   percent-encoded URL nested in a query value outside a `pkg:` string
   (`?next=https%3A%2F%2Fu%3Ap%40h`). `@[::1]` hosts and `;jsessionid=`
   path parameters are read by the detector and the masker.
+- Not detected after PR 490 (each run through the detector on 2026-11-16): a
+  `|` in a requirement's password (Pitloom writes it as `/`); the no-slash
+  `https:u:p@h` form; a JSON statement's or metadata *key* that is a
+  credentialed URL (its values are read); prose fields such as a dataset
+  `name` that is a URL (by ruling); free strings not typed as a URL
+  (`hashValue`, `software_attributionText`, `standardName`,
+  `software_packageVersion`); `DictionaryEntry` values; a JSON statement
+  nested too deeply for `json.loads` (a merged fragment can hold one); a
+  GitLab (`glpat-`) or Google (`AIza`) key lacking a digit or either letter
+  case; a legacy OpenAI `sk-` key without `proj-`, `svcacct-` or `admin-`.
 - Third-party `warnings.warn` text, Hatchling's own traceback and `urllib3`
   log lines print the raw text; the Action does not `::add-mask::` its source
   inputs and has no input of its own for the credential flags (PR 3); a line break in a password can split a traceback line so that its

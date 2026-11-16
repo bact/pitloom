@@ -297,31 +297,40 @@ in the generated SBOM.
 A URL a project declares (a direct dependency, a project URL, a dataset's
 download URL and the PURL built from it) may hold a user name or password, a
 query parameter named like a secret (`token`, `key`, `signature`, `session_id`)
-or an access token. An SBOM can be published, so Pitloom **refuses** it: it
-never rewrites the URL. Each value is one `ERROR:` line naming the value
-(masked), the element and field that hold it and a fingerprint; a count line
-follows, no SBOM is written and the command exits 1.
+or an access token. An SBOM can be published, so Pitloom says so loudly; it
+never rewrites the URL. By default (the `warn` mode) the SBOM is written as it
+is, with one `WARNING:` line per value naming the value (masked), the element
+and field that hold it and a fingerprint, and the command exits 0:
 
 ```text
-ERROR: loom project: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:097e66a989dc2cca); remove it from the source, or accept this value with --accept-url-credential sha256:097e66a989dc2cca [credentials-unsafe/refused]
-ERROR: loom project: 1 URL value(s) in the SBOM hold credentials; no SBOM is written [credentials-unsafe/refused]
+WARNING: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); the SBOM states it as written; remove it from the source, or refuse such values with --refuse-url-credentials [credentials-unsafe/written]
+```
+
+With `url-credentials = "refuse"` in `[tool.pitloom]` or
+`--refuse-url-credentials` (recommended in CI), each value is one `ERROR:`
+line instead; a count line follows, the SBOM is refused (none is written) and
+the command exits 1.
+
+```text
+ERROR: loom project: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); remove it from the source, or accept this value with --accept-url-credential sha256:64a27d8a8c117f80 [credentials-unsafe/refused]
+ERROR: loom project: 1 URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
 ```
 
 Remove the credential from the source, and treat one that was in a project
 file as exposed. A value you know is no secret (an example URL) is accepted
 alone with `--accept-url-credential` and its fingerprint, or
 `accept-url-credentials` in `[tool.pitloom]`; the SBOM then states it as
-written, with a `WARNING:`.
+written, with a quieter `WARNING:`, in either mode.
 
 A parameter named `code`, `session`, `ticket`, `sid` or `otp`, which holds a
 secret only sometimes, and a user name alone on an `ssh` or `git` URL
-(`ssh://git@github.com/o/r`) are not refused. The SBOM states them as written
+(`ssh://git@github.com/o/r`) are only warned of, in either mode. The SBOM states them as written
 and says so once per value, masked: `holds a code, session, ticket, sid, otp or
 other _key parameter or an ssh user name; the SBOM states it as written`.
 
-Only URL-typed fields and Pitloom's own provenance notes (such as the
-direct reference a dependency is declared with) are read; a README, a
-description or a comment is prose and never refused. What is refused, the
+Only URL-typed fields and Pitloom's own provenance statements and comment
+lines (such as the direct reference a dependency is declared with) are read; a README, a
+description or a comment is prose and never read. What is found, the
 fields read, the other surfaces (library, build hook, Action, `embed-wheel
 --sbom`), the ID registry and what is not detected are in [Credentials in
 URLs](url-credentials.md).

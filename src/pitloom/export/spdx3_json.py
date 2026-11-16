@@ -40,7 +40,8 @@ log = logging.getLogger(__name__)
 # needs to name or recognise an SPDX3 JSON-LD SBOM file.
 SPDX3_JSONLD_EXTENSION = ".spdx3.json"
 
-#: The default of :meth:`Spdx3JsonExporter.to_json`: no credential accepted.
+#: The default of :meth:`Spdx3JsonExporter.to_json`: the ``warn`` mode, no
+#: credential accepted.
 _ACCEPT_NONE = CredentialPolicy()
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
@@ -558,8 +559,9 @@ class Spdx3JsonExporter:
         *,
         credentials: CredentialPolicy = _ACCEPT_NONE,
     ) -> str:
-        """Export to JSON-LD string, refused when a URL-typed field holds a
-        credential *credentials* does not accept
+        """Export to JSON-LD string, a ``WARNING:`` per URL-typed field
+        value that holds a credential *credentials* does not accept, or
+        refused for one in its ``refuse`` mode
         (:func:`pitloom.export._spdx3_credentials.check_graph_credentials`,
         run last, on the graph as written).
 
@@ -573,16 +575,18 @@ class Spdx3JsonExporter:
             describe_relationship: If True, add a ``description`` of the form
                 ``<from name> <relationship type>: <to names>`` to every
                 ``Relationship``.
-            credentials: The credentials the output may hold; the default
-                accepts none, so a caller that forgets to pass the run's
-                policy fails closed.
+            credentials: The credentials the output may hold and the mode;
+                the default accepts none in the ``warn`` mode, so a caller
+                that forgets to pass the run's policy warns, never fails a
+                build the user did not ask to fail.
 
         Returns:
             str: JSON-LD representation
 
         Raises:
-            pitloom.messages.CodedValueError: ``credentials-unsafe/refused``,
-                after one ``ERROR:`` line per refused value.
+            pitloom.messages.CodedValueError: ``credentials-unsafe/refused``
+                (the ``refuse`` mode), after one ``ERROR:`` line per refused
+                value.
         """
         out_f = io.BytesIO()
         serializer = spdx3.JSONLDSerializer()

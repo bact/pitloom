@@ -16,8 +16,6 @@ from __future__ import annotations
 from pitloom.messages._config_unsafe import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_BUILD_CODE,
-    CONFIG_UNSAFE_CLI_ONLY,
-    CONFIG_UNSAFE_CLI_ONLY_LINE,
     CONFIG_UNSAFE_PYPI_LINE,
     CONFIG_UNSAFE_REMOTE_LINE,
 )
@@ -47,6 +45,7 @@ from pitloom.messages._input_not_found_say import (
 )
 from pitloom.messages._sbom_input import (
     NOT_SPDX3_LINE,
+    SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
     SBOM_INVALID,
@@ -78,8 +77,6 @@ from pitloom.messages._target_input import (
 __all__ = [
     "CONFIG_UNSAFE",
     "CONFIG_UNSAFE_BUILD_CODE",
-    "CONFIG_UNSAFE_CLI_ONLY",
-    "CONFIG_UNSAFE_CLI_ONLY_LINE",
     "CONFIG_UNSAFE_PYPI_LINE",
     "CONFIG_UNSAFE_REMOTE_LINE",
     "FRAGMENT_LINE",
@@ -111,6 +108,7 @@ __all__ = [
     "PROJECT_NOT_FOUND_LINE",
     "PROJECT_NOT_FOUND_MODEL_FILES",
     "REQUIRED_FRAGMENT_LINE",
+    "SBOM_DUPLICATE_KEY_LINE",
     "SBOM_GRAPH_ELEMENT_LINE",
     "SBOM_NAMESPACE_LINE",
     "SBOM_GRAPH_NOT_LIST_LINE",

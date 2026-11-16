@@ -3,17 +3,19 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which URL credentials a run lets into its SBOM: the fingerprint of a
-value, and the policy that accepts one.
+"""What a run does with a URL credential in its SBOM: the fingerprint of a
+value, and the policy that accepts one or refuses the SBOM.
 
-An SBOM field whose value holds a credential is refused unless the run
-accepts that exact value, by its fingerprint (``--accept-url-credential``,
-``[tool.pitloom] accept-url-credentials``), or every value
-(``--allow-url-credentials``, CLI and library only: a ``pyproject.toml``
-setting set once for an example URL would later let a real token through
-unseen). The fingerprint is the SHA-256 of the whole field value as it
-stands in the output, so it is the same on every platform and never shows
-the credential.
+A run has one of two modes (``[tool.pitloom] url-credentials``,
+``--refuse-url-credentials``, :attr:`CredentialPolicy.refuse`). ``warn``,
+the default, writes an SBOM field whose value holds a credential as it is,
+with a loud ``WARNING:``: Pitloom runs in CI and build hooks and must not
+fail them by default. ``refuse`` writes no SBOM unless the run accepts each
+such value by its fingerprint (``--accept-url-credential``,
+``[tool.pitloom] accept-url-credentials``); an accepted value is warned of
+more quietly in either mode. The fingerprint is the SHA-256 of the whole
+field value as it stands in the output, so it is the same on every
+platform and never shows the credential.
 
 No leading underscore: imported from outside ``pitloom.core``. Imports
 nothing from Pitloom but the internal error and the messages it raises
@@ -37,30 +39,45 @@ from pitloom.messages.options import (
     FINGERPRINT_ARRAY_LINE,
     FINGERPRINT_ENTRY_LINE,
     FINGERPRINT_LINE,
+    FINGERPRINT_PATTERN,
     FINGERPRINT_SHAPE,
     OPTION_INVALID,
+    REFUSE_ARGUMENT_LINE,
+    URL_CREDENTIALS_MODE_ARGUMENT_LINE,
+    URL_CREDENTIALS_MODE_LINE,
 )
 
 __all__ = [
     "ACCEPT_KEY",
-    "ALLOW_KEY",
     "FINGERPRINT_RE",
     "FINGERPRINT_SHAPE",
+    "MODE_KEY",
+    "MODE_REFUSE",
+    "MODE_WARN",
     "CredentialPolicy",
     "fingerprint",
     "full_fingerprint",
     "read_accept_key",
+    "read_mode_key",
     "require_fingerprint",
+    "require_mode",
 ]
 
-#: A fingerprint as printed (16 hex digits) or given (16 to 64), lowercase.
-FINGERPRINT_RE: Final = re.compile(r"sha256:[0-9a-f]{16,64}")
+#: A fingerprint as printed (16 hex digits) or given (16 to 64), lowercase:
+#: the pattern a message line's fingerprint field has, so the two never
+#: disagree.
+FINGERPRINT_RE: Final = re.compile(FINGERPRINT_PATTERN)
 
 #: The ``[tool.pitloom]`` key listing accepted fingerprints.
 ACCEPT_KEY: Final = "accept-url-credentials"
-#: The ``[tool.pitloom]`` spelling of ``--allow-url-credentials``: known, so
-#: never an unknown-key warning, and never read (CLI and library only).
-ALLOW_KEY: Final = "allow-url-credentials"
+#: The ``[tool.pitloom]`` key naming the mode: :data:`MODE_WARN` (the
+#: default) or :data:`MODE_REFUSE`.
+MODE_KEY: Final = "url-credentials"
+#: Write a credential found as it is, with a ``WARNING:``.
+MODE_WARN: Final = "warn"
+#: Write no SBOM while a credential found is not accepted.
+MODE_REFUSE: Final = "refuse"
+_MODES: Final = frozenset({MODE_WARN, MODE_REFUSE})
 
 _PREFIX: Final = "sha256:"
 #: Hex digits of a printed fingerprint.
@@ -127,23 +144,33 @@ class CredentialPolicy:
             the full fingerprint of a value it accepts: the printed 16-digit
             one, or a longer one. Any iterable of strings is taken and kept
             as a ``frozenset``.
-        allow_all: Accept every credential (``--allow-url-credentials``).
-            Set by the CLI or a library caller only, never from
-            ``[tool.pitloom]``. :meth:`accepts` does not read it: the caller
-            tells the two apart, since each is reported differently.
+        refuse: Refuse the SBOM while a credential found is not accepted
+            (the ``refuse`` mode: ``--refuse-url-credentials``,
+            ``url-credentials = "refuse"``); ``False``, the ``warn`` mode,
+            writes it with a ``WARNING:`` per value.
+        inherited: Fingerprints accepted as *accepted* are, from another
+            target's settings (the project an enrichment fragment merges
+            into): never reported as matching nothing, since they were
+            not given for this SBOM. An entry in both counts as *accepted*'s.
 
     Raises:
-        ValueError: an entry of *accepted* is not a fingerprint (a string
-            given for the set is read as its characters, so it fails too).
+        ValueError: an entry of *accepted* or *inherited* is not a
+            fingerprint (a string given for the set is read as its
+            characters, so it fails too), or *refuse* is not a ``bool``
+            (``1`` or ``"refuse"`` is refused, never read as either mode).
     """
 
     accepted: frozenset[str] = frozenset()
-    allow_all: bool = False
+    refuse: bool = False
+    inherited: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         entries = frozenset(require_fingerprint(entry) for entry in self.accepted)
         object.__setattr__(self, "accepted", entries)
-        object.__setattr__(self, "allow_all", self.allow_all is True)
+        if not isinstance(self.refuse, bool):
+            raise CodedValueError(OPTION_INVALID, line=REFUSE_ARGUMENT_LINE)
+        inherited = frozenset(require_fingerprint(entry) for entry in self.inherited)
+        object.__setattr__(self, "inherited", inherited)
 
     def accepts(self, digest: str) -> bool:
         """Whether an accepted entry is a prefix of (or equal to) *digest*,
@@ -159,20 +186,36 @@ class CredentialPolicy:
         """
         if not isinstance(digest, str) or FINGERPRINT_RE.fullmatch(digest) is None:
             raise InternalError(f"accepts() takes a fingerprint ({FINGERPRINT_SHAPE})")
-        return any(digest.startswith(entry) for entry in self.accepted)
+        entries = self.accepted | self.inherited
+        return any(digest.startswith(entry) for entry in entries)
 
     def accepts_value(self, value: str) -> bool:
-        """Whether an accepted entry is a prefix of the full fingerprint of
-        *value*, the whole field value as it stands in the output."""
-        return bool(self.accepted) and self.accepts(full_fingerprint(value))
+        """Whether an accepted (or inherited) entry is a prefix of the full
+        fingerprint of *value*, the whole field value as it stands in the
+        output."""
+        if not (self.accepted or self.inherited):
+            return False
+        return self.accepts(full_fingerprint(value))
 
     def union(self, other: CredentialPolicy) -> CredentialPolicy:
-        """Both policies at once: every entry of either, and ``allow_all``
-        if either allows all. Never narrows: a CLI flag adds to the
-        config's list, it does not replace it."""
+        """Both policies at once: every entry of either, and ``refuse`` if
+        either refuses. A CLI flag adds to the config's list, it does not
+        replace it, and ``--refuse-url-credentials`` turns refusal on, never
+        off."""
         return CredentialPolicy(
             accepted=self.accepted | other.accepted,
-            allow_all=self.allow_all or other.allow_all,
+            refuse=self.refuse or other.refuse,
+            inherited=self.inherited | other.inherited,
+        )
+
+    def inheriting(self, other: CredentialPolicy) -> CredentialPolicy:
+        """This policy, also accepting every entry of *other* (another
+        target's settings) as :attr:`inherited`, and refusing if *other*
+        refuses: that target's own run would refuse the value anyway."""
+        return CredentialPolicy(
+            accepted=self.accepted,
+            refuse=self.refuse or other.refuse,
+            inherited=self.inherited | other.accepted | other.inherited,
         )
 
 
@@ -203,3 +246,33 @@ def read_accept_key(data: dict[str, Any], *, table: str = _TABLE) -> tuple[str, 
         for index, entry in enumerate(raw)
     }
     return tuple(sorted(found))
+
+
+def require_mode(value: object, *, table: str | None = _TABLE) -> str:
+    """*value* if it is a mode (:data:`MODE_WARN`, :data:`MODE_REFUSE`),
+    else an ``option-invalid`` error naming the setting of *table*, or the
+    library's ``url_credentials`` when *table* is ``None``. The value is
+    never quoted.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``option-invalid``.
+    """
+    if isinstance(value, str) and value in _MODES:
+        return value
+    if table is None:
+        raise CodedValueError(OPTION_INVALID, line=URL_CREDENTIALS_MODE_ARGUMENT_LINE)
+    raise CodedValueError(
+        OPTION_INVALID, line=URL_CREDENTIALS_MODE_LINE, table=table, setting=MODE_KEY
+    )
+
+
+def read_mode_key(data: dict[str, Any], *, table: str = _TABLE) -> str:
+    """``url-credentials`` of the config table *data* (named *table* in an
+    error), :data:`MODE_WARN` when absent.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``option-invalid``: the value is
+            not ``"warn"`` or ``"refuse"``.
+    """
+    raw = data.get(MODE_KEY)
+    return MODE_WARN if raw is None else require_mode(raw, table=table)

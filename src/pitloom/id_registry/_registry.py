@@ -37,7 +37,7 @@ from pitloom.id_registry._counters import (
     merge_counters,
 )
 from pitloom.id_registry._credentials import (
-    require_key_without_credentials,
+    check_key_credentials,
     require_registry_namespace,
 )
 from pitloom.id_registry._format import (
@@ -47,7 +47,7 @@ from pitloom.id_registry._format import (
 )
 from pitloom.id_registry._generate import index_files
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
-from pitloom.id_registry._harvest._skip import require_no_credentialed_entries
+from pitloom.id_registry._harvest._skip import check_entries_credentials
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -85,6 +85,21 @@ log = logging.getLogger("pitloom.id_registry")
 __all__ = ["IdRegistry"]
 
 
+def _require_bool(refuse_credentials: object) -> bool:
+    """*refuse_credentials* if it is a ``bool``: ``1`` or ``"refuse"`` is
+    a wrong argument, never read as either mode.
+
+    Raises:
+        TypeError: it is not a ``bool``.
+    """
+    if not isinstance(refuse_credentials, bool):
+        raise TypeError(
+            "refuse_credentials must be a bool, "
+            f"not {type(refuse_credentials).__name__}"
+        )
+    return refuse_credentials
+
+
 class IdRegistry:
     """A Loom ID registry: stable spdxIds keyed by ``(compact type, name)``,
     persisted as JSON.
@@ -94,11 +109,16 @@ class IdRegistry:
     (:meth:`lookup`). :attr:`id_counters` keeps a retired id from being
     minted again (:meth:`reserve_id`).
 
+    *refuse_credentials* is the run's ``url-credentials`` mode for a key
+    or file entry that holds a credential (:meth:`load`, :meth:`rebase`,
+    :meth:`register`): ``True`` refuses it, ``False`` (the ``warn`` mode,
+    the default) keeps it with a ``WARNING:``.
+
     Raises:
         ValueError: *namespace* cannot be a document namespace
             (:func:`~pitloom.id_registry._credentials.require_registry_namespace`:
-            ``credentials-unsafe/registry`` when it holds credentials), so
-            no id is minted in it.
+            ``credentials-unsafe/registry`` when it holds credentials, in
+            either mode), so no id is minted in it.
     """
 
     def __init__(
@@ -109,8 +129,11 @@ class IdRegistry:
         project_root: Path | None = None,
         *,
         id_counters: Counters | None = None,
+        refuse_credentials: bool = False,
     ) -> None:
         self.namespace = require_registry_namespace(namespace)
+        #: The ``refuse`` mode for a key or file entry holding a credential.
+        self.refuse_credentials = _require_bool(refuse_credentials)
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
@@ -138,8 +161,10 @@ class IdRegistry:
         *,
         namespace: str | None = None,
         project_root: Path | None = None,
+        refuse_credentials: bool = False,
     ) -> IdRegistry:
-        """Create a fresh, empty registry.
+        """Create a fresh, empty registry (*refuse_credentials*: see
+        :class:`IdRegistry`).
 
         The namespace is *namespace* (an absolute IRI without ``#`` or
         credentials; a ``ValueError`` otherwise, see :class:`IdRegistry`),
@@ -152,10 +177,17 @@ class IdRegistry:
         """
         if namespace is None:
             namespace = doc_namespace(project_name, str(uuid4()))
-        return cls(namespace=namespace, path=path, project_root=project_root)
+        return cls(
+            namespace=namespace,
+            path=path,
+            project_root=project_root,
+            refuse_credentials=refuse_credentials,
+        )
 
     @classmethod
-    def load(cls, path: str | os.PathLike[str]) -> IdRegistry:
+    def load(
+        cls, path: str | os.PathLike[str], *, refuse_credentials: bool = False
+    ) -> IdRegistry:
         """Load a registry from *path*.
 
         A file that is not there (or not a file) raises
@@ -168,14 +200,18 @@ class IdRegistry:
         :attr:`path` keeps it too). Whether a registry
         exists at all is decided upstream, by
         :func:`~pitloom.id_registry.resolve.resolve_registry`. A file with
-        an entry whose key or id holds credentials, or a namespace that
-        does, is refused (``credentials-unsafe/registry``, the value shown
+        an entry whose key or id holds credentials is refused with
+        *refuse_credentials* (the ``refuse`` mode), else loaded as it is
+        with a ``WARNING:`` per entry; one whose namespace does is refused
+        in either mode (``credentials-unsafe/registry``, the value shown
         masked): nothing is dropped or rewritten, the user edits the file.
 
         Raises:
             TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
-                included): a wrong argument, not a bad file.
+                included), or *refuse_credentials* is not a ``bool``: a
+                wrong argument, not a bad file.
         """
+        _require_bool(refuse_credentials)
         if not isinstance(path, (str, os.PathLike)):
             raise TypeError(
                 "ID registry file path must be a str or os.PathLike, "
@@ -183,17 +219,32 @@ class IdRegistry:
             )
         path = keep_spelling(Path(path), path)
         contents = read_registry_file(path)
-        require_no_credentialed_entries(contents.elements, path)
+        check_entries_credentials(contents.elements, path, refuse=refuse_credentials)
         registry = cls(
             namespace=contents.namespace,
             elements=dict(contents.elements),
             path=path,
             project_root=contents.project_root,
             id_counters=contents.id_counters,
+            refuse_credentials=refuse_credentials,
         )
         registry._on_disk = contents.elements
         registry._on_disk_namespace = contents.namespace
         return registry
+
+    def refuse_mode(self) -> None:
+        """Turn this registry to the ``refuse`` mode (a run that refuses
+        was given it loaded), checking its entries as :meth:`load` would.
+
+        Raises:
+            pitloom.messages.CodedValueError: ``credentials-unsafe/registry``:
+                an entry's key or id holds a credential; the mode is left
+                unchanged.
+        """
+        check_entries_credentials(
+            self.elements, self.path or "(not saved)", refuse=True
+        )
+        self.refuse_credentials = True
 
     def rebase(self) -> Rebase:
         """Re-read :attr:`path` and apply this object's own changes again on
@@ -211,7 +262,8 @@ class IdRegistry:
         Raises:
             FileNotFoundError: the file is no longer there, or not a file.
             ValueError: the file cannot be loaded, or an entry holds a
-                credential (:meth:`load`); this object is left unchanged.
+                credential in the ``refuse`` mode (:meth:`load`); this
+                object is left unchanged.
         """
         base = self._on_disk or {}
         if self.path is None or (
@@ -222,7 +274,9 @@ class IdRegistry:
             )
         contents = read_registry_file(self.path)
         # An entry another run saved meanwhile is held to load()'s rule.
-        require_no_credentialed_entries(contents.elements, self.path)
+        check_entries_credentials(
+            contents.elements, self.path, refuse=self.refuse_credentials
+        )
         merged, refused = replay_changes(base, self.elements, contents.elements)
         self.elements.clear()
         self.elements.update(merged)
@@ -409,12 +463,14 @@ class IdRegistry:
         Raises:
             ValueError: *type_name* or *name* cannot be encoded as UTF-8
                 (the file could never be saved), or *name* is a URL holding
-                credentials (``credentials-unsafe/registry``).
+                credentials in the ``refuse`` mode
+                (``credentials-unsafe/registry``; the ``warn`` mode stores
+                it with a ``WARNING:``).
         """
         for label, text in (("type name", type_name), ("name", name)):
             if not is_utf8_text(text):
                 raise registry_name_error(label, text)
-        require_key_without_credentials(type_name, name)
+        check_key_credentials(type_name, name, refuse=self.refuse_credentials)
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)

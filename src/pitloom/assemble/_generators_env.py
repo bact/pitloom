@@ -79,7 +79,12 @@ def generate_env_sbom(
     # Resolved before the expensive read_environment() call (pipdeptree)
     # below -- a declared-but-missing/malformed registry should fail fast,
     # never after paying for a full environment scan first.
-    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    resolved_registry = resolve_registry(
+        id_registry,
+        cfg.id_registry,
+        Path.cwd(),
+        refuse_credentials=cfg.credential_policy.refuse,
+    )
     project_metadata, env_tree = read_environment()
 
     doc = DocumentModel(

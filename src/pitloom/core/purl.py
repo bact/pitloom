@@ -68,7 +68,8 @@ def build_generic_purl(
 
     *checksum* is ``<algorithm>:<hex>``. Qualifiers are in key order, as the
     PURL specification canonicalises them. *download_url* goes in as given,
-    encoded: a credential in it is refused when the SBOM is written
+    encoded: a credential in it is warned of, or refused, when the SBOM
+    is written
     (:func:`pitloom.export._spdx3_credentials.check_graph_credentials`
     reads a qualifier at each decode depth), never rewritten here.
     """

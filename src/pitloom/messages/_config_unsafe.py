@@ -7,9 +7,7 @@
 from a Git URL, or of an sdist downloaded from a PyPI URL, which Pitloom does
 not apply: the project is untrusted;
 ``config-unsafe/build-code``: the settings of its build configuration that
-would have a file discovery run the repository's own code;
-``config-unsafe/cli-only``: a setting only the command line takes
-(``allow-url-credentials``), found in the configuration and ignored.
+would have a file discovery run the repository's own code.
 
 See also: :func:`pitloom.assemble.generate_git_project_sbom` and
 :mod:`pitloom.cli.commands._remote` (the two routes that say the first),
@@ -89,28 +87,4 @@ CONFIG_UNSAFE_BUILD_CODE: Final = Message(
     since="0.23.4",
 )
 
-#: A setting the command line alone takes, found in the configuration.
-CONFIG_UNSAFE_CLI_ONLY_LINE: Final = Line(
-    level="WARNING",
-    template="%(setting)s: CLI only; ignored in %(table)s",
-)
-
-CONFIG_UNSAFE_CLI_ONLY: Final = Message(
-    code="config-unsafe/cli-only",
-    condition="unsafe",
-    lines=(CONFIG_UNSAFE_CLI_ONLY_LINE,),
-    summary="The project's configuration sets a key that only the command "
-    "line takes (allow-url-credentials): set once in a committed file, it "
-    "would keep applying to values nobody reviewed, so a file cannot set "
-    "it.",
-    did="Ignored the setting: the run goes on as if it were not there.",
-    effect="none",
-    actor="user",
-    advice="Tell the user the setting has no effect in the file. To accept "
-    "one URL value that holds what reads as a credential, they list its "
-    "fingerprint in accept-url-credentials instead. Do not move the setting "
-    f"to a command line for them; {ASK_FIRST}",
-    since="0.25.0",
-)
-
-ENTRIES: Final = (CONFIG_UNSAFE, CONFIG_UNSAFE_BUILD_CODE, CONFIG_UNSAFE_CLI_ONLY)
+ENTRIES: Final = (CONFIG_UNSAFE, CONFIG_UNSAFE_BUILD_CODE)

@@ -17,11 +17,13 @@ See also: test_cli_id.py (the rest of `loom id`'s CLI tests).
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
 import pytest
 
+from pitloom.cli._id_target import resolve_id_refuse
 from pitloom.cli.id import _run_id_command
 from pitloom.cli.parser import _build_parser
 
@@ -423,3 +425,25 @@ def test_id_generate_flag_different_from_declared_key_still_hints(
         'pyproject.toml to: id-registry = "other-registry.json"'
     ) in caplog.text
     assert "add to" not in caplog.text
+
+
+@pytest.mark.parametrize("best_effort", [False, True], ids=["raises", "warns"])
+def test_resolve_id_refuse_on_an_unreadable_config(
+    best_effort: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A project config that cannot be read (an invalid setting): without
+    ``-o`` (not *best_effort*) the failed read raises, as the registry's
+    location read does; with ``-o`` it is warned of and the ``warn`` mode is
+    used, the project's ``refuse`` not applied."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'demo'\nversion = '1.0'\n[tool.pitloom]\n"
+        "url-credentials = 'refuse'\nmax-dataset-hash-bytes = 0\n",
+        encoding="utf-8",
+    )
+    if not best_effort:
+        with pytest.raises(ValueError, match="max-dataset-hash-bytes"):
+            resolve_id_refuse(None, tmp_path, read_config=True, best_effort=False)
+        return
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        assert not resolve_id_refuse(None, tmp_path, read_config=True, best_effort=True)
+    assert "url-credentials not read: " in caplog.text

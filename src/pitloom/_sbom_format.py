@@ -32,6 +32,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.messages import CodedValueError
 from pitloom.messages.files import JSON_MALFORMED, SBOM_USE, file_unreadable_error
 from pitloom.messages.targets import (
+    SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
     SBOM_INVALID,
@@ -328,21 +329,47 @@ def _reject_constant(name: str) -> object:
     raise ValueError(f"{name} is not a JSON value")
 
 
+class _DuplicateKey(Exception):
+    """A JSON object of a given SBOM names one key twice."""
+
+
+def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """The JSON object of *pairs*, each key once.
+
+    Raises:
+        _DuplicateKey: A key is given twice: Python's reader keeps the last
+            value, another reader may keep the first, so the value checked
+            (a URL credential, a name) need not be the one another reader
+            of the embedded bytes sees.
+    """
+    document = dict(pairs)
+    if len(document) != len(pairs):
+        raise _DuplicateKey
+    return document
+
+
 def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> dict[str, Any]:
     """Refuse an SBOM file the user named that cannot be what they gave it as;
     else return its JSON object.
 
     *text* is the file's content. Raises ``ValueError`` when it is not valid
     JSON (empty included; ``NaN`` and ``Infinity`` are not JSON) or is JSON but
-    not an object (``json-malformed``), has an ``@graph`` that is not a list
-    of objects (``sbom-invalid``; :func:`_require_graph_list`), or is named
+    not an object (``json-malformed``), has an object naming one key twice
+    or an ``@graph`` that is not a list of objects (``sbom-invalid``;
+    :func:`_unique_keys`, :func:`_require_graph_list`), or is named
     ``.spdx3.json`` and is not SPDX 3 JSON-LD (``sbom-wrong-format``). A
     JSON object in another format under another name (a CycloneDX
     ``bom.json``) is left to the name/version cross-check, which skips it with
     a ``WARNING:``.
     """
     try:
-        document = json.loads(text, parse_constant=_reject_constant)
+        document = json.loads(
+            text, parse_constant=_reject_constant, object_pairs_hook=_unique_keys
+        )
+    except _DuplicateKey:
+        raise CodedValueError(
+            SBOM_INVALID, line=SBOM_DUPLICATE_KEY_LINE, file=sbom_path
+        ) from None
     except (ValueError, RecursionError) as exc:
         raise CodedValueError(
             JSON_MALFORMED, file=sbom_path, use=SBOM_USE, failure=exc
