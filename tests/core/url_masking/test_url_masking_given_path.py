@@ -22,6 +22,7 @@ from pathlib import Path, PureWindowsPath
 import pytest
 
 from pitloom.core.url_masking import masked_given_path
+from pitloom.core.url_masking._hits import PURL_DECODE_ROUNDS
 from pitloom.core.url_masking._scan import masked_once
 
 
@@ -413,3 +414,25 @@ def test_a_given_path_is_masked_in_linear_time(shape: str, line: bool) -> None:
     short = max(_best_time(make(100_000), line), 0.005)
     long = _best_time(make(500_000), line)
     assert long / short < 12
+
+
+def test_each_decode_round_masks_one_more_depth() -> None:
+    """A credential at each of PURL_DECODE_ROUNDS encode depths: every round
+    finds one more, so all the rounds run, and none is shown."""
+
+    def encoded(text: str, depth: int) -> str:
+        for _ in range(depth):
+            text = text.replace("%", "%25")
+        return text
+
+    given = " ".join(
+        encoded(f"https:%2F%2Fu{depth}:SECRET{depth}@h{depth}/x", depth)
+        for depth in range(PURL_DECODE_ROUNDS)
+    )
+    assert given.count("%25") > PURL_DECODE_ROUNDS  # nested, not one depth
+    shown = masked_given_path(given)
+    assert "SECRET" not in shown and "%" not in shown
+    assert shown == " ".join(
+        f"https://***:***@h{depth}/x" for depth in range(PURL_DECODE_ROUNDS)
+    )
+    assert masked_given_path(shown) == shown

@@ -76,9 +76,14 @@ def find_url_credentials(
     for hit in iter_hits(text, scp=scp, account=account, embedded=embedded):
         shown = hit.shown
         if shown is None:
+            # A view a decode or a normalisation made is masked as the
+            # whole text: masked alone, a deeper depth can show what a
+            # shallower one hides (``u:S3%252FCRET@h`` decodes to
+            # ``u:S3/CRET@h``, no user information).
             shown = masked.get(hit.view)
             if shown is None:
-                shown = masked[hit.view] = masked_given_path(hit.view)
+                source = hit.view if hit.view in text else text
+                shown = masked[hit.view] = masked_given_path(source)
         view = hit.view if whole is None else whole
         found.setdefault(Finding(hit.kind, view, shown, hit.weak))
     return tuple(found)

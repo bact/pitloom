@@ -40,6 +40,7 @@ nav:
   - Reference:
       - Configuration: configuration.md
       - Dependency sources: dependency-sources.md
+      - Credentials in URLs: url-credentials.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
       - Metadata provenance, artefact metadata: metadata-provenance-artifact-metadata.md
@@ -56,6 +57,7 @@ nav:
           - Files and text: message-codes-files.md
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md
+          - URL credentials: message-codes-url-credentials.md
           - ID registry: message-codes-id-registry.md
           - ID registry ids and keys: message-codes-id-registry-ids.md
           - Licences: message-codes-licences.md

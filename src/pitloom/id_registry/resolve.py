@@ -102,6 +102,8 @@ def resolve_registry(
     id_registry: str | Path | IdRegistry | None,
     configured: str | None,
     base_dir: Path,
+    *,
+    refuse_credentials: bool = False,
 ) -> IdRegistry | None:
     """Resolve the registry a build should consult -- an explicit source
     only, never searched for.
@@ -126,12 +128,22 @@ def resolve_registry(
     ``--config`` file's key), never the resolved form. One that does not
     load raises ``ValueError`` (via :meth:`IdRegistry.load`), naming the
     path as given too -- a declared registry is always meant to load; this
-    function never swallows that failure.
+    function never swallows that failure. *refuse_credentials* is the run's
+    ``url-credentials`` mode (``CredentialPolicy.refuse``) for a registry
+    loaded here (:class:`IdRegistry`); one passed in is turned to the
+    ``refuse`` mode when the run refuses (:meth:`IdRegistry.refuse_mode`),
+    never back. That case is the library's only: a registry the caller
+    loaded in the ``warn`` mode (its entry that holds a credential already
+    said with a ``WARNING:``) and passed to a run that refuses is checked
+    again here and raises ``credentials-unsafe/registry`` for that entry;
+    a registry passed in the ``refuse`` mode stays so in a ``warn`` run.
     """
     source = id_registry if id_registry is not None else configured
     if source is None:
         return None
     if isinstance(source, IdRegistry):
+        if refuse_credentials and not source.refuse_credentials:
+            source.refuse_mode()
         return source
     path = Path(source)
     resolved = path if path.is_absolute() else base_dir.resolve() / path
@@ -139,7 +151,10 @@ def resolve_registry(
         # Named as given, never as resolved: no absolute or temporary path.
         raise input_not_found("ID registry file", given_spelling(source), at=resolved)
     # Named as given, as the line above: a load failure names what was typed.
-    return IdRegistry.load(TypedPath(GivenPath(resolved, given_spelling(source))))
+    return IdRegistry.load(
+        TypedPath(GivenPath(resolved, given_spelling(source))),
+        refuse_credentials=refuse_credentials,
+    )
 
 
 def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:

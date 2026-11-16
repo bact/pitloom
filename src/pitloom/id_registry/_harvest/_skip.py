@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The elements a harvest leaves out of the ID registry for their key or id,
-and the entries of a registry file dropped when it is read.
+and the registry file refused (or, in the ``warn`` mode, loaded with a
+``WARNING:``) when an entry of it holds a credential.
 
 See also: :mod:`pitloom.id_registry._harvest` (its user) and
 :mod:`pitloom.id_registry._credentials` (the credential rule).
@@ -13,6 +14,7 @@ See also: :mod:`pitloom.id_registry._harvest` (its user) and
 from __future__ import annotations
 
 import logging
+import os
 
 from pitloom.id_registry._credentials import (
     id_holds_credentials,
@@ -21,7 +23,8 @@ from pitloom.id_registry._credentials import (
 from pitloom.id_registry._types import RegistryEntry, is_utf8_text
 from pitloom.messages.files import warn_registry_name_skipped
 from pitloom.messages.url_credentials import (
-    warn_registry_entry_credentials_dropped,
+    registry_file_refused_error,
+    warn_registry_file_entry_kept,
     warn_registry_key_credentials_skipped,
 )
 
@@ -46,18 +49,36 @@ def unrecordable(label: str, key: tuple[str, str], spdx_id: str) -> bool:
     return False
 
 
-def without_credentials(
+def check_entries_credentials(
     elements: dict[tuple[str, str], RegistryEntry],
-) -> dict[tuple[str, str], RegistryEntry]:
-    """*elements* (as a registry file holds them) without each entry whose
-    key or id holds credentials, the rule a harvest applies; one
-    ``WARNING:`` per value, the key's when both hold one."""
-    kept: dict[tuple[str, str], RegistryEntry] = {}
-    for key, entry in elements.items():
-        if key_holds_credentials(*key):
-            warn_registry_entry_credentials_dropped(log, key[1])
-        elif id_holds_credentials(entry.spdx_id):
-            warn_registry_entry_credentials_dropped(log, entry.spdx_id)
-        else:
-            kept[key] = entry
-    return kept
+    file: str | os.PathLike[str],
+    *,
+    refuse: bool,
+) -> None:
+    """Check each entry of *elements* (as the registry *file* holds them)
+    for a key or id that holds credentials, named (masked), the key's when
+    both hold one. With *refuse* (the ``refuse`` mode) the first in key
+    order refuses the file, never rewritten; else each is one ``WARNING:``
+    and the file is loaded as it is.
+
+    Raises:
+        pitloom.messages.CodedValueError: ``credentials-unsafe/registry``,
+            with *refuse* only.
+    """
+    for key, entry in sorted(elements.items()):
+        text = next(
+            (
+                text
+                for text, holds in (
+                    (key[1], key_holds_credentials(*key)),
+                    (entry.spdx_id, id_holds_credentials(entry.spdx_id)),
+                )
+                if holds
+            ),
+            None,
+        )
+        if text is None:
+            continue
+        if refuse:
+            raise registry_file_refused_error(file, text) from None
+        warn_registry_file_entry_kept(log, file, text)

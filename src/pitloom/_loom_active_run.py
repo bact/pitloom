@@ -35,6 +35,7 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.lfs_pointer import UnreadPointers
 from pitloom.core.model_extract_limit import (
     require_max_dataset_hash_bytes,
@@ -102,16 +103,27 @@ class _ActiveRun:
         *,
         pitloom_config: PitloomConfig | str | Path | None = None,
         max_dataset_hash_bytes: int | None = None,
+        credentials: CredentialPolicy | None = None,
     ):
         # First: a declared-and-bad config or registry must fail before
         # _active_run is set (its caller assigns this constructor's result
         # directly to the module global -- an exception here means that
         # assignment never happens). Of the config, loom reads only the
-        # registry (the id_registry argument wins), its update switch and
-        # the dataset hash ceiling (the max_dataset_hash_bytes argument wins).
+        # registry (the id_registry argument wins), its update switch, the
+        # dataset hash ceiling (the max_dataset_hash_bytes argument wins), the
+        # credentials it accepts and its url-credentials mode (united with
+        # the credentials argument, which can turn refusal on, never off).
         configure_logging()
         config = loom_config(pitloom_config)
-        resolved = resolve_registry(id_registry, config.id_registry, Path.cwd())
+        self.credentials = config.credential_policy.union(
+            credentials or CredentialPolicy()
+        )
+        resolved = resolve_registry(
+            id_registry,
+            config.id_registry,
+            Path.cwd(),
+            refuse_credentials=self.credentials.refuse,
+        )
         max_hash_bytes = (
             require_max_dataset_hash_bytes(
                 config.max_dataset_hash_bytes, "pitloom_config"
@@ -424,10 +436,14 @@ class _ActiveRun:
         self._emit_script_file_and_generates()
         self.elements.finish()
 
+        # Serialised first: a refused fragment creates no directory or file.
+        fragment_json = self.exporter.to_json(
+            pretty=self.pretty, credentials=self.credentials
+        )
         output_path = Path(self.output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        write_text_lf(output_path, self.exporter.to_json(pretty=self.pretty))
+        write_text_lf(output_path, fragment_json)
         self.lfs_pointers.warn()
         self.models.persist()
         self.session.info_layout_alias_hits()

@@ -3,10 +3,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The ``credentials-unsafe`` messages: the one ``WARNING:`` for a URL stripped
-of its credentials, holding one the SBOM keeps or holding one the strip does
-not remove, and the errors for a
-registry value that holds some, or a registry file's entry dropped for one.
+"""The ``credentials-unsafe`` messages (the reference page "URL
+credentials", ``url-credentials`` in
+:data:`~pitloom.messages.TOPIC_TITLES`, the Git variants included): a URL
+value of the SBOM that holds
+a credential, written in the ``warn`` mode (:func:`say_written`) or refused
+in the ``refuse`` mode (:func:`say_refused`, :func:`refused_error`), a value
+accepted (:func:`say_accepted`) or that may be one only (:func:`say_weak`);
+the errors for a registry key or namespace that holds one, the warnings for
+a key stored and an element skipped for one, and a registry file refused or
+loaded as it is (:func:`registry_file_refused_error`,
+:func:`warn_registry_file_entry_kept`); a fingerprint that accepts nothing
+(:func:`say_stale_fingerprint`).
 
 See also: :mod:`pitloom.messages._url_credentials` (the entries) and
 :mod:`pitloom.messages.url_credentials_git` (the Git variants).
@@ -14,90 +22,119 @@ See also: :mod:`pitloom.messages._url_credentials` (the entries) and
 
 from __future__ import annotations
 
+import functools
 import logging
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Final
 
-from pitloom.core.url_masking import (
-    is_whole_url,
-    keeps_url_credential,
-    masked_given_path,
-)
+from pitloom.core.internal_error import InternalError
+from pitloom.core.url_masking import masked_given_path
 from pitloom.messages._emit import CodedValueError, emit
+from pitloom.messages._options import (
+    MODE_UNREAD_LINE,
+    OPTION_NO_EFFECT,
+    STALE_FINGERPRINT_LINE,
+)
 from pitloom.messages._url_credentials import (
+    ACCEPT_OPTION,
+    ACCEPT_SETTING,
+    ACCEPTED_LINE,
     CREDENTIALS_UNSAFE,
-    CREDENTIALS_UNSAFE_ID_COLLISION,
+    CREDENTIALS_UNSAFE_ACCEPTED,
+    CREDENTIALS_UNSAFE_REFUSED,
     CREDENTIALS_UNSAFE_REGISTRY,
-    ENTRY_DROPPED_LINE,
-    ID_COLLISION_LINE,
-    KEPT_LINE,
+    CREDENTIALS_UNSAFE_WRITTEN,
+    KEY_KEPT_LINE,
     KEY_LINE,
     KEY_SKIPPED_LINE,
+    MODE_SETTING,
     NAMESPACE_CREDENTIALS_LINE,
-    STRIPPED_KEPT_LINE,
-    STRIPPED_LINE,
-    UNREMOVED_LINE,
+    REFUSE_OPTION,
+    REFUSED_CONFIG_LINE,
+    REFUSED_COUNT_LINE,
+    REFUSED_LIBRARY_LINE,
+    REFUSED_LINE,
+    REGISTRY_FILE_KEPT_LINE,
+    REGISTRY_FILE_REFUSED_LINE,
+    WEAK_LINE,
+    WRITTEN_CONFIG_LINE,
+    WRITTEN_LIBRARY_LINE,
+    WRITTEN_LINE,
+)
+from pitloom.messages._url_credentials_git import (
+    CREDENTIALS_UNSAFE_GIT_LINE_BREAK,
+    CREDENTIALS_UNSAFE_GIT_USERINFO,
+    CREDENTIALS_UNSAFE_HTTP_CLEAR,
+    GIT_LINE_BREAK_LINE,
+    GIT_USERINFO_LINE,
+    HTTP_CLEAR_LINE,
 )
 
 __all__ = [
+    "ADVICE_CLI",
+    "ADVICE_CONFIG",
+    "ADVICE_LIBRARY",
     "CREDENTIALS_UNSAFE",
-    "CREDENTIALS_UNSAFE_ID_COLLISION",
+    "CREDENTIALS_UNSAFE_ACCEPTED",
+    "CREDENTIALS_UNSAFE_GIT_LINE_BREAK",
+    "CREDENTIALS_UNSAFE_GIT_USERINFO",
+    "CREDENTIALS_UNSAFE_HTTP_CLEAR",
+    "CREDENTIALS_UNSAFE_REFUSED",
     "CREDENTIALS_UNSAFE_REGISTRY",
-    "id_collision_error",
+    "CREDENTIALS_UNSAFE_WRITTEN",
+    "GIT_LINE_BREAK_LINE",
+    "GIT_USERINFO_LINE",
+    "HTTP_CLEAR_LINE",
+    "credential_advice",
+    "refused_error",
+    "registry_file_refused_error",
     "registry_key_credentials_error",
     "registry_namespace_credentials_error",
-    "warn_registry_entry_credentials_dropped",
+    "say_accepted",
+    "say_refused",
+    "say_stale_fingerprint",
+    "say_weak",
+    "say_written",
+    "warn_registry_file_entry_kept",
     "warn_registry_key_credentials_skipped",
-    "warn_url_credential_kept",
-    "warn_url_credential_unremoved",
-    "warn_url_credentials_stripped",
+    "warn_registry_key_kept",
 ]
 
+#: Where the helpers that take no logger say their lines.
+_log = logging.getLogger(__name__)
 
-def _once(url: str) -> str:
-    return f"{CREDENTIALS_UNSAFE.code}:{url}"
-
-
-def warn_url_credentials_stripped(log: logging.Logger, url: str) -> None:
-    """The one ``WARNING:`` on *log*, once per *url* and process, that *url*
-    is stated without its credentials. *url* is given as
-    :func:`~pitloom.core.url_masking.strip_url_secrets` shows it (what is
-    removed masked, what is kept as written), so the line names a kept
-    value only when *url* holds one."""
-    line = (
-        STRIPPED_KEPT_LINE
-        if keeps_url_credential(url, whole=is_whole_url(url))
-        else STRIPPED_LINE
-    )
-    emit(log, CREDENTIALS_UNSAFE, logging.WARNING, line=line, once=_once(url), url=url)
+#: The surfaces whose way of accepting a value (a refusal) or of refusing it
+#: (a warning) a line names: the command line (its options), the Hatchling
+#: build hook (``pyproject.toml`` only) and the library (``loom.Run`` too),
+#: the default.
+ADVICE_CLI: Final = "cli"
+ADVICE_CONFIG: Final = "config"
+ADVICE_LIBRARY: Final = "library"
+_ADVICE: ContextVar[str] = ContextVar(
+    "pitloom_credential_advice", default=ADVICE_LIBRARY
+)
 
 
-def warn_url_credential_kept(log: logging.Logger, url: str) -> None:
-    """The one ``WARNING:`` on *log*, once per *url* and process, that *url*
-    (shown masked) holds a value the SBOM keeps that may be a credential
-    (:func:`~pitloom.core.url_masking.keeps_url_credential`)."""
-    emit(
-        log,
-        CREDENTIALS_UNSAFE,
-        logging.WARNING,
-        line=KEPT_LINE,
-        once=f"{_once(url)}:kept",
-        url=masked_given_path(url),
-    )
+@contextmanager
+def credential_advice(surface: str) -> Iterator[None]:
+    """Within the block, a refused value names how *surface*
+    (:data:`ADVICE_CLI`, :data:`ADVICE_CONFIG`, :data:`ADVICE_LIBRARY`)
+    accepts it, and a value written how it refuses it. Each surface's entry
+    point opens it; the previous one returns on exit, also on an exception.
 
-
-def warn_url_credential_unremoved(log: logging.Logger, value: str) -> None:
-    """The one ``WARNING:`` on *log*, once per *value* and process (two
-    values that mask alike are said each), that *value* (shown masked)
-    holds a credential
-    (:func:`~pitloom.core.url_masking.holds_url_credentials`) the SBOM strip
-    does not remove, so the SBOM states it as written."""
-    emit(
-        log,
-        CREDENTIALS_UNSAFE,
-        logging.WARNING,
-        line=UNREMOVED_LINE,
-        once=f"{_once(value)}:unremoved",
-        url=masked_given_path(value),
-    )
+    Raises:
+        pitloom.core.internal_error.InternalError: *surface* is none of them.
+    """
+    if surface not in (ADVICE_CLI, ADVICE_CONFIG, ADVICE_LIBRARY):
+        raise InternalError(f"no credential advice for surface {surface!r}")
+    token = _ADVICE.set(surface)
+    try:
+        yield
+    finally:
+        _ADVICE.reset(token)
 
 
 def warn_registry_key_credentials_skipped(log: logging.Logger, url: str) -> None:
@@ -114,17 +151,35 @@ def warn_registry_key_credentials_skipped(log: logging.Logger, url: str) -> None
     )
 
 
-def warn_registry_entry_credentials_dropped(log: logging.Logger, url: str) -> None:
-    """The one ``WARNING:`` on *log* that the entry of a registry file whose
-    key or id is *url* (masked here) is dropped from the ID registry."""
+def warn_registry_key_kept(log: logging.Logger, url: str) -> None:
+    """The one ``WARNING:`` on *log*, once per *url* (masked here) and
+    process, that the registry key *url* is stored as written (the ``warn``
+    mode)."""
     shown = masked_given_path(url)
     emit(
         log,
         CREDENTIALS_UNSAFE_REGISTRY,
         logging.WARNING,
-        line=ENTRY_DROPPED_LINE,
-        once=f"{CREDENTIALS_UNSAFE_REGISTRY.code}:{shown}",
+        line=KEY_KEPT_LINE,
+        once=f"{CREDENTIALS_UNSAFE_REGISTRY.code}:kept:{url}",
         url=shown,
+    )
+
+
+def warn_registry_file_entry_kept(
+    log: logging.Logger, file: str | os.PathLike[str], key: str
+) -> None:
+    """The one ``WARNING:`` on *log*, once per *file*, *key* (masked here)
+    and process, that the ID registry *file* is loaded with the entry whose
+    key or id *key* holds a credential (the ``warn`` mode)."""
+    emit(
+        log,
+        CREDENTIALS_UNSAFE_REGISTRY,
+        logging.WARNING,
+        line=REGISTRY_FILE_KEPT_LINE,
+        once=f"{CREDENTIALS_UNSAFE_REGISTRY.code}:file:{os.fspath(file)}:{key}",
+        url=masked_given_path(key),
+        path=file,
     )
 
 
@@ -146,11 +201,180 @@ def registry_namespace_credentials_error(namespace: str) -> CodedValueError:
     )
 
 
-def id_collision_error(url: str) -> CodedValueError:
-    """The error for an element id *url* that is another's once its
-    credentials are removed, shown masked."""
+def say_refused(url: str, element: str, pointer: str, fingerprint: str) -> None:
+    """The ``ERROR:`` line, ``credentials-unsafe/refused``, for one URL-typed
+    value *url* (shown masked) of the SBOM that holds a credential: the
+    element *element* (its spdxId, masked) and its field *pointer* that hold
+    the value, and the *fingerprint* that would accept it, the way the
+    surface that runs accepts it (:func:`credential_advice`). Said every
+    time, never once per process: each refused run names each value. The
+    caller raises :func:`refused_error` after the last one.
+
+    Raises:
+        ValueError: *fingerprint* is not ``sha256:`` and 16 to 64 lower-case
+            hex digits.
+    """
+    shown = masked_given_path(url)
+    at = masked_given_path(pointer)
+    advice = _ADVICE.get()
+    if advice == ADVICE_CLI:
+        emit(
+            _log,
+            CREDENTIALS_UNSAFE_REFUSED,
+            logging.ERROR,
+            line=REFUSED_LINE,
+            url=shown,
+            element=element,
+            pointer=at,
+            fingerprint=fingerprint,
+            option=ACCEPT_OPTION,
+        )
+    elif advice == ADVICE_CONFIG:
+        emit(
+            _log,
+            CREDENTIALS_UNSAFE_REFUSED,
+            logging.ERROR,
+            line=REFUSED_CONFIG_LINE,
+            url=shown,
+            element=element,
+            pointer=at,
+            fingerprint=fingerprint,
+            setting=ACCEPT_SETTING,
+        )
+    else:
+        emit(
+            _log,
+            CREDENTIALS_UNSAFE_REFUSED,
+            logging.ERROR,
+            line=REFUSED_LIBRARY_LINE,
+            url=shown,
+            element=element,
+            pointer=at,
+            fingerprint=fingerprint,
+        )
+
+
+def refused_error(count: int) -> CodedValueError:
+    """The closing error of an SBOM refused for *count* URL values that hold
+    credentials (each said by :func:`say_refused`); its text names no URL.
+    The caller raises it ``from None``.
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *count* is not a whole
+            number of 1 or more.
+    """
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        raise InternalError(f"credentials-unsafe/refused for {count!r} values")
     return CodedValueError(
-        CREDENTIALS_UNSAFE_ID_COLLISION,
-        line=ID_COLLISION_LINE,
+        CREDENTIALS_UNSAFE_REFUSED, line=REFUSED_COUNT_LINE, number=count
+    )
+
+
+def say_written(url: str, element: str, pointer: str, fingerprint: str) -> None:
+    """The ``WARNING:``, ``credentials-unsafe/written``, that the SBOM
+    states the URL-typed value
+    *url* (shown masked), which holds a credential, as written (the ``warn``
+    mode): the element *element* (its spdxId, masked) and its field
+    *pointer* that hold it, its *fingerprint*, and how the surface that runs
+    turns the ``refuse`` mode on (:func:`credential_advice`). Said every
+    time, never once per process: each SBOM that holds the value names it
+    (the check says each distinct value of one SBOM once).
+
+    Raises:
+        ValueError: *fingerprint* is not ``sha256:`` and 16 to 64 lower-case
+            hex digits.
+    """
+    say = functools.partial(
+        emit,
+        _log,
+        CREDENTIALS_UNSAFE_WRITTEN,
+        logging.WARNING,
         url=masked_given_path(url),
+        element=element,
+        pointer=masked_given_path(pointer),
+        fingerprint=fingerprint,
+    )
+    advice = _ADVICE.get()
+    if advice == ADVICE_CLI:
+        say(line=WRITTEN_LINE, option=REFUSE_OPTION)
+    elif advice == ADVICE_CONFIG:
+        say(line=WRITTEN_CONFIG_LINE, setting=MODE_SETTING)
+    else:
+        say(line=WRITTEN_LIBRARY_LINE)
+
+
+def say_accepted(url: str, fingerprint: str) -> None:
+    """The ``WARNING:`` that the SBOM states *url* (shown masked), which
+    holds a credential, as written: accepted by *fingerprint*, in either
+    mode. Said every time, as :func:`say_written` is."""
+    emit(
+        _log,
+        CREDENTIALS_UNSAFE_ACCEPTED,
+        logging.WARNING,
+        line=ACCEPTED_LINE,
+        url=masked_given_path(url),
+        fingerprint=fingerprint,
+    )
+
+
+def say_weak(url: str) -> None:
+    """The ``WARNING:`` that the SBOM states *url* (shown masked) as written
+    though it holds what may be a credential only (a weak
+    :class:`~pitloom.core.url_masking.Finding`: a parameter of a weak name,
+    an accepted ssh or git account name). Said every time, as
+    :func:`say_written` is."""
+    emit(
+        _log,
+        CREDENTIALS_UNSAFE,
+        logging.WARNING,
+        line=WEAK_LINE,
+        url=masked_given_path(url),
+    )
+
+
+def registry_file_refused_error(
+    file: str | os.PathLike[str], key: str
+) -> CodedValueError:
+    """The error for the ID registry *file* (quoted) not loaded because the
+    key or id *key* (shown masked) of an entry holds a credential. The
+    caller raises it ``from None``."""
+    return CodedValueError(
+        CREDENTIALS_UNSAFE_REGISTRY,
+        line=REGISTRY_FILE_REFUSED_LINE,
+        url=masked_given_path(key),
+        path=file,
+    )
+
+
+def say_mode_unread(project: os.PathLike[str], failure: Exception) -> None:
+    """The one ``WARNING:``, ``option-no-effect``, that the config of the
+    project directory *project* could not be read, for *failure* (the
+    exception: its text, credentials masked, on one line), so its
+    ``url-credentials`` is not applied and the ``warn`` mode is used (``loom
+    id`` with ``-o`` and ``--project-dir``). Said once per run: the run
+    resolves its mode once."""
+    emit(
+        _log,
+        OPTION_NO_EFFECT,
+        logging.WARNING,
+        line=MODE_UNREAD_LINE,
+        dir=project,
+        failure=failure,
+        option=REFUSE_OPTION,
+    )
+
+
+def say_stale_fingerprint(fingerprint: str, document: str) -> None:
+    """The one ``WARNING:``, ``option-no-effect``, once per *fingerprint*,
+    *document* and process, that the accepted *fingerprint* matches no URL
+    value of the SBOM *document* (its ``SpdxDocument``'s id, masked): a
+    batch names each SBOM it holds for."""
+    emit(
+        _log,
+        OPTION_NO_EFFECT,
+        logging.WARNING,
+        line=STALE_FINGERPRINT_LINE,
+        once=f"{OPTION_NO_EFFECT.code}:{fingerprint}:{document}",
+        fingerprint=fingerprint,
+        element=document,
     )

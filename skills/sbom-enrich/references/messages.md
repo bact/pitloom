@@ -35,7 +35,8 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Options](messages-options.md): 4 codes
 - [Files and text](messages-files.md): 11 codes
 - [PyPI](messages-pypi.md): 13 codes
-- [Network](messages-network.md): 15 codes
+- [Network](messages-network.md): 9 codes
+- [URL credentials](messages-url-credentials.md): 8 codes
 - [ID registry](messages-id-registry.md): 4 codes
 - [ID registry ids and keys](messages-id-registry-ids.md): 14 codes
 - [Licences](messages-licences.md): 1 code
@@ -45,12 +46,14 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`card-malformed`](messages-files.md#card-malformed) | WARNING | 0.23.0 |
 | [`config-unsafe`](messages-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](messages-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
-| [`credentials-unsafe`](messages-network.md#credentials-unsafe) | WARNING | 0.25.0 |
-| [`credentials-unsafe/git-line-break`](messages-network.md#credentials-unsafegit-line-break) | WARNING | 0.25.0 |
-| [`credentials-unsafe/git-userinfo`](messages-network.md#credentials-unsafegit-userinfo) | ERROR | 0.25.0 |
-| [`credentials-unsafe/http-clear`](messages-network.md#credentials-unsafehttp-clear) | WARNING | 0.25.0 |
-| [`credentials-unsafe/id-collision`](messages-network.md#credentials-unsafeid-collision) | ERROR | 0.25.0 |
-| [`credentials-unsafe/registry`](messages-network.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
+| [`credentials-unsafe`](messages-url-credentials.md#credentials-unsafe) | WARNING | 0.25.0 |
+| [`credentials-unsafe/accepted`](messages-url-credentials.md#credentials-unsafeaccepted) | WARNING | 0.25.0 |
+| [`credentials-unsafe/git-line-break`](messages-url-credentials.md#credentials-unsafegit-line-break) | WARNING | 0.25.0 |
+| [`credentials-unsafe/git-userinfo`](messages-url-credentials.md#credentials-unsafegit-userinfo) | ERROR | 0.25.0 |
+| [`credentials-unsafe/http-clear`](messages-url-credentials.md#credentials-unsafehttp-clear) | WARNING | 0.25.0 |
+| [`credentials-unsafe/refused`](messages-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
+| [`credentials-unsafe/registry`](messages-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
+| [`credentials-unsafe/written`](messages-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
 | [`digest-invalid`](messages-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](messages-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](messages-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
@@ -155,6 +158,7 @@ A line may start with one prefix before its text:
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<element>` | the SBOM element that holds the value (for a fingerprint that matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<kind>` | what the element is: `dataset`, `dataset package`, `entity`, `file`, `model` |
 | `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
@@ -167,6 +171,7 @@ A line may start with one prefix before its text:
 | `<fields>` | the model fields not recorded, or recorded weaker, comma-separated, each with a note in brackets when it has one (`type_of_model`, `properties.tags (kept as raw string)`) |
 | `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
+| `<fingerprint>` | `sha256:` and the first hex digits of the SHA-256 of the value as the SBOM writes it: what --accept-url-credential takes |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
@@ -187,6 +192,7 @@ A line may start with one prefix before its text:
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
 | `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
+| `<pointer>` | the field of the element that holds the value, as an RFC 6901 JSON pointer into it (`/software_downloadLocation`, `/externalRef/0/locator/0`); for a statement Pitloom writes, on into it (`/statement/metadata/<key>`, `/statement/fields/<field>/note`), or into the comment's provenance line (`/comment/<field>/note`), a part no JSON pointer resolves on the element; in quotes, escaped, when it holds a control character |
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
@@ -195,6 +201,7 @@ A line may start with one prefix before its text:
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
 | `<seconds>` | the time allowed, in whole seconds |
+| `<setting>` | a [tool.pitloom] setting as the file names it (`accept-url-credentials`, `url-credentials`) |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |

@@ -447,4 +447,4 @@ def _build_sbom_from_project_and_wheel(
     # an explicit --config.
     if Path(project_dir).is_dir():
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
-    return exporter.to_json(pretty=False)
+    return exporter.to_json(pretty=False, credentials=pitloom_config.credential_policy)

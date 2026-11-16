@@ -9,7 +9,7 @@ and the masker hides (:func:`pitloom.core.url_masking.masked_given_path`), so
 the two never disagree.
 
 See also: :mod:`pitloom.core.url_masking._detect` (the field rule),
-:mod:`pitloom.core.url_masking._strip` (the URL scanner),
+:mod:`pitloom.core.url_masking._urls` (the URL scanner),
 :mod:`pitloom.core.url_masking._params` (the secret and weak names),
 :mod:`pitloom.core.url_masking._tokens` (the token shapes) and
 :mod:`pitloom.core.purl` (which builds a PURL with the helpers here).
@@ -19,10 +19,10 @@ A value is read by what it is, as a whole, never as prose that holds URLs:
 
 * a URL (a scheme and ``/`` or ``\\`` at its start, as a masker reads one:
   ``s3:/u:p@h`` and ``ssh:\\\\u:p@h`` too), read as ``urllib`` reads it
-  (:func:`~pitloom.core.url_masking._strip.find_urls`, ``whole`` and
-  ``wide``), to its end: white space is a character of it, so a value that
-  starts with a URL is read whole, and every URL in it too (conservative:
-  ``https://h/x see https://u:p@h2/y`` is refused);
+  (:func:`~pitloom.core.url_masking._urls.find_urls`), to its end: white
+  space is a character of it, so a value that starts with a URL is read
+  whole, and every URL in it too (conservative:
+  ``https://h/x see https://u:p@h2/y`` is found);
 * a PEP 508 requirement with a direct reference (``name @ URL``, with
   extras and a marker), whose URL is read so;
 * an scp-style address ``user:password@host:path`` (a dotless host and a
@@ -37,14 +37,17 @@ A value is read by what it is, as a whole, never as prose that holds URLs:
   each decode, as a value nested in a URL is.
 
 White space around the whole value is not part of it, nor a format
-character (Unicode ``Cf``: a byte order mark, a zero-width space) anywhere
-in it, nor one pair of ``<>`` or quotes enclosing it (:func:`normalised`).
+character (Unicode ``Cf``: a byte order mark, a zero-width space), a tab,
+a CR or an LF anywhere in it, nor a C0 control at its start (``urllib``
+drops each), nor one pair of ``<>`` or quotes enclosing it (:func:`normalised`).
 A URL's query value is read as a whole scp-style address too
 (``?next=u:p@h:o/r``), a URL in it as a URL; a PURL qualifier value as a
 whole value or an access token; a PURL subpath, a path, for a URL anywhere
 in it, an access token or a whole scp-style address. A URL inside a value
 of no kind above (``urn:x:https://u:p@h``) is not read, unless the value is
-an identifier Pitloom stores (*embedded*, :func:`iter_hits`).
+an identifier Pitloom stores (*embedded*, :func:`iter_hits`), which is read
+as written and after each percent-decode too (an id built from a name
+percent-encodes its ``/``: ``https:%2F%2Fu:p@h``).
 
 In a URL a hit is a user information (an account name on an ``ssh`` or
 ``git`` URL apart), a parameter named like a secret, a parameter value
@@ -70,8 +73,8 @@ from pitloom.core.url_masking._params import (
     is_secret_name,
     is_weak_name,
 )
-from pitloom.core.url_masking._strip import WIDE_URL_START, find_urls
 from pitloom.core.url_masking._tokens import TOKEN_RE
+from pitloom.core.url_masking._urls import WIDE_URL_START, find_urls
 from pitloom.core.url_masking._userinfo import SCP_USERINFO_RE
 
 __all__ = [
@@ -137,7 +140,7 @@ def _url_hits(url: str, *, account: bool) -> list[Hit]:
     ``?r=https://...``, is read on its own): each user information,
     parameter named like a secret or weak, and token shape."""
     hits: list[Hit] = []
-    for found in find_urls(url, whole=True, wide=True):
+    for found in find_urls(url):
         span = url[found.start : found.end]
         if found.userinfo is not None:
             hits.append(
@@ -145,10 +148,10 @@ def _url_hits(url: str, *, account: bool) -> list[Hit]:
                 if found.account
                 else Hit("secret", span)
             )
-        for _, value, end, removed in found.params:
+        for _, value, end, refused in found.params:
             if url.count("?", value, end) > MAX_QUERY_MARKS:
                 hits.append(Hit("nesting", span))
-            elif removed:
+            elif refused:
                 hits.append(Hit("secret", span))
             else:
                 hits.append(Hit("weak", span, weak=True))
@@ -244,13 +247,15 @@ def _levels_hits(
 ) -> list[Hit]:
     """The hits of *value*, a qualifier value or subpath of *item*, by
     *reader* with *flags* (``scp``, ``account``) as written and after each
-    percent-decode (:func:`qualifier_levels`), and
+    percent-decode (:func:`qualifier_levels`), each :func:`normalised`, and
     ``nesting`` (shown as *shown*, else as the masker shows *item*) when one
     more decode would still change it."""
     hits: list[Hit] = []
     levels, deeper = qualifier_levels(value)
     for level in levels:
-        hits += reader(level, **flags)
+        # Each depth as a reader reads it: a format character, a tab, CR
+        # or LF a decode shows (``%E2%80%8B``) hides nothing there either.
+        hits += reader(normalised(level), **flags)
     if deeper:
         hits.append(Hit("nesting", item, shown=shown))
     return hits
@@ -277,12 +282,22 @@ def without_format(text: str) -> str:
     return "".join(c for c in text if unicodedata.category(c) != "Cf")
 
 
+#: What ``urllib.parse.urlsplit`` deletes anywhere in a URL (tab, CR, LF),
+#: and strips from its start (a C0 control or a space: WHATWG's "C0 control
+#: or space"); the same on Python 3.10 and 3.14.
+_URLLIB_DELETES = str.maketrans("", "", "\t\r\n")
+_URLLIB_LEADING = "".join(map(chr, range(0x21)))
+
+
 def normalised(text: str) -> str:
     """*text* as a reader reads it: without its format characters (Unicode
     category ``Cf``: a byte order mark, a zero-width space, which a client
-    or a copy drops), the white space around it and one pair of enclosing
+    or a copy drops), without a tab, CR or LF anywhere and a C0 control or
+    a space at its start (which ``urllib`` drops: ``htt\tps://u:p@h`` is
+    ``https://u:p@h``), the white space around it and one pair of enclosing
     ``<>`` or quotes (``<https://...>``)."""
-    return split_enclosed(without_format(text))[1]
+    plain = without_format(text).translate(_URLLIB_DELETES)
+    return split_enclosed(plain.lstrip(_URLLIB_LEADING))[1]
 
 
 def split_enclosed(text: str) -> tuple[str, str, str]:
@@ -303,12 +318,21 @@ def iter_hits(
     """Each hit of *text*, a URL-typed value read as a whole (this module's
     docstring) once :func:`normalised`, in order; with *embedded* (an
     identifier Pitloom stores, never prose), each URL and access token
-    anywhere in it too (``urn:x:https://u:p@h``)."""
+    anywhere in it too (``urn:x:https://u:p@h``), as written and after each
+    percent-decode, as a PURL qualifier is read."""
     text = normalised(text)
     hits = _whole_hits(text, scp=scp, account=account)
     if embedded:
-        hits += _url_hits(text, account=account)
+        hits += _levels_hits(_embedded_hits, text, text, None, scp=scp, account=account)
     return hits
+
+
+def _embedded_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:
+    """The URLs and access tokens anywhere in *text*, an identifier Pitloom
+    stores at one decode depth: an id built from a name percent-encodes it
+    (``https:%2F%2Fu:p@h``), so each depth is read (:func:`_levels_hits`)."""
+    del scp
+    return _url_hits(text, account=account)
 
 
 def _whole_hits(text: str, *, scp: bool, account: bool) -> list[Hit]:

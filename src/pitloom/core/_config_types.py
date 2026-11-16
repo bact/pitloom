@@ -12,6 +12,12 @@ from typing import TypedDict
 
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
 from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.credential_policy import (
+    MODE_REFUSE,
+    MODE_WARN,
+    CredentialPolicy,
+    require_mode,
+)
 from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.provenance import (
@@ -187,6 +193,37 @@ class PitloomConfig:
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()
     offline: bool = False
     use_lockfile: bool = True
+    #: ``accept-url-credentials``: fingerprints of URL field values let into
+    #: the SBOM with their credential (:mod:`pitloom.core.credential_policy`).
+    accept_url_credentials: tuple[str, ...] = ()
+    #: ``url-credentials``: ``"warn"`` (write a credential found, with a
+    #: ``WARNING:``) or ``"refuse"`` (write no SBOM while one is not accepted).
+    url_credentials: str = MODE_WARN
+
+    def __post_init__(self) -> None:
+        """Refuse a bad ``accept_url_credentials`` entry or
+        ``url_credentials`` when the config is built, as ``loom.Run``
+        refuses one, not at its first use.
+
+        Raises:
+            ValueError: an entry is not a fingerprint, or the mode is none.
+        """
+        _ = self.credential_policy
+
+    @property
+    def credential_policy(self) -> CredentialPolicy:
+        """Return the CredentialPolicy of these settings.
+
+        Raises:
+            ValueError: an ``accept_url_credentials`` entry is not a
+                fingerprint, or ``url_credentials`` is not ``"warn"`` or
+                ``"refuse"`` (a config built in code is never parsed).
+        """
+        mode = require_mode(self.url_credentials, table=None)
+        return CredentialPolicy(
+            accepted=frozenset(self.accept_url_credentials),
+            refuse=mode == MODE_REFUSE,
+        )
 
     @property
     def provenance(self) -> ProvenanceConfig:

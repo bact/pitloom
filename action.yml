@@ -202,7 +202,11 @@ inputs:
     required: false
     default: "false"
   args:
-    description: "Extra raw flags passed through to the loom command."
+    description: >-
+      Extra raw flags passed through to the loom command, e.g.
+      "--refuse-url-credentials" to fail the step when a URL value of the
+      SBOM holds a credential (by default it is written with a warning), and
+      "--accept-url-credential sha256:..." to accept one such value.
     required: false
     default: ""
   pitloom-version:

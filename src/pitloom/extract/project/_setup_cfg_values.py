@@ -17,9 +17,20 @@ See also: :mod:`pitloom.extract.project.setuptools_cfg`.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pitloom.core.config import BOOL_KEYS, INT_KEYS
+
+#: What separates the items of a list value: a comma, white space or a
+#: line break (an INI value has no array; no item of such a key holds one).
+_LIST_SEPARATOR = re.compile(r"[\s,]+")
+
+
+def split_cfg_list(raw: str) -> list[str]:
+    """*raw*, a list value of ``[tool:pitloom]`` (one item per line, or
+    separated by commas or white space), as its items; empty is ``[]``."""
+    return [item for item in _LIST_SEPARATOR.split(raw) if item]
 
 
 def _bool_val(v: str) -> bool | None:

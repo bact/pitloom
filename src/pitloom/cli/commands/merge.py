@@ -14,6 +14,10 @@ from typing import Any
 
 from pitloom.assemble import generate_merged_sbom
 from pitloom.assemble.spdx3.fragments import fragment_files
+from pitloom.cli._parser_credentials import (
+    add_credential_arguments,
+    credential_policy_from_args,
+)
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.core.given_path import TypedPath
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -46,7 +50,10 @@ def _run_merge_command(args: argparse.Namespace) -> int:
 
     output_path: Path = args.output
     generate_merged_sbom(
-        fragments_dir, output_path=output_path, pretty=bool(args.pretty)
+        fragments_dir,
+        output_path=output_path,
+        pretty=bool(args.pretty),
+        credentials=credential_policy_from_args(args),
     )
     _print_sbom_output_path(output_path)
     log.info("merge: merged %d fragment(s)", len(files))
@@ -78,4 +85,6 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         default=True,
         help="Indent JSON output with 2 spaces.",
     )
+    # Not built from the shared parent parser: its own copy of the flags.
+    add_credential_arguments(merge_parser, reads_config=False)
     merge_parser.set_defaults(func=_run_merge_command)

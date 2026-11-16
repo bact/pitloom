@@ -356,8 +356,7 @@ def test_generate_model_sbom_huggingface_source(
 
     # pylint: disable-next=too-few-public-methods
     class _FakeExporter:
-        # pylint: disable-next=unused-argument
-        def to_json(self, *, pretty: bool, describe_relationship: bool) -> str:
+        def to_json(self, **_options: object) -> str:
             return "{}"
 
     # pylint: disable-next=unused-argument

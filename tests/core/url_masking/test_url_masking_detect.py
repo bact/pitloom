@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The credential detector (:func:`pitloom.core.url_masking.find_url_credentials`):
-a URL-typed value read as a whole, never prose; no weaker than the SBOM
-strip (to be retired in PR 2) on such values; never showing what it
-finds; the masker hiding all it refuses; weak names told and not refused.
+a URL-typed value read as a whole, never prose; no weaker on such values
+than the SBOM strip it replaced (the corpus records what that changed);
+never showing what it finds; the masker hiding all it refuses; weak names
+told and not refused.
 
 See also: _probe_corpus.py (the corpus), test_url_masking_hits.py (each
 kind of value and 1 MiB timings), test_url_masking_tokens.py (token shapes),
@@ -48,6 +49,8 @@ def test_the_detector_refuses_what_the_strip_changed_and_masks_it(
         assert not any(secret in finding.shown for secret in PLANTED)
         assert finding.shown in (
             masked_given_path(finding.view),
+            # A view a decode or the strip made: the whole text masked.
+            masked_given_path(text),
             finding.view.partition("=")[0] + "=***",
         )
     if refused:
@@ -140,10 +143,15 @@ def test_an_account_name_is_weak_only_when_accepted(
         '"https://u:S3CRET@h/x"',
         " 'https://u:S3CRET@h/x' ",
         "x @ https://u:S3CRET@h/x --hash=sha256:abc",
+        "htt\tps://u:S3CRET@h/x",
+        "https://u:S3C\nRET@h/x",
+        "\x01https://u:S3CRET@h/x",
+        " \x02 https://u:S3CRET@h/x",
     ],
     ids=[
         *("bom", "zero-width", "zero-width-in-scheme", "angle", "quote"),
-        *("squote", "hash"),
+        *("squote", "hash", "tab-in-scheme", "line-feed-in-password"),
+        *("leading-c0", "leading-c0-and-space"),
     ],
 )
 def test_a_value_is_read_as_a_reader_reads_it(text: str) -> None:
@@ -163,3 +171,45 @@ def test_a_format_character_is_kept_where_it_hides_no_credential() -> None:
     """A bidirectional override stays in a masked message, so a quoting of it
     can still show it."""
     assert masked_given_path("a\u202eb https://h/x") == "a\u202eb https://h/x"
+
+
+def test_a_value_is_read_as_urllib_reads_it() -> None:
+    """The reading of :func:`test_a_value_is_read_as_a_reader_reads_it`
+    follows ``urllib`` on this interpreter: a tab, CR or LF anywhere and a
+    C0 control or space at the start are dropped; DEL is not."""
+    from urllib.parse import urlsplit  # pylint: disable=import-outside-toplevel
+
+    for text in ("htt\tps://u:p@h/", "https://u:p\r\n@h/", "\x01 \x1fhttps://u:p@h/"):
+        assert urlsplit(text).password == "p"
+        assert find_url_credentials(text)
+    assert urlsplit("\x7fhttps://u:p@h/").password is None
+    assert not find_url_credentials("\x7fhttps://u:p@h/")
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        (
+            "https://spdx.org/spdxdocs/https:%2F%2Fu:S3CRET@h.example%2Fd.csv-1#P",
+            "https://spdx.org/spdxdocs/https://***:***@h.example/d.csv-1#P",
+        ),
+        ("urn:x:hf:%2F%2Fd%2Fo%3Ftoken=S3CRET", "urn:x:hf://d/o?token=***"),
+        ("urn:x:s3:%252F%252Fu:S3CRET@b", "urn:x:s3://***:***@b"),
+    ],
+    ids=["https", "query", "twice"],
+)
+def test_an_id_is_read_percent_decoded_and_masked_so(text: str, shown: str) -> None:
+    """An id built from a name percent-encodes its ``/`` and ``?``: as an
+    identifier it is read at each decode depth, and the masker shows the
+    decoded text masked; a URL field is not read so."""
+    assert [f.kind for f in find_url_credentials(text, embedded=True)] == ["secret"]
+    assert not find_url_credentials(text)
+    for line in (False, True):
+        assert masked_given_path(text, line=line) == shown
+
+
+def test_a_percent_encoded_text_without_a_credential_is_shown_as_given() -> None:
+    text = "https://u:S3CRET@h/a%20b and urn:x:a%2Fb"
+    assert (
+        masked_given_path(text, line=True) == "https://***:***@h/a%20b and urn:x:a%2Fb"
+    )

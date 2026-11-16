@@ -106,6 +106,7 @@ def test_every_config_overrides_field_is_accounted_for() -> None:
         "max_download_bytes",
         "build_options",
         "trust_model_files",  # no config key, like build_options
+        "credentials",  # a policy united with the config list, no bool field
     }
     assert set(_BOOL_OVERRIDE_TO_CONFIG) | non_bool == {
         f.name for f in dataclasses.fields(ConfigOverrides)

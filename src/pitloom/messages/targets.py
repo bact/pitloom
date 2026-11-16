@@ -45,6 +45,7 @@ from pitloom.messages._input_not_found_say import (
 )
 from pitloom.messages._sbom_input import (
     NOT_SPDX3_LINE,
+    SBOM_DUPLICATE_KEY_LINE,
     SBOM_GRAPH_ELEMENT_LINE,
     SBOM_GRAPH_NOT_LIST_LINE,
     SBOM_INVALID,
@@ -107,6 +108,7 @@ __all__ = [
     "PROJECT_NOT_FOUND_LINE",
     "PROJECT_NOT_FOUND_MODEL_FILES",
     "REQUIRED_FRAGMENT_LINE",
+    "SBOM_DUPLICATE_KEY_LINE",
     "SBOM_GRAPH_ELEMENT_LINE",
     "SBOM_NAMESPACE_LINE",
     "SBOM_GRAPH_NOT_LIST_LINE",

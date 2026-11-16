@@ -50,6 +50,9 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
     "tools": ("creation", "no-creation-tool"),
 }
 
+#: Typed ``PitloomConfig`` fields no config file sets: CLI and library only.
+_NOT_FROM_CONFIG: frozenset[str] = frozenset()
+
 #: INI spelling -> the TOML literal it must read as.
 _BOOL_VALUES = {
     "true": "true",
@@ -104,7 +107,7 @@ def test_every_typed_field_is_mapped_and_declared() -> None:
     """A new boolean/integer ``PitloomConfig`` field fails here until it is
     mapped above and declared in ``BOOL_KEYS``/``INT_KEYS``."""
     typed = {f.name for f in dataclasses.fields(PitloomConfig) if _is_typed(f.type)}
-    assert typed | {"tools"} == set(_FIELD_KEYS)
+    assert typed | {"tools"} == set(_FIELD_KEYS) | _NOT_FROM_CONFIG
     declared = {(t, k.replace("_", "-")) for t, k, _ in _declared()}
     assert declared == set(_FIELD_KEYS.values())
 

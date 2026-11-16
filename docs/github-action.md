@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -130,6 +130,16 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
+
+A URL field of the SBOM that holds a credential is a `WARNING:` annotation
+per value by default, and the step passes with the SBOM written. To fail the
+step instead (recommended), pass `args: '--refuse-url-credentials'`, or set
+`url-credentials = "refuse"` in `[tool.pitloom]` (the project's, or the file of
+the `config` input: a model file reads no project file); each value is then an
+`ERROR:` annotation. Accept one value you know is no secret with
+`args: '--accept-url-credential sha256:...'` (the fingerprint the line prints),
+or `accept-url-credentials` in `[tool.pitloom]`. The action has no input for
+any of these. See [Credentials in URLs](url-credentials.md).
 
 ### Annotations
 

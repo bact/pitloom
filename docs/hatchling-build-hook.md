@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -145,6 +145,26 @@ updated, as with `embed-wheel`), and relationship descriptions are not written.
 Each of them set to `true` in `[tool.pitloom]` gets one
 `INFO: Options: ... has no effect` line (`false` agrees with the hook, so is
 silent); harvest ids with `loom project` instead.
+
+A URL field of the SBOM that holds a credential does not fail the build by
+default: the SBOM is written as it is, with one `WARNING:` per value that ends
+with how to refuse it:
+
+```text
+WARNING: URL=https://example.org/?token=***: holds a credential (https://spdx.org/spdxdocs/demo-3d1e...#Package-1 /software_downloadLocation, sha256:3f62f6937a192ae3); the SBOM states it as written; remove it from the source, or refuse such values with [tool.pitloom] url-credentials = "refuse" [credentials-unsafe/written]
+```
+
+With `url-credentials = "refuse"` in `[tool.pitloom]` (recommended in CI), it
+fails the build, unless `accept-url-credentials` lists its fingerprint (the hook
+reads no flag). Each `ERROR:` line starts `Pitloom build hook: ` and ends with
+that advice:
+
+```text
+ERROR: Pitloom build hook: URL=https://example.org/?token=***: holds a credential (https://spdx.org/spdxdocs/demo-3d1e...#Package-1 /software_downloadLocation, sha256:3f62f6937a192ae3); remove it from the source, or accept this value by listing it in [tool.pitloom] accept-url-credentials [credentials-unsafe/refused]
+ERROR: Pitloom build hook: 1 URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
+```
+
+See [Credentials in URLs](url-credentials.md).
 
 Creator/tool metadata uses the same `[[tool.pitloom.creator]]` /
 `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]` tables the

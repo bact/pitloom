@@ -27,6 +27,7 @@ from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.given_path import GivenPath, given_spelling
 from pitloom.core.inert_options import GIT_MODEL, forward_options
 from pitloom.core.internal_error import InternalError
@@ -96,6 +97,7 @@ def generate_git_sbom(
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
     project_metadata: ProjectMetadata | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate an SPDX 3 SBOM for the project or the AI model file at a Git
     URL.
@@ -115,7 +117,9 @@ def generate_git_sbom(
     is listed without metadata, said in one ``INFO:`` per SBOM, unless
     *trust_model_files* (see :func:`generate_git_project_sbom`). A model
     file's messages name it by its path in the repository; an option a
-    model SBOM cannot use warns once.
+    model SBOM cannot use warns once. *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`) adds to the
+    credentials *pitloom_config* accepts.
 
     Raises:
         pitloom.core.internal_error.InternalError: *sbom_kind* is none of
@@ -175,6 +179,7 @@ def generate_git_sbom(
                         "use_lockfile": use_lockfile,
                         "max_source_metadata_bytes": max_source_metadata_bytes,
                         "project_metadata": project_metadata,
+                        "credentials": credentials,
                     },
                 )
             if pitloom_config is None:
@@ -200,6 +205,7 @@ def generate_git_sbom(
                 update_id_registry=update_id_registry,
                 use_lockfile=use_lockfile,
                 max_source_metadata_bytes=max_source_metadata_bytes,
+                credentials=credentials,
             )
 
 
@@ -228,6 +234,7 @@ def generate_git_project_sbom(
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
     project_metadata: ProjectMetadata | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for the project at a Git URL.
 
@@ -298,4 +305,5 @@ def generate_git_project_sbom(
         build_options=build_options,
         max_source_metadata_bytes=max_source_metadata_bytes,
         project_metadata=project_metadata,
+        credentials=credentials,
     )

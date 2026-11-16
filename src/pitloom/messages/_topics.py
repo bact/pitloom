@@ -37,6 +37,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "files": "Files and text",
         "pypi": "PyPI",
         "network": "Network",
+        "url-credentials": "URL credentials",
         "id-registry": "ID registry",
         "id-registry-ids": "ID registry ids and keys",
         "licences": "Licences",
@@ -107,9 +108,9 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "offline-unusable",
             "query-no-effect",
             "url-moved",
-            "credentials-unsafe",
             "url-unsafe",
         ),
+        "url-credentials": ("credentials-unsafe",),
         "id-registry": (
             "registry-malformed",
             "registry-unknown-key",

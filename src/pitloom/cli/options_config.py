@@ -29,6 +29,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
+from pitloom.cli._parser_credentials import credential_policy_from_args
 from pitloom.cli.options_resolve import (
     _resolve_creation_metadata,
     load_explicit_config,
@@ -94,7 +95,10 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     relative one against the project directory -- keeping the spelling
     given for a message (:class:`~pitloom.core.given_path.GivenPath`).
     ``project_dir`` comes from the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on
-    a command that has it.
+    a command that has it. ``credentials`` is the
+    :class:`~pitloom.core.credential_policy.CredentialPolicy` of
+    ``--accept-url-credential``/``--refuse-url-credentials``, ``None`` when
+    neither was given.
     """
     options: dict[str, Any] = {
         name: getattr(args, name, None) for name in _SAME_NAME_OPTIONS
@@ -104,6 +108,7 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
         options["id_registry"] = GivenPath(Path(given).absolute(), given)
     if hasattr(args, ARCHIVE_PROJECT_DIR_DEST):
         options["project_dir"] = getattr(args, ARCHIVE_PROJECT_DIR_DEST)
+    options["credentials"] = credential_policy_from_args(args)
     options["creation_metadata"] = _resolve_creation_metadata(
         args, config
     ).to_creation_metadata()
@@ -141,6 +146,7 @@ def overrides_from_options(
         max_source_metadata_bytes=options["max_source_metadata_bytes"],
         max_model_extract_bytes=options["max_model_extract_bytes"],
         max_download_bytes=options["max_download_bytes"],
+        credentials=options["credentials"],
         build_options=build_options,
     )
 

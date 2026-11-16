@@ -34,6 +34,7 @@ _CUTOFF = 0.75
 KNOWN_KEYS: dict[str, frozenset[str]] = {
     "": frozenset(
         {
+            "accept-url-credentials",
             "content-type",
             "creation",
             "creation-comment",
@@ -58,6 +59,7 @@ KNOWN_KEYS: dict[str, frozenset[str]] = {
             "sbom-basename",
             "scan-model-usage",
             "update-id-registry",
+            "url-credentials",
             "use-lockfile",
         }
     ),

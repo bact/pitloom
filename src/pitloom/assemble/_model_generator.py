@@ -25,6 +25,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
@@ -200,7 +201,10 @@ def project_document_id(project_dir: Path) -> str:
     configure_logging()
     metadata, config, _path = resolve_project_with_lockfile(project_dir, None)
     registry = resolve_registry(
-        None, config.id_registry, registry_base_dir(project_dir)
+        None,
+        config.id_registry,
+        registry_base_dir(project_dir),
+        refuse_credentials=config.credential_policy.refuse,
     )
     doc_name, doc_uuid = _doc_identity_of(project_dir, metadata, registry)
     return generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid)
@@ -241,6 +245,7 @@ def generate_model_sbom(
     shown: str | None = None,
     max_download_bytes: int | None = None,
     check_url: Callable[[str], None] | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
@@ -270,6 +275,9 @@ def generate_model_sbom(
     caller that copied it to a temporary directory names it as its user
     knows it (its path in a Git repository). The SBOM names the file by its
     own name alone either way.
+
+    *credentials* (:class:`~pitloom.core.credential_policy.CredentialPolicy`)
+    adds to the credentials *pitloom_config* accepts.
 
     Raises:
         CodedValueError: ``pypi-url-unusable``: *source* is a PyPI URL (a
@@ -303,6 +311,7 @@ def generate_model_sbom(
             pretty=pretty,
             describe_relationship=describe_relationship,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            credentials=credentials,
         ),
     )
     enrichment_results: list[EnrichmentResult] = []
@@ -322,7 +331,12 @@ def generate_model_sbom(
         # Resolved before _read_local_model()/run_enrichers() below -- a
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
-        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+        resolved_registry = resolve_registry(
+            id_registry,
+            cfg.id_registry,
+            Path.cwd(),
+            refuse_credentials=cfg.credential_policy.refuse,
+        )
         model = _read_local_model(model_path, shown)
         digest = _model_file_digests(model_path)
         entity_spdx_id = _model_registry_id(
@@ -346,6 +360,7 @@ def generate_model_sbom(
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,
         describe_relationship=bool(cfg.describe_relationship),
+        credentials=cfg.credential_policy,
     )
 
     write_sbom_output(sbom_json, output_path)
@@ -365,6 +380,7 @@ def enrich_model(
     id_registry: str | Path | IdRegistry | None = None,
     use_lockfile: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> str:
     """Run enrichment only for a local model file.
 
@@ -373,7 +389,9 @@ def enrich_model(
     or from the model file's directory. The registry is *id_registry*,
     else the explicit config's ``id-registry``; with *project_target*, the
     project's own ``id-registry`` key applies instead, since that project
-    is the document the fragment will merge into.
+    is the document the fragment will merge into, and the credentials its
+    config accepts join those of *pitloom_config* and *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`).
     """
     configure_logging()
     source_str = str(source)
@@ -389,7 +407,10 @@ def enrich_model(
         settle_inert(ENRICH_STANDALONE, source_str, {"use_lockfile": use_lockfile})
     elif is_sdist_archive(Path(project_target)):
         settle_inert(SDIST, project_target, {"use_lockfile": use_lockfile})
-    cfg = resolve_standalone_config(pitloom_config, ConfigOverrides(pretty=pretty))
+    cfg = resolve_standalone_config(
+        pitloom_config, ConfigOverrides(pretty=pretty, credentials=credentials)
+    )
+    accepted = cfg.credential_policy
 
     model_path = Path(source)
     # Registry resolved before _read_local_model()/run_enrichers() below -- a
@@ -397,7 +418,12 @@ def enrich_model(
     # after paying for a model read and enrichment first.
     if project_target is None:
         base_doc_identity = None
-        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+        resolved_registry = resolve_registry(
+            id_registry,
+            cfg.id_registry,
+            Path.cwd(),
+            refuse_credentials=accepted.refuse,
+        )
     else:
         # The project the fragment merges into, resolved as its base SBOM
         # is: its identity and registry come from the config that SBOM
@@ -408,11 +434,15 @@ def enrich_model(
         base_metadata, base_config, _ = resolve_project_with_lockfile(
             project_dir, use_lockfile, pitloom_config
         )
+        # Accepted, but given for the project's SBOM, not this fragment: a
+        # fingerprint of them that matches nothing here is not stale.
+        accepted = accepted.inheriting(base_config.credential_policy)
         # An sdist's directory is not its project, as in its base SBOM.
         resolved_registry = resolve_registry(
             id_registry,
             base_config.id_registry,
             registry_base_dir(project_dir),
+            refuse_credentials=accepted.refuse,
         )
         base_doc_identity = _doc_identity_of(
             project_dir, base_metadata, resolved_registry
@@ -443,7 +473,7 @@ def enrich_model(
         registry=resolved_registry,
     )
 
-    fragment_json = exporter.to_json(pretty=cfg.pretty)
+    fragment_json = exporter.to_json(pretty=cfg.pretty, credentials=accepted)
 
     write_sbom_output(fragment_json, output_path)
 

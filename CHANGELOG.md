@@ -26,6 +26,16 @@ and this project adheres to
 
 - Input, option, SBOM, target and ID registry file, id and key messages carry a
   message code; see `docs/message-codes.md` ([#482], [#485], [#486])
+- A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
+  or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
+- `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
+  credentials; the file is embedded unchanged unless refused ([#489], [#490])
+- `--accept-url-credential` and `accept-url-credentials` accept one value by its
+  fingerprint; `setup.cfg` takes both keys ([#490])
+- Each line names how the surface refuses or accepts the value (flag,
+  `[tool.pitloom]` key or `credentials=`) ([#490])
+- Reference fields (`createdBy`, `from`, `to`, ...), identifiers and Pitloom's
+  JSON statements and comment segments are checked too ([#490])
 
 ### Changed
 
@@ -42,8 +52,7 @@ and this project adheres to
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
-  access tokens; an SBOM states a project's URLs without them ([#482], [#486],
-  [#487], [#489])
+  access tokens ([#482], [#486], [#487], [#489])
 - A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
   with no `general.license.name` gives no licence; a Hub card's `N/A` falls
   back to licence files ([#483])
@@ -51,11 +60,15 @@ and this project adheres to
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
   not a warning; `IdRegistry.generate()` raises `FileNotFoundError` ([#485])
-- `--namespace`, `-e` and `IdRegistry` refuse credentials (tokens, embedded
-  URLs too) in a namespace or key; `id import` and `load()` drop such entries;
-  `id-collision` in merge ([#487], [#489])
+- A credential in an ID registry namespace is refused; a key or file entry is
+  warned of, or refused in refuse mode; `id import` skips it ([#487], [#489],
+  [#490])
 - Git URL fetches reset system credential helpers only for a URL with user
   information; the password is not in git's arguments ([#487])
+- A stale `accept-url-credentials` fingerprint names the SBOM; a bad one fails
+  when `PitloomConfig` is built ([#490])
+- `embed-wheel --sbom` and `id import` refuse an SBOM with a JSON object that
+  holds a key twice ([#490])
 
 ### Fixed
 
@@ -64,11 +77,11 @@ and this project adheres to
 
 ### Security
 
-- Credentials in a URL are removed from SBOMs (a warning names any left) and
-  kept out of registry files; gaps in `docs/dependency-sources.md` ([#487],
-  [#489])
-- Rotate any credential an SBOM, wheel, registry file or log of 0.24.0 or
-  earlier held; remove it from git credential stores (`git credential reject`)
+- A URL field credential is written with a warning unless refused; prose is not
+  read, some shapes not detected: `docs/url-credentials.md` ([#487], [#489],
+  [#490])
+- Rotate any credential an SBOM, wheel, registry file or log held (warn mode
+  writes it); remove it from git credential stores (`git credential reject`)
   ([#487])
 
 [#481]: https://github.com/bact/pitloom/pull/481
@@ -78,6 +91,7 @@ and this project adheres to
 [#486]: https://github.com/bact/pitloom/pull/486
 [#487]: https://github.com/bact/pitloom/pull/487
 [#489]: https://github.com/bact/pitloom/pull/489
+[#490]: https://github.com/bact/pitloom/pull/490
 
 ## [0.24.0] - 2026-11-11
 

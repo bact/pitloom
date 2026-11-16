@@ -8,7 +8,8 @@ catalogue writes each one, and the shape the written text always has, which
 is what a reader trusts a line by.
 
 See also: :mod:`pitloom.messages._fields_registry` (the ID registry's
-fields), :mod:`pitloom.messages._field_type` (:class:`Field`),
+fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
+:mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
 :mod:`pitloom.messages._lines` (reading a line back), and
@@ -49,6 +50,7 @@ from pitloom.messages._field_writers import (
     path_text,
     plain_text,
 )
+from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
 from pitloom.messages._fields_registry import REGISTRY_FIELDS
 
 #: The names of every family but the ID registry's.
@@ -434,4 +436,6 @@ def _merged(*parts: Mapping[str, Field]) -> Mapping[str, Field]:
 
 
 #: Every name a template may use.
-FIELDS: Final[Mapping[str, Field]] = _merged(_GENERAL, REGISTRY_FIELDS)
+FIELDS: Final[Mapping[str, Field]] = _merged(
+    _GENERAL, REGISTRY_FIELDS, CREDENTIAL_FIELDS
+)

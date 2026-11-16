@@ -15,11 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from pitloom.core.url_masking import (
-    find_url_credentials,
-    masked_given_path,
-    strip_url_secrets,
-)
+from pitloom.core.url_masking import find_url_credentials, masked_given_path
 from tests.core.url_masking._probe_corpus import encoded
 
 
@@ -90,20 +86,18 @@ def test_a_line_reads_a_password_through_a_tab_or_line_break(brk: str) -> None:
 
 def test_a_secret_value_runs_over_a_semicolon_in_every_reader() -> None:
     """``parse_qsl`` and the WHATWG parser read ``;`` as part of a value:
-    the masker, the strip and the detector hide all of ``S3C;RET``; a path
-    parameter opened by ``;`` still ends at the next ``;``."""
+    the masker and the detector hide all of ``S3C;RET``; a path parameter
+    opened by ``;`` still ends at the next ``;``."""
     url = "https://h/x?token=S3C;RET&a=1"
     assert masked_given_path(url) == "https://h/x?token=***&a=1"
     assert masked_given_path(f"see {url} ok", line=True) == (
         "see https://h/x?token=***&a=1 ok"
     )
-    assert strip_url_secrets(url, whole=True)[0] == "https://h/x?a=1"
-    assert strip_url_secrets(f"see {url} ok", whole=False)[0] == (
-        "see https://h/x?a=1 ok"
-    )
     assert [f.shown for f in find_url_credentials(url)] == ["https://h/x?token=***&a=1"]
     path = "https://h/x;jsessionid=S3C;a=1?q=1"
-    assert strip_url_secrets(path, whole=True)[0] == "https://h/x;a=1?q=1"
+    assert [f.shown for f in find_url_credentials(path)] == [
+        "https://h/x;jsessionid=***;a=1?q=1"
+    ]
     assert masked_given_path(path) == "https://h/x;jsessionid=***;a=1?q=1"
 
 
@@ -127,7 +121,6 @@ def test_a_purl_in_a_line_keeps_the_punctuation_after_it() -> None:
 def test_only_a_secret_value_runs_over_a_semicolon(url: str) -> None:
     """A weak name's value (kept as written) ends at ``;``, so a secret
     after it is still found; a secret value that reaches a URL inside it
-    runs over a ``;`` after that URL too, in the masker and the strip."""
+    runs over a ``;`` after that URL too, in the masker and the detector."""
     assert "S3CRET" not in masked_given_path(url)
-    assert "S3CRET" not in strip_url_secrets(url, whole=True)[0]
     assert any(not f.weak for f in find_url_credentials(url))

@@ -63,6 +63,7 @@ __all__ = [
     "escape_lone_surrogates",
     "escape_lone_surrogates_in",
     "escape_lone_surrogates_in_elements",
+    "unescape_display_controls",
 ]
 
 #: The code points every display-safety helper neutralises: a fixed list
@@ -113,6 +114,12 @@ def _escape(code_point: int) -> str:
 
 
 _ESCAPES = {ord(char): _escape(ord(char)) for char in DISPLAY_CONTROLS}
+#: Each escape :func:`escape_display_controls` writes, back to its code point;
+#: the longest first (a tag character's surrogate pair before its halves).
+_UNESCAPES = {_escape(ord(char)): char for char in DISPLAY_CONTROLS}
+_UNESCAPE_RE = re.compile(
+    "|".join(map(re.escape, sorted(_UNESCAPES, key=len, reverse=True)))
+)
 
 # Each code point as its UTF-8 bytes, percent-encoded in upper case (RFC 3986).
 _IRI_ESCAPES = {
@@ -135,6 +142,18 @@ def escape_display_controls(text: str) -> str:
     annotation keeps a model's metadata as read).
     """
     return text.translate(_ESCAPES)
+
+
+def unescape_display_controls(text: str) -> str:
+    """*text* with each escape :func:`escape_display_controls` writes turned
+    back into its code point: what a reader of the original saw, for a
+    check that must see it (a format character inside a parameter name a
+    client drops). Not the original where *text* held such an escape as
+    six characters of its own (that function's note); for a check, never
+    for output."""
+    if "\\u" not in text:
+        return text
+    return _UNESCAPE_RE.sub(lambda match: _UNESCAPES[match[0]], text)
 
 
 def _escape_strings(value: Any) -> Any:

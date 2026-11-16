@@ -200,7 +200,7 @@ class _Scan:
         end = self._userinfo_end(start, self.quote(scheme))
         if first_at >= end:
             return None
-        at = userinfo_end(self.text, start, end, free_text=False, widest=True)
+        at = userinfo_end(self.text, start, end, widest=True)
         return None if at is None else (start, at)
 
     def value_tail(self, userinfo: tuple[int, int], quote: str) -> int | None:

@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the one user information rule
-(:func:`pitloom.core.url_masking.userinfo_end`) as the masker, the SBOM
-strip, the refusal of a stored value and the Git split read it, and for
-the account name of an ``ssh`` URL.
+(:func:`pitloom.core.url_masking.userinfo_end`) as the masker, the refusal
+of a stored value and the Git split read it, and for the account name of an
+``ssh`` URL.
 
-See also: test_url_masking_strip.py (the SBOM strip),
+See also: test_url_masking_detect.py (the detector),
 test_url_masking_differential.py (the deciders against each other) and
 test_url_masking_given_path.py (the masker), all in this folder.
 """
@@ -24,8 +24,6 @@ from pitloom.core.url_masking import (
     sanitize_url,
     sanitize_url_credentials,
     split_userinfo,
-    strip_url_secrets,
-    url_without_credentials,
     userinfo_end,
 )
 
@@ -60,9 +58,10 @@ from pitloom.core.url_masking import (
     ],
 )
 def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
-    """The strip removes it, the refusal says so, the masker hides it and
-    the Git split takes it out, each by the one rule."""
-    assert strip_url_secrets(url, whole=True)[0] == plain
+    """The refusal says so, the masker hides it and the Git split takes it
+    out, each by the one rule."""
+    split = split_userinfo(url)
+    assert split is not None and split[0] == plain
     assert holds_url_credentials(url)
     assert "S3" not in masked_given_path(url) and "PW" not in masked_given_path(url)
 
@@ -80,20 +79,9 @@ def test_every_decider_reads_one_user_information(url: str, plain: str) -> None:
     ids=["query", "port", "fragment", "ipv6", "empty", "path"],
 )
 def test_an_at_sign_after_a_host_is_no_user_information(url: str) -> None:
-    assert strip_url_secrets(url, whole=True) == (url, [])
+    assert split_userinfo(url) is None
     assert not holds_url_credentials(url)
     assert masked_given_path(url) == url
-
-
-@pytest.mark.parametrize(
-    "text",
-    ["see https://h and mail me@x.org/x", '{"a":"https://h","b":"me@x.org"}'],
-    ids=["prose", "json"],
-)
-def test_an_address_after_a_url_in_free_text_is_kept(text: str) -> None:
-    """In free text a URL ends at white space or a quote, unless the text
-    before it reads as ``user:password``."""
-    assert strip_url_secrets(text, whole=False) == (text, [])
 
 
 @pytest.mark.parametrize(
@@ -113,14 +101,9 @@ def test_the_masker_reads_the_widest_user_information(
     url: str, widest: bool, end: int | None
 ) -> None:
     """A masker runs to the last ``@`` (it hides a host, never a password);
-    the strip and git stop at an ``@`` followed by a host."""
+    the refusal and git stop at an ``@`` followed by a host."""
     stop = url.find("/", 8)
-    assert (
-        userinfo_end(
-            url, 8, len(url) if stop < 0 else stop, free_text=False, widest=widest
-        )
-        == end
-    )
+    assert userinfo_end(url, 8, len(url) if stop < 0 else stop, widest=widest) == end
 
 
 @pytest.mark.parametrize(
@@ -169,12 +152,12 @@ def test_the_git_split_takes_the_same_user_information(
         "https",
     ],
 )
-def test_an_ssh_account_name_is_kept_and_a_token_removed(url: str, kept: bool) -> None:
+def test_an_ssh_account_name_is_accepted_and_a_token_refused(
+    url: str, kept: bool
+) -> None:
     """A user name alone on an ``ssh`` URL reaches the server; a password or
     a token-looking name is a credential. A namespace or a key refuses any
     user information unless *account* is set."""
-    plain, changed = strip_url_secrets(url, whole=True)
-    assert (plain == url) is kept and bool(changed) is not kept
     assert holds_url_credentials(url)
     assert holds_url_credentials(url, account=True) is not kept
     scheme, _, rest = url.partition("://")
@@ -202,17 +185,14 @@ def test_sanitize_url_credentials_masks_scp_and_reads_the_rule(
 
 
 @pytest.mark.parametrize(
-    ("url", "masked", "kept"),
+    ("url", "masked"),
     [
-        ("https://u:p?x@h/r", "https://***:***@h/r", "https://h/r"),
-        ("https://h?contact=me@x.org", None, None),
-        ("https:\\u:p@h\\r", "https://***:***@h\\r", "https://h\\r"),
-        ("https://u:\\SECRET@h/r", "https://***:***@h/r", "https://h/r"),
+        ("https://u:p?x@h/r", "https://***:***@h/r"),
+        ("https://h?contact=me@x.org", None),
+        ("https:\\u:p@h\\r", "https://***:***@h\\r"),
+        ("https://u:\\SECRET@h/r", "https://***:***@h/r"),
     ],
     ids=["question", "query", "windows", "opener-in-user-information"],
 )
-def test_a_text_that_is_one_url_reads_the_rule(
-    url: str, masked: str | None, kept: str | None
-) -> None:
+def test_a_text_that_is_one_url_reads_the_rule(url: str, masked: str | None) -> None:
     assert sanitize_url(url) == (masked or url)
-    assert url_without_credentials(url) == (kept or url)

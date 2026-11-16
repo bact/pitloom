@@ -84,8 +84,10 @@ refuse such a namespace with a `ValueError`, coded
 `credentials-unsafe/registry` for a credential. A
 registry whose `namespace` is not a valid namespace IRI (one holding a
 credential included), or whose `spdxId` is not a non-empty string, does not
-load; an entry whose key or `spdxId` holds a credential is dropped with a
-`WARNING:` (see
+load. One with an entry whose key or `spdxId` holds a credential loads
+with a `WARNING:` per entry by default, and in the `refuse` mode
+(`url-credentials = "refuse"`, `--refuse-url-credentials`) does not load: it
+is refused, left as it is. Either way you remove the entry (see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)). `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
 namespace IRI; otherwise one
@@ -361,13 +363,15 @@ and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError` (`text-malformed/registry`, `registry-malformed`); `generate()`
 skips such a file with the `PATH` `WARNING:`, and harvest and `id import`
 skip such an element with a `WARNING:` (both `text-malformed/registry`).
-`register()` raises `ValueError` for a key holding user information, a
-secret query value or an access token, or a query nested or encoded too
-deeply to read (a PURL qualifier and a dotless scp-style address
-included), and harvest and `id import` skip an element whose key or
-`spdxId` holds one, with a `WARNING:`, and `IdRegistry.load()` drops
-such an entry of the file, with a `WARNING:` (all
-`credentials-unsafe/registry`; see
+`register()` stores a key holding user information, a secret query value
+or an access token, or a query nested or encoded too deeply to read (a PURL
+qualifier and a dotless scp-style address included) with a `WARNING:`, and
+raises `ValueError` for it in the `refuse` mode (`refuse_credentials=True` on
+`IdRegistry.load()`, `IdRegistry.new()` or the constructor); harvest and `id
+import` skip an element whose key or `spdxId` holds one, with a `WARNING:`, in
+either mode; `IdRegistry.load()` and `IdRegistry.rebase()` load a file that
+holds such an entry with a `WARNING:`, and in the `refuse` mode raise
+`ValueError` and leave it as it is (all `credentials-unsafe/registry`; see
 [Credentials in a key](id-registry-keys.md#credentials-in-a-key)).
 `generate()` raises `FileNotFoundError` (`PATH not found: '<path>'
 [input-not-found]`) for a path that is not there, and `ValueError` (`ID

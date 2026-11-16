@@ -35,6 +35,7 @@ from pitloom.core.config_cascade import (
     resolve_fetch_policy,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.credential_policy import CredentialPolicy
 from pitloom.core.inert_options import INERT, PYPI_SDIST, PYPI_WHEEL, settle_inert
 from pitloom.core.internal_error import InternalError
 from pitloom.core.project import ProjectMetadata
@@ -188,6 +189,7 @@ def generate_pypi_sbom_with_download(
     max_model_extract_bytes: int | None = None,
     build_options: BuildOptions = BuildOptions(),
     project_dir: Path | str | None = None,
+    credentials: CredentialPolicy | None = None,
 ) -> PypiSbom:
     """Generate an SPDX 3 SBOM for the wheel (*kind* ``"wheel"``, an
     Analyzed SBOM) or the sdist (``"sdist"``, a Source SBOM) of the release
@@ -224,7 +226,9 @@ def generate_pypi_sbom_with_download(
     given), no build backend is run (a build flag in *build_options* warns
     once) and *project_dir* has no effect; each option the kind cannot use
     warns once against *url*. A relative *id_registry* means the caller's
-    directory, as for any local wheel or sdist.
+    directory, as for any local wheel or sdist. *credentials*
+    (:class:`~pitloom.core.credential_policy.CredentialPolicy`) adds to the
+    credentials *pitloom_config* accepts.
 
     Returns a :class:`PypiSbom`: the SBOM, the
     :class:`~pitloom.extract.remote.pypi.PypiDownload` it was read from and
@@ -273,6 +277,7 @@ def generate_pypi_sbom_with_download(
         "max_source_metadata_bytes": max_source_metadata_bytes,
         "max_model_extract_bytes": max_model_extract_bytes,
         "project_dir": project_dir,
+        "credentials": credentials,
     }
     # Settled here, against the URL: the local generator never names the
     # temporary file in a warning.

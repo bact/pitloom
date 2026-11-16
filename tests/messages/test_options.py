@@ -158,7 +158,9 @@ def test_argparse_conflict_wording_is_option_conflict() -> None:
 
 def test_the_prefix_constants_are_the_templates_leading_text() -> None:
     assert INERT_LOG_PREFIX is OPTIONS_PREFIX and BUILD_LOG_PREFIX is BUILD_PREFIX
-    leads = {ln.template.split("%")[0] for ln in OPTION_NO_EFFECT.lines}
+    leads = {
+        ln.template[: ln.template.index(": ") + 2] for ln in OPTION_NO_EFFECT.lines
+    }
     assert leads == {OPTIONS_PREFIX, BUILD_PREFIX} == {"Options: ", "Build: "}
 
 

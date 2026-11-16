@@ -295,104 +295,48 @@ in the generated SBOM.
 ## Credentials in a URL
 
 A URL a project declares (a direct dependency, a project URL, a dataset's
-download URL and the PURL built from it) may hold a user name or password,
-or a query parameter named like a secret (`token`, `key`, `signature`,
-`session_id`, `sessionid`). An SBOM can be published, so Pitloom states the
-URL without them and says so once per URL, as
-`WARNING: URL=https://***:***@host.example/x.whl?token=***: holds user
-information or a secret query value, or a query nested too deeply to
-read; removed from the SBOM [credentials-unsafe]`. A parameter named `code`, `session`, `ticket`,
-`sid` or `otp`, which holds a secret only sometimes, and a user name alone
-on an `ssh` or `git` URL (`ssh://git@github.com/o/r`) are kept as written,
-and said too, once per URL: `holds a code, session, ticket, sid or otp
-parameter or an ssh user name that the SBOM keeps as written`. The log line
-may still mask a kept `code` value. A user name that looks like a token
-(`ssh://ghp_...@github.com/o/r`) is removed. A value is read past an
-invisible format character (a zero-width space, a byte order mark, a
-bidirectional mark) and inside one pair of enclosing `<>` or quotes, as a
-client reads it; the format characters go from a value the SBOM states
-without credentials. Treat a credential that was in a project file as
-exposed.
+download URL and the PURL built from it) may hold a user name or password, a
+query parameter named like a secret (`token`, `key`, `signature`, `session_id`)
+or an access token. An SBOM can be published, so Pitloom says so loudly; it
+never rewrites the URL. By default (the `warn` mode) the SBOM is written as it
+is, with one `WARNING:` line per value naming the value (masked), the element
+and field that hold it and a fingerprint, and the command exits 0:
 
-Some credentials are recognised but not removed: the SBOM states the value
-as written and says so once per value, masked, as `holds user information,
-a secret query value or an access token, or a query nested or encoded too
-deeply to read, which the SBOM states as written; remove it from the source
-[credentials-unsafe]`. These are:
+```text
+WARNING: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); the SBOM states it as written; remove it from the source, or refuse such values with --refuse-url-credentials [credentials-unsafe/written]
+```
 
-- an access token's shape in a URL (`https://h/ghp_.../x`), or as a PURL
-  qualifier value;
-- user information or a secret parameter after a scheme with one `/` or
-  backslashes, other than `http`, `https`, `ftp`, `ws`, `wss` and `file`
-  (`s3:/u:p@h/x`, `hf:/datasets/x?token=...`, `git+ssh:/h/x?token=...`);
-- an scp-style address in a URL's query value
-  (`https://h/?next=alice:pw@host:o/r`) or as a PURL subpath
-  (`pkg:generic/x@1#alice:pw@host:o/r`);
-- a value that is a whole scp-style address with neither a `.` in its host
-  nor a `/` in its path (`build:42@ci:linux`);
-- a PURL qualifier named like a secret (`?private_token=...`).
+With `url-credentials = "refuse"` in `[tool.pitloom]` or
+`--refuse-url-credentials` (recommended in CI), each value is one `ERROR:`
+line instead; a count line follows, the SBOM is refused (none is written) and
+the command exits 1.
 
-Pitloom's own log lines also mask an access token's shape (`ghp_***`,
-`AKIA***`) wherever it appears in them.
+```text
+ERROR: loom project: URL=foo @ https://***:***@example.org/foo-1.0.whl: holds a credential (<element> /statement/fields/declared_constraint/note, sha256:64a27d8a8c117f80); remove it from the source, or accept this value with --accept-url-credential sha256:64a27d8a8c117f80 [credentials-unsafe/refused]
+ERROR: loom project: 1 URL value(s) in the SBOM hold credentials; the SBOM is refused [credentials-unsafe/refused]
+```
 
-### Known gaps
+Remove the credential from the source, and treat one that was in a project
+file as exposed. A value you know is no secret (an example URL) is accepted
+alone with `--accept-url-credential` and its fingerprint, or
+`accept-url-credentials` in `[tool.pitloom]`; the SBOM then states it as
+written, with a quieter `WARNING:`, in either mode.
 
-The masking reads the shapes above; these are not covered, so keep such
-credentials out of URLs (use `.netrc`, a credential helper or an
-environment variable instead):
+A parameter named `code`, `session`, `ticket`, `sid` or `otp`, which holds a
+secret only sometimes, and a user name alone on an `ssh` or `git` URL
+(`ssh://git@github.com/o/r`) are only warned of, in either mode. The SBOM states them as written
+and says so once per value, masked: `holds a code, session, ticket, sid, otp or
+other _key parameter or an ssh user name; the SBOM states it as written`.
 
-- A `/` or white space in a password, and a host written as `@[::1]`: the
-  user information is not recognised.
-- An scp-style address whose user is a bare token (`TOKEN@host:o/r`, no
-  `user:`): not recognised.
-- `state=` and `Policy=` query parameters, and path parameters such as
-  `;jsessionid=`: kept as written. A secret query value runs over a `;`
-  (`?token=a;b`), as Python's `parse_qsl` reads it.
-- A percent-encoded URL nested in another URL, other than in a `pkg:` PURL
-  qualifier: not read.
-- A URL inside free text (a description): it ends at white space, a quote or
-  an angle bracket, so an apostrophe, quote, space, `<` or `>` in its user
-  information is not read as part of it (a URL field, such as a project URL
-  or a dependency's direct URL, reads it whole).
-- An scp-style `user:password@host:path` is removed only when the host has a
-  `.` or the path a `/`; a whole value without (`build:42@ci:linux`, a file
-  name such as `meet-10:30@ab:c.txt` too) is stated as written, with the
-  warning above (an ID registry key or namespace that is that whole value is
-  refused; a file's key is never read as one).
-- A parameter whose value holds more than 16 `?` is removed whole, as a
-  precaution: the query is nested too deeply to read, and what is removed may
-  not be a credential.
-- An `ssh` account name is kept, with a "kept" warning, even when it looks
-  like a value (`ssh://abcdeftokenvalue@host`).
-- Logs that are not Pitloom's own: warnings of third-party libraries, a
-  Hatchling traceback and `urllib3` log lines are not masked; a line break
-  in a password can split a traceback line so that its parts are not
-  recognised.
-- A URL in a log sentence ends at white space other than a tab or a line
-  break, so a secret after a space in its path (`https://h/a b?token=...`)
-  is shown; a `KEY=VALUE` value that starts with a URL is read whole.
-- An access token in a URL inside free text (a description, or the
-  provenance comment and annotation that quote a dependency's direct URL,
-  `foo @ https://host/ghp_...`) is stated as written, without a warning.
-- An old Slack workspace or bot token without the digit groups
-  (`xoxa-`, `xoxr-`, an `xoxb-` legacy shape) is not recognised, since a
-  documentation word fits its shape.
-- A variation selector (U+FE0F) inside a token ends the token there.
-- Once credentials are removed from a value, every invisible format
-  character in it goes too, a zero-width joiner in prose included.
-- An ID registry key, id or namespace is refused when a URL or an access
-  token appears anywhere in it (`urn:x:https://user:pw@host/ns`); any other
-  value counts only as a whole (a URL inside a name or description is
-  never refused, only masked in Pitloom's logs).
-- A Git password holding `%00` stops the fetch with a plain error; the host
-  of a credential-helper key is not checked for `=`, white space or `!`;
-  `GIT_SSL_NO_VERIFY`, `GIT_SSH_COMMAND`, `GIT_PROXY_COMMAND`,
-  `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_CONFIG` and `GIT_EXEC_PATH`
-  pass from the environment to `git`.
-- A `?token=` value of a Git URL still reaches `git`'s command line (visible
-  to other users in `ps`) and the clone's `.git/config`; only user
-  information (`https://user:token@host`) is kept off them.
-- The GitHub Action does not `::add-mask::` its source inputs.
+Only URL-typed fields and Pitloom's own provenance statements and comment
+lines (such as the direct reference a dependency is declared with) are read; a README, a
+description or a comment is prose and never read. What is found, the
+fields read, the other surfaces (library, build hook, Action, `embed-wheel
+--sbom`), the ID registry and what is not detected are in [Credentials in
+URLs](url-credentials.md).
+
+Pitloom's own log lines also mask a credential they print (`https://***:***@host`,
+`ghp_***`), whether or not the SBOM is refused.
 
 ## Configuration and flags
 

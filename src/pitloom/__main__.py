@@ -23,6 +23,7 @@ from pitloom.logging_config import (
     print_traceback,
     set_error_frame,
 )
+from pitloom.messages.url_credentials import ADVICE_CLI, credential_advice
 
 # 128 + SIGINT, the status a shell reports for a command ended by Ctrl-C.
 _EXIT_INTERRUPTED = 130
@@ -70,7 +71,7 @@ def _framed_session() -> Iterator[None]:
     subcommand is known), and report a Ctrl-C inside it, so the line carries
     the frame of the command that was running; the ``KeyboardInterrupt``
     goes on to the caller."""
-    with error_frame(command_frame("")):
+    with error_frame(command_frame("")), credential_advice(ADVICE_CLI):
         try:
             yield
         except KeyboardInterrupt:

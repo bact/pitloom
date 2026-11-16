@@ -34,8 +34,17 @@ pytestmark = pytest.mark.platform
     [
         (b'{"@graph": {}}', "SBOM @graph is not a list"),
         (b'{"@graph": [1]}', "SBOM @graph holds an element that is not an object"),
+        (
+            b'{"@graph": [{"software_downloadLocation": "https://u:S3CRETX@h/x",'
+            b' "software_downloadLocation": "https://h/x"}]}',
+            "SBOM holds an object with a key given twice",
+        ),
+        (
+            b'{"a": 1, "a": 1, "@graph": []}',
+            "SBOM holds an object with a key given twice",
+        ),
     ],
-    ids=["not-list", "element"],
+    ids=["not-list", "element", "duplicate-key", "duplicate-equal"],
 )
 def test_an_sbom_graph_of_the_wrong_shape_is_sbom_invalid(
     tmp_path: Path, graph: bytes, said: str
@@ -46,6 +55,7 @@ def test_an_sbom_graph_of_the_wrong_shape_is_sbom_invalid(
         read_sbom_objects(sbom)
     assert str(caught.value) == f"FILE={sbom}: {said}"
     assert raised_as(caught.value, SBOM_INVALID)
+    assert caught.value.__cause__ is None and "S3CRETX" not in str(caught.value)
 
 
 @pytest.mark.parametrize(

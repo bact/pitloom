@@ -48,23 +48,52 @@ BUILD_NO_EFFECT_LINE: Final = Line(
     level="WARNING",
     template=f"{BUILD_PREFIX}%(name)s: %(option)s has no effect %(when)s",
 )
+#: A URL credential fingerprint accepted that no URL of the SBOM has.
+STALE_FINGERPRINT_LINE: Final = Line(
+    level="WARNING",
+    template=f"{OPTIONS_PREFIX}FINGERPRINT=%(fingerprint)s: matches no URL of "
+    "the SBOM %(element)s",
+)
+#: ``loom id`` with ``-o`` and ``--project-dir`` whose project config could
+#: not be read: its ``url-credentials`` is not applied.
+MODE_UNREAD_LINE: Final = Line(
+    level="WARNING",
+    template=f"{OPTIONS_PREFIX}DIR=%(dir)s: url-credentials not read: "
+    "%(failure)s; the warn mode applies; add %(option)s to refuse",
+)
 
 OPTION_NO_EFFECT: Final = Message(
     code="option-no-effect",
     condition="no-effect",
-    lines=(OPTIONS_NO_EFFECT_LINE, OPTIONS_NO_EFFECT_INFO_LINE, BUILD_NO_EFFECT_LINE),
+    lines=(
+        OPTIONS_NO_EFFECT_LINE,
+        OPTIONS_NO_EFFECT_INFO_LINE,
+        BUILD_NO_EFFECT_LINE,
+        STALE_FINGERPRINT_LINE,
+        MODE_UNREAD_LINE,
+    ),
     summary="An option or setting was given that the target or command cannot "
     "act on (a build flag without --allow-build, --use-lockfile for a wheel "
     "given to 'loom generate', a library parameter a URL target ignores); "
     "the line says why. The INFO: line is a [tool.pitloom] setting the "
-    "build hook or 'embed-wheel' never acts on, named by its flag.",
+    "build hook or 'embed-wheel' never acts on, named by its flag. The "
+    "FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, "
+    "accept-url-credentials in [tool.pitloom]) that no URL value of the "
+    "SBOM it names (its document id) has: a value since removed, or a "
+    "fingerprint mistyped. The DIR= line is 'loom id generate' or "
+    "'loom id import' given -o and --project-dir, whose project config could "
+    "not be read (a bare setup(), an invalid setting): its url-credentials "
+    "is not applied.",
     did="Ran as if it were not given; the run goes on.",
     effect="none",
     actor="caller",
     advice="The caller may drop the option from its command, or pick the "
     "target or companion option it needs (the line says which). Nothing to "
     "tell the user unless they asked for the option; for the INFO: line, do "
-    "not edit their configuration.",
+    "not edit their configuration. For the FINGERPRINT= line, tell the "
+    "user the acceptance accepts nothing here; they may drop it. For the "
+    "DIR= line, tell the user the project's url-credentials was not "
+    "applied and why; to refuse, the caller adds --refuse-url-credentials.",
     since=_SINCE,
 )
 
@@ -95,6 +124,40 @@ REGISTRY_PATH_OUTSIDE_LINE: Final = Line(
     template=f"{REGISTRY_PREFIX}PATH %(path)s is not inside the project root %(root)s",
 )
 
+#: What a URL credential fingerprint looks like. A refusal says this, never
+#: the value given: it may be the credential itself, pasted by mistake.
+FINGERPRINT_SHAPE: Final = "sha256: and 16 to 64 lowercase hex digits"
+#: A fingerprint given to the library (``CredentialPolicy``) that is none.
+FINGERPRINT_LINE: Final = Line(
+    level="ERROR", template=f"not a fingerprint ({FINGERPRINT_SHAPE})"
+)
+#: An entry of ``accept-url-credentials`` that is no fingerprint, by position.
+FINGERPRINT_ENTRY_LINE: Final = Line(
+    level="ERROR",
+    template="%(table)s %(setting)s entry %(number)s: not a fingerprint "
+    f"({FINGERPRINT_SHAPE})",
+)
+#: An ``accept-url-credentials`` that is no array.
+FINGERPRINT_ARRAY_LINE: Final = Line(
+    level="ERROR",
+    template="%(table)s %(setting)s: must be an array of fingerprints",
+)
+#: A ``url-credentials`` that is no mode (its value never quoted).
+URL_CREDENTIALS_MODE_LINE: Final = Line(
+    level="ERROR",
+    template='%(table)s %(setting)s: must be "warn" or "refuse"',
+)
+#: The same, given to the library (``PitloomConfig.url_credentials``).
+URL_CREDENTIALS_MODE_ARGUMENT_LINE: Final = Line(
+    level="ERROR",
+    template='PitloomConfig url_credentials: must be "warn" or "refuse"',
+)
+#: A ``CredentialPolicy(refuse=...)`` that is no ``bool``.
+REFUSE_ARGUMENT_LINE: Final = Line(
+    level="ERROR",
+    template="CredentialPolicy refuse: must be True or False",
+)
+
 OPTION_INVALID: Final = Message(
     code="option-invalid",
     condition="invalid",
@@ -105,24 +168,43 @@ OPTION_INVALID: Final = Message(
         BUILD_TIMEOUT_LINE,
         PATH_OUTSIDE_LINE,
         REGISTRY_PATH_OUTSIDE_LINE,
+        FINGERPRINT_LINE,
+        FINGERPRINT_ENTRY_LINE,
+        FINGERPRINT_ARRAY_LINE,
+        URL_CREDENTIALS_MODE_LINE,
+        URL_CREDENTIALS_MODE_ARGUMENT_LINE,
+        REFUSE_ARGUMENT_LINE,
     ),
     summary="The command line holds an option or a value the command does not "
     "take: an unknown option, a value of the wrong form or out of range, an "
     "unknown subcommand, an option out of order (a creator's type or email "
     "before its name), or a 'loom id generate' PATH outside --project-dir "
     "(the library: a path outside the project root given to "
-    "IdRegistry.generate). An option given without its value is "
-    "option-missing; two options argparse refuses together are "
+    "IdRegistry.generate). Or a URL credential fingerprint is not one: "
+    "an accept-url-credentials in [tool.pitloom] that is no array or has "
+    "an entry that is no fingerprint (named by its position, from 0), or "
+    "one given to the library; the line never shows the value, which may "
+    "be a credential pasted by mistake. Or a url-credentials in "
+    "[tool.pitloom] (PitloomConfig.url_credentials in the library) is "
+    "neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. "
+    "An option given without its value "
+    "is option-missing; two options argparse refuses together are "
     "option-conflict.",
     did="Ran nothing: the command exits 2 (the Action step fails), 1 for a "
-    "PATH outside --project-dir; the library raises ValueError carrying the "
-    "code for a build timeout out of range (BuildOptions) and a path outside "
-    "the project root (IdRegistry.generate).",
+    "PATH outside --project-dir, a fingerprint or a url-credentials in "
+    "[tool.pitloom]; the "
+    "library raises ValueError carrying the code for a build timeout out "
+    "of range (BuildOptions), a path outside the project root "
+    "(IdRegistry.generate) and a fingerprint that is none "
+    "(CredentialPolicy, accept-url-credentials) or a url-credentials that "
+    "is no mode.",
     effect="not-written",
     actor="caller",
     advice="The caller may fix the option or value the line names ('loom "
     "<command> --help' lists them) and run again. Tell the user only when the "
-    "value came from them.",
+    "value came from them. For a fingerprint, the user copies it from the "
+    "credentials-unsafe/written or refused line that offers it; do not show the "
+    "value they gave, and do not edit their configuration.",
     since=_SINCE,
 )
 
