@@ -28,7 +28,7 @@ text, a `MemoryError` filed as an invalid SBOM.
 ## Round 2 (2026-11-17, PRs #480 to #494)
 
 Six reviews (docs, working-docs, code comments in two parts, skills, the whole
-catalogue). Fixed in the round-2 PR: stale "refused by default" wording in
+catalogue). Fixed in #494: stale "refused by default" wording in
 three docs, the Action example for a tag without the inputs, `url-credentials`
 missing from the `loom.run` key list, `embed-wheel` missing from the flag
 lists, the `option-conflict` text for `loom id import`, quoted lines of the
@@ -43,6 +43,18 @@ cross-references, drift-test markers for 44 unguarded quotes.
   without `[library-missing]`. Needs a WARNING line on the entry, or a
   forwarded code. Same pattern: `assemble/spdx3/fragments.py` relays a coded
   `json-malformed` / `file-unreadable` text without its code.
+- `registry-file-missing` is said once per model miss in `loom.Run`
+  (`_loom_model.py` `_record`) and once more by `_sync_registry`; a
+  once-per-process key (`log_once`) hides it from every later run, so it
+  needs a per-run flag on `LoomModels` or the session.
+- `failure_text` drops memory addresses only for the `failure` field; about
+  30 sites print `one_line(exc)` directly. `MemoryError` is still filed as an
+  input fault by `assemble/spdx3/fragments.py:393` and
+  `cli/commands/fragment.py:126,135` (the latter uses a block `pylint:
+  disable=`).
+- `CREDENTIALS_UNSAFE_ACCEPTED`'s summary names no Action input; the drift
+  markers `<input> not found: `, `archive not found: ` and `path not found: `
+  match no template, so they guard nothing.
 - `text-malformed` names an SBOM element under `FILE=` (`export/spdx3_json.py`,
   `warn_lone_surrogates(log, file=min(changed))`); it wants an `ELEMENT=` line.
 - `credentials-unsafe/git-userinfo` shows its URL quoted (`URL='...'`); its
@@ -97,4 +109,5 @@ cross-references, drift-test markers for 44 unguarded quotes.
   folder), `message-catalogue-pr6-pr7-plan.md`.
 - CLAUDE.md rules whose detail docs are missing: "Write the key the lookup
   used", the `provenance_source` rule, the pyrefly interpreter note.
-- Three CHANGELOG bullets run over 160 characters.
+- CHANGELOG bullets over 160 characters (with the PR links): seven; `CHANGELOG.md`
+  itself is 60 KB.

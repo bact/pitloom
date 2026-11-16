@@ -193,8 +193,21 @@ def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) 
         ("bad <Thing object at 0x7f3a9c1d2e50> inside", "bad <Thing object> inside"),
         ("two <A at 0x1F> and <B at 0xab>", "two <A> and <B>"),
         ("an at 0xyz and 0x12 stay", "an at 0xyz and 0x12 stay"),
+        (
+            "could not open 'report at 0xbeef.json'",
+            "could not open 'report at 0xbeef.json'",
+        ),
+        ("header corrupt at 0x1a: bad magic", "header corrupt at 0x1a: bad magic"),
+        ("x at 0x1fooBar", "x at 0x1fooBar"),
     ],
-    ids=["address", "two-addresses", "not-an-address"],
+    ids=[
+        "address",
+        "two-addresses",
+        "not-an-address",
+        "file-name",
+        "offset",
+        "word",
+    ],
 )
 def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:
     """A deserialiser's default repr must not make stderr differ per run."""

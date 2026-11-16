@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -147,7 +147,8 @@ fails the step and is not printed. See [Credentials in URLs](url-credentials.md)
 ```yaml
 - uses: bact/pitloom@v0.24.0
   with:
-    # New in 0.25.0: a tag before it ignores these two inputs.
+    # Needs v0.25.0 or later: with @v0.24.0 GitHub warns "Unexpected
+    # input" and ignores both.
     url-credentials: refuse
     accept-url-credentials: |
       sha256:0123456789abcdef

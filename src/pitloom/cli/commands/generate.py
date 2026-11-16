@@ -52,8 +52,8 @@ from pitloom.messages.targets import input_exists, say_input_not_found
 
 
 def _run_project_target(args: argparse.Namespace) -> int:
-    """A project directory or sdist archive: exactly what `loom project`
-    does, so the two cannot drift. Settled once the target exists (`loom
+    """A project directory or sdist archive: what `loom project` does, so
+    the two cannot drift. Settled once the target exists (`loom
     project` settles before its check), so the build-flag WARNING: precedes
     any metadata WARNING:. A missing target is named as typed (read_project
     would name the resolved path)."""

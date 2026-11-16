@@ -43,8 +43,9 @@ MAX_COUNTER: Final = 9007199254740991
 #: The runs that save the ids they added after their SBOM is built.
 SAVE_SURFACES: Final = (
     "loom generate (a project, wheel or environment), project, wheel and "
-    "env, the library's generate_project_sbom, generate_wheel_sbom and "
-    "generate_env_sbom, and loom.Run"
+    "env, the library's generate_project_sbom, generate_wheel_sbom, "
+    "generate_env_sbom and the PyPI and Git URL functions that call them, "
+    "and loom.Run"
 )
 #: What a command, the hook and the library do for every line here.
 _DID: Final = (

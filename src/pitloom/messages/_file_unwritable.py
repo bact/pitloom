@@ -38,8 +38,8 @@ FILE_UNWRITABLE: Final = Message(
     "system refused it (no write permission on the file or its directory, a "
     "read-only file system, a full disk, a directory where the file should "
     "be). Today the ID registry file, written 'for the ID registry'.",
-    did="Wrote the file through a temporary file beside it, so it keeps its "
-    "old content when the write fails; where the directory refuses a "
+    did="Tried to write the file through a temporary file beside it, so a "
+    "failed write leaves its old content; where the directory refuses a "
     "temporary file, the file is written in place and a failure (a full "
     "disk) can leave it part-written. As an ERROR ('loom id generate', "
     "'loom id import'), the command exits 1. As a WARNING "

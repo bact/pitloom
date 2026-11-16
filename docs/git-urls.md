@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -437,7 +437,7 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `DIR=<dir>: larger than the 60-second file-discovery cap; file list not read [over-cap]` | file discovery in a clone ran over its time cap |
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
 | `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
-| `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
+| `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository ...` | a build flag |
 | `ERROR:` | `<frame>: ...` | the run could not finish (the frame names the command) |
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,

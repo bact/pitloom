@@ -212,15 +212,15 @@ values.
   system, a full disk, a directory where the file should be). Today the ID
   registry file, written 'for the ID registry'.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Wrote the file through a temporary file beside it, so it
-  keeps its old content when the write fails; where the directory refuses a
+- **Pitloom did**: Tried to write the file through a temporary file beside it,
+  so a failed write leaves its old content; where the directory refuses a
   temporary file, the file is written in place and a failure (a full disk) can
   leave it part-written. As an ERROR ('loom id generate', 'loom id import'), the
   command exits 1. As a WARNING (loom generate (a project, wheel or
   environment), project, wheel and env, the library's generate_project_sbom,
-  generate_wheel_sbom and generate_env_sbom, and loom.Run, saving the ids a run
-  added after its SBOM is built), the SBOM stands and the ids are not saved: the
-  next run mints them again.
+  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
+  call them, and loom.Run, saving the ids a run added after its SBOM is built),
+  the SBOM stands and the ids are not saved: the next run mints them again.
 - **Tell the user**: which file could not be written and what the system
   reported, as the line says. They give the account Pitloom runs as write access
   to the file and its directory, or free disk space, and run again. Do not

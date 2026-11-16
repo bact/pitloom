@@ -65,4 +65,4 @@ def say_save_failure(
 def warn_no_registry_file(log: logging.Logger) -> None:
     """The one ``WARNING:`` on *log* for a registry with no file to save
     the ids a run added to (``registry-file-missing``)."""
-    emit(log, REGISTRY_FILE_MISSING, logging.WARNING, once="registry-file-missing")
+    emit(log, REGISTRY_FILE_MISSING, logging.WARNING)

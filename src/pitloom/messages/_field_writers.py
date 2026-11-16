@@ -20,8 +20,9 @@ from pitloom.core.given_path import given_spelling
 from pitloom.core.quote_source import given_path_text, quote_source
 from pitloom.logging_config import failure_reason, loggable, one_line
 
-#: ``" at 0x7f3a..."`` in an object's default repr: it differs per run.
-_MEMORY_ADDRESS: Final = re.compile(r" at 0x[0-9a-fA-F]+")
+#: ``" at 0x7f3a..."`` before the ``>`` that ends an object's default repr:
+#: it differs per run. A path or an offset (``header corrupt at 0x1a``) stays.
+_MEMORY_ADDRESS: Final = re.compile(r" at 0x[0-9a-fA-F]+(?=>)")
 
 
 def size_text(size: int) -> str:

@@ -207,7 +207,7 @@ class PitloomConfig:
 
         Raises:
             ValueError: an entry is not a fingerprint, or the mode is neither warn nor
-            refuse.
+                refuse.
         """
         _ = self.credential_policy
 

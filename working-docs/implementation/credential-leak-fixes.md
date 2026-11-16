@@ -19,7 +19,7 @@ What was built to stop URL credentials (user information, secret-named query
 values, git passwords) reaching logs, tracebacks, stdout, git, SBOMs and ID
 registry files, what was decided, and what is left.
 
-Since PR 2 a persisted value is **refused, never rewritten**: the SBOM
+Since PR 2 a persisted value is **never rewritten**: the SBOM
 strip, the registry load-drop and the id-collision rewrite are deleted, and
 an SBOM or registry file holding a credential is warned of by default
 (`credentials-unsafe/written`) and refused in the `refuse` mode

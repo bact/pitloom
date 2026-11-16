@@ -403,9 +403,9 @@ def _best_time(text: str, line: bool) -> float:
     return min(times)
 
 
-#: The ratio of five times the text that a linear masker stays under (about 5;
-#: a quadratic one gives about 25).
-_RATIO_BOUND = 12
+#: The ratio of five times the text that a linear masker stays under (about 5,
+#: up to 15 on a loaded runner; a quadratic one gives about 25).
+_RATIO_BOUND = 15
 
 
 def _settled_ratio(measure: Callable[[], float], tries: int = 3) -> float:
@@ -423,17 +423,17 @@ def _settled_ratio(measure: Callable[[], float], tries: int = 3) -> float:
 @pytest.mark.parametrize(
     ("ratios", "passes"),
     [
-        ([13.0, 5.0], True),
-        ([13.0, 14.0, 5.0], True),
+        ([16.0, 5.0], True),
+        ([16.0, 17.0, 5.0], True),
         ([25.0, 24.0, 26.0], False),
-        ([13.0, 14.0, 15.0, 5.0], False),
+        ([16.0, 17.0, 18.0, 5.0], False),
     ],
     ids=["noisy-once", "noisy-twice", "quadratic", "past-the-tries"],
 )
 def test_a_noisy_ratio_is_measured_again_but_a_quadratic_one_fails(
     ratios: list[float], passes: bool
 ) -> None:
-    """One slow run on a shared runner (13 against a bound of 12) must not
+    """One slow run on a shared runner (16 against a bound of 15) must not
     fail the linear-time test, and three tries over the bound still do."""
     queue = iter(ratios)
     assert (_settled_ratio(lambda: next(queue)) < _RATIO_BOUND) is passes

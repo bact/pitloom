@@ -299,7 +299,7 @@ Never rewrite persisted data automatically.
 2. Do not cut 0.25.0 until the detect-and-refuse PR lands (moot: #490
    merged). Strip in 0.25.0
    and refuse in 0.26.0 would turn builds that succeeded into failures and
-   need two advisory stories. Lifted once PR 2 merges.
+   need two advisory stories. Lifted: PR 2 merged (#490).
 3. Catalogue codes with `since` 0.25.0 that never shipped (`credentials-unsafe`
    stripped and kept lines, `credentials-unsafe/id-collision`) are retired
    or renamed freely. Add `credentials-unsafe/refused`. Regenerate the
