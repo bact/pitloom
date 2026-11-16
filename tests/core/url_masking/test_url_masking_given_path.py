@@ -403,17 +403,58 @@ def _best_time(text: str, line: bool) -> float:
     return min(times)
 
 
+#: The ratio of five times the text that a linear masker stays under (about 5;
+#: a quadratic one gives about 25).
+_RATIO_BOUND = 12
+
+
+def _settled_ratio(measure: Callable[[], float], tries: int = 3) -> float:
+    """The least of up to *tries* measured ratios, stopping at the first under
+    :data:`_RATIO_BOUND`: a loaded runner slows one measurement, and a quadratic
+    masker is over the bound on every try."""
+    ratio = float("inf")
+    for _ in range(tries):
+        ratio = min(ratio, measure())
+        if ratio < _RATIO_BOUND:
+            break
+    return ratio
+
+
+@pytest.mark.parametrize(
+    ("ratios", "passes"),
+    [
+        ([13.0, 5.0], True),
+        ([13.0, 14.0, 5.0], True),
+        ([25.0, 24.0, 26.0], False),
+        ([13.0, 14.0, 15.0, 5.0], False),
+    ],
+    ids=["noisy-once", "noisy-twice", "quadratic", "past-the-tries"],
+)
+def test_a_noisy_ratio_is_measured_again_but_a_quadratic_one_fails(
+    ratios: list[float], passes: bool
+) -> None:
+    """One slow run on a shared runner (13 against a bound of 12) must not
+    fail the linear-time test, and three tries over the bound still do."""
+    queue = iter(ratios)
+    assert (_settled_ratio(lambda: next(queue)) < _RATIO_BOUND) is passes
+
+
 @pytest.mark.parametrize("line", [False, True], ids=["path", "line"])
 @pytest.mark.parametrize("shape", sorted(_ADVERSARIAL))
 def test_a_given_path_is_masked_in_linear_time(shape: str, line: bool) -> None:
     """Masking an adversarial text five times as long takes about five times
     as long (a quadratic masker: twenty-five). The ratio, not a wall-clock
     bound, so a slow or loaded runner, or coverage tracing, cancels out;
-    each time is the best of three, and a run under 5 ms counts as 5 ms."""
+    each time is the best of three, a run under 5 ms counts as 5 ms, and a
+    ratio over the bound is measured again (at most three tries)."""
     make = _ADVERSARIAL[shape]
-    short = max(_best_time(make(100_000), line), 0.005)
-    long = _best_time(make(500_000), line)
-    assert long / short < 12
+
+    def measure() -> float:
+        short = max(_best_time(make(100_000), line), 0.005)
+        return _best_time(make(500_000), line) / short
+
+    ratio = _settled_ratio(measure)
+    assert ratio < _RATIO_BOUND, f"ratio {ratio:.1f}"
 
 
 def test_each_decode_round_masks_one_more_depth() -> None:
