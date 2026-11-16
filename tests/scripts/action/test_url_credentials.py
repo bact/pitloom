@@ -59,12 +59,34 @@ def _masks(stub_bin: StubBin, scripts_dir: Path, *values: str) -> list[str]:
     [
         (f"https://alice:{_SECRET}@h/r", [f"alice:{_SECRET}", _SECRET]),
         ("https://ghp_abcdefgh@h/r", ["ghp_abcdefgh"]),
-        (f"https://h/r.git?token={_SECRET}", [f"token={_SECRET}"]),
+        (f"https://h/r.git?token={_SECRET}", [f"token={_SECRET}", _SECRET]),
         (
             f"https://h/r.git?access_token={_SECRET}#x",
-            [f"access_token={_SECRET}#x"],
+            [f"access_token={_SECRET}", _SECRET],
         ),
-        (f"https://h/r.git#token={_SECRET}", [f"token={_SECRET}"]),
+        (f"https://h/r.git#token={_SECRET}", [f"token={_SECRET}", _SECRET]),
+        (
+            f'"https://h/r?token={_SECRET}"',
+            [f"token={_SECRET}", _SECRET],
+        ),
+        (
+            f"'https://h/r#access_token={_SECRET}';",
+            [f"access_token={_SECRET}", _SECRET],
+        ),
+        (f"(https://u:{_SECRET}@h/r),", [f"u:{_SECRET}", _SECRET]),
+        (
+            f"<https://h/r?a=1&token={_SECRET}>",
+            [f"a=1&token={_SECRET}", f"token={_SECRET}", _SECRET],
+        ),
+        (f"https:/alice:{_SECRET}@h/r", [f"alice:{_SECRET}", _SECRET]),
+        (f'"https:/alice:{_SECRET}@h"', [f"alice:{_SECRET}", _SECRET]),
+        ("C:/build.agent@corp/x", []),
+        ("123:/build.agent@corp/x", []),
+        (f"--model=https:/u:{_SECRET}@h/x", [f"u:{_SECRET}", _SECRET]),
+        (f'--x="https:/u:{_SECRET}@h/x"', [f"u:{_SECRET}", _SECRET]),
+        (f"-m=https:/u:{_SECRET}@h/x", [f"u:{_SECRET}", _SECRET]),
+        (f"--model=https://u:{_SECRET}@h/x", [f"u:{_SECRET}", _SECRET]),
+        (f"https://h/r?token='{_SECRET}'", [f"token='{_SECRET}", _SECRET]),
         ("https://u:p%40ssword@h/r", ["u:p%2540ssword", "p%2540ssword"]),
         ("https://u:pw@h/r", []),
         ("https://u:pass5@h/r", ["u:pass5"]),
@@ -82,6 +104,19 @@ def _masks(stub_bin: StubBin, scripts_dir: Path, *values: str) -> list[str]:
         "query",
         "query-and-fragment",
         "fragment",
+        "double-quoted",
+        "single-quoted",
+        "bracketed",
+        "angle-pairs",
+        "one-slash",
+        "one-slash-quoted",
+        "drive",
+        "digits",
+        "option-one-slash",
+        "option-quoted",
+        "short-option",
+        "option-two-slashes",
+        "quoted-value",
         "percent",
         "short",
         "short-password",
@@ -98,7 +133,10 @@ def test_the_credential_pieces_of_a_url_are_masked(
     stub_bin: StubBin, scripts_dir: Path, value: str, masked: list[str]
 ) -> None:
     """A piece under 6 characters is not masked (it would hide every such
-    run of the log); ``%`` is written ``%25``, which the runner decodes."""
+    run of the log); ``%`` is written ``%25``, which the runner decodes. A
+    quote, bracket, ``,`` or ``;`` around a URL in ``args`` is no part of a
+    mask (it would not match the URL printed without it); a query value is
+    masked alone as well; ``https:/`` with one slash is a URL."""
     assert _masks(stub_bin, scripts_dir, value) == masked
 
 
@@ -203,10 +241,12 @@ def test_the_masks_come_before_any_other_output_of_the_step(
         LOOM_STDERR=f"INFO: https://u:{_SECRET}@h/r\\n",
     )
     lines = result.output.splitlines()
-    assert lines[:4] == [
+    assert lines[:6] == [
         f"::add-mask::u:{_SECRET}",
         f"::add-mask::{_SECRET}",
         f"::add-mask::token={_SECRET}x",
+        f"::add-mask::{_SECRET}x",
         f"::add-mask::token={_SECRET}",
+        f"::add-mask::{_SECRET}",
     ]
     assert result.returncode == 0

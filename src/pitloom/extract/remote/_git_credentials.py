@@ -28,6 +28,8 @@ from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 from pitloom.core.quote_source import quote_source
 from pitloom.core.url_masking import sanitize_url, split_userinfo
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import loggable
+from pitloom.messages.network import GIT_HOST_SPELLING_LINE, URL_HOST_SPELLING
 from pitloom.messages.url_credentials import (
     CREDENTIALS_UNSAFE_GIT_USERINFO,
     GIT_USERINFO_LINE,
@@ -48,10 +50,15 @@ __all__ = [
 ]
 
 #: A host name as DNS spells one (letters, digits, ``-``, ``_``, ``.``, not
-#: starting with ``-`` or ``.``) or an IPv6 address (``urlsplit`` drops its
-#: brackets). Anything else (``=``, ``!``, white space, ``;``) names no host,
-#: and would end or extend git's ``-c credential.<origin>.helper=`` key.
-_PLAIN_HOST = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*|[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*")
+#: starting with ``-`` or ``.``), never in brackets. Anything else (``=``,
+#: ``!``, white space, ``;``) names no host, and would end or extend git's
+#: ``-c credential.<origin>.helper=`` key.
+_HOST_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*")
+
+#: An IPv6 address, which ``urlsplit`` reads from brackets and drops them;
+#: a zone id (``%25eth0``) is not one. A bracketed name (``[v1.x]``, an
+#: IPvFuture) is neither: its brackets dropped, it would be a DNS name.
+_IPV6 = re.compile(r"[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*")
 
 #: An empty value resets the list of helpers (a system or global one).
 RESET_HELPERS = "credential.helper="
@@ -102,11 +109,18 @@ def credential_config(credentials: GitCredentials | None, *, reset: bool) -> lis
     return settings
 
 
-def host_is_plain(host: str) -> bool:
-    """Whether *host* (a ``urlsplit`` hostname) is a plain ASCII host name
-    or IPv6 address (:data:`_PLAIN_HOST`): not percent-encoded, not
-    holding a character no host name holds."""
-    return _PLAIN_HOST.fullmatch(host) is not None
+def host_is_plain(parts: SplitResult) -> bool:
+    """Whether the host of *parts* is a plain ASCII host name
+    (:data:`_HOST_NAME`) or, in brackets, an IPv6 address
+    (:data:`_IPV6`): not percent-encoded, not holding a character no host
+    name holds.
+
+    Raises:
+        ValueError: ``urlsplit`` cannot read the host (an unclosed bracket).
+    """
+    host = parts.hostname or ""
+    bracketed = parts.netloc.rpartition("@")[2].startswith("[")
+    return (_IPV6 if bracketed else _HOST_NAME).fullmatch(host) is not None
 
 
 def _git_authority(arg: str) -> str:
@@ -155,9 +169,10 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
     Raises:
         RemoteSourceError: ``git.url-invalid``, *arg* holds an ``@`` in
             what git reads as the authority, but no user information and
-            host the masker and Python split it into the way git would, a
-            host that is not plain (:func:`host_is_plain`), or a NUL in its
-            user information (no environment variable can hold one).
+            host the masker and Python split it into the way git would, or a
+            NUL in its user information (no environment variable can hold
+            one); ``url-unsafe/host-spelling``, a host that is not plain
+            (:func:`host_is_plain`), as the typed URL is refused.
     """
     if "://" not in arg or "@" not in _git_authority(arg):
         return arg, None
@@ -173,10 +188,15 @@ def _split(arg: str) -> tuple[str, GitCredentials | None]:
         _refuse(arg)
     netloc = origin.partition("://")[2]
     plain = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
-    host = parts.hostname or ""
-    if not host_is_plain(host) or "@" in _git_authority(plain):
+    if not parts.hostname or "@" in _git_authority(plain):
         _refuse(arg)
     shown = sanitize_url(arg)
+    if not host_is_plain(parts):
+        raise RemoteSourceError(
+            "git.url-invalid",
+            GIT_HOST_SPELLING_LINE.render({"url": loggable(shown)}),
+            pitloom_code=URL_HOST_SPELLING.code,
+        )
     user, _, password = (unquote(part) for part in userinfo.partition(":"))
     if "\x00" in user + password:
         _refuse(arg)

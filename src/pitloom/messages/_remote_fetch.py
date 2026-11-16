@@ -294,7 +294,9 @@ URL_HOST_SPELLING: Final = Message(
     "another host than the URL's text names, past every check that reads "
     "that text (a PyPI host is never cloned). Or it holds a character no "
     "host name holds (=, !, ;, white space, a leading - or .), the shape of "
-    "an option or a setting smuggled into git's command line.",
+    "an option or a setting smuggled into git's command line, or is a name "
+    "in brackets ([v1.x]), which would lose them and name a DNS host. An "
+    "IPv6 zone id ([fe80::1%25eth0]) is refused too.",
     did="Started no git process, fetched nothing and wrote no SBOM (git.url-invalid).",
     effect="not-written",
     actor="user",

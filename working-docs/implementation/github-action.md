@@ -127,10 +127,20 @@ does not order the two streams against each other.
 program; bash 3.2 and Git Bash) is sourced first by the Generate step.
 
 - `mask_url_secrets` prints one `::add-mask::` per credential-shaped piece of
-  each URL word in `project-path`, `model`, `args` and
-  `accept-url-credentials`: the user information up to the last `@` before
-  the first `/` (as git reads it), its password, and the query and fragment,
-  each whole. These are the inputs that can hold a URL; `embed-wheel`,
+  each URL word (`://` or `:/` after a scheme of two or more characters,
+  once an option prefix such as `--model=` and a leading quote are
+  dropped, one rule for both: the detector reads `https:/u:p@h` as a URL;
+  `C:/x` and `123:/x` are paths) in
+  `project-path`, `model`, `args` and `accept-url-credentials`: the user
+  information up to the last `@` before the first `/` (as git reads it),
+  its password, the query and fragment, each `name=value` pair and each
+  value. A quote, bracket, `,` or `;` at either end of a piece is dropped
+  (review: `--x "https://h/r?token=T"` masked `token=T"`, which matched no
+  output printing the URL unquoted). A query value is masked whatever its
+  name (a non-secret value of 6 or more characters is hidden too: the safe
+  direction, no second copy of the detector's name list). A password
+  holding a space is split by the word split and not masked whole (limit).
+  These are the inputs that can hold a URL; `embed-wheel`,
   `output`, `config`, `id-registry` are paths and `pitloom-version` is
   prefixed `pitloom==` (no URL). A value is split into lines and then on
   space and tab (each mask is one line), `%` is written `%25` and a CR

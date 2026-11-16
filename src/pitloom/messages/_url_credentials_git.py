@@ -90,7 +90,7 @@ CREDENTIALS_UNSAFE_GIT_USERINFO: Final = Message(
     lines=(GIT_USERINFO_LINE,),
     summary="A Git URL holds user information (an @ before the first /) that "
     "Pitloom cannot split off the command line the way git reads it: a bracket "
-    "or port that is not valid, an empty host or one no host name spells, or "
+    "or port that is not valid, an empty host, or "
     "an @ git reads as a password where the URL parser sees a query. Or the "
     "user name or password holds a NUL (an encoded %00), which cannot be "
     "handed to git at all.",

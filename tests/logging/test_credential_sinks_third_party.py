@@ -119,18 +119,55 @@ def test_a_client_record_is_not_masked_before_configuring() -> None:
 
 
 @pytest.mark.usefixtures("root")
-def test_a_failing_masker_or_format_never_raises(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A masker failure shows a fixed text; a format error of the library's
-    own is left for the handler to report, as it was."""
-
-    def fail(text: str) -> str:
+def test_a_failing_masker_shows_a_fixed_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(text: str, **_: bool) -> str:
         raise RuntimeError(text)
 
-    monkeypatch.setattr(log_masking, "mask_free_params", fail)
-    log = logging.getLogger("urllib3")
-    record = log.makeRecord("urllib3", logging.DEBUG, "f", 1, "x %s", (URL,), None)
+    monkeypatch.setattr(log_masking, "masked_given_path", fail)
+    record = logging.getLogger("urllib3").makeRecord(
+        "urllib3", logging.DEBUG, "f", 1, "x %s", (URL,), None
+    )
     assert record.getMessage() == UNSHOWN_MESSAGE
-    bad = log.makeRecord("urllib3", logging.DEBUG, "f", 1, "x %d", ("y",), None)
-    assert (bad.msg, bad.args) == ("x %d", ("y",))
+
+
+@pytest.mark.parametrize("name", ["urllib3", "pitloom.test_third_party"])
+def test_a_format_error_never_shows_the_arguments(
+    root: io.StringIO, name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``Handler.handleError`` prints a record's ``msg`` and ``args`` raw:
+    a record whose arguments cannot be formatted has neither left."""
+    logging.getLogger(name).warning("x %d %s", "y", URL)
+    shown = root.getvalue() + capsys.readouterr().err
+    assert "arguments not formatted: TypeError" in shown
+    assert SECRET not in shown and TOKEN not in shown
+
+
+#: An exception text an HTTP client raises: the request target, no scheme.
+_RETRY = f"Max retries exceeded with url: /y?token={TOKEN} (Caused by x)"
+
+
+@pytest.mark.parametrize("name", ["urllib3.connectionpool", "pitloom.test_third_party"])
+def test_an_exception_text_is_masked_as_the_message(
+    root: io.StringIO, name: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    try:
+        raise RuntimeError(_RETRY)
+    except RuntimeError:
+        logging.getLogger(name).warning("fetch failed: %s", _RETRY, exc_info=True)
+    shown = root.getvalue() + capsys.readouterr().err
+    assert "url: /y?token=***" in shown
+    assert TOKEN not in shown
+
+
+def test_an_encoded_request_target_is_masked(root: io.StringIO) -> None:
+    logging.getLogger("urllib3.connectionpool").debug(
+        '"GET /x?next=/cb%%3Ftoken%%3D%s HTTP/1.1" 200', TOKEN
+    )
+    assert TOKEN not in root.getvalue()
+    assert "token=***" in root.getvalue()
+
+
+def test_ordinary_traceback_text_is_kept() -> None:
+    """Only a parameter named like a secret is masked in free text."""
+    line = '  File "x.py", line 3, in f\n    get(url + "?page=2&sort=asc")'
+    assert log_masking.masked_text(line) == line

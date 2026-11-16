@@ -234,6 +234,9 @@ def _measured() -> bool:
 
 
 _COVERED = _measured()
+#: A secret at each decode depth to five, then one deeper: every round of
+#: the masker shows one, so what is still encoded is hidden.
+_DECOYS = "".join(f"p{depth}={encoded('/x?token=1', depth)}&" for depth in range(1, 7))
 #: Each adversarial shape, at about *n* characters. Every shape that once
 #: found a quadratic scan is kept (white space for the requirement pattern,
 #: ``,a:b@cc:d`` scp runs, many ``?``, one-slash schemes, a deep PURL).
@@ -267,6 +270,10 @@ _SHAPES: dict[str, Callable[[int], str]] = {
     "query-nested": lambda n: "https://h/?n=" + "https%3A%2F%2Fh%2F%3Fn%3D" * (n // 25),
     "fragment-deep": lambda n: "https://h/x#" + "%253F%253D" * (n // 10),
     "break-password": lambda n: "https://u:?" + "a" * n + "@h" + "?x@" * (n // 3),
+    "query-relative": lambda n: "https://h/?n=" + "%2Fx%3Ftoken%3D" * (n // 15),
+    "query-marks": lambda n: "https://h/?n=" + "%3Fq%3D1" * (n // 8),
+    "deep-segments": lambda n: "https://h/?" + "a=%25252525252541&" * (n // 18),
+    "decoys": lambda n: "https://h/?" + _DECOYS * (n // len(_DECOYS)),
     "scheme-marks": lambda n: "a://?" * (n // 5),
     "ats": lambda n: "x://" + "@" * n,
     "closers": lambda n: "https://h/" + ")" * n,

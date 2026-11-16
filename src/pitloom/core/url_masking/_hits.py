@@ -73,8 +73,11 @@ from urllib.parse import unquote
 
 from pitloom.core.url_masking._params import (
     MAX_QUERY_MARKS,
+    WHOLE_PARAM_RE,
     is_secret_name,
+    is_secret_param,
     is_weak_name,
+    iter_params,
 )
 from pitloom.core.url_masking._tokens import TOKEN_RE
 from pitloom.core.url_masking._urls import WIDE_URL_START, find_urls
@@ -177,38 +180,67 @@ def _url_hits(url: str, *, account: bool, decode: bool = True) -> list[Hit]:
 def _decoded_value_hits(url: str, start: int, end: int, *, account: bool) -> list[Hit]:
     """The hits of each query or fragment parameter value of the URL of
     *url* from *start* to *end*, and of its whole fragment, read as a whole
-    value or an access token (as a PURL qualifier value is) after each
+    value or an access token (as a PURL qualifier value is), or for its
+    parameters (:func:`_decoded_level_hits`), after each
     percent-decode that changes it, at most :data:`PURL_DECODE_ROUNDS`
     (``?next=https%3A%2F%2Fu%3Ap%40h``); as written, the scan of the URL
     reads them. A decoded value is read without decoding it again, so each
     character is read a bounded number of times. A value still encoded
     after the last decode is not read deeper, and is no hit: a redirect
     chain may encode a plain URL many times."""
-    values = [found[1] for found in _ANY_PARAM_VALUE.finditer(url, start, end)]
+    # A parameter value is no query: a parameter starts only after a
+    # delimiter in it (``next=a%26token%3DT``), never at its start
+    # (``filter=auth%3Dbasic``). A fragment is a parameter list itself
+    # (``#access_token%3DT``).
+    values = [("", found[1]) for found in _ANY_PARAM_VALUE.finditer(url, start, end)]
     mark = url.find("#", start, end)
     if mark >= 0:
-        values.append(url[mark + 1 : end])
+        values.append(("#", url[mark + 1 : end]))
     hits: list[Hit] = []
-    for value in values:
+    for head, value in values:
         if "%" not in value:
             continue
         for level in qualifier_levels(value)[0][1:]:
-            hits += _decoded_level_hits(normalised(level), account=account)
+            hits += _decoded_level_hits(normalised(level), head, account=account)
     return hits
 
 
-def _decoded_level_hits(value: str, *, account: bool) -> list[Hit]:
+def _decoded_level_hits(value: str, head: str, *, account: bool) -> list[Hit]:
     """:func:`_qualifier_value_hits` of *value*, one decode depth of a URL's
-    query value or fragment, a URL in it read without decoding again."""
+    query value or fragment, a URL in it read without decoding again; any
+    other value is read for its parameters too, after *head* (``#`` for a
+    fragment, else nothing: :func:`_param_hits`: a relative target
+    ``/cb?token=T``, ``a&token=T``, a fragment's ``access_token=T``)."""
     value = value.strip()
     if WIDE_URL_START.match(value) is not None:
         hits = _url_hits(value, account=account, decode=False)
-    elif _is_scp(value):
-        hits = [Hit("scp", value)]
     else:
-        hits = []
+        hits = [Hit("scp", value)] if _is_scp(value) else []
+        hits += _param_hits(head + value, value)
     token = TOKEN_RE.fullmatch(value)
     return hits if token is None else [*hits, Hit("token", token.group())]
+
+
+def _param_hits(text: str, value: str) -> list[Hit]:
+    """The hits of the parameters of *text*, a decoded value that is no URL
+    (*value*, after its head): each named like a secret (``secret``) or weak
+    (``weak``), or holding more than
+    :data:`~pitloom.core.url_masking._params.MAX_QUERY_MARKS` ``?``
+    (``nesting``), as the scan of a URL reads them; a parameter starts
+    after a delimiter only."""
+    if "=" not in text:
+        return []
+    hits: list[Hit] = []
+    for param in iter_params(WHOLE_PARAM_RE, text, 0, len(text), weak=False):
+        if not is_secret_param(param):
+            continue
+        if param.group(3).count("?") > MAX_QUERY_MARKS:
+            hits.append(Hit("nesting", value))
+        elif is_secret_param(param, weak=False):
+            hits.append(Hit("secret", value))
+        else:
+            hits.append(Hit("weak", value, weak=True))
+    return hits
 
 
 def _is_scp(value: str) -> bool:

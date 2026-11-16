@@ -153,13 +153,16 @@ fails the step and is not printed. See [Credentials in URLs](url-credentials.md)
 ```
 
 The step first masks (`::add-mask::`) the credential-shaped parts of each URL
-in `project-path`, `model`, `args` and `accept-url-credentials`: the user
-information, the password, and the query and fragment, each whole and as
-typed. A part shorter than 6 characters is not masked, since a mask hides
-every occurrence of its characters in the log. A mask hides what is printed
-after it: GitHub prints the step's inputs before the step runs, so give a
-credential through a secret (`${{ secrets.NAME }}`, masked from the start),
-never as text in the workflow.
+in `project-path`, `model`, `args` and `accept-url-credentials` (`https://`
+or `https:/`): the user information, the password, the query and fragment,
+each `name=value` pair and each value, without a quote, bracket, `,` or `;`
+around the URL. A part shorter than 6 characters is not masked, since a mask
+hides every occurrence of its characters in the log; a query value of 6 or
+more characters is masked even when it is no secret; a password holding a
+space is not masked whole. The masks cover what the step prints later (`loom`'s
+lines, the annotations) and the later steps, not the inputs themselves: GitHub
+prints step inputs before the step runs. Give a credential through a secret
+(`${{ secrets.NAME }}`), never as text in the workflow.
 
 ### Annotations
 

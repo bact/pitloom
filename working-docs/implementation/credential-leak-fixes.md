@@ -131,12 +131,12 @@ silently. Rechecked against the PR 2 tree on 2026-11-16.
 - Not detected, and not masked: a `/` in a password; an scp-style
   `S3CRET@host:o/r` (no `user:`). `@[::1]` hosts and `;jsessionid=`
   path parameters are read by the detector and the masker.
-- Not detected (PR 3), the masker hides it: a URL in a query value or
-  fragment encoded more than five times (a redirect chain may encode a
-  plain URL so; no `nesting` hit, unlike a PURL qualifier); a scheme-less
-  path in a decoded query value (`?next=%2Fx%3Ftoken%3DT`); a password
-  that starts with `?` or `#` after `user:` and holds `=` or `&`
-  (`https://u:?a=b@h`: a query by its shape).
+- Not detected (PR 3), the masker hides it: a credential in a query
+  value or fragment encoded more than five times (a redirect chain may
+  encode a plain URL so; no `nesting` hit, unlike a PURL qualifier; the
+  masker prints the value as `***`); a password that starts with `?` or
+  `#` after `user:` and holds `=` or `&` (`https://u:?a=b@h`: a query by
+  its shape).
 - Not detected after PR 490 (each run through the detector on 2026-11-16): a
   `|` in a requirement's password (Pitloom writes it as `/`); the no-slash
   `https:u:p@h` form; a JSON statement's or metadata *key* that is a
@@ -260,6 +260,10 @@ A host holding `=` made git fail with `invalid key: credential.https://a`
 (the `-c` key ended at the `=`; no helper ran), and `!cmd`, a space or
 `-oProxyCommand=x` reached curl (`Bad hostname`) after a redirect probe
 resolved them; all are now refused before any probe or git process.
+Review of PR 3: a bracketed name (`https://u:p@[v1.x]/o/r`, IPvFuture) lost
+its brackets in `_split` and the credential went to origin `https://v1.x`;
+`host_is_plain` now takes the split URL and accepts in brackets an IPv6
+address only (a zone id `%25eth0` is refused, a known false refusal).
 
 ## URL field vs free text
 

@@ -227,14 +227,31 @@ def test_an_invalid_url_is_refused_before_offline(url: str) -> None:
         ("https://a b/o/r", "https://a b/o/r"),
         ("https://h.example;x/o/r", "https://h.example;x/o/r"),
         ("https://.h.example/o/r", "https://.h.example/o/r"),
+        ("https://u:S3CRET@[v1.evil.com]/o/r", "https://***:***@[v1.evil.com]/o/r"),
+        ("https://[v1.x]/o/r", "https://[v1.x]/o/r"),
+        ("https://[fe80::1%25eth0]/o/r", "https://[fe80::1%25eth0]/o/r"),
     ],
-    ids=["option", "option-userinfo", "key", "equals", "bang", "space", "semi", "dot"],
+    ids=[
+        "option",
+        "option-userinfo",
+        "key",
+        "equals",
+        "bang",
+        "space",
+        "semi",
+        "dot",
+        "bracketed-name",
+        "ipvfuture",
+        "zone-id",
+    ],
 )
 @pytest.mark.usefixtures("no_git")
 def test_a_host_no_host_name_spells_is_refused_masked(url: str, shown: str) -> None:
     """``=`` would end git's ``-c credential.<origin>.helper=`` key early,
-    a leading ``-`` is an option's shape: refused before any git process or
-    probe, the credential masked."""
+    a leading ``-`` is an option's shape, a bracketed name loses its
+    brackets and becomes a DNS name (the credential sent there): refused
+    before any git process or probe, the credential masked. A zone id is
+    refused too (a known false refusal)."""
     error = _refusal(url, offline=False)
     assert error.code == "git.url-invalid"
     assert raised_as(error, URL_HOST_SPELLING)
@@ -244,8 +261,15 @@ def test_a_host_no_host_name_spells_is_refused_masked(url: str, shown: str) -> N
 
 @pytest.mark.parametrize(
     "host",
-    ["xn--bcher-kva.example", "h_x.example", "h.example.", "[::1]", "127.0.0.1:8080"],
-    ids=["idn", "underscore", "trailing-dot", "ipv6", "port"],
+    [
+        "xn--bcher-kva.example",
+        "h_x.example",
+        "h.example.",
+        "[::1]",
+        "[::ffff:1.2.3.4]",
+        "127.0.0.1:8080",
+    ],
+    ids=["idn", "underscore", "trailing-dot", "ipv6", "ipv4-mapped", "port"],
 )
 @pytest.mark.usefixtures("no_git")
 def test_a_plain_host_passes(host: str) -> None:

@@ -220,8 +220,10 @@ inputs:
   args:
     description: >-
       Extra raw flags passed through to the loom command, e.g.
-      '--creator-name "CI Bot"'. A credential-shaped part of a URL in
-      args, project-path or model is masked (::add-mask::) in the log.
+      '--creator-name "CI Bot"'. The step masks (::add-mask::) the
+      credential-shaped parts of a URL in args, project-path, model and
+      accept-url-credentials in its later output only: GitHub prints step
+      inputs before the step runs, so give a credential as a secret.
     required: false
     default: ""
   pitloom-version:

@@ -111,7 +111,10 @@ from the server's own branches and tags, longest match first.
   since git would resolve it to a host the URL's text does not spell; so is a
   host holding a character no host name holds (`=`, `!`, `;`, white space,
   a leading `-` or `.`), the shape of an option or of a setting smuggled into
-  git's command line.
+  git's command line, and a name in brackets (`[v1.x]`), which would lose
+  its brackets and name a DNS host. In brackets only an IPv6 address passes
+  (`[::1]`, `[::ffff:1.2.3.4]`); one with a zone id (`[fe80::1%25eth0]`) is
+  refused too.
 - Refused with a message (see below): hosts that need a login, `ssh://`,
   `git://`, `file://` and scp-style `user@host:path` addresses.
 

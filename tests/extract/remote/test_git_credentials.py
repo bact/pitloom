@@ -112,20 +112,27 @@ def test_no_representation_holds_the_credential() -> None:
         assert "https://h" in shown
 
 
+_USERINFO = "credentials-unsafe/git-userinfo"
+_HOST = "url-unsafe/host-spelling"
+
+
 @pytest.mark.parametrize(
-    "url",
+    ("url", "code"),
     [
-        f"https://u:{SECRET}@[bad/r",
-        f"https://u:{SECRET}@h:99x/r",
-        f"https://u:{SECRET}@/r",
-        f"https://h?x=u:{SECRET}@b/r",
-        f"https://u:{SECRET}@h?q@x/r",
-        f"https://u:a%00{SECRET}@h/r",
-        f"https://u%00{TOKEN}:{SECRET}@h/r",
-        f"https://u:{SECRET}@a=b/r",
-        f"https://u:{SECRET}@-oProxyCommand=x/r",
-        f"https://u:{SECRET}@!cmd/r",
-        f"https://u:{SECRET}@a%20b/r",
+        (f"https://u:{SECRET}@[bad/r", _USERINFO),
+        (f"https://u:{SECRET}@h:99x/r", _USERINFO),
+        (f"https://u:{SECRET}@/r", _USERINFO),
+        (f"https://h?x=u:{SECRET}@b/r", _USERINFO),
+        (f"https://u:{SECRET}@h?q@x/r", _USERINFO),
+        (f"https://u:a%00{SECRET}@h/r", _USERINFO),
+        (f"https://u%00{TOKEN}:{SECRET}@h/r", _USERINFO),
+        (f"https://u:{SECRET}@a=b/r", _HOST),
+        (f"https://u:{SECRET}@-oProxyCommand=x/r", _HOST),
+        (f"https://u:{SECRET}@!cmd/r", _HOST),
+        (f"https://u:{SECRET}@a%20b/r", _HOST),
+        (f"https://u:{SECRET}@[v1.evil.com]/r", _HOST),
+        (f"https://u:{SECRET}@[v1.x]:8443/r", _HOST),
+        (f"https://u:{SECRET}@[fe80::1%25eth0]/r", _HOST),
     ],
     ids=[
         "bad-ipv6",
@@ -139,16 +146,19 @@ def test_no_representation_holds_the_credential() -> None:
         "host-option",
         "host-bang",
         "host-space",
+        "bracketed-name",
+        "ipvfuture-port",
+        "zone-id",
     ],
 )
 def test_a_url_whose_userinfo_cannot_be_split_off_is_refused_masked(
-    url: str, monkeypatch: pytest.MonkeyPatch
+    url: str, code: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Git reads user information up to an ``@`` before the first ``/``;
     a URL Python cannot split the same way never reaches git, nor does a
     NUL (no environment variable holds one: ``Popen`` raised a bare
-    ``ValueError``) or a host whose ``=`` would end the helper's ``-c``
-    key early."""
+    ``ValueError``); a host whose ``=`` would end the helper's ``-c`` key
+    early, or no host name spells, is refused for its spelling."""
 
     def started(*_args: object) -> tuple[int, str, str]:
         raise AssertionError("git started")
@@ -158,8 +168,9 @@ def test_a_url_whose_userinfo_cannot_be_split_off_is_refused_masked(
     with pytest.raises(RemoteSourceError) as caught:
         GitRunner().run(["ls-remote", "--", url], "ls-remote", echo=False)
     assert caught.value.code == "git.url-invalid"
-    assert caught.value.pitloom_code == "credentials-unsafe/git-userinfo"
+    assert caught.value.pitloom_code == code
     assert SECRET not in str(caught.value) and TOKEN not in str(caught.value)
+    assert ("the host is not plain ASCII" in str(caught.value)) == (code == _HOST)
 
 
 @pytest.mark.parametrize(
@@ -216,8 +227,21 @@ def test_the_credentials_are_the_last_urls_that_had_some(
         ("http://u:p@h:80/r", "http://h", "http://h/r"),
         ("http://u:p@h:443/r", "http://h:443", "http://h:443/r"),
         ("https://u:p@h:80/r", "https://h:80", "https://h:80/r"),
+        (
+            "https://u:p@[::ffff:1.2.3.4]/r",
+            "https://[::ffff:1.2.3.4]",
+            "https://[::ffff:1.2.3.4]/r",
+        ),
     ],
-    ids=["ipv6-port", "ipv6", "https-443", "http-80", "http-443", "https-80"],
+    ids=[
+        "ipv6-port",
+        "ipv6",
+        "https-443",
+        "http-80",
+        "http-443",
+        "https-80",
+        "ipv4-mapped",
+    ],
 )
 def test_the_helper_origin_is_the_one_git_matches(
     url: str, origin: str, plain: str

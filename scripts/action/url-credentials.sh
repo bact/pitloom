@@ -10,11 +10,14 @@
 # Defines:
 #   mask_url_secrets VALUE...
 #       Print one ::add-mask:: line for each credential-shaped piece of a
-#       URL in each VALUE (a word holding "://"): its user information, its
-#       password, and its query and fragment, each whole. A piece shorter
-#       than 6 characters is not masked: masking it would hide every
-#       occurrence of those characters in the log. Prints nothing else, so
-#       it can run before any other output of the step.
+#       URL in each VALUE (a word holding "://", or ":/" after a scheme):
+#       its user information, its password, its query and fragment, each
+#       name=value pair of them and each value, with quotes, brackets, ","
+#       and ";" around a piece left out. A piece shorter than 6 characters
+#       is not masked: masking it would hide every occurrence of those
+#       characters in the log. A password holding a space is split at it
+#       and so not masked whole. Prints nothing else, so it can run before
+#       any other output of the step.
 #   add_url_credential_args MODE FINGERPRINTS
 #       Append --refuse-url-credentials (MODE "refuse"; "warn" or empty
 #       passes nothing) and one --accept-url-credential FP per entry of
@@ -30,6 +33,20 @@ _url_mask_min=6
 
 _url_mask_piece() {
   local piece="$1"
+  # Quotes, brackets and punctuation around a URL in args are no part of a
+  # piece: a mask holding them would not match the URL printed without.
+  while :; do
+    case "${piece}" in
+      [\"\'\<\>\(\)\[\]\{\},\;]*) piece=${piece#?} ;;
+      *) break ;;
+    esac
+  done
+  while :; do
+    case "${piece}" in
+      *[\"\'\<\>\(\)\[\]\{\},\;]) piece=${piece%?} ;;
+      *) break ;;
+    esac
+  done
   if [ "${#piece}" -lt "${_url_mask_min}" ]; then
     return 0
   fi
@@ -39,13 +56,51 @@ _url_mask_piece() {
   printf '::add-mask::%s\n' "${piece}"
 }
 
+# Mask a query or a fragment ($1): whole, each name=value pair of it and
+# each value (a non-secret value of 6 or more characters is masked too).
+_url_mask_params() {
+  local text="$1" pair
+  _url_mask_piece "${text}"
+  while [ -n "${text}" ]; do
+    pair=${text%%&*}
+    if [ "${pair}" != "$1" ]; then
+      _url_mask_piece "${pair}"
+    fi
+    case "${pair}" in
+      *=*) _url_mask_piece "${pair#*=}" ;;
+    esac
+    case "${text}" in
+      *'&'*) text=${text#*&} ;;
+      *) text='' ;;
+    esac
+  done
+}
+
+# Whether the word $1, which holds ":/", starts a URL: before its first ":/",
+# once an option prefix (--model=, name=) and a leading quote or bracket are
+# dropped, a scheme of two or more characters (so C:/x and 123:/x are
+# paths). One rule for "://" and for one slash (https:/u:p@h), which a URL
+# parser reads as a URL too.
+_url_has_scheme() {
+  local scheme=${1%%:/*}
+  scheme=${scheme##*=}
+  scheme=${scheme#"${scheme%%[[:alpha:]]*}"}
+  case "${scheme}" in
+    '' | ? | *[![:alnum:]+.-]*) return 1 ;;
+  esac
+}
+
 _url_mask_word() {
-  local word="$1" rest authority userinfo
+  local word="$1" rest authority userinfo query
   case "${word}" in
-    *://*) ;;
+    *:/*) ;;
     *) return 0 ;;
   esac
-  rest=${word#*://}
+  if ! _url_has_scheme "${word}"; then
+    return 0
+  fi
+  rest=${word#*:/}
+  rest=${rest#/}
   # git reads the user information up to the last @ before the first /.
   authority=${rest%%/*}
   case "${authority}" in
@@ -58,10 +113,13 @@ _url_mask_word() {
       ;;
   esac
   case "${rest}" in
-    *'?'*) _url_mask_piece "${rest#*\?}" ;;
+    *'?'*)
+      query=${rest#*\?}
+      _url_mask_params "${query%%#*}"
+      ;;
   esac
   case "${rest}" in
-    *'#'*) _url_mask_piece "${rest#*#}" ;;
+    *'#'*) _url_mask_params "${rest#*#}" ;;
   esac
 }
 

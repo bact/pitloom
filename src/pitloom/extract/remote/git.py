@@ -294,13 +294,14 @@ def _host_as_typed(url: str) -> bool:
     all is left to the later checks): curl maps another spelling
     (``pypi%2Eorg``, a full-width dot) to a host the URL's text does not
     name, which no check of that text (a PyPI host is never cloned) would
-    see, and a host holding ``=``, ``!`` or white space, or starting with
-    ``-``, names none.
+    see; a host holding ``=``, ``!`` or white space, or starting with
+    ``-``, names none; and a bracketed name (``[v1.x]``) would lose its
+    brackets in the clone URL and name a DNS host.
 
     *url* is one :func:`scheme_allowed` accepted, so it parses: a URL
     ``urlsplit`` refuses never reaches here."""
-    host = urlsplit(url).hostname or ""
-    return not host or host_is_plain(host)
+    parts = urlsplit(url)
+    return not parts.hostname or host_is_plain(parts)
 
 
 def _resolve(
