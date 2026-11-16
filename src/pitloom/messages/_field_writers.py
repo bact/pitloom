@@ -32,10 +32,10 @@ def _without_addresses(text: str) -> str:
     kept = 0
     out: list[str] = []
     for found in _ADDRESS_OR_BRACKET.finditer(text):
-        token = found.group()
-        if token == "<":
+        mark = found.group()
+        if mark == "<":
             depth += 1
-        elif token == ">":
+        elif mark == ">":
             depth = max(depth - 1, 0)
         elif depth:
             out.append(text[kept : found.start()])
