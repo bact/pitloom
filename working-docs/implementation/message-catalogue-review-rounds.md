@@ -118,3 +118,4 @@ cross-references, drift-test markers for 44 unguarded quotes.
 - CHANGELOG bullets over 160 characters (with the PR links): seven; `CHANGELOG.md`
   itself is 60 KB.
 - Out of scope of catalogue PRs 10 and 11 (2026-11-17): `loom fragment list` reading lock files (only to work out a document id), and a requirements file with `--generate-hashes` that is ignored; both in [message-catalogue-pr10-11-lock-plan.md](../design/message-catalogue-pr10-11-lock-plan.md).
+- Possibly dead code found by mutation testing (2026-11-17): the `InvalidRequirement` branch at `src/pitloom/core/requirements.py:219` (flatten). `_parse_extras` already drops invalid requirements and joining a marker fails only as `InvalidMarker`, so no test reaches it. Remove it or prove it reachable.

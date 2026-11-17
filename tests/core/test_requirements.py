@@ -434,3 +434,13 @@ def test_expansion_matches_the_recursive_reference() -> None:
             [], optional, "demo", source=_SRC, quiet=True
         )
         assert flat == _reference_flatten(optional), optional
+
+
+def test_a_joined_extra_entry_names_every_extra(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        requirements.warn_joined_extra_entry("b", ["y", "x", "z"])
+    ((code, message),) = coded(caplog)
+    assert code == "extra-gate-ambiguous"
+    assert has_parts(message, "needs extras 'x', 'y', 'z' together")

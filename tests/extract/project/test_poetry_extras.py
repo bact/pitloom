@@ -24,6 +24,7 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.logging_config import CODE_ATTR
+from tests._code_records import coded
 
 _OPT = {"optional": True}
 _PROV = {"dependencies": "X"}
@@ -472,3 +473,23 @@ def test_gap_fill_only_for_poetry_backend(
             f"build-backend {backend!r} does not read it"
         ]
     )
+
+
+@pytest.mark.parametrize(
+    ("extras", "cause"),
+    [
+        ({"x": []}, "dependency 'attrs' (Poetry): optional and in no extra; skipped"),
+        (
+            {"x": ["ghost", "attrs"]},
+            "extra 'x' entry 'ghost' (Poetry): not a declared Poetry dependency; "
+            "skipped",
+        ),
+    ],
+    ids=["unlisted-optional", "undeclared-dependency"],
+)
+def test_a_poetry_skip_is_said_by_its_cause(
+    extras: Any, cause: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        _extract({"attrs": {"version": "1", **_OPT}}, extras)
+    assert [m for c, m in coded(caplog) if c == "requirement-invalid"] == [cause]

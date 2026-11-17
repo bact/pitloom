@@ -339,3 +339,17 @@ def test_a_duplicate_without_a_version_is_listed_as_no_version(
     [line] = matching(caplog, "lock-entry-conflict", "PACKAGE=dup")
     assert has_parts(line, "'2'", "'no version'")
     assert "None" not in line
+
+
+def test_a_reference_without_a_usable_name_names_its_list(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / "uv.lock").write_text(
+        'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+        + _APP
+        + 'dependencies = [{ name = "-bad-" }]\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        assert extract_uv_lock_dependencies(tmp_path, "app") == []
+    said(caplog, "lock-entry-malformed", "FILE=uv.lock", "an entry of dependencies")

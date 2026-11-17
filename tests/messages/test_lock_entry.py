@@ -224,3 +224,14 @@ def test_a_long_marker_failure_is_cut_and_masked(
     assert len(line) < 400 and line.count("...") == 2
     assert "pass@" not in line and "pass@" not in str(record.args)
     assert line.endswith("; kept, its marker read as true [lock-entry-malformed]")
+
+
+def test_the_memo_tells_two_locks_apart(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
+    memo: set[tuple[str, ...]] = set()
+    for file in ("uv.lock", "pylock.toml", "uv.lock"):
+        say_lock_entry(_LOG, VERSION_LINE, file=file, package="a", said=memo)
+    assert [m.split(":")[0] for m in caplog.messages] == [
+        "FILE=uv.lock PACKAGE=a",
+        "FILE=pylock.toml PACKAGE=a",
+    ]

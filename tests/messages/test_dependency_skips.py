@@ -249,3 +249,58 @@ def test_a_short_os_failure_keeps_its_description(
     )
     (line,) = _printed(caplog)
     assert "Permission denied" in line and _LONG not in line
+
+
+@pytest.mark.parametrize(
+    ("failure", "shown"),
+    [
+        (ValueError("y" * 120), "y" * 120),
+        (ValueError("y" * 121), "y" * 120 + "..."),
+        (OSError("y" * 121), "y" * 120 + "..."),
+        (ValueError("a" + " " * 200 + "b"), "a b"),
+    ],
+    ids=["120-kept", "121-cut", "os-error-without-strerror-cut", "whitespace-run"],
+)
+def test_a_failure_is_cut_after_120_characters_on_one_line(
+    failure: BaseException, shown: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    warn_skipped_dependency(
+        _LOG, "not-convertible", dependency="d", declared_in="Poetry", failure=failure
+    )
+    (line,) = _printed(caplog)
+    assert f"not convertible to PEP 508: {shown}; skipped" in line
+
+
+def test_an_os_failure_shows_its_description_not_its_path(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING)
+    warn_skipped_dependency(
+        _LOG,
+        "not-convertible",
+        dependency="d",
+        declared_in="Poetry",
+        failure=PermissionError(13, "Permission denied", "/abs/" + "y" * 3000),
+    )
+    (line,) = _printed(caplog)
+    assert "PEP 508: Permission denied; skipped" in line
+    assert "/abs/" not in line and "Errno" not in line
+
+
+def test_a_credential_across_the_cut_is_masked_before_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING)
+    text = "x" * 100 + " https://user:secretpassword@h.example/a.whl" + " y" * 100
+    warn_skipped_dependency(
+        _LOG,
+        "not-convertible",
+        dependency="d",
+        declared_in="Poetry",
+        failure=ValueError(text),
+    )
+    (line,) = _printed(caplog)
+    (record,) = caplog.records
+    assert "https://***" in line
+    assert "secret" not in line and "secret" not in str(record.args)

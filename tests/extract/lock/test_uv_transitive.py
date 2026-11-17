@@ -272,3 +272,24 @@ def test_transitive_walk_extra_deps_non_list() -> None:
 
         result = extract_uv_lock_dependencies(tmp_path)
         assert result == ["pkg==1.0.0"]
+
+
+def test_extra_wins_over_extras_on_one_reference(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    registry = 'source = { registry = "https://pypi.org/simple" }\n'
+    (tmp_path / "uv.lock").write_text(
+        _LOCK_HEADER
+        + _ROOT_HEADER
+        + 'dependencies = [{ name = "a", extra = ["x"], extras = 5 }]\n\n'
+        + '[[package]]\nname = "a"\nversion = "1.0"\n'
+        + registry
+        + '[package.optional-dependencies]\nx = [{ name = "b" }]\n\n'
+        + '[[package]]\nname = "b"\nversion = "2.0"\n'
+        + registry,
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        result = extract_uv_lock_dependencies(tmp_path, "demo")
+    assert result is not None and sorted(result) == ["a==1.0", "b==2.0"]
+    assert not caplog.records
