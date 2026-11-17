@@ -82,8 +82,12 @@ def test_sbom_base_name_strips_once_and_warns_once(
 @pytest.mark.parametrize(
     ("where", "text", "code"),
     [
-        (_FILE, "[tool.pitloom] sbom-basename: must be a file name", "config-invalid"),
-        (_PARAM, "--sbom-basename: must be a file name", "option-invalid"),
+        (
+            _FILE,
+            "[tool.pitloom] sbom-basename: must be a plain file name",
+            "config-invalid",
+        ),
+        (_PARAM, "--sbom-basename: must be a plain file name", "option-invalid"),
     ],
     ids=["file", "parameter"],
 )
