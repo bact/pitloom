@@ -23,6 +23,8 @@ from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
 from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject import read_pyproject
+from pitloom.logging_config import CODE_ATTR
+from tests._code_records import coded
 
 _OPT = {"optional": True}
 _PROV = {"dependencies": "X"}
@@ -136,11 +138,11 @@ def test_optional_dependency_tagged_per_extra(
 @pytest.mark.parametrize(
     ("extras", "needle", "prefix"),
     [
-        pytest.param(None, "attrs", "Skipping dependency", id="no-extras-table"),
-        pytest.param({}, "attrs", "Skipping dependency", id="empty-extras-table"),
-        pytest.param({"x": []}, "attrs", "Skipping dependency", id="not-listed"),
+        pytest.param(None, "attrs", "dependency 'attrs'", id="no-extras-table"),
+        pytest.param({}, "attrs", "dependency 'attrs'", id="empty-extras-table"),
+        pytest.param({"x": []}, "attrs", "dependency 'attrs'", id="not-listed"),
         pytest.param(
-            {"x": ["ghost"]}, "ghost", "Skipping extra entry", id="undeclared"
+            {"x": ["ghost"]}, "ghost", "extra 'x' entry 'ghost'", id="undeclared"
         ),
     ],
 )
@@ -154,6 +156,7 @@ def test_unlisted_or_undeclared_warns_once(
     warned = [r for r in caplog.records if needle in r.getMessage()]
     assert len(warned) == 1
     assert warned[0].getMessage().startswith(prefix)
+    assert getattr(warned[0], CODE_ATTR) == "requirement-invalid"
 
 
 @pytest.mark.parametrize(
@@ -470,3 +473,23 @@ def test_gap_fill_only_for_poetry_backend(
             f"build-backend {backend!r} does not read it"
         ]
     )
+
+
+@pytest.mark.parametrize(
+    ("extras", "cause"),
+    [
+        ({"x": []}, "dependency 'attrs' (Poetry): optional and in no extra; skipped"),
+        (
+            {"x": ["ghost", "attrs"]},
+            "extra 'x' entry 'ghost' (Poetry): not a declared Poetry dependency; "
+            "skipped",
+        ),
+    ],
+    ids=["unlisted-optional", "undeclared-dependency"],
+)
+def test_a_poetry_skip_is_said_by_its_cause(
+    extras: Any, cause: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        _extract({"attrs": {"version": "1", **_OPT}}, extras)
+    assert [m for c, m in coded(caplog) if c == "requirement-invalid"] == [cause]

@@ -25,7 +25,16 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_marker, parse_requirement
-from pitloom.logging_config import excerpt
+from pitloom.messages.dependencies import (
+    Cause,
+    warn_extra_gate_ambiguous,
+)
+from pitloom.messages.dependencies import (
+    warn_skipped_dependency as say_skipped_dependency,
+)
+from pitloom.messages.dependencies import (
+    warn_skipped_extra_entry as say_skipped_extra_entry,
+)
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -42,12 +51,8 @@ MAX_EXPANSION_ENTRIES = 100_000
 #: ``packaging`` parses a marker recursively, a few frames a level. Over
 #: it, every self-reference is kept as declared.
 MAX_EXPANSION_MARKERS = 64
-#: The reason a skipping ``WARNING:`` gives for a requirement that cannot
-#: be parsed.
-NOT_PEP_508 = "not a valid PEP 508 requirement"
 
 __all__ = [
-    "NOT_PEP_508",
     "add_marker",
     "flatten_optional_dependencies",
     "normalize_dependency_specifier",
@@ -57,47 +62,63 @@ __all__ = [
 ]
 
 
+# pylint: disable-next=too-many-arguments
 def warn_skipped_dependency(
-    source: str, entry: object, reason: str, *, quiet: bool = False
+    source: str,
+    entry: object,
+    cause: Cause,
+    *,
+    failure: BaseException | None = None,
+    source_kind: str | None = None,
+    quiet: bool = False,
 ) -> None:
     """``WARNING:`` that the dependency *entry* declared in *source* (e.g.
-    ``Poetry``) is not listed: the wording of
-    :func:`warn_skipped_extra_entry` for an entry of no particular extra.
-    Silent when *quiet*."""
-    if not quiet:
-        log.warning("Skipping dependency %s (%s): %s", excerpt(entry), source, reason)
+    ``Poetry``) is not listed, its line picked by *cause*
+    (:func:`pitloom.messages.dependencies.warn_skipped_dependency`: the
+    same *failure* and *source_kind*). Silent when *quiet*."""
+    say_skipped_dependency(
+        log,
+        cause,
+        dependency=entry,
+        declared_in=source,
+        failure=failure,
+        source_kind=source_kind,
+        quiet=quiet,
+    )
 
 
+# pylint: disable-next=too-many-arguments
 def warn_skipped_extra_entry(
-    source: str, extra: str, entry: object, reason: str, *, quiet: bool = False
+    source: str,
+    extra: str,
+    entry: object,
+    cause: Cause,
+    *,
+    failure: BaseException | None = None,
+    quiet: bool = False,
 ) -> None:
     """``WARNING:`` that *entry* of *extra* declared in *source* (e.g.
-    ``optional-dependencies``) is not used: the one wording every route
-    shares, *entry* as :func:`~pitloom.logging_config.excerpt` shows it.
-    Silent when *quiet*."""
-    if not quiet:
-        log.warning(
-            "Skipping extra entry %s of %r (%s): %s",
-            excerpt(entry),
-            extra,
-            source,
-            reason,
-        )
+    ``optional-dependencies``) is not used, its line picked by *cause*
+    (:func:`pitloom.messages.dependencies.warn_skipped_extra_entry`): the
+    one wording every route shares. Silent when *quiet*."""
+    say_skipped_extra_entry(
+        log,
+        cause,
+        extra=extra,
+        dependency=entry,
+        declared_in=source,
+        failure=failure,
+        quiet=quiet,
+    )
 
 
 def warn_joined_extra_entry(entry: str, extras: Iterable[str]) -> None:
     """``WARNING:`` that *entry*, requiring several *extras* together (a
     requirement with an extra marker of its own, declared in another
-    extra), is recorded as optional for any of them: the wording of
-    :func:`warn_skipped_extra_entry` for an entry kept. Read when the
+    extra), is recorded as optional for any of them. Read when the
     document is assembled, so never from a read whose value is discarded
     (no *quiet*)."""
-    log.warning(
-        "Ignoring the inner extra condition of extra entry %r: recorded as"
-        " optional (extras: %s)",
-        entry,
-        ", ".join(sorted(extras)),
-    )
+    warn_extra_gate_ambiguous(log, dependency=entry, extras=list(extras))
 
 
 def add_marker(req: Requirement, marker: str) -> None:
@@ -152,8 +173,8 @@ def flatten_optional_dependencies(
     marker joined to theirs. It names no extra: it adds nothing. It names
     an extra not declared: that extra is skipped with a ``WARNING:``. A
     cycle of self-references is dropped where it closes (an extra already
-    being expanded adds nothing again), with one ``WARNING:`` per cycle
-    naming its extras. An expansion over :data:`MAX_EXPANSION_ENTRIES` or
+    being expanded adds nothing again), with one ``WARNING:`` per cycle.
+    An expansion over :data:`MAX_EXPANSION_ENTRIES` or
     :data:`MAX_EXPANSION_MARKERS`, or joining a marker nesting over
     :data:`~pitloom.core.pep508.MAX_MARKER_NESTING`, is not done: every
     self-reference is kept as declared, with one ``WARNING:``.
@@ -188,8 +209,15 @@ def flatten_optional_dependencies(
         for text in texts[extra]:
             try:
                 tagged = normalize_dependency_specifier(_with_marker(text, tag))
-            except (InvalidMarker, InvalidRequirement) as exc:
-                warn_skipped_extra_entry(source, extra, text, str(exc), quiet=quiet)
+            except InvalidMarker as exc:
+                warn_skipped_extra_entry(
+                    source, extra, text, "marker", failure=exc, quiet=quiet
+                )
+                continue
+            except InvalidRequirement:
+                warn_skipped_extra_entry(
+                    source, extra, text, "not-pep-508", quiet=quiet
+                )
                 continue
             if tagged not in seen:
                 seen.add(tagged)
@@ -213,7 +241,7 @@ def _parse_extras(
                     source,
                     canonicalize_name(extra),
                     text,
-                    NOT_PEP_508,
+                    "not-pep-508",
                     quiet=quiet,
                 )
     return by_extra
@@ -234,23 +262,16 @@ def _warn_undeclared_self_extras(
                         source,
                         extra,
                         str(req),
-                        f"extra {missing!r} is not declared",
+                        "undeclared-extra",
                         quiet=quiet,
                     )
 
 
 def _warn_cycles(expansion: _Expansion, source: str, quiet: bool) -> None:
     """One skipping ``WARNING:`` per cycle of self-references the
-    *expansion* dropped (:meth:`_Expansion.cycles`), naming its extras."""
-    for extra, entry, members in expansion.cycles():
-        cycle = ", ".join(repr(member) for member in members)
-        warn_skipped_extra_entry(
-            source,
-            extra,
-            entry,
-            f"self-reference cycle among extras {cycle}",
-            quiet=quiet,
-        )
+    *expansion* dropped (:meth:`_Expansion.cycles`)."""
+    for extra, entry, _members in expansion.cycles():
+        warn_skipped_extra_entry(source, extra, entry, "cycle", quiet=quiet)
 
 
 def _with_marker(text: str, marker: str | None) -> str:

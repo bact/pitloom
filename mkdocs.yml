@@ -55,6 +55,8 @@ nav:
           - Targets: message-codes-targets.md
           - Options: message-codes-options.md
           - Files and text: message-codes-files.md
+          - Lock files: message-codes-lock-files.md
+          - Dependencies: message-codes-dependencies.md
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md
           - URL credentials: message-codes-url-credentials.md

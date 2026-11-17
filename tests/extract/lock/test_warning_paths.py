@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A lock warning names its project directory on one line, whatever the
-directory is called."""
+"""A lock warning names the lock by its file name, never its project
+directory: one line, whatever the directory is called."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock.cascade import apply_locked_dependencies
 from pitloom.extract.lock.pylock import extract_pylock_dependencies
 from pitloom.extract.lock.uv import extract_uv_lock_dependencies
+from tests._code_records import coded, has_parts
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="a Windows directory name cannot hold a newline"
@@ -52,23 +53,21 @@ def test_pylock_warnings(
     (nasty_dir / "pylock.toml").write_text(pylock, encoding="utf-8")
     with caplog.at_level(logging.WARNING):
         assert extract_pylock_dependencies(nasty_dir) is None
-    assert len(caplog.records) == 1 and len(_lines(caplog)) == 1
-    assert "\\nINFO: forged" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-file-malformed" and len(_lines(caplog)) == 1
+    assert has_parts(text, "FILE=pylock.toml") and "forged" not in caplog.text
 
 
 def test_uv_warning(caplog: pytest.LogCaptureFixture, nasty_dir: Path) -> None:
     (nasty_dir / "uv.lock").write_text(_UV, encoding="utf-8")
     with caplog.at_level(logging.WARNING):
         assert extract_uv_lock_dependencies(nasty_dir, "demo") is None
-    assert len(_lines(caplog)) == 1 and "\\nINFO: forged" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-file-malformed" and len(_lines(caplog)) == 1
+    assert has_parts(text, "FILE=uv.lock") and "forged" not in caplog.text
 
 
-@pytest.mark.parametrize(
-    "previous", ["Source: nope | Method: x", "Source: poetry.lock | Method: x"]
-)
-def test_cascade_warnings(
-    caplog: pytest.LogCaptureFixture, nasty_dir: Path, previous: str
-) -> None:
+def test_cascade_warnings(caplog: pytest.LogCaptureFixture, nasty_dir: Path) -> None:
     (nasty_dir / "pylock.toml").write_text(
         _PYLOCK + 'created-by = "t"\n[[packages]]\nname = "a"\nversion = "1"\n',
         encoding="utf-8",
@@ -76,9 +75,10 @@ def test_cascade_warnings(
     metadata = ProjectMetadata(
         name="pkg",
         locked_dependencies=["b==1"],
-        provenance={"locked_dependencies": previous},
+        provenance={"locked_dependencies": "Source: poetry.lock | Method: x"},
     )
     with caplog.at_level(logging.WARNING):
         apply_locked_dependencies(metadata, nasty_dir)
-    assert caplog.records and len(_lines(caplog)) == len(caplog.records)
-    assert "\\nINFO: forged" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-file-conflict" and len(_lines(caplog)) == 1
+    assert "forged" not in text

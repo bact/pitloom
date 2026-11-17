@@ -35,7 +35,6 @@ from packaging.markers import InvalidMarker
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import parse_marker
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     find_first_present_key,
     is_usable_name,
@@ -48,11 +47,26 @@ from pitloom.extract.lock.common import (
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
-from pitloom.logging_config import one_line
+from pitloom.messages.lock_files import (
+    FORMAT_MARKER_LINE,
+    KEY_TEXT_LINE,
+    MARKER_LINE,
+    TOP_GROUPS_LINE,
+    TOP_KEY_MISSING_LINE,
+    TOP_KEY_TEXT_LINE,
+    VERSION_MAJOR_LINE,
+    VERSION_MINOR_LINE,
+    VERSION_SHAPE_LINE,
+    say_lock_entry,
+    say_lock_file,
+)
 
 log = logging.getLogger(__name__)
 
 __all__ = ["extract_pylock_dependencies"]
+
+#: How a line names this lock.
+_LOCK_NAME = "pylock.toml"
 
 _NON_REGISTRY_SOURCE_KEYS = ("vcs", "directory", "archive")
 
@@ -101,59 +115,63 @@ def _extract_validated_packages(
         else None
     )
     if parsed_version is None:
-        log.warning(
-            "%s: missing or malformed top-level 'lock-version' key "
-            "(%r, expected a 'major.minor' string) -- ignoring pylock.toml",
-            quote_source(lock_path),
-            raw_lock_version,
-        )
+        if isinstance(raw_lock_version, str):
+            say_lock_file(
+                log,
+                VERSION_SHAPE_LINE,
+                file=lock_path,
+                lock_key="lock-version",
+                lock_value=raw_lock_version,
+            )
+        else:
+            say_lock_file(
+                log, FORMAT_MARKER_LINE, file=lock_path, lock_key="lock-version"
+            )
         return None
     major, minor = parsed_version
     supported_major, supported_minor = _SUPPORTED_LOCK_FILE_VERSION
     if major != supported_major:
-        log.warning(
-            "%s: 'lock-version' %r is major version %d, but this Pitloom "
-            "release only understands major version %d -- ignoring "
-            "pylock.toml",
-            quote_source(lock_path),
-            raw_lock_version,
-            major,
-            supported_major,
+        say_lock_file(
+            log,
+            VERSION_MAJOR_LINE,
+            file=lock_path,
+            lock_key="lock-version",
+            lock_value=raw_lock_version,
+            number=supported_major,
         )
         return None
     if minor > supported_minor:
-        log.warning(
-            "%s: 'lock-version' %r is newer than the %d.%d schema this "
-            "Pitloom release knows -- reading it anyway (PEP 751 minor "
-            "versions are additive), but newer fields may be ignored",
-            quote_source(lock_path),
-            raw_lock_version,
-            supported_major,
-            supported_minor,
+        say_lock_file(
+            log,
+            VERSION_MINOR_LINE,
+            file=lock_path,
+            lock_key="lock-version",
+            lock_value=raw_lock_version,
         )
 
     created_by = data.get("created-by")
     if not isinstance(created_by, str) or not created_by.strip():
-        log.warning(
-            "%s: missing or malformed top-level 'created-by' key "
-            "(expected a non-empty string) -- ignoring pylock.toml",
-            quote_source(lock_path),
-        )
+        if "created-by" in data:
+            say_lock_file(
+                log,
+                TOP_KEY_TEXT_LINE,
+                file=lock_path,
+                lock_key="created-by",
+                value_type=created_by,
+            )
+        else:
+            say_lock_file(
+                log, TOP_KEY_MISSING_LINE, file=lock_path, lock_key="created-by"
+            )
         return None
 
     if "packages" not in data:
-        log.warning(
-            "%s: missing top-level 'packages' key (expected a list) -- "
-            "ignoring pylock.toml",
-            quote_source(lock_path),
-        )
+        say_lock_file(log, TOP_KEY_MISSING_LINE, file=lock_path, lock_key="packages")
         return None
 
     packages = data["packages"]
     if not isinstance(packages, list):
-        warn_top_level_key_wrong_type(
-            lock_path, "packages", packages, "a list", "pylock.toml"
-        )
+        warn_top_level_key_wrong_type(lock_path, "packages", packages, "list")
         return None
     return packages
 
@@ -196,7 +214,7 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
         for pair in (_pinned_pair_for_package(pkg, environment) for pkg in packages)
         if pair is not None
     ]
-    return resolve_pinned_dependencies(pairs, "pylock.toml")
+    return resolve_pinned_dependencies(pairs, _LOCK_NAME)
 
 
 def _default_group_environment(
@@ -213,11 +231,12 @@ def _default_group_environment(
     if not isinstance(default_groups, list) or not all(
         isinstance(g, str) for g in default_groups
     ):
-        log.warning(
-            "%s: top-level 'default-groups' key is %r, expected a list of "
-            "strings -- treating as empty (no default dependency-group)",
-            quote_source(lock_path),
-            default_groups,
+        say_lock_file(
+            log,
+            TOP_GROUPS_LINE,
+            file=lock_path,
+            lock_key="default-groups",
+            value_type=default_groups,
         )
         default_groups = []
     return {
@@ -347,12 +366,13 @@ def _group_marker_excludes(
         tree = parse_marker(marker_str)._markers  # noqa: SLF001
         return _evaluate_group_node(tree, environment) is False
     except (InvalidMarker, TypeError, ValueError) as exc:
-        log.warning(
-            "Skipping pylock.toml entry %r's 'marker' %r: %s -- treating "
-            "as an unconstrained (included) marker",
-            name,
-            marker_str,
-            one_line(exc),
+        say_lock_entry(
+            log,
+            MARKER_LINE,
+            file=_LOCK_NAME,
+            package=name,
+            lock_value=marker_str,
+            failure=exc,
         )
         return False
 
@@ -362,11 +382,13 @@ def _is_marker_excluded(
 ) -> bool:
     """Return True if marker is non-string (malformed) or excludes the entry."""
     if not isinstance(marker, str):
-        log.warning(
-            "Skipping malformed pylock.toml [[packages]] entry %r: "
-            "'marker' is %s, expected a string",
-            name,
-            type(marker).__name__,
+        say_lock_entry(
+            log,
+            KEY_TEXT_LINE,
+            file=_LOCK_NAME,
+            package=name,
+            lock_key="marker",
+            value_type=marker,
         )
         return True
     return _group_marker_excludes(marker, environment, name)
@@ -413,11 +435,11 @@ def _pinned_pair_for_package(
     validate.
     """
     if not isinstance(pkg, dict):
-        warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)
+        warn_malformed_entry_not_table(_LOCK_NAME, "packages", pkg)
         return None
     name = pkg.get("name")
     if not is_usable_name(name):
-        warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
+        warn_missing_name(_LOCK_NAME, "packages", name)
         return None
     marker = pkg.get("marker")
     marker_excluded = marker is not None and _is_marker_excluded(
@@ -426,10 +448,10 @@ def _pinned_pair_for_package(
     non_registry_source = find_first_present_key(pkg, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
         if not marker_excluded:
-            warn_non_registry_source("pylock.toml", name, non_registry_source)
+            warn_non_registry_source(_LOCK_NAME, name, non_registry_source)
         return None
     version = pkg.get("version")
     if not is_usable_version(version):
-        warn_missing_version("pylock.toml", name)
+        warn_missing_version(_LOCK_NAME, name)
         return None
     return None if marker_excluded else (name, version)

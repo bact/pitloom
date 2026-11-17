@@ -28,6 +28,7 @@ from pitloom.extract.lock.requirements import (
     extract_pinned_requirements_dependencies,
 )
 from pitloom.extract.project import read_project
+from tests.extract.lock.lock_lines_shared import said, said_once
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent.parent
@@ -132,8 +133,7 @@ def test_duplicate_name_conflicting_versions_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "conflicting versions" in caplog.text
-        assert "requests" in caplog.text
+        said(caplog, "lock-entry-conflict", "FILE=requirements.txt", "PACKAGE=requests")
 
 
 def test_duplicate_name_different_casing_same_version_collapsed() -> None:
@@ -161,7 +161,7 @@ def test_duplicate_name_different_casing_conflicting_versions_disqualifies_whole
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "FILE=requirements.txt", "PACKAGE=Flask")
 
 
 def test_undecodable_file_returns_none_and_warns(
@@ -175,7 +175,7 @@ def test_undecodable_file_returns_none_and_warns(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "file-unreadable/not-utf8", "FILE=requirements.txt")
 
 
 def test_three_way_duplicate_conflicting_versions_disqualifies_whole_file(
@@ -191,7 +191,7 @@ def test_three_way_duplicate_conflicting_versions_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=requests", "'2.33.0'")
 
 
 def test_utf8_bom_does_not_disqualify_the_file() -> None:
@@ -252,7 +252,7 @@ def test_hash_annotated_continuation_still_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "malformed requirement line" in caplog.text
+        said(caplog, "lock-entry-malformed", "LINE=1", "not a PEP 508 requirement")
 
 
 def test_unpinned_bare_name_disqualifies_whole_file(
@@ -266,7 +266,12 @@ def test_unpinned_bare_name_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "isn't pinned to a single exact version" in caplog.text
+        said(
+            caplog,
+            "lock-entry-unusable",
+            "FILE=requirements.txt",
+            "not one exact version",
+        )
 
 
 @pytest.mark.parametrize(
@@ -283,7 +288,12 @@ def test_ranged_specifier_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "isn't pinned to a single exact version" in caplog.text
+        said(
+            caplog,
+            "lock-entry-unusable",
+            "FILE=requirements.txt",
+            "not one exact version",
+        )
 
 
 def test_prefix_match_specifier_disqualifies_whole_file(
@@ -297,7 +307,12 @@ def test_prefix_match_specifier_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "isn't pinned to a single exact version" in caplog.text
+        said(
+            caplog,
+            "lock-entry-unusable",
+            "FILE=requirements.txt",
+            "not one exact version",
+        )
 
 
 @pytest.mark.parametrize(
@@ -321,7 +336,8 @@ def test_url_requirement_disqualifies_whole_file_even_when_tag_shaped(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "direct URL reference" in caplog.text
+        said(caplog, "lock-entry-unusable", "LINE=2", "name is a direct reference")
+        assert "https://" not in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -339,7 +355,7 @@ def test_option_line_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "isn't fully pinned" in caplog.text
+        said(caplog, "lock-entry-unusable", "LINE=2", "pip option")
 
 
 @pytest.mark.parametrize(
@@ -366,7 +382,7 @@ def test_option_line_with_credentials_redacts_line_in_log(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "--extra-index-url" in caplog.text
+        said(caplog, "lock-entry-unusable", "pip option '--extra-index-url'")
         assert "secret_token" not in caplog.text
         assert "user" not in caplog.text
 
@@ -387,7 +403,7 @@ def test_malformed_url_with_credentials_redacts_credentials_in_log(
 
         assert result is None
         assert "secret_pass" not in caplog.text
-        assert "malformed requirement line" in caplog.text
+        said(caplog, "lock-entry-malformed", "LINE=1", "not a PEP 508 requirement")
 
 
 def test_arbitrary_equality_operator_preserved_in_requirements(tmp_path: Path) -> None:
@@ -414,7 +430,7 @@ def test_bare_url_and_legacy_vcs_syntax_disqualify_as_malformed(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "malformed requirement line" in caplog.text
+        said(caplog, "lock-entry-malformed", "LINE=2", "not a PEP 508 requirement")
 
 
 def test_malformed_requirement_line_disqualifies_whole_file(
@@ -428,7 +444,7 @@ def test_malformed_requirement_line_disqualifies_whole_file(
             result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result is None
-        assert "malformed requirement line" in caplog.text
+        said(caplog, "lock-entry-malformed", "LINE=2", "not a PEP 508 requirement")
 
 
 def test_first_disqualifying_line_named_in_warning(
@@ -441,7 +457,9 @@ def test_first_disqualifying_line_named_in_warning(
         with caplog.at_level(logging.WARNING):
             extract_pinned_requirements_dependencies(tmp_path)
 
-        assert ":2:" in caplog.text
+        said_once(
+            caplog, "lock-entry-unusable", "FILE=requirements.txt LINE=2", "requests"
+        )
         assert "urllib3" not in caplog.text
 
 
@@ -507,7 +525,7 @@ def test_real_world_home_assistant_core_rejects_partially_pinned_file(
 
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
-    assert "option '-c' means this file isn't fully pinned" in caplog.text
+    said(caplog, "lock-entry-unusable", "FILE=requirements.txt", "pip option '-c'")
 
 
 @pytest.mark.parametrize(

@@ -23,9 +23,8 @@ from packaging.utils import canonicalize_name
 
 from pitloom.core.pep440 import parse_version
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._common_warnings import warn_conflicting_versions
-from pitloom.logging_config import loggable
+from pitloom.messages.lock_files import VERSIONS_FILE_LINE, say_lock_entry
 
 log = logging.getLogger(__name__)
 
@@ -154,12 +153,12 @@ def resolve_pinned_dependencies(
 
         if conflicting_versions:
             if on_conflict == "abort":
-                log.warning(
-                    "%s: %r pinned to conflicting versions (%s) -- ignoring %s",
-                    quote_source(lock_file),
-                    name,
-                    loggable(", ".join(sorted(all_versions))),
-                    file_label,
+                say_lock_entry(
+                    log,
+                    VERSIONS_FILE_LINE,
+                    file=file_label,
+                    package=name,
+                    dropped=frozenset(all_versions),
                 )
                 return None
             warn_conflicting_versions(file_label, name, all_versions)

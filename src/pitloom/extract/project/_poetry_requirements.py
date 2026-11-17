@@ -54,6 +54,11 @@ _LOCAL_SOURCES = ("path", "file")
 _NOT_BASE = ("markers", "python", "platform", "optional")
 
 
+class _MarkersTypeError(TypeError):
+    """A table's ``markers`` is not a string: the reason a conversion is
+    skipped, said by its text."""
+
+
 class _PoetryCore(NamedTuple):
     """The poetry-core functions the conversion calls."""
 
@@ -106,7 +111,7 @@ def poetry_requirement(
         local = next((key for key in _LOCAL_SOURCES if key in constraint), None)
         if local is not None:
             warn_skipped_dependency(
-                "Poetry", name, f"a local {local} source is not portable", quiet=quiet
+                "Poetry", name, "local-source", source_kind=local, quiet=quiet
             )
             return None
     core = _poetry_core()
@@ -118,8 +123,9 @@ def poetry_requirement(
         for marker in _markers(core, constraint):
             add_marker(req, marker)
     except (ValueError, TypeError, AttributeError) as exc:
-        reason = f"not convertible to PEP 508: {one_line(exc, _SHOWN_CHARS)}"
-        warn_skipped_dependency("Poetry", name, reason, quiet=quiet)
+        warn_skipped_dependency(
+            "Poetry", name, "not-convertible", failure=exc, quiet=quiet
+        )
         return None
     return normalize_dependency_specifier(str(req))
 
@@ -150,7 +156,9 @@ def _markers(core: _PoetryCore, constraint: Any) -> list[str]:
         return []
     markers = constraint.get("markers")
     if markers is not None and not isinstance(markers, str):
-        raise TypeError(f"'markers' is {type(markers).__name__}, expected a string")
+        raise _MarkersTypeError(
+            f"'markers' is {type(markers).__name__}, expected a string"
+        )
     found = [markers] if markers else []
     if python := constraint.get("python"):
         found.append(_simplified(core, "python_version", core.parse_constraint(python)))

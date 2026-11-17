@@ -141,7 +141,9 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **Catalogue PRs 8 to 18** (the remaining families, the licence families
   last): the remote registry entries, lock files, config, project metadata,
   Git, Hub and build, fragments and wheels, miscellany, licence. The
-  consistency re-check of the merged families is done (#494); next: PR 8.
+  consistency re-check of the merged families is done (#494). Planned
+  2026-11-17 in [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md);
+  build lock files (10, 11) first, then config (8, 9).
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install

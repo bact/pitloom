@@ -20,6 +20,7 @@ import pytest
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project.setuptools import read_setuptools
+from tests._code_records import coded
 
 _PY = "Source: setup.py"
 _CFG = "Source: setup.cfg"
@@ -491,3 +492,18 @@ def test_an_unused_pitloom_section_cannot_fail_the_read(
         with pytest.raises(FileNotFoundError):
             read_setuptools(tmp_path)
         assert not caplog.records
+
+
+@pytest.mark.parametrize("quiet", [False, True], ids=["warns", "quiet"])
+def test_an_invalid_requirement_under_a_marker_key_obeys_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, quiet: bool
+) -> None:
+    (tmp_path / "setup.py").write_bytes(
+        b"from setuptools import setup\n"
+        b"setup(name='c', version='1.0', "
+        b"extras_require={'x:os_name == \"nt\"': ['not valid >=']})\n"
+    )
+    caplog.set_level(logging.WARNING)
+    read_setuptools(tmp_path, quiet=quiet)
+    found = [m for c, m in coded(caplog) if c == "requirement-invalid"]
+    assert len(found) == (0 if quiet else 1)

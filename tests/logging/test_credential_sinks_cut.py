@@ -71,8 +71,8 @@ def test_excerpt_masks_before_it_cuts() -> None:
 @pytest.mark.parametrize(
     "warn",
     [
-        lambda v: warn_skipped_dependency("setup.cfg", v, "not PEP 508"),
-        lambda v: warn_skipped_extra_entry("setup.cfg", "dev", v, "not PEP 508"),
+        lambda v: warn_skipped_dependency("setup.cfg", v, "not-pep-508"),
+        lambda v: warn_skipped_extra_entry("setup.cfg", "dev", v, "not-pep-508"),
         lambda v: DependencyScopes([v], "demo"),
         lambda v: say_resolved(
             v, DeclaredResolution("MIT", "id", (), (), True, "t", ()), "license"

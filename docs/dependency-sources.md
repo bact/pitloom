@@ -194,8 +194,10 @@ pinned to genuinely different versions for different Python versions in
 one file; Pitloom doesn't evaluate environment markers to pick one, so
 such a dependency is simply omitted from the additional (transitive)
 list rather than added with a possibly-wrong version. Check stderr for a
-`WARNING:` naming the skipped package if a dependency you expected is
-missing.
+`WARNING:` naming the skipped package (`lock-entry-conflict`, or
+`lock-entry-malformed` or `lock-entry-unusable` for an entry that cannot be
+read) if a dependency you expected is missing; see [What Pitloom says about
+a lock file or a requirement](#what-pitloom-says-about-a-lock-file-or-a-requirement).
 
 ## Version comparison: PEP 440, not SemVer
 
@@ -216,9 +218,9 @@ two places:
 - **A lock file's own duplicate entries.** If one lock file records the
   same package name more than once (e.g. a platform-specific variant),
   entries that normalise to the same PEP 440 release are silently
-  collapsed into one; entries that don't get a `WARNING:` naming both
-  versions, and that package is left out of the transitive list
-  entirely rather than guessed at.
+  collapsed into one; entries that don't get a `WARNING:`
+  (`lock-entry-conflict`) naming both versions, and that package is left out
+  of the transitive list entirely rather than guessed at.
 - **A declared range vs. the lock file's resolved version.** When a
   direct dependency is unpinned or declared as a range, the lock file's
   resolved version is used (see above); when it's already pinned
@@ -235,14 +237,41 @@ A version with a number over 640 digits (`1.` followed by 5,000 nines; any
 run of digits counts, in a version, a specifier or a marker) is
 not read as a version: Python cannot convert such a number on every
 release and setting. A lock entry holding one is skipped with the lock's own
-`WARNING:` for an invalid version. A requirement holding one counts as not
-valid PEP 508 (above), with a `WARNING:` for the cap and the usual one for
-an invalid requirement (a Poetry dependency: its one skip line, which gives
-the reason); a whole `requirements.txt` with such a pin is
-ignored, with both lines. The project's own `version` or `requires-python`
+`WARNING:` for an invalid version (`lock-entry-malformed`). A requirement
+holding one counts as not valid PEP 508 (above), with a `WARNING:` for the
+cap and the usual one for an invalid requirement (`requirement-invalid`; a
+Poetry dependency: its one skip line, which gives the reason); a whole
+`requirements.txt` with such a pin is ignored, with both lines. The project's own `version` or `requires-python`
 holding one fails the run with an `ERROR:`, as any invalid value does.
 
 [pep-440]: https://peps.python.org/pep-0440/
+
+## What Pitloom says about a lock file or a requirement
+
+A lock file entry or a requirement Pitloom cannot use is said on stderr, in
+a line that ends with its `[code]`; the SBOM is still written. The clause
+after the last `;` says what Pitloom did: `skipped` leaves the pin or
+requirement out; `pin kept` keeps the pin but does not follow what the line
+names; an `extra-gate-*` line records the requirement, as required or as
+optional. Each code, its causes and what to do about it are on
+[Lock files](message-codes-lock-files.md) and
+[Dependencies](message-codes-dependencies.md). One line of each, with a value
+in place of each `<name>`:
+
+| Code | A line of it |
+| :--- | :--- |
+| `lock-entry-conflict` | `WARNING: FILE=<file> PACKAGE=<package>: pinned to several versions; skipped, dropped <dropped> [lock-entry-conflict]` |
+| `lock-entry-malformed` | `WARNING: FILE=<file> PACKAGE=<package>: referenced but not in the lock's package table; skipped [lock-entry-malformed]` |
+| `lock-entry-unusable` | `WARNING: FILE=<file> PACKAGE=<package>: a <source-kind> source, not a registry version; skipped [lock-entry-unusable]` |
+| `lock-file-conflict` | `WARNING: two lock files hold resolved dependencies; kept <kept>, dropped <dropped> [lock-file-conflict]` |
+| `lock-file-malformed` | `WARNING: FILE=<file>: does not parse: <failure>; no pins read from it [lock-file-malformed]` |
+| `lock-file-unusable` | `WARNING: FILE=<file>: no entry for the project (no editable or virtual source); no pins read from it [lock-file-unusable]` |
+| `lock-file-wrong-format` | `WARNING: FILE=<file>: <lock-key> <lock-value> is a major version Pitloom does not read (it reads <number>); no pins read from it [lock-file-wrong-format]` |
+| `requirement-invalid` | `WARNING: dependency <dependency> (<declared-in>): optional and in no extra; skipped [requirement-invalid]` |
+| `requirement-unusable` | `WARNING: dependency <dependency> (<declared-in>): a local <source-kind> source, not portable; skipped [requirement-unusable]` |
+| `extra-gate-unusable` | `WARNING: PACKAGE=<package>: the extra marker of <dependency> cannot be isolated; recorded as required [extra-gate-unusable]` |
+| `extra-gate-ambiguous` | `WARNING: dependency <dependency>: needs extras <extra> together; recorded as optional for any of them [extra-gate-ambiguous]` |
+| `dependency-name-ambiguous` | `INFO: PACKAGE=<package>: a direct reference; not looked up on PyPI [dependency-name-ambiguous]` |
 
 ## Which commands use lock files at all
 
@@ -381,7 +410,10 @@ A direct reference (`name @ URL`: a Git repository, an archive, a local
 `file:` path) is never looked up on PyPI, online or offline: PyPI knows a
 package by name alone, and its project of that name may be a different
 package. Its package is listed with its declared constraint; its licence,
-supplier and hash come from its installed copy, if any, or stay unset.
+supplier and hash come from its installed copy, if any, or stay unset. Pitloom
+says so once per such package, as an `INFO:` line
+(`dependency-name-ambiguous`), when it assembles dependencies online; an
+offline run, which looks nothing up, says nothing.
 
 ## See also
 

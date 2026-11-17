@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.uv import extract_uv_lock_dependencies
+from tests.extract.lock.lock_lines_shared import said
 
 _LOCK_HEADER = 'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
 
@@ -109,7 +110,7 @@ def test_nested_dependencies_not_a_list_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "nested 'dependencies'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "dependencies is str")
 
 
 def test_nested_dependencies_falsy_non_list_warns_and_skipped(
@@ -132,7 +133,7 @@ def test_nested_dependencies_falsy_non_list_warns_and_skipped(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "nested 'dependencies'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "dependencies is bool")
 
 
 def test_dependency_with_no_source_table_still_included() -> None:
@@ -253,8 +254,7 @@ def test_transitive_walk_requested_extra_not_declared_warns_and_skips(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "not found" in caplog.text
-        assert "socks" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "extra 'socks'")
 
 
 def test_transitive_walk_extra_deps_non_list() -> None:
@@ -272,3 +272,24 @@ def test_transitive_walk_extra_deps_non_list() -> None:
 
         result = extract_uv_lock_dependencies(tmp_path)
         assert result == ["pkg==1.0.0"]
+
+
+def test_extra_wins_over_extras_on_one_reference(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    registry = 'source = { registry = "https://pypi.org/simple" }\n'
+    (tmp_path / "uv.lock").write_text(
+        _LOCK_HEADER
+        + _ROOT_HEADER
+        + 'dependencies = [{ name = "a", extra = ["x"], extras = 5 }]\n\n'
+        + '[[package]]\nname = "a"\nversion = "1.0"\n'
+        + registry
+        + '[package.optional-dependencies]\nx = [{ name = "b" }]\n\n'
+        + '[[package]]\nname = "b"\nversion = "2.0"\n'
+        + registry,
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        result = extract_uv_lock_dependencies(tmp_path, "demo")
+    assert result is not None and sorted(result) == ["a==1.0", "b==2.0"]
+    assert not caplog.records

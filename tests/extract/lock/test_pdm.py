@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.pdm import extract_pdm_lock_dependencies
+from tests.extract.lock.lock_lines_shared import said
 
 #: Every genuine `pdm.lock` carries this table -- appended to *body* by
 #: default so tests that aren't specifically about the genuineness check
@@ -68,7 +69,7 @@ def test_missing_metadata_table_returns_none_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine pdm.lock" in caplog.text
+        said(caplog, "lock-file-wrong-format", "FILE=pdm.lock", "metadata.lock_version")
 
 
 @pytest.mark.parametrize(
@@ -96,7 +97,7 @@ def test_metadata_table_missing_lock_version_returns_none_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine pdm.lock" in caplog.text
+        said(caplog, "lock-file-wrong-format", "FILE=pdm.lock", "metadata.lock_version")
 
 
 def test_malformed_toml_returns_none_and_warns(
@@ -110,7 +111,7 @@ def test_malformed_toml_returns_none_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pdm.lock", "does not parse")
 
 
 def test_package_key_not_a_list_returns_none_and_warns(
@@ -124,7 +125,7 @@ def test_package_key_not_a_list_returns_none_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a list" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pdm.lock", "expected a list")
 
 
 def test_default_group_package_included() -> None:
@@ -213,7 +214,7 @@ def test_malformed_groups_field_skipped_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "'groups'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=odd-pkg", "groups is str")
 
 
 def test_version_validated_even_when_not_in_default_group(
@@ -233,7 +234,7 @@ def test_version_validated_even_when_not_in_default_group(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "missing or non-string 'version'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=dev-only", "version")
 
 
 def test_malformed_package_entry_skipped_and_warns(
@@ -252,7 +253,7 @@ def test_malformed_package_entry_skipped_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert result == ["complete-pkg==2.0.0"]
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=pdm.lock", "name None")
 
 
 def test_non_dict_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
@@ -264,7 +265,7 @@ def test_non_dict_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=pdm.lock", "package is int")
 
 
 def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> None:
@@ -278,7 +279,7 @@ def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> 
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "missing" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=pdm.lock", "version")
 
 
 @pytest.mark.parametrize("source_key", ["git", "url", "path"])
@@ -297,7 +298,7 @@ def test_non_registry_sourced_package_excluded(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "local-dep" in caplog.text
+        said(caplog, "lock-entry-unusable", "PACKAGE=local-dep", f"{source_key} source")
 
 
 def test_same_name_same_version_duplicate_entries_deduped() -> None:
@@ -352,7 +353,7 @@ def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "pinned to conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=Httpx", "'1.0.0'", "'2.0.0'")
 
 
 def test_same_name_conflicting_versions_skipped_and_warns(
@@ -374,7 +375,7 @@ def test_same_name_conflicting_versions_skipped_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "pinned to conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=conflicted", "'1.0.0'", "'2.0.0'")
 
 
 def test_same_name_equivalent_versions_not_conflicted() -> None:

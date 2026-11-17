@@ -22,20 +22,37 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     find_first_present_key,
     is_same_version,
     is_usable_name,
     is_usable_version,
+    warn_conflicting_versions,
     warn_malformed_entry_not_table,
     warn_missing_name,
     warn_missing_version,
     warn_non_registry_source,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages.lock_files import (
+    DEPENDENCIES_LIST_LINE,
+    EXTRA_LIST_LINE,
+    KEY_ITEMS_LINE,
+    KEY_TABLE_LINE,
+    KEY_TEXT_OR_LIST_LINE,
+    NO_EXTRA_LINE,
+    NO_MATCH_LINE,
+    NO_NAME_LINE,
+    NOT_IN_TABLE_LINE,
+    REFERENCE_VERSION_LINE,
+    Said,
+    say_lock_entry,
+    say_lock_file,
+)
 
 log = logging.getLogger(__name__)
+
+#: How a line names this lock.
+_LOCK_NAME = "uv.lock"
 
 #: ``source`` keys of a package with no registry version to pin (``url`` is a
 #: direct wheel/sdist source).
@@ -60,12 +77,12 @@ def scan_packages(
     for pkg in packages:
         if not isinstance(pkg, dict):
             if warn:
-                warn_malformed_entry_not_table("uv.lock", "[[package]]", pkg)
+                warn_malformed_entry_not_table(_LOCK_NAME, "package", pkg)
             continue
         name = pkg.get("name")
         if not is_usable_name(name):
             if warn:
-                warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
+                warn_missing_name(_LOCK_NAME, "package", name)
             continue
         # Canonical names: a reference and an entry may differ in
         # case/separators only.
@@ -105,45 +122,46 @@ def find_root_package(
     elif len(candidates) == 1:
         return candidates[0]
 
-    prefix = f"{quote_source(lock_path)}: " if lock_path is not None else ""
-    log.warning(
-        "%s%d candidate local/workspace package entries found in "
-        "uv.lock but none named %s -- can't determine which is this "
-        "project's own; ignoring uv.lock",
-        prefix,
-        len(candidates),
-        loggable(repr(expected_name)),
-    )
+    file = _LOCK_NAME if lock_path is None else lock_path
+    if expected_name:
+        say_lock_file(
+            log,
+            NO_MATCH_LINE,
+            file=file,
+            number=len(candidates),
+            package=expected_name,
+        )
+    else:
+        say_lock_file(log, NO_NAME_LINE, file=file, number=len(candidates))
     return None
 
 
 def resolved_package_for_dependency(
-    dep_ref: dict[str, Any], by_name: dict[str, list[dict[str, Any]]]
+    dep_ref: dict[str, Any],
+    by_name: dict[str, list[dict[str, Any]]],
+    *,
+    said: Said | None = None,
 ) -> dict[str, Any] | None:
     """The one ``[[package]]`` entry a dependency reference resolves to, else
     ``None`` after a ``WARNING:``: malformed, carrying an inline
     (marker-conditional) ``version``, not in the table, or present at
-    several versions. Markers are never evaluated."""
+    several versions. Markers are never evaluated. *said*: the memo of the
+    walk, so a package missing from the table or at several versions is said
+    once however many references name it."""
     name = dep_ref.get("name")
     if not is_usable_name(name):
-        warn_missing_name("Skipping malformed uv.lock dependency reference", name)
+        warn_missing_name(_LOCK_NAME, "dependencies", name)
         return None
     if "version" in dep_ref:
         # An inline version means a different version per marker.
-        log.warning(
-            "Skipping uv.lock dependency %r: marker-conditional version "
-            "on its own dependency reference (no marker evaluation)",
-            name,
+        say_lock_entry(
+            log, REFERENCE_VERSION_LINE, file=_LOCK_NAME, package=name, said=said
         )
         return None
 
     candidates = by_name.get(canonicalize_name(name), [])
     if not candidates:
-        log.warning(
-            "Skipping uv.lock dependency %r: referenced but not found in "
-            "the lock file's package table",
-            name,
-        )
+        say_lock_entry(log, NOT_IN_TABLE_LINE, file=_LOCK_NAME, package=name, said=said)
         return None
     if len(candidates) > 1:
         versions = [c.get("version") for c in candidates]
@@ -154,11 +172,11 @@ def resolved_package_for_dependency(
             and is_same_version(v, first_version)
             for v in versions
         ):
-            log.warning(
-                "Skipping uv.lock dependency %r: %d resolved versions present "
-                "(marker-conditional) -- no marker evaluation",
+            warn_conflicting_versions(
+                _LOCK_NAME,
                 name,
-                len(candidates),
+                {"no version" if v is None else str(v) for v in versions},
+                said=said,
             )
             return None
         # All candidates agree (PEP 440): duplicates collapse, as in the
@@ -168,7 +186,9 @@ def resolved_package_for_dependency(
 
 
 def collect_transitive_dependencies(
-    root_dependencies: list[object], by_name: dict[str, list[dict[str, Any]]]
+    root_dependencies: list[object],
+    by_name: dict[str, list[dict[str, Any]]],
+    said: Said | None = None,
 ) -> list[str]:
     """Every package reachable from the root's ``dependencies``, as exact
     pins (breadth-first).
@@ -181,20 +201,22 @@ def collect_transitive_dependencies(
     dependencies: dict[str, str] = {}
     visited: set[str] = set()
     visited_extras: set[tuple[str, str]] = set()
+    if said is None:
+        said = set()
     queue: deque[object] = deque(root_dependencies)
     while queue:
         dep_ref = queue.popleft()
         if not isinstance(dep_ref, dict):
-            warn_malformed_entry_not_table("uv.lock", "dependency reference", dep_ref)
+            warn_malformed_entry_not_table(_LOCK_NAME, "dependencies", dep_ref)
             continue
-        pkg = resolved_package_for_dependency(dep_ref, by_name)
+        pkg = resolved_package_for_dependency(dep_ref, by_name, said=said)
         if pkg is None:
             continue
         canonical_name = canonicalize_name(pkg["name"])
         if canonical_name not in visited:
             visited.add(canonical_name)
 
-            pin = pinned_dep_for_package(pkg)
+            pin = pinned_dep_for_package(pkg, said)
             if pin is not None:
                 dependencies[canonical_name] = pin
 
@@ -202,14 +224,18 @@ def collect_transitive_dependencies(
             if isinstance(nested, list):
                 queue.extend(nested)
             elif nested is not None:
-                log.warning(
-                    "Skipping uv.lock entry %r nested 'dependencies': "
-                    "expected a list, got %s",
-                    pkg["name"],
-                    type(nested).__name__,
+                say_lock_entry(
+                    log,
+                    DEPENDENCIES_LIST_LINE,
+                    file=_LOCK_NAME,
+                    package=pkg["name"],
+                    lock_key="dependencies",
+                    value_type=nested,
                 )
 
-        _enqueue_requested_extras(dep_ref, pkg, canonical_name, visited_extras, queue)
+        _enqueue_requested_extras(
+            dep_ref, pkg, canonical_name, visited_extras, queue, said
+        )
     return list(dependencies.values())
 
 
@@ -219,38 +245,50 @@ def _enqueue_requested_extras(
     canonical_name: str,
     visited_extras: set[tuple[str, str]],
     queue: deque[object],
+    said: Said,
 ) -> None:
     """Enqueue dependencies from *pkg*'s ``optional-dependencies`` table
     for any extra requested by *dep_ref*, skipping already-visited extras
     to guard against cycles."""
-    extra_val = dep_ref.get("extra") or dep_ref.get("extras")
+    request_key = "extra" if dep_ref.get("extra") else "extras"
+    extra_val = dep_ref.get(request_key)
     if not extra_val:
         return
+    package = pkg["name"]
     if isinstance(extra_val, str):
         requested_extras = [extra_val]
     elif isinstance(extra_val, list):
         requested_extras = [e for e in extra_val if isinstance(e, str)]
         if len(requested_extras) != len(extra_val):
-            log.warning(
-                "Skipping uv.lock entry %r requested 'extra'/'extras' "
-                "entries that are not strings",
-                pkg.get("name", canonical_name),
+            say_lock_entry(
+                log,
+                KEY_ITEMS_LINE,
+                file=_LOCK_NAME,
+                package=package,
+                lock_key=request_key,
+                said=said,
             )
     else:
-        log.warning(
-            "Skipping uv.lock entry %r requested 'extra'/'extras': "
-            "expected a string or list, got %s",
-            pkg.get("name", canonical_name),
-            type(extra_val).__name__,
+        say_lock_entry(
+            log,
+            KEY_TEXT_OR_LIST_LINE,
+            file=_LOCK_NAME,
+            package=package,
+            lock_key=request_key,
+            value_type=extra_val,
+            said=said,
         )
         return
     opt_deps_map = pkg.get("optional-dependencies", {})
     if not isinstance(opt_deps_map, dict):
-        log.warning(
-            "Skipping uv.lock entry %r 'optional-dependencies': "
-            "expected a table, got %s",
-            pkg.get("name", canonical_name),
-            type(opt_deps_map).__name__,
+        say_lock_entry(
+            log,
+            KEY_TABLE_LINE,
+            file=_LOCK_NAME,
+            package=package,
+            lock_key="optional-dependencies",
+            value_type=opt_deps_map,
+            said=said,
         )
         return
 
@@ -272,39 +310,42 @@ def _enqueue_requested_extras(
             )
         if extra_deps is None:
             # Stale or hand-edited lock: warn, do not skip silently.
-            log.warning(
-                "uv.lock: %r requested extra %r not found in %r's "
-                "optional-dependencies -- skipping",
-                dep_ref.get("name", canonical_name),
-                extra_name,
-                pkg.get("name", canonical_name),
+            say_lock_entry(
+                log,
+                NO_EXTRA_LINE,
+                file=_LOCK_NAME,
+                package=package,
+                extra_name=extra_name,
+                lock_key="optional-dependencies",
             )
             continue
         if isinstance(extra_deps, list):
             queue.extend(extra_deps)
         else:
-            log.warning(
-                "Skipping uv.lock entry %r optional-dependencies %r: "
-                "expected a list, got %s",
-                pkg.get("name", canonical_name),
-                extra_name,
-                type(extra_deps).__name__,
+            say_lock_entry(
+                log,
+                EXTRA_LIST_LINE,
+                file=_LOCK_NAME,
+                package=package,
+                lock_key="optional-dependencies",
+                extra_name=extra_name,
+                value_type=extra_deps,
             )
 
 
-def pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
+def pinned_dep_for_package(pkg: dict[str, Any], said: Said | None = None) -> str | None:
     """``name==version`` for one ``[[package]]`` entry; ``None`` when it is
     non-registry-sourced or lacks a usable version (each with a
-    ``WARNING:``)."""
+    ``WARNING:``, said once when *said* is shared)."""
     name = pkg["name"]
     source = pkg.get("source")
     if isinstance(source, dict):
         non_registry_source = find_first_present_key(source, _NON_REGISTRY_SOURCE_KEYS)
         if non_registry_source is not None:
-            warn_non_registry_source("uv.lock", name, non_registry_source)
+            warn_non_registry_source(_LOCK_NAME, name, non_registry_source, said)
             return None
     version = pkg.get("version")
     if not is_usable_version(version):
-        warn_missing_version("uv.lock", name)
+        warn_missing_version(_LOCK_NAME, name, said)
         return None
     return f"{name}=={version}"

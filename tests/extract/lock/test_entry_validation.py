@@ -24,6 +24,7 @@ from pitloom.extract.lock.pipfile import extract_pipfile_lock_dependencies
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.pylock import extract_pylock_dependencies
 from pitloom.extract.lock.uv import extract_uv_lock_dependencies
+from tests._code_records import coded, has_parts
 
 _Extractor = Callable[[Path], list[str] | None]
 
@@ -118,7 +119,14 @@ def test_a_name_that_is_no_pep_508_name_is_skipped_with_one_warning(
     assert result is not None
     assert sorted(result) == ["Foo_Bar.baz==1.0", "requests==2.0"]
     assert len(caplog.messages) == len(_BAD_NAMES)
-    assert all("invalid 'name'" in m and m.isprintable() for m in caplog.messages)
+    lines = coded(caplog)
+    assert len(lines) == len(_BAD_NAMES)
+    assert all(
+        code == "lock-entry-malformed"
+        and has_parts(m, "not a valid package name")
+        and m.isprintable()
+        for code, m in lines
+    )
 
 
 @pytest.mark.parametrize(
@@ -135,5 +143,6 @@ def test_a_version_padded_with_whitespace_is_skipped_with_one_warning(
         result = extract(tmp_path)
 
     assert result == ["requests==2.0"]
-    (message,) = caplog.messages
-    assert "'padded'" in message
+    [(code, message)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert "PACKAGE=padded" in message

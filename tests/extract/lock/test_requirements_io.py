@@ -19,6 +19,7 @@ from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.extract.lock import requirements
 from pitloom.extract.lock.requirements import extract_pinned_requirements_dependencies
 from pitloom.logging_config import CODE_ATTR
+from tests.extract.lock.lock_lines_shared import said
 
 
 def _write_requirements(project_dir: Path, text: str) -> None:
@@ -66,7 +67,7 @@ def test_requirements_file_over_the_size_cap_is_skipped(
     with caplog.at_level(logging.WARNING):
         assert extract_pinned_requirements_dependencies(tmp_path) is None
 
-    assert f"over {FETCH_MAX_BYTES} bytes" in caplog.text
+    said(caplog, "over-cap", "FILE=requirements.txt", f"{FETCH_MAX_BYTES}-byte")
 
 
 @pytest.mark.parametrize(
@@ -85,7 +86,7 @@ def test_malformed_requirement_warning_is_one_line(
         assert extract_pinned_requirements_dependencies(tmp_path) is None
 
     (message,) = caplog.messages
-    assert "malformed requirement line" in message
+    assert "not a PEP 508 requirement" in message
     assert message.isprintable()  # no newline, caret line or raw ESC
     assert "foo==1.0 bar" not in message
 

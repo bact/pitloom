@@ -5,8 +5,8 @@
 
 """The closed value tables and sub-patterns the catalogue's fields are built
 from: the command paths a frame names, the kinds of input and card, what a
-file is read for, the cap keys and units, and the pattern pieces a field
-shares.
+file is read for, the cap keys and units, the lock keys, source kinds and
+value types, and the pattern pieces a field shares.
 
 See also: :mod:`pitloom.messages._fields` (the fields built from them).
 """
@@ -142,6 +142,63 @@ INPUT_KINDS: Final = (
     "setup.cfg",
     "setup.py",
     "wheel file",
+)
+
+#: The type of a value a lock file holds, as a lock line names it
+#: (``type(value).__name__``): every type ``tomllib`` and ``json`` load.
+VALUE_TYPES: Final = (
+    "bool",
+    "date",
+    "datetime",
+    "dict",
+    "float",
+    "int",
+    "list",
+    "NoneType",
+    "str",
+    "time",
+)
+
+#: The lock-file keys a lock line names: the keys the readers of
+#: :mod:`pitloom.extract.lock` check, a format marker inside a table dotted
+#: (``metadata.lock-version``). A drift test holds each in the readers.
+LOCK_KEYS: Final = (
+    "_meta.pipfile-spec",
+    "category",
+    "created-by",
+    "default",
+    "default-groups",
+    "dependencies",
+    "extra",
+    "extras",
+    "groups",
+    "lock-version",
+    "marker",
+    "metadata.lock-version",
+    "metadata.lock_version",
+    "name",
+    "optional-dependencies",
+    "package",
+    "packages",
+    "version",
+)
+
+#: The kinds of source that give no registry version to pin, as a lock or
+#: Poetry line names one: the union of the readers' non-registry source keys
+#: and Poetry's local sources. A drift test holds it equal to them.
+SOURCE_KINDS: Final = (
+    "archive",
+    "bzr",
+    "directory",
+    "editable",
+    "file",
+    "git",
+    "hg",
+    "path",
+    "svn",
+    "url",
+    "vcs",
+    "virtual",
 )
 
 #: The configuration tables a line names (``set id-registry in <table>``).

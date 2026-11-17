@@ -17,13 +17,15 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core import requirements
-from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_requirement
+from pitloom.core.internal_error import InternalError
+from pitloom.core.pep508 import MAX_MARKER_NESTING
 from pitloom.core.requirements import (
     add_marker,
     flatten_optional_dependencies,
     normalize_dependency_specifier,
 )
 from tests._bounded import run_bounded
+from tests._code_records import coded, has_parts
 from tests._deep_marker import nested_marker
 
 _SRC = "optional-dependencies"
@@ -112,14 +114,27 @@ def test_an_invalid_requirement_is_skipped_with_a_warning(
             [], {extra: ["not valid >=", "ok"]}, source=source, quiet=quiet
         )
     assert flat == ['ok; extra == "dev"']
-    assert caplog.messages == (
-        []
-        if quiet
-        else [
-            f"Skipping extra entry 'not valid >=' of 'dev' ({source}):"
-            " not a valid PEP 508 requirement"
-        ]
+    if quiet:
+        assert not caplog.records
+        return
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert has_parts(
+        message, "extra 'dev'", "'not valid >='", f"({source})", "not a PEP 508"
     )
+
+
+def test_a_skipped_dependency_is_said_by_its_cause_and_quiet_says_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        requirements.warn_skipped_dependency("Poetry", "a", "not-pep-508", quiet=True)
+        requirements.warn_skipped_dependency("Poetry", "a", "not-pep-508")
+        with pytest.raises(InternalError):  # an extra's cause, not a dependency's
+            requirements.warn_skipped_dependency("Poetry", "a", "cycle")
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert has_parts(message, "dependency 'a'", "(Poetry)", "not a PEP 508")
 
 
 def test_the_inputs_are_not_modified() -> None:
@@ -191,13 +206,13 @@ def test_self_reference_to_an_undeclared_extra_warns_once(
             [], optional, "demo", source="Poetry", quiet=quiet
         )
     assert flat == ['b; extra == "all"', 'b; extra == "dev"']
-    assert caplog.messages == (
-        []
-        if quiet
-        else [
-            "Skipping extra entry 'demo[nope]' of 'dev' (Poetry): extra 'nope'"
-            " is not declared"
-        ]
+    if quiet:
+        assert not caplog.records
+        return
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert has_parts(
+        message, "extra 'dev'", "'demo[nope]'", "(Poetry)", "does not declare"
     )
 
 
@@ -206,14 +221,12 @@ def test_self_reference_to_an_undeclared_extra_warns_once(
     [
         (
             {"b": ["demo[a]; os_name == 'nt'", "y"], "a": ["demo[b]", "x"], "c": []},
-            ["'demo[a]; os_name == \"nt\"' of 'b' (P): self-reference cycle among"
-             " extras 'a', 'b'"],
+            [("b", "'demo[a]; os_name == \"nt\"'")],
         ),
         (
             {"all": ["demo[all]", "z"], "x": ["demo[y]"], "y": ["demo[x,z]"],
              "z": ["q"]},
-            ["'demo[all]' of 'all' (P): self-reference cycle among extras 'all'",
-             "'demo[x,z]' of 'y' (P): self-reference cycle among extras 'x', 'y'"],
+            [("all", "'demo[all]'"), ("y", "'demo[x,z]'")],
         ),
         ({"all": ["demo[dev]"], "dev": ["demo"]}, []),
     ],
@@ -223,17 +236,22 @@ def test_self_reference_to_an_undeclared_extra_warns_once(
 def test_a_self_reference_cycle_warns_once(
     caplog: pytest.LogCaptureFixture,
     optional: dict[str, list[str]],
-    warnings: list[str],
+    warnings: list[tuple[str, str]],
     quiet: bool,
 ) -> None:
     """A cycle is reported, not dropped silently: one ``WARNING:`` per
-    cycle, in the shared skipping wording, naming the reference back to
-    its first extra and every extra on it; *quiet* silences it."""
+    cycle, in the shared skipping wording, naming the extra it is declared
+    in and the reference back to the cycle's first extra; *quiet* silences
+    it."""
     with caplog.at_level(logging.WARNING):
         flatten_optional_dependencies([], optional, "demo", source="P", quiet=quiet)
-    assert caplog.messages == (
-        [] if quiet else [f"Skipping extra entry {w}" for w in warnings]
-    )
+    lines = coded(caplog)
+    assert len(lines) == (0 if quiet else len(warnings))
+    if quiet:
+        return
+    for (code, message), (extra, entry) in zip(lines, warnings, strict=True):
+        assert code == "requirement-invalid"
+        assert has_parts(message, f"extra '{extra}'", entry, "(P)", "cycle")
 
 
 def test_normalize_dependency_specifier_keeps_invalid_requirement() -> None:
@@ -340,17 +358,17 @@ def test_a_marker_joined_over_the_nesting_cap_is_not_joined(
             [_AT_CAP], optional, "demo", source=_SRC, quiet=quiet
         )
     assert flat == [_AT_CAP, 'demo[dev]; os_name == "a" and extra == "all"']
+    if quiet:
+        assert not caplog.records
+        return
+    (over, (code, skipped)) = coded(caplog)
     cap = "larger than the 64-level marker-nesting cap"
-    assert caplog.messages == (
-        []
-        if quiet
-        else [
-            f"FIELD={_SRC}: {cap}; self-references kept as declared",
-            f"Skipping extra entry {str(parse_requirement(_AT_CAP))[:120]!r}..."
-            " of 'dev'"
-            f" ({_SRC}): {cap}",
-        ]
+    assert over == (
+        "over-cap",
+        f"FIELD={_SRC}: {cap}; self-references kept as declared",
     )
+    assert code == "requirement-invalid"
+    assert has_parts(skipped, "extra 'dev'", f"({_SRC})", "its marker does not parse")
 
 
 def _reference_expand(
@@ -416,3 +434,13 @@ def test_expansion_matches_the_recursive_reference() -> None:
             [], optional, "demo", source=_SRC, quiet=True
         )
         assert flat == _reference_flatten(optional), optional
+
+
+def test_a_joined_extra_entry_names_every_extra(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        requirements.warn_joined_extra_entry("b", ["y", "x", "z"])
+    ((code, message),) = coded(caplog)
+    assert code == "extra-gate-ambiguous"
+    assert has_parts(message, "needs extras 'x', 'y', 'z' together")

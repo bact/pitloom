@@ -168,7 +168,7 @@ _ROWS: list[Any] = [
     pytest.param(
         _O, 'optional-dependencies.x = {file = "a.txt"}\n', {"a.txt": b"!!\nc\n"},
         ['c; extra == "x"'], _OPTS,
-        f"Skipping extra entry '!!' of 'x' ({_DYN}.optional-dependencies)",
+        f"extra 'x' entry '!!' ({_DYN}.optional-dependencies): not a PEP 508",
         id="invalid-extra-line",
     ),
     pytest.param(
@@ -180,7 +180,7 @@ _ROWS: list[Any] = [
     pytest.param(
         _D, 'dependencies = {file = "a.txt"}\n', {"a.txt": b"!!\nc\n"}, ["c"],
         _DEPS,
-        f"Skipping dependency '!!' ({_DYN}.dependencies): not a valid PEP 508",
+        f"dependency '!!' ({_DYN}.dependencies): not a PEP 508",
         id="invalid-line-skipped",
     ),
     pytest.param(
@@ -253,10 +253,9 @@ def test_invalid_dependency_line_warns_once(
         generate_project_sbom(project, offline=True)
 
     for line in ("'!!'", "'\\ufeffsix'"):
-        assert [m for m in caplog.messages if line in m] == [
-            f"Skipping dependency {line} ({_DYN}.dependencies): not a valid PEP 508"
-            " requirement"
-        ], line
+        (message,) = [m for m in caplog.messages if line in m]
+        assert message.startswith(f"dependency {line} ({_DYN}.dependencies): "), line
+        assert "not a PEP 508" in message, line
 
 
 def test_absolute_path_is_not_read(
