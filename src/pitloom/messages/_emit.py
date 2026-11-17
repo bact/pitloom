@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Mapping
+from typing import TypeVar, cast
 
+from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
 from pitloom.messages._lines import says
@@ -116,13 +118,33 @@ class _CodedError(Exception):
         return (_restored, (type(self), str(self), self.pitloom_code))
 
 
-def _restored(cls: type[_CodedError], text: str, code: str) -> _CodedError:
+_C = TypeVar("_C", bound=_CodedError)
+
+
+def _restored(cls: type[_C], text: str, code: str) -> _C:
     """A copied or unpickled coded error: its text as written then, not
     written again, through its built-in base."""
-    exc = cls.__new__(cls)
+    exc: _CodedError = cls.__new__(cls)
     super(_CodedError, exc).__init__(text)
     exc.pitloom_code = code
-    return exc
+    return cast(_C, exc)
+
+
+def recoded(cls: type[_C], exc: BaseException) -> _C:
+    """*exc*, a coded exception of any class, as one of the coded class
+    *cls* with its text and code: ``raise recoded(CodedValueError, exc)
+    from None`` keeps a library's documented exception class
+    (:class:`ValueError`) for a coded error raised as another
+    (``input-not-found``'s :class:`FileNotFoundError`).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *exc* carries no
+            catalogued code.
+    """
+    code = code_of(exc)
+    if code is None:
+        raise InternalError(f"{type(exc).__name__} carries no code to keep")
+    return _restored(cls, str(exc), code)
 
 
 class CodedValueError(_CodedError, ValueError):

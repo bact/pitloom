@@ -25,8 +25,9 @@ and this project adheres to
 ### Added
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file and dependency messages carry a message code; see
-  `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496])
+  file, dependency and configuration messages carry a message code, and a
+  configuration error names the file; see `docs/message-codes.md` ([#482],
+  [#485], [#486], [#492], [#496], [#497])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -84,6 +85,10 @@ and this project adheres to
   ([#491])
 - `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
   stored as` is said once the registry is saved ([#492], [#494])
+- A `--creation-datetime` that is not a date is refused at parse, exit 2; a
+  `--config` file error names the file once ([#497])
+- A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
+  when `--creation-datetime` overrides it ([#497])
 
 ### Fixed
 
@@ -94,6 +99,7 @@ and this project adheres to
   ([#492])
 - A `uv.lock` warning about a package (missing from its table, a version per
   marker, a malformed key) is said once per run, not per reference ([#496])
+- A `setup.cfg` `[tool:pitloom]` error names that table ([#497])
 
 ### Security
 
@@ -116,6 +122,7 @@ and this project adheres to
 [#492]: https://github.com/bact/pitloom/pull/492
 [#494]: https://github.com/bact/pitloom/pull/494
 [#496]: https://github.com/bact/pitloom/pull/496
+[#497]: https://github.com/bact/pitloom/pull/497
 
 ## [0.24.0] - 2026-11-11
 

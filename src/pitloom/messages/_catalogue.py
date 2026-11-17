@@ -16,6 +16,7 @@ from typing import Final
 
 from pitloom.messages import (
     _card_malformed,
+    _config,
     _config_unsafe,
     _dependency,
     _file_unreadable,
@@ -96,6 +97,7 @@ MESSAGES: Final = _by_code(
         *_pypi_info.ENTRIES,
         *_license_relationship_invalid.ENTRIES,
         *_options.ENTRIES,
+        *_config.ENTRIES,
         *_sbom_input.ENTRIES,
         *_target_input.ENTRIES,
         *_registry_file.ENTRIES,

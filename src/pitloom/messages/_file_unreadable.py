@@ -66,8 +66,8 @@ FILE_UNREADABLE: Final = Message(
     "project, a configuration, an ID registry, an SBOM) under a directory "
     "without search permission says so 'for the input check', not that it "
     "is not found. The ERROR line for an SBOM given to 'loom id import' or "
-    "to embed, for an ID registry file, for a 'loom id generate' PATH, and "
-    f"for the input check, prints since {_SINCE_SBOM}.",
+    "to embed, for an ID registry file, for a 'loom id generate' PATH, for "
+    f"a configuration file and for the input check, prints since {_SINCE_SBOM}.",
     did="Read nothing more of it and went on without what it holds, as the "
     "line says what it was read for: a file scan leaves the file out of the "
     "SBOM (loom embed-wheel keeps it, with the wheel's own hash); a hash "
@@ -82,7 +82,8 @@ FILE_UNREADABLE: Final = Message(
     "ERROR, the call that named the file raises (a Croissant document: the "
     "dataset declaration fails; an SBOM to import: the ID registry is not "
     "written; an SBOM to embed: no wheel is changed; an ID registry file, "
-    "or a 'loom id generate' PATH: no registry or SBOM is written; the only "
+    "or a 'loom id generate' PATH: no registry or SBOM is written; a "
+    "configuration file: nothing is written; the only "
     "possible "
     "model file of a folder named for a model SBOM: no SBOM is written; the "
     "input check: the command writes nothing and exits 1, the library "
@@ -122,13 +123,14 @@ FILE_UNREADABLE_NOT_UTF8: Final = Message(
     summary="A text file Pitloom read is not UTF-8, the encoding it must be "
     "in: a requirements file or a file a setup.cfg directive lists, a "
     "Python file read for the model usage scan (a WARNING:), or an SBOM "
-    "given to embed or to import into an ID registry, or an ID registry file "
-    f"(an ERROR:, which prints since {_SINCE_SBOM}).",
+    "given to embed or to import into an ID registry, an ID registry file "
+    f"(an ERROR:, which prints since {_SINCE_SBOM}), or a configuration file "
+    "(an ERROR:).",
     did="Went on without what the file holds: the field is not set from it, "
     "or the usage scan records no model reference from it. For an SBOM, "
     "wrote nothing: to embed, no wheel is changed; to import, the ID "
-    "registry is not written. For an ID registry file, wrote nothing: no "
-    "registry and no SBOM.",
+    "registry is not written. For an ID registry file or a configuration "
+    "file, wrote nothing: no registry and no SBOM.",
     effect="thinner",
     actor="user",
     advice="Tell the user which file is not UTF-8 and what the decoder "

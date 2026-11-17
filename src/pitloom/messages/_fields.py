@@ -10,6 +10,7 @@ is what a reader trusts a line by.
 See also: :mod:`pitloom.messages._fields_registry` (the ID registry's
 fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
 :mod:`pitloom.messages._fields_lock` (a lock file's and a requirement's),
+:mod:`pitloom.messages._fields_config` (a configuration value's),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -51,6 +52,7 @@ from pitloom.messages._field_writers import (
     path_text,
     plain_text,
 )
+from pitloom.messages._fields_config import CONFIG_FIELDS
 from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
 from pitloom.messages._fields_lock import LOCK_FIELDS
 from pitloom.messages._fields_registry import REGISTRY_FIELDS
@@ -439,5 +441,5 @@ def _merged(*parts: Mapping[str, Field]) -> Mapping[str, Field]:
 
 #: Every name a template may use.
 FIELDS: Final[Mapping[str, Field]] = _merged(
-    _GENERAL, REGISTRY_FIELDS, CREDENTIAL_FIELDS, LOCK_FIELDS
+    _GENERAL, REGISTRY_FIELDS, CREDENTIAL_FIELDS, LOCK_FIELDS, CONFIG_FIELDS
 )

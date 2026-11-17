@@ -176,8 +176,16 @@ def test_read_accept_key(table: dict[str, Any], expected: tuple[str, ...]) -> No
     [
         pytest.param("ghp_secretvalue", "credentials: must be an array", id="string"),
         pytest.param({"a": 1}, "credentials: must be an array", id="table"),
-        pytest.param(["ghp_secretvalue"], "credentials entry 0: not a", id="bad-entry"),
-        pytest.param([_OTHER, 7], "credentials entry 1: not a", id="wrong-type-entry"),
+        pytest.param(
+            ["ghp_secretvalue"],
+            "credentials entry 0: must be a fingerprint",
+            id="bad-entry",
+        ),
+        pytest.param(
+            [_OTHER, 7],
+            "credentials entry 1: must be a fingerprint",
+            id="wrong-type-entry",
+        ),
     ],
 )
 def test_read_accept_key_refuses_without_quoting(value: Any, match: str) -> None:
@@ -185,7 +193,7 @@ def test_read_accept_key_refuses_without_quoting(value: Any, match: str) -> None
         _parse({"accept-url-credentials": value})
     assert "ghp_secretvalue" not in str(info.value)
     assert str(info.value).startswith("[tool.pitloom] accept-url-credentials")
-    assert code_of(info.value) == "option-invalid"
+    assert code_of(info.value) == "config-invalid"
 
 
 @pytest.mark.parametrize(
@@ -203,20 +211,32 @@ def test_read_mode_key(table: dict[str, Any], mode: str, refuse: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    "value",
-    ["ghp_secretvalue", "Refuse", "", True, 1, ["refuse"]],
+    ("value", "found"),
+    [
+        ("ghp_secretvalue", "a string"),
+        ("Refuse", "a string"),
+        ("", "a string"),
+        (True, "a boolean"),
+        (1, "an integer"),
+        (["refuse"], "an array"),
+    ],
     ids=["secret", "case", "empty", "bool", "int", "array"],
 )
 @pytest.mark.parametrize("is_setup_cfg", [False, True], ids=["pyproject", "setup-cfg"])
-def test_read_mode_key_refuses_without_quoting(value: Any, is_setup_cfg: bool) -> None:
+def test_read_mode_key_refuses_without_quoting(
+    value: Any, found: str, is_setup_cfg: bool
+) -> None:
     table = "[tool:pitloom]" if is_setup_cfg else "[tool.pitloom]"
     with pytest.raises(ValueError) as info:
         parse_pitloom_config(
             {"tool": {"pitloom": {"url-credentials": value}}},
             is_setup_cfg=is_setup_cfg,
         )
-    assert str(info.value) == f'{table} url-credentials: must be "warn" or "refuse"'
-    assert code_of(info.value) == "option-invalid"
+    assert str(info.value) == (
+        f'{table} url-credentials: must be "warn" or "refuse", got {found}'
+    )
+    assert "ghp_secretvalue" not in str(info.value)
+    assert code_of(info.value) == "config-invalid"
 
 
 def test_a_bad_mode_in_a_built_config_raises_when_built() -> None:
@@ -248,7 +268,7 @@ def test_the_removed_allow_key_is_an_unknown_key(
         cfg = _parse({"allow-url-credentials": True}, source="/p/pyproject.toml")
     assert not cfg.credential_policy.refuse
     (line,) = caplog.messages
-    assert "unknown key 'allow-url-credentials'" in line
+    assert "[tool.pitloom]: unknown key allow-url-credentials" in line
 
 
 @pytest.mark.parametrize(

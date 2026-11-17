@@ -124,11 +124,11 @@ _SBOM = "demo-1.0.dist-info/sboms/demo-1.0.spdx3.json"
             "no.json",
         ),
         ({"tail": '[tool.pitloom]\nid-registry = "missing.json"'}, {}, "missing.json"),
-        ({}, {"SOURCE_DATE_EPOCH": "abc"}, "SOURCE_DATE_EPOCH='abc'"),
+        ({}, {"SOURCE_DATE_EPOCH": "abc"}, "SOURCE_DATE_EPOCH=abc: not an integer"),
         (
             {"tail": '[tool.pitloom.creation]\ncreation-datetime = "2026-01-01"'},
             {"SOURCE_DATE_EPOCH": "abc"},
-            "SOURCE_DATE_EPOCH='abc'",
+            "SOURCE_DATE_EPOCH=abc: not an integer",
         ),
         ({}, {"SOURCE_DATE_EPOCH": "99999999999999999"}, "out of range"),
     ],

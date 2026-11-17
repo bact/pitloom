@@ -29,6 +29,7 @@ from pitloom.core.model_extract_limit import (
     DEFAULT_MAX_DOWNLOAD_BYTES,
     require_positive_ceiling,
 )
+from pitloom.messages.config import Parameter
 
 __all__ = ["RemoteFetchPolicy"]
 
@@ -62,7 +63,9 @@ class RemoteFetchPolicy:
         # Frozen: the checked value (a numpy integer made an ``int``) is set
         # through ``object``.
         object.__setattr__(
-            self, "max_bytes", require_positive_ceiling(self.max_bytes, "max_bytes")
+            self,
+            "max_bytes",
+            require_positive_ceiling(self.max_bytes, Parameter("max_bytes")),
         )
         if not isinstance(self.offline, bool):
             raise InternalError(

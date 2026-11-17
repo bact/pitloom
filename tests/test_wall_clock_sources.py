@@ -71,11 +71,13 @@ def test_the_scan_sees_a_wall_clock_read() -> None:
 _RAW_PARSE = re.compile(r"\.fromisoformat\(|\.strptime\(")
 
 
-def test_datetime_strings_are_parsed_only_by_parse_iso_datetime() -> None:
+def test_datetime_strings_are_parsed_only_by_iso_datetime_or_none() -> None:
     """A raw ``fromisoformat()`` rejects ``Z`` on Python 3.10 and keeps an
-    offset as given; ``parse_iso_datetime()`` (then ``to_spdx3_datetime()``)
-    is the one parse that gives an SPDX 3 DateTime. ``builtTime`` once used a
-    raw parse and failed the Hatchling build on 3.10."""
+    offset as given; ``iso_datetime_or_none()`` (``core/creation.py``, the
+    one stdlib-only parse every stage shares: file, flag and library, and
+    ``parse_iso_datetime()`` in ``creation_info.py`` delegates to it) then
+    ``to_spdx3_datetime()`` give an SPDX 3 DateTime. ``builtTime`` once used
+    a raw parse and failed the Hatchling build on 3.10."""
     found: dict[str, int] = {}
     for path in sorted(_SRC.rglob("*.py")):
         code = "\n".join(
@@ -84,7 +86,7 @@ def test_datetime_strings_are_parsed_only_by_parse_iso_datetime() -> None:
         )
         if count := len(_RAW_PARSE.findall(code)):
             found[path.relative_to(_SRC).as_posix()] = count
-    assert found == {"assemble/spdx3/creation_info.py": 1}
+    assert found == {"core/creation.py": 1}
     for code in (
         "datetime.fromisoformat(s)",
         "date.fromisoformat(s)",

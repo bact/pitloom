@@ -52,6 +52,14 @@ from pitloom.extract.project.setup_cfg_interpolation import (
     section_declares_key,
 )
 from pitloom.logging_config import one_line
+from pitloom.messages import CodedValueError
+from pitloom.messages.config import (
+    CONFIG_MALFORMED,
+    INI_FILE_LINE,
+    INI_LINE,
+    INTERPOLATION_FILE_LINE,
+    INTERPOLATION_LINE,
+)
 from pitloom.messages.targets import input_not_found, is_input_file
 
 
@@ -337,10 +345,11 @@ def setup_cfg_pitloom_config(text: str, source: str | None = None) -> PitloomCon
     ``[metadata]`` description) is not this function's concern.
 
     Raises:
-        ValueError: the text is not valid INI (``configparser.Error``),
-            a ``[tool:pitloom]`` value has a bad ``%`` (named with its
-            section, key and the ``%%`` escape) or the settings are
-            invalid; one line.
+        ValueError: the text is not valid INI (``configparser.Error``,
+            ``config-malformed``), a ``[tool:pitloom]`` value has a bad ``%``
+            (``config-malformed``, naming its section, key and the ``%%``
+            escape) or the settings are invalid (``config-invalid``): a
+            :class:`~pitloom.messages.CodedValueError`, one line.
     """
     cfg = configparser.ConfigParser()
     try:
@@ -349,10 +358,22 @@ def setup_cfg_pitloom_config(text: str, source: str | None = None) -> PitloomCon
             return PitloomConfig()
         return _read_pitloom_config_from_cfg(cfg, source)
     except configparser.InterpolationError as exc:
-        raise ValueError(interpolation_problem(cfg, exc)) from exc
+        problem = interpolation_problem(cfg, exc)
+        if source is None:
+            raise CodedValueError(
+                CONFIG_MALFORMED, line=INTERPOLATION_LINE, error=problem
+            ) from None
+        raise CodedValueError(
+            CONFIG_MALFORMED, line=INTERPOLATION_FILE_LINE, file=source, error=problem
+        ) from None
     except configparser.Error as exc:
-        # configparser spreads a parse error over several lines.
-        raise ValueError(one_line(exc)) from exc
+        if source is None:
+            raise CodedValueError(
+                CONFIG_MALFORMED, line=INI_LINE, failure=exc
+            ) from None
+        raise CodedValueError(
+            CONFIG_MALFORMED, line=INI_FILE_LINE, file=source, failure=exc
+        ) from None
 
 
 def _pick_cfg_str(

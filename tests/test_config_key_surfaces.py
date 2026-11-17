@@ -29,6 +29,7 @@ from pitloom.assemble import (
     generate_project_sbom,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.messages import code_of
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.extract.conftest import make_hook
 from tests.warning_helpers import error_lines, logged_warnings, stderr_warnings
@@ -37,9 +38,9 @@ _PINNED = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
 _HEAD = '[project]\nname = "demo"\nversion = "1.0.0"\n'
 _CFG_HEAD = "[metadata]\nname = demo\nversion = 1.0\n"
 _OFFLINE = ["--offline", "--creation-datetime", "2026-01-01T00:00:00Z"]
-_TYPO = "[tool.pitloom] unknown key 'ofline'; did you mean 'offline'?"
-_TYPO_CFG = "[tool:pitloom] unknown key 'ofline'; did you mean 'offline'?"
-_BAD_KEY = "'max-source-metadata-bytes' must be 0 (unlimited) or at least 8 bytes"
+_TYPO = "[tool.pitloom]: unknown key ofline; did you mean offline?"
+_TYPO_CFG = "[tool:pitloom]: unknown key ofline; did you mean offline?"
+_BAD_KEY = "must be 0 (no cap) or an integer of at least 8"
 
 
 def _toml(tail: str) -> str:
@@ -105,13 +106,16 @@ def _argv(surface: str, tmp_path: Path, text: str) -> list[str]:
 _CLI_SURFACES = ["project", "project-config-file", "embed-wheel-config"]
 
 
-def _one_unknown(messages: list[str], message: str, source_tail: str) -> None:
-    """The one unknown-key message: *message*, led by the config file it names."""
+def _one_unknown(messages: list[str], message: str, source_tail: str) -> str:
+    """The one unknown-key message: *message*, led by ``FILE=`` and the config
+    file it names (and, on stderr, closed by its code). Returns the file."""
     (found,) = [m for m in messages if "unknown key" in m]
-    assert found.endswith(f" {message}"), found
-    source = found.removeprefix("WARNING: ")[: -len(message) - 1]
+    body = found.removeprefix("WARNING: ").removesuffix(" [config-unknown-key]")
+    assert body.startswith("FILE=") and body.endswith(f": {message}"), found
+    source = body.removeprefix("FILE=")[: -len(message) - 2]
     # A path is shown as given, so with backslashes on Windows.
     assert source.replace("\\", "/").endswith(source_tail), source
+    return source
 
 
 _CLI_SOURCES = {
@@ -203,7 +207,10 @@ def test_hatchling_hook_unknown_key_warns_once(
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp, caplog.at_level(logging.WARNING):
         _hook(Path(tmp), _toml("ofline = true"))
-    _one_unknown(logged_warnings(caplog), _TYPO, "h/pyproject.toml")
+    # the hook's file is shown relative: its build tree is a temporary one
+    assert _one_unknown(logged_warnings(caplog), _TYPO, "pyproject.toml") == (
+        "pyproject.toml"
+    )
 
 
 @pytest.mark.parametrize("kind", ["directory", "sdist", "sdist-setup.cfg"])
@@ -249,11 +256,11 @@ def test_cli_bad_config_key_is_an_error(
     code, err = _cli(_argv(surface, tmp_path, text), monkeypatch, capsys)
     assert code == 1
     assert len(error_lines(err)) == 1
-    # the key as written, in the table as the reader saw it
-    assert (
-        f"[tool.pitloom.provenance] '{key}' must be 0 (unlimited) or at least 8" in err
-    )
-    assert f"bytes, got {value}" in err
+    # the key as written, in the table as the reader saw it, and the file
+    assert f"[tool.pitloom.provenance] {key}: {_BAD_KEY}, got an integer {value}" in err
+    assert err.rstrip().endswith("[config-invalid]")
+    # the file once, and no "config file '...':" wrapper before it
+    assert err.count("FILE=") == 1 and "config file" not in err
 
 
 def test_cli_bad_setup_cfg_key_names_its_own_table(
@@ -267,7 +274,11 @@ def test_cli_bad_setup_cfg_key_names_its_own_table(
         ["project", str(_project(tmp_path, "p", text)), *_OFFLINE], monkeypatch, capsys
     )
     assert code == 1
-    assert f"[tool:pitloom:provenance] {_BAD_KEY}, got 7" in err
+    assert (
+        f"[tool:pitloom:provenance] max-source-metadata-bytes: {_BAD_KEY}, "
+        "got an integer 7"
+    ) in err
+    assert "setup.cfg: [tool:pitloom:provenance]" in err.replace("\\", "/")
 
 
 @pytest.mark.parametrize("kind", ["directory", "sdist"])
@@ -278,14 +289,17 @@ def test_library_bad_config_key_raises(kind: str, tmp_path: Path) -> None:
         if kind == "directory"
         else _make_sdist(tmp_path, tail)
     )
-    with pytest.raises(ValueError, match="at least 8 bytes, got 3"):
+    with pytest.raises(ValueError, match="at least 8, got an integer 3") as caught:
         generate_project_sbom(target, creation_metadata=_PINNED, offline=True)
+    assert str(caught.value).startswith("FILE=")
+    assert str(caught.value).count("FILE=") == 1
+    assert code_of(caught.value) == "config-invalid"
 
 
 def test_hatchling_hook_bad_config_key_raises() -> None:
     tail = "[tool.pitloom.provenance]\nmax-source-metadata-bytes = -1\n"
     with (
         tempfile.TemporaryDirectory() as tmp,
-        pytest.raises(ValueError, match="at least 8 bytes, got -1"),
+        pytest.raises(ValueError, match="at least 8, got an integer -1"),
     ):
         _hook(Path(tmp), _HEAD + tail)

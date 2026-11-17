@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import importlib
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 import pitloom.assemble.spdx3.creation_info as creation_info_module
 import pitloom.core.creation as creation_module
+from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.creation_info import (
     _tool_summary,
     build_creation_info,
@@ -30,7 +32,14 @@ from pitloom.assemble.spdx3.creation_info import (
     parse_iso_datetime,
     to_spdx3_datetime,
 )
-from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.creation import (
+    CreationMetadata,
+    Creator,
+    Tool,
+    iso_datetime_or_none,
+)
+from pitloom.messages import code_of
+from pitloom.messages.config import Parameter
 
 _DOC_NAME = "testproject"
 _DOC_UUID = "00000000-0000-0000-0000-000000000000"
@@ -62,9 +71,67 @@ def test_parse_iso_datetime_naive_assumed_utc() -> None:
     assert parsed.tzinfo == timezone.utc
 
 
-def test_parse_iso_datetime_invalid_raises() -> None:
-    with pytest.raises(ValueError, match="Invalid ISO 8601 datetime"):
-        parse_iso_datetime("not-a-date")
+@pytest.mark.parametrize(
+    ("kwargs", "name"),
+    [
+        ({}, "creation_datetime"),
+        ({"where": Parameter("build_datetime")}, "build_datetime"),
+    ],
+    ids=["default", "named"],
+)
+def test_parse_iso_datetime_invalid_raises(
+    kwargs: dict[str, Parameter], name: str
+) -> None:
+    """A library value, so ``option-invalid`` naming the parameter and what
+    was given."""
+    with pytest.raises(ValueError, match=f"^{name}: must be an ISO 8601 date") as exc:
+        parse_iso_datetime("not-a-date", **kwargs)
+    assert str(exc.value).endswith("got a string 'not-a-date'")
+    assert code_of(exc.value) == "option-invalid"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-01-15T10:30:00Z", datetime(2026, 1, 15, 10, 30, tzinfo=timezone.utc)),
+        ("2026-01-15T10:30:00", datetime(2026, 1, 15, 10, 30, tzinfo=timezone.utc)),
+        ("not-a-date", None),
+        ("", None),
+    ],
+    ids=["z", "naive-utc", "text", "empty"],
+)
+def test_iso_datetime_or_none_is_the_one_pure_parse(
+    value: str, expected: datetime | None
+) -> None:
+    """The stage-free parse every route shares (the file, the flag and the
+    library each raise their own code on ``None``)."""
+    assert iso_datetime_or_none(value) == expected
+
+
+_SECRET_URL = "https://user:hunter2@host.example/x"
+
+
+@pytest.mark.platform  # a project tree
+def test_a_bad_creation_datetime_that_is_a_url_masks_its_credentials(
+    tmp_path: Path,
+) -> None:
+    """The raw value rides in ``got``: masked in the text, the args and the
+    chain (nothing keeps ``hunter2``)."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    with pytest.raises(ValueError) as exc:
+        generate_project_sbom(
+            tmp_path,
+            creation_metadata=CreationMetadata(creation_datetime=_SECRET_URL),
+            offline=True,
+        )
+    assert code_of(exc.value) == "option-invalid"
+    assert "https://***:***@host.example/x" in str(exc.value)
+    link: BaseException | None = exc.value
+    while link is not None:
+        assert "hunter2" not in str(link) + repr(link.args)
+        link = link.__cause__ or link.__context__
 
 
 def test_to_spdx3_datetime_truncates_microseconds() -> None:

@@ -31,7 +31,6 @@ from pitloom.core._config_parse import (
     SETUP_CFG_SOURCE,
     _read_creators,
     _read_enrich_settings,
-    _read_fragments,
     _read_id_registry,
     _read_offline_setting,
     _read_provenance_settings,
@@ -42,6 +41,7 @@ from pitloom.core._config_parse import (
     read_pitloom_config,
     select_project_config,
 )
+from pitloom.core._config_parse_fragment import _read_fragments
 from pitloom.core._config_parse_scan import (
     _read_content_type_overrides,
     _read_content_type_settings,

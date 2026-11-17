@@ -46,6 +46,8 @@ SITES = [
     ("pitloom.caps", 19, True, False),  # raise ...(pitloom_code=M.code)
     ("pitloom.reads", 9, True, False),  # a catalogue helper saying it by emit
     ("pitloom.extract.ai_model.reader", 9, True, False),  # raise CodedImportError
+    ("pitloom.resaid", 5, True, False),  # raise recoded(cls, exc)
+    ("pitloom.resaid", 9, True, False),  # raise exc.located(...)
 ]
 IDS = [f"{m.rsplit('.', 1)[-1]}:{n}" for m, n, _, _ in SITES]
 
@@ -91,7 +93,7 @@ def test_scope_and_counts(mi: ModuleType, tree: Path) -> None:
         "pitloom.uncoded": 4,
     }
     counts = mi.summary(records)
-    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (20, 11)
+    assert (counts["IN_SCOPE"], counts["IN_SCOPE_CODED"]) == (22, 13)
     assert counts["IN_SCOPE_UNCODED"] == 9 == sum(mi.uncoded_counts(records).values())
 
 

@@ -24,6 +24,7 @@ import pytest
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.messages import code_of
 from pitloom.plugins.hatch import _build_creation_metadata
 from tests.assemble.embed_surfaces_shared import demo_project
 
@@ -69,9 +70,13 @@ def test_hook_pinned_datetime_reaches_built_time_as_z(tmp_path: Path) -> None:
 
 
 def test_invalid_built_time_names_the_value(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="Invalid ISO 8601 datetime: yesterday"):
+    with pytest.raises(
+        ValueError,
+        match="^build_datetime: must be an ISO 8601 date and time, got a string 'yest",
+    ) as exc:
         generate_project_sbom(
             demo_project(tmp_path),
             creation_metadata=CreationMetadata(build_datetime="yesterday"),
             offline=True,
         )
+    assert code_of(exc.value) == "option-invalid"

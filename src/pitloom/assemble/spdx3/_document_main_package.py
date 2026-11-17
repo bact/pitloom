@@ -23,6 +23,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.export.spdx3_json import sha256_hash
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
+from pitloom.messages.config import Parameter
 
 
 def build_creation_bundle(
@@ -87,7 +88,9 @@ def build_main_package(
         # The same parse as CreationInfo.created: "Z" on every Python,
         # offsets converted to UTC, whole seconds.
         main_package.builtTime = to_spdx3_datetime(
-            parse_iso_datetime(creation_metadata.build_datetime)
+            parse_iso_datetime(
+                creation_metadata.build_datetime, Parameter("build_datetime")
+            )
         )
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>), only when a real

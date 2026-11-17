@@ -16,6 +16,7 @@ See also:
 from __future__ import annotations
 
 import dataclasses
+import re
 
 import pytest
 
@@ -27,6 +28,7 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
+from pitloom.messages import code_of
 
 #: ``PitloomConfig`` field -> (sub-table, key) it is read from. ``tools`` is
 #: the one non-bool field a boolean key (``no-creation-tool``) decides.
@@ -133,13 +135,24 @@ def test_is_typed_classifies_optional_fields(annotation: str, typed: bool) -> No
     assert _is_typed(annotation) is typed
 
 
+def _toml_spelling(text: str) -> str:
+    """*text* with a ``[tool:pitloom:x]`` table named as ``[tool.pitloom.x]``:
+    the one difference between the two sources' errors."""
+    return re.sub(
+        r"\[tool:pitloom((?::[a-z-]+)?)\]",
+        lambda m: "[tool.pitloom" + m.group(1).replace(":", ".") + "]",
+        text,
+    )
+
+
 def _outcome(config: str, field: str, table: str, body: str) -> tuple[str, object]:
-    """The field's value, or the one-line error a rejected value raises."""
+    """The field's value, or the one-line error (and its code) a rejected
+    value raises, the table named as TOML spells it."""
     read = _from_cfg if config == "cfg" else _from_toml
     try:
         return "value", getattr(read(table, body), field)
     except ValueError as exc:
-        return "error", str(exc)
+        return "error", (_toml_spelling(str(exc)), code_of(exc))
 
 
 @pytest.mark.parametrize(("table", "key", "is_int"), _declared())
@@ -169,10 +182,13 @@ def test_setup_cfg_value_reads_as_pyproject(table: str, key: str, is_int: bool) 
 def test_invalid_or_empty_value_is_one_error(table: str, key: str, value: str) -> None:
     """An unparsable or empty (declared-but-valueless) value fails with the
     ``pyproject.toml`` error shape, never falls back to the default."""
-    kind = "an integer" if key in INT_KEYS.get(table, ()) else "a boolean"
-    with pytest.raises(ValueError, match=f"must be {kind}") as exc:
+    kind = "an integer" if key in INT_KEYS.get(table, ()) else "true or false"
+    with pytest.raises(ValueError) as exc:
         _from_cfg(table, f"{key} = {value}")
-    assert "\n" not in str(exc.value)
+    # the setup.cfg table, the key as written, what it must be, what it was
+    head = f"{_header(table, ':')} {key}: must be {kind}, got "
+    assert str(exc.value).startswith(head)
+    assert "\n" not in str(exc.value) and code_of(exc.value) == "config-invalid"
 
 
 @pytest.mark.parametrize(("table", "key", "_is_int"), _declared())

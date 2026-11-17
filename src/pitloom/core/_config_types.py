@@ -24,6 +24,7 @@ from pitloom.core.provenance import (
     ProvenanceConfig,
     require_max_source_metadata_bytes,
 )
+from pitloom.messages.config import Parameter
 
 _DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
@@ -236,7 +237,7 @@ class PitloomConfig:
         """
         require_max_source_metadata_bytes(
             self.provenance_max_source_metadata_bytes,
-            "pitloom_config 'max-source-metadata-bytes'",
+            Parameter("PitloomConfig.provenance_max_source_metadata_bytes"),
         )
         return ProvenanceConfig(
             format=self.provenance_format,

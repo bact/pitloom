@@ -45,10 +45,10 @@ is the only config they can get.
 An sdist archive's own config is read as its unpacked directory's is: the
 `[tool.pitloom]` of the `pyproject.toml` at the archive's root, else the
 `[tool:pitloom]` of its root `setup.cfg`. An invalid one fails the run,
-as a directory's does; so does one that cannot be read (not valid TOML,
+as a directory's does; so does one that cannot be read (`not valid TOML; ...`,
 not UTF-8, or over 1 MiB -- a limit for archive members only). The error
-names the archive and member, e.g. `config file
-dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without
+names the archive and member, e.g. `FILE=dist/demo-1.0.0.tar.gz:pyproject.toml:
+...`; `--config` replaces it without
 reading it. Some keys cannot apply to an archive and are ignored without a
 warning:
 
@@ -101,7 +101,7 @@ or an entry of `creator`, `creation-tool`, `content-type.override` or
 `fragment.files` -- is ignored with one `WARNING:` naming the file, the
 table and the key, and either the table that does know it
 (`it belongs in [tool.pitloom.provenance]`) or the closest known key
-(`ofline`: `did you mean 'offline'?`). It is not an error, and warns once
+(`unknown key ofline; did you mean offline?`). It is not an error, and warns once
 per file per run, on every source: `pyproject.toml`, `setup.cfg`, an
 sdist's own config (named `archive:member`), `--config` and the Hatchling
 hook. It is given before the values are checked, so a misspelt required key
@@ -128,20 +128,19 @@ and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 | `id-registry` | string | `null`: no registry; nothing is searched | `--id-registry` | `id-registry` | `id_registry` | Path to the Loom ID registry file, relative to the project directory (or to the `--config` file's own directory, when set there). Used only when declared here, via `--id-registry`, or via a `--config` file -- never auto-discovered. `loom.Run` reads only an explicit `pitloom_config=`, never a project's `[tool.pitloom]`: its own `id_registry=` argument wins and resolves relative to the current directory; a `pitloom_config=` file's `id-registry` resolves relative to that file's directory. A declared file that's missing raises `FileNotFoundError`, one that's unreadable or invalid `ValueError` (CLI: `ERROR:` and exit 1; hook: fails the build). |
 | `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | `update-id-registry` | `update_id_registry` | After generating, harvest newly-minted ids back into a *declared* registry and save it -- never creates one. Effective on `project`/`wheel`/`env`/`generate`, and on `loom.Run` (a model declared with `path=`); given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped; set to `true` in `[tool.pitloom]`, the Hatchling hook and `embed-wheel --project-dir` (which never write a registry) note it with one `INFO:`. No effect when no registry is declared -- see [Loom ID registry](id-registry.md). |
 | `accept-url-credentials` | array of strings | `[]` | `--accept-url-credential FINGERPRINT` (repeatable; adds to the list) | input `accept-url-credentials` (commas or line breaks), `args` or `config` | `credentials=CredentialPolicy(accepted=...)`; `PitloomConfig(accept_url_credentials=...)` | Fingerprints (`sha256:` and 16 to 64 lowercase hex digits) of URL field values that hold a credential and may stay in the SBOM, said with the quieter `accepted` warning; in the `refuse` mode any other such value is refused. A TOML array in `pyproject.toml` or a `--config` file; in `setup.cfg`, `[tool:pitloom] accept-url-credentials` with one fingerprint per line or separated by commas or spaces. `loom merge` and `embed-wheel --sbom` read only the flags. See [Credentials in URLs](url-credentials.md). |
-| `url-credentials` | string: `"warn"` or `"refuse"` | `"warn"` | `--refuse-url-credentials` (turns `refuse` on, never off) | input `url-credentials` (`warn` or `refuse`), `args` or `config` | `credentials=CredentialPolicy(refuse=True)`; `PitloomConfig(url_credentials="refuse")` | What a URL field value holding a credential does: `warn` writes the SBOM with one `WARNING:` per value (exit 0; the build hook does not fail the build); `refuse` writes no SBOM (exit 1; the hook fails the build) unless `accept-url-credentials` accepts each value. ID registry keys and file entries follow it too. Any other value is an error (`option-invalid`). `setup.cfg`: `[tool:pitloom] url-credentials`. `loom merge` and `embed-wheel --sbom` read only the flag. Recommended in CI: `"refuse"`. See [Credentials in URLs](url-credentials.md). |
+| `url-credentials` | string: `"warn"` or `"refuse"` | `"warn"` | `--refuse-url-credentials` (turns `refuse` on, never off) | input `url-credentials` (`warn` or `refuse`), `args` or `config` | `credentials=CredentialPolicy(refuse=True)`; `PitloomConfig(url_credentials="refuse")` | What a URL field value holding a credential does: `warn` writes the SBOM with one `WARNING:` per value (exit 0; the build hook does not fail the build); `refuse` writes no SBOM (exit 1; the hook fails the build) unless `accept-url-credentials` accepts each value. ID registry keys and file entries follow it too. Any other value is `config-invalid` (`option-invalid` from the library). `setup.cfg`: `[tool:pitloom] url-credentials`. `loom merge` and `embed-wheel --sbom` read only the flag. Recommended in CI: `"refuse"`. See [Credentials in URLs](url-credentials.md). |
 
-**Invalid values / fallback behaviour:** every boolean above raises
-`ValueError` at config-read time if set to a non-boolean (e.g. the TOML
-string `"true"` instead of the bare value `true`) -- no silent
-coercion. `sbom-basename`/`id-registry` raise `ValueError` if set to a
-non-string, and `sbom-basename` also if it is a path rather than a file
-name (a `/`, `\`, `:` or NUL, or `.`/`..`), or is only `.spdx3.json` --
-the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off
-never errors and never blocks content-type detection -- see below.
+**Invalid values / fallback behaviour:** every boolean above set to a
+non-boolean (e.g. the TOML string `"true"`) is
+[`config-invalid`](message-codes-config.md#config-invalid) -- no silent
+coercion. So is a non-string `sbom-basename`/`id-registry`, and an
+`sbom-basename` that is a path rather than a file name (a `/`, `\`, `:` or
+NUL, or `.`/`..`), or is only `.spdx3.json` -- the same rules as
+`embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks content-type detection -- see below.
 
 In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is
 `true`/`false`, `yes`/`no` or `1`/`0` (any case) and an integer is base 10;
-any other value, or an empty one, raises `ValueError` as above.
+any other value, or an empty one, is `config-invalid` as above.
 
 `setup.cfg` is read as setuptools reads it, with `%` interpolation: write a
 literal `%` as `%%` (`description = 50%% faster`), and `%(name)s` stands for
@@ -152,9 +151,8 @@ setuptools' file discovery fails on it: Pitloom warns, naming the section and
 key, and writes the SBOM without the file list.
 
 **Moved keys:** the pre-rename `ids-file` and `update-registry` keys
-raise `ValueError` if present -- e.g. `[tool.pitloom] 'ids-file' has
-moved to 'id-registry'. Update your config.` -- rather than being read
-under their old names.
+are [`config-moved`](message-codes-config.md#config-moved) (`[tool.pitloom] ids-file:
+moved to [tool.pitloom] id-registry`), not read under their old names.
 
 ## `[tool.pitloom.content-type]`
 
@@ -169,9 +167,8 @@ to every file, text or binary).
 | `enabled` | bool | `false` | `--content-type` / `--no-content-type` | `content-type` | `content_type` | Detect each file's real IANA media type. Off by default -- `magika` inference is a real per-file cost (~5ms/file). |
 | `method` | `"auto"` \| `"magika"` \| `"extension"` | `"auto"` | `--content-type-method` | `content-type-method` | `content_type_method` | Which detector resolves a value: `"auto"` tries `magika`, falling back to a filename-extension guess when `magika` isn't installed or its result is inconclusive; `"magika"` behaves identically per-file but raises immediately if the package isn't installed at all; `"extension"` skips `magika` entirely. |
 
-**Invalid values / fallback behaviour:** `enabled` non-boolean raises
-`ValueError` at config-read time. `method` not one of the three listed
-values raises `ValueError` at config-read time. `method = "magika"`
+**Invalid values / fallback behaviour:** a non-boolean `enabled`, or a
+`method` outside the three listed, is `config-invalid`. `method = "magika"`
 with the `magika` package not installed raises `ImportError` (coded
 `library-missing`, naming `pitloom[content-type]`; `library-unusable` when it
 is installed but fails to import) at
@@ -267,7 +264,8 @@ environments that already export it for reproducibility without needing
 a per-project `creation-datetime` pin, but an explicit pin always
 overrides it. A `SOURCE_DATE_EPOCH` that is not an integer number of seconds
 (or is out of range for a date) is an `ERROR:` on every surface (the CLI exits
-1, the library raises `ValueError`, the hook fails the build), as the
+1, the library raises `ValueError`, the hook fails the build; code
+[`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid)), as the
 specification asks, and whether or not a `creation-datetime` pins the date:
 Hatchling fails on it either way.
 
@@ -302,8 +300,7 @@ what these fields record in the generated SBOM.
 | `[[tool.pitloom.creation-tool]]` | `name` | string (required) | Tool name recorded as having produced the SBOM. |
 
 **Invalid values / fallback behaviour:** a missing/empty `name` on
-either table, or a non-string `type`/`email`, raises `ValueError` at
-config-read time. `--creator-name`/`--creation-tool` on the CLI replace
+either table, or a non-string `type`/`email`, is `config-invalid`. `--creator-name`/`--creation-tool` on the CLI replace
 the whole configured list for that run rather than merging with it.
 
 ## `[tool.pitloom.provenance]`
@@ -322,7 +319,7 @@ changes in the generated SBOM's Annotations.
 
 **Invalid values / fallback behaviour:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,
-raises `ValueError` at config-read time. An unknown `schema` id is not
+is `config-invalid`. An unknown `schema` id is not
 caught here (`core` doesn't import the assembly layer's encoder
 registry) -- it's caught with a clear error the first time an SBOM is
 actually generated. `max-source-metadata-bytes`: only `0` (unlimited) or

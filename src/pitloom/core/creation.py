@@ -11,6 +11,15 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from pitloom.messages import CodedValueError
+from pitloom.messages.config import (
+    EPOCH_NOT_INTEGER_LINE,
+    EPOCH_OUT_OF_RANGE_LINE,
+    SOURCE_DATE_EPOCH_INVALID,
+    Parameter,
+    invalid_value,
+)
+
 #: Valid ``Creator.type`` values -- the SPDX 3 Agent subclass a creator maps
 #: onto is selected by one of these names.  ``"agent"`` is the generic base
 #: class, for a creator that is deliberately unspecified.  This is the
@@ -20,6 +29,48 @@ from datetime import datetime, timezone
 VALID_CREATOR_TYPES: frozenset[str] = frozenset(
     {"person", "organization", "software-agent", "agent"}
 )
+
+
+def _normalised_creator_type(value: str | None) -> str:
+    """*value* as ``Creator.type`` keeps it: stripped, lower-case, and
+    ``person`` for none or empty."""
+    return (value or "person").strip().lower()
+
+
+def creator_type_problem(value: object) -> str | None:
+    """Why *value* is no creator type: the ``expected`` id (see
+    :data:`~pitloom.messages.config.EXPECTED`) ``"string"`` (not a string)
+    or ``"creator-type"`` (not one of :data:`VALID_CREATOR_TYPES` once
+    normalised, as :class:`Creator` does), else ``None``. ``None`` is
+    ``person``, as for :class:`Creator`. The one check of the config reader
+    and of ``Creator.__post_init__``."""
+    if value is not None and not isinstance(value, str):
+        return "string"
+    return (
+        None
+        if _normalised_creator_type(value) in VALID_CREATOR_TYPES
+        else ("creator-type")
+    )
+
+
+def iso_datetime_or_none(value: str) -> datetime | None:
+    """*value*, a full ISO 8601 datetime, as a timezone-aware
+    :class:`~datetime.datetime`, or ``None`` when it is none.
+
+    Accepts offset forms (a trailing ``Z`` included, which
+    :meth:`~datetime.datetime.fromisoformat` takes from Python 3.11 only)
+    and optional fractional seconds. A naive value is read as UTC. The one
+    parse of a datetime string: stdlib only, so the config reader and the
+    assembler share it.
+    """
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 @dataclass
@@ -50,18 +101,15 @@ class Creator:
     email: str | None = None
 
     def __post_init__(self) -> None:
-        name = (self.name or "").strip()
+        name = self.name.strip() if isinstance(self.name, str) else ""
         if not name:
-            raise ValueError(f"Creator name must be non-empty, got {self.name!r}.")
+            raise invalid_value(Parameter("Creator.name"), "non-empty", got=self.name)
         self.name = name
         self.email = (self.email or "").strip() or None
-        normalized = (self.type or "person").strip().lower()
-        if normalized not in VALID_CREATOR_TYPES:
-            valid = ", ".join(sorted(VALID_CREATOR_TYPES))
-            raise ValueError(
-                f"Invalid creator type {self.type!r}; must be one of: {valid}."
-            )
-        self.type = normalized
+        problem = creator_type_problem(self.type)
+        if problem is not None:
+            raise invalid_value(Parameter("Creator.type"), problem, got=self.type)
+        self.type = _normalised_creator_type(self.type)
 
 
 @dataclass
@@ -79,8 +127,8 @@ class Tool:
     name: str
 
     def __post_init__(self) -> None:
-        if not self.name or not self.name.strip():
-            raise ValueError(f"Tool name must be non-empty, got {self.name!r}.")
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise invalid_value(Parameter("Tool.name"), "non-empty", got=self.name)
 
 
 @dataclass
@@ -162,15 +210,16 @@ def resolve_source_date_epoch() -> datetime | None:
         return None
     try:
         seconds = int(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"SOURCE_DATE_EPOCH={raw!r} is not an integer number of seconds "
-            "since the Unix epoch"
-        ) from exc
+    except ValueError:
+        raise CodedValueError(
+            SOURCE_DATE_EPOCH_INVALID, line=EPOCH_NOT_INTEGER_LINE, value=raw
+        ) from None
     try:
         return datetime.fromtimestamp(seconds, tz=timezone.utc)
-    except (ValueError, OverflowError, OSError) as exc:
-        raise ValueError(f"SOURCE_DATE_EPOCH={raw!r} is out of range") from exc
+    except (ValueError, OverflowError, OSError):
+        raise CodedValueError(
+            SOURCE_DATE_EPOCH_INVALID, line=EPOCH_OUT_OF_RANGE_LINE, value=raw
+        ) from None
 
 
 __all__ = [
@@ -178,5 +227,7 @@ __all__ = [
     "CreationMetadata",
     "Creator",
     "Tool",
+    "creator_type_problem",
+    "iso_datetime_or_none",
     "resolve_source_date_epoch",
 ]

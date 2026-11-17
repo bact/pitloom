@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from pitloom.messages import code_of
 from pitloom.plugins._hatch_config import validate_config
 
 
@@ -38,14 +39,22 @@ def test_validate_config_valid_values_pass(key: str) -> None:
 @pytest.mark.parametrize(
     ("field", "bad_value", "match"),
     [
-        ("enabled", "yes", "'enabled' must be a boolean"),
-        ("enabled", 1, "'enabled' must be a boolean"),
+        (
+            "enabled",
+            "yes",
+            r"^\[tool.hatch.build.hooks.pitloom\] enabled: must be true or false, "
+            r"got a string 'yes'",
+        ),
+        ("enabled", 1, r"enabled: must be true or false, got an integer 1"),
     ],
 )
 def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) -> None:
     """Invalid field type or value must raise ``ValueError`` with a clear message."""
-    with pytest.raises(ValueError, match=match):
+    with pytest.raises(ValueError, match=match) as exc:
         validate_config({field: bad_value})
+    # the hook's table may come from hatch.toml: no file is named
+    assert "FILE=" not in str(exc.value)
+    assert code_of(exc.value) == "config-invalid"
 
 
 @pytest.mark.parametrize(

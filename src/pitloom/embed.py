@@ -61,6 +61,7 @@ from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
+from pitloom.messages.config import Parameter
 
 log = logging.getLogger(__name__)
 
@@ -225,7 +226,7 @@ def embed_wheel_sbom(
     """
     configure_logging()
     if sbom_basename:
-        sbom_basename = sbom_base_name(sbom_basename, "--sbom-basename")
+        sbom_basename = sbom_base_name(sbom_basename, Parameter("--sbom-basename"))
     require_wheel_file(wheel_path)
     # Not resolved: a symlink's name is the one judged, and the one the
     # embed reports; ``embed_sbom_in_wheel`` resolves to write.

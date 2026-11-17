@@ -26,6 +26,7 @@ import pytest
 from pitloom import loom
 from pitloom.core.config import PitloomConfig
 from pitloom.id_registry import DATASET_PACKAGE_TYPE
+from pitloom.messages import code_of
 from tests.registry_helpers import make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
@@ -153,11 +154,11 @@ def test_keyword_beats_config_beats_default(
 @pytest.mark.parametrize(
     ("keyword", "needle"),
     [
-        (0, "must be a positive integer, got 0"),
-        (-1, "must be a positive integer, got -1"),
-        (True, "must be an integer, got bool"),
-        (5.0, "must be an integer, got float"),
-        ("5", "must be an integer, got str"),
+        (0, "must be an integer of at least 1, got an integer 0"),
+        (-1, "must be an integer of at least 1, got an integer -1"),
+        (True, "must be an integer, got a boolean true"),
+        (5.0, "must be an integer, got a float 5.0"),
+        ("5", "must be an integer, got a string '5'"),
     ],
     ids=["zero", "negative", "bool", "float", "str"],
 )
@@ -168,27 +169,49 @@ def test_bad_keyword_fails_before_the_run(
     naming it on entering the run (``0`` is an error, not "unlimited")."""
     output = project / "out.json"
 
-    with pytest.raises(ValueError, match=f"max_dataset_hash_bytes {needle}"):
+    with pytest.raises(ValueError, match=f"^max_dataset_hash_bytes: {needle}$") as exc:
         with loom.run(
             output,
             max_dataset_hash_bytes=keyword,  # type: ignore[arg-type]
         ):
             pass  # pragma: no cover - never entered
 
+    assert code_of(exc.value) == "option-invalid"  # a library value, not a file
+
     assert not output.exists()
     assert loom._active_run is None  # pylint: disable=protected-access
 
 
 @pytest.mark.parametrize(
-    ("config", "needle"),
+    ("config", "needle", "code"),
     [
-        ("cfg/missing.toml", "not found"),
-        ("cfg/bad.toml", "config file"),
-        ("cfg/zero.toml", "must be a positive integer"),
-        ("cfg/bool.toml", "must be an integer"),
-        (PitloomConfig(max_dataset_hash_bytes=0), "positive integer"),
-        (PitloomConfig(max_dataset_hash_bytes=True), "pitloom_config"),
-        ("cfg/unreadable.toml", "Permission denied"),
+        ("cfg/missing.toml", "not found", "input-not-found"),
+        ("cfg/bad.toml", "FILE=cfg/bad.toml: not valid TOML", "config-malformed"),
+        (
+            "cfg/zero.toml",
+            r"FILE=cfg/zero.toml: \[tool.pitloom\] max-dataset-hash-bytes: "
+            "must be an integer of at least 1, got an integer 0",
+            "config-invalid",
+        ),
+        (
+            "cfg/bool.toml",
+            r"FILE=cfg/bool.toml: \[tool.pitloom\] max-dataset-hash-bytes: "
+            "must be an integer, got a boolean true",
+            "config-invalid",
+        ),
+        (
+            PitloomConfig(max_dataset_hash_bytes=0),
+            "PitloomConfig.max_dataset_hash_bytes: "
+            "must be an integer of at least 1, got an integer 0",
+            "option-invalid",
+        ),
+        (
+            PitloomConfig(max_dataset_hash_bytes=True),
+            "PitloomConfig.max_dataset_hash_bytes: "
+            "must be an integer, got a boolean true",
+            "option-invalid",
+        ),
+        ("cfg/unreadable.toml", "Permission denied", "file-unreadable"),
     ],
     ids=["missing", "bad-toml", "zero", "bool", "obj-zero", "obj-bool", "unreadable"],
 )
@@ -197,24 +220,31 @@ def test_bad_config_fails_before_the_run(
     monkeypatch: pytest.MonkeyPatch,
     config: PitloomConfig | str,
     needle: str,
+    code: str,
 ) -> None:
     """A config that is missing, unreadable or invalid raises
-    ``ValueError`` on entering the run: nothing is written and no run is
-    left active."""
+    ``ValueError`` (coded) on entering the run: nothing is written and no
+    run is left active. A file's setting is the user's (``config-invalid``,
+    naming the file); an in-memory config's is the caller's
+    (``option-invalid``)."""
     (project / "cfg" / "bad.toml").write_text("[tool.pitloom\n", encoding="utf-8")
     _write_config(project / "cfg" / "zero.toml", "max-dataset-hash-bytes = 0\n")
     _write_config(project / "cfg" / "bool.toml", "max-dataset-hash-bytes = true\n")
     if config == "cfg/unreadable.toml":
+        (project / "cfg" / "unreadable.toml").write_text("", encoding="utf-8")
 
-        def _denied(path: Path, source: str) -> PitloomConfig:
+        def _denied(path: Path) -> dict[str, Any]:
             raise PermissionError(errno.EACCES, "Permission denied", str(path))
 
-        monkeypatch.setattr("pitloom._loom_active_run.load_config_file", _denied)
+        # the real route: load_config_file reads through load_toml_file
+        monkeypatch.setattr("pitloom.core.config_cascade.load_toml_file", _denied)
     output = project / "out.json"
 
-    with pytest.raises(ValueError, match=needle):
+    with pytest.raises(ValueError, match=needle) as exc:
         with loom.run(output, pitloom_config=config):
             pass  # pragma: no cover - never entered
+
+    assert code_of(exc.value) == code
 
     assert not output.exists()
     assert loom._active_run is None  # pylint: disable=protected-access
@@ -296,5 +326,6 @@ def test_config_file_without_a_table_names_pitloom_config(
     (message,) = [
         r.getMessage() for r in caplog.records if "empty.toml" in r.getMessage()
     ]
-    assert " pitloom_config file has no [tool.pitloom] table" in message
+    assert "pitloom_config has no [tool.pitloom] table; the defaults apply" in message
+    assert "FILE=cfg/empty.toml" in message
     assert "--config" not in message

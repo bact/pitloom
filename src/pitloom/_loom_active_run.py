@@ -42,10 +42,11 @@ from pitloom.core.model_extract_limit import (
     require_positive_ceiling,
 )
 from pitloom.core.models import build_relationship
-from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
-from pitloom.logging_config import configure_logging, one_line
+from pitloom.logging_config import configure_logging
+from pitloom.messages import CodedValueError, recoded
+from pitloom.messages.config import Parameter
 
 log = logging.getLogger("pitloom.loom")
 
@@ -65,8 +66,10 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
     else the defaults. Never an implicit ``[tool.pitloom]``.
 
     Raises:
-        ValueError: the named file is missing, unreadable or invalid; the
-            message names it.
+        ValueError: the named file is missing (``input-not-found``),
+            unreadable (``file-unreadable``) or invalid (``config-invalid``,
+            ``config-malformed``): a :class:`~pitloom.messages.CodedValueError`
+            naming it.
     """
     if pitloom_config is None:
         return PitloomConfig()
@@ -76,9 +79,7 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
     try:
         return load_config_file(path, source="pitloom_config")
     except FileNotFoundError as exc:
-        raise ValueError(str(exc)) from exc
-    except OSError as exc:
-        raise ValueError(f"config file {quote_source(path)}: {one_line(exc)}") from exc
+        raise recoded(CodedValueError, exc) from None
 
 
 def _append_once(
@@ -126,11 +127,12 @@ class _ActiveRun:
         )
         max_hash_bytes = (
             require_max_dataset_hash_bytes(
-                config.max_dataset_hash_bytes, "pitloom_config"
+                config.max_dataset_hash_bytes,
+                Parameter("PitloomConfig.max_dataset_hash_bytes"),
             )
             if max_dataset_hash_bytes is None
             else require_positive_ceiling(
-                max_dataset_hash_bytes, "max_dataset_hash_bytes"
+                max_dataset_hash_bytes, Parameter("max_dataset_hash_bytes")
             )
         )
         self.update_id_registry: bool = config.update_id_registry

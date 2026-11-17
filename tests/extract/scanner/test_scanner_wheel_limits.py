@@ -26,6 +26,7 @@ import pytest
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from pitloom.extract.scanner_wheel import BUDGET_FACTOR, scan_wheel_for_ai_models
+from pitloom.messages import code_of
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.build_and_read_shared import (
     deliver_sigterm,
@@ -249,9 +250,12 @@ def test_sigterm_while_the_copy_is_parsed_says_after(
 
 
 @pytest.mark.parametrize("value", [0, -1, True, "64"])
-def test_a_bad_ceiling_names_pitloom_config_not_a_toml_table(
+def test_a_bad_ceiling_names_the_library_parameter_not_a_toml_table(
     tmp_path: Path, value: Any
 ) -> None:
-    with pytest.raises(ValueError, match="pitloom_config") as err:
+    with pytest.raises(
+        ValueError, match=r"^PitloomConfig\.max_model_extract_bytes: must be"
+    ) as err:
         _scan(tmp_path / "absent.whl", max_bytes=value)
     assert "[tool.pitloom]" not in str(err.value)
+    assert code_of(err.value) == "option-invalid"

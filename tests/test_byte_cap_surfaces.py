@@ -33,8 +33,16 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import embed_wheel_sbom
+from pitloom.messages import MESSAGES, code_of
 from tests.assemble.conftest import _make_dummy_wheel
-from tests.test_config_key_surfaces import _HEAD, _PINNED, _loom, _project
+from tests.test_config_key_surfaces import (
+    _HEAD,
+    _OFFLINE,
+    _PINNED,
+    _cli,
+    _loom,
+    _project,
+)
 from tests.warning_helpers import logged_warnings
 
 
@@ -57,13 +65,14 @@ _MODEL = "--max-model-extract-bytes"
 @pytest.mark.parametrize(
     ("flag", "value", "text"),
     [
-        (_SOURCE, "-1", f"argument {_SOURCE}: must be 0 (unlimited) or at"),
-        (_SOURCE, "5", "at least 8 bytes, got 5"),
-        (_SOURCE, "x", "invalid int"),
-        (_MODEL, "0", f"argument {_MODEL}: must be a positive integer, got 0"),
-        (_MODEL, "-1", "must be a positive integer, got -1"),
-        (_MODEL, "abc", "invalid int value: 'abc'"),
+        (_SOURCE, "-1", f"argument {_SOURCE}: must be 0 (no cap) or an integer"),
+        (_SOURCE, "5", "of at least 8, got an integer 5"),
+        (_SOURCE, "x", "must be an integer, got a string 'x'"),
+        (_MODEL, "0", f"argument {_MODEL}: must be an integer of at least 1, got"),
+        (_MODEL, "-1", "of at least 1, got an integer -1"),
+        (_MODEL, "abc", "must be an integer, got a string 'abc'"),
     ],
+    ids=["src-neg", "src-5", "src-x", "model-0", "model-neg", "model-abc"],
 )
 def test_flag_refuses_a_bad_value_on_every_subcommand(
     command: str,
@@ -75,7 +84,9 @@ def test_flag_refuses_a_bad_value_on_every_subcommand(
     with pytest.raises(SystemExit) as exc:
         _build_parser().parse_args([command, flag, value])
     assert exc.value.code == 2
-    assert text in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert text in err
+    assert err.rstrip().endswith("[option-invalid]")  # the flag stage's code
 
 
 def test_flag_is_offered_by_the_sbom_subcommands() -> None:
@@ -160,22 +171,26 @@ _CALLS = [
 def test_library_refuses_an_invalid_budget(
     call: str, value: Any, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An error, with no warning ahead of it (not even the inert one)."""
+    """An ``option-invalid`` error (a library parameter, not a file), with no
+    warning ahead of it (not even the inert one)."""
     calls = _library_calls(tmp_path)
     with (
         caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="must be (0 \\(unlimited\\)|an integer)"),
+        pytest.raises(ValueError, match="max_source_metadata_bytes: must be") as exc,
     ):
         calls[call](value)
+    assert code_of(exc.value) == "option-invalid"
     assert not logged_warnings(caplog)
 
 
 def test_a_library_config_names_itself_in_the_error() -> None:
     config = PitloomConfig(provenance_max_source_metadata_bytes=3)
     with pytest.raises(
-        ValueError, match=r"^pitloom_config 'max-source-metadata-bytes'"
-    ):
+        ValueError,
+        match=r"^PitloomConfig\.provenance_max_source_metadata_bytes: must be",
+    ) as exc:
         _ = config.provenance
+    assert code_of(exc.value) == "option-invalid"
 
 
 @pytest.mark.parametrize("call", ["overrides", "provenance-config", "pitloom-config"])
@@ -239,9 +254,10 @@ def test_library_refuses_an_invalid_model_cap(
     assert sorted(calls) == sorted(_MODEL_CAP_CALLS)
     with (
         caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="^max_model_extract_bytes must be"),
+        pytest.raises(ValueError, match="^max_model_extract_bytes: must be") as exc,
     ):
         calls[call](value)
+    assert code_of(exc.value) == "option-invalid"
     assert not logged_warnings(caplog)
 
 
@@ -252,3 +268,57 @@ def test_library_accepts_a_numpy_model_cap(value: int) -> None:
     )
     assert merged.max_model_extract_bytes == value
     assert isinstance(merged.max_model_extract_bytes, int)  # not numpy's
+
+
+# --- one bad value, three stages, three codes --------------------------------
+
+_STAGES: dict[str, tuple[list[str], str, dict[str, Any]]] = {
+    "model": (
+        ["--max-model-extract-bytes", "0"],
+        "[tool.pitloom]\nmax-model-extract-bytes = 0\n",
+        {"max_model_extract_bytes": 0},
+    ),
+    "source": (
+        ["--max-source-metadata-bytes", "-1"],
+        "[tool.pitloom.provenance]\nmax-source-metadata-bytes = -1\n",
+        {"max_source_metadata_bytes": -1},
+    ),
+}
+
+
+@pytest.mark.parametrize("cap", sorted(_STAGES))
+def test_one_bad_cap_has_a_code_per_stage(
+    cap: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same bad value is ``option-invalid`` as a flag (argparse, exit 2)
+    and as a library keyword, but ``config-invalid`` (exit 1) read from a
+    file: the stage picks the code, not the text."""
+    flag, file_tail, keyword = _STAGES[cap]
+    project = _project(tmp_path, "flag", _HEAD)
+    with pytest.raises(SystemExit) as flag_exit:
+        _loom(["project", str(project), *flag, *_OFFLINE], monkeypatch)
+    flag_err = capsys.readouterr().err
+    assert flag_exit.value.code == 2
+    assert flag_err.rstrip().endswith("[option-invalid]")
+    assert f"argument {flag[0]}: must be" in flag_err
+
+    file_project = _project(tmp_path, "file", _HEAD + file_tail)
+    status, file_err = _cli(
+        ["project", str(file_project), *_OFFLINE], monkeypatch, capsys
+    )
+    assert status == 1
+    assert file_err.rstrip().endswith("[config-invalid]")
+    assert "FILE=" in file_err
+    assert "argument" not in file_err
+
+    with pytest.raises(ValueError, match=": must be") as lib_exc:
+        generate(project, creation_metadata=_PINNED, **keyword)
+    assert code_of(lib_exc.value) == "option-invalid"
+    assert "FILE=" not in str(lib_exc.value)
+    assert [MESSAGES[c].actor for c in ("option-invalid", "config-invalid")] == [
+        "caller",
+        "user",
+    ]

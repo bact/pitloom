@@ -22,8 +22,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from pitloom.core._config_legacy import _table
-from pitloom.logging_config import warn_once
+from pitloom.messages.config import ConfigPlace, warn_config_unknown_key
 
 log = logging.getLogger(__name__)
 
@@ -112,9 +111,9 @@ KNOWN_ENTRY_KEYS: dict[tuple[str, str], frozenset[str]] = {
 }
 
 
-def _label(is_setup_cfg: bool, name: str) -> str:
-    """The table *name* (``""`` for ``[tool.pitloom]``) as a message names it."""
-    return _table(is_setup_cfg, name) if name else _table(is_setup_cfg)
+def _table_place(name: str) -> ConfigPlace:
+    """The table *name* of :data:`KNOWN_KEYS` (``""`` for ``[tool.pitloom]``)."""
+    return ConfigPlace(f"tool.pitloom.{name}" if name else "tool.pitloom")
 
 
 def _same_key(key: str) -> str:
@@ -130,58 +129,71 @@ def _opposite(key: str, candidate: str) -> bool:
     return one == f"no-{two}" or two == f"no-{one}"
 
 
-def _hint(key: str, known: frozenset[str], owners: list[str], table_known: bool) -> str:
+def _hint(
+    key: str, known: frozenset[str], owners: tuple[ConfigPlace, ...], table_known: bool
+) -> tuple[str | None, tuple[ConfigPlace, ...]]:
     """What to tell the user about the unknown *key*: the table(s) *owners*
-    that know it, else the closest *known* key, else nothing."""
+    that know it, else the closest *known* key, else nothing. Never both."""
     if table_known and owners:
-        return f"; it belongs in {' or '.join(owners)}"
+        return None, owners
     candidates = sorted(c for c in known if not _opposite(key, c))
     close = difflib.get_close_matches(key, candidates, n=1, cutoff=_CUTOFF)
-    return f"; did you mean {close[0]!r}?" if close else ""
+    return (close[0] if close else None), ()
 
 
 def _warn_unknown(
     table: dict[str, Any],
-    path: str,
+    place: ConfigPlace,
     known: frozenset[str],
     *,
     source: str | None,
-    owners: Callable[[str], list[str]] | None = None,
+    owners: Callable[[str], tuple[ConfigPlace, ...]] | None = None,
+    once_label: str | None = None,
 ) -> None:
     """One ``WARNING:`` per key of *table* that is not in *known*, in sorted
-    order, once per *source* however often it is parsed. *owners* maps a key
-    to the other tables that know it (for a table, not an array entry)."""
-    where = f"{source} " if source else ""
+    order, once per *source* however often it is parsed. *place* is the
+    table (or the array entry) as its source spells it. *owners* maps a key
+    to the other tables that know it (for a table, not an array entry).
+    *once_label* names the table or array in the said-once key (*place* by
+    default): an entry's index is no part of it."""
     # one file, however spelt (relative or absolute), warns once
     scope = f"{Path(source).absolute()} " if source else ""
+    label = place.text if once_label is None else once_label
     for key in sorted(k for k in table if k not in known):
-        hint = _hint(key, known, owners(key) if owners else [], owners is not None)
-        warn_once(
+        setting, tables = _hint(
+            key, known, owners(key) if owners else (), owners is not None
+        )
+        warn_config_unknown_key(
             log,
-            f"{scope}{path} {key!r}",
-            "%s%s unknown key %r%s",
-            where,
-            path,
+            place,
             key,
-            hint,
+            file=source or None,
+            setting=setting,
+            tables=tables,
+            once=f"{scope}{label} {key!r}",
         )
 
 
-def _owners(key: str, current: str, is_setup_cfg: bool) -> list[str]:
-    """The tables other than *current* that know *key*, either spelling."""
-    return [
-        _label(is_setup_cfg, name)
+def _owners(key: str, current: str, is_setup_cfg: bool) -> tuple[ConfigPlace, ...]:
+    """The tables other than *current* that know *key*, either spelling, as
+    their source spells them."""
+    return tuple(
+        _table_place(name).spelt(is_setup_cfg)
         for name, keys in sorted(KNOWN_KEYS.items())
         if name != current and _same_key(key) in map(_same_key, keys)
-    ]
+    )
 
 
-def _entry_label(is_setup_cfg: bool, name: str, key: str) -> str:
-    """An array's entry table as a message names it. ``files`` holds inline
-    tables, named as the readers' errors name them."""
+def _entry_places(name: str, key: str, is_setup_cfg: bool) -> tuple[ConfigPlace, str]:
+    """The array of entries *key* of the table *name* (``""``: of
+    ``[tool.pitloom]``) as a message names it (``files`` holds inline tables,
+    named as a key), and its label in the said-once key."""
     if key == "files":
-        return f"{_label(is_setup_cfg, name)} {key!r} entry"
-    return f"[[tool.pitloom.{'.'.join(filter(None, (name, key)))}]]"
+        table = _table_place(name).spelt(is_setup_cfg)
+        return table.at(key), f"{table.text} {key!r} entry"
+    array = ConfigPlace(".".join(filter(None, ("tool.pitloom", name, key))))
+    array = array.spelt(is_setup_cfg)
+    return array, array.text
 
 
 def warn_unknown_keys(
@@ -201,12 +213,18 @@ def warn_unknown_keys(
         table = pitloom_data.get(name) if name else pitloom_data
         if isinstance(table, dict):
             owners = partial(_owners, current=name, is_setup_cfg=is_setup_cfg)
-            label = _label(is_setup_cfg, name)
-            _warn_unknown(table, label, known, source=source, owners=owners)
+            place = _table_place(name).spelt(is_setup_cfg)
+            _warn_unknown(table, place, known, source=source, owners=owners)
     for (name, key), known in KNOWN_ENTRY_KEYS.items():
         holder = pitloom_data.get(name) if name else pitloom_data
         entries = holder.get(key) if isinstance(holder, dict) else None
-        for entry in entries if isinstance(entries, list) else ():
+        array, once_label = _entry_places(name, key, is_setup_cfg)
+        for index, entry in enumerate(entries if isinstance(entries, list) else ()):
             if isinstance(entry, dict):
-                label = _entry_label(is_setup_cfg, name, key)
-                _warn_unknown(entry, label, known, source=source)
+                _warn_unknown(
+                    entry,
+                    array.entry_at(index),
+                    known,
+                    source=source,
+                    once_label=once_label,
+                )

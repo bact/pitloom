@@ -85,10 +85,6 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_keys.py", "path"),
         ("extract/_license_detect.py", "path"),
         ("extract/project/_pyproject_fields.py", "project_dir"),
-        # A TOML table path and a regex, shown with repr().
-        ("core/_config_read.py", "table_path"),
-        ("core/model_extract_limit.py", "table_path"),
-        ("core/_config_parse_scan.py", "pattern"),
         # A URL shown with repr(), its credentials masked.
         ("_loom_dataset_meta.py", "location"),
         ("_loom_dataset_meta.py", "masked_given_path"),

@@ -7,7 +7,7 @@ pitloom._embed_generate 1
 pitloom._embed_overlay 1
 pitloom._embed_stale 1
 pitloom._embed_wheel 6
-pitloom._loom_active_run 3
+pitloom._loom_active_run 1
 pitloom._loom_caller 2
 pitloom._loom_dataset_meta 2
 pitloom._loom_model 2
@@ -35,11 +35,6 @@ pitloom.cli.commands.merge 1
 pitloom.cli.commands.utils 4
 pitloom.cli.commands.validate_wheel 3
 pitloom.cli.commands.verify_wheel 6
-pitloom.core._config_keys 1
-pitloom.core._config_legacy 5
-pitloom.core._config_parse 19
-pitloom.core._config_parse_scan 3
-pitloom.core._config_read 5
 pitloom.core._models_wheel_build_and_read 4
 pitloom.core._models_wheel_build_kill 2
 pitloom.core._models_wheel_build_subprocess 4
@@ -49,15 +44,12 @@ pitloom.core._models_wheel_setuptools 3
 pitloom.core._models_wheel_setuptools_relay 1
 pitloom.core._models_wheel_types 1
 pitloom.core.archive_member_names 2
-pitloom.core.config_cascade 2
-pitloom.core.creation 2
+pitloom.core.config_cascade 1
 pitloom.core.dataset_merge 1
 pitloom.core.dataset_names 1
-pitloom.core.file_names 2
+pitloom.core.file_names 1
 pitloom.core.iri 1
-pitloom.core.model_extract_limit 2
 pitloom.core.project 1
-pitloom.core.provenance 2
 pitloom.core.temp_dirs 1
 pitloom.core.wheel_dist_info 4
 pitloom.embed 3
@@ -90,7 +82,7 @@ pitloom.extract.project.pyproject 6
 pitloom.extract.project.reader 1
 pitloom.extract.project.sdist 2
 pitloom.extract.project.setuptools 2
-pitloom.extract.project.setuptools_cfg 6
+pitloom.extract.project.setuptools_cfg 4
 pitloom.extract.project.setuptools_py 3
 pitloom.extract.remote._git_redirect 5
 pitloom.extract.remote._git_run 4
@@ -101,5 +93,4 @@ pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 5
 pitloom.extract.scanner 1
 pitloom.extract.wheel 1
-pitloom.plugins._hatch_config 3
-pitloom.plugins.hatch 8
+pitloom.plugins.hatch 7

@@ -20,9 +20,9 @@ values.
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`option-conflict`](#option-conflict) | ERROR | The command line holds an option the command cannot take in this case (-o/--output with several wheels), or one an existing ID registry contradicts: 'loom id generate --namespace' for a registry made with another namespace, or 'loom id generate' with a --project-dir (the current directory when not given), or 'loom id import' with an explicit one, other than the one the registry was made for. The 'not allowed with' line is reserved for options of a mutually exclusive group; no command has one yet. | 0.25.0 |
-| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a URL credential fingerprint is not one: an accept-url-credentials in [tool.pitloom] that is no array or has an entry that is no fingerprint (named by its position, from 0), or one given to the library; the line never shows the value, which may be a credential pasted by mistake. Or a url-credentials in [tool.pitloom] (PitloomConfig.url_credentials in the library) is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
+| [`option-invalid`](#option-invalid) | ERROR | The command line holds an option or a value the command does not take: an unknown option, a value of the wrong form or out of range, an unknown subcommand, an option out of order (a creator's type or email before its name), or a 'loom id generate' PATH outside --project-dir (the library: a path outside the project root given to IdRegistry.generate). Or a library caller gave a value of the wrong type or shape (the must-be line, as config-invalid says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601 date). Or a URL credential fingerprint given to the library is not one; the line never shows the value, which may be a credential pasted by mistake. Or PitloomConfig.url_credentials is neither warn nor refuse, or CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are config-invalid. An option given without its value is option-missing; two options argparse refuses together are option-conflict. | 0.25.0 |
 | [`option-missing`](#option-missing) | ERROR | The command line lacks an argument or option the command needs (a subcommand, -o/--output for 'loom generate', an ID registry for 'loom id'), or the value of an option given (-o with nothing after it). | 0.25.0 |
-| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. | 0.25.0 |
+| [`option-no-effect`](#option-no-effect) | WARNING, INFO | An option or setting was given that the target or command cannot act on (a build flag without --allow-build, --use-lockfile for a wheel given to 'loom generate', a library parameter a URL target ignores); the line says why. The INFO: line is a [tool.pitloom] setting the build hook or 'embed-wheel' never acts on, named by its flag. The FINGERPRINT= line is a fingerprint accepted (--accept-url-credential, accept-url-credentials in [tool.pitloom]) that no URL value of the SBOM it names (its document id) has: a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id generate' or 'loom id import' given -o and --project-dir, whose project config could not be read (a bare setup(), an invalid setting): its url-credentials is not applied. The FILE= line is a --config file (loom.run's pitloom_config) with no [tool.pitloom] table: a wrong file, most often. | 0.25.0 |
 
 ### `option-conflict`
 
@@ -62,21 +62,22 @@ values.
   take: an unknown option, a value of the wrong form or out of range, an unknown
   subcommand, an option out of order (a creator's type or email before its
   name), or a 'loom id generate' PATH outside --project-dir (the library: a path
-  outside the project root given to IdRegistry.generate). Or a URL credential
-  fingerprint is not one: an accept-url-credentials in [tool.pitloom] that is no
-  array or has an entry that is no fingerprint (named by its position, from 0),
-  or one given to the library; the line never shows the value, which may be a
-  credential pasted by mistake. Or a url-credentials in [tool.pitloom]
-  (PitloomConfig.url_credentials in the library) is neither warn nor refuse, or
-  CredentialPolicy(refuse=...) is no bool. An option given without its value is
-  option-missing; two options argparse refuses together are option-conflict.
+  outside the project root given to IdRegistry.generate). Or a library caller
+  gave a value of the wrong type or shape (the must-be line, as config-invalid
+  says it of a setting: a byte cap of 0, a creation_datetime that is no ISO 8601
+  date). Or a URL credential fingerprint given to the library is not one; the
+  line never shows the value, which may be a credential pasted by mistake. Or
+  PitloomConfig.url_credentials is neither warn nor refuse, or
+  CredentialPolicy(refuse=...) is no bool. The same faults in [tool.pitloom] are
+  config-invalid. An option given without its value is option-missing; two
+  options argparse refuses together are option-conflict.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Ran nothing: the command exits 2 (the Action step fails), 1
-  for a PATH outside --project-dir, a fingerprint or a url-credentials in
-  [tool.pitloom]; the library raises ValueError carrying the code for a build
-  timeout out of range (BuildOptions), a path outside the project root
-  (IdRegistry.generate) and a fingerprint that is none (CredentialPolicy,
-  accept-url-credentials) or a url-credentials that is no mode.
+  for a PATH outside --project-dir; the library raises ValueError carrying the
+  code for a build timeout out of range (BuildOptions), a path outside the
+  project root (IdRegistry.generate), a value of the wrong type or shape, a
+  fingerprint that is none (CredentialPolicy) or a url-credentials that is no
+  mode.
 - **The caller may fix**: The caller may fix the option or value the line names
   ('loom <command> --help' lists them) and run again. Tell the user only when
   the value came from them. For a fingerprint, the user copies it from the
@@ -92,11 +93,9 @@ values.
   ERROR: PATH '<path>' is outside --project-dir '<root>' [option-invalid]
   ERROR: ID registry: PATH '<path>' is not inside the project root '<root>' [option-invalid]
   ERROR: not a fingerprint (sha256: and 16 to 64 lowercase hex digits) [option-invalid]
-  ERROR: <table> <setting> entry <number>: not a fingerprint (sha256: and 16 to 64 lowercase hex digits) [option-invalid]
-  ERROR: <table> <setting>: must be an array of fingerprints [option-invalid]
-  ERROR: <table> <setting>: must be "warn" or "refuse" [option-invalid]
   ERROR: PitloomConfig url_credentials: must be "warn" or "refuse" [option-invalid]
   ERROR: CredentialPolicy refuse: must be True or False [option-invalid]
+  ERROR: <option>: must be <expected>, got <got> [option-invalid]
   ```
 
 ### `option-missing`
@@ -133,7 +132,8 @@ values.
   a value since removed, or a fingerprint mistyped. The DIR= line is 'loom id
   generate' or 'loom id import' given -o and --project-dir, whose project config
   could not be read (a bare setup(), an invalid setting): its url-credentials is
-  not applied.
+  not applied. The FILE= line is a --config file (loom.run's pitloom_config)
+  with no [tool.pitloom] table: a wrong file, most often.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Ran as if it were not given; the run goes on.
 - **The caller may fix**: The caller may drop the option from its command, or
@@ -142,7 +142,8 @@ values.
   edit their configuration. For the FINGERPRINT= line, tell the user the
   acceptance accepts nothing here; they may drop it. For the DIR= line, tell the
   user the project's url-credentials was not applied and why; to refuse, the
-  caller adds --refuse-url-credentials.
+  caller adds --refuse-url-credentials. For the FILE= line, the caller checks it
+  named the file it meant.
 - **Lines**:
 
   ```text
@@ -151,4 +152,5 @@ values.
   WARNING: Build: <name>: <option> has no effect <when> [option-no-effect]
   WARNING: Options: FINGERPRINT=<fingerprint>: matches no URL of the SBOM <element> [option-no-effect]
   WARNING: Options: DIR=<dir>: url-credentials not read: <failure>; the warn mode applies; add <option> to refuse [option-no-effect]
+  WARNING: Options: FILE=<file>: <option> has no [tool.pitloom] table; the defaults apply [option-no-effect]
   ```

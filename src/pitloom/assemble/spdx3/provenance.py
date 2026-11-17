@@ -50,6 +50,7 @@ from pitloom.core.provenance import (
     require_max_source_metadata_bytes,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.messages.config import Parameter
 
 log = logging.getLogger(__name__)
 
@@ -320,7 +321,9 @@ def build_source_metadata_annotation(
     if not metadata:
         return None
 
-    max_metadata_bytes = require_max_source_metadata_bytes(max_metadata_bytes)
+    max_metadata_bytes = require_max_source_metadata_bytes(
+        max_metadata_bytes, Parameter("max_metadata_bytes")
+    )
     types = value_types or {}
     dropped_keys: list[str] = []
     kept_metadata = metadata

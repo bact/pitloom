@@ -45,7 +45,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom._toml_io import load_toml_file
+from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
@@ -56,9 +56,16 @@ from pitloom.core.model_extract_limit import (
     require_max_download_bytes,
     require_positive_ceiling,
 )
-from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 from pitloom.core.quote_source import quote_source
+from pitloom.messages import CodedValueError, code_of, emit
+from pitloom.messages.config import (
+    CONFIG_MALFORMED,
+    TOML_LINE,
+    Parameter,
+)
+from pitloom.messages.files import CONFIG_USE, file_unreadable_error
+from pitloom.messages.options import CONFIG_NO_TABLE_LINE, OPTION_NO_EFFECT
 from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
@@ -163,7 +170,7 @@ def require_model_extract_override(value: object) -> int:
     Raises:
         ValueError: *value* is not an integer of at least 1.
     """
-    return require_positive_ceiling(value, "max_model_extract_bytes")
+    return require_positive_ceiling(value, Parameter("max_model_extract_bytes"))
 
 
 def require_download_override(value: object) -> int:
@@ -173,7 +180,7 @@ def require_download_override(value: object) -> int:
     Raises:
         ValueError: *value* is not an integer of at least 1.
     """
-    return require_positive_ceiling(value, "max_download_bytes")
+    return require_positive_ceiling(value, Parameter("max_download_bytes"))
 
 
 def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
@@ -196,26 +203,46 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         FileNotFoundError: *path* is not a regular file (missing, or a
             directory). ``os.path.isfile`` never raises, on any Python
             version (see AGENTS.md on ``Path.exists()``).
-        ValueError: the file is not UTF-8, not valid TOML, or its settings
-            are invalid (a wrong value or a wrong table shape); the message
-            names *path*; or *path* cannot be looked at
-            (``file-unreadable``, a :class:`~pitloom.messages.CodedValueError`).
-        OSError: the file cannot be read.
+        ValueError: the file is not UTF-8 (``file-unreadable/not-utf8``),
+            not valid TOML (``config-malformed``), cannot be read
+            (``file-unreadable``), or its settings are invalid
+            (``config-invalid``): a
+            :class:`~pitloom.messages.CodedValueError` naming *path*.
     """
     if not is_input_file(path):
         raise input_not_found("config file", path)
+    # Order matters: a TOMLDecodeError and a UnicodeDecodeError are both
+    # ValueErrors; a file gone since the check is not "unreadable".
     try:
         data = load_toml_file(Path(path))
+    except FileNotFoundError:
+        raise input_not_found("config file", path) from None
+    except TOMLDecodeError as exc:
+        raise CodedValueError(
+            CONFIG_MALFORMED, line=TOML_LINE, file=path, failure=exc
+        ) from None
+    except (UnicodeDecodeError, OSError) as exc:
+        raise file_unreadable_error(exc, file=path, use=CONFIG_USE) from None
+    except ValueError as exc:
+        # Not a TOMLDecodeError, e.g. an integer over Python's digit limit.
+        raise CodedValueError(
+            CONFIG_MALFORMED, line=TOML_LINE, file=path, failure=exc
+        ) from None
+    try:
         cfg = parse_pitloom_config(data, source=str(path))
-    except ValueError as exc:  # also TOMLDecodeError, UnicodeDecodeError
+    except ValueError as exc:
+        if code_of(exc) is not None:
+            raise  # names the file already
         raise ValueError(f"config file {quote_source(path)}: {exc}") from exc
     tool = data.get("tool")
     if not isinstance(tool, dict) or not isinstance(tool.get("pitloom"), dict):
-        log.warning(
-            "%s%s: %s file has no [tool.pitloom] table; using the defaults",
-            INERT_LOG_PREFIX,
-            quote_source(path),
-            source,
+        emit(
+            log,
+            OPTION_NO_EFFECT,
+            logging.WARNING,
+            line=CONFIG_NO_TABLE_LINE,
+            file=path,
+            option=source,
         )
     # Every relative path in the file means the same thing wherever
     # Pitloom runs: it resolves against the file's own directory.
@@ -352,7 +379,9 @@ def resolve_fetch_policy(
         ConfigOverrides(offline=offline, max_download_bytes=max_download_bytes),
     )
     return RemoteFetchPolicy(
-        max_bytes=require_max_download_bytes(cfg.max_download_bytes, "pitloom_config"),
+        max_bytes=require_max_download_bytes(
+            cfg.max_download_bytes, Parameter("PitloomConfig.max_download_bytes")
+        ),
         offline=cfg.offline,
         check_url=check_url,
     )

@@ -14,7 +14,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from pitloom.core._config_legacy import _table
 from pitloom.core._config_read import (
     _read_array_of_tables,
     _read_bool_setting,
@@ -35,7 +34,11 @@ from pitloom.core.model_extract_limit import (
     require_max_model_extract_bytes,
 )
 from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.messages.config import MISSING, ConfigPlace, config_invalid
 
+_CONTENT_TYPE = ConfigPlace("tool.pitloom.content-type")
+_OVERRIDE = ConfigPlace("tool.pitloom.content-type.override")
+_PROVENANCE = ConfigPlace("tool.pitloom.provenance")
 _CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
 
 
@@ -45,23 +48,21 @@ def _read_content_type_overrides(
     """Read ``[[tool.pitloom.content-type.override]]``."""
     raw_overrides = raw.get("override", [])
     overrides: list[ContentTypeOverride] = []
-    for entry in _read_array_of_tables(
-        raw_overrides, "[[tool.pitloom.content-type.override]]"
-    ):
+    for index, entry in enumerate(_read_array_of_tables(raw_overrides, _OVERRIDE)):
+        place = _OVERRIDE.entry_at(index)
         pattern = entry.get("pattern")
         if not isinstance(pattern, str) or not pattern:
-            raise ValueError(
-                "[[tool.pitloom.content-type.override]] "
-                f"'pattern' must be a non-empty string, got {pattern!r}"
+            raise config_invalid(
+                place.at("pattern"), "non-empty", got=entry.get("pattern", MISSING)
             )
         content_type = entry.get("content-type")
         if not isinstance(content_type, str) or not _CONTENT_TYPE_RE.match(
             content_type
         ):
-            raise ValueError(
-                "[[tool.pitloom.content-type.override]] "
-                "'content-type' must be a MIME type in 'type/subtype' form "
-                f"(e.g. 'image/png'), got {content_type!r}"
+            raise config_invalid(
+                place.at("content-type"),
+                "media-type",
+                got=entry.get("content-type", MISSING),
             )
         overrides.append(
             ContentTypeOverride(pattern=pattern, content_type=content_type)
@@ -109,18 +110,16 @@ def _read_max_download_bytes(pitloom_data: dict[str, Any]) -> int:
     )
 
 
-def _read_max_source_metadata_bytes(
-    provenance_data: dict[str, Any], is_setup_cfg: bool
-) -> int:
+def _read_max_source_metadata_bytes(provenance_data: dict[str, Any]) -> int:
     """Read ``[tool.pitloom.provenance] max-source-metadata-bytes`` (either
     spelling): ``0`` or a budget of at least 8
     (:func:`~pitloom.core.provenance.require_max_source_metadata_bytes`). An
-    error names the key as written, in the table as its source names it."""
-    table = _table(is_setup_cfg, "provenance")
+    error names the key as written."""
     keys = ("max-source-metadata-bytes", "max_source_metadata_bytes")
     key = next((k for k in keys if k in provenance_data), keys[0])
+    place = _PROVENANCE.at(key)
     return require_max_source_metadata_bytes(
-        _read_int_setting(provenance_data, key, 0, table), f"{table} {key!r}"
+        _read_int_setting(provenance_data, key, 0, _PROVENANCE), place
     )
 
 
@@ -130,16 +129,11 @@ def _read_content_type_settings(
     """Read ``[tool.pitloom.content-type]`` settings."""
     raw = pitloom_data.get("content-type", {})
     if not isinstance(raw, dict):
-        raise ValueError(
-            "[tool.pitloom.content-type] must be a table, got "
-            f"{type(raw).__name__}: {raw!r}"
-        )
-    enabled = _read_bool_setting(
-        raw, "enabled", False, table_path="[tool.pitloom.content-type]"
-    )
+        raise config_invalid(_CONTENT_TYPE, "table", got=raw)
+    enabled = _read_bool_setting(raw, "enabled", False, _CONTENT_TYPE)
     method = raw.get("method", "auto")
     _require_choice(
-        method, VALID_CONTENT_TYPE_METHODS, "[tool.pitloom.content-type]", "method"
+        method, VALID_CONTENT_TYPE_METHODS, _CONTENT_TYPE.at("method"), "one-of-method"
     )
     overrides = _read_content_type_overrides(raw)
     return enabled, method, overrides

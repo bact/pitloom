@@ -20,6 +20,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.extract.project.pyproject import read_pyproject
+from pitloom.messages import code_of
 
 
 def test_extract_pitloom_creation_tool_missing_name_raises() -> None:
@@ -39,7 +40,11 @@ version = "1.0.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="missing a valid 'name'"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creation-tool\]\] entry 0 name: "
+            r"must be a non-empty string, got nothing",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -59,7 +64,11 @@ name = ""
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="missing a valid 'name'"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creation-tool\]\] entry 0 name: "
+            r"must be a non-empty string, got a string ''",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -81,8 +90,13 @@ email = "nobody@example.com"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="missing a valid 'name'"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\] entry 0 name: "
+            r"must be a non-empty string, got nothing",
+        ) as exc:
             read_pyproject(pyproject_path)
+        assert str(exc.value).startswith(f"FILE={pyproject_path}: ")
 
 
 def test_extract_pitloom_creator_type_wrong_pytype_raises() -> None:
@@ -103,7 +117,11 @@ type = 123
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="'type' must be a string"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\] entry 0 type: must be a string, "
+            r"got an integer 123",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -124,7 +142,11 @@ email = 123
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="'email' must be a string"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\] entry 0 email: must be a string, "
+            r"got an integer 123",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -145,7 +167,11 @@ name = "Alice"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="must be an array of tables"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\]: must be an array of tables, "
+            r"got a table",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -165,7 +191,11 @@ creator = ["Alice"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="entry must be a table"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\] entry 0: must be a table, "
+            r"got a string 'Alice'",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -189,8 +219,13 @@ name = "MyWrapper"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="has moved to"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom\] creation-tool: moved to "
+            r"\[\[tool.pitloom.creation-tool\]\] name",
+        ) as exc:
             read_pyproject(pyproject_path)
+        assert code_of(exc.value) == "config-moved"
 
 
 def test_extract_pitloom_creation_tool_list_of_strings_raises() -> None:
@@ -209,7 +244,11 @@ creation-tool = ["MyWrapper"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="entry must be a table"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creation-tool\]\] entry 0: must be a table, "
+            r"got a string 'MyWrapper'",
+        ):
             read_pyproject(pyproject_path)
 
 

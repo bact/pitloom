@@ -31,6 +31,7 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages.files import (
+    CONFIG_USE,
     DIR_UNLISTABLE,
     FILE_UNREADABLE,
     FILE_UNREADABLE_NOT_UTF8,
@@ -293,6 +294,7 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 #: The use constants the catalogue exports, by name, which a module passes
 #: imported, not defined.
 _SHARED_USES = {
+    "CONFIG_USE": CONFIG_USE,
     "INPUT_USE": INPUT_USE,
     "REGISTRY_USE": REGISTRY_USE,
     "SBOM_USE": SBOM_USE,

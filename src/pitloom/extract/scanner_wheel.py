@@ -56,6 +56,7 @@ from pitloom.extract.scanner import (
     scan_ai_models,
 )
 from pitloom.messages import Message
+from pitloom.messages.config import Parameter
 from pitloom.messages.files import (
     Cap,
     warn_over_cap,
@@ -372,7 +373,9 @@ def scan_wheel_for_ai_models(
     :func:`pitloom.extract.scanner.discover_ai_models`.
     """
     # Only a library PitloomConfig reaches here unvalidated.
-    require_max_model_extract_bytes(max_bytes, "pitloom_config")
+    require_max_model_extract_bytes(
+        max_bytes, Parameter("PitloomConfig.max_model_extract_bytes")
+    )
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
         all_members = wheel_members(zf, wheel_path.name)

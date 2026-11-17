@@ -17,20 +17,26 @@ from __future__ import annotations
 
 from typing import Any
 
+from pitloom.messages.config import ConfigPlace, config_invalid
+
+_PITLOOM = ConfigPlace("tool.pitloom")
+
 
 def _read_bool_setting(
     data: dict[str, Any],
     key: str,
     default: bool,
-    table_path: str = "[tool.pitloom]",
+    within: ConfigPlace = _PITLOOM,
 ) -> bool:
-    """Read a boolean key from data, defaulting to default when absent."""
+    """Read a boolean key from data, defaulting to default when absent.
+
+    Raises:
+        pitloom.messages.config.ConfigError: ``config-invalid``: the value is
+            not a boolean; *within* is the table or entry that holds *key*.
+    """
     value = data.get(key, default)
     if not isinstance(value, bool):
-        raise ValueError(
-            f"{table_path} {key!r} must be a boolean, got "
-            f"{type(value).__name__}: {value!r}"
-        )
+        raise config_invalid(within.at(key), "boolean", got=value)
     return value
 
 
@@ -38,57 +44,59 @@ def _read_int_setting(
     data: dict[str, Any],
     key: str,
     default: int,
-    table_path: str = "[tool.pitloom]",
+    within: ConfigPlace = _PITLOOM,
 ) -> int:
     """Read an int key from data, defaulting to default when absent.
 
     Rejects a bool value explicitly -- ``isinstance(True, int)`` is ``True``
     in Python, so a TOML ``key = true`` would otherwise silently pass as 1.
+
+    Raises:
+        pitloom.messages.config.ConfigError: ``config-invalid``: the value is
+            not an integer.
     """
     value = data.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(
-            f"{table_path} {key!r} must be an integer, got "
-            f"{type(value).__name__}: {value!r}"
-        )
+        raise config_invalid(within.at(key), "integer", got=value)
+    return value
+
+
+def _optional_str(entry: dict[str, Any], key: str, place: ConfigPlace) -> str | None:
+    """*entry*'s *key* (``None`` when absent), a string: ``config-invalid``
+    at *place* (the entry or table that holds *key*) otherwise."""
+    value = entry.get(key)
+    if value is not None and not isinstance(value, str):
+        raise config_invalid(place.at(key), "string", got=value)
     return value
 
 
 def _require_choice(
-    value: str, valid: frozenset[str], table_path: str, key: str
+    value: object, valid: frozenset[str], place: ConfigPlace, expected: str
 ) -> None:
-    """Raise ValueError unless value is one of valid."""
-    if value not in valid:
-        options = ", ".join(sorted(valid))
-        raise ValueError(
-            f"{table_path} {key!r} must be one of {options}, got {value!r}"
-        )
+    """Raise unless *value* is a string of *valid*: ``config-invalid`` at
+    *place* (the key), *expected* being the id of the choices
+    (``one-of-format`` ...)."""
+    if not isinstance(value, str) or value not in valid:
+        raise config_invalid(place, expected, got=value)
 
 
-def _read_array_of_tables(raw: Any, table_repr: str) -> list[dict[str, Any]]:
-    """Validate raw is a TOML array-of-tables and return its entries."""
+def _read_array_of_tables(raw: Any, place: ConfigPlace) -> list[dict[str, Any]]:
+    """Validate raw is a TOML array-of-tables at *place* (an array of
+    :data:`~pitloom.messages.config.ARRAY_TABLES`) and return its entries."""
     if not isinstance(raw, list):
-        raise ValueError(
-            f"{table_repr} must be an array of tables, got "
-            f"{type(raw).__name__}: {raw!r}"
-        )
-    for entry in raw:
+        raise config_invalid(place, "array-of-tables", got=raw)
+    for index, entry in enumerate(raw):
         if not isinstance(entry, dict):
-            raise ValueError(
-                f"{table_repr} entry must be a table, got "
-                f"{type(entry).__name__}: {entry!r}"
-            )
+            raise config_invalid(place.entry_at(index), "table", got=entry)
     return raw
 
 
-def _read_table(parent: dict[str, Any], key: str, name: str) -> dict[str, Any]:
-    """*parent*'s sub-table *key* (``{}`` when absent), named *name* in the
+def _read_table(parent: dict[str, Any], key: str, place: ConfigPlace) -> dict[str, Any]:
+    """*parent*'s sub-table *key* (``{}`` when absent), named *place* in the
     error for a value that is not a table."""
     value = parent.get(key)
     if value is None:
         return {}
     if not isinstance(value, dict):
-        raise ValueError(
-            f"{name} must be a table, got {type(value).__name__}: {value!r}"
-        )
+        raise config_invalid(place, "table", got=value)
     return value

@@ -19,6 +19,7 @@ import pytest
 
 from pitloom.core.creation import Creator, Tool
 from pitloom.extract.project.pyproject import read_pyproject
+from pitloom.messages import code_of
 
 
 def test_extract_metadata_basic() -> None:
@@ -191,8 +192,13 @@ def test_creator_valid_types_construct_and_normalize(
 def test_creator_invalid_type_raises_at_construction() -> None:
     """``Creator(type="bogus")`` raises ValueError eagerly at construction,
     not only later at SPDX assembly time."""
-    with pytest.raises(ValueError, match="Invalid creator type"):
+    with pytest.raises(
+        ValueError,
+        match=r"Creator.type: must be one of agent, organization, person, "
+        r"software-agent, got a string 'bogus'",
+    ) as exc:
         Creator(name="Bot", type="bogus")
+    assert code_of(exc.value) == "option-invalid"
 
 
 def test_extract_pitloom_creation_settings() -> None:
@@ -313,7 +319,12 @@ max-source-metadata-bytes = {value}
     with tempfile.TemporaryDirectory() as tmpdir:
         pyproject_path = Path(tmpdir) / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
-        with pytest.raises(ValueError, match="at least 8 bytes"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom.provenance\] max-source-metadata-bytes: "
+            r"must be 0 \(no cap\) or an integer of at least 8, "
+            rf"got an integer {value}",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -331,7 +342,10 @@ max-source-metadata-bytes = true
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="must be an integer"):
+        with pytest.raises(
+            ValueError,
+            match=r"max-source-metadata-bytes: must be an integer, got a boolean true",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -349,7 +363,11 @@ max-source-metadata-bytes = "5000"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="must be an integer"):
+        with pytest.raises(
+            ValueError,
+            match=r"max-source-metadata-bytes: must be an integer, "
+            r"got a string '5000'",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -357,8 +375,11 @@ max-source-metadata-bytes = "5000"
 def test_creator_without_name_raises(name: str) -> None:
     """An empty or whitespace-only name is no name: ValueError eagerly at
     construction."""
-    with pytest.raises(ValueError, match="Creator name must be non-empty"):
+    with pytest.raises(
+        ValueError, match=r"Creator.name: must be a non-empty string, got a string"
+    ) as exc:
         Creator(name=name)
+    assert code_of(exc.value) == "option-invalid"
 
 
 @pytest.mark.parametrize(
@@ -381,11 +402,15 @@ def test_creator_name_and_email_stripped(
 
 def test_tool_empty_name_raises() -> None:
     """``Tool(name="")`` raises ValueError eagerly at construction."""
-    with pytest.raises(ValueError, match="Tool name must be non-empty"):
+    with pytest.raises(
+        ValueError, match=r"Tool.name: must be a non-empty string, got a string ''"
+    ):
         Tool(name="")
 
 
 def test_tool_whitespace_name_raises() -> None:
     """``Tool(name="   ")`` raises ValueError eagerly at construction."""
-    with pytest.raises(ValueError, match="Tool name must be non-empty"):
+    with pytest.raises(
+        ValueError, match=r"Tool.name: must be a non-empty string, got a string '   '"
+    ):
         Tool(name="   ")
