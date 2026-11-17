@@ -17,6 +17,7 @@ import errno
 import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,12 @@ from tests.registry_helpers import make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
 _CONTENT = b"12345"
+
+
+def _file(name: str) -> str:
+    """The ``FILE=`` text (a regex) for ``cfg/<name>`` as the message writes
+    it: the path as the platform spells it (``cfg\\x.toml`` on Windows)."""
+    return "FILE=" + re.escape(str(Path("cfg") / name))
 
 
 @pytest.fixture(name="project")
@@ -186,16 +193,16 @@ def test_bad_keyword_fails_before_the_run(
     ("config", "needle", "code"),
     [
         ("cfg/missing.toml", "not found", "input-not-found"),
-        ("cfg/bad.toml", "FILE=cfg/bad.toml: not valid TOML", "config-malformed"),
+        ("cfg/bad.toml", _file("bad.toml") + ": not valid TOML", "config-malformed"),
         (
             "cfg/zero.toml",
-            r"FILE=cfg/zero.toml: \[tool.pitloom\] max-dataset-hash-bytes: "
+            _file("zero.toml") + r": \[tool.pitloom\] max-dataset-hash-bytes: "
             "must be an integer of at least 1, got an integer 0",
             "config-invalid",
         ),
         (
             "cfg/bool.toml",
-            r"FILE=cfg/bool.toml: \[tool.pitloom\] max-dataset-hash-bytes: "
+            _file("bool.toml") + r": \[tool.pitloom\] max-dataset-hash-bytes: "
             "must be an integer, got a boolean true",
             "config-invalid",
         ),
@@ -327,5 +334,5 @@ def test_config_file_without_a_table_names_pitloom_config(
         r.getMessage() for r in caplog.records if "empty.toml" in r.getMessage()
     ]
     assert "pitloom_config has no [tool.pitloom] table; the defaults apply" in message
-    assert "FILE=cfg/empty.toml" in message
+    assert re.search(_file("empty.toml"), message)
     assert "--config" not in message
