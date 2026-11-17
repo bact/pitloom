@@ -26,27 +26,29 @@ lines plus a link; detail lives in the linked doc.
 [roadmap-completed.md](../implementation/roadmap-completed.md): everything
 shipped up to 0.24.0 (0.20.0 #226-#286 on 2026-10-05, 0.20.1 on 2026-10-07,
 0.20.2 on 2026-10-09, 0.21.0 #300-#361 and 0.21.1 #364-#366 on 2026-10-28,
-0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0 #434-#449
-on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07, 0.23.3
-#461 on 2026-11-09, 0.23.4 #462, #464 and #465 on 2026-11-09, 0.24.0 #468, #469 and #471 on
-2026-11-11), including their
-release-plan items.
+0.22.0 #374-#408 on 2026-10-30, 0.22.1 #413-#433 on 2026-11-03, 0.23.0
+#434-#449 on 2026-11-05, 0.23.1 #450-#456 and 0.23.2 #457-#459 on 2026-11-07,
+0.23.3 #461 and 0.23.4 #462, #464 and #465 on 2026-11-09, 0.24.0 #468, #469
+and #471 on 2026-11-11), with each release's highlights and requirements.
 User-facing documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
 Order (2026-11-04): 0.21.0 -> 0.21.1 -> 0.22.0 -> 0.22.1 -> 0.23.0 -> 0.24.0 ->
-1.0. 0.24.0 shipped 2026-11-11 with the breaking changes only; the catalogue
-and provenance work planned for it is under "After 0.24.0" below, targeting
-0.25.0 (not released). No date for 1.0. 0.23.1 to 0.23.4, patches for LicenseID 0.7.2,
-0.7.3, 0.8.1 and 0.8.4, came between 0.23.0 and 0.24.0.
+1.0. Every release up to 0.24.0 (2026-11-11) has shipped; what each built, and
+what it requires, is in
+[roadmap-completed.md](../implementation/roadmap-completed.md), the procedure
+in [release-checklist.md](../implementation/release-checklist.md). The
+catalogue and provenance work planned for 0.24.0 is under "After 0.24.0"
+below, targeting 0.25.0 (not released). No date for 1.0.
 
-### 0.21.0
+**Process (decided 2026-10-30):** two test gates per PR and a pre-release
+review before each release tag. See
+[testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
 
-**Released 2026-10-28** (v0.21.0); v0.21.1 (#364-#366) the same day; Lumina
-pins 0.21.1. See [release-checklist.md](../implementation/release-checklist.md).
+### Carried over from 0.21.0
 
-Not built in 0.21.0; carried over (decided 2026-10-23):
+Not built in 0.21.0 (decided 2026-10-23):
 
 - [ ] **A fragment value beats a value read from the file** (generated case
   built, #349): a **catalogue** or fragment value must win over a value read
@@ -82,62 +84,9 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   replacing library reads, parity-tested; HDF5 last. See
   [model-metadata-readers.md](model-metadata-readers.md).
 
-Built for 0.21.0 (#300-#361): registry v3, Git URL ingestion and hosts,
-G7/CISA/FSCT/BSI conformance tests, SHA-512. See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0210-prs-300-361).
+### Carried over from 0.23.0
 
-### 0.22.0
-
-**Released 2026-10-30** (v0.22.0). See [CHANGELOG.md](../../CHANGELOG.md) and
-[release-checklist.md](../implementation/release-checklist.md). Highlights:
-catalogued messages end in a `[code]` (Git LFS pointers, size caps, why a model
-was not read, unreadable files and directories); **breaking:** ID registry
-format 4 keys a package by name and version (format 3 is refused); fixes for a
-non-UTF-8 file name, a `:` in provenance text and direct-URL dependencies. Keeps
-`licenseid>=0.6.0,<0.7`. Built in 0.22.0 (#374-#408). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0220-prs-374-410).
-
-### 0.22.1
-
-**Released 2026-11-03** (v0.22.1). See [CHANGELOG.md](../../CHANGELOG.md) and
-[release-checklist.md](../implementation/release-checklist.md). Highlights:
-`--scan-model-usage` reads Python ASTs (#413; crash and time limits #432); a
-Git LFS pointer is no longer licence text (#422, #429); fixes for the PT2,
-Keras, fastText, GGUF, Safetensors and ONNX readers (#426, #427, #433);
-`loom id generate -e` refuses a package name that is not a PEP 508 name
-(#429). Keeps `licenseid>=0.6.0,<0.7`.
-Built in 0.22.1 (#413-#433). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0221-prs-413-433).
-
-### 0.23.0: LicenseID 0.7 and message catalogue
-
-**Released 2026-11-05** (v0.23.0), cut early (maintainer ruling 2026-11-04).
-See [CHANGELOG.md](../../CHANGELOG.md) and
-[release-checklist.md](../implementation/release-checklist.md). Highlights:
-declared licence values read by LicenseID 0.7 with no licence database
-(#437-#440, floor 0.7.1 #445; see
-[licenseid/adoption-plan.md](../implementation/licenseid/adoption-plan.md));
-message codes for cards, Croissant and lone surrogates (catalogue PR 2b,
-#444) and for model fields read in part and unusable libraries (PRs 1b and
-1c, #446); no agent files in the sdist or wheel (#435). Requires
-`licenseid>=0.7.1,<0.8`. The
-ratchet fell from 498 to 469. The generated message reference was split in
-#480. Moved to 0.24.0: the uniform `loom <command>:` frame (PR 4), catalogue
-PRs 3 to 18 (3 to 7 built: #481, #482, #485, #486, #492), the licence
-provenance mapping ([#384](https://github.com/bact/pitloom/pull/384), T14),
-`--report` and SARIF. See
-[message-catalogue-migration-plan.md](message-catalogue-migration-plan.md)
-and [message-catalogue-and-skills.md](message-catalogue-and-skills.md).
-Built in 0.23.0 (#434-#446). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0230-prs-434-446).
-Evidence-level work continues where it pairs with a catalogue family (over-cap,
-unreadable file, Hub failure).
-
-**Process (decided 2026-10-30):** two test gates per PR and a pre-release
-review before each release tag. See
-[testing-and-review-policy.md](../implementation/testing-and-review-policy.md).
-
-Not built in 0.23.0 (open):
+Not built in 0.23.0:
 
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See the [`loom` SDK](#loom-sdk-code-model-dataset-annotation) section and
@@ -151,54 +100,6 @@ Not built in 0.23.0 (open):
   beyond keeping it working. See [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
   item below.
-
-### 0.23.1: LicenseID 0.7.2
-
-**Released 2026-11-07** (v0.23.1), a patch release. With LicenseID 0.7.2, its
-short-text notice (`too few words for text`) is said at `DEBUG`, not
-`WARNING:`, and licence titles and aliases are read as ids (#455). Requires
-`licenseid>=0.7.2,<0.8`; the skills require `pitloom>=0.23.1` (#456). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0231-prs-450-455).
-
-### 0.23.2: LicenseID 0.7.3
-
-**Released 2026-11-07** (v0.23.2), a patch release. With LicenseID 0.7.3,
-Apache names with a version (`Apache, Version 2.0`, `Apache Software License
-2.0`) are read as `Apache-2.0`; with no LicenseID database a declared licence
-name no longer warns (#458). Requires `licenseid>=0.7.3,<0.8`; the skills
-require `pitloom>=0.23.2` (#459). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0232-prs-457-459).
-
-### 0.23.3: LicenseID 0.8.1
-
-**Released 2026-11-09** (v0.23.3), a patch release. With LicenseID 0.8.1, a
-licence URL is read as its ID (`https://www.apache.org/licenses/LICENSE-2.0`
-is `Apache-2.0`) and a control or format character at either end of a value is
-dropped. Requires `licenseid>=0.8.1,<0.9`; the skills require
-`pitloom>=0.23.3` (#461). See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0233-pr-461).
-
-### 0.23.4: LicenseID 0.8.4 and a model SBOM from a Git URL
-
-**Released 2026-11-09** (v0.23.4), a patch release. Requires
-`licenseid>=0.8.4,<0.9` (#462, #465); a model file or folder at a Git URL gives
-a model SBOM, and a Keras v3 model gives more fields (#464); the skills require
-`pitloom>=0.23.4`. See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0234-prs-462-464-465).
-
-### 0.24.0: PyPI URLs, remote-fetch policy and valid licence output
-
-**Released 2026-11-11** (v0.24.0), cut for its breaking changes (ruling
-2026-11-11). See [CHANGELOG.md](../../CHANGELOG.md) and
-[release-checklist.md](../implementation/release-checklist.md). Highlights:
-PyPI project and release URLs as targets and one fetch policy for Git, PyPI and
-Hugging Face (#468); `--trust-wheel-model` renamed `--trust-model-files`, also
-lifting the Git URL reader gate (#469); a licence text reached through a
-`LicenseExpression`, `LicenseRef-loom-text-<hash>` and
-`LicenseRef-loom-classifier-` (#471, see
-[license-free-text-wrapper.md](../implementation/license-free-text-wrapper.md)).
-The skills require `pitloom>=0.24.0`. See
-[roadmap-completed.md](../implementation/roadmap-completed.md#shipped-in-0240-prs-468-469-471).
 
 ### After 0.24.0: message catalogue and licence provenance
 
@@ -239,8 +140,8 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   to 328 to 316.
 - [ ] **Catalogue PRs 8 to 18** (the remaining families, the licence families
   last): the remote registry entries, lock files, config, project metadata,
-  Git, Hub and build, fragments and wheels, miscellany, licence. Next: a
-  consistency re-check of the merged families (follow-up of #492).
+  Git, Hub and build, fragments and wheels, miscellany, licence. The
+  consistency re-check of the merged families is done (#494); next: PR 8.
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install
@@ -249,7 +150,7 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   catalogue, code-shape, docs and size items are listed in
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
   also a NUL byte in a library registry path raises `InternalError`, and
-  `test_each_view_is_linear` flaked twice on CI runners (bound 32).
+  `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See

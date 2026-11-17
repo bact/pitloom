@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-23
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ on a v2 file, no migration) and the ceiling key `max-dataset-hash-bytes`
 Registry v3 is its own PR, independent of G7. It is cross-cutting and
 touches every surface. Order (release plan, 2026-10-05): 0.20.0 -> 0.20.1
 -> **this PR** in 0.21.0 -> G7 in 0.22.0 (see
-[roadmap.md](../design/roadmap.md#0210)). Base the branch on a `main` that
+[roadmap.md](../design/roadmap.md#carried-over-from-0210)). Base the branch on a `main` that
 already has:
 
 - **D:** its fixture carries `demo/tiny.safetensors` and `demo/load.py`,
