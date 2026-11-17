@@ -213,10 +213,14 @@ values.
   system, a full disk, a directory where the file should be). Today the ID
   registry file, written 'for the ID registry'.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Left the file as it was. As an ERROR ('loom id generate',
-  'loom id import'), the registry is not written and the command exits 1. As a
-  WARNING (loom generate, project, wheel and env, the library's generate
-  functions and loom.Run, saving the ids a run added after its SBOM is written),
+- **Pitloom did**: Tried to write the file through a temporary file beside it,
+  so a failed write leaves its old content; where the directory refuses a
+  temporary file, the file is written in place and a failure (a full disk) can
+  leave it part-written. As an ERROR ('loom id generate', 'loom id import'), the
+  command exits 1. As a WARNING (loom generate (a project, wheel or
+  environment), project, wheel and env, the library's generate_project_sbom,
+  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
+  call them, and loom.Run, saving the ids a run added after its SBOM is built),
   the SBOM stands and the ids are not saved: the next run mints them again.
 - **Tell the user**: which file could not be written and what the system
   reported, as the line says. They give the account Pitloom runs as write access
@@ -249,7 +253,7 @@ values.
   SBOM to embed, no wheel is changed; for one to import, the ID registry is not
   written; for an ID registry file, no registry and no SBOM is written, and the
   file is left as it is. As a WARNING (an ID registry file read again to save
-  the ids a run added, after its SBOM is written), nothing is saved and the SBOM
+  the ids a run added, after its SBOM is built), nothing is saved and the SBOM
   stands.
 - **Tell the user**: which document is not valid JSON, or not a JSON object, and
   what the parser reported, as the line says. They fix or replace a local file

@@ -131,7 +131,8 @@ def sanitize_url_credentials(text: str) -> str:
     a query parameter named like a secret (``?private_token=***``).
 
     Used across extractors, build backends, and error loggers to prevent
-    sensitive auth tokens from leaking into error messages or SBOM output.
+    sensitive auth tokens from leaking into log and error messages (an SBOM
+    field is written as it is: see :mod:`pitloom.core.credential_policy`).
     The userinfo ends at the last ``@`` before the first ``/`` or whitespace
     (:func:`userinfo_end`), so a password holding ``@``, ``?`` or ``#`` is
     redacted whole, and ``https://h?contact=me@x.org`` is a query. For a

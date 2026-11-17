@@ -27,6 +27,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
+from pitloom._sbom_io import replace_text_lf
 from pitloom.cli.parser import command_frame
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -161,34 +162,32 @@ def test_the_entity_key_info_waits_for_the_save(
 ) -> None:
     """``-e ./demo/__init__.py`` is stored as ``demo/__init__.py``: that
     ``INFO:`` is said once the registry is written, never before the
-    ``ERROR:`` of a save that writes nothing. The write fails at
-    ``os.replace``, after the temporary file is written (not ``chmod``,
-    which Windows does not refuse)."""
+    ``ERROR:`` of a save that writes nothing. The registry writer
+    (patched where ``_format`` imported it, not on the shared ``os``)
+    fails with a full disk."""
     _prepare(tmp_path, monkeypatch, "generate")
     argv = [*sys.argv, "-e", f"./demo/__init__.py:{FILE_TYPE}"]
     monkeypatch.setattr(sys, "argv", argv)
-    real = os.replace
+    real = replace_text_lf
     calls: list[str] = []
 
-    def _replace(src: str, dst: str) -> None:
-        calls.append(dst)
+    def _write(path: Path | str, text: str) -> None:
+        calls.append(str(path))
         if fails:
-            raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC), src)
-        real(src, dst)
+            raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC), str(path))
+        real(path, text)
 
     capsys.readouterr()
-    with monkeypatch.context() as patched:
-        patched.setattr(os, "replace", _replace)
-        rc = __main__.main()
+    monkeypatch.setattr("pitloom.id_registry._format.replace_text_lf", _write)
+    rc = __main__.main()
 
     err = capsys.readouterr().err
-    assert calls  # not vacuous: the write reached os.replace
+    assert calls  # not vacuous: the save reached the writer
     assert rc == int(fails)
     stored = "INFO: ID registry: -e ./demo/__init__.py stored as demo/__init__.py\n"
     assert (stored in err) is not fails
     if fails:
         _assert_one_failed_save(err, "generate", "ERROR", os.strerror(errno.ENOSPC))
-        assert ".tmp" not in err
 
 
 def test_a_repeated_entity_key_info_is_said_once(

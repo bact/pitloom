@@ -252,6 +252,18 @@ def test_a_registry_with_no_file_is_coded(caplog: pytest.LogCaptureFixture) -> N
     assert REGISTRY_FILE_MISSING.actor == "caller"
 
 
+def test_every_run_without_a_registry_file_says_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The line is not once-per-process: a second run in one process (a
+    long-lived library caller, a second ``loom.Run``) loses its ids too, and
+    must say so."""
+    with caplog.at_level(logging.INFO, logger=_LOG.name):
+        warn_no_registry_file(_LOG)
+        warn_no_registry_file(_LOG)
+    assert [r.levelname for r in caplog.records] == ["WARNING", "WARNING"]
+
+
 def test_the_save_summaries_are_catalogued() -> None:
     """Each a summary of the catalogue, so the ratchet leaves its call out."""
     saves = {

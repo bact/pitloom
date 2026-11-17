@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-05
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -269,10 +269,10 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   [message-frames-forward.md](../design/message-frames-forward.md)).
   `registry_file_error` and `unencodable_message` are gone, so the stacked
   `ID registry file 'p': ID registry: key ...` (the unencodable name) is
-  fixed. Another stack is left: a load or save failure inside
-  `failed_to_save_message` still prints `ID registry: failed to save
+  fixed. Another stack, fixed in #492: a load or save failure inside
+  `failed_to_save_message` printed `ID registry: failed to save
   '<absolute path>': ID registry: FILE=<path as given>: ...`: the file twice,
-  spelt two ways, and no code (PR 7).
+  spelt two ways, and no code.
 - Reused by advice: `file-unreadable` (`/not-utf8`) and `json-malformed`
   read `for the ID registry` (a new `READ_USES` value); a version or key
   literal that `pitloom.messages` cannot import (`4`, `MAX_ID_NUMBER`) is a
@@ -304,9 +304,8 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
 - `PATH ... is outside --project-dir`, `not inside the project root` and the
   project-root conflict quote the directory (field `root`) as they quote the
   path, so a `; ` in it cannot split the line.
-- Not coded here: the save wrapper `failed_to_save_message` still prints
-  the inner text without its code (PR 7), and the skipped-directory decision
-  line (`_types.py`, PR 6).
+- Not coded here: the save wrapper (fixed in #492: `say_save_failure`) and
+  the skipped-directory decision line (`_types.py`, PR 6).
 
 ## ID registry ids and keys (#486, catalogue PR 6)
 
@@ -380,7 +379,7 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   summaries, `_loom_dataset.py:108` (the registry inside a dataset
   directory), and the hook's `did` texts (the hook never saves).
 
-## ID registry saves, left-out files and summaries (catalogue PR 7)
+## ID registry saves, left-out files and summaries (catalogue PR 7, #492)
 
 - A failed save says the line of what stopped it, never a wrapper:
   `failed_to_save_message` is gone, and with it `ID registry: failed to
@@ -446,5 +445,6 @@ and takes `unusable` from the closed vocabulary (no word says "forbidden"). See
   for the scp case would split the family for one shape.
 - `credentials-unsafe` gained a line for a value the SBOM strip leaves that
   the detector refuses ("which the SBOM states as written"),
-  said once per value, masked; PR 2 replaces the strip with the detector
-  and retires the line.
+  said once per value, masked; PR 2 (#490) replaced the strip with the
+  detector and retired the line (`credentials-unsafe/written`, `/refused` and
+  `/accepted` took its place: warn by default, refuse opt-in).

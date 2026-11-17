@@ -31,7 +31,10 @@ from tests._message_drift import quote_matches, relative
 #: line for a family whose lines share no core.
 _MARKERS: dict[str, tuple[str, ...]] = {
     "card-malformed": ("frontmatter is not valid YAML",),
-    "config-unsafe": ("[tool.pitloom] settings are ignored", "CLI only; ignored in"),
+    "config-unsafe": (
+        "[tool.pitloom] settings are ignored",
+        "build-time code of the downloaded",
+    ),
     "digest-invalid": ("declared by ",),
     "dir-unlistable": ("could not list ",),
     "download-network-failed": ("URL=", "; nothing fetched"),
@@ -43,7 +46,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "loom generate reads the wheel",
         "generate() reads the wheel",
     ),
-    "file-unreadable": ("could not read ",),
+    "file-unreadable": ("could not read ", "outside the downloaded repository"),
     "file-unwritable": ("could not write ",),
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "hf-url-invalid": ("not a valid Hugging Face URL",),
@@ -83,9 +86,13 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "the fields read before it are kept",
         "reading stopped there",
     ),
-    "model-ambiguous": ("several AI model files",),
+    "model-ambiguous": ("several AI model files", "could be AI models, none read"),
     "model-unreadable": ("failed to extract metadata",),
-    "model-wrong-format": ("header is not ",),
+    "model-wrong-format": (
+        "header is not ",
+        "file is empty",
+        "not an AI model file of a supported format",
+    ),
     "offline-unusable": ("network access is forbidden",),
     "option-conflict": ("cannot be used when", "delete it to change the "),
     "option-invalid": (

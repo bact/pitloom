@@ -265,11 +265,14 @@ OPTION_CONFLICT: Final = Message(
     summary="The command line holds an option the command cannot take in this "
     "case (-o/--output with several wheels), or one an existing ID registry "
     "contradicts: 'loom id generate --namespace' for a registry made with "
-    "another namespace, or 'loom id' with a --project-dir (the current "
-    "directory when not given) other than the one the registry was made for. "
+    "another namespace, or 'loom id generate' with a --project-dir (the "
+    "current directory when not given), or 'loom id import' with an "
+    "explicit one, other than the one the registry was made for. "
     "The 'not allowed with' line is reserved for options of a mutually "
     "exclusive group; no command has one yet.",
-    did="Ran nothing: the command exits 1, and an ID registry is left as it is.",
+    did="Ran nothing: the command exits 1 (2 for the 'not allowed with' "
+    "line), the library (IdRegistry) raises ValueError carrying the code, "
+    "and an ID registry is left as it is.",
     effect="not-written",
     actor="caller",
     advice="The caller may drop the option, run the command once per input, "

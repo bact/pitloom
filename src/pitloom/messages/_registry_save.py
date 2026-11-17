@@ -55,8 +55,8 @@ REGISTRY_FILE_MISSING: Final = Message(
 #: ``loom id generate`` and ``loom id import``: the registry just written.
 HOLDS_IDS: Final = Summary(
     template=f"{REGISTRY_PREFIX}holds %(number)s id(s)",
-    meaning="'loom id generate' or 'loom id import' wrote the registry; it "
-    "now holds that many ids.",
+    meaning="'loom id generate' or 'loom id import' saved the registry, or "
+    "found it already up to date; it now holds that many ids.",
     topic=_TOPIC,
 )
 #: A run's save added ids.
@@ -79,7 +79,7 @@ ENTITY_STORED_AS: Final = Summary(
     template=f"{REGISTRY_PREFIX}-e %(entity)s stored as %(name)s",
     meaning="'loom id generate -e' stored NAME under the key every lookup "
     "uses (a path key, a package's normalised NAME@VERSION), spelt otherwise "
-    "than typed. Said once the registry is written.",
+    "than typed. Said once the registry is saved, or found already up to date.",
     topic=_TOPIC,
 )
 #: The configuration hint after a new registry, the table holding none.

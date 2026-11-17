@@ -40,8 +40,10 @@ values.
   accepts that value by its fingerprint; one that may be a credential only,
   common in example and OAuth URLs, is warned of in either mode.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Wrote the SBOM with the value as written; said once per value
-  of each SBOM, shown masked. Nothing is removed or rewritten.
+- **Pitloom did**: Did not refuse the value: the SBOM is written with it as
+  written, unless another value is refused (credentials-unsafe/refused), which
+  refuses the whole SBOM; said once per value of each SBOM, shown masked.
+  Nothing is removed or rewritten.
 - **Tell the user**: which value, as the line shows it, and that the SBOM states
   it as written. They check that the parameter or the ssh user name is no
   credential; if it is one, they remove it from the source and generate again,
@@ -61,8 +63,9 @@ values.
   accept-url-credentials in [tool.pitloom], the library's
   CredentialPolicy(accepted=...)), in either mode.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Wrote the SBOM with the value as written; said once per value
-  of each SBOM, shown masked.
+- **Pitloom did**: Did not refuse the value: the SBOM is written with it as
+  written, unless another value is refused (credentials-unsafe/refused), which
+  refuses the whole SBOM; said once per value of each SBOM, shown masked.
 - **Tell the user**: which value the SBOM states as written, as the line shows
   it, and that anyone who reads the SBOM reads it too. If it is a real
   credential, they remove it from the source, rotate it and drop the acceptance.
@@ -163,9 +166,10 @@ values.
   and rotate it. Only once they have confirmed that one value is no secret (an
   example URL in a README) do they accept that value alone, the way the line
   gives with its fingerprint: --accept-url-credential, accept-url-credentials in
-  [tool.pitloom] (also for the command line), or the library's credentials
-  argument. Do not suggest turning the refuse mode off to get past it. Do not
-  edit their files; ask first, and with nobody to ask, report it only.
+  [tool.pitloom] (also for the command line), the GitHub Action's
+  accept-url-credentials input, or the library's credentials argument. Do not
+  suggest turning the refuse mode off to get past it. Do not edit their files;
+  ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text
@@ -195,9 +199,9 @@ values.
   default, stored the key as written, or loaded the file as it is (warning). A
   namespace holding one is refused in either mode (error). An SBOM element whose
   key or id holds one is left out of the registry in either mode, and the rest
-  written (warning). A run whose SBOM is already written that reads the file
-  again to save, in the refuse mode, says the refusal as a warning: nothing is
-  saved and the SBOM stands.
+  written (warning). A run whose SBOM is already built that reads the file again
+  to save, in the refuse mode, says the refusal as a warning: nothing is saved
+  and the SBOM stands.
 - **Tell the user**: which value, as the line shows it. For an error, they give
   the value without the credential and run again; a credential typed on a
   command line is exposed in their shell history. For a warning, the value came
@@ -243,12 +247,13 @@ values.
   and it is also in the project's files and their history, so they should
   consider it exposed, rotate it and remove it from the source, then generate
   again. Offer to turn on url-credentials = "refuse" in [tool.pitloom]
-  (--refuse-url-credentials on the command line) so that CI refuses such an SBOM
-  from then on. Only once they have confirmed that one value is no secret (an
-  example URL in a README) do they accept that value alone by its fingerprint
-  (--accept-url-credential, accept-url-credentials in [tool.pitloom]), which
-  quiets this line. Do not edit their files; ask first, and with nobody to ask,
-  report it only.
+  (--refuse-url-credentials on the command line, url-credentials: refuse on the
+  GitHub Action) so that CI refuses such an SBOM from then on. Only once they
+  have confirmed that one value is no secret (an example URL in a README) do
+  they accept that value alone by its fingerprint (--accept-url-credential,
+  accept-url-credentials in [tool.pitloom], the GitHub Action's
+  accept-url-credentials input), which quiets this line. Do not edit their
+  files; ask first, and with nobody to ask, report it only.
 - **Lines**:
 
   ```text

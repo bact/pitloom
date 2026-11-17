@@ -117,7 +117,7 @@ INPUT_NOT_FOUND: Final = Message(
     "ValueError for a fragments directory that holds no JSON file, "
     "or RemoteSourceError (code git.path-not-found) for a Git URL's file or "
     "folder. As a WARNING, an ID registry file was gone (or no longer a "
-    "file) when a run whose SBOM is already written read it again to save "
+    "file) when a run whose SBOM is already built read it again to save "
     "the ids it added: nothing is saved and the SBOM stands.",
     effect="not-written",
     actor="user",

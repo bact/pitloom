@@ -176,7 +176,8 @@ def save_registry(registry: IdRegistry) -> Rebase:
 
     Raises:
         OSError, ValueError: the re-read or the write failed; the file is
-            left as it was.
+            left as it was, unless its directory refuses a temporary file
+            and the write in place fails part-way.
     """
     rebased = registry.rebase()
     if rebased.pending:
@@ -194,7 +195,7 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
     at most *new_ids* (so neither another run's ids nor a refused one
     count). A failure, the re-read included, is its own line as one
     ``WARNING:`` (:func:`~pitloom.messages.id_registry.say_save_failure`)
-    and otherwise ignored: the run's own output is already written.
+    and otherwise ignored: the run's own output is already built.
     """
     if registry.path is None:
         warn_no_registry_path()

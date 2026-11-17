@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,8 +24,9 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM, target and ID registry file, id and key messages carry a
-  message code; see `docs/message-codes.md` ([#482], [#485], [#486])
+- Input, option, SBOM, target, ID registry file, id, key, save and file-set
+  messages carry a message code; see `docs/message-codes.md` ([#482], [#485],
+  [#486], [#492])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -41,24 +42,24 @@ and this project adheres to
 
 ### Changed
 
-- Error messages for missing inputs, options and ID registry files are
-  reworded; CLI `ERROR:` lines start `loom <command>:`; `loom.Run` registry
-  lines start `ID registry:` ([#481], [#482], [#485], [#486])
+- Missing-input, option and ID registry file errors are reworded; CLI `ERROR:`
+  lines start `loom <command>:`, `loom.Run` registry lines `ID registry:`
+  ([#481], [#482], [#485], [#486])
 - `IdRegistry.load()` and `resolve_registry()` raise `FileNotFoundError`, not
   `ValueError`, for an ID registry file that is missing or not a file ([#482])
 - `id import` and `embed-wheel --sbom` refuse the same SBOMs (UTF-16, a FIFO,
   over 50 MiB, an `@graph` that is not a list of objects) ([#482])
-- A `.whl` directory, a file given to `merge` and a malformed Hub URL (`project`
-  and `generate_project_sbom()` too) get a coded error; a padded Hub URL is
-  read; a missing input or ID registry is named as given ([#482])
+- A `.whl` directory, a file given to `merge` and a malformed Hub URL get a
+  coded error; a padded Hub URL is read; a missing input or ID registry is
+  named as given ([#482])
 - An input under a directory without search permission is `file-unreadable`,
   not "not found" ([#482])
 - Pitloom's log lines, tracebacks and `-v` details mask URL credentials and
   access tokens; `urllib3` and `requests` lines too ([#482], [#486], [#487],
   [#489], [#491])
-- A GGUF `general.license` placeholder (`other`, `proprietary`, `N/A`, ...)
-  with no `general.license.name` gives no licence; a Hub card's `N/A` falls
-  back to licence files ([#483])
+- A GGUF `general.license` placeholder (`other`, `N/A`, ...) with no
+  `general.license.name` gives no licence; a Hub card's `N/A` falls back to
+  licence files ([#483])
 - Safetensors `ss_base_model_version` (the base model) is no longer read as the
   model's name; it stays a property ([#483])
 - `loom id generate` with a `PATH` that does not exist is an error (exit 1),
@@ -79,6 +80,8 @@ and this project adheres to
 - `verify-wheel`, `validate-wheel` and `embed-wheel`: a pattern nested too
   deeply is `input-not-found`, not a crash; a `[` in a path is taken as typed
   ([#491])
+- `id import` of an SBOM the SPDX 3 reader refuses is `sbom-invalid`; `-e ...
+  stored as` is said once the registry is saved ([#492], [#494])
 
 ### Fixed
 
@@ -107,6 +110,7 @@ and this project adheres to
 [#490]: https://github.com/bact/pitloom/pull/490
 [#491]: https://github.com/bact/pitloom/pull/491
 [#492]: https://github.com/bact/pitloom/pull/492
+[#494]: https://github.com/bact/pitloom/pull/494
 
 ## [0.24.0] - 2026-11-11
 

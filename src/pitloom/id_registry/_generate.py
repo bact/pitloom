@@ -158,8 +158,10 @@ def _promote_alias(
 def _is_model(path: Path) -> bool:
     """Whether a project scan lists the file at *path* as an AI model: the
     scan's suffix filter, then its header."""
-    # pylint: disable=import-outside-toplevel,cyclic-import
+    # pylint: disable-next=import-outside-toplevel,cyclic-import
     from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
+
+    # pylint: disable-next=import-outside-toplevel,cyclic-import
     from pitloom.extract.scanner import is_model_candidate_name
 
     return (

@@ -38,7 +38,7 @@ from pitloom.messages.models import READER_UNSAFE_REMOTE
 
 def remote_reader_gate() -> ReaderGate | None:
     """The gate of model files read from a Git URL's temporary clone
-    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`), on the model
+    (:func:`~pitloom.core.clone_mark.reading_remote_clone`), on the model
     route and the project route alike: the formats a wheel scan does not
     read either are listed without metadata, and
     :meth:`~pitloom.extract.scanner.ReaderGate.report` says

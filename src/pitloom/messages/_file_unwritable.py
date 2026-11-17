@@ -26,7 +26,7 @@ _SINCE: Final = "0.25.0"
 WRITE_ERROR_LINE: Final = Line(
     level="ERROR", template="FILE=%(file)s: could not write %(use)s; %(failure)s"
 )
-#: The same, where the run's own output is already written (a run saving the
+#: The same, where the run's own output is already built (a run saving the
 #: ids it added to an ID registry).
 WRITE_LINE: Final = Line(level="WARNING", template=WRITE_ERROR_LINE.template)
 
@@ -38,11 +38,14 @@ FILE_UNWRITABLE: Final = Message(
     "system refused it (no write permission on the file or its directory, a "
     "read-only file system, a full disk, a directory where the file should "
     "be). Today the ID registry file, written 'for the ID registry'.",
-    did="Left the file as it was. As an ERROR ('loom id generate', 'loom id "
-    "import'), the registry is not written and the command exits 1. As a "
-    f"WARNING ({SAVE_SURFACES}, saving the ids a run added after its SBOM "
-    "is written), the SBOM stands and the ids are not saved: the next run "
-    "mints them again.",
+    did="Tried to write the file through a temporary file beside it, so a "
+    "failed write leaves its old content; where the directory refuses a "
+    "temporary file, the file is written in place and a failure (a full "
+    "disk) can leave it part-written. As an ERROR ('loom id generate', "
+    "'loom id import'), the command exits 1. As a WARNING "
+    f"({SAVE_SURFACES}, saving the ids a run added after its SBOM is "
+    "built), the SBOM stands and the ids are not saved: the next run mints "
+    "them again.",
     effect="none",
     actor="user",
     advice="Tell the user which file could not be written and what the "

@@ -23,7 +23,7 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.given_path import GivenPath, TypedPath
 from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
-from pitloom.messages._field_writers import entities_text
+from pitloom.messages._field_writers import entities_text, failure_text
 from pitloom.messages._fields import _merged
 from pitloom.messages._templates import render
 
@@ -185,6 +185,49 @@ def test_a_value_of_the_wrong_shape_is_refused(field: str, value: object) -> Non
 def test_render_takes_exactly_the_names_of_its_template(values: dict[str, Any]) -> None:
     with pytest.raises(ValueError, match="takes"):
         render("x %(file)s y", values)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("bad <Thing object at 0x7f3a9c1d2e50> inside", "bad <Thing object> inside"),
+        ("two <A at 0x1F> and <B at 0xab>", "two <A> and <B>"),
+        ("an at 0xyz and 0x12 stay", "an at 0xyz and 0x12 stay"),
+        (
+            "could not open 'report at 0xbeef.json'",
+            "could not open 'report at 0xbeef.json'",
+        ),
+        ("header corrupt at 0x1a: bad magic", "header corrupt at 0x1a: bad magic"),
+        ("x at 0x1fooBar", "x at 0x1fooBar"),
+        (
+            "<Wrap object at 0x10112ebf0 wrapping <__main__.A object>>",
+            "<Wrap object wrapping <__main__.A object>>",
+        ),
+        (
+            '<code object f at 0x10107c2f0, file "a.py", line 26>',
+            '<code object f, file "a.py", line 26>',
+        ),
+        ("<cell at 0x10112e5f0: int object>", "<cell: int object>"),
+        ("<weakref at 0x101148cc0; to 'A'>", "<weakref; to 'A'>"),
+        ("bad <A> at 0x1a then <B at 0x2b>", "bad <A> at 0x1a then <B>"),
+    ],
+    ids=[
+        "address",
+        "two-addresses",
+        "not-an-address",
+        "file-name",
+        "offset",
+        "word",
+        "nested-repr",
+        "code-object",
+        "cell",
+        "weakref",
+        "address-after-a-closed-bracket",
+    ],
+)
+def test_failure_text_drops_a_memory_address(text: str, expected: str) -> None:
+    """A deserialiser's default repr must not make stderr differ per run."""
+    assert failure_text(TypeError(text)) == expected
 
 
 def test_size_text_has_one_writer() -> None:

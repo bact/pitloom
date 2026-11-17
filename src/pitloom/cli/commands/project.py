@@ -130,8 +130,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
         return run_remote_project(args, args.project_dir)
     # Settle before the path check and the metadata/lock-file read below,
     # so the build-flag WARNING: is the first thing the run logs -- and is
-    # logged at all for a directory the check then rejects, as `generate`,
-    # `embed-wheel` and the library surfaces all do;
+    # logged at all for a directory the check then rejects, as
+    # `embed-wheel` and the library surfaces do;
     # generate_project_sbom()'s own settle then finds nothing left to warn
     # about.
     build_options = build_options_from_args(args).settle_target(

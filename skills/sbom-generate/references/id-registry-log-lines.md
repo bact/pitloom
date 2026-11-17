@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-14
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,7 +110,9 @@ create and choose one), [messages.md](messages.md) (every line's code).
   type; the element gets a fresh id.
 - `WARNING: ID registry: FILE=<path>: inside dataset directory X; left out
   of its Merkle root [registry-conflict/file-set]` -- the registry file sits
-  in a dataset directory; move it outside (once per directory per run).
+  in a dataset directory; expected for a registry kept there, so relay it
+  (once per directory per run). Suggest keeping the registry outside the
+  dataset only if the user wants the line gone; do not move it for them.
 - `WARNING: loom: model X has no path=; not hashed, looked up by name only`
   (or `... is not a file at exit ...`) -- the model is matched by name and
   gets no hash; add `path=` to the `set_model()`/`use_model()` call.
@@ -136,8 +138,9 @@ create and choose one), [messages.md](messages.md) (every line's code).
   could not list; if you see it, relay the advice of
   [messages-files.md](messages-files.md#dir-unlistable).
 - `WARNING: ID registry: FILE=<path>: inside the project's file set; left
-  out of it [registry-conflict/file-set]` -- keep the registry outside the
-  package tree ([id-registry.md](id-registry.md)).
+  out of it [registry-conflict/file-set]` -- expected for a registry kept in
+  the package tree; the user may keep it outside to drop the line
+  ([id-registry.md](id-registry.md)). Do not move it for them.
 
 A declared registry that is missing or invalid (a version 3 file included)
 is different: one `ERROR:`, exit 1, nothing written.

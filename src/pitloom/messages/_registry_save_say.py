@@ -32,7 +32,7 @@ def say_save_failure(
     """The one line on *log* for a save of the registry file *file* (as the
     line names it) that *exc* stopped: an ``ERROR`` when *fatal* (``loom
     id``, whose output is the registry), else a ``WARNING`` (a run whose
-    SBOM is already written). The save adds no condition: a coded *exc*
+    SBOM is already built). The save adds no condition: a coded *exc*
     says its own line, with its code when that message has the line at
     this level; an uncoded :class:`OSError` is the write the system refused
     (``file-unwritable``).

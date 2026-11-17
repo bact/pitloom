@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -507,8 +507,9 @@ work happens.
 
 `loom.run` reads no `[tool.pitloom]` of its own. Pass `pitloom_config=` (a
 `PitloomConfig`, or the path of a TOML file holding `[tool.pitloom]`, relative
-to the current directory) to set `id-registry`, `update-id-registry`, `max-dataset-hash-bytes` or
-`accept-url-credentials`; no other key has an effect there. `id_registry=` wins
+to the current directory) to set `id-registry`, `update-id-registry`, `max-dataset-hash-bytes`,
+`accept-url-credentials` or `url-credentials`; no other key has an effect
+there. `id_registry=` wins
 over the config's `id-registry`, and `max_dataset_hash_bytes=` over its
 `max-dataset-hash-bytes`. A config file that is missing, unreadable or invalid
 raises `ValueError` as the run begins.
@@ -533,8 +534,8 @@ fragments](fragments.md) and [API reference](api.md#fragment-merging).
   [`--allow-build`](allow-build.md#from-python) -- their library arguments.
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies.
-- [Credentials in URLs](url-credentials.md) -- why an SBOM is refused, and
-  `credentials=`.
+- [Credentials in URLs](url-credentials.md) -- when an SBOM is warned of or
+  refused, and `credentials=`.
 - [Hatchling build hook](hatchling-build-hook.md) -- how registered
   fragments get merged automatically at build time.
 - [Creation metadata](creation-metadata.md) and [Metadata

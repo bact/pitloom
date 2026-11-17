@@ -6,7 +6,8 @@
 """An SBOM Pitloom was given to read (``embed-wheel --sbom``, ``loom id
 import``) that it cannot use: one named as SPDX 3 that is another format
 (``sbom-wrong-format``), or one whose content fails a check
-(``sbom-invalid``). ``ERROR`` only: nothing is written.
+(``sbom-invalid``). ``ERROR``: nothing is written (``sbom-invalid`` also
+has a ``WARNING`` line for an SBOM namespace the registry does not take).
 
 An SBOM that is not UTF-8, not valid JSON or not a JSON object says
 ``file-unreadable/not-utf8`` and ``json-malformed``, read ``for the SBOM``.

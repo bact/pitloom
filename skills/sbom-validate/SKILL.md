@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-14
+# Last-Modified: 2026-11-17
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -160,7 +160,7 @@ given: report any `WARNING:`, and add `--fail-on-mismatch` in CI.
 `.dist-info/sboms/` entries needs `--sbom-filename NAME` on either command, else
 `ERROR:`.
 
-A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
+A wheel Pitloom refuses gets one `ERROR: loom <command>: ARCHIVE=... -- wheel refused` and
 exit 1; the other wheels are still checked (an unexpected `validate-wheel`
 error, `ERROR: loom validate-wheel: ...`, stops the batch instead).
 `verify-wheel` reads only the member names, the own `.dist-info`'s

@@ -32,9 +32,11 @@ values.
   registry with no file: an IdRegistry made in memory, without a path. The CLI
   and the build hook always name a file.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Said by loom generate, project, wheel and env, the library's
-  generate functions and loom.Run. The ids are used in the SBOM, which is
-  written, but are not saved: the next run mints them again.
+- **Pitloom did**: Said by loom generate (a project, wheel or environment),
+  project, wheel and env, the library's generate_project_sbom,
+  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
+  call them, and loom.Run. The ids are used in the SBOM, which is written, but
+  are not saved: the next run mints them again.
 - **The caller may fix**: The caller may give the IdRegistry a path
   (IdRegistry.load, or IdRegistry.new with path=) to keep the ids, or turn the
   update off (update-id-registry = false; update_id_registry=False in the
@@ -61,9 +63,11 @@ values.
   step fails), the build hook fails the build, and the library raises ValueError
   carrying the code. 'loom id' writes no registry, and every other command
   writes no SBOM. The file is left as it is. As a WARNING, a run whose SBOM is
-  already written (loom generate, project, wheel and env, the library's generate
-  functions and loom.Run) read the file again to save the ids it added: nothing
-  is saved and the SBOM stands; the next run mints those ids again.
+  already built (loom generate (a project, wheel or environment), project, wheel
+  and env, the library's generate_project_sbom, generate_wheel_sbom,
+  generate_env_sbom and the PyPI and Git URL functions that call them, and
+  loom.Run) read the file again to save the ids it added: nothing is saved and
+  the SBOM stands; the next run mints those ids again.
 - **Tell the user**: which registry file is malformed and what is wrong, as the
   line says. They fix the edit, or restore the file from version control, and
   run again; deleting it loses every id it pins. Do not edit, restore or delete
@@ -118,9 +122,11 @@ values.
   step fails), the build hook fails the build, and the library raises ValueError
   carrying the code. 'loom id' writes no registry, and every other command
   writes no SBOM. The file is left as it is. As a WARNING, a run whose SBOM is
-  already written (loom generate, project, wheel and env, the library's generate
-  functions and loom.Run) read the file again to save the ids it added: nothing
-  is saved and the SBOM stands; the next run mints those ids again.
+  already built (loom generate (a project, wheel or environment), project, wheel
+  and env, the library's generate_project_sbom, generate_wheel_sbom,
+  generate_env_sbom and the PyPI and Git URL functions that call them, and
+  loom.Run) read the file again to save the ids it added: nothing is saved and
+  the SBOM stands; the next run mints those ids again.
 - **Tell the user**: which registry file holds which unknown key, as the line
   says. They remove the key (or restore the file from version control) and run
   again. Do not edit the file for them; ask first, and with nobody to ask,
@@ -145,9 +151,11 @@ values.
 - **SBOM effect**: none: the SBOM states what the input holds.
 - **Pitloom did**: Saved nothing: the registry file is not written or changed.
   As an ERROR, 'loom id' exits 1 and IdRegistry.save raises ValueError carrying
-  the code. As a WARNING (loom generate, project, wheel and env, the library's
-  generate functions and loom.Run, whose SBOM is already written), the SBOM
-  stands and the ids the run added are not saved.
+  the code. As a WARNING (loom generate (a project, wheel or environment),
+  project, wheel and env, the library's generate_project_sbom,
+  generate_wheel_sbom, generate_env_sbom and the PyPI and Git URL functions that
+  call them, and loom.Run, whose SBOM is already built), the SBOM stands and the
+  ids the run added are not saved.
 - **Tell the user**: that the registry file cannot record where the project is,
   as the line says. A registry file inside the project always works: the root is
   then stored as '.' or '..' steps. With no relative path (two Windows drives),
@@ -178,9 +186,11 @@ values.
   step fails), the build hook fails the build, and the library raises ValueError
   carrying the code. 'loom id' writes no registry, and every other command
   writes no SBOM. The file is left as it is. As a WARNING, a run whose SBOM is
-  already written (loom generate, project, wheel and env, the library's generate
-  functions and loom.Run) read the file again to save the ids it added: nothing
-  is saved and the SBOM stands; the next run mints those ids again.
+  already built (loom generate (a project, wheel or environment), project, wheel
+  and env, the library's generate_project_sbom, generate_wheel_sbom,
+  generate_env_sbom and the PyPI and Git URL functions that call them, and
+  loom.Run) read the file again to save the ids it added: nothing is saved and
+  the SBOM stands; the next run mints those ids again.
 - **Tell the user**: which registry file cannot be read and the version the line
   states; what helps depends on it. Older than 4: to keep its ids, they delete
   it and run 'loom id import' on the last SBOM a run made with it ('loom id
@@ -205,7 +215,7 @@ there is nothing to do.
 
 - 'loom id generate -e' stored NAME under the key every lookup uses (a path key,
   a package's normalised NAME@VERSION), spelt otherwise than typed. Said once
-  the registry is written.
+  the registry is saved, or found already up to date.
 
   ```text
   INFO: ID registry: -e <entity> stored as <name>
@@ -218,8 +228,8 @@ there is nothing to do.
   INFO: ID registry: added <number> new id(s) to '<path>'
   ```
 
-- 'loom id generate' or 'loom id import' wrote the registry; it now holds that
-  many ids.
+- 'loom id generate' or 'loom id import' saved the registry, or found it already
+  up to date; it now holds that many ids.
 
   ```text
   INFO: ID registry: holds <number> id(s)

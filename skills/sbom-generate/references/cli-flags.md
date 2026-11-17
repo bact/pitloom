@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,8 +38,9 @@ where they differ, and a flag with no effect on a target logs
 - `--creator-name NAME` (repeatable), `--creator-type TYPE`, `--creator-email
   EMAIL` -- who created the SBOM (BSI: a person or organisation with an
   e-mail); the first creator that is not a `software-agent` is also the main
-  package's supplier, never a dependency's or a model's. `--creation-datetime`,
-  `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
+  package's supplier, never a dependency's or a model's. `--creation-datetime
+  ISO8601`, else `SOURCE_DATE_EPOCH`, else the clock, sets `created`: pin
+  one for a bit-for-bit reproducible SBOM. `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
   the creation info.
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only

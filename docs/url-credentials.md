@@ -151,7 +151,7 @@ place of the `written` one (`WARNING: URL=<url>: holds a credential that
 [credentials-unsafe/accepted]`), so anyone who reads the SBOM reads it too. An accepted fingerprint that matches no
 value of the SBOM is warned of too, once per fingerprint and SBOM, naming the
 SBOM by its `SpdxDocument` id (`WARNING: Options: FINGERPRINT=<fingerprint>:
-matches no URL of the SBOM <id>`). A fingerprint that a model fragment
+matches no URL of the SBOM <id> [option-no-effect]`). A fingerprint that a model fragment
 inherits from the project's list is never reported for the fragment. A
 fingerprint that is not `sha256:` and 16 to 64 lowercase hex digits is an error
 that does not quote it, as a credential may have been pasted by mistake
@@ -170,7 +170,7 @@ line is the same on every surface.
 
 | Surface | `warn` (default) | `refuse` | Turn `refuse` on | Accept one value |
 | :--- | :--- | :--- | :--- | :--- |
-| CLI (`loom project`, `generate`, `wheel`, `model`, `env`, `enrich`, `embed-wheel`, `merge`) | SBOM written (to stdout too with `-o -`), `WARNING:` lines, exit 0 | `ERROR:` lines, exit 1, no SBOM (not to stdout with `-o -` either) | `--refuse-url-credentials`, or `url-credentials = "refuse"` in a config file | `--accept-url-credential <fingerprint>`; or `accept-url-credentials` in a config file |
+| CLI (`loom project`, `generate`, `wheel`, `model`, `env`, `enrich`, `embed-wheel`, `merge`) | SBOM written (to stdout too with `-o -`), `WARNING:` lines, exit 0 | `ERROR:` lines, exit 1, no SBOM (not to stdout with `-o -` either) | `--refuse-url-credentials`, or `url-credentials = "refuse"` in a config file (flags only for `merge` and `embed-wheel --sbom`) | `--accept-url-credential <fingerprint>`; or `accept-url-credentials` in a config file |
 | Hatchling build hook | The build goes on, with the `WARNING:` lines | The build fails; each `ERROR:` line starts `Pitloom build hook: ` | `url-credentials = "refuse"` in `[tool.pitloom]` | `accept-url-credentials` in `[tool.pitloom]` |
 | Python API | Returns; the `WARNING:` lines are logged | `ValueError` carrying the code `credentials-unsafe/refused` (the `ERROR:` lines are logged) | `credentials=CredentialPolicy(refuse=True)`, or `PitloomConfig(url_credentials="refuse")` | `credentials=CredentialPolicy(accepted=["<fingerprint>"])`, or `PitloomConfig(accept_url_credentials=...)` |
 | `loom.Run` | The fragment is written when the run ends | Refused when the run ends: no fragment is written | `credentials=` as above, or the config's `url-credentials` | `credentials=` as above |

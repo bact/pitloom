@@ -217,8 +217,8 @@ def embed_wheel_sbom(
             (``file-unreadable``: a directory on its way refuses search), or
             a URL field of the SBOM holds a credential the run does not
             accept in the ``refuse`` mode (``credentials-unsafe/refused``;
-            the SBOM at
-            *sbom_path* is checked as given, by ``overrides.credentials``
+            the SBOM at *sbom_path* is
+            checked as given, by ``overrides.credentials``
             alone, and never rewritten). The wheel is left as it was.
         OSError: The file itself cannot be opened (its own permissions, a
             transient I/O error).

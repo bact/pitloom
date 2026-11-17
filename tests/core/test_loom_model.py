@@ -179,6 +179,26 @@ def test_a_miss_not_recorded_mints_with_one_warning(
     assert path.read_bytes() == before
 
 
+def test_a_registry_with_no_file_is_said_once_per_run_not_per_model(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two models missing in a registry with no file: one WARNING for the
+    run (not one per miss), and another in a second run of the process (so
+    not a once-per-process line)."""
+    (project / "m2.bin").write_bytes(b"weights v2")
+
+    def one_run() -> list[logging.LogRecord]:
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
+            with loom.run(project / "out.json", id_registry=make_registry()):
+                loom.set_model("m", path="m.bin")
+                loom.set_model("m2", path="m2.bin")
+        return [r for r in caplog.records if "no file to save to" in r.getMessage()]
+
+    assert len(one_run()) == 1
+    assert len(one_run()) == 1
+
+
 @pytest.mark.parametrize(
     ("second", "warns", "infos"),
     [("m.bin", True, ["added 1"]), ("m2.bin", False, ["added 2"])],

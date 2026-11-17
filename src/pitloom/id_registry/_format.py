@@ -377,8 +377,8 @@ def write_registry_file(
 ) -> None:
     """Write a version 4 registry file to *target*: canonical JSON,
     indented, LF line endings and one trailing newline. Replaced atomically
-    (:func:`~pitloom._sbom_io.replace_text_lf`): a run reading it meanwhile
-    sees the old file or the new one, never part. A counter the loader
+    where the directory takes a temporary file, else written in place
+    (:func:`~pitloom._sbom_io.replace_text_lf`). A counter the loader
     would reject raises ``registry-malformed``, and nothing is written."""
     for prefix, number in id_counters.items():
         _check_counter(target, prefix, number)

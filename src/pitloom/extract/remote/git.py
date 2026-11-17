@@ -159,7 +159,7 @@ class GitCheckout:
         explained (:meth:`explaining_failures`), and a Git LFS pointer
         is reported as in a temporary clone, out of whose :attr:`root`
         nothing is read
-        (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`)."""
+        (:func:`~pitloom.core.clone_mark.reading_remote_clone`)."""
         with (
             reading_remote_clone(self.root, trust_model_files=self.trust_model_files),
             self.explaining_failures(),
@@ -181,7 +181,7 @@ def fetch_git_project(
     open on Windows) is left behind with one ``WARNING:``, never an error.
 
     Within the block, the reads are a temporary clone's
-    (:func:`~pitloom.core.lfs_pointer.reading_remote_clone`, as in
+    (:func:`~pitloom.core.clone_mark.reading_remote_clone`, as in
     :meth:`GitCheckout.reading`): nothing out of the checkout's root is read,
     the model readers a wheel scan does not run are not run, and the
     repository's build-time code is not run. The mark is reset on every exit

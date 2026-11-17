@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -233,7 +233,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   anywhere in a key, id or namespace counts: `urn:x:https://u:pw@h/ns`) is
   stored for `-e` with a `WARNING: ...; the ID registry stores the key as
   written`, or refused with `--refuse-url-credentials` (or the project's
-  `url-credentials = "refuse"`, read only without `-o`), and an imported
+  `url-credentials = "refuse"`, read without `-o`, or with `--project-dir`),
+  and an imported
   element with one is skipped in either mode (`credentials-unsafe/registry`).
   A registry file with an entry holding one is loaded with `WARNING:
   URL=<url>: ...; ID registry file <file> is loaded as it is; remove the

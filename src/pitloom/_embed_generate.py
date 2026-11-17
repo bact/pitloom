@@ -79,19 +79,21 @@ log = logging.getLogger(__name__)
 
 
 def _read_external_sbom(sbom_path: Path | str, credentials: CredentialPolicy) -> str:
-    """The SBOM at *sbom_path* as written (:func:`~pitloom._sbom_format.
-    read_given_sbom`), so what is embedded, and what ``-o`` copies, is the
-    file. A dropped UTF-8 byte order mark is said with one ``WARNING:``: the
-    embedded bytes differ from the file's. Refused, never rewritten, when a
-    URL field, or any other string of the document read as a whole URL
-    value (it was not written by Pitloom, so its keys need not be the
-    compact names), holds a credential *credentials* does not accept
+    """The SBOM at *sbom_path* as written
+    (:func:`~pitloom._sbom_format.read_given_sbom`), so what is embedded, and
+    what ``-o`` copies, is the file. A dropped UTF-8 byte order mark is said
+    with one ``WARNING:``: the embedded bytes differ from the file's. Refused,
+    never rewritten, when a URL field, or any other string of the document
+    read as a whole URL value (it was not written by Pitloom, so its keys
+    need not be the compact names), holds a credential *credentials* does not accept
     (:func:`~pitloom.export._spdx3_credentials.check_graph_credentials`):
     warned of, or refused in its ``refuse`` mode.
 
     Raises:
         pitloom.messages.CodedValueError: ``credentials-unsafe/refused``
             (the ``refuse`` mode).
+        pitloom.messages.CodedFileNotFoundError, ValueError: as
+            :func:`~pitloom._sbom_format.read_given_sbom`.
     """
     given = read_given_sbom(sbom_path)
     document = given.document

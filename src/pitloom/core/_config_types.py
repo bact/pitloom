@@ -206,7 +206,8 @@ class PitloomConfig:
         refuses one, not at its first use.
 
         Raises:
-            ValueError: an entry is not a fingerprint, or the mode is none.
+            ValueError: an entry is not a fingerprint, or the mode is neither warn nor
+                refuse.
         """
         _ = self.credential_policy
 

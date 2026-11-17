@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,7 +73,7 @@ does.
 
 Each Poetry dependency is read as poetry-core writes it: its version
 constraint (`^1.0` is `>=1.0,<2.0`), `extras` (`name[a,b]`), a `git` or
-`url` source (`name @ git+https://…@rev`) and its `markers`, `python` and
+`url` source (`name @ git+https://...@rev`) and its `markers`, `python` and
 `platform` keys as one marker. Where two or more of those keys combine,
 poetry-core simplifies the joined marker and Pitloom keeps each term: the
 same environments match. A `path` dependency is skipped with a `WARNING:`

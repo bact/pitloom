@@ -320,10 +320,13 @@ def _tick() -> float:
 
 
 #: The size factor between the two samples, and the growth a linear scan
-#: stays well under (16 times the size: 16 times the time; a quadratic one
-#: grows 256 times, one with a linear part as large still 136 times).
+#: stays under (16 times the size: 16 times the time, typically 14 to 21 and
+#: up to 65 on a loaded runner; a quadratic one grows 256 times, one with a
+#: linear part as large still 136 times, both over twice the bound). A scan
+#: whose quadratic part is under a quarter of its time at the smaller size
+#: passes: ``test_a_mebibyte_ends_in_seconds`` guards the hangs.
 _FACTOR = 16
-_GROWTH = 32
+_GROWTH = 64
 #: The least size, and the most, of the smaller sample.
 _FIRST = 1 << 10
 _LAST = 1 << 19
@@ -348,7 +351,7 @@ def test_each_view_is_linear(name: str) -> None:
     """For each view, 16 times the text takes about 16 times as long,
     never 256 (a quadratic scan), with the smaller text sized so that one
     run is measured (3 ms and 4 clock steps at least): the growth must stay
-    under 32, the least of three tries, so a loaded machine or a coarse
+    under 64, the least of three tries, so a loaded machine or a coarse
     clock passes and a quadratic scan fails by twice the bound or more."""
     for view in _VIEWS:
         growth = _growth(view, _SHAPES[name])

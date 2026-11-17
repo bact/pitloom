@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -136,7 +136,7 @@ traceback, and takes precedence over that error.
   Windows, a file on another drive than the project) is not saved: `ID
   registry: FILE=<path>: project root '<root>' has no path relative to the
   file's directory; <reason> [registry-unusable]` (`ERROR:` for `loom id`,
-  `WARNING:` where the SBOM is already written; the library raises it
+  `WARNING:` where the SBOM is already built; the library raises it
   coded). A registry file inside the project always works.
 - A registry file is read whole, up to the fixed 50 MiB cap for a JSON
   document: a larger one is not read (`FILE=<path>: larger than the
@@ -251,7 +251,7 @@ Exceptions:
   not record it, and a pinned id goes to the first of them, with a
   `WARNING:`. `loom id import` skips every key held by several elements, with
   one `INFO: ID registry: not imported (name held by several elements): <type>
-  '<key>', ...` line.
+  '<key>', ... [registry-key-ambiguous]` line.
 - A `project` run of a project with a dynamic version states `unknown` and so
   keys its own package by name alone; a wheel or hook run of it states the
   version: the two give that package two ids.
@@ -319,7 +319,10 @@ A read-only registry file is never overwritten, on any platform. A failed save
 logs one `WARNING:`, what stopped it with its code: a write the system refused
 is `WARNING: FILE=<path>: could not write for the ID registry; <reason>
 [file-unwritable]` (the registry as given, never a temporary file), a file
-that no longer loads its own line. The run's output is already written. `loom
+that no longer loads says its own line. The run's SBOM is built before the
+save and still written. The registry is written through a temporary file, so
+a failure leaves it as it was; where the directory refuses a temporary file it
+is written in place, and a full disk can leave it part-written. `loom
 id generate` and `loom id import` print the same line as their one `ERROR:`
 and exit 1. A library `IdRegistry` with no file logs `WARNING: ID registry: no
 file to save to; the ids this run added are not saved

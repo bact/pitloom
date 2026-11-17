@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 Created: 2026-11-15
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-17
 -->
 
 # Credentials: detect, warn or refuse, never rewrite
@@ -14,9 +14,9 @@ See also: [credential-leak-fixes.md](../implementation/credential-leak-fixes.md)
 message contract the new codes join).
 
 Status: proposed 2026-11-15, follow-up to PR 487 (merged). PR 1 (PR 489,
-merged) built the detector; PR 2 (PR 490, built 2026-11-16, not yet merged) built
+merged) built the detector; PR 2 (#490, merged 2026-11-16, unreleased) built
 the check at the persisted sinks, the two modes and the per-value override,
-and deleted the strip. PR 3 (built 2026-11-16, not yet merged): the Action
+and deleted the strip. PR 3 (#491, merged 2026-11-16, unreleased): the Action
 inputs and masks, the Git hardening, detector and masker extras ("Built in
 PR 3" below).
 
@@ -65,7 +65,7 @@ says "refused", read "refused in the `refuse` mode, warned of in `warn`".
 
 ## Built in PR 2
 
-- **SBOM refused, never rewritten** (`export/_spdx3_credentials.py`,
+- **SBOM refused, never rewritten** (`export/_spdx3_credentials/`,
   `check_graph_credentials`), last in `Spdx3JsonExporter.to_json`, so on
   every surface (CLI, library, Hatchling hook, `loom.run` fragments,
   `merge`, `enrich`), and on the file `embed-wheel --sbom` embeds. One
@@ -296,9 +296,10 @@ Never rewrite persisted data automatically.
 
 1. Merge PR 487 (logging, git, registry refusal, catalogue; independent of
    this change). Done.
-2. Do not cut 0.25.0 until the detect-and-refuse PR lands. Strip in 0.25.0
+2. Do not cut 0.25.0 until the detect-and-refuse PR lands (moot: #490
+   merged). Strip in 0.25.0
    and refuse in 0.26.0 would turn builds that succeeded into failures and
-   need two advisory stories. Lifted once PR 2 merges.
+   need two advisory stories. Lifted: PR 2 merged (#490).
 3. Catalogue codes with `since` 0.25.0 that never shipped (`credentials-unsafe`
    stripped and kept lines, `credentials-unsafe/id-collision`) are retired
    or renamed freely. Add `credentials-unsafe/refused`. Regenerate the
