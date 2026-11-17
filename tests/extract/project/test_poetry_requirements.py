@@ -44,6 +44,7 @@ from pitloom.extract.project._poetry_requirements import (
 )
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.wheel import read_wheel
+from tests._code_records import coded
 
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "real-world-extras"
 _HEAD = (
@@ -215,8 +216,8 @@ def test_joined_marker_equivalent(tmp_path: Path, case: str) -> None:
 @pytest.mark.parametrize(
     ("constraint", "reason"),
     [
-        ({"path": "../a"}, "a local path source is not portable"),
-        ({"file": "a.whl", "version": "1"}, "a local file source is not portable"),
+        ({"path": "../a"}, "a local path source"),
+        ({"file": "a.whl", "version": "1"}, "a local file source"),
         ({"version": 3}, "not convertible to PEP 508"),
         ("", "not convertible to PEP 508"),
         ({"version": "1", "python": "py3"}, "not convertible to PEP 508"),
@@ -240,9 +241,12 @@ def test_unconvertible_skipped_with_warning(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         assert poetry_requirement("a", constraint) is None
-    assert len(caplog.messages) == 1
-    assert caplog.messages[0].startswith("Skipping dependency 'a' (Poetry): ")
-    assert reason in caplog.messages[0]
+    ((code, message),) = coded(caplog)
+    assert code == (
+        "requirement-unusable" if "local" in reason else "requirement-invalid"
+    )
+    assert message.startswith("dependency 'a' (Poetry): ")
+    assert reason in message
 
 
 def test_unconvertible_quiet(caplog: pytest.LogCaptureFixture) -> None:
@@ -259,8 +263,9 @@ def test_overlong_version_number_refused_with_one_warning(
     """The digit cap, or CPython's own int limit, gives one line."""
     with caplog.at_level(logging.WARNING):
         assert poetry_requirement("a", "^" + "1" * digits + ".0") is None
-    assert len(caplog.messages) == 1
-    assert caplog.messages[0].startswith("Skipping dependency 'a' (Poetry): ")
+    ((code, message),) = coded(caplog)
+    assert code == "requirement-invalid"
+    assert message.startswith("dependency 'a' (Poetry): ")
 
 
 def test_deeply_nested_markers_refused(caplog: pytest.LogCaptureFixture) -> None:
@@ -269,7 +274,7 @@ def test_deeply_nested_markers_refused(caplog: pytest.LogCaptureFixture) -> None
     with caplog.at_level(logging.WARNING):
         assert poetry_requirement("a", {"version": "1", "markers": markers}) is None
     assert "marker-nesting" in caplog.text
-    assert "Skipping dependency 'a' (Poetry)" in caplog.text
+    assert "dependency 'a' (Poetry)" in caplog.text
 
 
 @pytest.fixture(name="fresh_core")

@@ -25,6 +25,7 @@ from pitloom.extract.lock.poetry import (
     _main_group_package_or_none,
     extract_poetry_lock_dependencies,
 )
+from tests.extract.lock.lock_lines_shared import said
 from tests.extract.lock.poetry_lock_shared import write_lock
 
 
@@ -64,7 +65,12 @@ def test_missing_metadata_table_returns_none_and_warns(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine poetry.lock" in caplog.text
+        said(
+            caplog,
+            "lock-file-wrong-format",
+            "FILE=poetry.lock",
+            "metadata.lock-version",
+        )
 
 
 @pytest.mark.parametrize(
@@ -91,7 +97,12 @@ def test_metadata_table_missing_lock_version_returns_none_and_warns(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine poetry.lock" in caplog.text
+        said(
+            caplog,
+            "lock-file-wrong-format",
+            "FILE=poetry.lock",
+            "metadata.lock-version",
+        )
 
 
 def test_malformed_toml_returns_none_and_warns(
@@ -105,7 +116,7 @@ def test_malformed_toml_returns_none_and_warns(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=poetry.lock", "does not parse")
 
 
 def test_main_group_package_included() -> None:
@@ -197,7 +208,7 @@ def test_malformed_groups_field_skipped_and_warns(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "'groups'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=odd-pkg", "groups is str")
 
 
 def test_legacy_poetry_category_main_and_dev() -> None:
@@ -234,7 +245,12 @@ def test_legacy_poetry_malformed_category_skipped_and_warns(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert result == []
-        assert "'category' is list, expected a string" in caplog.text
+        said(
+            caplog,
+            "lock-entry-malformed",
+            "PACKAGE=bad-category-pkg",
+            "category is list",
+        )
 
 
 def test_optional_package_excluded() -> None:
@@ -268,7 +284,7 @@ def test_conflicting_versions_for_same_package_warns_and_excludes(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=requests", "'2.31.0'", "'2.32.0'")
 
 
 def test_equivalent_versions_for_same_package_not_conflicted() -> None:
@@ -307,8 +323,7 @@ def test_malformed_package_entry_skipped() -> None:
 
 def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
     """A malformed ``[[package]]`` entry (missing ``version``) emits a
-    ``WARNING:`` with the ``missing or non-string 'version'`` wording of every
-    sibling format
+    ``WARNING:`` (``lock-entry-malformed``) as every sibling format does
     (:func:`pitloom.extract.lock.common.warn_missing_version`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -318,7 +333,7 @@ def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "missing or non-string 'version'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=incomplete", "version")
 
 
 def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> None:
@@ -335,7 +350,7 @@ def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> Non
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "missing or non-string 'name'" in caplog.text
+        said(caplog, "lock-entry-malformed", "FILE=poetry.lock", "name None")
 
 
 def test_malformed_package_entry_empty_version_skipped() -> None:
@@ -364,7 +379,7 @@ def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> Non
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a list" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=poetry.lock", "expected a list")
 
 
 @pytest.mark.parametrize("source_type", ["directory", "file", "git", "url"])
@@ -385,7 +400,7 @@ def test_non_pep508_sourced_package_excluded(
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "local-dep" in caplog.text
+        said(caplog, "lock-entry-unusable", "PACKAGE=local-dep")
 
 
 def test_legacy_source_package_still_included() -> None:

@@ -32,6 +32,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.lock._extra_pins import apply_extra_pins
 from pitloom.extract.project import read_project
+from pitloom.messages.lock_files import Said
 
 _HASH = "a" * 64
 _REG = 'source = { registry = "https://pypi.org/simple" }'
@@ -200,9 +201,9 @@ def test_extra_pinned_once_direct_only(
     assert metadata.locked_dependencies == [*_CLOSURE, "opt==2.0"]
     assert metadata.locked_dependency_hashes == {"opt": _HASH}
     messages = [record.getMessage() for record in caplog.records]
-    assert len([m for m in messages if "'amb'" in m]) == 1  # warned, once
-    assert len([m for m in messages if "'gone'" in m]) <= 1  # not warned again
-    assert not [m for m in messages if "'demo'" in m]  # never asked for
+    assert len([m for m in messages if "PACKAGE=amb" in m]) == 1  # warned, once
+    assert len([m for m in messages if "PACKAGE=gone" in m]) <= 1  # not warned again
+    assert not [m for m in messages if "PACKAGE=demo" in m]  # never asked for
 
 
 @pytest.mark.parametrize("lock_name", sorted(_LOCKS), ids=["pdm", "poetry", "uv"])
@@ -378,12 +379,14 @@ def test_extra_pins_ask_only_what_the_edges_call_optional(
     (:func:`pitloom.core.extra_gate.is_extra_gated`)."""
     asked: list[frozenset[str]] = []
 
-    def extractor(_dir: Path, _name: str, names: frozenset[str]) -> list[str]:
+    def extractor(
+        _dir: Path, _name: str, names: frozenset[str], _said: Said
+    ) -> list[str]:
         asked.append(names)
         return []
 
     metadata = ProjectMetadata(name="demo", dependencies=[declared])
-    apply_extra_pins(metadata, tmp_path, extractor, lambda _dir, _pins: None)
+    apply_extra_pins(metadata, tmp_path, extractor, lambda _dir, _pins: None, set())
 
     assert asked == [frozenset(wanted)]
 
@@ -470,7 +473,7 @@ def test_required_and_extra_git_dependency_warned_once(
         apply_locked_dependencies(metadata, tmp_path)
 
     assert not metadata.locked_dependencies
-    assert len([m for m in caplog.messages if "'vcs'" in m]) == 1, caplog.messages
+    assert len([m for m in caplog.messages if "PACKAGE=vcs" in m]) == 1, caplog.messages
 
 
 @pytest.mark.parametrize(

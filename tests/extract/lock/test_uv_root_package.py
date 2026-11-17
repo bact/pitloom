@@ -27,6 +27,7 @@ from pitloom.extract.lock._uv_graph import (
     scan_packages,
 )
 from pitloom.extract.lock.uv import _expected_project_name
+from tests.extract.lock.lock_lines_shared import said
 
 
 def test_find_root_package_returns_none_for_empty_list() -> None:
@@ -79,8 +80,7 @@ def test_find_root_package_sole_candidate_needs_its_name_unless_unknown(
     assert not caplog.messages
     with caplog.at_level(logging.WARNING):
         assert find_root_package(packages, "different-name") is None
-    assert "1 candidate" in caplog.text
-    assert "different-name" in caplog.text
+    said(caplog, "lock-file-unusable", "FILE=uv.lock", "none named different-name")
 
 
 def test_find_root_package_prefers_name_match_among_multiple_candidates() -> None:
@@ -108,8 +108,8 @@ def test_find_root_package_multiple_candidates_no_name_match_returns_none_and_wa
         result = find_root_package(packages, "pkg-c")
 
     assert result is None
-    assert "2 candidate" in caplog.text
-    assert "pkg-c" in caplog.text
+    said(caplog, "lock-file-unusable", "FILE=uv.lock", "workspace entries: 2")
+    said(caplog, "lock-file-unusable", "none named pkg-c")
 
 
 def test_pinned_dep_for_package_returns_none_when_source_not_a_dict() -> None:

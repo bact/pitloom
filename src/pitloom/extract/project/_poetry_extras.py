@@ -233,17 +233,10 @@ def extras_requirements(
                 listed.add(key)
             elif key not in declared:
                 warn_skipped_extra_entry(
-                    "Poetry",
-                    extra,
-                    name,
-                    "not declared in [tool.poetry.dependencies]",
-                    quiet=quiet,
+                    "Poetry", extra, name, "undeclared-dependency", quiet=quiet
                 )
     for key in sorted(optional - listed if warn_unlisted else ()):
         warn_skipped_dependency(
-            "Poetry",
-            entries[key][0],
-            "optional and listed in no [tool.poetry.extras] extra",
-            quiet=quiet,
+            "Poetry", entries[key][0], "unlisted-optional", quiet=quiet
         )
     return by_extra, listed

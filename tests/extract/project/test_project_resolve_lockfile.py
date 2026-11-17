@@ -136,7 +136,7 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
         )
 
     assert metadata.name == "pkg"
-    assert caplog.text.count("Skipping dependency") == 1
+    assert caplog.text.count("a local path source") == 1
 
 
 def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(

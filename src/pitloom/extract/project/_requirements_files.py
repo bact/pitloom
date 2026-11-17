@@ -50,7 +50,7 @@ from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.requirements import NOT_PEP_508, warn_skipped_dependency
+from pitloom.core.requirements import warn_skipped_dependency
 from pitloom.logging_config import loggable, one_line
 from pitloom.messages.files import (
     Cap,
@@ -183,7 +183,7 @@ def pep508_only(requirements: list[str], field: str, quiet: bool) -> list[str]:
         try:
             parse_requirement(text, quiet=quiet)
         except InvalidRequirement:
-            warn_skipped_dependency(field, text, NOT_PEP_508, quiet=quiet)
+            warn_skipped_dependency(field, text, "not-pep-508", quiet=quiet)
             continue
         kept.append(text)
     return kept

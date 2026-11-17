@@ -23,9 +23,16 @@ from typing import Any
 from pitloom._toml_io import load_toml_bytes
 from pitloom.core.given_file import FETCH_MAX_BYTES
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
-from pitloom.messages.files import warn_file_unreadable
+from pitloom.messages import code_of, relay_extra
+from pitloom.messages.files import Cap, warn_file_unreadable, warn_over_cap
+from pitloom.messages.lock_files import (
+    LOCK_FILE_OVER_CAP_OUTCOME,
+    PARSE_LINE,
+    TOP_LEVEL_LINE,
+    lock_file_cap,
+    say_lock_file,
+)
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +57,14 @@ def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
 
 class LockFileRefusedError(ValueError):
     """A lock/pin file that is not read at all: not a regular file, or over
-    :data:`~pitloom.core.given_file.FETCH_MAX_BYTES`."""
+    :data:`~pitloom.core.given_file.FETCH_MAX_BYTES`. *cap*: the size cap
+    it is over (:func:`~pitloom.messages.lock_files.lock_file_cap`), or
+    ``None`` for a file that is not a regular file."""
+
+    def __init__(self, message: str, *, cap: Cap | None = None) -> None:
+        super().__init__(message)
+        #: The size cap the file is over, else ``None``.
+        self.cap: Cap | None = cap
 
 
 def read_lock_bytes(lock_path: Path) -> bytes:
@@ -80,16 +94,21 @@ def read_lock_bytes(lock_path: Path) -> bytes:
     with handle:
         raw = handle.read(FETCH_MAX_BYTES + 1)
     if len(raw) > FETCH_MAX_BYTES:
-        raise LockFileRefusedError(f"over {FETCH_MAX_BYTES} bytes")
+        raise LockFileRefusedError(
+            f"over {FETCH_MAX_BYTES} bytes", cap=lock_file_cap(FETCH_MAX_BYTES)
+        )
     return raw
 
 
 def warn_unreadable_lock_file(lock_path: Path, exc: BaseException) -> None:
     """The one ``WARNING:`` for a lock/pin file that can't be read or
-    parsed (*exc*: why): ``file-unreadable`` for one the system does not
-    read, once per file and process (a pin reader and its hash companion
-    read one file); ``Cannot read`` for a file refused before parsing,
-    ``Failed to parse`` for one that does not parse; none for one absent."""
+    parsed (*exc*: why), chosen by the exception's type: ``file-unreadable``
+    for a file the system does not read (once per file and process: a pin
+    reader and its hash companion read one file), a file that is not a
+    regular file, or bytes that are not UTF-8 (``/not-utf8``); ``over-cap``
+    for one over the size cap; ``lock-file-malformed`` for one that does not
+    parse (a parser's coded *exc* keeps its own code, see
+    :func:`_say_parse_failure`). None for a file that is absent."""
     if isinstance(exc, OSError):
         if not is_missing_errno(exc):
             warn_file_unreadable(
@@ -100,14 +119,30 @@ def warn_unreadable_lock_file(lock_path: Path, exc: BaseException) -> None:
                 once=f"lock-unreadable:{lock_path}",
             )
         return
-    verb = "Cannot read" if isinstance(exc, LockFileRefusedError) else "Failed to parse"
-    log.warning("%s %s: %s", verb, quote_source(lock_path), one_line(exc))
+    if isinstance(exc, LockFileRefusedError) and exc.cap is not None:
+        warn_over_cap(log, exc.cap, lock_path.name, LOCK_FILE_OVER_CAP_OUTCOME)
+    elif isinstance(exc, (LockFileRefusedError, UnicodeDecodeError)):
+        warn_file_unreadable(log, exc, file=lock_path.name, use="for dependency pins")
+    else:
+        _say_parse_failure(lock_path, exc)
 
 
-def _load_lock(
-    lock_path: Path, parse: Callable[[bytes], Any], kind: str
-) -> dict[str, Any] | None:
-    """Parse *lock_path* with *parse* (a *kind* reader), through the cache.
+def _say_parse_failure(lock_path: Path, exc: BaseException) -> None:
+    """The one ``WARNING:`` for a lock that does not parse: a parser's coded
+    *exc* that has a ``WARNING`` line of its own text is said as it is, its
+    code forwarded; any other is ``lock-file-malformed``, *exc*'s text its
+    failure."""
+    code = code_of(exc)
+    text = one_line(exc)
+    extra = None if code is None else relay_extra(code, "WARNING", text)
+    if extra is None:
+        say_lock_file(log, PARSE_LINE, file=lock_path, failure=exc)
+    else:
+        log.warning("%s", text, extra=extra)
+
+
+def _load_lock(lock_path: Path, parse: Callable[[bytes], Any]) -> dict[str, Any] | None:
+    """Parse *lock_path* with *parse*, through the cache.
 
     Returns ``None`` silently for an absent file, and after one ``WARNING:``
     for one that is refused, unreadable, unparseable or not a table/object.
@@ -127,12 +162,7 @@ def _load_lock(
         warn_unreadable_lock_file(lock_path, exc)
         return None
     if not isinstance(data, dict):
-        log.warning(
-            "%s: top-level %s value is %s, expected an object",
-            quote_source(lock_path),
-            kind,
-            type(data).__name__,
-        )
+        say_lock_file(log, TOP_LEVEL_LINE, file=lock_path, value_type=data)
         return None
     if cache_key is not None:
         if len(_LOCK_FILE_CACHE) >= _LOCK_FILE_CACHE_SIZE:
@@ -144,10 +174,10 @@ def _load_lock(
 def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     """Load *lock_path* as TOML; ``None`` (silently if absent, else after
     a ``WARNING:``) instead of raising."""
-    return _load_lock(lock_path, load_toml_bytes, "TOML")
+    return _load_lock(lock_path, load_toml_bytes)
 
 
 def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
     """:func:`load_lock_toml` for JSON (``Pipfile.lock``); a top level that
     is not an object is rejected with a ``WARNING:``."""
-    return _load_lock(lock_path, json.loads, "JSON")
+    return _load_lock(lock_path, json.loads)

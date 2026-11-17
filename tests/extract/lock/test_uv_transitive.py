@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.uv import extract_uv_lock_dependencies
+from tests.extract.lock.lock_lines_shared import said
 
 _LOCK_HEADER = 'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
 
@@ -109,7 +110,7 @@ def test_nested_dependencies_not_a_list_skipped_and_warns(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "nested 'dependencies'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "dependencies is str")
 
 
 def test_nested_dependencies_falsy_non_list_warns_and_skipped(
@@ -132,7 +133,7 @@ def test_nested_dependencies_falsy_non_list_warns_and_skipped(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "nested 'dependencies'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "dependencies is bool")
 
 
 def test_dependency_with_no_source_table_still_included() -> None:
@@ -253,8 +254,7 @@ def test_transitive_walk_requested_extra_not_declared_warns_and_skips(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "not found" in caplog.text
-        assert "socks" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=requests", "extra 'socks'")
 
 
 def test_transitive_walk_extra_deps_non_list() -> None:

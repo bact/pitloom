@@ -15,7 +15,6 @@ from typing import Literal
 import pytest
 from packaging.specifiers import SpecifierSet
 
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     canonical_name_and_pinned_version,
     default_group_included,
@@ -37,6 +36,7 @@ from pitloom.extract.lock.common import (
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
+from tests._code_records import coded, has_parts
 
 
 def test_parse_exact_pin_requirement() -> None:
@@ -111,9 +111,9 @@ def test_resolve_pinned_dependencies_skip_policy(
     with caplog.at_level(logging.WARNING):
         deps = resolve_pinned_dependencies(pairs, "test.lock", on_conflict="skip")
     assert deps == ["bar==3.0"]
-    assert (
-        "Skipping test.lock entry 'foo': pinned to conflicting versions" in caplog.text
-    )
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-conflict"
+    assert has_parts(text, "FILE=test.lock", "PACKAGE=foo", "skipped", "'1.0'", "'2.0'")
 
 
 def test_resolve_pinned_dependencies_abort_policy(
@@ -124,12 +124,11 @@ def test_resolve_pinned_dependencies_abort_policy(
     with caplog.at_level(logging.WARNING):
         deps = resolve_pinned_dependencies(triples, lock_file, on_conflict="abort")
     assert deps is None
-    # str(lock_file), not a hardcoded POSIX literal: the warning logs the
-    # Path object's native str() form, which renders with "\" on Windows.
-    assert (
-        f"{quote_source(lock_file)}: 'foo' pinned to conflicting versions (1.0, 2.0)"
-        " -- ignoring requirements.txt" in caplog.text
-    )
+    # The file's name only, never its directory.
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-conflict"
+    assert has_parts(text, "FILE=requirements.txt", "PACKAGE=foo", "no pins read")
+    assert str(lock_file.parent) not in text
 
 
 def test_version_key_parses_pep440_versions_as_equal() -> None:
@@ -297,7 +296,9 @@ def test_shape_validated_package_missing_name_returns_none_and_warns(
         result = shape_validated_package({"version": "1.0.0"}, "poetry.lock")
 
     assert result is None
-    assert "missing or non-string 'name'" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=poetry.lock", "package", "name None")
 
 
 @pytest.mark.parametrize(
@@ -311,8 +312,9 @@ def test_shape_validated_package_invalid_name_is_one_escaped_warning(
         result = shape_validated_package({"name": name, "version": "1.0"}, "x.lock")
 
     assert result is None
-    (message,) = caplog.messages
-    assert "invalid 'name'" in message
+    [(code, message)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(message, "FILE=x.lock", "not a valid package name")
     assert message.isprintable()  # no raw ESC or newline
 
 
@@ -323,7 +325,9 @@ def test_shape_validated_package_missing_version_returns_none_and_warns(
         result = shape_validated_package({"name": "requests"}, "poetry.lock")
 
     assert result is None
-    assert "missing or non-string 'version'" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=poetry.lock", "PACKAGE=requests", "version")
 
 
 def test_default_group_included_defaults_when_groups_absent() -> None:
@@ -353,7 +357,9 @@ def test_default_group_included_not_a_list_returns_none_and_warns(
         )
 
     assert result is None
-    assert "'groups' is str, expected a list" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=poetry.lock", "PACKAGE=requests", "groups is str")
 
 
 @pytest.mark.parametrize("operator", ["==", "==="])
@@ -425,9 +431,9 @@ def test_warn_non_registry_source_logs_expected_message(
     with caplog.at_level(logging.WARNING):
         warn_non_registry_source("uv.lock", "requests", "git")
 
-    assert "uv.lock" in caplog.text
-    assert "'requests'" in caplog.text
-    assert "git-sourced" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-unusable"
+    assert has_parts(text, "FILE=uv.lock", "PACKAGE=requests", "git source")
 
 
 def test_warn_top_level_key_wrong_type_logs_expected_message(
@@ -435,10 +441,12 @@ def test_warn_top_level_key_wrong_type_logs_expected_message(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         warn_top_level_key_wrong_type(
-            Path("Pipfile.lock"), "default", "not-a-table", "a table", "Pipfile.lock"
+            Path("Pipfile.lock"), "default", "not-a-table", "table"
         )
 
-    assert "top-level 'default' key is str, expected a table" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-file-malformed"
+    assert has_parts(text, "FILE=Pipfile.lock", "top-level default is str")
 
 
 def test_warn_missing_version_logs_expected_message(
@@ -447,23 +455,28 @@ def test_warn_missing_version_logs_expected_message(
     with caplog.at_level(logging.WARNING):
         warn_missing_version("poetry.lock", "requests")
 
-    assert "missing or non-string 'version'" in caplog.text
-    assert "'requests'" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=poetry.lock", "PACKAGE=requests", "version")
 
 
 def test_warn_malformed_entry_not_table_logs_expected_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        warn_malformed_entry_not_table("uv.lock", "[[package]]", "not-a-table")
+        warn_malformed_entry_not_table("uv.lock", "package", "not-a-table")
 
-    assert "expected a table, got str" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=uv.lock", "package is str", "expected a table")
 
 
 def test_warn_missing_name_logs_expected_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        warn_missing_name("Skipping malformed poetry.lock entry", None)
+        warn_missing_name("poetry.lock", "package", None)
 
-    assert "missing or non-string 'name'" in caplog.text
+    [(code, text)] = coded(caplog)
+    assert code == "lock-entry-malformed"
+    assert has_parts(text, "FILE=poetry.lock", "name None")

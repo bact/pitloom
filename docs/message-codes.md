@@ -30,6 +30,8 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Targets](message-codes-targets.md): 14 codes
 - [Options](message-codes-options.md): 4 codes
 - [Files and text](message-codes-files.md): 12 codes
+- [Lock files](message-codes-lock-files.md): 7 codes
+- [Dependencies](message-codes-dependencies.md): 5 codes
 - [PyPI](message-codes-pypi.md): 13 codes
 - [Network](message-codes-network.md): 9 codes
 - [URL credentials](message-codes-url-credentials.md): 8 codes
@@ -50,10 +52,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`credentials-unsafe/refused`](message-codes-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
 | [`credentials-unsafe/registry`](message-codes-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](message-codes-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
+| [`dependency-name-ambiguous`](message-codes-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
 | [`download-network-failed`](message-codes-network.md#download-network-failed) | ERROR, WARNING | 0.24.0 |
 | [`download-timeout`](message-codes-network.md#download-timeout) | ERROR, WARNING | 0.24.0 |
+| [`extra-gate-ambiguous`](message-codes-dependencies.md#extra-gate-ambiguous) | WARNING | 0.25.0 |
+| [`extra-gate-unusable`](message-codes-dependencies.md#extra-gate-unusable) | WARNING | 0.25.0 |
 | [`field-not-recordable`](message-codes-model-fields.md#field-not-recordable) | INFO | 0.23.0 |
 | [`file-ambiguous`](message-codes-pypi.md#file-ambiguous) | INFO | 0.24.0 |
 | [`file-unreadable`](message-codes-files.md#file-unreadable) | ERROR, WARNING | 0.22.0 |
@@ -73,6 +78,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`library-missing`](message-codes-models.md#library-missing) | ERROR, WARNING | 0.22.0 |
 | [`library-unusable`](message-codes-models.md#library-unusable) | ERROR, WARNING | 0.23.0 |
 | [`license-relationship-invalid`](message-codes-licences.md#license-relationship-invalid) | ERROR, WARNING | 0.24.0 |
+| [`lock-entry-conflict`](message-codes-lock-files.md#lock-entry-conflict) | WARNING | 0.25.0 |
+| [`lock-entry-malformed`](message-codes-lock-files.md#lock-entry-malformed) | WARNING | 0.25.0 |
+| [`lock-entry-unusable`](message-codes-lock-files.md#lock-entry-unusable) | WARNING | 0.25.0 |
+| [`lock-file-conflict`](message-codes-lock-files.md#lock-file-conflict) | WARNING | 0.25.0 |
+| [`lock-file-malformed`](message-codes-lock-files.md#lock-file-malformed) | WARNING | 0.25.0 |
+| [`lock-file-unusable`](message-codes-lock-files.md#lock-file-unusable) | WARNING | 0.25.0 |
+| [`lock-file-wrong-format`](message-codes-lock-files.md#lock-file-wrong-format) | WARNING | 0.25.0 |
 | [`model-ambiguous`](message-codes-targets.md#model-ambiguous) | ERROR, INFO | 0.23.4 |
 | [`model-ambiguous/over-cap`](message-codes-targets.md#model-ambiguousover-cap) | ERROR | 0.23.4 |
 | [`model-field-conflict`](message-codes-model-fields.md#model-field-conflict) | WARNING | 0.23.0 |
@@ -122,6 +134,8 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`release-unpinned/prerelease`](message-codes-pypi.md#release-unpinnedprerelease) | INFO | 0.24.0 |
 | [`release-unpinned/yanked`](message-codes-pypi.md#release-unpinnedyanked) | INFO | 0.24.0 |
 | [`release-unusable`](message-codes-pypi.md#release-unusable) | INFO | 0.24.0 |
+| [`requirement-invalid`](message-codes-dependencies.md#requirement-invalid) | WARNING | 0.25.0 |
+| [`requirement-unusable`](message-codes-dependencies.md#requirement-unusable) | WARNING | 0.25.0 |
 | [`sbom-invalid`](message-codes-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
 | [`sbom-wrong-format`](message-codes-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
@@ -156,7 +170,10 @@ A line may start with one prefix before its text:
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
+| `<declared-in>` | where the dependency is declared: `Poetry`, `optional-dependencies`, `extras_require`, or the setting that lists a requirements file; escaped when it holds a control character |
+| `<dependency>` | a dependency as declared (a requirement, a Poetry table), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
+| `<dropped>` | what a conflict left out (versions, a lock file), sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<element>` | the SBOM element that holds the value (for a fingerprint that matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<kind>` | what the element is: `dataset`, `dataset package`, `entity`, `file`, `model` |
 | `'<type>'` | an element type as the ID registry file names it, in quotes (`'software_File'`), escaped when it holds a control character |
@@ -165,6 +182,7 @@ A line may start with one prefix before its text:
 | `<entity>` | an element's name or ID registry key (a path, a dataset or model name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
+| `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
 | `<fields>` | the model fields not recorded, or recorded weaker, comma-separated, each with a note in brackets when it has one (`type_of_model`, `properties.tags (kept as raw string)`) |
@@ -176,9 +194,13 @@ A line may start with one prefix before its text:
 | `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
+| `<kept>` | what a conflict kept (a lock file), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<key-reason>` | why the element is keyed by its name, or files by their path as read: `not found`, `outside the project root`, `not a regular file`, `used only by a model with no file`, `not found: declare paths relative to the registry root (id import --project-dir) or run id import from the directory the script ran in`, `the project is outside the registry's root`, `their path is outside the registry's root`, `their path leads outside the archive's project` |
 | `<limit>` | the cap, in its unit |
+| `<line>` | the line of a requirements file, counted from 1 as pip counts it (str.splitlines(); a continued line by its first) |
+| `<lock-key>` | the lock-file key the line is about: `_meta.pipfile-spec`, `category`, `created-by`, `default`, `default-groups`, `dependencies`, `extra`, `extras`, `groups`, `lock-version`, `marker`, `metadata.lock-version`, `metadata.lock_version`, `name`, `optional-dependencies`, `package`, `packages`, `version` |
+| `<lock-value>` | a value as the lock file or the line states it, on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<sha256>` | the SHA-256 of the bytes read, in hex |
 | `<module>` | the Python module Pitloom imports for the step (`h5py`) |
 | `<name>` | the input as Pitloom names it (a path, a field, a dataset, the start of a requirement); in quotes, escaped, when it holds a control character |
@@ -189,6 +211,7 @@ A line may start with one prefix before its text:
 | `<option>` | a command-line option as the command names it (`--allow-build`, `-o/--output`, `--pretty/--no-pretty`), a positional argument as argparse names it (`command`), or a library parameter (`project_metadata`) |
 | `<other>` | the option given before, which the one named first cannot be given with, as argparse names it (`--pretty`) |
 | `<outcome>` | what Pitloom kept, and what it did not read or record |
+| `<package>` | a package as the lock file or the declaration names it (a valid distribution name); escaped when it holds a control character |
 | `<part>` | the part of a Keras or HDF5 model that was not read: a root attribute (`model_config`) or a key path in a config (`training_config.optimizer`, `layers[0].config`) |
 | `'<path>'` | a path in quotes |
 | `<pointer>` | the field of the element that holds the value, as an RFC 6901 JSON pointer into it (`/software_downloadLocation`, `/externalRef/0/locator/0`); for a statement Pitloom writes, on into it (`/statement/metadata/<key>`, `/statement/fields/<field>/note`), or into the comment's provenance line (`/comment/<field>/note`), a part no JSON pointer resolves on the element; in quotes, escaped, when it holds a control character |
@@ -204,6 +227,7 @@ A line may start with one prefix before its text:
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
+| `<source-kind>` | the kind of source that gives no registry version: `archive`, `bzr`, `directory`, `editable`, `file`, `git`, `hg`, `path`, `svn`, `url`, `vcs`, `virtual` |
 | `<spdx-id>` | an element's spdxId, as held or read, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
@@ -211,6 +235,7 @@ A line may start with one prefix before its text:
 | `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
 | `<use>` | what the file was read or written for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
+| `<type>` | the type of the value the file holds, as Python names it: `bool`, `date`, `datetime`, `dict`, `float`, `int`, `list`, `NoneType`, `str`, `time` |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |
 | `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |
 | `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |

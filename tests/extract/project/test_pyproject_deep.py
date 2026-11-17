@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.project.pyproject import read_pyproject
+from tests._code_records import coded
 from tests._deep_marker import DEEP_REQUIREMENT
 
 _DEEP = DEEP_REQUIREMENT
@@ -44,5 +45,5 @@ def test_a_deep_requirement_is_put_back_in_place(
         "alpha", _DEEP, "beta", _DEEP, 'gamma; extra == "x"'
     ]  # fmt: skip
     capped = [m for m in caplog.messages if "marker-nesting cap" in m]
-    skipped = [m for m in caplog.messages if m.startswith("Skipping extra entry")]
+    skipped = [m for c, m in coded(caplog) if c == "requirement-invalid"]
     assert (len(capped), len(skipped)) == ((0, 0) if quiet else (1, 1))

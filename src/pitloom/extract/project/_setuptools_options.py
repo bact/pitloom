@@ -41,7 +41,6 @@ from pitloom.core.provenance import (
     provenance_source,
 )
 from pitloom.core.requirements import (
-    NOT_PEP_508,
     add_marker,
     flatten_optional_dependencies,
     warn_skipped_extra_entry,
@@ -155,13 +154,14 @@ def _extra_requirements(
         try:
             req = parse_requirement(text, quiet=quiet)
             add_marker(req, marker)
-        except (InvalidRequirement, InvalidMarker):
+        except InvalidRequirement:
             warn_skipped_extra_entry(
-                "extras_require",
-                key,
-                text,
-                f"{NOT_PEP_508} or marker",
-                quiet=quiet,
+                "extras_require", key, text, "not-pep-508", quiet=quiet
+            )
+            continue
+        except InvalidMarker as exc:
+            warn_skipped_extra_entry(
+                "extras_require", key, text, "marker", failure=exc, quiet=quiet
             )
             continue
         merged.append(str(req))

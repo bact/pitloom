@@ -149,7 +149,7 @@ def _prepared(doc: DocumentModel) -> DocumentModel:
 
 
 # pylint: disable=too-many-locals
-# pylint: disable-next=too-many-arguments
+# pylint: disable-next=too-many-arguments,too-many-statements
 def build(
     doc: DocumentModel,
     merkle_root: str | None = None,
@@ -311,7 +311,9 @@ def build(
     release_info_cache = None if offline else _prefetch_combined_release_info(groups)
 
     # --- Dependencies ---
-    # One author-split warning for every dependency of the document.
+    # One author-split warning, and one direct-reference line per package,
+    # for every dependency of the document.
+    direct_references_said: set[str] = set()
     with dependency_author_splits():
         add_dependencies(
             dependencies=metadata.dependencies,
@@ -332,6 +334,7 @@ def build(
             resolved_ids=package_ids.dependencies,
             project_name=metadata.name,
             groups=groups.direct,
+            direct_references_said=direct_references_said,
         )
 
         if transitive_only:
@@ -353,6 +356,7 @@ def build(
                 resolved_ids=package_ids.dependencies,
                 project_name=metadata.name,
                 groups=groups.transitive,
+                direct_references_said=direct_references_said,
             )
 
     # --- Files ---

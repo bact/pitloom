@@ -29,6 +29,7 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.requirements import flatten_optional_dependencies
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.project.pyproject import read_pyproject
+from tests._code_records import coded
 from tests.assemble.conftest import _make_ci, _make_dummy_wheel
 from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc
 from tests.id_registry.package_ids_base import phantom as phantom_dep
@@ -190,23 +191,24 @@ def test_directory_and_wheel_routes_agree_on_self_reference() -> None:
 
 
 @pytest.mark.parametrize(
-    ("dep", "reason"),
+    ("dep", "code", "reason"),
     [
-        ('odd==1.0; extra != "q"', "can't be isolated"),
-        ('odd >= ; extra == "q"', "not a valid PEP 508 requirement"),
+        ('odd==1.0; extra != "q"', "extra-gate-unusable", "cannot be isolated"),
+        ('odd >= ; extra == "q"', "requirement-invalid", "not a PEP 508"),
     ],
     ids=["unisolatable", "unparsable"],
 )
 def test_unreadable_extra_gate_warns_once_per_build(
-    caplog: pytest.LogCaptureFixture, dep: str, reason: str
+    caplog: pytest.LogCaptureFixture, dep: str, code: str, reason: str
 ) -> None:
     with caplog.at_level("WARNING"):
         sbom_json = build_doc(make_doc(dependencies=[dep, dep]), None).to_json()
 
     assert list(_edges(sbom_json).values()) == [(_SCOPED, "dependsOn", "runtime", None)]
-    warned = [r.getMessage() for r in caplog.records if dep in r.getMessage()]
+    warned = [(c, m) for c, m in coded(caplog) if dep in m]
     assert len(warned) == 1
-    assert reason in warned[0]
+    assert warned[0][0] == code
+    assert reason in warned[0][1]
 
 
 @pytest.mark.parametrize(

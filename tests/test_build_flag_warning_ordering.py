@@ -32,7 +32,7 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.core.build_options import BuildOptions
 from tests.assemble.conftest import _make_dummy_wheel
 
-_METADATA_WARNING_SUBSTRING = "conflicting versions"
+_METADATA_WARNING_SUBSTRING = "pinned to several versions"
 _BUILD_WARNING_SUBSTRING = "--build-timeout has no effect"
 _NON_PROJECT_BUILD_WARNING_SUBSTRING = "--build-timeout has no effect for this target"
 _SDIST_MEMBER_METADATA_WARNING_SUBSTRING = (

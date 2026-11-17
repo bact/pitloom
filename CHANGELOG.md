@@ -24,9 +24,9 @@ and this project adheres to
 
 ### Added
 
-- Input, option, SBOM, target, ID registry file, id, key, save and file-set
-  messages carry a message code; see `docs/message-codes.md` ([#482], [#485],
-  [#486], [#492])
+- Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
+  file and dependency messages carry a message code; see
+  `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -39,6 +39,8 @@ and this project adheres to
   JSON statements and comment segments are checked too ([#490])
 - GitHub Action inputs `url-credentials` and `accept-url-credentials`;
   `::add-mask::` for credential parts of URLs in source inputs ([#491])
+- A direct reference is said, as an `INFO:` line, not to be looked up on PyPI
+  ([#496])
 
 ### Changed
 
@@ -90,6 +92,8 @@ and this project adheres to
 - A failed ID registry save prints one coded line naming the file as given
   (`file-unwritable` for a refused write); left-out and save lines are coded
   ([#492])
+- A `uv.lock` warning about a package (missing from its table, a version per
+  marker, a malformed key) is said once per run, not per reference ([#496])
 
 ### Security
 
@@ -111,6 +115,7 @@ and this project adheres to
 [#491]: https://github.com/bact/pitloom/pull/491
 [#492]: https://github.com/bact/pitloom/pull/492
 [#494]: https://github.com/bact/pitloom/pull/494
+[#496]: https://github.com/bact/pitloom/pull/496
 
 ## [0.24.0] - 2026-11-11
 

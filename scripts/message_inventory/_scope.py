@@ -73,6 +73,7 @@ DETAIL_EXC = frozenset(
         "NotAModel",
         "_shape_error",
         "MemberReadError",
+        "_MarkersTypeError",
     }
 )
 #: Exception classes that are programming errors or process control.

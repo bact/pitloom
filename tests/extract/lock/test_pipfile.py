@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.pipfile import extract_pipfile_lock_dependencies
+from tests.extract.lock.lock_lines_shared import said
 
 #: Every genuine `Pipfile.lock` carries this key -- merged into *data* by
 #: default so tests that aren't specifically about the genuineness check
@@ -53,7 +54,7 @@ def test_malformed_json_returns_none_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=Pipfile.lock", "does not parse")
 
 
 def test_missing_meta_key_returns_none_and_warns(
@@ -72,7 +73,9 @@ def test_missing_meta_key_returns_none_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
+        said(
+            caplog, "lock-file-wrong-format", "FILE=Pipfile.lock", "_meta.pipfile-spec"
+        )
 
 
 @pytest.mark.parametrize(
@@ -96,7 +99,9 @@ def test_meta_missing_pipfile_spec_returns_none_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
+        said(
+            caplog, "lock-file-wrong-format", "FILE=Pipfile.lock", "_meta.pipfile-spec"
+        )
 
 
 def test_default_section_not_a_dict_returns_none_and_warns(
@@ -110,7 +115,7 @@ def test_default_section_not_a_dict_returns_none_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a table" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=Pipfile.lock", "expected a table")
 
 
 def test_no_default_section_returns_empty_list_not_none() -> None:
@@ -206,7 +211,7 @@ def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert not result
-        assert "pinned to conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=Flask", "'2.0.0'", "'3.0.0'")
 
 
 def test_malformed_entry_not_a_dict_skipped_and_warns(
@@ -228,7 +233,7 @@ def test_malformed_entry_not_a_dict_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "PACKAGE=broken", "expected a table")
 
 
 def test_missing_version_skipped_and_warns(
@@ -250,7 +255,7 @@ def test_missing_version_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "missing" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "PACKAGE=no-version", "version")
 
 
 @pytest.mark.parametrize(
@@ -275,7 +280,7 @@ def test_non_registry_sourced_dependency_excluded(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "local-dep" in caplog.text
+        said(caplog, "lock-entry-unusable", "FILE=Pipfile.lock", "PACKAGE=local-dep")
 
 
 def test_editable_false_not_treated_as_non_registry_source() -> None:
@@ -330,7 +335,9 @@ def test_invalid_specifier_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "valid PEP 440 specifier" in caplog.text
+        said(
+            caplog, "lock-entry-malformed", "PACKAGE=broken-version", "not-a-specifier"
+        )
 
 
 def test_prefix_match_specifier_skipped_and_warns(
@@ -354,7 +361,13 @@ def test_prefix_match_specifier_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "isn't a single exact" in caplog.text
+        said(
+            caplog,
+            "lock-entry-unusable",
+            "PACKAGE=wildcard",
+            "==2.31.*",
+            "not one exact",
+        )
 
 
 def test_non_dict_json_top_level_returns_empty_list_and_warns(
@@ -371,7 +384,7 @@ def test_non_dict_json_top_level_returns_empty_list_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert not result
-        assert "expected an object" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=Pipfile.lock", "expected an object")
 
 
 @pytest.mark.parametrize("version", [">=2.31.0", "==2.31.0,!=2.31.1", "!=2.31.0"])
@@ -399,7 +412,13 @@ def test_non_exact_pin_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "exact" in caplog.text.lower()
+        said(
+            caplog,
+            "lock-entry-unusable",
+            "PACKAGE=ranged",
+            f"{version}",
+            "not one exact",
+        )
 
 
 def test_missing_or_empty_name_skipped_and_warns(
@@ -424,4 +443,4 @@ def test_missing_or_empty_name_skipped_and_warns(
             result = extract_pipfile_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=Pipfile.lock", "name ''")

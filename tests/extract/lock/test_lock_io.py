@@ -25,10 +25,15 @@ import pytest
 import pitloom.extract.lock._lock_io as lock_io
 import pitloom.extract.lock.common as lock_common
 from pitloom.core.given_file import FETCH_MAX_BYTES
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import load_lock_json, load_lock_toml
 from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import CodedValueError
+from pitloom.messages.files import FILE_UNREADABLE
+from pitloom.messages.lock_files import lock_file_cap
 from tests._bounded import run_bounded
+from tests._code_records import coded, has_parts
+
+pytestmark = pytest.mark.platform
 
 
 def test_load_lock_toml_missing_file_returns_none() -> None:
@@ -47,7 +52,9 @@ def test_load_lock_toml_malformed_returns_none_and_warns(
             result = load_lock_toml(lock_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        [(code, text)] = coded(caplog)
+        assert code == "lock-file-malformed"
+        assert has_parts(text, "FILE=some.lock", "does not parse")
 
 
 def test_load_lock_toml_valid_file_returns_data() -> None:
@@ -72,7 +79,9 @@ def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
             result = load_lock_toml(lock_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        [(code, text)] = coded(caplog)
+        assert code == "file-unreadable/not-utf8"
+        assert has_parts(text, "FILE=some.lock")
 
 
 def test_load_lock_toml_second_read_of_same_file_is_cached() -> None:
@@ -141,7 +150,9 @@ def test_load_lock_json_invalid_utf8_returns_none_and_warns(
             result = load_lock_json(lock_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        [(code, text)] = coded(caplog)
+        assert code == "file-unreadable/not-utf8"
+        assert has_parts(text, "FILE=some.json")
 
 
 _LOADERS = pytest.mark.parametrize(
@@ -196,9 +207,9 @@ def test_a_parser_resource_error_is_a_bad_file(
     lock_path.write_text("{}", encoding="utf-8")
     with caplog.at_level(logging.WARNING):
         assert loader(lock_path) is None
-    assert caplog.messages == [
-        f"Failed to parse {quote_source(lock_path)}: {error.__name__}"
-    ]
+    [(code, text)] = coded(caplog)
+    assert code == "lock-file-malformed"
+    assert has_parts(text, "FILE=some.lock", error.__name__)
 
 
 @_LOADERS
@@ -258,9 +269,10 @@ def test_lock_file_over_the_size_cap_is_not_parsed(
         handle.truncate(FETCH_MAX_BYTES + 1)
     with caplog.at_level(logging.WARNING):
         assert loader(lock_path) is None
-    assert caplog.messages == [
-        f"Cannot read {quote_source(lock_path)}: over {FETCH_MAX_BYTES} bytes"
-    ]
+    [(code, text)] = coded(caplog)
+    assert code == "over-cap"
+    assert has_parts(text, "FILE=some.lock", "no dependency pins read")
+    assert str(lock_path.parent) not in text
 
 
 @_LOADERS
@@ -269,9 +281,9 @@ def test_directory_is_not_a_lock_file(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         assert loader(tmp_path) is None
-    assert caplog.messages == [
-        f"Cannot read {quote_source(tmp_path)}: not a regular file"
-    ]
+    [(code, text)] = coded(caplog)
+    assert code == "file-unreadable"
+    assert has_parts(text, f"FILE={tmp_path.name}", "not a regular file")
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs POSIX FIFOs")
@@ -285,6 +297,7 @@ def test_fifo_is_refused_without_blocking(
     with caplog.at_level(logging.WARNING):
         result = run_bounded(lambda: loader(fifo))
     assert result is None
+    assert [code for code, _text in coded(caplog)] == ["file-unreadable"]
     assert "not a regular file" in caplog.text
 
 
@@ -320,9 +333,9 @@ def test_a_directory_is_refused_before_it_is_opened(
     monkeypatch.setattr(os, "open", _cannot_open)
     with caplog.at_level(logging.WARNING):
         assert loader(tmp_path) is None
-    assert caplog.messages == [
-        f"Cannot read {quote_source(tmp_path)}: not a regular file"
-    ]
+    [(code, text)] = coded(caplog)
+    assert code == "file-unreadable"
+    assert has_parts(text, f"FILE={tmp_path.name}", "not a regular file")
 
 
 def test_the_lock_file_is_opened_binary_and_without_blocking(
@@ -379,3 +392,45 @@ def test_a_file_swapped_for_a_directory_after_the_check_is_refused_and_closed(
     with pytest.raises(ValueError, match="not a regular file"):
         lock_common.read_lock_bytes(swapped)
     assert opened and closed == opened
+
+
+def test_the_refusal_is_chosen_by_its_cap_never_by_its_text(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A refusal without a cap is ``file-unreadable`` whatever its text says;
+    one with a cap is ``over-cap``."""
+    lock_path = tmp_path / "uv.lock"
+    with caplog.at_level(logging.WARNING):
+        lock_io.warn_unreadable_lock_file(
+            lock_path, lock_io.LockFileRefusedError("over 10 bytes")
+        )
+        lock_io.warn_unreadable_lock_file(
+            lock_path,
+            lock_io.LockFileRefusedError("not a regular file", cap=lock_file_cap(10)),
+        )
+    assert [code for code, _text in coded(caplog)] == ["file-unreadable", "over-cap"]
+
+
+@_LOADERS
+def test_a_coded_parser_error_keeps_its_code(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    loader: Callable[[Path], object],
+) -> None:
+    """A parser that says a catalogued message of its own is relayed with
+    that code (a ``WARNING`` line of the same text), not as
+    ``lock-file-malformed``."""
+
+    def _coded(_raw: bytes) -> object:
+        raise CodedValueError(
+            FILE_UNREADABLE, file="a.lock", use="for dependency pins", failure=OSError()
+        )
+
+    monkeypatch.setattr(lock_io, "load_toml_bytes", _coded)
+    monkeypatch.setattr(lock_io, "json", SimpleNamespace(loads=_coded))
+    lock_path = tmp_path / "some.lock"
+    lock_path.write_text("{}", encoding="utf-8")
+    with caplog.at_level(logging.WARNING):
+        assert loader(lock_path) is None
+    assert [code for code, _text in coded(caplog)] == ["file-unreadable"]

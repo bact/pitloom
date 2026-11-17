@@ -30,6 +30,7 @@ import pytest
 
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
 from tests._author_routes import CREATED, hook_sbom, isolate, write_wheel
+from tests._code_records import coded
 from tests.assemble.conftest import _make_sdist
 
 _PYPROJECT = """\
@@ -52,7 +53,7 @@ _REQUIRES = {
     "setuptools": 'foo; extra == "x" and extra == "dev"',
     "flit": "foo ; extra == \"dev\" and ( extra == 'x')",
 }
-_WARNING = "Ignoring the inner extra condition of extra entry"
+_CODE = "extra-gate-ambiguous"
 
 
 def _headers(backend: str) -> str:
@@ -141,4 +142,4 @@ def test_joined_extra_entry_is_optional_on_every_route(
         sbom = _ROUTES[route](tmp_path)
     assert _edge(sbom, "foo") == ("hasOptionalDependency", "extras: dev, x")
     assert _edge(sbom, "baz") == ("hasOptionalDependency", "extras: x")
-    assert len([m for m in caplog.messages if _WARNING in m]) == 1
+    assert [code for code, _ in coded(caplog)].count(_CODE) == 1

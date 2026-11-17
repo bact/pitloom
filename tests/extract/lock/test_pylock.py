@@ -30,6 +30,7 @@ from pitloom.extract.lock.pylock import (
     extract_pylock_dependencies,
 )
 from pitloom.extract.project import read_project
+from tests.extract.lock.lock_lines_shared import said
 
 _LOCK_VERSION = 'lock-version = "1.0"\ncreated-by = "test"\n'
 #: The "no extras, no default-groups active" environment --
@@ -84,7 +85,7 @@ def test_missing_created_by_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "created-by" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "created-by missing")
 
 
 def test_empty_created_by_returns_none_and_warns(
@@ -101,7 +102,7 @@ def test_empty_created_by_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "created-by" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "created-by is str")
 
 
 def test_missing_packages_key_returns_none_and_warns(
@@ -120,7 +121,7 @@ def test_missing_packages_key_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "packages" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "packages missing")
 
 
 def test_malformed_toml_returns_none_and_warns(
@@ -136,7 +137,7 @@ def test_malformed_toml_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "Failed to parse" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "does not parse")
 
 
 def test_missing_lock_version_returns_none_and_warns(
@@ -153,7 +154,7 @@ def test_missing_lock_version_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "lock-version" in caplog.text
+        said(caplog, "lock-file-wrong-format", "FILE=pylock.toml", "lock-version")
 
 
 @pytest.mark.parametrize("lock_version", ["garbage", "1", "1.0.0", "not.a.version"])
@@ -172,7 +173,13 @@ def test_malformed_lock_version_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "lock-version" in caplog.text
+        said(
+            caplog,
+            "lock-file-wrong-format",
+            "FILE=pylock.toml",
+            "lock-version",
+            lock_version,
+        )
 
 
 def test_unsupported_major_lock_version_returns_none_and_warns(
@@ -191,7 +198,13 @@ def test_unsupported_major_lock_version_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "major version" in caplog.text
+        said(
+            caplog,
+            "lock-file-wrong-format",
+            "FILE=pylock.toml",
+            "'2.0'",
+            "major version",
+        )
 
 
 def test_newer_minor_lock_version_still_parsed_with_warning(
@@ -213,7 +226,7 @@ def test_newer_minor_lock_version_still_parsed_with_warning(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "newer" in caplog.text.lower()
+        said(caplog, "lock-file-wrong-format", "FILE=pylock.toml", "'1.5'", "newer")
 
 
 def test_package_included() -> None:
@@ -271,7 +284,7 @@ def test_same_name_conflicting_versions_skipped_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert not result
-        assert "pinned to conflicting versions" in caplog.text
+        said(caplog, "lock-entry-conflict", "PACKAGE=conflicted", "'1.0.0'", "'2.0.0'")
 
 
 def test_packages_key_not_a_list_returns_none_and_warns(
@@ -285,7 +298,7 @@ def test_packages_key_not_a_list_returns_none_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result is None
-        assert "expected a list" in caplog.text
+        said(caplog, "lock-file-malformed", "FILE=pylock.toml", "packages is str")
 
 
 def test_pathological_nested_marker_does_not_crash_and_defaults_to_included(
@@ -333,7 +346,7 @@ def test_malformed_package_entry_skipped_and_warns(
             result = extract_pylock_dependencies(tmp_path)
 
         assert result == ["complete-pkg==2.0.0"]
-        assert "malformed" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "FILE=pylock.toml", "name None")
 
 
 def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> None:
@@ -345,7 +358,7 @@ def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> 
             result = extract_pylock_dependencies(tmp_path)
 
         assert not result
-        assert "missing" in caplog.text.lower()
+        said(caplog, "lock-entry-malformed", "PACKAGE=no-version", "version")
 
 
 def test_version_validated_even_when_group_marker_excludes_package(
@@ -368,7 +381,7 @@ def test_version_validated_even_when_group_marker_excludes_package(
             result = extract_pylock_dependencies(tmp_path)
 
         assert not result
-        assert "missing or non-string 'version'" in caplog.text
+        said(caplog, "lock-entry-malformed", "PACKAGE=dev-only", "version")
 
 
 @pytest.mark.parametrize("source_key", ["vcs", "directory", "archive"])
@@ -391,8 +404,7 @@ def test_non_registry_sourced_package_excluded(
             result = extract_pylock_dependencies(tmp_path)
 
         assert not result
-        assert "local-dep" in caplog.text
-        assert "cannot be represented as a PEP 508 specifier" in caplog.text
+        said(caplog, "lock-entry-unusable", "PACKAGE=local-dep", f"{source_key} source")
 
 
 @pytest.mark.parametrize("source_key", ["vcs", "directory", "archive"])
@@ -491,8 +503,9 @@ def test_read_project_pylock_takes_priority_over_poetry_lock(
             "Source: pylock.toml | Method: resolved_lockfile "
             "| Note: supersedes poetry.lock"
         )
-        assert "poetry.lock and pylock.toml" in caplog.text
-        assert "pylock.toml takes priority" in caplog.text
+        said(
+            caplog, "lock-file-conflict", "kept 'pylock.toml'", "dropped 'poetry.lock'"
+        )
 
 
 def test_real_world_snowflake_cli() -> None:
