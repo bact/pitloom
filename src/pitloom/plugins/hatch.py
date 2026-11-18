@@ -47,7 +47,8 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
 from pitloom.logging_config import configure_logging, error_frame, one_line
-from pitloom.messages import HOOK_FRAME, code_extra_of
+from pitloom.messages import HOOK_FRAME, code_extra_of, emit
+from pitloom.messages.config import DATETIME_UNPINNED
 from pitloom.messages.url_credentials import ADVICE_CONFIG, credential_advice
 from pitloom.plugins._hatch_config import validate_config
 
@@ -121,10 +122,7 @@ def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
         return pitloom_config.creation_datetime
     if epoch_dt is not None:
         return to_spdx3_datetime(epoch_dt).isoformat()
-    log.info(
-        "Pitloom build hook: created and builtTime come from the clock; "
-        "set SOURCE_DATE_EPOCH or creation-datetime to pin them."
-    )
+    emit(log, DATETIME_UNPINNED, logging.INFO)
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
@@ -413,7 +411,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
 
         project_dir = Path(self.root)
         pitloom_config: PitloomConfig = read_pitloom_config(
-            project_dir / "pyproject.toml"
+            project_dir / "pyproject.toml", source="pyproject.toml"
         )
         settle_inert(
             HOOK,

@@ -46,46 +46,46 @@ def _parse(
     [
         pytest.param(
             {"ofline": True},
-            ["[tool.pitloom] unknown key 'ofline'; did you mean 'offline'?"],
+            ["[tool.pitloom]: unknown key ofline; did you mean offline?"],
             id="top-level-close",
         ),
         pytest.param(
-            {"zzzzqq": 1}, ["[tool.pitloom] unknown key 'zzzzqq'"], id="no-close"
+            {"zzzzqq": 1}, ["[tool.pitloom]: unknown key zzzzqq"], id="no-close"
         ),
         pytest.param(
             {"zeta": 1, "alpha": 2},
             [
-                "[tool.pitloom] unknown key 'alpha'",
-                "[tool.pitloom] unknown key 'zeta'",
+                "[tool.pitloom]: unknown key alpha",
+                "[tool.pitloom]: unknown key zeta",
             ],
             id="sorted",
         ),
         pytest.param(
             {"creation": {"comnt": "x"}},
-            ["[tool.pitloom.creation] unknown key 'comnt'; did you mean 'comment'?"],
+            ["[tool.pitloom.creation]: unknown key comnt; did you mean comment?"],
             id="creation",
         ),
         pytest.param(
             {"provenance": {"detial": "full"}},
-            ["[tool.pitloom.provenance] unknown key 'detial'; did you mean 'detail'?"],
+            ["[tool.pitloom.provenance]: unknown key detial; did you mean detail?"],
             id="provenance",
         ),
         pytest.param(
             {"content-type": {"enable": True}},
-            [
-                "[tool.pitloom.content-type] unknown key 'enable'; "
-                "did you mean 'enabled'?"
-            ],
+            ["[tool.pitloom.content-type]: unknown key enable; did you mean enabled?"],
             id="content-type",
         ),
         pytest.param(
             {"fragment": {"file": []}},
-            ["[tool.pitloom.fragment] unknown key 'file'; did you mean 'files'?"],
+            ["[tool.pitloom.fragment]: unknown key file; did you mean files?"],
             id="fragment",
         ),
         pytest.param(
             {"creator": [{"name": "n", "emial": "e"}]},
-            ["[[tool.pitloom.creator]] unknown key 'emial'; did you mean 'email'?"],
+            [
+                "[[tool.pitloom.creator]] entry 0: "
+                "unknown key emial; did you mean email?"
+            ],
             id="creator-entry",
         ),
         pytest.param(
@@ -95,16 +95,16 @@ def _parse(
                 }
             },
             [
-                "[[tool.pitloom.content-type.override]] unknown key 'patern'; "
-                "did you mean 'pattern'?"
+                "[[tool.pitloom.content-type.override]] entry 0: "
+                "unknown key patern; did you mean pattern?"
             ],
             id="override-entry",
         ),
         pytest.param(
             {"fragment": {"files": [{"path": "p", "requried": True}]}},
             [
-                "[tool.pitloom.fragment] 'files' entry unknown key 'requried'; "
-                "did you mean 'required'?"
+                "[tool.pitloom.fragment] files entry 0: "
+                "unknown key requried; did you mean required?"
             ],
             id="fragment-files-entry",
         ),
@@ -125,8 +125,8 @@ def test_setup_cfg_names_its_own_table(caplog: pytest.LogCaptureFixture) -> None
     with caplog.at_level(logging.WARNING):
         _parse({"ofline": True, "provenance": {"detial": "x"}}, is_setup_cfg=True)
     assert _warnings(caplog) == [
-        "[tool:pitloom] unknown key 'ofline'; did you mean 'offline'?",
-        "[tool:pitloom:provenance] unknown key 'detial'; did you mean 'detail'?",
+        "[tool:pitloom]: unknown key ofline; did you mean offline?",
+        "[tool:pitloom:provenance]: unknown key detial; did you mean detail?",
     ]
 
 
@@ -141,12 +141,20 @@ def test_unknown_key_does_not_change_the_config(
 @pytest.mark.parametrize(
     ("pitloom", "error", "hint"),
     [
-        ({"ofline": True, "pretty": "yes"}, "boolean", "'offline'"),
-        ({"creator": [{"nmae": "x"}]}, "'name'", "did you mean 'name'?"),
+        (
+            {"ofline": True, "pretty": "yes"},
+            r"\[tool.pitloom\] pretty: must be true or false",
+            "did you mean offline?",
+        ),
+        (
+            {"creator": [{"nmae": "x"}]},
+            r"\[\[tool.pitloom.creator\]\] entry 0 name: must be a non-empty string",
+            "did you mean name?",
+        ),
         (
             {"fragment": {"files": [{"pth": "x"}]}},
-            "'path'",
-            "did you mean 'path'?",
+            r"\[tool.pitloom.fragment\] files entry 0 path: must be a non-empty",
+            "did you mean path?",
         ),
     ],
 )
@@ -166,36 +174,36 @@ def test_the_hint_comes_before_the_error_it_causes(
     [
         pytest.param(
             {"max-source-metadata-bytes": 9},
-            "[tool.pitloom] unknown key 'max-source-metadata-bytes'; "
+            "[tool.pitloom]: unknown key max-source-metadata-bytes; "
             "it belongs in [tool.pitloom.provenance]",
             id="hyphen",
         ),
         pytest.param(
             {"max_source_metadata_bytes": 9},
-            "[tool.pitloom] unknown key 'max_source_metadata_bytes'; "
+            "[tool.pitloom]: unknown key max_source_metadata_bytes; "
             "it belongs in [tool.pitloom.provenance]",
             id="underscore",
         ),
         pytest.param(
             {"no-creation-tool": True},
-            "[tool.pitloom] unknown key 'no-creation-tool'; "
+            "[tool.pitloom]: unknown key no-creation-tool; "
             "it belongs in [tool.pitloom.creation]",
             id="not-the-opposite-key",
         ),
         pytest.param(
             {"creation": {"offline": True}},
-            "[tool.pitloom.creation] unknown key 'offline'; "
+            "[tool.pitloom.creation]: unknown key offline; "
             "it belongs in [tool.pitloom]",
             id="from-a-sub-table",
         ),
         pytest.param(
             {"no-offline": True},
-            "[tool.pitloom] unknown key 'no-offline'",
+            "[tool.pitloom]: unknown key no-offline",
             id="negation-is-no-hint",
         ),
         pytest.param(
             {"provenance": {"no-schema": 1}},
-            "[tool.pitloom.provenance] unknown key 'no-schema'",
+            "[tool.pitloom.provenance]: unknown key no-schema",
             id="negation-in-sub-table",
         ),
     ],
@@ -224,7 +232,7 @@ def test_a_warning_is_per_source(caplog: pytest.LogCaptureFixture) -> None:
         for source in ("/a/pyproject.toml", "/b/pyproject.toml", "/a/pyproject.toml"):
             _parse({"ofline": True}, source=source)
     assert _warnings(caplog) == [
-        f"{source} [tool.pitloom] unknown key 'ofline'; did you mean 'offline'?"
+        f"FILE={source}: [tool.pitloom]: unknown key ofline; did you mean offline?"
         for source in ("/a/pyproject.toml", "/b/pyproject.toml")
     ]
 
@@ -348,7 +356,7 @@ def test_setup_cfg_spellings_that_are_read_apart_are_silent(
     assert [c.name for c in config.creators] == ["N"]
     assert [f.path for f in config.fragments] == ["a.json"]
     assert _warnings(caplog) == [
-        "setup.cfg [tool:pitloom] unknown key 'ofline'; did you mean 'offline'?"
+        "FILE=setup.cfg: [tool:pitloom]: unknown key ofline; did you mean offline?"
     ]
 
 
@@ -383,7 +391,7 @@ def test_setup_cfg_default_section_is_not_a_pitloom_key(
     assert config.pretty is True  # inherited, as before
     assert config.provenance_detail == "full"
     assert _warnings(caplog) == [
-        "[tool:pitloom] unknown key 'ofline'; did you mean 'offline'?"
+        "[tool:pitloom]: unknown key ofline; did you mean offline?"
     ]
 
 

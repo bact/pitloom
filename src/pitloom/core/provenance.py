@@ -23,6 +23,7 @@ import rfc8785
 
 from pitloom.core.internal_error import InternalError
 from pitloom.core.untrusted_text import escape_display_controls, escape_lone_surrogates
+from pitloom.messages.config import ConfigPlace, Parameter, invalid_value
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
@@ -61,39 +62,53 @@ PROVENANCE_PROPERTY_FIELDS = {
 MIN_SOURCE_METADATA_BYTES = len(rfc8785.dumps({"a": ""}))
 
 
+#: The default stage of :func:`require_max_source_metadata_bytes`: a library
+#: caller's keyword.
+_BUDGET_PARAMETER = Parameter("max_source_metadata_bytes")
+
+
+def budget_problem(value: object) -> str | None:
+    """Why *value* is no metadata budget: the ``expected`` id (see
+    :data:`~pitloom.messages.config.EXPECTED`) ``"integer"`` (not an integer;
+    a ``bool`` or a ``float`` is none) or ``"budget"`` (negative, or below
+    :data:`MIN_SOURCE_METADATA_BYTES` without being ``0``), else ``None``. The
+    pure check of :func:`require_max_source_metadata_bytes`, which the
+    command-line flag route calls instead of its raise."""
+    if isinstance(value, bool):
+        return "integer"
+    try:
+        number = operator.index(value)  # type: ignore[arg-type]
+    except TypeError:
+        return "integer"
+    return "budget" if number != 0 and number < MIN_SOURCE_METADATA_BYTES else None
+
+
 def require_max_source_metadata_bytes(
-    value: object, label: str = "max_source_metadata_bytes"
+    value: object,
+    where: ConfigPlace | Parameter = _BUDGET_PARAMETER,
 ) -> int:
     """*value* as an ``int`` when it is ``0`` (no cap) or a budget of at least
     :data:`MIN_SOURCE_METADATA_BYTES`, the smallest annotation that holds any
     metadata. A smaller one is an error, never a silent "unlimited".
 
-    The one validator for every surface that takes the budget: the config
-    key, ``--max-source-metadata-bytes``, ``ConfigOverrides`` and the library
-    kwargs. *label* names the setting in the error, e.g.
-    ``[tool.pitloom.provenance] 'max-source-metadata-bytes'``; ``""`` leaves
-    the message to a caller that names the setting itself. Any
+    The one validator for every surface that takes the budget but the
+    command-line flag (:func:`budget_problem`): the config key,
+    ``ConfigOverrides`` and the library kwargs. *where* is the stage: a
+    :class:`~pitloom.messages.config.ConfigPlace` (a configuration file)
+    raises ``config-invalid``, a :class:`~pitloom.messages.config.Parameter`
+    (a library caller's value) ``option-invalid``. Any
     :func:`operator.index`-able integer (a ``numpy.int64``) passes; a ``bool``
     or a ``float`` does not.
 
     Raises:
         ValueError: *value* is not an integer, is negative, or is below the
-            minimum without being ``0``.
+            minimum without being ``0`` (a
+            :class:`~pitloom.messages.CodedValueError`).
     """
-    try:
-        if isinstance(value, bool):
-            raise TypeError
-        number = operator.index(value)  # type: ignore[arg-type]
-    except TypeError:
-        raise ValueError(
-            f"{label} must be an integer, got {type(value).__name__}: {value!r}".strip()
-        ) from None
-    if number != 0 and number < MIN_SOURCE_METADATA_BYTES:
-        raise ValueError(
-            f"{label} must be 0 (unlimited) or at least "
-            f"{MIN_SOURCE_METADATA_BYTES} bytes, got {number}".strip()
-        )
-    return number
+    problem = budget_problem(value)
+    if problem is not None:
+        raise invalid_value(where, problem, got=value)
+    return operator.index(value)  # type: ignore[arg-type]
 
 
 # The characters that structure the provenance comment, each written as
@@ -272,5 +287,8 @@ class ProvenanceConfig:
         object.__setattr__(
             self,
             "max_source_metadata_bytes",
-            require_max_source_metadata_bytes(self.max_source_metadata_bytes),
+            require_max_source_metadata_bytes(
+                self.max_source_metadata_bytes,
+                Parameter("ProvenanceConfig.max_source_metadata_bytes"),
+            ),
         )

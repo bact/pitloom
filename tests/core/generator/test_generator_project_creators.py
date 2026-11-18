@@ -252,7 +252,11 @@ version = "0.1.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="Invalid creator type"):
+        with pytest.raises(
+            ValueError,
+            match=r"Creator.type: must be one of agent, organization, person, "
+            r"software-agent, got a string 'robot'",
+        ):
             generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(

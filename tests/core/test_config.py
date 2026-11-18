@@ -33,6 +33,17 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.messages import code_of
+
+_FILES = r"\[tool.pitloom.fragment\] files"
+_PATTERN_LINE = (
+    r"\[\[tool.pitloom.content-type.override\]\] entry 0 pattern: "
+    r"must be a non-empty string, "
+)
+_MEDIA_LINE = (
+    r"\[\[tool.pitloom.content-type.override\]\] entry 0 content-type: "
+    r"must be a media type type/subtype \(image/png\), "
+)
 
 # ---------------------------------------------------------------------------
 # _read_extract_file_header
@@ -49,7 +60,9 @@ def test_read_extract_file_header_explicit_false() -> None:
 
 
 def test_read_extract_file_header_non_bool_raises() -> None:
-    with pytest.raises(ValueError, match="'extract-file-header' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] extract-file-header: must be true or false"
+    ):
         _read_extract_file_header({"extract-file-header": "yes"})
 
 
@@ -57,7 +70,9 @@ def test_read_scan_model_usage_keeps_absent_none_and_false_false() -> None:
     assert _read_scan_model_usage({}) is None
     assert _read_scan_model_usage({"scan-model-usage": False}) is False
     assert _read_scan_model_usage({"scan-model-usage": True}) is True
-    with pytest.raises(ValueError, match="'scan-model-usage' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] scan-model-usage: must be true or false"
+    ):
         _read_scan_model_usage({"scan-model-usage": "yes"})
 
 
@@ -103,11 +118,11 @@ def test_read_byte_ceiling_default_and_value(
 @pytest.mark.parametrize(
     ("value", "message"),
     [
-        (0, "positive integer, got 0"),  # not "unlimited"
-        (-1, "positive integer, got -1"),
-        (True, "must be an integer"),
-        ("64", "must be an integer"),
-        (1.5, "must be an integer"),
+        (0, "must be an integer of at least 1, got an integer 0"),  # not "unlimited"
+        (-1, "must be an integer of at least 1, got an integer -1"),
+        (True, "must be an integer, got a boolean true"),
+        ("64", "must be an integer, got a string '64'"),
+        (1.5, "must be an integer, got a float 1.5"),
     ],
 )
 def test_read_byte_ceiling_rejects_non_positive_and_non_int(
@@ -121,8 +136,9 @@ def test_read_byte_ceiling_rejects_non_positive_and_non_int(
     del field, default
     with pytest.raises(ValueError, match=message) as exc:
         reader({key: value})
-    assert f"'{key}'" in str(exc.value)
+    assert str(exc.value).startswith(f"[tool.pitloom] {key}: ")
     assert "\n" not in str(exc.value)
+    assert code_of(exc.value) == "config-invalid"
 
 
 # ---------------------------------------------------------------------------
@@ -150,18 +166,26 @@ def test_read_content_type_settings_valid_methods(method: str) -> None:
 
 def test_read_content_type_settings_invalid_method_raises() -> None:
     pitloom_data = {"content-type": {"method": "mimetypes"}}
-    with pytest.raises(ValueError, match="'method' must be one of"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom.content-type\] method: must be one of auto, "
+        r"extension, magika",
+    ):
         _read_content_type_settings(pitloom_data)
 
 
 def test_read_content_type_settings_non_table_raises() -> None:
     """[tool.pitloom.content-type] must be a table."""
-    with pytest.raises(ValueError, match="must be a table"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom.content-type\]: must be a table"
+    ):
         _read_content_type_settings({"content-type": "not-a-table"})
 
 
 def test_read_content_type_settings_non_bool_enabled_raises() -> None:
-    with pytest.raises(ValueError, match="'enabled' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"content-type\] enabled: must be true or false"
+    ):
         _read_content_type_settings({"content-type": {"enabled": "yes"}})
 
 
@@ -198,13 +222,19 @@ def test_read_content_type_settings_override_absent_defaults_empty() -> None:
 def test_read_content_type_settings_override_non_list_raises() -> None:
     """'override' must be an array (of tables)."""
     pitloom_data = {"content-type": {"override": "not-a-list"}}
-    with pytest.raises(ValueError, match="must be an array of tables"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[\[tool.pitloom.content-type.override\]\]: must be an array of tables",
+    ):
         _read_content_type_settings(pitloom_data)
 
 
 def test_read_content_type_settings_override_entry_non_table_raises() -> None:
     pitloom_data = {"content-type": {"override": ["not-a-table"]}}
-    with pytest.raises(ValueError, match="entry must be a table"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[\[tool.pitloom.content-type.override\]\] entry 0: must be a table",
+    ):
         _read_content_type_settings(pitloom_data)
 
 
@@ -212,7 +242,7 @@ def test_read_content_type_settings_override_missing_pattern() -> None:
     pitloom_data = {
         "content-type": {"override": [{"content-type": "image/png"}]},
     }
-    with pytest.raises(ValueError, match="'pattern' must be a non-empty string"):
+    with pytest.raises(ValueError, match=_PATTERN_LINE + "got nothing"):
         _read_content_type_settings(pitloom_data)
 
 
@@ -221,7 +251,7 @@ def test_read_content_type_settings_override_empty_pattern() -> None:
     pitloom_data = {
         "content-type": {"override": [{"pattern": "", "content-type": "image/png"}]},
     }
-    with pytest.raises(ValueError, match="'pattern' must be a non-empty string"):
+    with pytest.raises(ValueError, match=_PATTERN_LINE + "got a string ''"):
         _read_content_type_settings(pitloom_data)
 
 
@@ -229,7 +259,7 @@ def test_read_content_type_settings_override_missing_content_type() -> None:
     pitloom_data = {
         "content-type": {"override": [{"pattern": "*.png"}]},
     }
-    with pytest.raises(ValueError, match="'content-type' must be a MIME type"):
+    with pytest.raises(ValueError, match=_MEDIA_LINE + "got nothing"):
         _read_content_type_settings(pitloom_data)
 
 
@@ -238,7 +268,7 @@ def test_read_content_type_settings_override_malformed_content_type() -> None:
     pitloom_data = {
         "content-type": {"override": [{"pattern": "*.png", "content-type": "PNG"}]},
     }
-    with pytest.raises(ValueError, match="'content-type' must be a MIME type"):
+    with pytest.raises(ValueError, match=_MEDIA_LINE + "got a string 'PNG'"):
         _read_content_type_settings(pitloom_data)
 
 
@@ -259,7 +289,10 @@ def test_read_id_registry_explicit_string() -> None:
 
 
 def test_read_id_registry_non_string_raises() -> None:
-    with pytest.raises(ValueError, match="'id-registry' must be a string"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom\] id-registry: must be a string, got an integer 123",
+    ):
         _read_id_registry({"id-registry": 123})
 
 
@@ -277,7 +310,9 @@ def test_read_enrich_settings_explicit_true() -> None:
 
 
 def test_read_enrich_settings_non_bool_raises() -> None:
-    with pytest.raises(ValueError, match="'enrich' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] enrich: must be true or false"
+    ):
         _read_enrich_settings({"enrich": "yes"})
 
 
@@ -296,7 +331,9 @@ def test_read_use_lockfile_setting_explicit_false() -> None:
 
 
 def test_read_use_lockfile_setting_non_bool_raises() -> None:
-    with pytest.raises(ValueError, match="'use-lockfile' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] use-lockfile: must be true or false"
+    ):
         _read_use_lockfile_setting({"use-lockfile": "yes"})
 
 
@@ -383,7 +420,10 @@ def test_read_fragments_mixes_plain_string_and_table_entries() -> None:
 
 def test_read_fragments_table_entry_missing_path_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"role": "ai_model"}]}}
-    with pytest.raises(ValueError, match="valid 'path'"):
+    with pytest.raises(
+        ValueError,
+        match=_FILES + r" entry 0 path: must be a non-empty string, got nothing",
+    ):
         _read_fragments(pitloom_data)
 
 
@@ -393,19 +433,28 @@ def test_read_fragments_plain_string_empty_path_raises() -> None:
     field, validated the same way regardless of which TOML shape it's
     written in."""
     pitloom_data = {"fragment": {"files": [""]}}
-    with pytest.raises(ValueError, match="must not be an empty string"):
+    with pytest.raises(
+        ValueError,
+        match=_FILES + r" entry 0: must be a non-empty string, got a string ''",
+    ):
         _read_fragments(pitloom_data)
 
 
 def test_read_fragments_table_entry_non_bool_required_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"path": "a.json", "required": "yes"}]}}
-    with pytest.raises(ValueError, match="'required' must be a boolean"):
+    with pytest.raises(
+        ValueError, match=_FILES + r" entry 0 required: must be true or false"
+    ):
         _read_fragments(pitloom_data)
 
 
 def test_read_fragments_entry_neither_string_nor_table_raises() -> None:
     pitloom_data = {"fragment": {"files": [42]}}
-    with pytest.raises(ValueError, match="must each be a string or table"):
+    with pytest.raises(
+        ValueError,
+        match=_FILES
+        + r" entry 0: must be a string or an inline table, got an integer 42",
+    ):
         _read_fragments(pitloom_data)
 
 
@@ -415,34 +464,41 @@ def test_read_fragments_files_not_a_list_raises(files: object) -> None:
     absent setting: it raises, as a wrong-shaped [tool.pitloom.provenance]
     or [tool.pitloom.content-type] does, instead of dropping every fragment
     (a ``required`` one included) without a word."""
-    with pytest.raises(ValueError, match="'files' must be an array"):
+    with pytest.raises(ValueError, match=_FILES + ": must be an array, got "):
         _read_fragments({"fragment": {"files": files}})
 
 
 def test_read_fragments_fragment_not_a_table_raises() -> None:
-    with pytest.raises(ValueError, match=r"\[tool.pitloom.fragment\] must be a table"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom.fragment\]: must be a table, got an integer 3",
+    ):
         _read_fragments({"fragment": 3})
 
 
 def test_read_fragments_table_entry_non_str_role_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"path": "a.json", "role": 1}]}}
-    with pytest.raises(ValueError, match="'role' must be a string"):
+    with pytest.raises(ValueError, match=_FILES + r" entry 0 role: must be a string"):
         _read_fragments(pitloom_data)
 
 
 def test_read_fragments_table_entry_non_str_description_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"path": "a.json", "description": ["x"]}]}}
-    with pytest.raises(ValueError, match="'description' must be a string"):
+    with pytest.raises(
+        ValueError, match=_FILES + r" entry 0 description: must be a string"
+    ):
         _read_fragments(pitloom_data)
 
 
 def test_read_fragments_table_entry_non_str_sha256_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"path": "a.json", "sha256": 123}]}}
-    with pytest.raises(ValueError, match="'sha256' must be a string"):
+    with pytest.raises(ValueError, match=_FILES + r" entry 0 sha256: must be a string"):
         _read_fragments(pitloom_data)
 
 
 def test_read_fragments_table_entry_non_str_link_to_main_raises() -> None:
     pitloom_data = {"fragment": {"files": [{"path": "a.json", "link-to-main": False}]}}
-    with pytest.raises(ValueError, match="'link-to-main' must be a string"):
+    with pytest.raises(
+        ValueError, match=_FILES + r" entry 0 link-to-main: must be a string"
+    ):
         _read_fragments(pitloom_data)

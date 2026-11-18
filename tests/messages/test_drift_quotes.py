@@ -31,10 +31,18 @@ from tests._message_drift import quote_matches, relative
 #: line for a family whose lines share no core.
 _MARKERS: dict[str, tuple[str, ...]] = {
     "card-malformed": ("frontmatter is not valid YAML",),
+    "config-invalid": (": must be ",),
+    "config-malformed": ("not valid TOML; ", "not valid INI"),
+    "config-moved": (": moved to ",),
+    "config-unknown-key": (
+        "unknown key",
+        "only enabled and Hatchling's own hook keys",
+    ),
     "config-unsafe": (
         "[tool.pitloom] settings are ignored",
         "build-time code of the downloaded",
     ),
+    "datetime-unpinned": ("come from the clock; set ",),
     "digest-invalid": ("declared by ",),
     "dependency-name-ambiguous": ("a direct reference; not looked up",),
     "dir-unlistable": ("could not list ",),
@@ -220,6 +228,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "--embed writes into a wheel file",
         "a PyPI page is not a model",
         "a PyPI page is not a Git repository",
+    ),
+    "source-date-epoch-invalid": (
+        "of seconds since the Unix epoch",
+        "out of range for a date",
     ),
     "sbom-invalid": (
         "SBOM is not valid",

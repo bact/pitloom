@@ -29,6 +29,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [Model fields](message-codes-model-fields.md): 5 codes
 - [Targets](message-codes-targets.md): 14 codes
 - [Options](message-codes-options.md): 4 codes
+- [Configuration](message-codes-config.md): 6 codes
 - [Files and text](message-codes-files.md): 12 codes
 - [Lock files](message-codes-lock-files.md): 7 codes
 - [Dependencies](message-codes-dependencies.md): 5 codes
@@ -42,6 +43,10 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | Code | Level | Since |
 | --- | --- | --- |
 | [`card-malformed`](message-codes-files.md#card-malformed) | WARNING | 0.23.0 |
+| [`config-invalid`](message-codes-config.md#config-invalid) | ERROR | 0.25.0 |
+| [`config-malformed`](message-codes-config.md#config-malformed) | ERROR | 0.25.0 |
+| [`config-moved`](message-codes-config.md#config-moved) | ERROR | 0.25.0 |
+| [`config-unknown-key`](message-codes-config.md#config-unknown-key) | ERROR, WARNING | 0.25.0 |
 | [`config-unsafe`](message-codes-targets.md#config-unsafe) | INFO | 0.23.4 |
 | [`config-unsafe/build-code`](message-codes-targets.md#config-unsafebuild-code) | WARNING | 0.23.4 |
 | [`credentials-unsafe`](message-codes-url-credentials.md#credentials-unsafe) | WARNING | 0.25.0 |
@@ -52,6 +57,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`credentials-unsafe/refused`](message-codes-url-credentials.md#credentials-unsaferefused) | ERROR | 0.25.0 |
 | [`credentials-unsafe/registry`](message-codes-url-credentials.md#credentials-unsaferegistry) | ERROR, WARNING | 0.25.0 |
 | [`credentials-unsafe/written`](message-codes-url-credentials.md#credentials-unsafewritten) | WARNING | 0.25.0 |
+| [`datetime-unpinned`](message-codes-config.md#datetime-unpinned) | INFO | 0.25.0 |
 | [`dependency-name-ambiguous`](message-codes-dependencies.md#dependency-name-ambiguous) | INFO | 0.25.0 |
 | [`digest-invalid`](message-codes-pypi.md#digest-invalid) | ERROR | 0.24.0 |
 | [`dir-unlistable`](message-codes-files.md#dir-unlistable) | ERROR, WARNING | 0.22.0 |
@@ -138,6 +144,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`requirement-unusable`](message-codes-dependencies.md#requirement-unusable) | WARNING | 0.25.0 |
 | [`sbom-invalid`](message-codes-targets.md#sbom-invalid) | ERROR, WARNING | 0.25.0 |
 | [`sbom-wrong-format`](message-codes-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
+| [`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
 | [`target-wrong-format`](message-codes-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
@@ -168,10 +175,12 @@ A line may start with one prefix before its text:
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<claimant>` | the other element, key or spelling that wants the same id or holds it (a path, a name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
+| `<config-key>` | where the value sits: its table as the file spells it (`[tool.pitloom]`, `[tool:pitloom]` in setup.cfg, `[[tool.pitloom.creator]]`), then its key, the entry of an array counted from 0 and the entry's key, each when there is one (`[tool.pitloom.fragment] files entry 2 role`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
 | `<declared-in>` | where the dependency is declared: `Poetry`, `optional-dependencies`, `extras_require`, or the setting that lists a requirements file; escaped when it holds a control character |
 | `<dependency>` | a dependency as declared (a requirement, a Poetry table), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
+| `<destination>` | where a moved key goes now, as pyproject.toml spells it: `[[tool.pitloom.creation-tool]] name`, `[[tool.pitloom.creator]] email`, `[[tool.pitloom.creator]] name`, `[[tool.pitloom.creator]] type`, `[tool.pitloom.fragment] files`, `[tool.pitloom] extract-file-header and [tool.pitloom.content-type]`, `[tool.pitloom] id-registry`, `[tool.pitloom] sbom-basename`, `[tool.pitloom] update-id-registry` |
 | `<dir>` | a directory as Pitloom names it; in quotes, escaped, when it holds a control character |
 | `<dropped>` | what a conflict left out (versions, a lock file), sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<element>` | the SBOM element that holds the value (for a fingerprint that matches nothing, the SBOM's SpdxDocument), by its spdxId, a URL's credentials masked; in quotes, escaped, when it holds a control character |
@@ -180,8 +189,10 @@ A line may start with one prefix before its text:
 | `<elements>` | G7 elements, comma-separated, each with where its value is written (`model-architecture (written in ai_typeOfModel)`) or `(not recorded)` |
 | `<entities>` | names or keys, comma-separated, each as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<entity>` | an element's name or ID registry key (a path, a dataset or model name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<entries>` | the unknown keys, sorted, comma-separated, each as the file names it; in quotes, escaped, when it holds a control character |
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
+| `<expected>` | what the value must be: `true or false`; `an integer`; `an integer of at least 1`; `0 (no cap) or an integer of at least 8`; `a string`; `a non-empty string`; `a string or an inline table`; `a table`; `an array`; `an array of tables`; `one of annotation, both, comment`; `one of full, minimal`; `one of always, auto, never`; `one of auto, extension, magika`; `one of agent, organization, person, software-agent`; `a media type type/subtype (image/png)`; `a file name, not a path`; `a plain file name (not a path, not only .spdx3.json)`; `an ISO 8601 date and time`; `a path to a configuration file, or a PitloomConfig`; `a fingerprint (sha256: and 16 to 64 lowercase hex digits)`; `an array of fingerprints`; `"warn" or "refuse"` |
 | `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
 | `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
@@ -192,6 +203,7 @@ A line may start with one prefix before its text:
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<got>` | what was found, by its TOML type (`a string`, `an integer`, `a float`, `a boolean`, `a date-time`, `a date`, `a time`, `an array`, `a table`), `nothing` for a missing key, from a library caller `None` or `a value of type X`; a boolean, a number and a string are shown after the type (a string in quotes, a URL's credentials masked, cut to 40 characters with `...` after it, escaped), never a table or an array, and never a value that may be a credential |
 | `<hosts>` | the hosts Pitloom fetches PyPI files from, comma-separated (`files.pythonhosted.org`) |
 | `<input>` | what the path was named as: `config file`, `fragments directory`, `ID registry file`, `PATH`, `project directory`, `project path`, `pyproject.toml`, `SBOM file`, `sdist archive`, `setup.cfg`, `setup.py`, `wheel file` |
 | `<kept>` | what a conflict kept (a lock file), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
@@ -223,17 +235,18 @@ A line may start with one prefix before its text:
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
 | `'<root>'` | the directory a path is checked against (--project-dir, a project root), in quotes like the path beside it |
 | `<seconds>` | the time allowed, in whole seconds |
-| `<setting>` | a [tool.pitloom] setting as the file names it (`accept-url-credentials`, `url-credentials`) |
+| `<setting>` | a configuration setting as the file names it (`accept-url-credentials`, `url-credentials`, the known key an unknown one is closest to) |
 | `<settings>` | the build settings left out, comma-separated, as the file names them (`tool.hatch.metadata.hooks`, `tool.setuptools.cmdclass`, `metadata.version`) |
 | `<size>` | a size in bytes (`1 byte`, `N bytes`) |
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
 | `<source-kind>` | the kind of source that gives no registry version: `archive`, `bzr`, `directory`, `editable`, `file`, `git`, `hg`, `path`, `svn`, `url`, `vcs`, `virtual` |
 | `<spdx-id>` | an element's spdxId, as held or read, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
+| `<tables>` | the configuration tables that know a key, joined by `or`, as the file spells them |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
 | `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
-| `<use>` | what the file was read or written for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
+| `<use>` | what the file was read or written for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the configuration`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<type>` | the type of the value the file holds, as Python names it: `bool`, `date`, `datetime`, `dict`, `float`, `int`, `list`, `NoneType`, `str`, `time` |
 | `<version>` | a release version as the URL or PyPI gives it; in quotes, escaped, when it holds a control character |

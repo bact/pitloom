@@ -98,6 +98,9 @@ REGISTRY_USE: Final = "for the ID registry"
 #: it look at (:func:`~pitloom.messages.targets.input_exists`): one of
 #: :data:`READ_USES`.
 INPUT_USE: Final = "for the input check"
+#: What a configuration file (``pyproject.toml``, ``setup.cfg``, a
+#: ``--config`` file) is read for: one of :data:`READ_USES`.
+CONFIG_USE: Final = "for the configuration"
 
 #: What a file was read for, or a directory listed for, as a
 #: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
@@ -112,6 +115,7 @@ READ_USES: Final = (
     "for ID registry indexing",
     INPUT_USE,
     "for license files",
+    CONFIG_USE,
     "for the Croissant document",
     "for the dataset card",
     "for the Hugging Face dataset card",

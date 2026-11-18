@@ -22,22 +22,29 @@ from pitloom.core.config import (
 )
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.file_names import is_plain_file_name
+from pitloom.messages import code_of
 
 
 def test_old_ids_table_raises_instead_of_silently_ignored() -> None:
     """A leftover [tool.pitloom.ids] table must error, not silently
     revert id-registry to auto-discovery."""
     data = {"tool": {"pitloom": {"ids": {"file": "custom-ids.json"}}}}
-    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.ids\] has moved to"):
+    with pytest.raises(ValueError, match=r"\[tool.pitloom\] ids: moved to") as exc:
         parse_pitloom_config(data)
+    assert str(exc.value).endswith("[tool.pitloom] id-registry")
+    assert code_of(exc.value) == "config-moved"
 
 
 def test_old_fragments_table_raises_instead_of_silently_ignored() -> None:
     """A leftover plural [tool.pitloom.fragments] table must error, not
     silently drop every registered fragment from the SBOM."""
     data = {"tool": {"pitloom": {"fragments": {"files": ["a.json"]}}}}
-    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.fragments\] has moved to"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] fragments: moved to"
+    ) as exc:
         parse_pitloom_config(data)
+    assert str(exc.value).endswith("[tool.pitloom.fragment] files")
+    assert code_of(exc.value) == "config-moved"
 
 
 def test_old_file_headers_table_raises_instead_of_silently_ignored() -> None:
@@ -50,18 +57,26 @@ def test_old_file_headers_table_raises_instead_of_silently_ignored() -> None:
         }
     }
     with pytest.raises(
-        ValueError, match=r"\[tool\.pitloom\.file-headers\] has moved to"
-    ):
+        ValueError, match=r"\[tool.pitloom\] file-headers: moved to"
+    ) as exc:
         parse_pitloom_config(data)
+    assert str(exc.value).endswith(
+        "[tool.pitloom] extract-file-header and [tool.pitloom.content-type]"
+    )
+    assert code_of(exc.value) == "config-moved"
 
 
 def test_old_enrich_table_raises_instead_of_silently_ignored() -> None:
-    """A leftover table-shaped [tool.pitloom.enrich] must error with a
-    clear message, not the generic 'must be a boolean, got dict' it would
-    otherwise surface."""
+    """A leftover table-shaped [tool.pitloom.enrich] must error, naming
+    the key and the table it found. The key did not move, its shape
+    changed: ``config-invalid``, not ``config-moved``."""
     data = {"tool": {"pitloom": {"enrich": {"local": True}}}}
-    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.enrich\] has moved to"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom\] enrich: must be true or false, got a table",
+    ) as exc:
         parse_pitloom_config(data)
+    assert code_of(exc.value) == "config-invalid"
 
 
 def test_old_ids_file_key_raises_instead_of_silently_ignored() -> None:
@@ -70,10 +85,10 @@ def test_old_ids_file_key_raises_instead_of_silently_ignored() -> None:
     data = {"tool": {"pitloom": {"ids-file": "custom-ids.json"}}}
     with pytest.raises(
         ValueError,
-        match=r"\[tool\.pitloom\] 'ids-file' has moved to 'id-registry'\. "
-        r"Update your config\.",
-    ):
+        match=r"\[tool.pitloom\] ids-file: moved to \[tool.pitloom\] id-registry$",
+    ) as exc:
         parse_pitloom_config(data)
+    assert code_of(exc.value) == "config-moved"
 
 
 def test_old_update_registry_key_raises_instead_of_silently_ignored() -> None:
@@ -82,10 +97,11 @@ def test_old_update_registry_key_raises_instead_of_silently_ignored() -> None:
     data = {"tool": {"pitloom": {"update-registry": True}}}
     with pytest.raises(
         ValueError,
-        match=r"\[tool\.pitloom\] 'update-registry' has moved to "
-        r"'update-id-registry'\. Update your config\.",
-    ):
+        match=r"\[tool.pitloom\] update-registry: moved to "
+        r"\[tool.pitloom\] update-id-registry$",
+    ) as exc:
         parse_pitloom_config(data)
+    assert code_of(exc.value) == "config-moved"
 
 
 def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
@@ -159,38 +175,50 @@ def test_pitloom_config_helper_properties() -> None:
 
 def test_read_provenance_non_table_raises() -> None:
     data = {"tool": {"pitloom": {"provenance": "string"}}}
-    with pytest.raises(ValueError, match="must be a table"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom.provenance\]: must be a table"
+    ):
         parse_pitloom_config(data)
 
 
 def test_read_provenance_non_string_key_raises() -> None:
     data = {"tool": {"pitloom": {"provenance": {"format": 123}}}}
-    with pytest.raises(ValueError, match="must be a string"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom.provenance\] format: must be a string, "
+        r"got an integer 123",
+    ):
         parse_pitloom_config(data)
 
 
 def test_read_provenance_invalid_format_raises() -> None:
     data = {"tool": {"pitloom": {"provenance": {"format": "invalid"}}}}
-    with pytest.raises(ValueError, match="must be one of"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom.provenance\] format: must be one of annotation, both",
+    ):
         parse_pitloom_config(data)
 
 
 @pytest.mark.parametrize(
     ("data", "match"),
     [
-        ({"tool": 3}, r"\[tool\] must be a table"),
-        ({"tool": {"pitloom": 3}}, r"\[tool.pitloom\] must be a table"),
+        ({"tool": 3}, r"\[tool\]: must be a table, got an integer 3"),
+        (
+            {"tool": {"pitloom": 3}},
+            r"\[tool.pitloom\]: must be a table, got an integer 3",
+        ),
         (
             {"tool": {"pitloom": {"creation": "not-a-table"}}},
-            r"\[tool.pitloom.creation\] must be a table",
+            r"\[tool.pitloom.creation\]: must be a table",
         ),
         (
             {"tool": {"pitloom": {"creation": {"creation-datetime": 3}}}},
-            "'creation-datetime' must be a string",
+            r"\[tool.pitloom.creation\] creation-datetime: must be a string",
         ),
         (
             {"tool": {"pitloom": {"sbom-basename": 3}}},
-            "'sbom-basename' must be a string",
+            r"\[tool.pitloom\] sbom-basename: must be a string",
         ),
     ],
     ids=["tool", "pitloom", "creation", "creation-datetime", "sbom-basename"],
@@ -215,13 +243,18 @@ def test_parse_pitloom_config_absent_tables_are_defaults() -> None:
 
 def test_parse_pitloom_config_describe_relationship_non_bool_raises() -> None:
     data = {"tool": {"pitloom": {"describe-relationship": "yes"}}}
-    with pytest.raises(ValueError, match="describe-relationship must be a boolean"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] describe-relationship: must be true or"
+    ):
         parse_pitloom_config(data)
 
 
 def test_read_provenance_invalid_detail_raises() -> None:
     data = {"tool": {"pitloom": {"provenance": {"detail": "invalid"}}}}
-    with pytest.raises(ValueError, match="must be one of"):
+    with pytest.raises(
+        ValueError,
+        match=r"\[tool.pitloom.provenance\] detail: must be one of full, minimal",
+    ):
         parse_pitloom_config(data)
 
 
@@ -232,7 +265,9 @@ def test_read_provenance_invalid_detail_raises() -> None:
 def test_sbom_basename_must_be_a_file_name(value: str) -> None:
     """A config -- possibly a third-party sdist's -- must not choose where
     the SBOM is written."""
-    with pytest.raises(ValueError, match="'sbom-basename' must be a file name"):
+    with pytest.raises(
+        ValueError, match=r"\[tool.pitloom\] sbom-basename: must be a file name"
+    ):
         parse_pitloom_config({"tool": {"pitloom": {"sbom-basename": value}}})
 
 

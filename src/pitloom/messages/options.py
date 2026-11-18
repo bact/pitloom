@@ -13,14 +13,13 @@ See also: :mod:`pitloom.messages` (the mechanism) and
 
 from __future__ import annotations
 
+from pitloom.messages._config_place import FINGERPRINT_SHAPE
 from pitloom.messages._fields_credentials import FINGERPRINT as FINGERPRINT_PATTERN
 from pitloom.messages._options import (
     BUILD_PREFIX,
     CANNOT_BE_USED_LINE,
-    FINGERPRINT_ARRAY_LINE,
-    FINGERPRINT_ENTRY_LINE,
+    CONFIG_NO_TABLE_LINE,
     FINGERPRINT_LINE,
-    FINGERPRINT_SHAPE,
     MODE_UNREAD_LINE,
     NAMESPACE_CONFLICT_LINE,
     NAMESPACE_CONFLICT_MASKED_LINE,
@@ -36,7 +35,7 @@ from pitloom.messages._options import (
     REGISTRY_PATH_OUTSIDE_LINE,
     STALE_FINGERPRINT_LINE,
     URL_CREDENTIALS_MODE_ARGUMENT_LINE,
-    URL_CREDENTIALS_MODE_LINE,
+    VALUE_LINE,
     namespace_conflict_line,
 )
 from pitloom.messages._options_say import (
@@ -47,8 +46,7 @@ from pitloom.messages._options_say import (
 __all__ = [
     "BUILD_PREFIX",
     "CANNOT_BE_USED_LINE",
-    "FINGERPRINT_ARRAY_LINE",
-    "FINGERPRINT_ENTRY_LINE",
+    "CONFIG_NO_TABLE_LINE",
     "FINGERPRINT_LINE",
     "FINGERPRINT_PATTERN",
     "FINGERPRINT_SHAPE",
@@ -67,7 +65,7 @@ __all__ = [
     "MODE_UNREAD_LINE",
     "STALE_FINGERPRINT_LINE",
     "URL_CREDENTIALS_MODE_ARGUMENT_LINE",
-    "URL_CREDENTIALS_MODE_LINE",
+    "VALUE_LINE",
     "namespace_conflict_line",
     "usage_code",
     "warn_option_no_effect",

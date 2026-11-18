@@ -42,6 +42,8 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import code_of
 
 
 def test_apply_overrides_full() -> None:
@@ -206,14 +208,14 @@ def test_load_config_file_fails_for_invalid_toml(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "payload",
+    ("payload", "code"),
     [
-        b"[tool.pitloom\ninvalid",
-        b"\xff\xfe[tool.pitloom]\n",
-        b'[tool.pitloom]\npretty = "yes"\n',
-        b"[tool.pitloom]\nfragment = []\n",
-        b"tool = 3\n",
-        b"[tool]\npitloom = 3\n",
+        (b"[tool.pitloom\ninvalid", "config-malformed"),
+        (b"\xff\xfe[tool.pitloom]\n", "file-unreadable/not-utf8"),
+        (b'[tool.pitloom]\npretty = "yes"\n', "config-invalid"),
+        (b"[tool.pitloom]\nfragment = []\n", "config-invalid"),
+        (b"tool = 3\n", "config-invalid"),
+        (b"[tool]\npitloom = 3\n", "config-invalid"),
     ],
     ids=[
         "invalid-toml",
@@ -224,14 +226,20 @@ def test_load_config_file_fails_for_invalid_toml(tmp_path: Path) -> None:
         "pitloom-int",
     ],
 )
-def test_load_config_file_error_names_the_file(tmp_path: Path, payload: bytes) -> None:
+def test_load_config_file_error_names_the_file(
+    tmp_path: Path, payload: bytes, code: str
+) -> None:
     """Undecodable bytes or a wrong table shape are a ValueError too, never
-    a bare UnicodeDecodeError/AttributeError traceback, and the message says
-    which file."""
+    a bare UnicodeDecodeError/AttributeError traceback; it is coded, and its
+    one ``FILE=`` says which file (never ``config file`` ahead of it)."""
     path = tmp_path / "team.toml"
     path.write_bytes(payload)
-    with pytest.raises(ValueError, match="team.toml"):
+    with pytest.raises(ValueError, match="team.toml") as exc:
         load_config_file(path)
+    assert code_of(exc.value) == code
+    text = str(exc.value)
+    assert text.startswith(f"FILE={path}")
+    assert text.count("FILE=") == 1
 
 
 @pytest.mark.parametrize(
@@ -247,15 +255,20 @@ def test_load_config_file_warns_without_a_pitloom_table(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, content: str, warns: bool
 ) -> None:
     """A named file with no [tool.pitloom] table gives the defaults and one
-    warning (a wrong path must not pass unnoticed); an empty table is a
-    real, empty config and stays quiet."""
+    ``option-no-effect`` warning (a wrong path must not pass unnoticed); an
+    empty table is a real, empty config and stays quiet."""
     path = tmp_path / "team.toml"
     path.write_text(content, encoding="utf-8")
     with caplog.at_level(logging.WARNING):
         assert load_config_file(path) == PitloomConfig()
     named = [r for r in caplog.records if "[tool.pitloom]" in r.getMessage()]
     assert len(named) == int(warns)
-    assert all(" --config file has no " in r.getMessage() for r in named)
+    for record in named:
+        assert getattr(record, CODE_ATTR) == "option-no-effect"
+        assert record.levelno == logging.WARNING
+        assert f"FILE={path}: --config has no [tool.pitloom] table" in (
+            record.getMessage()
+        )
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
@@ -328,8 +341,9 @@ def test_max_source_metadata_bytes_zero_clears_the_config_cap() -> None:
 
 
 def test_max_source_metadata_bytes_too_small_is_an_error() -> None:
-    with pytest.raises(ValueError, match="at least 8 bytes, got 5"):
+    with pytest.raises(ValueError, match="of at least 8, got an integer 5") as exc:
         apply_overrides(PitloomConfig(), ConfigOverrides(max_source_metadata_bytes=5))
+    assert code_of(exc.value) == "option-invalid"  # an override is a parameter
 
 
 def _serialisation_signals(sbom_json: str) -> tuple[bool, bool]:

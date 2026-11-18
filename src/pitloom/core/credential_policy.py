@@ -35,16 +35,14 @@ from typing import Any, Final
 
 from pitloom.core.internal_error import InternalError
 from pitloom.messages import CodedValueError
+from pitloom.messages.config import ConfigPlace, config_invalid
 from pitloom.messages.options import (
-    FINGERPRINT_ARRAY_LINE,
-    FINGERPRINT_ENTRY_LINE,
     FINGERPRINT_LINE,
     FINGERPRINT_PATTERN,
     FINGERPRINT_SHAPE,
     OPTION_INVALID,
     REFUSE_ARGUMENT_LINE,
     URL_CREDENTIALS_MODE_ARGUMENT_LINE,
-    URL_CREDENTIALS_MODE_LINE,
 )
 
 __all__ = [
@@ -87,6 +85,12 @@ _SHOWN_HEX: Final = 16
 _TABLE: Final = "[tool.pitloom]"
 
 
+def _place(table: str, key: str) -> ConfigPlace:
+    """*key* of the config table *table* (``[tool.pitloom]``, or
+    ``[tool:pitloom]`` from ``setup.cfg``) as a line names it."""
+    return ConfigPlace("tool.pitloom", key, setup_cfg=table.startswith("[tool:"))
+
+
 def _digest(value: str) -> str:
     """The SHA-256 hex digest of *value* as UTF-8. A lone surrogate (JSON can
     carry one) is encoded as is (``surrogatepass``), so no value raises."""
@@ -111,27 +115,23 @@ def require_fingerprint(
     text: str, *, entry: int | None = None, table: str = _TABLE
 ) -> str:
     """*text* if it is a fingerprint (:data:`FINGERPRINT_RE`, whole), else
-    an ``option-invalid`` error. Uppercase hex is refused, not folded: one
-    spelling per fingerprint. *entry* is its position in
-    ``accept-url-credentials`` of the config table *table*, which the
-    error then names.
+    an ``option-invalid`` error, or ``config-invalid`` given *entry*, its
+    position in ``accept-url-credentials`` of the config table *table*,
+    which the error then names. Uppercase hex is refused, not folded: one
+    spelling per fingerprint.
     The error never quotes *text*, which may be the credential itself
     pasted by mistake.
 
     Raises:
-        pitloom.messages.CodedValueError: ``option-invalid``: *text* is not
-            ``sha256:`` and 16 to 64 lowercase hex digits.
+        pitloom.messages.CodedValueError: ``option-invalid``
+            (``config-invalid`` given *entry*): *text* is not ``sha256:``
+            and 16 to 64 lowercase hex digits.
     """
     if not isinstance(text, str) or FINGERPRINT_RE.fullmatch(text) is None:
         if entry is None:
             raise CodedValueError(OPTION_INVALID, line=FINGERPRINT_LINE)
-        raise CodedValueError(
-            OPTION_INVALID,
-            line=FINGERPRINT_ENTRY_LINE,
-            table=table,
-            setting=ACCEPT_KEY,
-            number=entry,
-        )
+        place = _place(table, ACCEPT_KEY).entry_at(entry)
+        raise config_invalid(place, "fingerprint", text, secret=True)
     return text
 
 
@@ -227,7 +227,7 @@ def read_accept_key(data: dict[str, Any], *, table: str = _TABLE) -> tuple[str, 
     both ``()``: an empty list accepts nothing, as the default does.
 
     Raises:
-        pitloom.messages.CodedValueError: ``option-invalid``: the value is
+        pitloom.messages.CodedValueError: ``config-invalid``: the value is
             not an array, or an entry is not a fingerprint (named by its
             position): never quoted, since it may be a pasted credential.
     """
@@ -235,11 +235,8 @@ def read_accept_key(data: dict[str, Any], *, table: str = _TABLE) -> tuple[str, 
     if raw is None:
         return ()
     if not isinstance(raw, list):
-        raise CodedValueError(
-            OPTION_INVALID,
-            line=FINGERPRINT_ARRAY_LINE,
-            table=table,
-            setting=ACCEPT_KEY,
+        raise config_invalid(
+            _place(table, ACCEPT_KEY), "fingerprints", raw, secret=True
         )
     found = {
         require_fingerprint(entry, entry=index, table=table)
@@ -250,19 +247,20 @@ def read_accept_key(data: dict[str, Any], *, table: str = _TABLE) -> tuple[str, 
 
 def require_mode(value: object, *, table: str | None = _TABLE) -> str:
     """*value* if it is a mode (:data:`MODE_WARN`, :data:`MODE_REFUSE`),
-    else an ``option-invalid`` error naming the setting of *table*, or the
-    library's ``url_credentials`` when *table* is ``None``. The value is
-    never quoted.
+    else a ``config-invalid`` error naming the setting of *table*, or
+    ``option-invalid`` naming the library's ``url_credentials`` when
+    *table* is ``None``. The value is never quoted.
 
     Raises:
-        pitloom.messages.CodedValueError: ``option-invalid``.
+        pitloom.messages.CodedValueError: ``config-invalid`` or
+            ``option-invalid``.
     """
     if isinstance(value, str) and value in _MODES:
         return value
     if table is None:
         raise CodedValueError(OPTION_INVALID, line=URL_CREDENTIALS_MODE_ARGUMENT_LINE)
-    raise CodedValueError(
-        OPTION_INVALID, line=URL_CREDENTIALS_MODE_LINE, table=table, setting=MODE_KEY
+    raise config_invalid(
+        _place(table, MODE_KEY), "url-credentials-mode", value, secret=True
     )
 
 
@@ -271,7 +269,7 @@ def read_mode_key(data: dict[str, Any], *, table: str = _TABLE) -> str:
     error), :data:`MODE_WARN` when absent.
 
     Raises:
-        pitloom.messages.CodedValueError: ``option-invalid``: the value is
+        pitloom.messages.CodedValueError: ``config-invalid``: the value is
             not ``"warn"`` or ``"refuse"``.
     """
     raw = data.get(MODE_KEY)

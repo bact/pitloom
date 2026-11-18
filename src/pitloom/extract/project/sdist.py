@@ -54,7 +54,7 @@ from pitloom.extract.project.poetry import (
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedValueError, code_of
 from pitloom.messages.files import (
     CONFIG_MEMBER_LINE,
     OVER_CAP,
@@ -272,6 +272,8 @@ def _member_config(sdist_name: str, member: str, parse: Callable[[], _T]) -> _T:
     try:
         return parse()
     except ValueError as exc:
+        if code_of(exc) is not None:
+            raise  # names the file already
         raise ValueError(
             f"config file {quote_source(sdist_name + ':' + member)}: {exc}"
         ) from exc

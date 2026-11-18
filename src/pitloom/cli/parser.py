@@ -30,6 +30,7 @@ from pitloom.cli.id import add_parser as add_id
 from pitloom.cli.options import (
     add_debug_argument,
     byte_budget,
+    creation_datetime,
     positive_byte_ceiling,
 )
 from pitloom.cli.options_config import add_config_argument
@@ -361,6 +362,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     creator_group.add_argument(
         "--creation-datetime",
+        type=creation_datetime,
         default=None,
         metavar="ISO8601",
         help="Creation timestamp in UTC ISO 8601 format.",

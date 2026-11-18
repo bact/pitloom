@@ -133,6 +133,9 @@ _ALLOWED = {
     "core/pep440.py:MAX_VERSION_NUMBER_DIGITS": (
         "over it: not a version, and the caller's own warning or a string compare"
     ),
+    "core/provenance.py:_BUDGET_PARAMETER": (
+        "a parameter name (the stage of a validator), not a cap"
+    ),
     "core/scalar_text.py:MAX_INTEGER_DIGITS": _SHOWN,
     "core/wheel_dist_info.py:MAX_NAME_CHARS": _HEURISTIC,
     "extract/_file_headers.py:_HEADER_SCAN_MAX_BYTES": "headers lead a file",

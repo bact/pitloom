@@ -24,7 +24,9 @@ where they differ, and a flag with no effect on a target logs
   `model` target, or `enrich`/`embed-wheel` without `--project-dir`, a
   `[tool.pitloom]` at all (they never read the current directory). On a
   project target it replaces the project's own config outright, not merges
-  with it.
+  with it. A bad setting is an `ERROR:` naming the file and the key and
+  ending in a code (`[config-invalid]`, `[config-moved]`, `[config-malformed]`);
+  a file with no `[tool.pitloom]` table gets a `WARNING:` and the defaults.
 - `--pretty` -- indent the JSON (default: compact).
 - `--offline`/`--no-offline` -- forbid/allow network (`project`, `wheel`,
   `env`, `model`, `embed-wheel`; `generate` follows its target; `enrich` has

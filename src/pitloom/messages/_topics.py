@@ -34,6 +34,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "model-fields": "Model fields",
         "targets": "Targets",
         "options": "Options",
+        "config": "Configuration",
         "files": "Files and text",
         "lock-files": "Lock files",
         "dependencies": "Dependencies",
@@ -83,6 +84,14 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "option-invalid",
             "option-missing",
             "option-no-effect",
+        ),
+        "config": (
+            "config-invalid",
+            "config-malformed",
+            "config-moved",
+            "config-unknown-key",
+            "datetime-unpinned",
+            "source-date-epoch-invalid",
         ),
         "files": (
             "card-malformed",

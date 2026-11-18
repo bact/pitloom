@@ -64,8 +64,9 @@ CREDENTIAL_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             SETTING,
             plain_text,
             "<setting>",
-            "a [tool.pitloom] setting as the file names it "
-            "(`accept-url-credentials`, `url-credentials`)",
+            "a configuration setting as the file names it "
+            "(`accept-url-credentials`, `url-credentials`, the known key an "
+            "unknown one is closest to)",
         ),
     }
 )

@@ -37,6 +37,18 @@ def check(path, message):
     _log.warning("FILE=%s: held again", path, extra={CODE_ATTR: MSG.code})
     raise CodedValueError(MSG, path=path)
 """,
+    # A coded exception said again: as another class, or with its file.
+    "resaid.py": """\
+from pitloom.messages import CodedValueError, recoded
+
+
+def forward(exc):
+    raise recoded(CodedValueError, exc) from None
+
+
+def locate(exc, source):
+    raise exc.located(source, False) from None
+""",
     # In-scope uncoded sites, one DEBUG (out of scope), a print_error with
     # a literal None code, one that forwards an exception's code.
     "uncoded.py": """\

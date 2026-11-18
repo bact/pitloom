@@ -119,9 +119,14 @@ With `SOURCE_DATE_EPOCH` set (or `creation-datetime` in
 `[tool.pitloom.creation]`), repeated builds of unchanged sources give the same
 wheel bytes. Without either, the SBOM's `created` and its package's `builtTime`
 come from the clock, so the wheel differs between builds even though Hatchling
-itself is reproducible; the hook says so with one `INFO:`. A
-`SOURCE_DATE_EPOCH` that is not an integer number of seconds (or is out of
-range) is an `ERROR:` that fails the build, as the
+itself is reproducible; the hook says so with one `INFO:`
+([`datetime-unpinned`](message-codes-config.md#datetime-unpinned)): `Pitloom
+build hook: created and builtTime come from the clock; set SOURCE_DATE_EPOCH or
+creation-datetime to pin them`. A `SOURCE_DATE_EPOCH` that is not an integer
+number of seconds (`SOURCE_DATE_EPOCH=abc: not an integer number of seconds
+since the Unix epoch`) or is out of range (`out of range for a date`) is an
+`ERROR:` that fails the build
+([`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid)), as the
 [specification][source-date-epoch] asks, even with `creation-datetime` set.
 
 [source-date-epoch]: https://reproducible-builds.org/specs/source-date-epoch/

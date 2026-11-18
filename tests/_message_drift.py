@@ -32,6 +32,7 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages._templates import PLACEHOLDER
+from pitloom.messages.config import ConfigPlace
 from tests._docs_scan import REPO_ROOT
 
 SRC_ROOT = REPO_ROOT / "src" / "pitloom"
@@ -47,9 +48,11 @@ SAMPLES: dict[str, object] = {
     "card": "model card",
     "claimant": "src/a.txt",
     "command": "clone",
+    "config_key": ConfigPlace("tool.pitloom.fragment", "files", entry=2, sub="role"),
     "count": 2,
     "declared": "b" * 64,
     "declared_in": "optional-dependencies",
+    "destination": "[tool.pitloom] id-registry",
     "dependency": "demo[dev]",
     "dropped": ("1.0", "2.0"),
     "extra_name": "dev",
@@ -66,9 +69,11 @@ SAMPLES: dict[str, object] = {
     "element_kind": "dataset package",
     "elements": ("model-architecture (written in ai_typeOfModel)",),
     "entities": ("software_File 'a.txt'", "src/a.txt"),
+    "entries": ("prety", "fragments-dir"),
     "entity": "data/imdb",
     "entry": "archive/data.pkl",
     "error": "Error while deserializing header: invalid header length",
+    "expected": "boolean",
     "failure": PermissionError(13, "Permission denied", "/abs/m/a.bin"),
     "field": "project.readme",
     "file": "m/a.bin",
@@ -88,6 +93,7 @@ SAMPLES: dict[str, object] = {
     "namespace": "https://example.org/ns",
     "namespace_problem": "must not contain '#'",
     "given_namespace": "https://example.org/other",
+    "got": "maybe",
     "number": 2,
     "oid": "0f" * 32,
     "option": "--allow-build",
@@ -111,6 +117,7 @@ SAMPLES: dict[str, object] = {
     "spdx_id": "https://example.org/ns#File-1",
     "subcommand": "fragment validate",
     "table": "[tool.pitloom]",
+    "tables": (ConfigPlace("tool.pitloom.provenance"), ConfigPlace("tool.pitloom")),
     "target": "https://example.org/x.whl",
     "unit": "byte",
     "url": "https://pypi.org/project/demo/1.0/",

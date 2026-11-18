@@ -23,10 +23,7 @@ from pitloom.assemble.spdx3._display_text import (
     BASE_MODEL_RELATIONSHIP,
     escape_element_display_text,
 )
-from pitloom.assemble.spdx3.creation_info import (
-    parse_iso_datetime,
-    to_spdx3_datetime,
-)
+from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
 from pitloom.core.ai_metadata import (
     MODEL_NAME_CAP,
@@ -39,6 +36,7 @@ from pitloom.core.ai_metadata import (
     value_text,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.creation import iso_datetime_or_none
 from pitloom.core.file_hash import HexDigests
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
@@ -417,14 +415,14 @@ def _release_time(ai_model: AiModelMetadata) -> datetime | None:
     as UTC), or ``None`` when it states none or not an ISO 8601 time."""
     if not ai_model.release_time:
         return None
-    try:
-        return to_spdx3_datetime(parse_iso_datetime(ai_model.release_time))
-    except ValueError:
-        log.warning(
-            "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
-            *_model_where(ai_model),
-        )
-        return None
+    parsed = iso_datetime_or_none(ai_model.release_time)
+    if parsed is not None:
+        return to_spdx3_datetime(parsed)
+    log.warning(
+        "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
+        *_model_where(ai_model),
+    )
+    return None
 
 
 def _model_purl(ai_model: AiModelMetadata, digest: HexDigests | None) -> str | None:

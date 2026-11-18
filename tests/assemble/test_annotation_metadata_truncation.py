@@ -21,6 +21,7 @@ import pytest
 
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
 from pitloom.core.models import _clear_doc_counters
+from pitloom.messages import code_of
 
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
 
@@ -217,7 +218,7 @@ def test_respects_the_real_byte_budget(budget: int, capped: int) -> None:
 
 
 def test_negative_max_bytes_rejected() -> None:
-    with pytest.raises(ValueError, match="at least 8 bytes"):
+    with pytest.raises(ValueError, match="of at least 8, got an integer -5") as exc:
         build_source_metadata_annotation(
             "urn:doc#ai_AIPackage-1",
             "gguf",
@@ -227,6 +228,7 @@ def test_negative_max_bytes_rejected() -> None:
             _DOC_UUID,
             max_metadata_bytes=-5,
         )
+    assert code_of(exc.value) == "option-invalid"  # a library parameter
 
 
 @pytest.mark.parametrize(

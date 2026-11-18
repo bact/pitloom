@@ -31,6 +31,7 @@ from pitloom.assemble import generate, generate_wheel_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from pitloom.id_registry import IdRegistry
+from pitloom.messages import code_of
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.assemble.test_scan_model_usage import (
@@ -372,11 +373,15 @@ def test_library_ceiling_is_validated_before_scanning(
     surface: str, bad: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A ``PitloomConfig`` is never parsed, so a bad ceiling reaches the scan
-    as is and is refused with the config reader's one-line error."""
+    as is and is refused as a library parameter (``option-invalid``): it was
+    never read from a file."""
     if surface.startswith("cli-"):
         pytest.skip("the config reader rejects it: test_config")
-    with pytest.raises(ValueError, match="'max-model-extract-bytes' must be"):
+    with pytest.raises(
+        ValueError, match=r"^PitloomConfig\.max_model_extract_bytes: must be"
+    ) as exc:
         _SURFACES[surface](tmp_path, monkeypatch, None, None, bad)
+    assert code_of(exc.value) == "option-invalid"
 
 
 def _run(

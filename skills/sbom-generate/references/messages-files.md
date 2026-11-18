@@ -21,8 +21,8 @@ values.
 | --- | --- | --- | --- |
 | [`card-malformed`](#card-malformed) | WARNING | The YAML frontmatter at the top of a card (the block between two --- lines) does not parse: a model card beside a local model, a dataset's own card, a Hugging Face model's card, or a Hugging Face dataset card a Hub model lists. The line gives what the parser reported. | 0.23.0 |
 | [`dir-unlistable`](#dir-unlistable) | ERROR, WARNING | A directory could not be listed (no read or search permission): the files under it were not seen. The ERROR line, for a directory named as a 'loom id generate' PATH, prints since 0.25.0. | 0.22.0 |
-| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, and for the input check, prints since 0.25.0. | 0.22.0 |
-| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, or an ID registry file (an ERROR:, which prints since 0.25.0). | 0.22.0 |
+| [`file-unreadable`](#file-unreadable) | ERROR, WARNING | A file Pitloom found or was named could not be read: the operating system refused it (no read permission, a directory above it without search permission, a file another program holds open on Windows) or the read failed (an I/O error, a file that is no regular file once opened). A path named for Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM) under a directory without search permission says so 'for the input check', not that it is not found. The ERROR line for an SBOM given to 'loom id import' or to embed, for an ID registry file, for a 'loom id generate' PATH, for a configuration file and for the input check, prints since 0.25.0. | 0.22.0 |
+| [`file-unreadable/not-utf8`](#file-unreadablenot-utf8) | ERROR, WARNING | A text file Pitloom read is not UTF-8, the encoding it must be in: a requirements file or a file a setup.cfg directive lists, a Python file read for the model usage scan (a WARNING:), or an SBOM given to embed or to import into an ID registry, an ID registry file (an ERROR:, which prints since 0.25.0), or a configuration file (an ERROR:). | 0.22.0 |
 | [`file-unreadable/outside-project`](#file-unreadableoutside-project) | WARNING | A file a project setting names, or a licence file, leads outside the project directory (a .. or absolute path, or a symbolic link out), and Pitloom reads no file outside it: its content is no part of the project. For an installed dependency, the directory is its .dist-info. | 0.22.0 |
 | [`file-unreadable/outside-repository`](#file-unreadableoutside-repository) | WARNING | The build configuration of a project fetched from a Git URL lists files outside the downloaded repository (an absolute or .. path, as in a Hatchling force-include, or its .git directory), and Pitloom reads no file outside it: the repository is untrusted, and such a file is the host's. A setting entry left out before the files are listed is named as the configuration writes it, one line each; files left out once listed are only counted, never named. | 0.23.4 |
 | [`file-unwritable`](#file-unwritable) | ERROR, WARNING | A file Pitloom writes could not be written: the operating system refused it (no write permission on the file or its directory, a read-only file system, a full disk, a directory where the file should be). Today the ID registry file, written 'for the ID registry'. | 0.25.0 |
@@ -94,8 +94,8 @@ values.
   Pitloom to read (a wheel, a project, a configuration, an ID registry, an SBOM)
   under a directory without search permission says so 'for the input check', not
   that it is not found. The ERROR line for an SBOM given to 'loom id import' or
-  to embed, for an ID registry file, for a 'loom id generate' PATH, and for the
-  input check, prints since 0.25.0.
+  to embed, for an ID registry file, for a 'loom id generate' PATH, for a
+  configuration file and for the input check, prints since 0.25.0.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Read nothing more of it and went on without what it holds, as
   the line says what it was read for: a file scan leaves the file out of the
@@ -110,10 +110,11 @@ values.
   fields it states. As an ERROR, the call that named the file raises (a
   Croissant document: the dataset declaration fails; an SBOM to import: the ID
   registry is not written; an SBOM to embed: no wheel is changed; an ID registry
-  file, or a 'loom id generate' PATH: no registry or SBOM is written; the only
-  possible model file of a folder named for a model SBOM: no SBOM is written;
-  the input check: the command writes nothing and exits 1, the library raises
-  ValueError carrying the code).
+  file, or a 'loom id generate' PATH: no registry or SBOM is written; a
+  configuration file: nothing is written; the only possible model file of a
+  folder named for a model SBOM: no SBOM is written; the input check: the
+  command writes nothing and exits 1, the library raises ValueError carrying the
+  code).
 - **Tell the user**: which file could not be read and what the system reported,
   as the line says. They give the account Pitloom runs as read access to it (or
   close the program that holds it), or restore a damaged copy, and generate
@@ -136,13 +137,14 @@ values.
 - **Means**: A text file Pitloom read is not UTF-8, the encoding it must be in:
   a requirements file or a file a setup.cfg directive lists, a Python file read
   for the model usage scan (a WARNING:), or an SBOM given to embed or to import
-  into an ID registry, or an ID registry file (an ERROR:, which prints since
-  0.25.0).
+  into an ID registry, an ID registry file (an ERROR:, which prints since
+  0.25.0), or a configuration file (an ERROR:).
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Went on without what the file holds: the field is not set
   from it, or the usage scan records no model reference from it. For an SBOM,
   wrote nothing: to embed, no wheel is changed; to import, the ID registry is
-  not written. For an ID registry file, wrote nothing: no registry and no SBOM.
+  not written. For an ID registry file or a configuration file, wrote nothing:
+  no registry and no SBOM.
 - **Tell the user**: which file is not UTF-8 and what the decoder reported, as
   the line says. They save it as UTF-8 (an SBOM: generate it again) and run
   again. Do not convert, edit or replace the file for them; ask first, and with

@@ -40,7 +40,11 @@ type = "robot"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="Invalid creator type"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[\[tool.pitloom.creator\]\] entry 0 type: must be one of agent, "
+            r"organization, person, software-agent, got a string 'robot'",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -59,7 +63,10 @@ detail = "verbose"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="detail"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom.provenance\] detail: must be one of full, minimal",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -78,7 +85,11 @@ preserve-source-metadata = "sometimes"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="preserve-source-metadata"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom.provenance\] preserve-source-metadata: "
+            r"must be one of",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -97,7 +108,9 @@ format = "not-a-real-format"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="format"):
+        with pytest.raises(
+            ValueError, match=r"\[tool.pitloom.provenance\] format: must be one of"
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -125,7 +138,9 @@ version = "1.0.0"
             pyproject_path = tmppath / "pyproject.toml"
             pyproject_path.write_text(pyproject_content)
 
-            with pytest.raises(ValueError, match=key):
+            with pytest.raises(
+                ValueError, match=rf"\[tool.pitloom.provenance\] {key}: must be one of"
+            ):
                 read_pyproject(pyproject_path)
 
 
@@ -144,7 +159,11 @@ provenance = "annotation"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="provenance"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom.provenance\]: must be a table, "
+            r"got a string 'annotation'",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -244,7 +263,11 @@ no-creation-tool = "false"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="must be a boolean"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[tool.pitloom.creation\] no-creation-tool: must be true or false, "
+            r"got a string 'false'",
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -268,7 +291,9 @@ version = "1.0.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="has moved to"):
+        with pytest.raises(
+            ValueError, match=rf"\[tool.pitloom.creation\] {old_key}: moved to "
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -294,7 +319,7 @@ version = "1.0.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="has moved to"):
+        with pytest.raises(ValueError, match=rf"\[tool.pitloom\] {old_key}: moved to "):
             read_pyproject(pyproject_path)
 
 
@@ -324,7 +349,9 @@ creator-name = {value_toml}
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="has moved to"):
+        with pytest.raises(
+            ValueError, match=r"\[tool.pitloom\] creator-name: moved to "
+        ):
             read_pyproject(pyproject_path)
 
 
@@ -346,7 +373,9 @@ creation-tool = 123
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="has moved to"):
+        with pytest.raises(
+            ValueError, match=r"\[tool.pitloom\] creation-tool: moved to "
+        ):
             read_pyproject(pyproject_path)
 
 

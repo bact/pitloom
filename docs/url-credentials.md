@@ -24,9 +24,9 @@ or pass `--refuse-url-credentials` (in the GitHub Action: `url-credentials:
 refuse`). The library takes
 `credentials=CredentialPolicy(refuse=True)` or
 `PitloomConfig(url_credentials="refuse")`. Any other value of the setting is an
-error (`ERROR: loom <command>: [tool.pitloom] url-credentials: must be "warn"
-or "refuse" [option-invalid]`). `setup.cfg` takes `[tool:pitloom] url-credentials`. There
-is no flag to turn the project's `refuse` off from the command line.
+error (`ERROR: loom <command>: FILE=<file>: [tool.pitloom] url-credentials:
+must be "warn" or "refuse", got ... [config-invalid]`). `setup.cfg` takes
+`[tool:pitloom] url-credentials`. There is no flag to turn the project's `refuse` off from the command line.
 
 This page covers what is found, how to fix it, how to accept a value you know
 is no secret, and what is not detected. See also [Dependency

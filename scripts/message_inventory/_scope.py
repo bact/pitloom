@@ -99,14 +99,13 @@ INTERNAL_PAT = re.compile(
     r"build timeout must be an int|max_bytes must be a positive|"
     r"Failed to build relationship|^received \{|no id prefix for an empty|"
     r"GGUF array field without|Unknown provenance schema|duplicate key$|"
-    r"^not JSON: |is not a JSON value|^\{name\} must be a table|"
-    r"content_type_method must be one of|Invalid creator type person"
+    r"^not JSON: |is not a JSON value|"
+    r"content_type_method must be one of"
 )
 #: Message texts of errors raised to a Python caller of the library.
 LIBRARY_PAT = re.compile(
     r"No active loom\.run|No model set|^loom: |generate_project_sbom\(\)|"
-    r"local enrichment does not apply|caller (info|script path)|"
-    r"Invalid creator type|Creator name must|Tool name must"
+    r"local enrichment does not apply|caller (info|script path)"
 )
 #: A template that is only another message passed through.
 PASSTHROUGH_PAT = re.compile(

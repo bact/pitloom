@@ -22,6 +22,7 @@ from pitloom.core.config import FragmentConfig
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator
 from pitloom.extract.project.setuptools import read_setup_cfg
+from pitloom.messages import code_of
 
 
 def test_read_setup_cfg_pitloom_config() -> None:
@@ -151,8 +152,13 @@ no-creation-tool = {value}
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        with pytest.raises(ValueError, match="'no-creation-tool' must be a boolean"):
+        with pytest.raises(
+            ValueError,
+            match=r"^FILE=.*setup\.cfg: \[tool:pitloom:creation\] no-creation-tool: "
+            r"must be true or false, got a string",
+        ) as exc_info:
             read_setup_cfg(Path(d))
+    assert code_of(exc_info.value) == "config-invalid"
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
@@ -186,8 +192,12 @@ ids-file = registry.json
         with pytest.raises(ValueError) as exc_info:
             read_setup_cfg(Path(d))
     message = str(exc_info.value)
-    assert "[tool:pitloom]" in message
-    assert "[tool.pitloom]" not in message
+    assert code_of(exc_info.value) == "config-moved"
+    # the key sits in the setup.cfg table (colon); the destination is named
+    # as TOML spells it
+    assert "[tool:pitloom] ids-file: moved to " in message
+    assert "[tool.pitloom] ids-file" not in message
+    assert message.endswith("moved to [tool.pitloom] id-registry")
 
 
 _PRINTED = "sha256:0123456789abcdef"
@@ -227,7 +237,9 @@ def test_read_setup_cfg_accept_url_credentials_error_names_its_table() -> None:
         with pytest.raises(ValueError) as exc_info:
             read_setup_cfg(Path(d))
     message = str(exc_info.value)
-    assert message.startswith("[tool:pitloom] accept-url-credentials entry 1:")
+    assert message.startswith("FILE=")
+    assert "setup.cfg: [tool:pitloom] accept-url-credentials entry 1:" in message
+    assert code_of(exc_info.value) == "config-invalid"
     assert "ghp_secretvalue" not in message
 
 

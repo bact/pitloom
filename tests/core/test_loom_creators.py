@@ -179,7 +179,11 @@ def test_loom_run_software_agent_and_generic_agent_creator(
 
 def test_loom_run_invalid_creator_type_raises() -> None:
     """An unrecognised creator type raises ValueError."""
-    with pytest.raises(ValueError, match="Invalid creator type"):
+    with pytest.raises(
+        ValueError,
+        match=r"Creator.type: must be one of agent, organization, person, "
+        r"software-agent, got a string 'robot'",
+    ):
         Creator(name="Bot", type="robot")
 
 

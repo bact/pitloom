@@ -138,8 +138,8 @@ Other arguments that mirror a CLI flag or config key:
   `project_dir=`): `--max-model-extract-bytes`, the per-model ceiling of a
   wheel's model scan; it wins over `pitloom_config=`'s
   `max-model-extract-bytes`. Other targets warn that it has no effect; a value
-  that is not an integer of at least 1 (`True` included) raises `ValueError` on
-  every target.
+  that is not an integer of at least 1 (`True` included) raises `ValueError`
+  (`option-invalid`) on every target.
 - `max_download_bytes=` (`generate()`, `generate_wheel_sbom()`,
   `generate_project_sbom()`, `generate_pypi_sbom()`, `generate_git_sbom()`,
   `generate_git_project_sbom()`, `generate_model_sbom()`):
@@ -148,7 +148,7 @@ Other arguments that mirror a CLI flag or config key:
   Hugging Face model (512 MiB by default); it wins over `pitloom_config=`'s
   `max-download-bytes`. Other targets warn that it has no effect; a value
   that is not an integer of at least 1 (`True` included) raises `ValueError`
-  on every target.
+  (`option-invalid`) on every target.
 - `credentials=CredentialPolicy(...)` (every generator function,
   `loom.Run`; `ConfigOverrides.credentials` for `embed_wheel_sbom()`;
   `generate_merged_sbom()`, keyword only, which reads no config):
@@ -187,7 +187,8 @@ Other arguments that mirror a CLI flag or config key:
 What `scan_model_usage` records, and which wheel models are listed without
 metadata and why: [Configuration](configuration.md) and [AI model scan
 limits](ai-model-scan-limits.md#formats-gated-in-wheels). For a wheel, a bad
-`max-model-extract-bytes` in `pitloom_config=` raises `ValueError` too.
+`max-model-extract-bytes` in `pitloom_config=` raises `ValueError` too
+(`option-invalid`).
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()` (and
 `generate_wheel_sbom_with_metadata()`, which returns `(json, metadata)`: the

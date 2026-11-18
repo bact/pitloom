@@ -18,7 +18,9 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
+from pitloom.messages import code_of
 from tests.assemble.conftest import _make_dummy_wheel
+from tests.extract.conftest import make_hook
 
 
 def test_resolve_source_date_epoch_unset(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -33,14 +35,15 @@ def test_resolve_source_date_epoch_valid(monkeypatch: pytest.MonkeyPatch) -> Non
     )
 
 
+@pytest.mark.platform  # the range error of a date differs by OS
 @pytest.mark.parametrize(
     ("raw", "reason"),
     [
-        ("not-a-number", "is not an integer"),
-        ("1.5", "is not an integer"),
-        ("0x10", "is not an integer"),
-        ("99999999999999999", "is out of range"),
-        ("99999999999999999999999999999999999", "is out of range"),
+        ("not-a-number", "not an integer number of seconds"),
+        ("1.5", "not an integer number of seconds"),
+        ("0x10", "not an integer number of seconds"),
+        ("99999999999999999", "out of range for a date"),
+        ("99999999999999999999999999999999999", "out of range for a date"),
     ],
     ids=["text", "float", "hex", "range", "huge"],
 )
@@ -48,11 +51,14 @@ def test_resolve_source_date_epoch_invalid_raises(
     monkeypatch: pytest.MonkeyPatch, raw: str, reason: str
 ) -> None:
     """A malformed value fails (reproducible-builds.org: a build SHOULD),
-    naming the variable and the value, rather than being ignored."""
+    naming the variable and the value, rather than being ignored; coded
+    ``source-date-epoch-invalid``."""
     monkeypatch.setenv("SOURCE_DATE_EPOCH", raw)
     with pytest.raises(ValueError, match="SOURCE_DATE_EPOCH") as info:
         resolve_source_date_epoch()
-    assert repr(raw) in str(info.value) and reason in str(info.value)
+    assert str(info.value).startswith(f"SOURCE_DATE_EPOCH={raw}: ")
+    assert reason in str(info.value)
+    assert code_of(info.value) == "source-date-epoch-invalid"
 
 
 def test_resolve_source_date_epoch_empty_string_returns_none(
@@ -78,7 +84,7 @@ def _safetensors(path: Path) -> Path:
 
 _PIN = ["--creation-datetime", "2026-01-01T00:00:00Z"]
 _EPOCH_ERROR = (
-    "SOURCE_DATE_EPOCH='abc' is not an integer number of seconds since the Unix epoch"
+    "SOURCE_DATE_EPOCH=abc: not an integer number of seconds since the Unix epoch"
 )
 
 
@@ -114,6 +120,7 @@ def test_a_malformed_epoch_fails_every_cli_command_once(
     lines = [ln for ln in err if "SOURCE_DATE_EPOCH" in ln]
     assert len(lines) == 1
     assert lines[0].startswith("ERROR: ") and _EPOCH_ERROR in lines[0]
+    assert lines[0].endswith("[source-date-epoch-invalid]")
     assert not out.exists()
 
 
@@ -151,5 +158,73 @@ def test_a_malformed_epoch_fails_the_library(
     metadata = CreationMetadata(
         creation_datetime="2026-01-01T00:00:00Z" if pinned else None
     )
-    with pytest.raises(ValueError, match="SOURCE_DATE_EPOCH='abc'"):
+    with pytest.raises(ValueError, match="^SOURCE_DATE_EPOCH=abc: ") as info:
         generate_project_sbom(_project(tmp_path / "p"), creation_metadata=metadata)
+    assert code_of(info.value) == "source-date-epoch-invalid"
+
+
+@pytest.mark.platform  # a project tree and a staged build
+@pytest.mark.parametrize("pinned", [False, True], ids=["unpinned", "pinned-date"])
+@pytest.mark.parametrize(
+    ("raw", "text"),
+    [("abc", "not an integer"), ("99999999999999999", "out of range for a date")],
+    ids=["not-integer", "out-of-range"],
+)
+def test_a_malformed_epoch_fails_the_hook(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    pinned: bool,
+    raw: str,
+    text: str,
+) -> None:
+    """The Hatchling hook reads the variable first, so a bad value fails the
+    build whether or not ``creation-datetime`` is pinned, coded the same."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", raw)
+    root = _project(tmp_path / "p")
+    if pinned:
+        with (root / "pyproject.toml").open("a", encoding="utf-8") as handle:
+            handle.write('[tool.pitloom]\ncreation-datetime = "2026-01-01T00:00:00Z"\n')
+    hook = make_hook(str(root), {})
+    with pytest.raises(ValueError, match=f"^SOURCE_DATE_EPOCH={raw}: ") as info:
+        hook.initialize("standard", {})
+        hook.finalize("standard", {}, "")
+    assert text in str(info.value)
+    assert code_of(info.value) == "source-date-epoch-invalid"
+
+
+@pytest.mark.platform  # a project tree and the command line
+def test_an_out_of_range_epoch_fails_the_cli_with_its_own_line(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An integer too large for a date is the second line of the one code."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "99999999999999999")
+    monkeypatch.setattr("sys.argv", ["loom", "project", str(_project(tmp_path / "p"))])
+    assert __main__.main() == 1
+    (line,) = [
+        ln for ln in capsys.readouterr().err.splitlines() if "SOURCE_DATE_EPOCH" in ln
+    ]
+    assert line.endswith(
+        "SOURCE_DATE_EPOCH=99999999999999999: out of range for a date"
+        " [source-date-epoch-invalid]"
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason"),
+    [
+        ("1000000000000", "out of range for a date"),
+        ("not-a-number", "not an integer number of seconds"),
+    ],
+    ids=["year-past-9999", "text"],
+)
+def test_a_bad_epoch_is_coded_and_chains_nothing(
+    monkeypatch: pytest.MonkeyPatch, raw: str, reason: str
+) -> None:
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", raw)
+    with pytest.raises(ValueError) as caught:
+        resolve_source_date_epoch()
+    assert code_of(caught.value) == "source-date-epoch-invalid"
+    assert reason in str(caught.value)
+    assert caught.value.__suppress_context__ and caught.value.__cause__ is None
