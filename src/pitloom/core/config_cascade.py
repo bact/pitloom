@@ -223,8 +223,9 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         ) from None
     except (UnicodeDecodeError, OSError) as exc:
         raise file_unreadable_error(exc, file=path, use=CONFIG_USE) from None
-    except ValueError as exc:
-        # Not a TOMLDecodeError, e.g. an integer over Python's digit limit.
+    except (ValueError, RecursionError) as exc:
+        # Not a TOMLDecodeError: an integer over Python's digit limit, or
+        # arrays nested past the parser's depth limit.
         raise CodedValueError(
             CONFIG_MALFORMED, line=TOML_LINE, file=path, failure=exc
         ) from None

@@ -20,7 +20,7 @@ import datetime
 import logging
 import pickle  # nosec B403
 from collections.abc import Callable
-from pathlib import PureWindowsPath
+from pathlib import PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -419,3 +419,23 @@ def test_recoded_keeps_the_text_and_code_in_another_class() -> None:
     assert (str(again), code_of(again)) == (str(missing), "input-not-found")
     with pytest.raises(InternalError):
         recoded(CodedValueError, ValueError("plain"))
+
+
+@pytest.mark.parametrize(
+    "place",
+    [ConfigPlace("tool.pitloom.creator", entry=0, sub="type"), _TOP.at("pretty")],
+    ids=["entry-key", "key"],
+)
+def test_a_place_naming_a_key_takes_no_other(place: ConfigPlace) -> None:
+    with pytest.raises(InternalError):
+        place.at("name")
+
+
+@pytest.mark.parametrize("name", [PurePosixPath("max_bytes"), "-x", "a b", 5])
+def test_a_parameter_is_a_python_name_or_a_long_option_only(name: object) -> None:
+    with pytest.raises(InternalError):
+        Parameter(name)  # type: ignore[arg-type]
+
+
+def test_a_backslash_found_is_shown_once() -> None:
+    assert found_text("C:\\cfg") == "a string 'C:\\cfg'"

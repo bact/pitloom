@@ -133,8 +133,6 @@ def found_text(value: object) -> str:
 def kind_text(value: object) -> str:
     """What was found by its type only (``a string``): for a value that may
     be a secret."""
-    if isinstance(value, Found):
-        return value.text
     return _kind(value)
 
 

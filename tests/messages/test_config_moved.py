@@ -127,3 +127,35 @@ def test_a_config_file_with_a_bad_value_names_the_file_once(tmp_path: Path) -> N
         "got a string 'maybe'"
     )
     assert code_of(caught.value) == CONFIG_INVALID.code
+
+
+# Every old spelling is written out (the tests above iterate the tables
+# themselves, so a key dropped from one loses its case and the old key
+# becomes a mere unknown-key WARNING).
+_OLD_CREATION = [
+    f"{word}{sep}{part}"
+    for word, part in (
+        ("creator", "name"),
+        ("creator", "email"),
+        ("creator", "type"),
+        ("creation", "tool"),
+    )
+    for sep in "-_"
+]
+
+
+@pytest.mark.parametrize(
+    "pitloom",
+    [{"creation": {key: "x"}} for key in _OLD_CREATION]
+    + [{key: "x"} for key in _OLD_CREATION]
+    + [{key: {}} for key in ("ids", "fragments", "file-headers", "file_headers")]
+    + [
+        {f"{k}{s}{w}": "x"}
+        for k, w in (("ids", "file"), ("update", "registry"))
+        for s in "-_"
+    ],
+)
+def test_each_old_spelling_is_still_refused_as_moved(pitloom: dict[str, Any]) -> None:
+    with pytest.raises(ValueError) as caught:
+        parse_pitloom_config({"tool": {"pitloom": pitloom}}, source="pyproject.toml")
+    assert code_of(caught.value) == "config-moved"

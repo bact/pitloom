@@ -25,7 +25,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.config import PitloomConfig, pyproject_config_applies
+from pitloom.core.config import (
+    PitloomConfig,
+    pyproject_config_applies,
+    select_project_config,
+)
 from pitloom.extract.project import read_project, sdist_config_source
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import read_sdist
@@ -506,3 +510,12 @@ def test_unused_invalid_setup_cfg_config_fails_neither_target(
     (tmp_path / "used").mkdir()
     with pytest.raises(ValueError, match="offline"):
         read_sdist(_sdist(tmp_path / "used", members, fmt))
+
+
+def test_a_pyproject_that_does_not_apply_is_still_the_source_alone() -> None:
+    pyproject = PitloomConfig(pretty=True)
+    assert select_project_config(pyproject, False, None) == (
+        pyproject,
+        "pyproject.toml",
+    )
+    assert select_project_config(None, False, None) == (PitloomConfig(), None)

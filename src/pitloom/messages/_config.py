@@ -197,14 +197,16 @@ CONFIG_MALFORMED: Final = Message(
         INTERPOLATION_FILE_LINE,
         INTERPOLATION_LINE,
     ),
-    summary="A configuration file is not valid TOML (a pyproject.toml, a "
-    "--config file) or INI (a setup.cfg): the parser's failure, with its "
-    "line and column where it gives them. The interpolation line is a "
-    "[tool:pitloom] value holding a % that is not a %% or a valid "
-    "%(name)s reference.",
-    did=f"Said by {_SURFACES}. Read no setting and wrote nothing: the command "
-    "exits 1, the build fails, the library raises ValueError carrying the "
-    "code.",
+    summary="A configuration file is not valid TOML (a --config file) or INI "
+    "(a setup.cfg): the parser's failure, with its line and column where it "
+    "gives them. The interpolation line is a [tool:pitloom] value holding a "
+    "% that is not a %% or a valid %(name)s reference. A project's or an "
+    "sdist's pyproject.toml that is not valid TOML is not yet coded.",
+    did="Said by the command line (a --config file, or a setup.cfg of a "
+    "project or an sdist), the library (load_config_file, loom.run's "
+    "pitloom_config) and the GitHub Action. Read no setting and wrote "
+    "nothing: the command exits 1, the library raises ValueError carrying "
+    "the code.",
     effect="not-written",
     actor="user",
     advice="Tell the user which file does not parse and where, as the line "

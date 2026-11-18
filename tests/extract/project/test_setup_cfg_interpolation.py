@@ -262,3 +262,19 @@ def test_read_uninterpolated_gives_the_file_or_none(
     if cfg is not None:
         assert cfg.get("a", "k") == "50%"
     assert read_uninterpolated(tmp_path / "missing.cfg") is not None  # reads empty
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[metadata]\nname = a\nname = b\n",
+        "[metadata]\nname = demo\n[tool:pitloom]\nid-registry = 100%\n",
+    ],
+    ids=["duplicate-option", "bad-percent"],
+)
+def test_a_malformed_setup_cfg_text_is_one_coded_error(text: str) -> None:
+    with pytest.raises(ValueError) as caught:
+        setup_cfg_pitloom_config(text, "setup.cfg")
+    assert code_of(caught.value) == "config-malformed"
+    assert str(caught.value).startswith("FILE=setup.cfg: not valid INI")
+    assert caught.value.__suppress_context__ and caught.value.__cause__ is None

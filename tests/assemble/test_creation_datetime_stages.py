@@ -63,6 +63,17 @@ def test_the_flag_refuses_a_bad_datetime_at_parse_time(
     assert err.endswith("'notadate' [option-invalid]")
 
 
+def test_the_flag_refuses_a_time_outside_utc_years_1_to_9999_at_parse_time(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Valid as written, so it passed the parse and died at assembly with an
+    uncoded ``date value out of range``."""
+    with pytest.raises(SystemExit) as exc:
+        _build_parser().parse_args(["project", _FLAG, "0001-01-01T00:00:00+05:00"])
+    assert exc.value.code == 2
+    assert capsys.readouterr().err.rstrip().endswith("[option-invalid]")
+
+
 def test_the_flag_is_offered_by_the_sbom_subcommands() -> None:
     """Not vacuous: the parametrisation above found the commands."""
     assert {"project", "wheel", "embed-wheel"} <= set(_subcommands(_FLAG))

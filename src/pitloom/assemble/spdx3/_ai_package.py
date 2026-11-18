@@ -416,11 +416,8 @@ def _release_time(ai_model: AiModelMetadata) -> datetime | None:
     if not ai_model.release_time:
         return None
     parsed = iso_datetime_or_none(ai_model.release_time)
-    try:
-        if parsed is not None:
-            return to_spdx3_datetime(parsed)
-    except ValueError:
-        pass
+    if parsed is not None:
+        return to_spdx3_datetime(parsed)
     log.warning(
         "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
         *_model_where(ai_model),

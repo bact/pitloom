@@ -224,7 +224,8 @@ def _chain(exc: BaseException | None) -> list[str]:
 
 def test_every_expected_id_has_a_case() -> None:
     """A new id of the table fails here until a real reader says it."""
-    assert set(_CASES) == set(EXPECTED) == set(_FOUND)
+    library_only = {"config-source"}  # a parameter's type, no file says it
+    assert set(_CASES) == set(EXPECTED) - library_only == set(_FOUND)
     assert set(_CFG_CASES) <= set(EXPECTED)
 
 

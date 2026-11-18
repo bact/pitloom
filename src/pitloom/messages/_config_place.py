@@ -253,6 +253,7 @@ EXPECTED: Final[Mapping[str, str]] = MappingProxyType(
         "file-name": "a file name, not a path",
         "bare-file-name": "a plain file name (not a path, not only .spdx3.json)",
         "datetime": "an ISO 8601 date and time",
+        "config-source": "a path to a configuration file, or a PitloomConfig",
         "fingerprint": f"a fingerprint ({FINGERPRINT_SHAPE})",
         "fingerprints": "an array of fingerprints",
         "url-credentials-mode": '"warn" or "refuse"',

@@ -35,6 +35,7 @@ def test_resolve_source_date_epoch_valid(monkeypatch: pytest.MonkeyPatch) -> Non
     )
 
 
+@pytest.mark.platform  # the range error of a date differs by OS
 @pytest.mark.parametrize(
     ("raw", "reason"),
     [
@@ -208,3 +209,22 @@ def test_an_out_of_range_epoch_fails_the_cli_with_its_own_line(
         "SOURCE_DATE_EPOCH=99999999999999999: out of range for a date"
         " [source-date-epoch-invalid]"
     )
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason"),
+    [
+        ("1000000000000", "out of range for a date"),
+        ("not-a-number", "not an integer number of seconds"),
+    ],
+    ids=["year-past-9999", "text"],
+)
+def test_a_bad_epoch_is_coded_and_chains_nothing(
+    monkeypatch: pytest.MonkeyPatch, raw: str, reason: str
+) -> None:
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", raw)
+    with pytest.raises(ValueError) as caught:
+        resolve_source_date_epoch()
+    assert code_of(caught.value) == "source-date-epoch-invalid"
+    assert reason in str(caught.value)
+    assert caught.value.__suppress_context__ and caught.value.__cause__ is None

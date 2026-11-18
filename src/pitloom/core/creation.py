@@ -70,6 +70,10 @@ def iso_datetime_or_none(value: str) -> datetime | None:
         return None
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
+    try:
+        parsed.astimezone(timezone.utc)
+    except OverflowError:
+        return None  # out of range once read as UTC, e.g. year 1 at +05:00
     return parsed
 
 

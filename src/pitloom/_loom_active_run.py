@@ -46,7 +46,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 from pitloom.logging_config import configure_logging
 from pitloom.messages import CodedValueError, recoded
-from pitloom.messages.config import Parameter
+from pitloom.messages.config import Parameter, invalid_value
 
 log = logging.getLogger("pitloom.loom")
 
@@ -75,6 +75,10 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
         return PitloomConfig()
     if isinstance(pitloom_config, PitloomConfig):
         return pitloom_config
+    if not isinstance(pitloom_config, (str, os.PathLike)):
+        raise invalid_value(
+            Parameter("pitloom_config"), "config-source", pitloom_config
+        )
     path = Path(pitloom_config)
     try:
         return load_config_file(path, source="pitloom_config")

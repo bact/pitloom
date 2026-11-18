@@ -17,6 +17,7 @@ from __future__ import annotations
 import importlib
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -97,8 +98,12 @@ def test_parse_iso_datetime_invalid_raises(
         ("2026-01-15T10:30:00", datetime(2026, 1, 15, 10, 30, tzinfo=timezone.utc)),
         ("not-a-date", None),
         ("", None),
+        # Valid as written, outside years 1-9999 once read as UTC: the flag,
+        # the config and the library refuse it rather than crash later.
+        ("0001-01-01T00:00:00+05:00", None),
+        ("9999-12-31T23:59:59-05:00", None),
     ],
-    ids=["z", "naive-utc", "text", "empty"],
+    ids=["z", "naive-utc", "text", "empty", "before-year-1", "after-year-9999"],
 )
 def test_iso_datetime_or_none_is_the_one_pure_parse(
     value: str, expected: datetime | None
@@ -327,3 +332,23 @@ def test_creator_types_mismatch_raises_runtime_error_on_import(
         # returns, too late to protect a reload happening here).
         monkeypatch.setattr(creation_module, "VALID_CREATOR_TYPES", original_valid)
         importlib.reload(creation_info_module)
+
+
+_WRONG: Any = 5  # a caller of the library may hand over any type
+
+
+@pytest.mark.parametrize(
+    ("build", "text"),
+    [
+        (lambda: Creator(_WRONG), "Creator.name: must be a non-empty string"),
+        (lambda: Creator("x", type=_WRONG), "Creator.type: must be a string"),
+        (lambda: Tool(" "), "Tool.name: must be a non-empty string"),
+        (lambda: Tool(_WRONG), "Tool.name: must be a non-empty string"),
+    ],
+    ids=["name-int", "type-int", "tool-blank", "tool-int"],
+)
+def test_a_bad_creator_or_tool_is_option_invalid(build: Any, text: str) -> None:
+    with pytest.raises(ValueError) as caught:
+        build()
+    assert code_of(caught.value) == "option-invalid"
+    assert str(caught.value).startswith(text)

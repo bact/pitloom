@@ -99,7 +99,10 @@ and this project adheres to
   ([#492])
 - A `uv.lock` warning about a package (missing from its table, a version per
   marker, a malformed key) is said once per run, not per reference ([#496])
-- A `setup.cfg` `[tool:pitloom]` error names that table ([#497])
+- A `setup.cfg` `[tool:pitloom]` error names that table; a `--config` TOML nested
+  too deep is `config-malformed`; a wrong `pitloom_config` type is `option-invalid` ([#497])
+- A time outside years 1 to 9999 once read as UTC (`0001-01-01T00:00:00+05:00`) is
+  refused as a creation date-time, and left out of a model's release time ([#497])
 
 ### Security
 
