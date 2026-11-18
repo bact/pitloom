@@ -27,7 +27,7 @@ and this project adheres to
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
   file, dependency, configuration and licence messages carry a message code,
   and a configuration error names the file; see `docs/message-codes.md`
-  ([#482], [#485], [#486], [#492], [#496], [#497])
+  ([#482], [#485], [#486], [#492], [#496], [#497], [#498])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -126,6 +126,7 @@ and this project adheres to
 [#494]: https://github.com/bact/pitloom/pull/494
 [#496]: https://github.com/bact/pitloom/pull/496
 [#497]: https://github.com/bact/pitloom/pull/497
+[#498]: https://github.com/bact/pitloom/pull/498
 
 ## [0.24.0] - 2026-11-11
 
