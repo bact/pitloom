@@ -438,11 +438,15 @@ def test_the_command_line_names_an_oversize_index(
     assert "i.md: " in capsys.readouterr().err and "old" in index.read_text("utf-8")
 
 
-def test_the_pages_list_counts_a_single_code_in_the_singular() -> None:
-    lines = gen.page_list(_DOCS)
-    assert [ln for ln in lines if ln.endswith(": 1 code")] == [
-        f"- [Licences]({_DOCS.path('licences').name}): 1 code"
-    ]
+@pytest.mark.parametrize(
+    ("codes", "noun"), [(["a"], "1 code"), (["a", "b"], "2 codes")], ids=["one", "two"]
+)
+def test_the_pages_list_counts_a_single_code_in_the_singular(
+    monkeypatch: pytest.MonkeyPatch, codes: list[str], noun: str
+) -> None:
+    monkeypatch.setattr(gen, "_topic_codes", lambda topic: codes)
+    line = f"- [Licences]({_DOCS.path('licences').name}): {noun}"
+    assert line in gen.page_list(_DOCS)
 
 
 def test_a_site_names_each_codes_page_and_anchor() -> None:

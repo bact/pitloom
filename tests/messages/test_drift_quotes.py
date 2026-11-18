@@ -77,6 +77,15 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     "json-malformed": ("not valid JSON for ",),
     "lfs-pointer": ("Git LFS pointer",),
     "lfs-pointer-malformed": ("Git LFS pointer",),
+    "license-ambiguous": ("several licence classifiers",),
+    "license-conflict": ("both state a licence",),
+    "license-db-missing": ("licenseid database not found",),
+    "license-db-unusable": ("licenseid database cannot be used",),
+    "license-expression-invalid": (
+        "not a valid SPDX license expression",
+        "not read as an SPDX license expression",
+    ),
+    "license-expression-malformed": ("malformed SPDX license expression",),
     "license-relationship-invalid": (
         "a licence relationship goes to ",
         "a licence relationship starts at ",
@@ -246,7 +255,11 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not a .whl file",
     ),
     "temp-dir-unusable": ("could not be saved in the temporary directory",),
-    "text-malformed": ("lone surrogates written", "cannot be encoded as UTF-8"),
+    "text-malformed": (
+        "lone surrogates written",
+        "cannot be encoded as UTF-8",
+        "lone surrogates replaced with U+FFFD",
+    ),
     "credentials-unsafe": (
         "are not sent to git",
         "credentials are sent in clear",

@@ -63,6 +63,8 @@ from pitloom.extract.project._pyproject_license import (
 from pitloom.extract.project._setuptools_dynamic import read_setuptools_dynamic
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
+from pitloom.messages import emit
+from pitloom.messages.licences import LICENSE_CONFLICT
 from pitloom.messages.targets import input_not_found, is_input_file
 
 log = logging.getLogger(__name__)
@@ -225,13 +227,7 @@ def _parse_standard_metadata_with_retry(
             data = placeholder_dropped
         else:
             if states_licence and not quiet:
-                log.warning(
-                    "%s declares both an SPDX `license` expression and legacy "
-                    "`License ::` classifiers -- dropping the redundant "
-                    "classifiers and keeping the SPDX expression (PEP 639 "
-                    "transitional state)",
-                    quote_source(pyproject_path),
-                )
+                emit(log, LICENSE_CONFLICT, logging.WARNING, file=pyproject_path)
             data = _drop_redundant_license_classifiers(data)
         try:
             return (

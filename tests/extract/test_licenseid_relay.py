@@ -327,3 +327,14 @@ def test_no_licence_in_a_short_text_is_quiet(
     assert capsys.readouterr().err == ""
     line = f"licenseid: input: too few words for text: not found: {short}"
     assert _said(caplog) == [(logging.DEBUG, line)] * 2
+
+
+def test_two_texts_written_as_one_line_are_said_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The key is the line as written: a line break and the space it is
+    written as are one line."""
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        relay.say("input: unread: a\nb")
+        relay.say("input: unread: a b")
+    assert [r.levelno for r in caplog.records] == [logging.WARNING, logging.DEBUG]

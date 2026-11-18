@@ -28,7 +28,8 @@ from pitloom.extract.authors import (
     read_author_fields,
 )
 from pitloom.extract.license_refs import classifier_expression, is_plain_id
-from pitloom.logging_config import warn_once
+from pitloom.messages import emit
+from pitloom.messages.licences import LICENSE_AMBIGUOUS
 
 if TYPE_CHECKING:
     #: The two RFC 822 Core-Metadata carriers callers pass to
@@ -110,12 +111,6 @@ def parse_project_urls(
     return urls
 
 
-#: One line per set of licence classifiers; ``%r`` escapes them.
-_SEVERAL_CLASSIFIERS_MESSAGE = (
-    "CLASSIFIERS=%r: several license classifiers; recorded as %r, assuming AND"
-    " (they may offer a choice)"
-)
-
 _logger = logging.getLogger(__name__)
 
 #: The fold a Core-Metadata writer puts before each continuation line of a
@@ -192,15 +187,16 @@ def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
 
 def _warn_several_classifiers(classifiers: Iterable[str], recorded: str) -> None:
     """One ``WARNING:`` per set when *recorded* is the ``AND`` of several
-    licence classifiers."""
+    licence classifiers, ``license-ambiguous``."""
     found = _licence_classifiers(classifiers)
     if len(_classifier_names(found)) > 1:
-        warn_once(
+        emit(
             _logger,
-            "license-classifiers:" + "\x00".join(found),
-            _SEVERAL_CLASSIFIERS_MESSAGE,
-            found,
-            recorded,
+            LICENSE_AMBIGUOUS,
+            logging.WARNING,
+            once="license-classifiers:" + "\x00".join(found),
+            classifiers=found,
+            expression=recorded,
         )
 
 

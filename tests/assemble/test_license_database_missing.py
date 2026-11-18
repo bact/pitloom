@@ -2,9 +2,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A missing LicenseID database costs a stated licence only the licence-file
-check: said once at ``INFO:``. A text too short to be a licence body never
-looks the database up. Any other case still warns.
+"""A missing LicenseID database (``license-db-missing``) costs a stated
+licence only the licence-file check: said once at ``INFO:``. A text too short
+to be a licence body never looks the database up. Any other case still warns:
+a missing database with nothing stated, and an unusable one
+(``license-db-unusable``).
 
 See also: :mod:`tests.assemble.test_license_database` (a database that
 fails after the detector is built).
@@ -27,13 +29,25 @@ from pitloom.extract._license_text_match import (
     _get_detector,
     detect_license_from_text,
 )
+from pitloom.logging_config import CODE_ATTR
+
+# The database's path, a home directory and the CLI and hook routes are the
+# operating system's.
+pytestmark = pytest.mark.platform
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
 _INFO = "licenseid database not found: "
+_MISSING = "license-db-missing"
+_UNUSABLE = "license-db-unusable"
 
 
 def _lines(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
     return [(r.levelno, r.getMessage()) for r in caplog.records]
+
+
+def _codes(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str | None]]:
+    """(level, code) of each record."""
+    return [(r.levelno, getattr(r, CODE_ATTR, None)) for r in caplog.records]
 
 
 @pytest.fixture(name="missing")
@@ -57,12 +71,9 @@ def test_a_missing_database_with_a_stated_licence_is_info_once(
     assert level == logging.INFO
     assert message.startswith(_INFO)
     assert "none.db" in message  # names where it looked
-    assert "license text detection skipped" in message
+    assert "licence text detection skipped" in message
     assert "licenseid update --source packaged" in message
-    assert [line for line in _lines(caplog) if line[0] == logging.INFO] == [
-        (level, message)
-    ]
-    assert not [line for line in _lines(caplog) if line[0] >= logging.WARNING]
+    assert _codes(caplog) == [(logging.INFO, _MISSING)]  # said once
 
 
 @pytest.mark.parametrize("stated", [None, "", "  \n"], ids=["none", "empty", "blank"])
@@ -73,25 +84,33 @@ def test_a_missing_database_with_no_stated_licence_warns(
     with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
         assert detect_license_from_text(_TEXT, stated=stated) is None
 
-    (level, message) = _lines(caplog)[0]
-    assert level == logging.WARNING
-    assert "licenseid database cannot be used" in message
+    message = _lines(caplog)[0][1]
+    assert _codes(caplog)[0] == (logging.WARNING, _MISSING)
+    assert message.startswith(_INFO) and "none.db" in message
 
 
 @pytest.mark.parametrize(
-    ("detail", "level"),
+    ("detail", "stated", "said"),
     [
-        ("licenses.db", logging.INFO),
-        (None, logging.WARNING),
-        ("no home directory", logging.WARNING),
+        ("licenses.db", "MIT", (logging.INFO, _MISSING)),
+        ("licenses.db", None, (logging.WARNING, _MISSING)),
+        (None, "MIT", (logging.WARNING, _UNUSABLE)),
+        ("", "MIT", (logging.WARNING, _UNUSABLE)),
+        ("no home directory", "MIT", (logging.WARNING, _UNUSABLE)),
+        ("no home directory", None, (logging.WARNING, _UNUSABLE)),
     ],
-    ids=["path", "no-detail", "no-home"],
+    ids=["path", "path-none-stated", "no-detail", "empty", "no-home", "no-home-none"],
 )
-def test_only_a_named_missing_file_is_info(
-    detail: str | None, level: int, caplog: pytest.LogCaptureFixture
+def test_only_a_named_missing_file_is_missing(
+    detail: str | None,
+    stated: str | None,
+    said: tuple[int, str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``not found`` naming a path is a database to build; with no path, or
-    for an account with no home directory (a setup problem), it warns."""
+    """``not found`` naming a path is a database to build
+    (``license-db-missing``, ``INFO:`` only with a licence stated); with no
+    path, or for an account with no home directory (a setup problem), the
+    database is unusable, stated licence or not."""
     error = DatabaseNotReadyError(f"database: not found: {detail}", "not found", detail)
 
     def refused() -> None:
@@ -99,8 +118,8 @@ def test_only_a_named_missing_file_is_info(
 
     with patch.object(_license_text_match, "LicenseDetector", refused):
         with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
-            assert detect_license_from_text(_TEXT, stated="MIT") is None
-    assert [line[0] for line in _lines(caplog)] == [level]
+            assert detect_license_from_text(_TEXT, stated=stated) is None
+    assert _codes(caplog) == [said]
 
 
 @pytest.mark.usefixtures("missing")
@@ -129,16 +148,14 @@ def test_an_unusable_database_with_a_stated_licence_still_warns(
         with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
             assert detect_license_from_text(_TEXT, stated="MIT") is None
 
-    (level, message) = _lines(caplog)[0]
-    assert level == logging.WARNING
-    assert "cannot be used" in message
+    assert _codes(caplog)[0] == (logging.WARNING, _UNUSABLE)
 
 
 def test_the_info_and_warning_lines_share_one_grammar(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Sibling lines keep the ``licenseid database`` sub-prefix and one
-    `` -- `` before the consequence."""
+    """Sibling lines keep the ``licenseid database`` subject and one
+    ``; licence text detection skipped`` before any action."""
     broken = tmp_path / "broken.db"
     broken.write_bytes(b"")
     with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
@@ -147,11 +164,10 @@ def test_the_info_and_warning_lines_share_one_grammar(
             with patch.object(_license_text_match, "LicenseDetector", real):
                 detect_license_from_text(_TEXT, stated="MIT")
 
-    levels_and_lines = _lines(caplog)
-    assert [level for level, _ in levels_and_lines] == [logging.INFO, logging.WARNING]
-    for _, line in levels_and_lines:
+    assert _codes(caplog) == [(logging.INFO, _MISSING), (logging.WARNING, _UNUSABLE)]
+    for _, line in _lines(caplog):
         assert line.startswith("licenseid database ")
-        assert line.count(" -- ") == 1
+        assert line.count("; licence text detection skipped") == 1
 
 
 @pytest.fixture(name="spy")
@@ -192,9 +208,7 @@ def test_a_long_text_with_no_database_warns_once(
         assert detect_license_from_text(_TEXT) is None
 
     assert spy.call_count == 2
-    warned = [line for line in _lines(caplog) if line[0] >= logging.WARNING]
-    assert len(warned) == 1
-    assert "licenseid database cannot be used" in warned[0][1]
+    assert _codes(caplog) == [(logging.WARNING, _MISSING)]  # said once
 
 
 @pytest.mark.usefixtures("missing")
@@ -206,7 +220,25 @@ def test_a_declared_long_text_with_no_database_warns(
     with caplog.at_level(logging.INFO, logger="pitloom"):
         assert stated_license(_TEXT, "Source: x") == (_TEXT, None)
 
-    (level, message) = _lines(caplog)[0]
-    assert level == logging.WARNING
-    assert message.startswith("licenseid database cannot be used: ")
-    assert not [line for line in _lines(caplog) if _INFO in line[1]]
+    assert _codes(caplog) == [(logging.WARNING, _MISSING)]
+    assert _lines(caplog)[0][1].startswith(_INFO)
+
+
+def test_a_missing_database_names_the_path_not_the_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    error = DatabaseNotReadyError(
+        "database: not found: licenses.db", "not found", "licenses.db"
+    )
+
+    def refused() -> None:
+        raise error
+
+    with patch.object(_license_text_match, "LicenseDetector", refused):
+        with caplog.at_level(logging.INFO, logger=_license_text_match.__name__):
+            detect_license_from_text(_TEXT)
+    (record,) = caplog.records
+    assert getattr(record, CODE_ATTR) == "license-db-missing"
+    assert record.getMessage().startswith(
+        "licenseid database not found: 'licenses.db'; "
+    )

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,9 +50,9 @@ dependency automatically, the same way it installs Hatchling itself.
 To match `LICENSE` files, the build machine also needs the LicenseID
 database: run `licenseid update --source packaged` once (needs `licenseid`
 installed, as it is with `pip install pitloom`; no network). Without it the
-hook logs a `WARNING:` ("licenseid database cannot be used ... license text
-detection skipped"), or an `INFO:` when a licence is declared, and still reads
-the declared licence.
+hook logs a `WARNING:` ("licenseid database not found: ... licence text
+detection skipped ... [license-db-missing]"), or an `INFO:` when a licence is
+declared, and still reads the declared licence.
 
 > [!NOTE]
 > Hatchling 1.32.3 changed the build-hook plugin interface, and 1.32.4

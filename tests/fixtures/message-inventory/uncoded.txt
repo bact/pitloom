@@ -55,11 +55,7 @@ pitloom.core.wheel_dist_info 4
 pitloom.embed 3
 pitloom.enrich 1
 pitloom.extract._author_warnings 5
-pitloom.extract._core_metadata 1
 pitloom.extract._extract_utils 1
-pitloom.extract._license_classify 3
-pitloom.extract._license_resolve 1
-pitloom.extract._license_text_match 2
 pitloom.extract.ai_model.pytorch 1
 pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
@@ -78,7 +74,7 @@ pitloom.extract.project.flit 1
 pitloom.extract.project.installed 5
 pitloom.extract.project.pdm 2
 pitloom.extract.project.poetry 3
-pitloom.extract.project.pyproject 6
+pitloom.extract.project.pyproject 5
 pitloom.extract.project.reader 1
 pitloom.extract.project.sdist 2
 pitloom.extract.project.setuptools 2

@@ -38,7 +38,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 - [URL credentials](message-codes-url-credentials.md): 8 codes
 - [ID registry](message-codes-id-registry.md): 5 codes
 - [ID registry ids and keys](message-codes-id-registry-ids.md): 15 codes
-- [Licences](message-codes-licences.md): 1 code
+- [Licences](message-codes-licences.md): 8 codes
 
 | Code | Level | Since |
 | --- | --- | --- |
@@ -83,6 +83,13 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`lfs-pointer/shipped`](message-codes-models.md#lfs-pointershipped) | WARNING | 0.22.0 |
 | [`library-missing`](message-codes-models.md#library-missing) | ERROR, WARNING | 0.22.0 |
 | [`library-unusable`](message-codes-models.md#library-unusable) | ERROR, WARNING | 0.23.0 |
+| [`license-ambiguous`](message-codes-licences.md#license-ambiguous) | WARNING | 0.25.0 |
+| [`license-conflict`](message-codes-licences.md#license-conflict) | WARNING | 0.25.0 |
+| [`license-db-missing`](message-codes-licences.md#license-db-missing) | WARNING, INFO | 0.25.0 |
+| [`license-db-unusable`](message-codes-licences.md#license-db-unusable) | WARNING | 0.25.0 |
+| [`license-expression-invalid`](message-codes-licences.md#license-expression-invalid) | WARNING | 0.25.0 |
+| [`license-expression-invalid/resolved`](message-codes-licences.md#license-expression-invalidresolved) | INFO | 0.25.0 |
+| [`license-expression-malformed`](message-codes-licences.md#license-expression-malformed) | WARNING | 0.25.0 |
 | [`license-relationship-invalid`](message-codes-licences.md#license-relationship-invalid) | ERROR, WARNING | 0.24.0 |
 | [`lock-entry-conflict`](message-codes-lock-files.md#lock-entry-conflict) | WARNING | 0.25.0 |
 | [`lock-entry-malformed`](message-codes-lock-files.md#lock-entry-malformed) | WARNING | 0.25.0 |
@@ -174,6 +181,7 @@ A line may start with one prefix before its text:
 | `<arity>` | how many values argparse expected after the option (`one argument`, `2 arguments`, `at least one argument`) |
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<claimant>` | the other element, key or spelling that wants the same id or holds it (a path, a name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<classifiers>` | the `License ::` classifiers, sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
 | `<config-key>` | where the value sits: its table as the file spells it (`[tool.pitloom]`, `[tool:pitloom]` in setup.cfg, `[[tool.pitloom.creator]]`), then its key, the entry of an array counted from 0 and the entry's key, each when there is one (`[tool.pitloom.fragment] files entry 2 role`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
@@ -193,9 +201,10 @@ A line may start with one prefix before its text:
 | `<entry>` | an archive member or a metadata key, as the file names it; in quotes, escaped, when it holds a control character |
 | `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
 | `<expected>` | what the value must be: `true or false`; `an integer`; `an integer of at least 1`; `0 (no cap) or an integer of at least 8`; `a string`; `a non-empty string`; `a string or an inline table`; `a table`; `an array`; `an array of tables`; `one of annotation, both, comment`; `one of full, minimal`; `one of always, auto, never`; `one of auto, extension, magika`; `one of agent, organization, person, software-agent`; `a media type type/subtype (image/png)`; `a file name, not a path`; `a plain file name (not a path, not only .spdx3.json)`; `an ISO 8601 date and time`; `a path to a configuration file, or a PitloomConfig`; `a fingerprint (sha256: and 16 to 64 lowercase hex digits)`; `an array of fingerprints`; `"warn" or "refuse"` |
+| `<expression>` | the SPDX license expression recorded (`Apache-2.0 AND MIT`); escaped when it holds a control character |
 | `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<failure>` | what the operating system reported (`Permission denied`), never the path it names, or what the decoder or reader reported; on one line, in quotes, escaped, when it holds a control character |
-| `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`); in quotes, escaped, when it holds a control character |
+| `<field>` | the project setting that lists the file (`project.readme`, `tool.setuptools.dynamic.dependencies`, `setup.cfg metadata.long_description`), or a licence value's field (`License-Expression`); in quotes, escaped, when it holds a control character |
 | `<fields>` | the model fields not recorded, or recorded weaker, comma-separated, each with a note in brackets when it has one (`type_of_model`, `properties.tags (kept as raw string)`) |
 | `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
@@ -209,6 +218,8 @@ A line may start with one prefix before its text:
 | `<kept>` | what a conflict kept (a lock file), on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
 | `<key>` | the key naming the input: `FILE`, `DIR`, `FIELD` (a metadata field or table), `DATASET`, `MARKER` or `REQUIREMENT` |
 | `<key-reason>` | why the element is keyed by its name, or files by their path as read: `not found`, `outside the project root`, `not a regular file`, `used only by a model with no file`, `not found: declare paths relative to the registry root (id import --project-dir) or run id import from the directory the script ran in`, `the project is outside the registry's root`, `their path is outside the registry's root`, `their path leads outside the archive's project` |
+| `<license>` | a licence value as read, on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
+| `<license-reason>` | why the value is no SPDX license expression: LicenseID's reason (`parse failed: Unexpected 'OR'`, `not found: Acme-Terms`) or Pitloom's (`more than one line`); escaped when it holds a control character |
 | `<limit>` | the cap, in its unit |
 | `<line>` | the line of a requirements file, counted from 1 as pip counts it (str.splitlines(); a continued line by its first) |
 | `<lock-key>` | the lock-file key the line is about: `_meta.pipfile-spec`, `category`, `created-by`, `default`, `default-groups`, `dependencies`, `extra`, `extras`, `groups`, `lock-version`, `marker`, `metadata.lock-version`, `metadata.lock_version`, `name`, `optional-dependencies`, `package`, `packages`, `version` |
@@ -241,6 +252,7 @@ A line may start with one prefix before its text:
 | `<source>` | what declared a digest (`the PyPI JSON API`) |
 | `<source-kind>` | the kind of source that gives no registry version: `archive`, `bzr`, `directory`, `editable`, `file`, `git`, `hg`, `path`, `svn`, `url`, `vcs`, `virtual` |
 | `<spdx-id>` | an element's spdxId, as held or read, a URL's credentials masked; in quotes, escaped, when it holds a control character |
+| `<steps>` | LicenseID's steps (`separator, version_spelling`), or its category when it took none (`listed_name`); escaped when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<tables>` | the configuration tables that know a key, joined by `or`, as the file spells them |
 | `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |

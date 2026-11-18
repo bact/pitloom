@@ -83,9 +83,10 @@ _FILTER = ("always", None, LicenseIdWarning, re.compile(_MODULE), 0)
 
 def say(text: str, level: int = logging.WARNING) -> None:
     """Log *text*, which LicenseID said, once per process at *level*
-    (later repeats at ``DEBUG``), as one escaped line after :data:`PREFIX`."""
-    line = PREFIX + one_line(text)
-    log_once(log, level, line, "%s", line)
+    (later repeats at ``DEBUG``), as one escaped line after :data:`PREFIX`.
+    LicenseID's own words, so no code: the message inventory knows this
+    shape as a ``prefixed`` relay (``scripts/message_inventory/_relay.py``)."""
+    log_once(log, level, PREFIX + one_line(text), PREFIX + "%s", one_line(text))
 
 
 def _is_licenseid_warning(message: Warning | str) -> bool:

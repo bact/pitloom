@@ -157,7 +157,15 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "registry-key-moved",
             "registry-path-key-unusable",
         ),
-        "licences": ("license-relationship-invalid",),
+        "licences": (
+            "license-ambiguous",
+            "license-conflict",
+            "license-db-missing",
+            "license-db-unusable",
+            "license-expression-invalid",
+            "license-expression-malformed",
+            "license-relationship-invalid",
+        ),
     }
 )
 

@@ -22,6 +22,7 @@ from pitloom.cli.commands import generate as mod_generate
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FILE_TYPE, IdRegistry
+from tests._code_records import coded
 from tests.cli.shared import _make_simple_project, effective_setting
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -287,7 +288,7 @@ def test_generate_command_does_not_duplicate_project_warning(
     with caplog.at_level(logging.WARNING):
         assert __main__.main() == 0
 
-    assert caplog.text.count("PEP 639 transitional state") == 1
+    assert [code for code, _ in coded(caplog)].count("license-conflict") == 1
 
 
 def test_generate_command_sdist_target_ignores_sibling_pyproject(

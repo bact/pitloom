@@ -551,10 +551,15 @@ def test_an_apache_name_with_a_version_is_read_as_its_id(
 def test_an_answer_without_an_expression_is_text_with_its_reason(
     category: str,
 ) -> None:
+    """The refusal is malformed by LicenseID's category alone, never by the
+    reason's words."""
     answer = _answer(category) | {"expression": None, "reason": "not found: Acme2"}
     with patch("pitloom.extract._license_resolve.resolve", return_value=answer):
         got = classify_license("Acme2", warn=False)
-        assert _license_resolve.refusal_reason("Acme2") == "not found: Acme2"
+        refused = _license_resolve.refusal("Acme2")
+    assert refused == _license_resolve.Refusal(
+        "not found: Acme2", malformed=category == "malformed"
+    )
     assert got is not None and (got.kind, got.value) == ("text", "Acme2")
 
 
@@ -592,7 +597,7 @@ def test_end_to_end_a_respelt_licence_is_declared_as_the_id_with_one_info(
     err = capsys.readouterr().err.splitlines()
     assert [line for line in err if "LICENSE='Apache2'" in line] == [
         "INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0"
-        " (separator, version_spelling)"
+        " (separator, version_spelling) [license-expression-invalid/resolved]"
     ]
     sbom = json.loads(out.read_text(encoding="utf-8"))
     (element,) = license_elements(sbom["@graph"])
@@ -637,3 +642,48 @@ def test_no_notes_when_the_resolver_has_no_reading_now() -> None:
     """The resolver names no licence (``Acme2``, even with the database):
     no note is written."""
     assert _license_resolve.resolution_notes("Acme2", "MIT") == ""
+
+
+@pytest.mark.parametrize("decided", [True, False], ids=["info", "debug"])
+def test_a_reading_with_no_applied_step_names_its_category(
+    decided: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No step applied and no expansion: the brackets hold the category."""
+    category = "separator" if decided else "lexical"
+    answer = _answer(category)
+    answer["steps"] = [{"kind": "trim", "applied": False}]
+    with (
+        caplog.at_level(logging.DEBUG, logger=_LOGGER),
+        patch("pitloom.extract._license_resolve.resolve", return_value=answer),
+    ):
+        resolved = _license_resolve.resolve_value("x")
+        assert resolved is not None and not resolved.steps
+        _license_resolve.say_resolved("x", resolved, None)
+    (record,) = caplog.records
+    assert record.getMessage() == f"LICENSE='x': read as MIT ({category})"
+
+
+@pytest.mark.parametrize(
+    ("answer", "refused"),
+    [
+        # no answer says nothing of the syntax: invalid, never malformed
+        (RuntimeError("boom"), _license_resolve.Refusal("not read by licenseid")),
+        # LicenseID's reason is one line
+        (
+            _answer("unresolved")
+            | {"expression": None, "reason": "not found: Acme\nWARNING: forged"},
+            _license_resolve.Refusal("'not found: Acme\\nWARNING: forged'"),
+        ),
+    ],
+    ids=["no-answer", "line-break"],
+)
+def test_a_refusal_is_one_line_and_malformed_only_by_category(
+    answer: object, refused: _license_resolve.Refusal
+) -> None:
+    error = answer if isinstance(answer, Exception) else None
+    with patch(
+        "pitloom.extract._license_resolve.resolve",
+        side_effect=error,
+        return_value=answer,
+    ):
+        assert _license_resolve.refusal("MIT OR Acme") == refused

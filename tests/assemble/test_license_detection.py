@@ -252,7 +252,7 @@ def test_detect_license_from_text_db_not_populated(
     ):
         result = detect_license_from_text(text)
         assert result is None
-    assert "licenseid database cannot be used" in caplog.text
+    assert "licenseid database not found: " in caplog.text
 
 
 # ---------------------------------------------------------------------------

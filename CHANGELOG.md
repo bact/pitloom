@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,9 +25,9 @@ and this project adheres to
 ### Added
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file, dependency and configuration messages carry a message code, and a
-  configuration error names the file; see `docs/message-codes.md` ([#482],
-  [#485], [#486], [#492], [#496], [#497])
+  file, dependency, configuration and licence messages carry a message code,
+  and a configuration error names the file; see `docs/message-codes.md`
+  ([#482], [#485], [#486], [#492], [#496], [#497])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
