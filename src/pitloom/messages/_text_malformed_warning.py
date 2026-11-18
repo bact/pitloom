@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The one ``WARNING:`` for text holding lone surrogates
-(:func:`warn_lone_surrogates`), and the lines for a name the ID registry
+(:func:`warn_lone_surrogates`; a licence value:
+:func:`warn_license_surrogates`), and the lines for a name the ID registry
 cannot hold (:func:`registry_name_error`, :func:`warn_registry_name_skipped`,
 :func:`warn_registry_file_name`).
 
@@ -19,6 +20,7 @@ import os
 from pitloom.messages._emit import CodedValueError, emit
 from pitloom.messages._text_malformed import (
     FILE_LINE,
+    LICENSE_LINE,
     MODEL_LINE,
     REGISTRY_FILE_NAME_LINE,
     REGISTRY_NAME_LINE,
@@ -49,6 +51,20 @@ def warn_lone_surrogates(
             file=file,
             format=model_format,
         )
+
+
+def warn_license_surrogates(log: logging.Logger, *, value: str, once: str) -> None:
+    """The one ``WARNING:`` on *log* that the licence *value* (as read, raw:
+    the line escapes it) held lone surrogates, each replaced with U+FFFD,
+    ``[text-malformed]``; said once per *once* key and process."""
+    emit(
+        log,
+        TEXT_MALFORMED,
+        logging.WARNING,
+        line=LICENSE_LINE,
+        once=once,
+        license=value,
+    )
 
 
 def registry_name_error(part: str, text: str) -> CodedValueError:

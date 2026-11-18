@@ -33,6 +33,7 @@ from pitloom.extract.project.pyproject import (
     _is_license_classifier_conflict,
     read_pyproject,
 )
+from tests._code_records import coded
 
 # ---------------------------------------------------------------------------
 # read_pyproject -- PEP 639 SPDX-license/classifier transitional conflict
@@ -71,8 +72,8 @@ classifiers = [
 
     assert metadata.name == "transitional-license-pkg"
     assert metadata.license_name == "MIT"
-    assert "License ::" in caplog.text
-    assert "PEP 639 transitional state" in caplog.text
+    assert [code for code, _ in coded(caplog)] == ["license-conflict"]
+    assert "kept the expression, dropped the classifiers" in caplog.text
 
 
 def test_read_pyproject_retry_still_failing_raises_value_error() -> None:
@@ -464,3 +465,21 @@ def test_resolve_license_hint_names_the_file_project_relative(
     license_obj = SimpleNamespace(text="", file=Path(file.format(tmp=tmp)))
     got = _resolve_license_hint(license_obj, Path(project_dir.format(tmp=tmp)))
     assert got == expected
+
+
+@pytest.mark.platform
+def test_the_conflict_line_names_the_path_given(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\nlicense = "MIT"\n'
+        'classifiers = ["License :: OSI Approved :: MIT License"]\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        read_pyproject(pyproject)
+    ((code, message),) = coded(caplog)
+    assert code == "license-conflict"
+    # the path as given, not its name alone
+    assert message.split(": ")[0].endswith(str(pyproject))

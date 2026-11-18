@@ -30,7 +30,7 @@ from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import free_text, plain_text, whole
 
 #: How a value read from a file is written, for the reference.
-_EXCERPT_MEANING: Final = (
+EXCERPT_MEANING: Final = (
     "on one line, a URL's credentials masked, cut to 120 characters "
     "(`...` after it when cut), in quotes, escaped when it holds a control "
     "character"
@@ -115,7 +115,7 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             excerpt_text,
             "<dependency>",
             f"a dependency as declared (a requirement, a Poetry table), "
-            f"{_EXCERPT_MEANING}",
+            f"{EXCERPT_MEANING}",
             free=True,
         ),
         "dropped": Field(
@@ -123,21 +123,21 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             excerpts_text,
             "<dropped>",
             "what a conflict left out (versions, a lock file), sorted, "
-            f"comma-separated, each {_EXCERPT_MEANING}",
+            f"comma-separated, each {EXCERPT_MEANING}",
             free=True,
         ),
         "extra_name": Field(
             r".+",
             excerpts_text,
             "<extra>",
-            f"an extra, or several sorted and comma-separated, each {_EXCERPT_MEANING}",
+            f"an extra, or several sorted and comma-separated, each {EXCERPT_MEANING}",
             free=True,
         ),
         "kept": Field(
             r".+",
             excerpt_text,
             "<kept>",
-            f"what a conflict kept (a lock file), {_EXCERPT_MEANING}",
+            f"what a conflict kept (a lock file), {EXCERPT_MEANING}",
             free=True,
         ),
         "line_number": Field(
@@ -157,7 +157,7 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             excerpt_text,
             "<lock-value>",
-            f"a value as the lock file or the line states it, {_EXCERPT_MEANING}",
+            f"a value as the lock file or the line states it, {EXCERPT_MEANING}",
             free=True,
         ),
         "package": Field(

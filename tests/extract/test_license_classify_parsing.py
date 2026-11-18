@@ -24,6 +24,7 @@ from licenseid import resolve as licenseid_resolve
 
 from pitloom.extract import _license_resolve
 from pitloom.extract._license_classify import classify_license
+from tests._code_records import coded
 
 
 def test_an_expression_as_written_is_not_said(
@@ -47,12 +48,15 @@ def test_warning_is_one_line_once_per_value_and_escapes_controls(
         classify_license(raw)
         classify_license(raw)
         classify_license("MIT OR GPL-2.0-only AND")
-    messages = [r.getMessage() for r in caplog.records]
-    assert len(messages) == 2
-    assert messages[0].startswith("LICENSE='MIT OR\\x1b[31m': not a valid SPDX")
-    assert messages[0].endswith("recorded as license text")
-    assert "\n" not in messages[0]
-    assert "\x1b" not in messages[0]
+    said = coded(caplog)
+    assert [code for code, _ in said] == [
+        "license-expression-invalid",  # a control character: no operand read
+        "license-expression-malformed",
+    ]
+    message = said[0][1]
+    assert message.startswith("LICENSE='MIT OR\\x1b[31m': not a valid SPDX")
+    assert "\n" not in message
+    assert "\x1b" not in message
 
 
 @pytest.mark.parametrize(
@@ -170,8 +174,9 @@ def test_the_warning_reason_is_not_cut_at_a_unicode_line_break(
     raw = f"MIT AND Foo{separator}bar"
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         classify_license(raw)
-    (message,) = [r.getMessage() for r in caplog.records]
-    assert message.endswith("); recorded as license text")
+    ((code, message),) = coded(caplog)
+    assert code == "license-expression-invalid"
+    assert message.endswith("); recorded as licence text")
     assert message.count("'") % 2 == 0
 
 

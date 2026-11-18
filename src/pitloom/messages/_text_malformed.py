@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``text-malformed``: text Pitloom read holds lone surrogates, which no
-UTF-8 output can hold. ``text-malformed/registry``: a name the ID registry
-is to hold does, so it is left out (``WARNING``) or refused (``ERROR``).
+UTF-8 output can hold (in a licence value, each is replaced with U+FFFD).
+``text-malformed/registry``: a name the ID registry is to hold does, so it
+is left out (``WARNING``) or refused (``ERROR``).
 
 See also: :mod:`pitloom.messages._text_malformed_warning` (the one helper
 every site says it through) and
@@ -30,23 +31,33 @@ MODEL_LINE: Final = Line(
     level="WARNING", template=f"FORMAT=%(format)s FILE=%(file)s: {_WRITTEN}"
 )
 
+#: A licence value, its lone surrogates replaced (the value is all the line
+#: can name: a licence is read from many sources).
+LICENSE_LINE: Final = Line(
+    level="WARNING",
+    template="LICENSE=%(license)s: lone surrogates replaced with U+FFFD",
+)
+
 TEXT_MALFORMED: Final = Message(
     code="text-malformed",
     condition="malformed",
-    lines=(FILE_LINE, MODEL_LINE),
+    lines=(FILE_LINE, MODEL_LINE, LICENSE_LINE),
     summary="Text Pitloom read holds lone surrogates (U+D800 to U+DFFF), which "
     "UTF-8 cannot hold: a JSON or YAML \\ud800 escape in a file (a model's "
     "metadata, a model or dataset card, a Croissant document, an SBOM "
-    "fragment), or a file name that is not UTF-8. For the SBOM itself, the "
-    "line names the first element holding one, by its name.",
+    "fragment, a licence value), or a file name that is not UTF-8. For the "
+    "SBOM itself, the line names the first element holding one, by its name; "
+    "for a licence value, the value (LICENSE=).",
     did="Wrote each lone surrogate as the six characters \\udXXX, in the SBOM "
     "and in its provenance, and went on; said once per file (once per SBOM "
-    "for element names).",
+    "for element names). In a licence value (the LICENSE= line), replaced "
+    "each with U+FFFD instead, said once per value.",
     effect="weaker",
     actor="user",
-    advice="Tell the user which file (or element) holds lone surrogates, as "
-    "the line says, and that the SBOM shows each as \\udXXX, not as the "
-    "character the source meant. If the exact text matters, they correct the "
+    advice="Tell the user which file (or element, or licence value) holds "
+    "lone surrogates, as the line says, and that the SBOM shows each as "
+    "\\udXXX (U+FFFD in a licence value), not as the character the source "
+    "meant. If the exact text matters, they correct the "
     "source (a proper escape, a UTF-8 file name) and generate again. Do not "
     f"rename or edit files for them; {ASK_FIRST}",
     subject_key="FILE",

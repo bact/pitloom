@@ -14,8 +14,9 @@ database the user has. Every answer with an expression is recorded as that
 expression; a value it names nothing in stays text, with its ``reason``.
 A resolution that rewrites more than the form of the text (a re-spelling, a
 listed name, a stated "or later", a renamed id) is the resolver's decision,
-not the author's words: one ``INFO:`` line per value, and ``Resolution-1``
-in the provenance.
+not the author's words: one ``INFO:`` line per value
+(``license-expression-invalid/resolved``), and ``Resolution-1`` in the
+provenance.
 
 See also: :mod:`pitloom.extract._license_classify` and
 :func:`pitloom.extract._core_metadata.license_from_classifiers` (the callers)
@@ -35,7 +36,8 @@ from licenseid import DatabaseNotReadyError, Operand, Resolution, Step, resolve
 
 from pitloom.core.provenance import provenance_segment
 from pitloom.extract._licenseid_relay import relay_licenseid_warnings, say
-from pitloom.logging_config import excerpt, log_once, loggable
+from pitloom.logging_config import loggable
+from pitloom.messages.licences import say_license_resolved
 
 _logger = logging.getLogger(__name__)
 
@@ -189,15 +191,37 @@ def resolve_value(value: str) -> DeclaredResolution | None:
     )
 
 
-def refusal_reason(value: str) -> str:
-    """Why LicenseID names no expression in the single-line *value*, in
-    one loggable line: its ``reason`` (``not found: Acme-Terms``)."""
+@dataclass(frozen=True)
+class Refusal:
+    """Why LicenseID names no expression in a value: the *reason*, one
+    loggable line (its ``reason``, ``not found: Acme-Terms``), and whether
+    the value is *malformed* (a syntax it cannot parse, ``MIT OR``: its
+    category ``malformed``, or a reason that starts ``parse failed:``, which
+    some failures, ``Foo OR``, carry under ``unresolved``), not an operand it
+    names nothing for."""
+
+    reason: str
+    malformed: bool = False
+
+
+#: LicenseID's category of a value whose syntax it cannot parse, and the
+#: start of its reason for one it reports under another category.
+_MALFORMED = "malformed"
+_PARSE_FAILED = "parse failed:"
+
+
+def refusal(value: str) -> Refusal:
+    """Why LicenseID names no expression in the single-line *value*
+    (:class:`Refusal`)."""
     if len(value.splitlines()) > 1:
-        return "more than one line"
+        return Refusal("more than one line")
     found = resolve_declared_value(value)
     if found is None:
-        return "not read by licenseid"
-    return loggable(found["reason"] or found["category"])
+        return Refusal("not read by licenseid")
+    category = found["category"]
+    reason = found["reason"] or ""
+    malformed = category == _MALFORMED or reason.startswith(_PARSE_FAILED)
+    return Refusal(loggable(reason or category), malformed)
 
 
 def is_licence_id(token: str) -> bool:
@@ -214,19 +238,18 @@ def is_licence_id(token: str) -> bool:
 
 
 def say_resolved(value: str, resolved: DeclaredResolution, field: str | None) -> None:
-    """One line per value per process: ``INFO:`` when the resolver decided,
-    ``DEBUG:`` for a change of form."""
-    level = logging.INFO if resolved.decided else logging.DEBUG
-    where = f"FIELD={field} " if field else ""
-    log_once(
+    """One line per value per process: ``INFO:`` when the resolver decided
+    (``license-expression-invalid/resolved``), ``DEBUG:`` for a change of
+    form; the value's key is the same at either level."""
+    where = {"field": field} if field else {}
+    say_license_resolved(
         _logger,
-        level,
-        f"resolved:{value}",
-        "%sLICENSE=%s: read as %s (%s)",
-        where,
-        excerpt(value),
-        loggable(resolved.expression),
-        ", ".join(resolved.steps + resolved.expansions) or resolved.category,
+        decided=resolved.decided,
+        once=f"resolved:{value}",
+        license=value,
+        expression=resolved.expression,
+        steps=", ".join(resolved.steps + resolved.expansions) or resolved.category,
+        **where,
     )
 
 

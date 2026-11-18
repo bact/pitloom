@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,12 +37,11 @@ To match `LICENSE` files, build the LicenseID database before the action
 ```
 
 Without it a declared licence name or id is still read, but a `LICENSE`
-file is not matched, and the step logs `INFO: licenseid database not found:
-... license text detection skipped` (a licence declared) or `WARNING:
-licenseid database cannot be used: ... license text detection skipped` (none
-declared, or a declared full licence text, which only the database can
-read; with a `LICENSE` file too, both lines). A declared name with no
-`LICENSE` file logs nothing.
+file is not matched, and the step logs `licenseid database not found: ...
+licence text detection skipped ... [license-db-missing]` once at `INFO:` (a
+licence declared) or `WARNING:` (none declared, or a declared full licence
+text, which only the database can read; with a `LICENSE` file too, both
+lines). A declared name with no `LICENSE` file logs nothing.
 
 Generate and embed PEP 770 SBOM into built wheels:
 

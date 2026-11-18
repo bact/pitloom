@@ -25,6 +25,7 @@ from pitloom.core.lfs_pointer import size_text as lfs_size_text
 from pitloom.messages import FIELDS, FRAMES, RELAY_FRAME, Frame, Line, size_text
 from pitloom.messages._field_writers import entities_text, failure_text
 from pitloom.messages._fields import _merged
+from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._templates import render
 
 #: A path ending in a backslash: one on POSIX, a directory on Windows.
@@ -278,3 +279,11 @@ def test_a_field_named_in_two_tables_is_refused() -> None:
 def test_entities_take_a_list_or_tuple_only(value: object) -> None:
     with pytest.raises(ValueError, match="not a list"):
         entities_text(value)
+
+
+@pytest.mark.parametrize("name", sorted(LICENCE_FIELDS))
+def test_a_licence_field_taking_any_text_is_free(name: str) -> None:
+    """A value as read takes any text: a template may not start with it or
+    put it beside another field."""
+    field = LICENCE_FIELDS[name]
+    assert (field.pattern, field.free) == (r".+", True)

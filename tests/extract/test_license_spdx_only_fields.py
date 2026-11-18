@@ -47,19 +47,21 @@ from pitloom.extract.project._pyproject_license import (
 )
 from pitloom.extract.project.hatchling import _resolve_hatchling_license
 from pitloom.extract.project.pyproject import read_pyproject
+from tests._code_records import coded
 from tests._license_graph import license_elements
 from tests.assemble.conftest import _FakeMetadata
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
 
 _SAID = "not read as an SPDX license expression"
 _LONG = "Apache " * 40
+_INVALID = "license-expression-invalid"
+_MALFORMED = "license-expression-malformed"
 
 
-def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
+def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str | None, str]]:
+    """(code, text) of each ``WARNING:`` that a value is recorded as text."""
     return [
-        r.getMessage()
-        for r in caplog.records
-        if r.levelno == logging.WARNING and _SAID in r.getMessage()
+        (code, text) for code, text in coded(caplog) if code in (_INVALID, _MALFORMED)
     ]
 
 
@@ -88,6 +90,9 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
         ("MIT OR\rFoo", "LICENSE='MIT OR Foo': _ (more than one line)"),
         (_LONG, "_ (longer than 200 characters, not parsed)"),
         ("Acme2\x1b[2J", "LICENSE='Acme2\\x1b[2J': _"),
+        # a syntax LicenseID cannot parse: malformed, not invalid
+        ("MIT OR", "LICENSE='MIT OR': malformed _ (parse failed: Unexpected 'OR')"),
+        ("(MIT", "LICENSE='(MIT': malformed _ (parse failed: "),
     ],
     ids=lambda v: repr(v)[:30],
 )
@@ -101,9 +106,10 @@ def test_warn_unless_expression(
     if expected is None:
         assert not caplog.records
         return
-    (message,) = said
+    ((code, message),) = said
+    assert code == (_MALFORMED if " malformed " in expected else _INVALID)
     assert message.startswith("FIELD=License-Expression ")
-    assert message.endswith("; recorded as license text")
+    assert message.endswith("; recorded as licence text")
     head, _, tail = expected.partition("_")
     assert head in message and tail in message
     assert "\n" not in message and "\x1b" not in message
@@ -123,8 +129,9 @@ def test_a_broken_expression_is_said_once_with_the_classifier_warning(
             warn_unless_expression(spelling, "project.license")
         classify_license("MIT OR")
         warn_unless_expression(spelling, "project.license")
-    (record,) = caplog.records
-    assert ("FIELD=project.license" in record.getMessage()) is helper_first
+    ((code, message),) = coded(caplog)
+    assert code == _MALFORMED
+    assert ("FIELD=project.license" in message) is helper_first
 
 
 def _msg(**headers: str) -> email.message.Message:
@@ -178,7 +185,7 @@ def test_each_reader_warns_for_an_spdx_only_field_only(
         assert not caplog.records
         read("Acme2")
         read("Acme2")
-    assert [m.split()[0] for m in _said(caplog)] == (
+    assert [m.split()[0] for _, m in _said(caplog)] == (
         [f"FIELD={field}"] if field else []
     )
 
@@ -223,7 +230,7 @@ def test_one_unknown_id_on_three_dependencies_is_said_once(
     assert [e.get("simplelicensing_licenseText") for e in license_elements(graph)] == [
         "Acme2"
     ]
-    assert [m.split()[0] for m in _said(caplog)] == ["FIELD=License-Expression"]
+    assert [m.split()[0] for _, m in _said(caplog)] == ["FIELD=License-Expression"]
 
 
 @pytest.mark.parametrize(
@@ -237,7 +244,7 @@ def test_a_gguf_general_license(
     path.write_bytes(gguf_file(0, 1, kv(b"general.license", STRING, string(value))))
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         assert read_gguf(path).license == value
-    assert [m.split()[0] for m in _said(caplog)] == ["FIELD=general.license"] * warns
+    assert [m.split()[0] for _, m in _said(caplog)] == ["FIELD=general.license"] * warns
 
 
 def test_a_file_tag_on_two_files_is_said_once(
@@ -253,7 +260,7 @@ def test_a_file_tag_on_two_files_is_said_once(
                 root, creation_metadata=CreationMetadata(), offline=True
             )
         )
-    assert [m.split()[0] for m in _said(caplog)] == ["FIELD=SPDX-License-Identifier"]
+    assert [m.split()[0] for _, m in _said(caplog)] == ["FIELD=SPDX-License-Identifier"]
     assert sorted(_texts(sbom)) == ["Acme2", "MIT"]
 
 
@@ -299,8 +306,8 @@ def test_end_to_end_the_value_is_text_with_one_warning(
     err = capsys.readouterr().err.splitlines()
     assert [line for line in err if _SAID in line] == [
         "WARNING: FIELD=project.license LICENSE='Acme2': not read as an SPDX"
-        " license expression (not found: Acme2); recorded as license"
-        " text"
+        " license expression (not found: Acme2); recorded as licence"
+        f" text [{_INVALID}]"
     ]
     assert _texts(json.loads(out.read_text(encoding="utf-8"))) == ["Acme2"]
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-13
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -331,29 +331,29 @@ database is kept and the preflight counts as failed. The database is per user,
 `%USERPROFILE%\.local\share\licenseid\licenses.db`), so any environment's
 Pitloom reads it.
 
-`WARNING: licenseid database cannot be used: <reason> -- license text detection
-skipped` (once per run; the reason ends `run 'licenseid update'` when the file
-is missing or empty): the LicenseID SPDX database is missing or empty, so the
-preflight was skipped or failed. No `LICENSE` text is matched to an id, so the
-SBOM is thinner; a declared value is still read (`Apache2` as `Apache-2.0`,
-from the SPDX License List the `licenseid` wheel ships, 0.23.0 and later).
-Report the line and the command. When the project declares a licence and the
-file is only missing, the line is `INFO: licenseid database not found: <path>
--- license text detection skipped; run 'licenseid update --source packaged'`:
-only the `LICENSE` file is not matched. A declared full licence text (`license
-= {file = "LICENSE"}`) is a `WARNING:` even then: it stays as written, not
-read as an id. A declared name with no `LICENSE` file (`New BSD`) needs no
-database and gives neither line. An empty or unreadable database warns
-whenever a lookup is needed (a `LICENSE` file, a long text, or no declared
-licence).
+`WARNING: licenseid database not found: '<path>'; licence text detection
+skipped; run 'licenseid update --source packaged' [license-db-missing]` (once
+per run): the LicenseID SPDX database is not built, so the preflight was
+skipped or failed. No `LICENSE` text is matched to an id, so the SBOM is
+thinner; a declared value is still read (`Apache2` as `Apache-2.0`, from the
+SPDX License List the `licenseid` wheel ships, 0.23.0 and later). Report the
+line and the command. When the project declares a licence, the same line is
+an `INFO:`: only the `LICENSE` file is not matched. A declared full licence
+text (`license = {file = "LICENSE"}`) is a `WARNING:` even then: it stays as
+written, not read as an id. A declared name with no `LICENSE` file (`New
+BSD`) needs no database and gives neither line. An empty, invalid or
+unreadable database is `WARNING: licenseid database cannot be used: <reason>;
+licence text detection skipped [license-db-unusable]` whenever a lookup is
+needed (a `LICENSE` file, a long text, or no declared licence); rebuild it with
+`licenseid update --source packaged --force`.
 
 `WARNING: licenseid database cannot be used: database: not found: no home
-directory; pass --db -- license text detection skipped` (always a `WARNING:`,
-declared licence or not): the account has no home directory (`HOME`, or
-`USERPROFILE` on Windows, is blank, or unset with no account entry), so
-LicenseID cannot find its database, and `licenseid update` fails the same
-way. `loom` has no `--db` option: tell the
-user to run it with a home directory set. A declared licence is still read.
+directory; pass --db; licence text detection skipped [license-db-unusable]`
+(always a `WARNING:`, declared licence or not): the account has no home
+directory (`HOME`, or `USERPROFILE` on Windows, is blank, or unset with no
+account entry), so LicenseID cannot find its database, and `licenseid update`
+fails the same way. `loom` has no `--db` option: tell the user to run it with
+a home directory set. A declared licence is still read.
 
 `WARNING: licenseid: <subject>: <condition>...` is a warning of LicenseID
 itself, relayed once per run. `WARNING: licenseid: database: build v3 outdated:
@@ -378,12 +378,15 @@ report only.
 
 ## A licence that looks like a broken expression
 
-Text with an operator or parenthesis and a known id (`MIT OR`, `(MIT`) is
-kept as `SimpleLicensingText`, not dropped, with one stderr line per value,
-e.g.:
+Text with an operator or parenthesis and a known id (`MIT OR`, `(MIT`, `MIT
+OR Foo`) is kept as `SimpleLicensingText`, not dropped, with one stderr line
+per value: `license-expression-malformed` when LicenseID cannot parse it (an
+operator with no operand, a parenthesis without its match),
+`license-expression-invalid` when an operand names no licence it knows, e.g.:
 
 ```text
-WARNING: LICENSE='MIT OR': not a valid SPDX license expression (parse failed: Unexpected 'OR'); recorded as license text
+WARNING: LICENSE='MIT OR': malformed SPDX license expression (parse failed: Unexpected 'OR'); recorded as licence text [license-expression-malformed]
+WARNING: LICENSE='MIT OR Foo': not a valid SPDX license expression (operand not resolved: Foo); recorded as licence text [license-expression-invalid]
 ```
 
 Fix the source value to get a `LicenseExpression`.
@@ -392,7 +395,9 @@ A single-line value LicenseID (`resolve`) reads as one licence (`Apache2`,
 `MIT License`, `GPLv2+`, a `License ::` classifier's name), or as several
 joined by `AND`, `OR` or `WITH` (`Apache2 OR MIT`), is recorded as that id
 (`Apache-2.0`, `MIT`, `GPL-2.0-or-later`, `Apache-2.0 OR MIT`), with one
-`INFO:` line per value (no `FIELD=` for a classifier) and the reading in the
+`INFO:` line per value (`license-expression-invalid/resolved`; a lone
+classifier's name has no `FIELD=`, one of several `FIELD=classifiers`) and
+the reading in the
 licence element's provenance `comment`: `Normalized-From: <value as written>`,
 `Method: licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
 `Expansion-1: plus_to_or_later` for a `+` (`stated_qualifier` for a stated "or
@@ -405,9 +410,9 @@ value LicenseID refuses stays text, with no `INFO:`: a stray mark
 is the resolver's reading, not the author's words:
 
 ```text
-INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
-INFO: LICENSE='MIT License': read as MIT (listed_name)
-INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url)
+INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling) [license-expression-invalid/resolved]
+INFO: LICENSE='MIT License': read as MIT (listed_name) [license-expression-invalid/resolved]
+INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url) [license-expression-invalid/resolved]
 ```
 
 LicenseID is the only reader of a declared value, so every rewrite names
@@ -432,7 +437,7 @@ GGUF `general.license`) whose value is not one and LicenseID reads as none
 per value naming the field:
 
 ```text
-WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as licence text [license-expression-invalid]
 ```
 
 Report the line and suggest the listed id (`Apache-2.0`); do not rewrite the

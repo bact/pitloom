@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-11-11
+Last-Modified: 2026-11-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -147,8 +147,8 @@ than the case, white space, brackets or a `+` is said once per value per run,
 and kept in the provenance:
 
 ```text
-INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
-INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url)
+INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling) [license-expression-invalid/resolved]
+INFO: LICENSE='https://opensource.org/licenses/MIT': read as MIT (license_url) [license-expression-invalid/resolved]
 ```
 
 The reading uses the SPDX License List the `licenseid` wheel ships, not the
@@ -157,12 +157,13 @@ one. Only licence-text detection needs the database (`licenseid update
 --source packaged`), and only for a text long enough to be a licence: a
 declared name such as `New BSD` never looks it up, and says nothing. When
 the project declares a licence and the database is only missing,
-`licenseid database not found` is said once at `INFO:`: only the
-`LICENSE`-file check is skipped. A declared full licence text warns
-`licenseid database cannot be used` once, as it is kept as written, and so
-does a `LICENSE` file with no declared licence. An empty, invalid or
-unreadable database warns whenever a lookup is needed (a `LICENSE` file,
-a long text, or no declared licence). A warning of LicenseID itself is
+`licenseid database not found` (`license-db-missing`) is said once at
+`INFO:`: only the `LICENSE`-file check is skipped. A declared full licence
+text says it once at `WARNING:`, as it is kept as written, and so does a
+`LICENSE` file with no declared licence. An empty, invalid or unreadable
+database warns `licenseid database cannot be used` (`license-db-unusable`)
+whenever a lookup is needed (a `LICENSE` file, a long text, or no declared
+licence). A warning of LicenseID itself is
 said once, after `licenseid: ` (`WARNING: licenseid: database: build v3
 outdated: current v4; run 'licenseid update'`; `INFO:` for `variant not
 stated`, a guess it records on a detection). `too few words for text`
@@ -171,10 +172,13 @@ stated`, a guess it records on a detection). `too few words for text`
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded
 as text, as written, and gets one `WARNING:` per value per run, naming the
-field:
+field: `license-expression-invalid` (`not read as an SPDX license
+expression`), or `license-expression-malformed` (`malformed SPDX license
+expression`) when LicenseID cannot parse its syntax (`MIT OR`):
 
 ```text
-WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (not found: Acme-Terms); recorded as licence text [license-expression-invalid]
+WARNING: FIELD=project.license LICENSE='MIT OR': malformed SPDX license expression (parse failed: Unexpected 'OR'); recorded as licence text [license-expression-malformed]
 ```
 
 | Field | Read from |
@@ -237,7 +241,12 @@ are one `LicenseExpression`, the AND of terms sorted by classifier: the id for
 a name LicenseID reads as one licence (`MIT License` is `MIT`), else a
 `LicenseRef-loom-classifier-<name>` whose `customIdToUri` target is a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
-`WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
+`WARNING:` (`several licence classifiers; recorded as ... assuming AND`,
+`license-ambiguous`), as they may offer a choice. A `pyproject.toml` whose
+SPDX `project.license` sits beside `License ::` classifiers (PEP 639 forbids
+both) keeps the expression and drops the classifiers, with one `WARNING:`
+(`an SPDX license expression and License :: classifiers both state a
+licence`, `license-conflict`). So a directory, its sdist, its wheel and
 the build hook record the same declared licence, except a licence file or text
 that Pitloom identifies as a listed licence: the directory and the build hook
 record its id, the sdist and the wheel the text. A directory, an sdist and

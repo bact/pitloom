@@ -31,6 +31,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract.project.sdist import read_sdist
+from tests._code_records import coded
 from tests._license_graph import (
     dependency_graph,
     graph_of,
@@ -253,8 +254,10 @@ def test_licence_element_by_surface(
         # Any text in a field that holds an SPDX expression only: one line,
         # naming the field (it shares its key with the broken-expression one).
         assert len(said) == 1 and said[0].startswith("FIELD=")
-    elif warns:
-        assert sum("not a valid SPDX license expression" in m for m in said) == 1
+    elif warns:  # 'MIT OR': LicenseID cannot parse it
+        assert [code for code, _ in coded(caplog)].count(
+            "license-expression-malformed"
+        ) == 1
     else:
         assert not said
 
