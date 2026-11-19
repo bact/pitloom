@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,8 +70,8 @@ Windows drive path works, as in
 `:`, a `TYPE` with white space around it, a control character (a newline), a
 blank `NAME` or a package `NAME` that is not a PEP 508 name (`foo==1.0`:
 write `foo@1.0`) is a usage error too.
-`--namespace IRI` sets a new registry's document namespace (an
-absolute IRI without `#`, and without user information, a secret query
+`--namespace IRI` sets a new registry's namespace, the one its own ids are
+minted in ([Namespaces](#namespaces)) (an absolute IRI without `#`, and without user information, a secret query
 value such as `token` or an access token, or a query nested or encoded too
 deeply to read, also in a URL anywhere in it
 (`urn:x:https://user:pw@host/ns`): any user name is refused,
@@ -272,6 +272,32 @@ symbolic links to directories and the declared registry file. `id generate`
 also leaves out the declared registry, matched by identity and never by name:
 a stray `loom-id-registry.json` that is not the declared file is indexed. The
 set is `IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
+
+## Namespaces
+
+An `spdxId` is an opaque IRI; the SBOM is valid whatever namespaces its ids
+use. With a registry, one SBOM can hold ids of several, because an id is
+pinned as it was first minted:
+
+- **The registry's namespace** is the one `id generate`, `-e` and `loom`
+  register ids in. It is a random UUID4 stored in the file when the registry
+  is created, the SBOM document's id after `id import` into an empty
+  registry, or `--namespace IRI`. It never changes for the registry.
+- **The document's namespace**, `https://spdx.org/spdxdocs/<name>-<uuid>`, is
+  the one a build mints every other id in: the `SpdxDocument` and its
+  `software_Sbom`, relationships, annotations, and an element the registry
+  does not hold yet. Its `<uuid>` is derived from the project's content
+  (name, version, dependencies, lock pins, file set), so it changes with it.
+  [Harvesting](#harvesting-new-ids) then pins those ids, as minted, so
+  after a release one SBOM can hold the registry's namespace and the
+  namespaces of earlier documents.
+
+The registry's namespace is random, not content-derived, because it must
+outlive every release (a content-derived one would move with each) and be
+unique per registry (a name-derived one would be shared by two projects of the
+same name). It is a registry input, so the same registry gives the same SBOM.
+For a namespace you choose, pass `--namespace` (a URL you own). It governs only
+the ids the registry mints, not the document's namespace.
 
 ## Harvesting new ids
 
