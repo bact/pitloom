@@ -122,7 +122,7 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             excerpts_text,
             "<dropped>",
-            "what a conflict left out (versions, a lock file), sorted, "
+            "what a conflict left out (versions, a lock file, a value), sorted, "
             f"comma-separated, each {EXCERPT_MEANING}",
             free=True,
         ),
@@ -137,7 +137,8 @@ LOCK_FIELDS: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             excerpt_text,
             "<kept>",
-            f"what a conflict kept (a lock file), {EXCERPT_MEANING}",
+            "what a conflict kept (a lock file, a version, a value), "
+            f"{EXCERPT_MEANING}",
             free=True,
         ),
         "line_number": Field(

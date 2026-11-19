@@ -101,6 +101,10 @@ INPUT_USE: Final = "for the input check"
 #: What a configuration file (``pyproject.toml``, ``setup.cfg``, a
 #: ``--config`` file) is read for: one of :data:`READ_USES`.
 CONFIG_USE: Final = "for the configuration"
+#: What a project's metadata file (``pyproject.toml``, ``setup.cfg``,
+#: ``setup.py``, an installed ``METADATA`` or ``PKG-INFO``) is read for: one
+#: of :data:`READ_USES`.
+METADATA_USE: Final = "for the project metadata"
 
 #: What a file was read for, or a directory listed for, as a
 #: ``file-unreadable`` or ``dir-unlistable`` line says it after ``could not
@@ -116,6 +120,7 @@ READ_USES: Final = (
     INPUT_USE,
     "for license files",
     CONFIG_USE,
+    METADATA_USE,
     "for the Croissant document",
     "for the dataset card",
     "for the Hugging Face dataset card",

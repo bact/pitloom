@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from pitloom.messages._types import ASK_FIRST, Line, Message
+from pitloom.messages._types import ASK_FIRST, Line, Message, warning_twins
 
 _SINCE: Final = "0.25.0"
 
@@ -57,12 +57,6 @@ _DID: Final = (
     "again to save the ids it added: nothing is saved and the SBOM stands; "
     "the next run mints those ids again."
 )
-
-
-def _warning_twins(lines: tuple[Line, ...]) -> tuple[Line, ...]:
-    """*lines*, then a ``WARNING`` line of each one's template: the save of a
-    run whose SBOM is already built says the same text as a warning."""
-    return (*lines, *(Line(level="WARNING", template=ln.template) for ln in lines))
 
 
 def _line(condition: str) -> Line:
@@ -120,7 +114,7 @@ MINT_LINE: Final = _line("no %(name)s id left to mint in %(namespace)s")
 REGISTRY_MALFORMED: Final = Message(
     code="registry-malformed",
     condition="malformed",
-    lines=_warning_twins(
+    lines=warning_twins(
         (
             DUPLICATE_KEY_LINE,
             NO_NAMESPACE_LINE,
@@ -169,7 +163,7 @@ UNKNOWN_ENTRY_KEY_LINE: Final = _line(
 REGISTRY_UNKNOWN_KEY: Final = Message(
     code="registry-unknown-key",
     condition="unknown-key",
-    lines=_warning_twins((UNKNOWN_TOP_KEY_LINE, UNKNOWN_ENTRY_KEY_LINE)),
+    lines=warning_twins((UNKNOWN_TOP_KEY_LINE, UNKNOWN_ENTRY_KEY_LINE)),
     summary="An ID registry file holds a key its format does not have, at "
     "the top level or in an entry. The version is checked first, so a "
     "registry from a newer Pitloom says registry-wrong-format instead: the "
@@ -192,7 +186,7 @@ VERSION_LINE: Final = _line(
 REGISTRY_WRONG_FORMAT: Final = Message(
     code="registry-wrong-format",
     condition="wrong-format",
-    lines=_warning_twins((VERSION_LINE,)),
+    lines=warning_twins((VERSION_LINE,)),
     summary=f"An ID registry file is of another format version than "
     f"{REGISTRY_VERSION}, the one Pitloom reads: an older one (a version 3 "
     "file from Pitloom 0.21, whose package keys hold no version, or a version "
@@ -227,7 +221,7 @@ ROOT_NOT_STORABLE_LINE: Final = _line(
 REGISTRY_UNUSABLE: Final = Message(
     code="registry-unusable",
     condition="unusable",
-    lines=_warning_twins((NO_RELATIVE_ROOT_LINE, ROOT_NOT_STORABLE_LINE)),
+    lines=warning_twins((NO_RELATIVE_ROOT_LINE, ROOT_NOT_STORABLE_LINE)),
     summary="An ID registry file cannot record its project root: the file "
     "stores the root relative to its own directory, and there is no such "
     "path (on Windows, the file and the project on two drives) or it would "
