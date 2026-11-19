@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import cast
 
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
@@ -91,7 +92,9 @@ def resolve_flit_dynamic_metadata(
     project_dir = pyproject_path.parent.absolute()
     try:
         loaded_cfg = read_flit_config(pyproject_path)
-        module = Module(loaded_cfg.module, project_dir)
+        # flit-core's LoadedConfig starts with module = None;
+        # read_flit_config always sets it.
+        module = Module(cast("str", loaded_cfg.module), project_dir)
         if not _version_files_inside(module.version_files, project_dir):
             return {}
         docstring, version = get_docstring_and_version_via_ast(module)
