@@ -33,6 +33,7 @@ from pitloom.extract.ai_model import (
     detect_ai_model_format_from_header,
     read_ai_model_header,
 )
+from pitloom.extract.ai_model.directory import DIRECTORY_MARKERS
 from pitloom.extract.model_target import (
     AUTO,
     MODEL,
@@ -79,8 +80,12 @@ def _codes(caplog: pytest.LogCaptureFixture, level: int) -> list[str | None]:
 
 def test_every_format_has_a_fixture_that_sniffs_as_it() -> None:
     """A new format fails here until it has a fixture; the formats a copy
-    named ``x.dat`` loses are exactly :data:`NEEDS_SUFFIX`."""
-    assert set(FORMAT_FIXTURES) == set(AiModelFormat) - {AiModelFormat.UNKNOWN}
+    named ``x.dat`` loses are exactly :data:`NEEDS_SUFFIX`. A folder format
+    (a marker file, no header) is covered by ``test_jax.py`` instead."""
+    folder_formats = set(DIRECTORY_MARKERS)
+    assert set(FORMAT_FIXTURES) == (
+        set(AiModelFormat) - {AiModelFormat.UNKNOWN} - folder_formats
+    )
     by_content = set()
     for fmt in FORMATS:
         header = read_ai_model_header(fixture_path(fmt))
