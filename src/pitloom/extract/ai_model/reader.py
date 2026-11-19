@@ -416,15 +416,17 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
     """Detect the format of an AI model file or folder.
 
     A folder is a model of the folder format whose marker file it holds
-    (:func:`~pitloom.extract.ai_model.directory.detect_directory_format`).
-    A file: magic bytes first, then the file extension; see
+    (:func:`~pitloom.extract.ai_model.directory.detect_directory_format`);
+    a folder with no marker is named by its suffix like a file that is not
+    there. A file: magic bytes first, then the file extension; see
     :func:`detect_ai_model_format_from_header`. Never raises on an
     unreadable file: a file that is absent, not a regular file or cannot be
     read falls back to the extension alone, as ``read_ai_model`` reports
     absence itself.
     """
-    if os.path.isdir(model_path):
-        return detect_directory_format(model_path)
+    folder_format = detect_directory_format(model_path)
+    if folder_format != AiModelFormat.UNKNOWN:
+        return folder_format
     try:
         header = read_ai_model_header(model_path)
     except OSError:
