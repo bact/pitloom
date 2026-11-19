@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,7 @@ pitloom/
 │   ├── id-registry-keys.md
 │   ├── index.md
 │   ├── mascot.png
-│   ├── message-codes.md  # Index of the codes, generated (scripts/generate_message_reference.py); pages: message-codes-{models,model-fields,targets,files,pypi,network,licences}.md
+│   ├── message-codes.md  # Index of the codes, generated (scripts/generate_message_reference.py); pages: message-codes-{models,model-fields,targets,files,pypi,network,licences,values}.md (values: what each `<name>` stands for)
 │   ├── messages.md
 │   ├── metadata-provenance.md  # Also metadata-provenance-{artifact-metadata,authors,licences}.md
 │   ├── metadata-reading-back.md

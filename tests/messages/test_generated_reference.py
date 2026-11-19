@@ -89,7 +89,7 @@ def test_git_checks_every_target_and_page_out_with_lf() -> None:
     differ from the render, unless ``.gitattributes`` pins the file to LF."""
     lines = (_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
     patterns = [ln.split()[0] for ln in lines if ln.endswith(" text eol=lf")]
-    pages = [s.path(t) for s in gen.SITES for t in TOPIC_TITLES]
+    pages = [p for s in gen.SITES for p in gen.expected_pages(s)]
     for path in (*gen.TARGETS, *pages, *gen.MODEL_TARGETS):
         name = path.relative_to(_ROOT).as_posix()
         assert any(_git_matches(name, pat) for pat in patterns), name
@@ -207,6 +207,13 @@ _RENDERS: list[tuple[str, Callable[[], str]]] = [
         )
         for site in gen.SITES
         for topic in TOPIC_TITLES
+    ),
+    *(
+        (
+            f"{site.index.parent.parent.name}-values",
+            lambda s=site: gen.render_values_page(s),
+        )
+        for site in gen.SITES
     ),
 ]
 
@@ -401,7 +408,7 @@ def test_pages_are_written_whole_then_stay_unchanged_and_an_orphan_fails(
     assert "stale" in capsys.readouterr().err
     assert gen.run_pages(site, check=False) == 0
     first = {p: p.read_bytes() for p in gen.expected_pages(site)}
-    assert len(first) == len(TOPIC_TITLES) and all(first.values())
+    assert len(first) == len(TOPIC_TITLES) + 1 and all(first.values())
     assert gen.run_pages(site, check=True) == 0
     stray = tmp_path / "messages-gone.md"
     stray.write_bytes(b"x")

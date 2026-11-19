@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,7 +59,12 @@ trip review attention:
   (621); `CHANGELOG.md` (551) is exempt by nature. The generated message
   reference was split per topic (`pitloom.messages._topics`): the index and
   seven pages per site, each under 30 KB, and the generator refuses a file
-  over the limit.
+  over the limit. The values table has a page of its own (2026-11-19, catalogue
+  PR 12a): it was half the index. `scripts/generate_message_reference.py` is
+  about 575 lines and not split: a sibling module imports when the script is
+  run (`scripts/` is first on `sys.path`) but not in the two tests that load
+  it by path (`test_generated_reference.py`, `test_generated_values_page.py`),
+  which would first put `scripts/` on `sys.path`.
 
 Noted 2026-11-16 (PR 489, not split there): `id_registry/_registry.py`
 (572; 574 after PR 2), `scripts/generate_message_reference.py` (533) and
