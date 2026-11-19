@@ -221,6 +221,19 @@ def _restore_environ() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _no_sbom_left_in_cwd() -> Iterator[None]:
+    """Fail a test that leaves a ``*.spdx3.json`` in the working directory it
+    started in (a run without ``-o`` writes the SBOM there); remove it."""
+    root = Path.cwd()
+    before = set(root.glob("*.spdx3.json"))
+    yield
+    left = sorted(set(root.glob("*.spdx3.json")) - before)
+    for path in left:
+        path.unlink(missing_ok=True)
+    assert not left, f"SBOM left in the working directory, pass -o: {left}"
+
+
+@pytest.fixture(autouse=True)
 def _restore_int_digit_limit() -> Iterator[None]:
     """Put CPython's ``int_max_str_digits`` back after each test: a test may
     change it with ``sys.set_int_max_str_digits``, and it is process-global.

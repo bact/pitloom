@@ -41,7 +41,16 @@ def _config(tmp_path: Path, payload: bytes) -> Path:
 
 def _project_argv(tmp_path: Path, config: Path, name: str = "p") -> list[str]:
     project = _project(tmp_path, name, _HEAD)
-    return ["project", str(project), "--config", str(config), *_OFFLINE]
+    output = tmp_path / f"{name}.spdx3.json"  # else the SBOM lands in the cwd
+    return [
+        "project",
+        str(project),
+        "--config",
+        str(config),
+        "-o",
+        str(output),
+        *_OFFLINE,
+    ]
 
 
 def _error_line(err: str) -> str:
