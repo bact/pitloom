@@ -42,9 +42,15 @@ from pitloom.core._models_wheel_build_kill import (
     kill_leftover_descendants,
     kill_process_tree,
 )
-from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.optional_libraries import BUILD, missing
+from pitloom.messages import BUILD_FRAME
+from pitloom.messages.build import (
+    BUILD_EXIT_LINE,
+    BUILD_INTERPRETER_LINE,
+    BUILD_WHEEL_COUNT_LINE,
+    build_error,
+)
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +63,6 @@ _LOG_FILE_NAME = "build.log"
 _WAIT_SLICE_SECONDS = 0.25
 
 _LOG_TAIL_BYTES = 8192
-_MESSAGE_MAX_CHARS = 200
 
 # String sequences (OSC hyperlinks/titles, DCS, SOS, PM, APC) up to their
 # BEL/ST terminator or the end of the line, CSI sequences (colours, cursor
@@ -76,16 +81,14 @@ class BuildTimeoutError(Exception):
     *tree_terminated* is whether the kill was confirmed: false when a
     process in the tree was still alive after the kill (or, on Windows,
     ``taskkill`` could not report success).
+
+    No text of its own: the caller says ``build-timeout``'s line from these.
     """
 
     def __init__(self, timeout: int, *, tree_terminated: bool) -> None:
-        super().__init__(f"build timed out after {timeout}s")
+        super().__init__()
         self.timeout: int = timeout
         self.tree_terminated: bool = tree_terminated
-
-
-class BuildSubprocessError(Exception):
-    """The build process finished but did not produce exactly one wheel."""
 
 
 def build_wheel_command(
@@ -122,15 +125,15 @@ def run_build_subprocess(
     :class:`~pitloom.core.build_signals.TerminationSignal`
     when *termination* records a signal before the build has finished
     (likewise),
-    :class:`BuildSubprocessError` on a non-zero exit or when the output
-    directory holds anything other than exactly one wheel,
+    :class:`~pitloom.messages.build.BuildFailedError` (``build-failed``)
+    when the interpreter path is unavailable, on a non-zero exit, or when
+    the output directory holds anything other than exactly one wheel, and
     :class:`~pitloom.messages.CodedImportError` (``library-missing``) when
-    PyPA ``build`` is not installed, and :class:`RuntimeError` when the
-    interpreter path is unavailable.
+    PyPA ``build`` is not installed.
     """
     _require_build_package()
     if not sys.executable:
-        raise RuntimeError("cannot locate the Python interpreter to run PyPA 'build'")
+        raise build_error(BUILD_INTERPRETER_LINE, dir=project_dir)
 
     out_dir = work_dir / _OUT_DIR_NAME
     tmp_dir = work_dir / _TMP_DIR_NAME
@@ -155,15 +158,16 @@ def run_build_subprocess(
         raise
     if returncode != 0:
         tail = _debug_log_tail(log_path)
-        raise BuildSubprocessError(
-            f"build exited with code {returncode}: {_last_message_line(tail)}"
+        raise build_error(
+            BUILD_EXIT_LINE,
+            dir=project_dir,
+            exit_code=returncode,
+            output=_last_message_line(tail),
         )
     wheels = sorted(out_dir.glob("*.whl"))
     if len(wheels) != 1:
         _debug_log_tail(log_path)
-        raise BuildSubprocessError(
-            f"build produced {len(wheels)} wheels, expected exactly 1"
-        )
+        raise build_error(BUILD_WHEEL_COUNT_LINE, dir=project_dir, number=len(wheels))
     return wheels[0]
 
 
@@ -234,7 +238,7 @@ def _run_with_timeout(
             # Unconditional, not only while the direct child still runs: it
             # may exit just after the deadline and leave grandchildren behind.
             terminated = kill_process_tree(proc)
-            raise BuildTimeoutError(timeout, tree_terminated=terminated)
+            raise BuildTimeoutError(timeout=timeout, tree_terminated=terminated)
         kill_leftover_descendants(proc)
         return returncode
 
@@ -318,18 +322,18 @@ def _read_log_tail(log_path: Path) -> list[str]:
 
 
 def _clean_line(line: str) -> str:
-    """*line* without ANSI sequences or control characters."""
+    """*line* without ANSI sequences, each other control character a space:
+    a word boundary a credential masker needs (``abc<BEL>ghp_...``) stays."""
     line = _ANSI_CSI_RE.sub("", _ANSI_STRING_RE.sub("", line))
-    return _CONTROL_CHARS_RE.sub("", line).strip()
+    return _CONTROL_CHARS_RE.sub(" ", line).strip()
 
 
 def _last_message_line(lines: list[str]) -> str:
-    """The last non-empty cleaned line, capped for a one-line WARNING:."""
+    """The last non-empty cleaned line, whole: the ``output`` field masks,
+    cuts and escapes it."""
     for line in reversed(lines):
         cleaned = _clean_line(line)
         if cleaned:
-            if len(cleaned) > _MESSAGE_MAX_CHARS:
-                return cleaned[: _MESSAGE_MAX_CHARS - 3] + "..."
             return cleaned
     return "(no output)"
 
@@ -345,5 +349,5 @@ def _debug_log_tail(log_path: Path) -> list[str]:
     for line in lines:
         cleaned = _clean_line(line)
         if cleaned:
-            log.debug("%sbuild output: %s", BUILD_LOG_PREFIX, cleaned)
+            log.debug("%sbuild output: %s", BUILD_FRAME.render({}), cleaned)
     return lines

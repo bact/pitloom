@@ -55,7 +55,7 @@ from pitloom.extract.scanner import (
     UsageSource,
     scan_ai_models,
 )
-from pitloom.messages import Message
+from pitloom.messages import SCAN_FRAME, Message
 from pitloom.messages.config import Parameter
 from pitloom.messages.files import (
     Cap,
@@ -167,9 +167,7 @@ class _Scratch:
         if self._path is None:
             with self.guard.hold(MODEL_SCAN_ACTIVITY):
                 self._path, self._remove = registered_temp_dir(
-                    self.guard,
-                    "pitloom-model-scan-",
-                    log_prefix=MODEL_SCAN_ACTIVITY.log_prefix,
+                    self.guard, "pitloom-model-scan-", frame=SCAN_FRAME
                 )
         return self._path
 

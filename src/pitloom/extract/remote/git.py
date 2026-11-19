@@ -77,7 +77,7 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
-from pitloom.messages import GIT_FRAME, GIT_PREFIX, code_of, emit
+from pitloom.messages import GIT_FRAME, code_of, emit
 from pitloom.messages.git import (
     GIT_EMPTY_LINE,
     GIT_FILTER_UNUSABLE,
@@ -111,10 +111,6 @@ __all__ = [
 #: ignores the filter; one that rejects it (HTTP 400) is asked again without
 #: it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
-
-#: What starts a message about the checkout's directory, as every other
-#: message of the route starts.
-_LOG_PREFIX: Final = GIT_PREFIX
 
 
 @dataclass(frozen=True)
@@ -224,7 +220,7 @@ def fetch_git_project(
     """
     runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
-    with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
+    with temp_dir(CHECKOUT_DIR_PREFIX, frame=GIT_FRAME) as work:
         checkout = _prepare(url, str(work), runner, policy)
         checkout = replace(checkout, trust_model_files=trust_model_files)
         with reading_remote_clone(checkout.root, trust_model_files=trust_model_files):

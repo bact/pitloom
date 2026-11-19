@@ -23,6 +23,7 @@ from pitloom.logging_config import (
     print_traceback,
     set_error_frame,
 )
+from pitloom.messages.build import INTERRUPTED, INTERRUPTED_ERROR_LINE
 from pitloom.messages.url_credentials import ADVICE_CLI, credential_advice
 
 # 128 + SIGINT, the status a shell reports for a command ended by Ctrl-C.
@@ -80,9 +81,9 @@ def _framed_session() -> Iterator[None]:
 
 
 def _report_interrupt() -> None:
-    """Print the one ``ERROR:`` line for Ctrl-C, and under debug the
-    traceback of the ``KeyboardInterrupt`` being handled."""
-    print_error("interrupted")
+    """Print the one ``ERROR:`` line for Ctrl-C (``interrupted``), and under
+    debug the traceback of the ``KeyboardInterrupt`` being handled."""
+    print_error(INTERRUPTED_ERROR_LINE.render({}), code=INTERRUPTED.code)
     if debug_enabled():
         print_traceback()
 

@@ -21,6 +21,7 @@ from typing import Final
 
 from pitloom.messages._config_place import FINGERPRINT_SHAPE
 from pitloom.messages._field_writers import entity_text
+from pitloom.messages._frames import BUILD_PREFIX
 from pitloom.messages._registry_file import REGISTRY_PREFIX
 from pitloom.messages._types import Line, Message
 
@@ -29,9 +30,6 @@ _SINCE: Final = "0.25.0"
 #: The sub-prefix of every line about an option the target or command cannot
 #: act on (``option-no-effect``'s own lines and the other ``Options:`` lines).
 OPTIONS_PREFIX: Final = "Options: "
-#: The sub-prefix of every line about ``--allow-build`` and the build it
-#: runs (:data:`pitloom.core._models_wheel_types.BUILD_LOG_PREFIX` is this).
-BUILD_PREFIX: Final = "Build: "
 
 #: An option given that the target or command cannot act on.
 OPTIONS_NO_EFFECT_LINE: Final = Line(
@@ -44,7 +42,8 @@ OPTIONS_NO_EFFECT_INFO_LINE: Final = Line(
     level="INFO", template=OPTIONS_NO_EFFECT_LINE.template
 )
 #: A build flag given without ``--allow-build``, or for a target no build
-#: applies to.
+#: applies to: :data:`~pitloom.messages.BUILD_PREFIX` as a literal, since
+#: :data:`~pitloom.messages.BUILD_FRAME` does not come before this code.
 BUILD_NO_EFFECT_LINE: Final = Line(
     level="WARNING",
     template=f"{BUILD_PREFIX}%(name)s: %(option)s has no effect %(when)s",

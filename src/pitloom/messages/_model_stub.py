@@ -39,18 +39,28 @@ LIBRARY_MISSING_ERROR_LINE: Final = Line(
     level="ERROR",
     template="required library not installed: %(module)s; install %(requirement)s",
 )
+#: The same, said as a warning by a step that goes on without the library
+#: (``--allow-build`` without PyPA build, after ``Build: ``).
+LIBRARY_MISSING_WARNING_LINE: Final = Line(
+    level="WARNING", template=LIBRARY_MISSING_ERROR_LINE.template
+)
 LIBRARY_MISSING: Final = Message(
     code="library-missing",
     condition="missing",
-    lines=(LIBRARY_MISSING_LINE, LIBRARY_MISSING_ERROR_LINE),
+    lines=(
+        LIBRARY_MISSING_LINE,
+        LIBRARY_MISSING_ERROR_LINE,
+        LIBRARY_MISSING_WARNING_LINE,
+    ),
     summary="A library Pitloom needs for a step is not installed: an optional "
     "extra for a model reader, the Hugging Face Hub, SPDX 3 validation, "
     "--allow-build or magika content types.",
     did="For a model file, listed the model by its file, format and hashes only "
     "(a format-only entry, named after its file), without its metadata. For "
     "any other step, did not run it: no SBOM of a Hugging Face model, no "
-    "validation; --allow-build found the files without a build, as its Build: "
-    "lines say. Installed nothing.",
+    "validation; --allow-build (its warning line, after Build: ) found the "
+    "files without a build, as the file discovery line after it says. "
+    "Installed nothing.",
     effect="thinner",
     actor="user",
     advice="Tell the user which models or which step went without the library "

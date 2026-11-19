@@ -70,7 +70,7 @@ from pitloom.extract.remote.pypi_url import (
     project_page_url,
 )
 from pitloom.logging_config import loggable
-from pitloom.messages import emit
+from pitloom.messages import PYPI_FRAME, emit
 from pitloom.messages.network import (
     FILE_HOST_REFUSED_LINE,
     OFFLINE_LINE,
@@ -125,8 +125,6 @@ RUNNING_ENVIRONMENT: Final = "running-environment"
 
 #: How many wheel file names a refusal lists before "and N more".
 _NAMES_SHOWN: Final = 10
-#: What starts a message about the download's temporary directory.
-_LOG_PREFIX: Final = "PyPI source: "
 #: The yank reason written when PyPI gives none.
 _NO_REASON: Final = "no reason given"
 
@@ -460,5 +458,5 @@ def fetch_pypi_file(
             line=QUERY_LINE,
             url=shown_url(url.strip()),
         )
-    with temp_dir(DOWNLOAD_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work_dir:
+    with temp_dir(DOWNLOAD_DIR_PREFIX, frame=PYPI_FRAME) as work_dir:
         yield _download(target, kind, work_dir, policy)

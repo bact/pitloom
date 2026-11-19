@@ -47,7 +47,7 @@ from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
 from pitloom.logging_config import configure_logging, error_frame, one_line
-from pitloom.messages import HOOK_FRAME, code_extra_of, emit
+from pitloom.messages import HOOK_FRAME, HOOK_STEP_FRAME, code_extra_of, emit
 from pitloom.messages.config import DATETIME_UNPINNED
 from pitloom.messages.url_credentials import ADVICE_CONFIG, credential_advice
 from pitloom.plugins._hatch_config import validate_config
@@ -237,7 +237,7 @@ def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[Path, Path]:
     try:
         write_text_lf(staging_path, sbom_json)
     except BaseException:
-        remove_temp_dir(staging_dir, _LOG_PREFIX)
+        remove_temp_dir(staging_dir, frame=HOOK_STEP_FRAME)
         raise
     return staging_dir, staging_path
 
@@ -475,7 +475,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             # rather than depend on finalize() being called after a failed
             # initialize(), which Hatchling's own hook contract doesn't
             # guarantee.
-            remove_temp_dir(staging_dir, _LOG_PREFIX)
+            remove_temp_dir(staging_dir, frame=HOOK_STEP_FRAME)
             raise
 
         self._staging_dir = staging_dir
@@ -484,7 +484,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         # directory is removed when the hook is collected or the process
         # exits all the same.
         self._remove_staging = weakref.finalize(
-            self, remove_temp_dir, staging_dir, _LOG_PREFIX
+            self, remove_temp_dir, staging_dir, frame=HOOK_STEP_FRAME
         )
 
     def _check_name_is_free(

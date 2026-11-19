@@ -21,9 +21,10 @@ Contract of :class:`TerminationGuard`:
   entered (e.g. a build starts); the handlers then stay until the owner
   exits.
 - Each hold names its :class:`GuardedActivity`; the ``WARNING:`` a
-  signal logs names the innermost hold running, else the latest one
-  left ("during" and "after" it), since the owner is an entry point
-  that does not know what runs inside it.
+  signal logs (``interrupted``, after the activity's frame) names the
+  innermost hold running, else the latest one left ("during" and "after"
+  it), since the owner is an entry point that does not know what runs
+  inside it.
 - Inside a hold (e.g. creating the temp directories, running the build)
   the handler only records the signal; the build's wait loop polls
   :meth:`~TerminationGuard.raise_if_pending`, kills and reaps the tree,
@@ -53,36 +54,67 @@ import logging
 import signal
 import threading
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from types import FrameType, TracebackType
-from typing import NamedTuple
+from typing import Final
 
-from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
+from pitloom.core.internal_error import InternalError
+from pitloom.messages import BUILD_FRAME, SCAN_FRAME, Frame, Line, emit
+from pitloom.messages.build import (
+    ACTIVITIES,
+    INTERRUPTED,
+    TEMP_DIR_UNWRITABLE,
+    TERMINATION_SIGNALS,
+    interrupted_line,
+    require_codes,
+)
 
 log = logging.getLogger(__name__)
 
 # Looked up with getattr: SIGHUP is POSIX-only, SIGBREAK (Ctrl-Break)
 # Windows-only.
-_TERMINATION_SIGNAL_NAMES = ("SIGTERM", "SIGHUP", "SIGBREAK")
+_TERMINATION_SIGNAL_NAMES: Final = TERMINATION_SIGNALS
 
 # Per thread: signal handlers run in the main thread only, and a library
 # call from another thread must never join the main thread's guard.
 _thread_state = threading.local()
 
 
-class GuardedActivity(NamedTuple):
+@dataclass(frozen=True)
+class GuardedActivity:
     """What a :meth:`TerminationGuard.hold` protects, as its log messages
-    name it."""
+    name it.
 
-    log_prefix: str
-    """Subsystem sub-prefix starting each message, e.g. ``"Build: "``."""
+    Raises:
+        pitloom.core.internal_error.InternalError: *name* is not one of
+            :data:`~pitloom.messages.build.ACTIVITIES`, or *frame* does not
+            allow the ``interrupted`` and ``temp-dir-unwritable`` lines:
+            checked here, since the handler that says them would lose the
+            error.
+    """
+
+    #: What comes before each of its messages (``Build: ``); ``None``:
+    #: nothing.
+    frame: Frame | None
+    #: Noun phrase after "during"/"after", e.g. ``"the build"``.
     name: str
-    """Noun phrase after "during"/"after", e.g. ``"the build"``."""
+
+    def __post_init__(self) -> None:
+        """Check the activity against the lines that name it."""
+        if self.name not in ACTIVITIES:
+            raise InternalError(f"not an activity the lines name: {self.name!r}")
+        require_codes(self.frame, INTERRUPTED.code, TEMP_DIR_UNWRITABLE.code)
+
+    @property
+    def prefix(self) -> str:
+        """Its frame's text, for a ``DEBUG`` line."""
+        return "" if self.frame is None else self.frame.render({})
 
 
-BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
+BUILD_ACTIVITY: Final = GuardedActivity(BUILD_FRAME, "the build")
 """The ``--allow-build`` build-and-read."""
 
-MODEL_SCAN_ACTIVITY = GuardedActivity("AI model scan: ", "the AI model file copy")
+MODEL_SCAN_ACTIVITY: Final = GuardedActivity(SCAN_FRAME, "the AI model file copy")
 """Copying one AI model file out of a wheel. A signal waits for the copy to
 end. While a reader parses the copy no hold is active, so a signal acts as
 usual, which for a native parser (libhdf5, protobuf, fastText) means not
@@ -90,19 +122,19 @@ until it returns to Python; see ``working-docs/design/model-metadata-readers.md`
 
 # Before the first hold. Handlers install only in a hold, so no
 # termination message names it; generic rather than claiming a build.
-_NO_ACTIVITY = GuardedActivity("", "a guarded activity")
+_NO_ACTIVITY: Final = GuardedActivity(None, "a guarded activity")
 
 
-def _termination_message(
+def termination_line(
     signum: signal.Signals, activity: GuardedActivity, in_hold: bool
-) -> str:
-    """The ``WARNING:`` text for ending the process by *signum*, received
-    inside a hold of *activity* (*in_hold*) or after it."""
-    return (
-        f"{activity.log_prefix}received {signum.name} "
-        f"{'during' if in_hold else 'after'} {activity.name} "
-        "-- exiting after cleanup"
-    )
+) -> tuple[Line, dict[str, object]]:
+    """The ``interrupted`` line for ending the process by *signum*,
+    received inside a hold of *activity* (*in_hold*) or after it, and its
+    values."""
+    return interrupted_line(in_hold=in_hold), {
+        "signal": signum.name,
+        "activity": activity.name,
+    }
 
 
 class TerminationSignal(BaseException):
@@ -264,11 +296,19 @@ class TerminationGuard:
             self._restore()
         self._terminated = True
         # Best effort: running in the handler, this may interrupt a write
-        # to the same stream, which then raises instead of writing.
+        # to the same stream, which then raises instead of writing. The
+        # activity's frame was checked when it was made (GuardedActivity).
         with contextlib.suppress(Exception):
-            log.warning(
-                "%s",
-                _termination_message(signum, self._activity, self._pending_in_hold),
+            line, values = termination_line(
+                signum, self._activity, self._pending_in_hold
+            )
+            emit(
+                log,
+                INTERRUPTED,
+                logging.WARNING,
+                line=line,
+                frame=self._activity.frame,
+                **values,
             )
         signal.raise_signal(signum)
         raise SystemExit(128 + signum)
@@ -289,9 +329,7 @@ class TerminationGuard:
             # ValueError: not the main thread (of the main interpreter).
             except (OSError, ValueError) as exc:
                 self._installed.pop()
-                log.debug(
-                    "%scannot handle %s: %s", self._activity.log_prefix, name, exc
-                )
+                log.debug("%scannot handle %s: %s", self._activity.prefix, name, exc)
 
     def _restore(self) -> None:
         while self._installed:
@@ -304,7 +342,7 @@ class TerminationGuard:
             except (OSError, ValueError) as exc:
                 log.debug(
                     "%scannot restore %s: %s",
-                    self._activity.log_prefix,
+                    self._activity.prefix,
                     signum.name,
                     exc,
                 )

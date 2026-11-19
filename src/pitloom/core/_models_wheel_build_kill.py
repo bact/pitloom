@@ -32,9 +32,13 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
+from pitloom.messages import BUILD_FRAME, emit
+from pitloom.messages.build import BUILD_PROCESSES_UNSAFE
 
 log = logging.getLogger(__name__)
+
+# The frame's text, as the DEBUG lines start.
+_DEBUG_PREFIX = BUILD_FRAME.render({})
 
 # Worst case after the deadline or signal: POSIX 3 + 2 + 3 s (plus the
 # wait loop's slice), within "docker stop"'s default 10 s before SIGKILL;
@@ -119,13 +123,11 @@ def kill_leftover_descendants(proc: subprocess.Popen[bytes]) -> None:
     except _GROUP_GONE_ERRORS:
         return  # the normal case: nothing left
     except OSError as exc:
-        log.debug("%skillpg(%d) failed: %s", BUILD_LOG_PREFIX, pgid, exc)
+        log.debug("%skillpg(%d) failed: %s", _DEBUG_PREFIX, pgid, exc)
         _warn_group_survived(pgid)
         return
-    log.info(
-        "%skilled processes the build left running (process group %d)",
-        BUILD_LOG_PREFIX,
-        pgid,
+    emit(
+        log, BUILD_PROCESSES_UNSAFE, logging.INFO, frame=BUILD_FRAME, process_group=pgid
     )
     if not _wait_for_group_exit(pgid):
         _warn_group_survived(pgid)
@@ -133,11 +135,12 @@ def kill_leftover_descendants(proc: subprocess.Popen[bytes]) -> None:
 
 def _warn_group_survived(pgid: int) -> None:
     """``WARNING:`` that processes the build left may still be running."""
-    log.warning(
-        "%scould not confirm the processes the build left running "
-        "(process group %d) terminated",
-        BUILD_LOG_PREFIX,
-        pgid,
+    emit(
+        log,
+        BUILD_PROCESSES_UNSAFE,
+        logging.WARNING,
+        frame=BUILD_FRAME,
+        process_group=pgid,
     )
 
 
@@ -155,11 +158,11 @@ def _wait_for_group_exit(pgid: int) -> bool:
             return True
         except OSError as exc:
             log.debug(
-                "%sprocess group %d probe failed: %s", BUILD_LOG_PREFIX, pgid, exc
+                "%sprocess group %d probe failed: %s", _DEBUG_PREFIX, pgid, exc
             )
             return False
         time.sleep(_GROUP_POLL_SECONDS)
-    log.debug("%sprocess group %d still alive after SIGKILL", BUILD_LOG_PREFIX, pgid)
+    log.debug("%sprocess group %d still alive after SIGKILL", _DEBUG_PREFIX, pgid)
     return False
 
 
@@ -181,7 +184,7 @@ def _reap_group_children(pgid: int) -> None:
         except ChildProcessError:
             return
         except OSError as exc:
-            log.debug("%swaitpid(-%d) failed: %s", BUILD_LOG_PREFIX, pgid, exc)
+            log.debug("%swaitpid(-%d) failed: %s", _DEBUG_PREFIX, pgid, exc)
             return
         if pid == 0:
             return
@@ -194,7 +197,7 @@ def _signal_group(pgid: int, sig: int) -> None:
     try:
         os.killpg(pgid, sig)
     except OSError as exc:
-        log.debug("%skillpg(%d, %d) failed: %s", BUILD_LOG_PREFIX, pgid, sig, exc)
+        log.debug("%skillpg(%d, %d) failed: %s", _DEBUG_PREFIX, pgid, sig, exc)
 
 
 def _kill_windows_tree(proc: subprocess.Popen[bytes]) -> bool:
@@ -223,7 +226,7 @@ def _kill_windows_tree(proc: subprocess.Popen[bytes]) -> bool:
         )
         terminated = result.returncode == 0
     except (OSError, subprocess.SubprocessError) as exc:
-        log.debug("%staskkill failed: %s", BUILD_LOG_PREFIX, exc)
+        log.debug("%staskkill failed: %s", _DEBUG_PREFIX, exc)
     # pylint: disable-next=broad-exception-caught
     except BaseException as exc:
         pending = exc
@@ -275,7 +278,7 @@ def _kill_quietly(proc: subprocess.Popen[bytes]) -> None:
     try:
         proc.kill()
     except OSError as exc:
-        log.debug("%skill failed: %s", BUILD_LOG_PREFIX, exc)
+        log.debug("%skill failed: %s", _DEBUG_PREFIX, exc)
 
 
 def _wait_quietly(proc: subprocess.Popen[bytes], timeout: float) -> None:
@@ -284,4 +287,4 @@ def _wait_quietly(proc: subprocess.Popen[bytes], timeout: float) -> None:
         proc.wait(timeout=timeout)
     except (OSError, subprocess.SubprocessError) as exc:
         # Last resort: the enclosing "with Popen" exit waits without limit.
-        log.debug("%swait for pid %d failed: %s", BUILD_LOG_PREFIX, proc.pid, exc)
+        log.debug("%swait for pid %d failed: %s", _DEBUG_PREFIX, proc.pid, exc)
