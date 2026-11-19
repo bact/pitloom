@@ -141,7 +141,7 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
 - [ ] **Catalogue PRs 14 to 17** (the remaining families): Hub and build,
   fragments and wheels, miscellany. Done: lock files (10, 11, #496), config
   (8, 9, #497), licence (18, #498), project metadata and file discovery (12,
-  #501; ratchet 211 to 154), Git source (13, PR pending; ratchet 154 to 132,
+  #501; ratchet 211 to 154), Git source (13, #503; ratchet 154 to 132,
   frames by exact code, relays dropped), the generated values page (#499). The
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),

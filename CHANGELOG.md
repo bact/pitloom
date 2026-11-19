@@ -25,10 +25,11 @@ and this project adheres to
 ### Added
 
 - Input, option, SBOM, target, ID registry file, id, key, save, file-set, lock
-  file, dependency, configuration, licence, project metadata and file discovery
-  messages carry a message code, and a configuration error names the file; see
+  file, dependency, configuration, licence, project metadata, file discovery and
+  Git URL messages carry a message code, and a configuration error names the
+  file; see
   `docs/message-codes.md` ([#482], [#485], [#486], [#492], [#496], [#497],
-  [#498], [#501])
+  [#498], [#501], [#503])
 - A credential in an SBOM URL field is warned of; `url-credentials = "refuse"`
   or `--refuse-url-credentials` refuse the SBOM ([#489], [#490])
 - `embed-wheel --sbom` (every string) and `merge` check an SBOM for such
@@ -92,6 +93,9 @@ and this project adheres to
   when `--creation-datetime` overrides it ([#497])
 - Requires `licenseid>=0.9.0,<0.10`: a bare `GPL-2.0` tag stays as written, not
   `GPL-2.0-only`; a full GPL text without a variant is still `-only` ([#502])
+- Git URL messages say `URL=` and a code after `Git source: `; a Git or PyPI
+  refusal is no longer printed twice, and every `git.*` error has a
+  `pitloom_code` ([#503])
 
 ### Fixed
 
@@ -112,6 +116,7 @@ and this project adheres to
   `setup.cfg`/`setup.py` that does not parse are coded errors, not tracebacks ([#501])
 - A project file that does not parse or read is `config-malformed` or
   `file-unreadable`, whether Pitloom reads its metadata or its `[tool.pitloom]` ([#501])
+- A token after a tab in git's own error text is masked ([#503])
 
 ### Security
 
@@ -138,6 +143,7 @@ and this project adheres to
 [#498]: https://github.com/bact/pitloom/pull/498
 [#501]: https://github.com/bact/pitloom/pull/501
 [#502]: https://github.com/bact/pitloom/pull/502
+[#503]: https://github.com/bact/pitloom/pull/503
 
 ## [0.24.0] - 2026-11-11
 

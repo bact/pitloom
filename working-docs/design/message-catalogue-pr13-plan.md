@@ -13,7 +13,7 @@ See also: [message-catalogue-pr13-build.md](message-catalogue-pr13-build.md)
 [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md),
 [message-frames-forward.md](message-frames-forward.md).
 
-Status (2026-11-19): built on branch `catalogue-git` (PR number pending),
+Status (2026-11-19): built on branch `catalogue-git` (#503),
 reviewed in two rounds ([review rounds](../implementation/message-catalogue-review-rounds.md),
 Round 4). The user accepted every recommendation of Q1 to Q15 (section 4).
 Written by Opus on `main` at 8bdca1e6. Built shape differs in these places:
