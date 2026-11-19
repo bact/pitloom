@@ -292,6 +292,11 @@ module = "h5py.*"
 ignore_missing_imports = true
 module = "magika.*"
 
+# No types-orbax-checkpoint stub exists on PyPI; the library has no py.typed.
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = ["orbax", "orbax.*"]
+
 # safetensors safe_open and sys.modules typing changed across library versions.
 # These modules carry type: ignore comments that may be needed on older versions
 # but become unused on newer ones; suppress the churn.
@@ -413,6 +418,8 @@ ignore-missing-imports = [
     "onnx.*",
     "magika",
     "magika.*",
+    "orbax",
+    "orbax.*",
 ]
 
 [tool.pyright]
