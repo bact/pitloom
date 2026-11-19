@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-11-17
+2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -224,7 +224,18 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   namespace it adopted unless another run changed it meanwhile.
 - **Namespace**: a new registry gets one minted from the project directory's
   name and a random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id
-  generate` only, `id import` has no such option) sets a reproducible one. A
+  generate` only, `id import` has no such option) sets a reproducible one. It
+  is the namespace the registry's own ids (`id generate`, `-e`, `loom`) are
+  minted in, not the SBOM's document namespace: a run mints every other id (the
+  `SpdxDocument`, `software_Sbom`, relationships, an element the registry does
+  not hold yet) in `https://spdx.org/spdxdocs/<name>-<uuid>`, whose uuid follows
+  the project's content. A harvest pins those ids as minted, so one SBOM with a
+  registry can hold the registry's namespace beside one or more
+  `spdx.org/spdxdocs/...` ones. That is by design and the SBOM is valid: do not
+  report it as a defect, and do not rewrite ids to one namespace (a pinned id
+  must not change). Why random: it must outlive every release, which a
+  content-derived uuid would not, and be unique per registry, which a
+  name-derived one is not. A
   namespace holding user information (any user name, `ssh://git@...` too), a
   secret query value or an access token, or a query nested or encoded too
   deeply to read, is refused in either mode; a key holding one (a URL, a

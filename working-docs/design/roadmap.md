@@ -130,10 +130,10 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   and `accept-url-credentials` inputs with `::add-mask::`, Git hardening (a
   Git URL's query never reaches git: spy test), encoded query and fragment
   values, `urllib3` log masking. Same doc, "Built in PR 3".
-- [ ] **Namespace mixing in one SBOM**: a registry namespace (`ids.example/ns`)
-  appears beside `spdx.org/spdxdocs/demo-<uuid>` ids. Seen during the
-  credential work; unrelated to credentials. Find the cause (which route
-  mints which id), then unify or document it.
+- [x] **Namespace mixing in one SBOM**: a registry namespace beside
+  `spdx.org/spdxdocs/demo-<uuid>` ids is by design (the registry pins ids as
+  first minted); documented, not unified. See
+  [id-namespace-mixing.md](../implementation/id-namespace-mixing.md).
 - [x] **Catalogue PRs 6 (#486) and 7 (#492)**: ID registry id, key and
   conflict messages; then save, file-set and summary lines (`file-unwritable`,
   `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
