@@ -21,7 +21,11 @@ the dynamic-level rule, "Cross-PR interfaces"),
 [licence-resolution-provenance.md](licence-resolution-provenance.md) (T14
 task 4, unblocked by PR 18).
 
-Status: PR 18 BUILT and merged (#498, 2026-11-18). PR 12 plan refreshed
+Status: PR 18 BUILT and merged (#498, 2026-11-18); PR 12a merged (#499,
+2026-11-19); PR 12 BUILT and reviewed on `catalogue-metadata` (#501, ratchet
+211 to 154, row 57 left for PR 17; review findings in
+[message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md),
+round 3). PR 12 plan refreshed
 2026-11-18 on c4674613 (the tree of `main` 9b1454da, the #498 merge).
 Sites from `message_inventory --jsonl`, `_scope.in_scope` and not `coded`,
 each read in the source. "Verified" means read or run; CLI probes run with

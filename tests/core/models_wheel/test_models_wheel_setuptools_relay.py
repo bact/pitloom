@@ -24,9 +24,14 @@ import pytest
 
 from pitloom.core import _models_wheel_setuptools_relay as relay
 from pitloom.core._models_wheel_setuptools import discover
+from pitloom.logging_config import CODE_ATTR
 
 _LOGGER = "pitloom.core._models_wheel_setuptools_relay"
-_PREFIX = "'proj': setuptools stderr: "
+#: Setuptools' own words after the sub-prefix; the project is named by the
+#: file discovery lines around them, not here.
+_PREFIX = "setuptools stderr: "
+#: The count of what was not kept names the project: it is Pitloom's text.
+_COUNT_PREFIX = "'proj': setuptools stderr: "
 
 
 def _relayed(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
@@ -80,12 +85,29 @@ def test_each_line_is_one_tagged_record(
     assert all("\n" not in m and "\r" not in m for _, m in _relayed(caplog))
 
 
+@pytest.mark.parametrize("project", ["proj", "other"])
+def test_a_relayed_line_names_no_project_and_carries_no_code(
+    project: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The line is setuptools' text after one constant sub-prefix: the same
+    for every project (the discovery lines name it), and uncoded."""
+    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+        relay.relay_stderr_text(Path(project), "error: bad\nwarning: w")
+    records = [r for r in caplog.records if r.name == _LOGGER]
+    assert [r.getMessage() for r in records] == [
+        "setuptools stderr: error: bad",
+        "setuptools stderr: warning: w",
+    ]
+    assert not any(hasattr(r, CODE_ATTR) for r in records)
+    assert project not in caplog.text
+
+
 def test_what_was_not_kept_is_counted(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
         relay.relay_stderr_text(Path("proj"), "kept", dropped=7)
     assert _relayed(caplog) == [
         (logging.DEBUG, _PREFIX + "kept"),
-        (logging.DEBUG, _PREFIX + "7 more characters not kept"),
+        (logging.DEBUG, _COUNT_PREFIX + "7 more characters not kept"),
     ]
 
 
@@ -118,7 +140,10 @@ def test_the_block_relays_stderr_records_and_warnings_also_on_error(
     assert _relayed(caplog) == [
         (logging.DEBUG, _PREFIX + first),
         (logging.DEBUG, _PREFIX + second[:20]),
-        (logging.DEBUG, _PREFIX + f"{len(second) - 20} more characters not kept"),
+        (
+            logging.DEBUG,
+            _COUNT_PREFIX + f"{len(second) - 20} more characters not kept",
+        ),
         (logging.DEBUG, "'proj': setuptools DeprecationWarning: banner line two"),
     ]
 

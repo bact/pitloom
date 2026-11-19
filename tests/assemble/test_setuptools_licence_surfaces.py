@@ -184,4 +184,6 @@ def test_embed_wheel_project_read_warns_once(
         run_cli(["embed-wheel", str(wheel), "--project-dir", str(project)], monkeypatch)
     else:
         embed_wheel_sbom(wheel, project_dir=project)
-    assert capsys.readouterr().err.count("disagree on license") == 1
+    assert (
+        capsys.readouterr().err.count("license: setup.py and setup.cfg disagree") == 1
+    )

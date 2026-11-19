@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 
 from pitloom._loom_active_run import loom_config
-from pitloom.core import config_cascade
+from pitloom.core import _project_toml, config_cascade
 from pitloom.core.config import parse_pitloom_config
 from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import creator_type_problem
@@ -160,17 +160,18 @@ def test_a_config_gone_after_the_check_is_not_found_not_unreadable(
     def _gone(_path: Path) -> dict[str, Any]:
         raise FileNotFoundError
 
-    monkeypatch.setattr(config_cascade, "load_toml_file", _gone)
+    monkeypatch.setattr(_project_toml, "load_toml_file", _gone)
     with pytest.raises(FileNotFoundError) as exc:
         load_config_file(path)
     assert code_of(exc.value) == "input-not-found"
 
 
-def test_an_uncoded_value_error_from_the_parser_names_the_file(
+def test_an_uncoded_value_error_from_the_parser_is_an_internal_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A reader that still raises a plain ``ValueError`` is framed, not
-    lost; a coded one is forwarded as it is (it names the file already)."""
+    """A reader that raises a plain ``ValueError`` is a bug, named by file
+    and exception type (never the text); a coded one is forwarded as it is
+    (it names the file already)."""
     path = tmp_path / "c.toml"
     path.write_bytes(b"[tool.pitloom]\n")
 
@@ -178,9 +179,9 @@ def test_an_uncoded_value_error_from_the_parser_names_the_file(
         raise ValueError("odd")
 
     monkeypatch.setattr(config_cascade, "parse_pitloom_config", _plain)
-    with pytest.raises(ValueError, match=r"^config file .*c\.toml.*: odd$") as exc:
+    with pytest.raises(InternalError, match=r"c\.toml.*uncoded ValueError$") as exc:
         load_config_file(path)
-    assert code_of(exc.value) is None
+    assert "odd" not in str(exc.value)
 
 
 def test_arrays_nested_past_the_parsers_limit_are_config_malformed(

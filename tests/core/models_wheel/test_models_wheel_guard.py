@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -288,7 +289,9 @@ def test_a_link_loop_in_a_clone_is_stopped_by_the_cap(
     # The fallback discovery may pass the short cap too on a loaded machine.
     codes = [getattr(r, CODE_ATTR, None) for r in caplog.records]
     assert "over-cap" in codes
-    assert "file discovery failed" not in caplog.text
+    # A discoverer's own failure line ("<name> file discovery failed;"), not
+    # the fallback line ("DIR=...: file discovery failed; ...").
+    assert not re.search(r"\w file discovery failed;", caplog.text)
 
 
 @pytest.mark.parametrize(

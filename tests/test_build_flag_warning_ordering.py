@@ -35,9 +35,7 @@ from tests.assemble.conftest import _make_dummy_wheel
 _METADATA_WARNING_SUBSTRING = "pinned to several versions"
 _BUILD_WARNING_SUBSTRING = "--build-timeout has no effect"
 _NON_PROJECT_BUILD_WARNING_SUBSTRING = "--build-timeout has no effect for this target"
-_SDIST_MEMBER_METADATA_WARNING_SUBSTRING = (
-    "Failed to parse pyproject.toml from sdist member"
-)
+_SDIST_MEMBER_METADATA_WARNING_SUBSTRING = "pyproject.toml: not valid TOML"
 _SIBLING_CONFIG_METADATA_WARNING_SUBSTRING = "could not read project config"
 
 

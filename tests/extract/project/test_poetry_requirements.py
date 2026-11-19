@@ -328,4 +328,4 @@ def test_moved_poetry_core_internal_skips_with_one_warning(
         assert poetry_requirement("a", "^1") is None
         assert poetry_requirement("b", {"version": "1"}) is None
     (line,) = caplog.messages
-    assert line.startswith("poetry-core: API not found (")
+    assert "required library API not found: poetry-core: " in line

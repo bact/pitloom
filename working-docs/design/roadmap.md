@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -138,12 +138,13 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   conflict messages; then save, file-set and summary lines (`file-unwritable`,
   `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
   to 328 to 316.
-- [ ] **Catalogue PRs 8 to 18** (the remaining families, the licence families
-  last): the remote registry entries, lock files, config, project metadata,
-  Git, Hub and build, fragments and wheels, miscellany, licence. The
-  consistency re-check of the merged families is done (#494). Planned
-  2026-11-17 in [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md);
-  build lock files (10, 11) first, then config (8, 9).
+- [ ] **Catalogue PRs 13 to 17** (the remaining families): Git, Hub and build,
+  fragments and wheels, miscellany. Done: lock files (10, 11, #496), config
+  (8, 9, #497), licence (18, #498), project metadata and file discovery (12,
+  #501; ratchet 211 to 154), the generated values page (#499). The
+  consistency re-check of the merged families is done (#494). Plans:
+  [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
+  [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
 - [ ] **0.25.0 cut sweep** (not released): the skills' floor `pitloom >=
   0.24.1` names no release (0.24.0 is the last tag; skills document 0.25.0
   flags and codes): raise to 0.25.0 in every `SKILL.md`, example and install

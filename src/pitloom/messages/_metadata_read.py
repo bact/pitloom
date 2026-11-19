@@ -188,7 +188,7 @@ METADATA_INVALID: Final = Message(
 #: No name in a Poetry project.
 POETRY_NAME_LINE: Final = Line(
     level="ERROR",
-    template="FILE=%(file)s: no project name in [tool.poetry] or [project]",
+    template="FILE=%(file)s: neither [tool.poetry] nor [project] has a project name",
 )
 #: No name in a setuptools project's setup.cfg nor its setup.py.
 SETUPTOOLS_NAME_LINE: Final = Line(
@@ -198,13 +198,12 @@ SETUPTOOLS_NAME_LINE: Final = Line(
 )
 #: No name in setup.cfg [metadata], read alone.
 SETUP_CFG_NAME_LINE: Final = Line(
-    level="ERROR", template="FILE=%(file)s: no project name in [metadata]"
+    level="ERROR", template="FILE=%(file)s: [metadata] has no project name"
 )
 #: No literal name in setup.py, read alone.
 SETUP_PY_NAME_LINE: Final = Line(
     level="ERROR",
-    template="FILE=%(file)s: no project name: setup(name=...) is not a string "
-    "literal",
+    template="FILE=%(file)s: no project name: setup(name=...) is not a string literal",
 )
 
 PROJECT_NAME_MISSING: Final = Message(

@@ -99,7 +99,7 @@ _ROWS: list[Any] = [
     pytest.param(
         _D, 'dependencies = {file = ["gone.txt", "a.txt", "./gone.txt"]}\n', _SIX,
         ["six"], _DEPS,
-        f"FILE=gone.txt: could not read for {_DYN}.dependencies; not found",
+        f"FILE=gone.txt: listed by {_DYN}.dependencies, not found; skipped",
         id="missing-listed-twice",
     ),
     pytest.param(
@@ -114,7 +114,7 @@ _ROWS: list[Any] = [
     ),
     pytest.param(
         _D, 'dependencies = {file = "a\\u0000.txt"}\n', _SIX, [], _DEPS,
-        f"could not read for {_DYN}.dependencies", id="nul-in-name",
+        f"listed by {_DYN}.dependencies, not a file name; skipped", id="nul-in-name",
     ),
     pytest.param(
         _D, 'dependencies = {file = "s/../a.txt"}\n', {**_SIX, "s/k": b""}, ["six"],
@@ -125,7 +125,7 @@ _ROWS: list[Any] = [
     pytest.param(
         _D, 'dependencies = {file = "s/../a.txt"}\n', _SIX,
         [] if _POSIX else ["six"], _DEPS,
-        f"FILE=s/../a.txt: could not read for {_DYN}.dependencies; not found"
+        f"FILE=s/../a.txt: listed by {_DYN}.dependencies, not found; skipped"
         if _POSIX else None,
         id="dotdot-missing-dir",
     ),
@@ -137,8 +137,8 @@ _ROWS: list[Any] = [
         'optional-dependencies.x = {file = "missing/../a.txt"}\n',
         _SIX, ["six"] + ([] if _POSIX else ['six; extra == "x"']),
         f"{_DEPS}, {_DYN}.optional",
-        f"FILE=missing/../a.txt: could not read for {_DYN}.optional-dependencies.x;"
-        " not found" if _POSIX else None,
+        f"FILE=missing/../a.txt: listed by {_DYN}.optional-dependencies.x,"
+        " not found; skipped" if _POSIX else None,
         id="dotdot-missing-dir-after-read",
     ),
     pytest.param(
@@ -163,7 +163,9 @@ _ROWS: list[Any] = [
     pytest.param(
         _D, 'dependencies = {file = "a.txt"}\n', {"a.txt": b"-r b.txt\n-e .\nc\n"},
         ["c"], _DEPS,
-        f"skipping pip option line(s) -r, -e in {_DYN}.dependencies", id="options",
+        f"{_DYN}.dependencies: pip option lines -e, -r, which setuptools does"
+        " not accept",
+        id="options",
     ),
     pytest.param(
         _O, 'optional-dependencies.x = {file = "a.txt"}\n', {"a.txt": b"!!\nc\n"},
@@ -192,12 +194,14 @@ _ROWS: list[Any] = [
         "is not a table with 'file'", id="not-a-table",
     ),
     pytest.param(
-        _D, "dependencies = {file = 3}\n", {}, [], None, "has 'file' int",
+        _D, "dependencies = {file = 3}\n", {}, [], None,
+        f"{_DYN}.dependencies.file is an integer 3, expected a string or an array",
         id="file-int",
     ),
     pytest.param(
         _O, 'optional-dependencies = "a.txt"\n', _SIX, [], None,
-        "is str, expected table", id="extras-not-a-table",
+        f"{_DYN}.optional-dependencies is a string 'a.txt', expected a table",
+        id="extras-not-a-table",
     ),
     pytest.param(
         _D, "", {}, [], None, None, id="no-key",
@@ -299,8 +303,9 @@ def test_only_setuptools_reads_the_table(tmp_path: Path, head: str, read: bool) 
 @pytest.mark.parametrize(
     ("target", "deps", "why"),
     [("p/real/a.txt", ["six"], ""), ("P/real/a.txt", ["six"], ""),
-     ("out.txt", [], "outside the project directory"),
-     ("gone/x.txt", [], "not found")],
+     ("out.txt", [], f"could not read for {_DYN}.dependencies; "
+                     "outside the project directory"),
+     ("gone/x.txt", [], f"listed by {_DYN}.dependencies, not found; skipped")],
     ids=["inside", "inside-other-case", "outside", "dangling-outside"],
 )  # fmt: skip
 def test_a_symlink_is_read_only_inside_the_project(
@@ -326,9 +331,7 @@ def test_a_symlink_is_read_only_inside_the_project(
         metadata = read_project(project, include_locked_dependencies=False)[0]
 
     assert metadata.dependencies == deps
-    assert caplog.messages == (
-        [f"FILE=l.txt: could not read for {_DYN}.dependencies; {why}"] if why else []
-    )
+    assert caplog.messages == ([f"FILE=l.txt: {why}"] if why else [])
 
 
 def test_a_file_over_its_cap_warns_once(
@@ -416,8 +419,8 @@ _NASTY = "x\n::error::\x1b[31m"
     ("directive", "files", "about"),
     [
         ('{attr = "p.X"}', {}, "has 'attr'"),
-        ('{file = "a.txt"}', {"a.txt": b"-r b.txt\n"}, "skipping pip option"),
-        ('{file = "gone.txt"}', {}, "FILE=gone.txt: could not read"),
+        ('{file = "a.txt"}', {"a.txt": b"-r b.txt\n"}, "pip option lines -r, which"),
+        ('{file = "gone.txt"}', {}, "FILE=gone.txt: listed by"),
     ],
     ids=["ignored", "options", "unreadable"],
 )

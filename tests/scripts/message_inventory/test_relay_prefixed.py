@@ -109,11 +109,13 @@ def test_a_bare_passthrough_is_no_relay(records: list[dict[str, Any]]) -> None:
 
 _MORE = """\
 import logging
+from typing import Final
 
 from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
 PREFIX = "tool: "
+FINAL_PREFIX: Final = "tool: "
 
 
 def kwonly(*, text):
@@ -133,6 +135,21 @@ def shapes(text):
     log.warning(PREFIX + "%s", one_line(text, end=""))  # in: one-line-keyword
     log.warning(PREFIX % "%s", one_line(text))  # in: not-a-sum
     log.warning(PREFIX + "%r", one_line(text))  # in: repr-template
+
+
+def level_first(text, level):
+    log.log(level, PREFIX + "%s", one_line(text))  # out: level-first
+    log.log(level, FINAL_PREFIX + "%s", one_line(text))  # out: level-first-final
+
+
+def annotated(text):
+    log.warning(FINAL_PREFIX + "%s", one_line(text))  # out: final-prefix
+
+
+def level_shapes(text, level):
+    log.log(level, PREFIX + "%s", one_line(text), extra={})  # in: level-keyword
+    log.log(level, PREFIX + "%s", one_line(text), one_line(text))  # in: level-two
+    log.log(level, PREFIX + "%s")  # in: level-no-argument
 """
 #: ``one_line`` imported from elsewhere.
 _FOREIGN = """\

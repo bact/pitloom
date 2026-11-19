@@ -69,7 +69,12 @@ from pitloom.extract.project.setuptools_py import (
     read_setup_py,
     read_setup_py_options,
 )
-from pitloom.logging_config import loggable
+from pitloom.messages import CodedFileNotFoundError
+from pitloom.messages.metadata import (
+    PROJECT_NAME_MISSING,
+    SETUPTOOLS_NAME_LINE,
+    relay_coded_warning,
+)
 
 log = logging.getLogger(__name__)
 
@@ -221,22 +226,18 @@ def _read_cfg_options(
         return {}, PitloomConfig()
 
 
-def _read_py_options(
-    project_dir: Path, cfg: SetupOptions, *, quiet: bool
-) -> tuple[SetupOptions, str]:
-    """``setup.py``'s options, or none and why it cannot be parsed --
-    with a ``WARNING:`` when *cfg* names the project, so the read goes on."""
+def _read_py_options(project_dir: Path, *, quiet: bool) -> SetupOptions:
+    """``setup.py``'s options, or none when it is absent or cannot be read
+    or parsed: a ``WARNING:`` relays why
+    (:func:`~pitloom.messages.metadata.relay_coded_warning`) and the read
+    goes on."""
     try:
-        return read_setup_py_options(project_dir, quiet=quiet), ""
+        return read_setup_py_options(project_dir, quiet=quiet)
     except FileNotFoundError:
-        return {}, ""
+        return {}
     except ValueError as exc:
-        name = cfg.get("name")
-        if name is not None and name.value and not quiet:
-            log.warning(
-                "%s: %s -- reading setup.cfg alone", loggable(str(project_dir)), exc
-            )
-        return {}, f" {exc}."
+        relay_coded_warning(log, exc, quiet=quiet)
+        return {}
 
 
 def read_setuptools(
@@ -255,19 +256,21 @@ def read_setuptools(
     project.
 
     Raises:
-        FileNotFoundError: neither file names the project; the message
-            gives why ``setup.py`` could not be parsed, if so.
+        FileNotFoundError: neither file names the project
+            (``project-name-missing``, a
+            :class:`~pitloom.messages.CodedFileNotFoundError`); a
+            ``setup.py`` that could not be read or parsed was warned of
+            first.
         ValueError: ``setup.cfg`` cannot be read or parsed, or its
-            ``[tool:pitloom]`` settings are invalid; one line.
+            ``[tool:pitloom]`` settings are invalid: a
+            :class:`~pitloom.messages.CodedValueError`.
     """
     cfg_options, config = _read_cfg_options(project_dir, read_config)
-    py_options, py_error = _read_py_options(project_dir, cfg_options, quiet=quiet)
+    py_options = _read_py_options(project_dir, quiet=quiet)
     metadata = build_setuptools_metadata(cfg_options, py_options, quiet=quiet)
     if not metadata.name:
-        raise FileNotFoundError(
-            f"No usable project metadata found in {quote_source(project_dir)}. "
-            "Expected setup.cfg [metadata] name or a literal setup.py "
-            f"setup(name=...).{py_error}"
+        raise CodedFileNotFoundError(
+            PROJECT_NAME_MISSING, line=SETUPTOOLS_NAME_LINE, dir=project_dir
         )
     record_setuptools_conflicts(
         metadata, cfg_options, py_options, ConflictReport(str(project_dir), quiet)

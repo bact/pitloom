@@ -37,6 +37,7 @@ from pitloom.messages.files import (
     FILE_UNREADABLE_NOT_UTF8,
     FILE_UNREADABLE_OUTSIDE,
     INPUT_USE,
+    METADATA_USE,
     REGISTRY_USE,
     SBOM_USE,
     file_unreadable_error,
@@ -57,7 +58,6 @@ _DECODED = "'utf-8' codec can't decode byte 0xff in position 0: invalid start by
 #: Shrink only.
 _OTHER_CAUSES = {
     "core/wheel_dist_info.py": "a wheel member that does not read (PR 15-16)",
-    "extract/project/_requirements_files.py": "a listed file not found (PR 3)",
 }
 
 
@@ -296,6 +296,7 @@ def _texts(tree: ast.Module) -> dict[str, str]:
 _SHARED_USES = {
     "CONFIG_USE": CONFIG_USE,
     "INPUT_USE": INPUT_USE,
+    "METADATA_USE": METADATA_USE,
     "REGISTRY_USE": REGISTRY_USE,
     "SBOM_USE": SBOM_USE,
 }
@@ -305,9 +306,12 @@ _SHARED_USES = {
 _USE_TAKERS = frozenset(
     {
         "CardKind",
+        "decode_member_text",
         "dir_unlistable_error",
         "fetch_json",
         "file_unreadable_error",
+        "load_project_toml",
+        "load_project_toml_bytes",
         "warn_dir_unlistable",
         "warn_file_unreadable",
     }

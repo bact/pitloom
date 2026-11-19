@@ -160,7 +160,7 @@ def test_resolve_pdm_dynamic_version_call_source_unresolved(
 
     assert version is None
     assert source is None
-    assert "not resolvable without executing project code" in caplog.text
+    assert "is not resolvable without running project code" in caplog.text
 
 
 def test_read_pyproject_resolves_pdm_dynamic_version() -> None:
@@ -223,4 +223,4 @@ def test_resolve_pdm_dynamic_version_file_source_without_path(
     with caplog.at_level(logging.WARNING):
         version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, data, ["version"])
     assert (version, source) == (None, None)
-    assert "PDM dynamic version resolution failed" in caplog.text
+    assert "PDM dynamic version not resolved" in caplog.text

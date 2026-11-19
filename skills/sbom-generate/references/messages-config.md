@@ -20,7 +20,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`config-invalid`](#config-invalid) | ERROR | A setting of Pitloom's configuration holds a value of the wrong type or shape: a string where true or false goes, 0 for a byte cap, a path where a file name goes, a table missing its name, an unknown choice. The line names the file, the setting (a table, a key, an array's entry counted from 0) and what it must be, then what it holds: its TOML type, and a short value (a string masked, escaped and cut to 40 characters). A URL credential fingerprint or a url-credentials mode is named by its type only: it may be the credential, pasted by mistake. A setup.cfg setting is named as setup.cfg spells it ([tool:pitloom]). The build hook's own [tool.hatch.build.hooks.pitloom] is named without a file: Hatchling may read it from hatch.toml. | 0.25.0 |
-| [`config-malformed`](#config-malformed) | ERROR | A configuration file is not valid TOML (a --config file) or INI (a setup.cfg): the parser's failure, with its line and column where it gives them. The interpolation line is a [tool:pitloom] value holding a % that is not a %% or a valid %(name)s reference. A project's or an sdist's pyproject.toml that is not valid TOML is not yet coded. | 0.25.0 |
+| [`config-malformed`](#config-malformed) | ERROR, WARNING | A configuration or project metadata file is not valid TOML (a --config file, a project's or an sdist's pyproject.toml) or INI (a setup.cfg): the parser's failure, with its line and column where it gives them. The interpolation line is a setup.cfg value holding a % that is not a %% or a valid %(name)s reference. | 0.25.0 |
 | [`config-moved`](#config-moved) | ERROR | A configuration holds a key or table of an earlier release that now lives elsewhere: a single creator's creator-name in [tool.pitloom.creation] (now an entry of [[tool.pitloom.creator]]), ids-file (now id-registry), a [tool.pitloom.fragments] table, a build hook setting that moved to [tool.pitloom]. The line names where it goes now, as pyproject.toml spells it. | 0.25.0 |
 | [`config-unknown-key`](#config-unknown-key) | ERROR, WARNING | A configuration table holds a key Pitloom does not know: most often a misspelt one (the line names the known key it is closest to, never its opposite: no-creation-tool is not creation-tool), or one that belongs in another table (the line names it). As an ERROR, the build hook's [tool.hatch.build.hooks.pitloom] holds keys other than enabled and Hatchling's own hook keys. | 0.25.0 |
 | [`datetime-unpinned`](#datetime-unpinned) | INFO | The build hook found neither SOURCE_DATE_EPOCH nor creation-datetime in [tool.pitloom.creation], so the SBOM's created and the package's builtTime are the time of the build: two builds of the same sources give SBOMs (and wheels) that differ in those dates. | 0.25.0 |
@@ -59,18 +59,23 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 ### `config-malformed`
 
-- **Level**: ERROR. As an ERROR, the command stops for that input and writes
-  nothing for it (exit 1).
-- **Means**: A configuration file is not valid TOML (a --config file) or INI (a
-  setup.cfg): the parser's failure, with its line and column where it gives
-  them. The interpolation line is a [tool:pitloom] value holding a % that is not
-  a %% or a valid %(name)s reference. A project's or an sdist's pyproject.toml
-  that is not valid TOML is not yet coded.
+- **Level**: ERROR, WARNING. As an ERROR, the command stops for that input and
+  writes nothing for it (exit 1).
+- **Means**: A configuration or project metadata file is not valid TOML (a
+  --config file, a project's or an sdist's pyproject.toml) or INI (a setup.cfg):
+  the parser's failure, with its line and column where it gives them. The
+  interpolation line is a setup.cfg value holding a % that is not a %% or a
+  valid %(name)s reference.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Said by the command line (a --config file, or a setup.cfg of
-  a project or an sdist), the library (load_config_file, loom.run's
-  pitloom_config) and the GitHub Action. Read no setting and wrote nothing: the
-  command exits 1, the library raises ValueError carrying the code.
+- **Pitloom did**: Said by the command line, the build hook, the library
+  (load_config_file, loom.run's pitloom_config, read_project, read_sdist) and
+  the GitHub Action. As an ERROR, read no setting and no project metadata and
+  wrote nothing: the command exits 1, the build hook fails the build, the
+  library raises ValueError carrying the code. As a WARNING, read the project
+  without that file: a setup.cfg read for pyproject.toml's dynamic fields fills
+  none of them; an sdist's pyproject.toml gives none of its fields: PKG-INFO's
+  are read when there is one, else the package is named unknown, with no
+  version, description or dependencies.
 - **Tell the user**: which file does not parse and where, as the line says; they
   fix the syntax there (a % in a setup.cfg value is written %%) and run again.
   Do not edit their configuration for them; ask first, and with nobody to ask,
@@ -80,8 +85,11 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   ```text
   ERROR: FILE=<file>: not valid TOML; <failure> [config-malformed]
   ERROR: FILE=<file>: not valid INI; <failure> [config-malformed]
-  ERROR: not valid INI; <failure> [config-malformed]
   ERROR: FILE=<file>: not valid INI interpolation; <error> [config-malformed]
+  WARNING: FILE=<file>: not valid TOML; <failure> [config-malformed]
+  WARNING: FILE=<file>: not valid INI; <failure> [config-malformed]
+  WARNING: FILE=<file>: not valid INI interpolation; <error> [config-malformed]
+  ERROR: not valid INI; <failure> [config-malformed]
   ERROR: not valid INI interpolation; <error> [config-malformed]
   ```
 

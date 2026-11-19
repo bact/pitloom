@@ -7,8 +7,9 @@
 that is not a valid declaration (``requirement-invalid``), a Poetry local
 source (``requirement-unusable``), an extra gate needing several extras
 together (``extra-gate-ambiguous``) or one Pitloom cannot isolate
-(``extra-gate-unusable``), and a direct reference not looked up on PyPI
-(``dependency-name-ambiguous``).
+(``extra-gate-unusable``), a direct reference not looked up on PyPI
+(``dependency-name-ambiguous``), and a lock pin that disagrees with the
+declaration (``dependency-pin-conflict``).
 
 A skipped dependency is said by its cause (:data:`CAUSE_LINES`); the cause
 picks the code and the line. A direct reference's URL is never printed:
@@ -82,6 +83,12 @@ REQUIRED_LINE: Final = Line(
     level="WARNING",
     template=f"dependency %(dependency)s: {_NOT_PEP_508}; recorded as required",
 )
+#: A dependency that is not PEP 508, given a locked version.
+LOCKED_UNCHECKED_LINE: Final = Line(
+    level="WARNING",
+    template=f"dependency %(dependency)s: {_NOT_PEP_508}; locked version "
+    "%(version)s used unchecked",
+)
 
 REQUIREMENT_INVALID: Final = Message(
     code="requirement-invalid",
@@ -96,6 +103,7 @@ REQUIREMENT_INVALID: Final = Message(
         EXTRA_CYCLE_LINE,
         EXTRA_UNDECLARED_DEPENDENCY_LINE,
         REQUIRED_LINE,
+        LOCKED_UNCHECKED_LINE,
     ),
     summary="A declared dependency, or an entry of an extra, is not a valid "
     "declaration: not PEP 508, an extra's marker that does not parse, a "
@@ -107,7 +115,9 @@ REQUIREMENT_INVALID: Final = Message(
     did=f"Said by {DECLARATION_SURFACES}. Left the entry out of the SBOM's "
     "dependencies (a cycle: dropped where it closes, the rest of the "
     "extras kept); one that is not PEP 508 met while assembling the "
-    "document is recorded as a required dependency. The SBOM is written.",
+    "document is recorded as a required dependency; one a lock file pins is "
+    "recorded at the locked version, unchecked against it. The SBOM is "
+    "written.",
     effect="thinner",
     actor="user",
     advice="Tell the user which declaration is invalid and why, as the line "
@@ -222,6 +232,40 @@ DEPENDENCY_NAME_AMBIGUOUS: Final = Message(
     since=_SINCE,
 )
 
+#: The lock pins a version other than the declared exact pin.
+EXACT_PIN_KEPT_LINE: Final = Line(
+    level="WARNING",
+    template="PACKAGE=%(package)s: lock and declared exact pin disagree; kept "
+    "the declared %(kept)s, dropped the locked %(dropped)s",
+)
+#: The locked version does not satisfy the declared constraint.
+LOCKED_KEPT_LINE: Final = Line(
+    level="WARNING",
+    template="PACKAGE=%(package)s: locked version does not satisfy the "
+    "declared constraint; kept the locked %(kept)s, dropped the declared "
+    "%(dropped)s",
+)
+
+DEPENDENCY_PIN_CONFLICT: Final = Message(
+    code="dependency-pin-conflict",
+    condition="conflict",
+    lines=(EXACT_PIN_KEPT_LINE, LOCKED_KEPT_LINE),
+    summary="A project's lock file and its declared dependency disagree: the "
+    "lock pins a version other than an exact declared pin (==), or one the "
+    "declared constraint does not allow. A lock file not regenerated after "
+    "the declaration changed is the usual cause.",
+    did="Recorded the version the line keeps: an exact declared pin over the "
+    "lock, else the locked version. The SBOM is written.",
+    effect="weaker",
+    actor="user",
+    advice="Tell the user which dependency disagrees, what was kept and what "
+    "dropped, as the line says. They regenerate the lock file (or fix the "
+    "declaration) and generate again. Do not run the lock tool or edit the "
+    f"project for them; {ASK_FIRST}",
+    subject_key="PACKAGE",
+    since=_SINCE,
+)
+
 #: The causes a skipped dependency or extra entry is said by: cause ->
 #: (the line for a dependency, the line for an extra's entry), ``None``
 #: where the cause does not apply. A line naming ``failure`` takes the
@@ -241,6 +285,7 @@ CAUSE_LINES: Final[Mapping[str, tuple[Line | None, Line | None]]] = MappingProxy
 
 ENTRIES: Final = (
     REQUIREMENT_INVALID,
+    DEPENDENCY_PIN_CONFLICT,
     REQUIREMENT_UNUSABLE,
     EXTRA_GATE_AMBIGUOUS,
     EXTRA_GATE_UNUSABLE,

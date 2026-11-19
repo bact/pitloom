@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -122,3 +122,58 @@ cross-references, drift-test markers for 44 unguarded quotes.
 - Out of scope of catalogue PRs 8 and 9, second review (2026-11-18): (1) a hook error for a `hatch.toml` names `[tool.hatch.build.hooks.pitloom]` and no file, though that file spells it `[build.hooks.pitloom]` (Hatchling's `ProjectMetadata.hatch` lets a `hatch.toml` replace `tool.hatch` wholesale, so the source is knowable: name `FILE=hatch.toml`); (2) an offset time out of range as UTC says "must be an ISO 8601 date and time" (an "out of range" id would be exact), a date-only `2024-01-01` passes as a date-time, and Python 3.10 refuses fractional seconds of one digit and `+0000` that 3.11 and later accept, so one `pyproject.toml` is `config-invalid` on 3.10 only; (3) `sbom-basename = "con"` (a Windows device name) says "not a path"; (4) on `main` too: `SOURCE_DATE_EPOCH` after 2107 fails `embed-wheel` with an uncoded `ushort format requires ...` (`_embed_wheel.py` `_resolve_zip_timestamp` has the 1980 floor and no 2107 ceiling).
 - Found by mutation testing of PRs 8 and 9 (2026-11-18): `id-registry = ""` in a `--config` file resolves to the config file's directory (`GivenPath(<dir>, "")`), not to unset; whether `""` means unset or is refused is a design call (`core/config_cascade.py`, `apply_overrides` path join).
 - Possibly dead code found by mutation testing (2026-11-17): the `InvalidRequirement` branch at `src/pitloom/core/requirements.py:219` (flatten). `_parse_extras` already drops invalid requirements and joining a marker fails only as `InvalidMarker`, so no test reaches it. Remove it or prove it reachable.
+
+## Round 3 (2026-11-19, PR 12: project metadata, #501)
+
+One fresh-context review and a HEAD-versus-tree stderr sweep (46 inputs):
+exit codes and whether an SBOM is written are identical; every text change
+traces to a ruling; the only input that yielded a record and now yields none
+is the intended `[build-system]`-only DEBUG case. Fixed in the PR: the
+`config-malformed` `did` for an sdist `WARNING` (no PKG-INFO: the package is
+named `unknown`), a structural test pinning the two writers of
+`field_conflicts` and a probe test (every `[tool.pitloom]` key times four bad
+values, through `load_config_file` and `read_sdist`) behind the two
+`InternalError` residues, public names for the pin-check helpers, and a
+non-table `[tool.poetry]` with a `poetry.lock` said twice (row 21's own
+warning, then row 17's relay of the same error): said once, the relay skipped
+for a non-table (the user revised D5 on 2026-11-19; with no lock row 21 is the
+only say, as the caller returns quietly).
+
+Resolved by the PR: round 2's item that `read_pitloom_config` raised an uncoded
+`TOMLDecodeError`/`UnicodeDecodeError` on a project `pyproject.toml`.
+Correction to round 2's `hatch.toml` item (read in Hatchling 1.32.3,
+`hatchling/metadata/core.py:231-254`): `ProjectMetadata.hatch` copies
+`tool.hatch` and shallow-updates it with `hatch.toml`, per top-level key; a
+`hatch.toml` with `[build]` replaces all of `tool.hatch.build` (hooks
+included), while `version`, `metadata` and the other keys survive. The hook
+table is read from `hatch.toml` when it has a top-level `build` key, else
+`pyproject.toml`; the fix (`FILE=hatch.toml`, `[build.hooks.pitloom]`) is still
+open.
+
+Mutation testing of the new and changed modules (144 hand-written mutants,
+seven targets): 109 killed, 9 equivalent, 26 survivors, each now killed by a
+test (`*_edges.py` files beside the area they test). One finding beyond the
+survivors: `InternalError` is a `ValueError`, so the `except ValueError` of
+`_try_read_poetry` dropped one quietly when there is no `poetry.lock`, and the
+two residue handlers re-wrapped one; each now lets it through
+(`except InternalError: raise`). A relay of an uncoded error in a handler
+still raises `InternalError` itself. The `retry-refused` case of
+`tests/messages/test_metadata.py` never reached the licence retry
+(pyproject-metadata checks `license` after every other field); renamed
+`bad-version-with-licence`.
+
+### Open (found in round 3, not fixed)
+
+- `FILE=` on the `--index-url` line (`RequirementsFiles`) and on the dynamic
+  directive lines (`_setuptools_dynamic._warn_ignored`) names `pyproject.toml`
+  or `setup.cfg` without the project path; sibling lines give the full path.
+  The project directory is not at hand in `_warn_ignored`.
+- The `backend` field means two things: dispatch passes the lower-cased
+  top-level key, the Poetry line a declared build-backend "as written".
+- The installed-metadata conflict line (row 50) names no directory and writes
+  the raw values, where the setup.py/setup.cfg line uses `conflict_text`.
+- `authors = [1]` reads "is an array, expected an array of strings".
+- Row 47's `name` is not cut by `excerpt()`; row 48's `files` is quoted as a
+  whole list, not per name.
+- `tests/messages/test_metadata_relays.py` is 508 lines and
+  `tests/extract/project/test_poetry_extras.py` 517 (soft limit 400 to 500).

@@ -27,7 +27,8 @@ This module holds the mechanism only. The entries, their lines and the
 helpers that say them are in one public module per page of the generated
 reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`pitloom.messages.targets`, :mod:`~pitloom.messages.options`,
-:mod:`~pitloom.messages.config`,
+:mod:`~pitloom.messages.config`, :mod:`~pitloom.messages.metadata`,
+:mod:`~pitloom.messages.file_discovery`,
 :mod:`~pitloom.messages.models`, :mod:`~pitloom.messages.model_fields`,
 :mod:`~pitloom.messages.files`, :mod:`~pitloom.messages.pypi`,
 :mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.id_registry`,

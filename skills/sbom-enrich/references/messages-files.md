@@ -107,14 +107,16 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   registry file read again to save the ids a run added is not saved; no
   dependency pins are read from a lock file; a model whose header could not be
   read is not listed as an AI model; a model or dataset card sets none of the
-  fields it states. As an ERROR, the call that named the file raises (a
-  Croissant document: the dataset declaration fails; an SBOM to import: the ID
-  registry is not written; an SBOM to embed: no wheel is changed; an ID registry
-  file, or a 'loom id generate' PATH: no registry or SBOM is written; a
-  configuration file: nothing is written; the only possible model file of a
-  folder named for a model SBOM: no SBOM is written; the input check: the
-  command writes nothing and exits 1, the library raises ValueError carrying the
-  code).
+  fields it states; installed project metadata is ignored, and a setup.cfg or
+  setup.py read beside another source leaves the project read without it. As an
+  ERROR, the call that named the file raises (a Croissant document: the dataset
+  declaration fails; an SBOM to import: the ID registry is not written; an SBOM
+  to embed: no wheel is changed; an ID registry file, or a 'loom id generate'
+  PATH: no registry or SBOM is written; a configuration file, or a project
+  metadata file (a project's pyproject.toml read by the build hook says for the
+  configuration): nothing is written; the only possible model file of a folder
+  named for a model SBOM: no SBOM is written; the input check: the command
+  writes nothing and exits 1, the library raises ValueError carrying the code).
 - **Tell the user**: which file could not be read and what the system reported,
   as the line says. They give the account Pitloom runs as read access to it (or
   close the program that holds it), or restore a damaged copy, and generate

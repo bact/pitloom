@@ -30,7 +30,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.pep508 import is_direct_reference
 from pitloom.core.project import ProjectMetadata
 
-_CONFLICT = "conflicts with declared exact pin"
+_CONFLICT = "lock and declared exact pin disagree"
 _DIRECT = "vendored @ https://example.invalid/vendored-1.0.tar.gz"
 #: A private package: a range and a direct reference make one package, which
 #: PyPI is never asked about.

@@ -23,6 +23,7 @@ from packaging.requirements import Requirement
 from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+import pitloom.assemble.spdx3._deps_pin_checks as pin_checks_mod
 import pitloom.assemble.spdx3.deps_installed as deps_installed_mod
 from pitloom.assemble.spdx3._dep_groups import project_dependencies
 from pitloom.assemble.spdx3.deps_installed import (
@@ -107,7 +108,7 @@ def test_resolve_version_wildcard_prefix_defers_to_locked_version(
 
     assert version == "1.2.3"
     assert note == "Version resolved: Project lock file"
-    assert "conflicts with declared exact pin" not in caplog.text
+    assert "lock and declared exact pin disagree" not in caplog.text
 
 
 def test_resolve_version_pep440_equivalent_pins_emit_no_conflict_warning(
@@ -122,7 +123,7 @@ def test_resolve_version_pep440_equivalent_pins_emit_no_conflict_warning(
 
     assert version == "1.0"
     assert note is None
-    assert "conflicts with declared exact pin" not in caplog.text
+    assert "lock and declared exact pin disagree" not in caplog.text
 
 
 def test_resolve_version_pep440_different_pins_emit_conflict_warning(
@@ -137,7 +138,7 @@ def test_resolve_version_pep440_different_pins_emit_conflict_warning(
 
     assert version == "1.0"
     assert note is None
-    assert "conflicts with declared exact pin '1.0'" in caplog.text
+    assert "kept the declared '1.0'" in caplog.text
 
 
 def test_resolve_version_arbitrary_equality_pins_matching_and_conflict(
@@ -154,7 +155,7 @@ def test_resolve_version_arbitrary_equality_pins_matching_and_conflict(
         )
     assert ver_match == "2021.01.01-legacy"
     assert note_match is None
-    assert "conflicts with declared exact pin" not in caplog.text
+    assert "lock and declared exact pin disagree" not in caplog.text
 
     caplog.clear()
     with caplog.at_level(logging.WARNING):
@@ -165,7 +166,7 @@ def test_resolve_version_arbitrary_equality_pins_matching_and_conflict(
         )
     assert ver_mismatch == "2021.01.01-legacy"
     assert note_mismatch is None
-    assert "conflicts with declared exact pin '2021.01.01-legacy'" in caplog.text
+    assert "kept the declared '2021.01.01-legacy'" in caplog.text
 
 
 def test_resolve_version_compound_specifier_with_exact_pin_wins_over_locked(
@@ -180,7 +181,7 @@ def test_resolve_version_compound_specifier_with_exact_pin_wins_over_locked(
 
     assert version == "1.5"
     assert note is None
-    assert "conflicts with declared exact pin '1.5'" in caplog.text
+    assert "kept the declared '1.5'" in caplog.text
 
 
 def test_resolve_version_unparseable_dep_with_locked_version_warns(
@@ -197,7 +198,7 @@ def test_resolve_version_unparseable_dep_with_locked_version_warns(
 
     assert version == "9.9.9"
     assert note == "Version resolved: Project lock file"
-    assert "couldn't be parsed" in caplog.text
+    assert "not a PEP 508 requirement" in caplog.text
 
 
 def test_enrich_from_installed_skips_when_installed_version_mismatches(
@@ -297,10 +298,10 @@ def test_prefetch_adds_no_conflict_warning(
 
     with caplog.at_level(logging.WARNING):
         groups = project_dependencies(project, [], {"requests": "2.0.0"})
-        assert caplog.text.count("conflicts with declared exact pin") == 1
+        assert caplog.text.count("lock and declared exact pin disagree") == 1
         _prefetch_combined_release_info(groups)
 
-    assert caplog.text.count("conflicts with declared exact pin") == 1
+    assert caplog.text.count("lock and declared exact pin disagree") == 1
 
 
 def test_extract_exact_pin_unparseable_invalid_specifier_returns_none() -> None:
@@ -323,18 +324,18 @@ def test_is_exact_pin_conflict_invalid_version_in_contains() -> None:
     mock_req.specifier = MagicMock()
     mock_req.specifier.contains.side_effect = InvalidVersion("invalid version")
 
-    assert not deps_installed_mod._is_exact_pin_conflict(mock_req, "1.0", "1.0")
-    assert deps_installed_mod._is_exact_pin_conflict(mock_req, "1.0", "2.0")
+    assert not pin_checks_mod.is_exact_pin_conflict(mock_req, "1.0", "1.0")
+    assert pin_checks_mod.is_exact_pin_conflict(mock_req, "1.0", "2.0")
 
 
 def test_satisfies_constraint_req_none_or_empty_specifier() -> None:
-    """_satisfies_constraint returns True when req has no specifier (genuinely
+    """satisfies_constraint returns True when req has no specifier (genuinely
     unconstrained), but None (unknown, not satisfied) when req itself is None
     (the dependency string was unparseable, so its constraint can't be
     verified at all -- distinct from "no constraint")."""
-    assert deps_installed_mod._satisfies_constraint(None, "1.0.0") is None
+    assert pin_checks_mod.satisfies_constraint(None, "1.0.0") is None
     req_no_spec = Requirement("requests")
-    assert deps_installed_mod._satisfies_constraint(req_no_spec, "1.0.0") is True
+    assert pin_checks_mod.satisfies_constraint(req_no_spec, "1.0.0") is True
 
 
 def test_satisfies_constraint_invalid_version_returns_false() -> None:
@@ -342,9 +343,7 @@ def test_satisfies_constraint_invalid_version_returns_false() -> None:
     mock_req = MagicMock(spec=Requirement)
     mock_req.specifier = MagicMock()
     mock_req.specifier.contains.side_effect = InvalidVersion("invalid version")
-    assert not deps_installed_mod._satisfies_constraint(
-        mock_req, "not-a-pep440-version"
-    )
+    assert not pin_checks_mod.satisfies_constraint(mock_req, "not-a-pep440-version")
 
 
 def test_resolve_version_warn_false_suppresses_unsatisfied_warning(
@@ -358,7 +357,7 @@ def test_resolve_version_warn_false_suppresses_unsatisfied_warning(
         )
     assert version == "1.0"
     assert note == "Version resolved: Project lock file"
-    assert "does not satisfy declared constraint" not in caplog.text
+    assert "locked version does not satisfy the declared constraint" not in caplog.text
 
 
 def test_resolve_version_warn_true_logs_unsatisfied_warning(
@@ -372,7 +371,7 @@ def test_resolve_version_warn_true_logs_unsatisfied_warning(
         )
     assert version == "1.0"
     assert note == "Version resolved: Project lock file"
-    assert "does not satisfy declared constraint" in caplog.text
+    assert "locked version does not satisfy the declared constraint" in caplog.text
 
 
 def test_parse_dep_name_unparseable_without_operators() -> None:
@@ -398,9 +397,9 @@ def test_extract_pin_from_unparseable_compound_operator_without_comma() -> None:
 
 
 def test_is_exact_pin_conflict_none_req() -> None:
-    """_is_exact_pin_conflict with req=None falls back to is_same_version."""
-    assert not deps_installed_mod._is_exact_pin_conflict(None, "1.0", "1.0")
-    assert deps_installed_mod._is_exact_pin_conflict(None, "1.0", "2.0")
+    """is_exact_pin_conflict with req=None falls back to is_same_version."""
+    assert not pin_checks_mod.is_exact_pin_conflict(None, "1.0", "1.0")
+    assert pin_checks_mod.is_exact_pin_conflict(None, "1.0", "2.0")
 
 
 def test_enrich_from_installed_download_url_and_unknown_version(

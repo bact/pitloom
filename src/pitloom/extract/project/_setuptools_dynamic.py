@@ -53,7 +53,14 @@ from pitloom.extract.project._setuptools_options import (
 from pitloom.extract.project.setuptools import detect_build_backend
 from pitloom.extract.project.setuptools_cfg import read_setup_cfg_options
 from pitloom.extract.project.setuptools_py import read_setup_py_options
-from pitloom.logging_config import loggable, one_line
+from pitloom.messages import Line, emit
+from pitloom.messages.metadata import (
+    DIRECTIVE_ATTR_LINE,
+    DIRECTIVE_NOT_FILE_LINE,
+    METADATA_INVALID,
+    TYPE_LINE,
+    relay_coded_warning,
+)
 
 log = logging.getLogger(__name__)
 
@@ -167,12 +174,20 @@ def _subtable(data: dict[str, Any], *keys: str) -> dict[str, Any] | None:
     return node if isinstance(node, dict) else None
 
 
-def _warn_ignored(key: str, reason: str, quiet: bool) -> None:
+def _warn_ignored(key: str, line: Line, quiet: bool, **values: object) -> None:
+    """The ``WARNING:`` *line* (of ``metadata-invalid``), naming the key
+    *key* of the dynamic table, with *values*; silent when *quiet*."""
     if not quiet:
-        log.warning(
-            "pyproject.toml: '%s' %s -- ignoring it",
-            loggable(f"{DYNAMIC_TABLE}.{key}"),
-            reason,
+        emit(
+            log,
+            METADATA_INVALID,
+            logging.WARNING,
+            line=line,
+            once=None,
+            extra=None,
+            file="pyproject.toml",
+            field=f"{DYNAMIC_TABLE}.{key}",
+            **values,
         )
 
 
@@ -195,8 +210,10 @@ def _read_extras(
     if not isinstance(value, dict):
         _warn_ignored(
             "optional-dependencies",
-            f"is {type(value).__name__}, expected table",
+            TYPE_LINE,
             files.quiet,
+            got=value,
+            expected="table",
         )
         return None
     extras: dict[str, list[str]] = {}
@@ -217,39 +234,32 @@ def _directive_files(directive: object, key: str, quiet: bool) -> list[str] | No
         if isinstance(files, list) and all(isinstance(f, str) for f in files):
             return files
         _warn_ignored(
-            key, f"has 'file' {type(files).__name__}, expected string or list", quiet
+            f"{key}.file", TYPE_LINE, quiet, got=files, expected="string-or-array"
         )
     elif isinstance(directive, dict) and "attr" in directive:
-        _warn_ignored(key, "has 'attr', not supported for requirements", quiet)
+        _warn_ignored(key, DIRECTIVE_ATTR_LINE, quiet)
     else:
-        _warn_ignored(key, "is not a table with 'file'", quiet)
+        _warn_ignored(key, DIRECTIVE_NOT_FILE_LINE, quiet)
     return None
 
 
-def _setup_options(project_dir: Path, rest: list[str], quiet: bool) -> SetupOptions:
+def _setup_options(project_dir: Path, quiet: bool) -> SetupOptions:
     """``setup.cfg``'s and ``setup.py``'s options merged as setuptools
-    merges them; one that cannot be read is left out with one
-    ``WARNING:`` naming the dynamic *rest* fields it would fill."""
+    merges them; one that cannot be read is left out with one ``WARNING:``
+    relaying why (:func:`~pitloom.messages.metadata.relay_coded_warning`)."""
 
-    def read(name: str, reader: Callable[[], SetupOptions]) -> SetupOptions:
+    def read(reader: Callable[[], SetupOptions]) -> SetupOptions:
         try:
             return reader()
         except FileNotFoundError:
             return {}
         except ValueError as exc:
-            if not quiet:
-                log.warning(
-                    "pyproject.toml: dynamic %s not read from %s: %s",
-                    ", ".join(rest),
-                    name,
-                    one_line(exc),
-                )
+            # The fields left unfilled are the entry's `did`.
+            relay_coded_warning(log, exc, quiet=quiet)
             return {}
 
-    cfg = read(
-        "setup.cfg", lambda: read_setup_cfg_options(project_dir, read_config=False)[0]
-    )
-    py = read("setup.py", lambda: read_setup_py_options(project_dir, quiet=quiet))
+    cfg = read(lambda: read_setup_cfg_options(project_dir, read_config=False)[0])
+    py = read(lambda: read_setup_py_options(project_dir, quiet=quiet))
     return merge_setup_options(cfg, py)
 
 
@@ -261,7 +271,7 @@ def _from_setup_files(
     ``install_requires`` and ``extras_require`` (an ``extra:marker`` key
     with no extra unconditional), each crediting its own source. An
     option no field in *rest* takes is not read."""
-    options = _setup_options(project_dir, rest, quiet)
+    options = _setup_options(project_dir, quiet)
     taken = {_SETUP_OPTION[field] for field in rest}
     merged, files = read_listed_requirements(
         {key: option for key, option in options.items() if key in taken},

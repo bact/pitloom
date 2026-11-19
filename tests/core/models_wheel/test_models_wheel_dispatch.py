@@ -113,8 +113,8 @@ def test_get_wheel_files_setuptools_no_static_config_falls_back_with_warning(
 
     assert root is None
     assert not files
-    assert "setuptools" in caplog.text
-    assert "Hatchling" in caplog.text
+    assert "no static Setuptools config resolvable" in caplog.text
+    assert "Hatchling heuristic used" in caplog.text
 
 
 def test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt(
@@ -136,7 +136,7 @@ def test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt(
 
     assert root is None
     assert not files
-    assert "no [project] table present" in caplog.text
+    assert "and no [project] table; file discovery unsupported" in caplog.text
     assert "Hatchling" not in caplog.text
 
 
@@ -165,7 +165,7 @@ def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_att
 
     assert root is None
     assert not files
-    assert "no [project] table present" in caplog.text
+    assert "and no [project] table; file discovery unsupported" in caplog.text
     assert "Hatchling" not in caplog.text
 
 
@@ -179,7 +179,7 @@ def test_get_wheel_files_unhandled_backend_no_pyproject_skips_doomed_hatchling(
     test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt
     above): Hatchling's WheelBuilder requires a [project] table, so with none
     the fallback is guaranteed to fail, and no second "Hatchling file
-    discovery failed" error follows the "not yet backend-aware" one."""
+    discovery failed" error follows the "not backend-aware" one."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["uv_build"]\nbuild-backend = "uv_build"\n',
         encoding="utf-8",
@@ -190,8 +190,8 @@ def test_get_wheel_files_unhandled_backend_no_pyproject_skips_doomed_hatchling(
 
     assert root is None
     assert not files
-    assert "not yet backend-aware" in caplog.text
-    assert "file discovery is unsupported for this project" in caplog.text
+    assert "not backend-aware for build-backend uv_build" in caplog.text
+    assert "and no [project] table; file discovery unsupported" in caplog.text
     # Hatchling never actually runs in this branch -- the warning must
     # not claim it does (a prior version unconditionally said "using
     # Hatchling-based heuristic" even when returning zero files without
@@ -395,8 +395,8 @@ def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
     """A project with a real ``[tool.setuptools]`` table (no ``[project]``)
     is statically resolvable: if setuptools' own discover() still returns
     ``None`` (a genuine introspection failure, not "nothing declared"), the
-    warning says so rather than claiming "packages only resolvable via an
-    imperative setup.py build" (static config *was* present)."""
+    warning says so rather than claiming "no static config resolvable"
+    (static config *was* present)."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
         'build-backend = "setuptools.build_meta"\n\n'
@@ -414,16 +414,14 @@ def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
     assert root is None
     assert not files
     assert "failed introspection" in caplog.text
-    assert "packages only resolvable via an imperative setup.py build" not in (
-        caplog.text
-    )
+    assert "no static" not in caplog.text.lower()
 
 
 @pytest.mark.parametrize(
     ("pyproject_extra", "expected"),
     [
-        ('[project]\nname = "pkg"\nversion = "1"\n', "falling back to Hatchling"),
-        ("", "file discovery is unsupported"),
+        ('[project]\nname = "pkg"\nversion = "1"\n', "Hatchling heuristic used"),
+        ("", "file discovery unsupported"),
     ],
     ids=["project-table", "no-project-table"],
 )
@@ -459,8 +457,8 @@ def test_a_failed_discovery_is_not_followed_by_a_no_config_warning(
         get_wheel_files(tmp_path)
 
     messages = [r.getMessage() for r in caplog.records]
-    assert any("Setuptools file discovery failed for" in m for m in messages)
-    assert any(expected in m and "failed (above)" in m for m in messages)
+    assert any("Setuptools file discovery failed;" in m for m in messages)
+    assert any(expected in m and ": file discovery failed" in m for m in messages)
     assert not any("no static" in m.lower() for m in messages)
 
 
@@ -484,8 +482,8 @@ def test_an_ambiguous_flat_layout_is_not_followed_by_a_no_config_warning(
         get_wheel_files(tmp_path)
 
     messages = [r.getMessage() for r in caplog.records]
-    assert any("could not auto-discover packages" in m for m in messages)
-    assert any("failed (above)" in m for m in messages)
+    assert any("package auto-discovery is ambiguous" in m for m in messages)
+    assert any(": file discovery failed" in m for m in messages)
     assert not any("no static" in m.lower() for m in messages)
 
 
@@ -512,8 +510,8 @@ def test_a_stale_failure_report_does_not_reword_the_next_discovery(
         caplog.clear()
         get_wheel_files(tmp_path)
 
-    assert "No static setuptools config resolvable" in caplog.text
-    assert "failed (above)" not in caplog.text
+    assert "no static Setuptools config resolvable" in caplog.text
+    assert ": file discovery failed" not in caplog.text
 
 
 def test_get_wheel_files_hatchling_discover_accepts_pyproject_data_kwarg(

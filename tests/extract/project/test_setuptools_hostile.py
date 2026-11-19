@@ -65,11 +65,14 @@ def test_a_conflict_on_a_huge_value_warns_on_one_short_line(
 @pytest.mark.parametrize(
     ("py", "named"),
     [
-        ("name='p', packages=find_packages(), version=V, cmdclass=C", "'version'"),
+        (
+            "name='p', packages=find_packages(), version=V, cmdclass=C",
+            "keyword version ",
+        ),
         # the keywords it holds are unknown, so it may hold one Pitloom reads
-        ("name='p', **META", "'**META'"),
+        ("name='p', **META", "keyword **META "),
         # an expression is never unparsed: that recurses
-        ("name='p', **" + "+".join(["a"] * 1500), "'**...'"),
+        ("name='p', **" + "+".join(["a"] * 1500), "keyword **... "),
     ],
     ids=["not-literal", "unpacking", "unpacking-expression"],
 )

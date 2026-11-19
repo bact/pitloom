@@ -397,7 +397,7 @@ def test_discover_returns_none_and_logs_on_ambiguous_flat_layout(
         result = discover(tmp_path)
 
     assert result is None
-    assert "could not auto-discover packages unambiguously" in caplog.text
+    assert "package auto-discovery is ambiguous" in caplog.text
     # setuptools' own message is multi-line; the WARNING stays one line.
     assert all("\n" not in r.getMessage() for r in caplog.records)
 

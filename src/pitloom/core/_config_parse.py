@@ -18,7 +18,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom._toml_io import load_toml_file
 from pitloom.core._config_keys import warn_unknown_keys
 from pitloom.core._config_legacy import (
     _check_moved_creation_keys,
@@ -43,6 +42,7 @@ from pitloom.core._config_read import (
     _require_choice,
 )
 from pitloom.core._config_types import _DEFAULT_PROVENANCE_SCHEMA, PitloomConfig
+from pitloom.core._project_toml import load_project_toml
 from pitloom.core.creation import (
     Creator,
     Tool,
@@ -56,7 +56,7 @@ from pitloom.core.file_names import (
     sbom_base_name,
 )
 from pitloom.messages.config import MISSING, ConfigError, ConfigPlace, config_invalid
-from pitloom.messages.targets import input_not_found, is_input_file
+from pitloom.messages.files import CONFIG_USE
 
 _TOOL = ConfigPlace("tool")
 _PITLOOM = ConfigPlace("tool.pitloom")
@@ -409,12 +409,12 @@ def read_pitloom_config(
 
     Raises:
         FileNotFoundError: *pyproject_path* does not exist.
-        ValueError: the file is not valid TOML or its settings are invalid.
+        ValueError: the file is not valid TOML (``config-malformed``), cannot
+            be read (``file-unreadable``) or its settings are invalid.
     """
-    if not is_input_file(pyproject_path):
-        raise input_not_found("pyproject.toml", pyproject_path)
-
-    data: dict[str, Any] = load_toml_file(pyproject_path)
+    data: dict[str, Any] = load_project_toml(
+        pyproject_path, kind="pyproject.toml", use=CONFIG_USE
+    )
 
     return parse_pitloom_config(
         data, source=str(pyproject_path) if source is None else source

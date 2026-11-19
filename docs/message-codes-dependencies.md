@@ -21,6 +21,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
 | [`dependency-name-ambiguous`](#dependency-name-ambiguous) | INFO | A dependency is a direct reference (name @ URL): its name may not be the PyPI project of that name, so PyPI's record of the name may not describe it. | 0.25.0 |
+| [`dependency-pin-conflict`](#dependency-pin-conflict) | WARNING | A project's lock file and its declared dependency disagree: the lock pins a version other than an exact declared pin (==), or one the declared constraint does not allow. A lock file not regenerated after the declaration changed is the usual cause. | 0.25.0 |
 | [`extra-gate-ambiguous`](#extra-gate-ambiguous) | WARNING | A requirement declared in one extra carries an extra marker of its own, so it is installed only with several extras together. An SBOM relationship states one optional scope, not a set of extras that must all be asked for. | 0.25.0 |
 | [`extra-gate-unusable`](#extra-gate-unusable) | WARNING | A dependency's marker tests an extra in a way Pitloom cannot isolate from its other clauses (it reads the marker's text, never evaluates it), so Pitloom cannot tell which extra installs it. | 0.25.0 |
 | [`requirement-invalid`](#requirement-invalid) | WARNING | A declared dependency, or an entry of an extra, is not a valid declaration: not PEP 508, an extra's marker that does not parse, a Poetry table poetry-core cannot convert, a Poetry optional dependency in no extra or an extra naming one not declared, a self-reference to an extra the project does not declare, or a self-reference closing a cycle of extras. | 0.25.0 |
@@ -42,6 +43,27 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   INFO: PACKAGE=<package>: a direct reference; not looked up on PyPI [dependency-name-ambiguous]
+  ```
+
+### `dependency-pin-conflict`
+
+- **Level**: WARNING.
+- **Means**: A project's lock file and its declared dependency disagree: the
+  lock pins a version other than an exact declared pin (==), or one the declared
+  constraint does not allow. A lock file not regenerated after the declaration
+  changed is the usual cause.
+- **SBOM effect**: weaker: what the SBOM says is less sure.
+- **Pitloom did**: Recorded the version the line keeps: an exact declared pin
+  over the lock, else the locked version. The SBOM is written.
+- **Tell the user**: which dependency disagrees, what was kept and what dropped,
+  as the line says. They regenerate the lock file (or fix the declaration) and
+  generate again. Do not run the lock tool or edit the project for them; ask
+  first, and with nobody to ask, report it only.
+- **Lines**:
+
+  ```text
+  WARNING: PACKAGE=<package>: lock and declared exact pin disagree; kept the declared <kept>, dropped the locked <dropped> [dependency-pin-conflict]
+  WARNING: PACKAGE=<package>: locked version does not satisfy the declared constraint; kept the locked <kept>, dropped the declared <dropped> [dependency-pin-conflict]
   ```
 
 ### `extra-gate-ambiguous`
@@ -97,7 +119,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   build hook, the library). Left the entry out of the SBOM's dependencies (a
   cycle: dropped where it closes, the rest of the extras kept); one that is not
   PEP 508 met while assembling the document is recorded as a required
-  dependency. The SBOM is written.
+  dependency; one a lock file pins is recorded at the locked version, unchecked
+  against it. The SBOM is written.
 - **Tell the user**: which declaration is invalid and why, as the line says, and
   that it is not in the SBOM as declared. They fix the declaration in
   pyproject.toml, setup.cfg or setup.py (a build would refuse most of these
@@ -115,6 +138,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   WARNING: extra <extra> entry <dependency> (<declared-in>): closes a cycle of self-references; skipped [requirement-invalid]
   WARNING: extra <extra> entry <dependency> (<declared-in>): not a declared Poetry dependency; skipped [requirement-invalid]
   WARNING: dependency <dependency>: not a PEP 508 requirement; recorded as required [requirement-invalid]
+  WARNING: dependency <dependency>: not a PEP 508 requirement; locked version <version> used unchecked [requirement-invalid]
   ```
 
 ### `requirement-unusable`

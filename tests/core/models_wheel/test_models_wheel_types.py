@@ -93,7 +93,7 @@ def test_backend_discovery_failure_logs_one_line(
         else _ONE_LINE
     )
     assert [r.getMessage() for r in caplog.records] == [
-        f"{backend} file discovery failed for '{tmp_path}': {said}"
+        f"DIR={tmp_path}: {backend} file discovery failed; {said}"
     ]
 
 
@@ -102,9 +102,9 @@ def test_pitloom_own_failure_text_is_said_in_a_clone(
 ) -> None:
     with caplog.at_level(logging.WARNING), reading_remote_clone(str(tmp_path)):
         warn_discovery_failed(
-            logging.getLogger("pitloom.t"), "X", tmp_path, InternalError("mine")
+            logging.getLogger("pitloom.t"), "Flit", tmp_path, InternalError("mine")
         )
-    assert caplog.records[0].getMessage().endswith(": mine")
+    assert caplog.records[0].getMessage().endswith("; mine")
 
 
 def test_real_hatchling_failure_is_one_tagged_stderr_line(
@@ -121,7 +121,8 @@ def test_real_hatchling_failure_is_one_tagged_stderr_line(
 
     lines = capsys.readouterr().err.splitlines()
     assert len(lines) == 1
-    assert lines[0].startswith("WARNING: Hatchling file discovery failed for ")
+    assert lines[0].startswith("WARNING: DIR=")
+    assert ": Hatchling file discovery failed; " in lines[0]
     assert "no directory that matches the name of your project" in lines[0]
 
 

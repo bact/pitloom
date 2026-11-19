@@ -112,11 +112,14 @@ def test_poetry_sdist_keeps_every_declared_author(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("tail", "key"),
     [
-        ("dependencies = 1\n", "'project.dependencies' is int"),
-        ("optional-dependencies = 1\n", "'project.optional-dependencies' is int"),
+        ("dependencies = 1\n", "project.dependencies is an integer 1"),
+        (
+            "optional-dependencies = 1\n",
+            "project.optional-dependencies is an integer 1",
+        ),
         (
             '[project.optional-dependencies]\n"x\\n::error::y" = 1\n',
-            "'project.optional-dependencies.x\\n::error::y' is int",
+            "'project.optional-dependencies.x\\n::error::y' is an integer 1",
         ),
     ],
     ids=["dependencies", "optional-table", "extra-name-escaped"],
@@ -134,7 +137,7 @@ def test_pyproject_fallback_warning_names_the_member(
     with caplog.at_level(logging.WARNING):
         read_sdist(sdist, read_config=False)
     (line,) = caplog.messages
-    assert line.startswith(f"{sdist}:pyproject.toml: {key}, expected ")
+    assert line.startswith(f"FILE={sdist}:pyproject.toml: {key}, expected ")
     assert "\n" not in line
 
 

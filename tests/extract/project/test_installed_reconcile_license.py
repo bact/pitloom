@@ -56,7 +56,7 @@ def test_reconcile_license_comparison_is_by_classified_value(
 ) -> None:
     static, installed = licence_pair(static_value, installed_value)
 
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+    merged = reconcile_installed_metadata(static, installed, tmp_path)
 
     # Keyed by "license" (the provenance-key alias), not "license_name",
     # as deps_license.py labels the declared-vs-concluded conflict.
@@ -77,7 +77,7 @@ def test_reconcile_license_comparison_does_not_warn_about_the_value(
     broken = "MIT with reconcile-compare-only"
     static, installed = licence_pair(broken, "MIT")
     with caplog.at_level(logging.WARNING):
-        reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+        reconcile_installed_metadata(static, installed, tmp_path)
         assert "not a valid SPDX license expression" not in caplog.text
         # Not vacuous: the value does warn when it is recorded.
         classify_license(broken)

@@ -19,6 +19,7 @@ from pitloom.messages import (
     _config,
     _config_unsafe,
     _dependency,
+    _file_discovery,
     _file_unreadable,
     _file_unwritable,
     _input_not_found,
@@ -29,6 +30,8 @@ from pitloom.messages import (
     _license_relationship_invalid,
     _lock_entry,
     _lock_file,
+    _metadata_dynamic,
+    _metadata_read,
     _model_field,
     _model_stub,
     _options,
@@ -110,6 +113,9 @@ MESSAGES: Final = _by_code(
         *_registry_save.ENTRIES,
         *_url_credentials.ENTRIES,
         *_url_credentials_git.ENTRIES,
+        *_metadata_read.ENTRIES,
+        *_metadata_dynamic.ENTRIES,
+        *_file_discovery.ENTRIES,
     )
 )
 

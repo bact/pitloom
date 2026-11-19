@@ -51,8 +51,8 @@ def test_dynamic_fields_warn_without_pkg_info(
 
     assert caplog.messages == (
         [
-            f"{sdist}:pyproject.toml: dynamic field(s) not resolved without"
-            f" PKG-INFO | Field(s) affected (skipped): {fields}"
+            f"FILE={sdist}:pyproject.toml: dynamic {fields} not resolved"
+            " without PKG-INFO; skipped"
         ]
         if fields
         else []

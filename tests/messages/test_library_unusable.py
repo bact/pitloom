@@ -265,3 +265,40 @@ def test_auto_content_types_say_a_broken_magika_once(
     assert [getattr(r, CODE_ATTR) for r in warned] == (
         [LIBRARY_UNUSABLE.code] if kind == "broken" else []
     )
+
+
+@pytest.mark.parametrize(
+    ("owner", "name"),
+    [("dependency", "base_pep_508_name"), ("factory", "create_dependency")],
+)
+def test_a_poetry_core_that_moved_a_function_is_said_once_and_no_table_is_read(
+    owner: str,
+    name: str,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``poetry-core`` is a dependency of Pitloom, so the line says to
+    reinstall Pitloom (not an extra); the Poetry dependency tables are not
+    read, said once per process, and a dependency converts to nothing."""
+    # pylint: disable=import-outside-toplevel
+    from poetry.core.factory import Factory
+    from poetry.core.packages.dependency import Dependency
+
+    from pitloom.extract.project import _poetry_requirements as requirements
+
+    monkeypatch.delattr({"dependency": Dependency, "factory": Factory}[owner], name)
+    requirements._poetry_core.cache_clear()
+    try:
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
+            first = requirements.poetry_requirement("requests", "^1.0")
+            second = requirements.poetry_requirement("requests", "^1.0")
+    finally:
+        monkeypatch.undo()
+        requirements._poetry_core.cache_clear()
+    assert first is None and second is None
+    (record,) = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert getattr(record, CODE_ATTR) == LIBRARY_UNUSABLE.code
+    message = record.getMessage()
+    assert message.startswith("required library API not found: poetry-core: ")
+    assert message.endswith("; Poetry dependency tables not read; reinstall Pitloom")
+    assert trusted_message(f"WARNING: {message} [library-unusable]") is LIBRARY_UNUSABLE

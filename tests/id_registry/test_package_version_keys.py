@@ -409,6 +409,6 @@ def test_dependency_versions_are_resolved_once_per_document(
     with caplog.at_level("WARNING"):
         build_doc(doc, IdRegistry.new("r"))
 
-    said = [m for m in caplog.messages if m.startswith("Locked version")]
+    said = [m for m in caplog.messages if m.startswith("PACKAGE=")]
     assert len(said) == 2, said
-    assert {"foo", "bar"} == {m.split("'")[3] for m in said}
+    assert {"foo", "bar"} == {m.split(":")[0].split("=")[1] for m in said}

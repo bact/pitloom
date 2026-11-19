@@ -17,6 +17,7 @@ from pitloom.messages._card_malformed import CARD_MALFORMED
 from pitloom.messages._field_tables import (
     CONFIG_USE,
     INPUT_USE,
+    METADATA_USE,
     REGISTRY_USE,
     SBOM_USE,
 )
@@ -95,6 +96,7 @@ __all__ = [
     "SAVE_FAILED_WARNING_LINE",
     "CONFIG_USE",
     "INPUT_USE",
+    "METADATA_USE",
     "REGISTRY_USE",
     "SBOM_USE",
     "SOURCE_LINE",

@@ -51,8 +51,14 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.provenance import provenance_segment, provenance_source
-from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
+from pitloom.messages import emit
+from pitloom.messages.metadata import (
+    DYNAMIC_FIELD_NEEDS_BUILD,
+    DYNAMIC_FIELD_UNUSABLE,
+    PDM_FAILED_LINE,
+    PDM_SOURCE_LINE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -109,11 +115,13 @@ def resolve_pdm_dynamic_version(
         return None, None
     if source not in _RESOLVABLE_SOURCES:
         if not quiet:
-            log.warning(
-                "PDM dynamic version source %r for %s is not resolvable "
-                "without executing project code -- version left unresolved",
-                source,
-                quote_source(project_dir),
+            emit(
+                log,
+                DYNAMIC_FIELD_NEEDS_BUILD,
+                logging.WARNING,
+                line=PDM_SOURCE_LINE,
+                file=project_dir / "pyproject.toml",
+                value=source,
             )
         return None, None
 
@@ -172,10 +180,13 @@ def resolve_pdm_dynamic_version(
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         if not quiet:
-            log.warning(
-                "PDM dynamic version resolution failed for %s: %s",
-                quote_source(project_dir),
-                exc,
+            emit(
+                log,
+                DYNAMIC_FIELD_UNUSABLE,
+                logging.WARNING,
+                line=PDM_FAILED_LINE,
+                file=project_dir / "pyproject.toml",
+                failure=exc,
             )
         return None, None
 

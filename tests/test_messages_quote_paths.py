@@ -70,6 +70,8 @@ _QUOTING_CALLS = frozenset(
         "_same_document_message",
         "refusal_error",
         "render",
+        "_invalid_project",
+        "_NoProjectNameError",
         "name_key_reason",
         "detail",
         "detect_ai_model_format_from_name",

@@ -298,8 +298,9 @@ def test_metadata_from_hatchling_does_not_fill_gaps_from_poetry(
     assert (
         caplog.messages
         == [
-            "Ignoring [tool.poetry] authors, keywords: "
-            "build-backend 'hatchling.build' does not read it"
+            f"FILE={tmp_path / 'pyproject.toml'}: [tool.poetry] authors, "
+            "keywords not read: build-backend hatchling.build does not read "
+            "them; ignored"
         ]
         * 2
     )

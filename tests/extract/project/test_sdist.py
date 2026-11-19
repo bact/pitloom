@@ -313,7 +313,7 @@ def test_read_tar_sdist_pyproject_malformed_falls_back_to_unknown(
         metadata, files, *_ = read_sdist(sdist_path, read_config=False)
     assert metadata.name == "unknown"
     assert len(files) == 1
-    assert "Failed to parse pyproject.toml" in caplog.text
+    assert ":pyproject.toml: not valid TOML" in caplog.text
 
 
 def test_read_tar_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:
@@ -386,7 +386,7 @@ def test_read_zip_sdist_pyproject_malformed_falls_back_to_unknown(
         metadata, files, *_ = read_sdist(sdist_path, read_config=False)
     assert metadata.name == "unknown"
     assert len(files) == 1
-    assert "Failed to parse pyproject.toml" in caplog.text
+    assert ":pyproject.toml: not valid TOML" in caplog.text
 
 
 def test_read_zip_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:

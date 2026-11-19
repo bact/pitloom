@@ -192,7 +192,7 @@ def test_resolve_version_warns_when_locked_version_violates_declared_constraint(
 
     assert version == "2.31.0"
     assert note == "Version resolved: Project lock file"
-    assert "does not satisfy declared constraint" in caplog.text
+    assert "locked version does not satisfy the declared constraint" in caplog.text
     assert "requests<2.0" in caplog.text
 
 
@@ -209,7 +209,7 @@ def test_resolve_version_exact_pin_wins_over_conflicting_locked_version(
 
     assert version == "2.30.0"
     assert note is None
-    assert "conflicts with declared exact pin '2.30.0'" in caplog.text
+    assert "kept the declared '2.30.0'" in caplog.text
     assert "'2.31.0'" in caplog.text
 
 
@@ -225,4 +225,4 @@ def test_resolve_version_exact_pin_matching_locked_version_emits_no_warning(
 
     assert version == "2.30.0"
     assert note is None
-    assert "conflicts with declared exact pin" not in caplog.text
+    assert "lock and declared exact pin disagree" not in caplog.text

@@ -192,18 +192,13 @@ METADATA_CONFLICT: Final = Message(
     since=_SINCE,
 )
 
-#: [tool.poetry.extras] beside a [project] Poetry reads instead.
-POETRY_EXTRAS_LINE: Final = Line(
+#: A [tool.poetry] table (``field``: ``[tool.poetry.extras]``,
+#: ``[tool.poetry.dependencies]``) Poetry does not read because [project]
+#: declares the keys it reads instead (``metadata_fields``).
+POETRY_TABLE_LINE: Final = Line(
     level="WARNING",
-    template="FILE=%(file)s: [tool.poetry.extras] not read: [project] declares "
-    "dependencies or optional-dependencies, which Poetry reads instead; ignored",
-)
-#: [tool.poetry.dependencies] beside [project] optional-dependencies.
-POETRY_DEPENDENCIES_LINE: Final = Line(
-    level="WARNING",
-    template="FILE=%(file)s: [tool.poetry.dependencies] not read: [project] "
-    "declares optional-dependencies and no dependencies, which Poetry reads "
-    "instead; ignored",
+    template="FILE=%(file)s: %(field)s not read: Poetry reads [project] "
+    "%(metadata_fields)s instead; ignored",
 )
 #: [tool.poetry] keys a backend other than Poetry's does not read.
 POETRY_BACKEND_LINE: Final = Line(
@@ -222,8 +217,7 @@ METADATA_NO_EFFECT: Final = Message(
     code="metadata-no-effect",
     condition="no-effect",
     lines=(
-        POETRY_EXTRAS_LINE,
-        POETRY_DEPENDENCIES_LINE,
+        POETRY_TABLE_LINE,
         POETRY_BACKEND_LINE,
         PIP_OPTIONS_LINE,
     ),

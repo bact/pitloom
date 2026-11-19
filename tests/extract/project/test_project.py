@@ -18,6 +18,8 @@ import pytest
 
 from pitloom.extract.project import read_project
 
+pytestmark = pytest.mark.platform  # FILE= paths in the lines
+
 
 def test_read_project_uses_pyproject_when_present(tmp_path: Path) -> None:
     """pyproject.toml wins when present, regardless of setup.cfg/setup.py."""
@@ -80,8 +82,8 @@ def test_read_project_falls_back_past_build_system_only_pyproject(
     and no ``[tool.poetry]`` fallback, so ``read_pyproject()`` alone gives an
     empty, nameless stub. When ``setup.cfg``/``setup.py`` hold the real
     metadata, ``read_project()`` falls back to
-    :func:`~pitloom.extract.project.setuptools.read_setuptools` with a
-    ``WARNING:``."""
+    :func:`~pitloom.extract.project.setuptools.read_setuptools`; with no
+    ``[project]`` table that is the normal layout, said at ``DEBUG`` only."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -93,13 +95,50 @@ def test_read_project_falls_back_past_build_system_only_pyproject(
         "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
     )
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
         metadata, _, config_path = read_project(tmp_path)
 
     assert metadata.name == "real-pkg"
     assert metadata.version == "1.2.3"
     assert config_path == setup_cfg
-    assert "no usable [project] table" in caplog.text
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert "has no [project] table" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("project", "warned"),
+    [
+        pytest.param('[project]\nversion = "1"\n', True, id="no-name"),
+        pytest.param('[project]\nname = ""\n', True, id="empty-name"),
+        pytest.param('[project]\nname = "  "\n', True, id="blank-name"),
+        pytest.param("", False, id="no-project"),
+    ],
+)
+@pytest.mark.parametrize("quiet", [False, True], ids=["said", "quiet"])
+def test_a_project_table_without_a_name_warns_unlike_none(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    project: str,
+    warned: bool,
+    quiet: bool,
+) -> None:
+    """A ``[project]`` with no usable name is a refusal of PEP 621: a
+    ``metadata-invalid`` WARNING (unless *quiet*); no ``[project]`` at all
+    is absent data, silent. setup.cfg names the project either way."""
+    (tmp_path / "pyproject.toml").write_text(
+        f'[build-system]\nrequires = ["setuptools"]\n{project}', encoding="utf-8"
+    )
+    (tmp_path / "setup.cfg").write_text("[metadata]\nname = real\n", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        metadata, _, _ = read_project(tmp_path, quiet=quiet)
+
+    assert metadata.name == "real"
+    expected = [
+        f"FILE={tmp_path / 'pyproject.toml'}: [project] has no name; "
+        "read setup.cfg and setup.py instead"
+    ]
+    assert caplog.messages == (expected if warned and not quiet else [])
 
 
 def test_read_project_fallback_preserves_pyproject_pitloom_config(

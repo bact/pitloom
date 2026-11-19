@@ -27,7 +27,7 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
     warn_discovery_failed,
 )
-from pitloom.core.quote_source import quote_source
+from pitloom.messages.file_discovery import FLIT_EXTERNAL_DATA_LINE, warn_discovery
 
 log = logging.getLogger(__name__)
 
@@ -71,13 +71,7 @@ def _flit_files(project_dir: Path) -> list[IncludedFile]:
             _, version = get_docstring_and_version_via_ast(module)
 
         if version is None:
-            log.warning(
-                "%s: could not resolve a static version for "
-                "[tool.flit.external-data] without executing the "
-                "project's module -- external-data files excluded "
-                "from this result",
-                quote_source(project_dir),
-            )
+            warn_discovery(log, FLIT_EXTERNAL_DATA_LINE, dir=project_dir)
         else:
             dist_name = normalize_dist_name(name, version)
             for full_path in walk_data_dir(loaded_cfg.data_directory):

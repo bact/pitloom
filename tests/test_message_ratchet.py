@@ -234,31 +234,57 @@ def test_the_documented_command_runs_the_ratchet() -> None:
 
 
 @pytest.mark.parametrize(
-    ("file", "function", "kind", "emitter"),
+    ("file", "function", "kind", "emitter", "template"),
     [
         (
             "src/pitloom/cli/commands/utils.py",
             "cli_error_handler.wrapper",
             "exception",
             "print_error",
+            None,
         ),
-        ("src/pitloom/cli/parser.py", "_LoomParser.error", "argparse", "print_error"),
-        ("src/pitloom/extract/_licenseid_relay.py", "say", "prefixed", "log_once"),
+        (
+            "src/pitloom/cli/parser.py",
+            "_LoomParser.error",
+            "argparse",
+            "print_error",
+            None,
+        ),
+        (
+            "src/pitloom/extract/_licenseid_relay.py",
+            "say",
+            "prefixed",
+            "log_once",
+            "licenseid: %s",
+        ),
+        (
+            "src/pitloom/core/_models_wheel_setuptools_relay.py",
+            "_say_stderr",
+            "prefixed",
+            "logging.log",
+            "setuptools stderr: %s",
+        ),
     ],
-    ids=["handler", "parser", "licenseid"],
+    ids=["handler", "parser", "licenseid", "setuptools"],
 )
-def test_the_three_relays_say_no_text_of_their_own(
-    records: list[dict[str, Any]], file: str, function: str, kind: str, emitter: str
+def test_the_four_relays_say_no_text_of_their_own(
+    records: list[dict[str, Any]],
+    file: str,
+    function: str,
+    kind: str,
+    emitter: str,
+    template: str | None,
 ) -> None:
     """The command handler says the caught exception's text and code, the
-    parser argparse's, the ``licenseid: `` relay LicenseID's own words:
-    none counts, known by the code's shape, not by a bare ``%s`` template.
-    They are the only relays, so no other line leaves the count this way."""
+    parser argparse's, the ``licenseid: `` and ``setuptools stderr: ``
+    relays LicenseID's and setuptools' own words: none counts, known by the
+    code's shape, not by a bare ``%s`` template. They are the only relays,
+    so no other line leaves the count this way."""
     relays = [(r["file"], r["function"], r["relays"]) for r in records if r["relays"]]
-    assert (file, function, kind) in relays and len(relays) == 3
+    assert (file, function, kind) in relays and len(relays) == 4
     (site,) = [r for r in records if (r["file"], r["function"]) == (file, function)]
     assert site["emitter"] == emitter and not load().in_scope(site)
     if kind == "prefixed":  # not left out as a bare "%s" passthrough
         scope = importlib.import_module(f"{load().__name__}._scope")
-        assert site["template"] == "licenseid: %s"
+        assert site["template"] == template
         assert not scope.PASSTHROUGH_PAT.match(site["template"])
