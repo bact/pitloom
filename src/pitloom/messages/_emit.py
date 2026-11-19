@@ -24,11 +24,14 @@ from typing import TypeVar, cast
 from pitloom.core.internal_error import InternalError
 from pitloom.logging_config import CODE_ATTR, escape_controls, log_once
 from pitloom.messages._catalogue import MESSAGES
+from pitloom.messages._frames import Frame
 from pitloom.messages._lines import says
 from pitloom.messages._templates import written
 from pitloom.messages._types import Line, Message
 
 
+# One keyword per optional part of the record; the values are the line's.
+# pylint: disable-next=too-many-arguments
 def emit(
     log: logging.Logger,
     message: Message,
@@ -37,6 +40,8 @@ def emit(
     line: Line | None = None,
     once: str | None = None,
     extra: Mapping[str, object] | None = None,
+    frame: Frame | None = None,
+    frame_values: Mapping[str, object] | None = None,
     **values: object,
 ) -> None:
     """Log *message* at *level* on *log*, its code on the record: its line
@@ -45,19 +50,53 @@ def emit(
     :func:`~pitloom.logging_config.log_once` with that key (``DEBUG``, and
     no printed code, after the first time). *extra*: more attributes for
     the record; the code is the message's own, whatever *extra* holds.
+    *frame*: a frame put before the line, rendered from *frame_values*
+    (``Git source: ``), which must allow the message's code at *level*.
 
     Raises:
         ValueError: No line of *message* at *level* names *values* (or
             *line* is not one), or a value does not have its field's shape.
+        pitloom.core.internal_error.InternalError: *frame* does not allow
+            the message's code at *level*, or *frame_values* is given
+            without a *frame*.
     """
-    shape = message.line_for(logging.getLevelName(level), values, line)
+    name = logging.getLevelName(level)
+    shape = message.line_for(name, values, line)
     texts = written(shape.template, values)
     args: tuple[object, ...] = (texts,) if texts else ()
+    head = _framed(message, name, frame, frame_values, bool(args))
     attrs = {**(extra or {}), CODE_ATTR: message.code}
     if once is None:
-        log.log(level, shape.template, *args, extra=attrs)
+        log.log(level, head + shape.template, *args, extra=attrs)
     else:
-        log_once(log, level, once, shape.template, *args, extra=attrs)
+        log_once(log, level, once, head + shape.template, *args, extra=attrs)
+
+
+def _framed(
+    message: Message,
+    level: str,
+    frame: Frame | None,
+    values: Mapping[str, object] | None,
+    formatted: bool,
+) -> str:
+    """The text *frame* puts before a line of *message* at *level*, as a
+    literal of a log template: each ``%`` doubled when the record is
+    *formatted* (logging leaves a record with no arguments as it is).
+
+    Raises:
+        pitloom.core.internal_error.InternalError: *frame* does not allow
+            *message*'s code at *level*, or *values* comes with no frame.
+    """
+    if frame is None:
+        if values is not None:
+            raise InternalError(f"{message.code}: frame values with no frame")
+        return ""
+    if not frame.allows(message.code, level):
+        raise InternalError(
+            f"{message.code}: the frame {frame.template!r} does not allow it at {level}"
+        )
+    head = frame.render(values or {})
+    return head.replace("%", "%%") if formatted else head
 
 
 def relay_extra(code: object, level: str, text: str) -> dict[str, object] | None:

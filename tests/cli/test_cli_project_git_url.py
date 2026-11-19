@@ -258,10 +258,13 @@ def test_a_remote_address_that_is_not_fetched_is_refused_aloud(
         _run(monkeypatch, tmp_path, command, address, "-o", str(tmp_path / "o.json"))
         == 1
     )
-    err = capsys.readouterr().err
-    assert "WARNING: Git source: Cannot fetch" in err
-    assert f"ERROR: loom {command}: Cannot fetch" in err
-    assert "only http and https URLs are fetched" in err
+    lines = capsys.readouterr().err.splitlines()
+    # One ERROR line and no WARNING: the refusal is said once, by the catalogue.
+    assert len(lines) == 1, lines
+    # The URL is printed with its user part masked (an ssh user is a credential).
+    assert lines[0].startswith(f"ERROR: loom {command}: URL=")
+    assert "r.git: only http and https URLs are fetched" in lines[0]
+    assert lines[0].endswith("nothing fetched [git-url-invalid]")
 
 
 @pytest.mark.skipif(

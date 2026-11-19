@@ -33,6 +33,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 | [`sbom-invalid`](#sbom-invalid) | ERROR, WARNING | An SBOM given to read is JSON but not a valid SPDX 3 document: its @graph is not a list of objects ('embed-wheel --sbom', 'loom id import'; checked before the format, whatever the file is named), an object of it names one key twice (JSON readers disagree on which value counts, so what was checked may not be what is embedded), the SPDX 3 reader refuses it ('loom id import': an object with no type, a property of the wrong kind; the reader's text after the line's ';'), or spdx3-validate refuses it ('embed-wheel --sbom --validate'; its own lines before say why). As a WARNING: 'loom id import' into an empty registry finds a document id that cannot be a namespace: not an absolute IRI, holding '#', or holding a character an IRI cannot hold (a space). | 0.25.0 |
 | [`sbom-wrong-format`](#sbom-wrong-format) | ERROR | An SBOM given to embed or to import into an ID registry is named as SPDX 3 JSON-LD (.spdx3.json) but holds another format (a CycloneDX document, say). | 0.25.0 |
 | [`target-ambiguous`](#target-ambiguous) | INFO | The path named for an SBOM is a folder, or a file in it whose name no AI model file has and that is not one, or is missing (a Git URL of README.md), so it does not say by itself what the SBOM describes; Pitloom decided by the rule: a project config makes it a project's, else the folder's one AI model file is read. | 0.23.4 |
+| [`target-ambiguous/git-page`](#target-ambiguousgit-page) | INFO | A Git URL names more than a repository, or names it in another spelling: a web page of a repository (with a branch, tag or commit, a folder or a file), a URL that is not itself a repository's, or a page of a file that is a folder (or of a folder that is a file). Pitloom decided by its rule what the URL names. | 0.25.0 |
 | [`target-wrong-format`](#target-wrong-format) | ERROR | The target given is not of the kind the command reads: a Hugging Face model given to 'loom project', or a file not named .whl given as a wheel ('loom wheel', 'embed-wheel', 'verify-wheel', 'validate-wheel'). | 0.25.0 |
 
 ### `config-unsafe`
@@ -48,10 +49,12 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   silences this line.
 - **Nothing to do**: the SBOM is generated with the defaults; settings the user
   trusts go in a file they pass with --config.
+- **Printed after**: `Git source: <text>` (a Git URL fetch), on its INFO lines;
+  the prefix is not part of the line.
 - **Lines**:
 
   ```text
-  INFO: Git source: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
+  INFO: the repository's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
   INFO: FILE=<file>: the downloaded sdist's own [tool.pitloom] settings are ignored (untrusted); --config or pitloom_config= applies [config-unsafe]
   ```
 
@@ -221,7 +224,7 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   (pyproject.toml, setup.cfg or setup.py).
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM. Subfolders are not searched; for a Git URL
-  whose folders below hold projects, the error names them after the line.
+  whose subfolders hold a project, the line names them (git.no-project).
 - **Tell the user**: the folder holds no Python project, as the line names it.
   They name the project's folder (for a monorepo, the sub-project's folder the
   error names, if any) and generate again. Do not guess a folder and generate
@@ -230,6 +233,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: No pyproject.toml, setup.cfg, or setup.py found in '<path>' [project-not-found]
+  ERROR: No pyproject.toml, setup.cfg, or setup.py found in '<path>'; Python projects are in subfolders (<folders>); give the URL of one of them [project-not-found]
+  ERROR: No pyproject.toml, setup.cfg, or setup.py found in '<path>'; Python projects are in subfolders (<folders>); Pitloom reads the folder in the URL only [project-not-found]
   ```
 
 ### `project-not-found/model-files`
@@ -260,7 +265,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   (pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model file
   of a supported format.
 - **SBOM effect**: not-written: no SBOM is written for the input.
-- **Pitloom did**: Wrote no SBOM. Subfolders are not searched for a model file.
+- **Pitloom did**: Wrote no SBOM. Subfolders are not searched for a model file;
+  for a Git URL whose subfolders hold a project, the line names them.
 - **Tell the user**: the folder has no project and no model file Pitloom reads.
   They name the project's folder, or the model file itself (its path, or for a
   Git URL the link to the file's page), and generate again. Do not guess a file
@@ -270,6 +276,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
   ```text
   ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file [project-or-model-not-found]
+  ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subfolders (<folders>); give the URL of one of them [project-or-model-not-found]
+  ERROR: '<path>': no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; Python projects are in subfolders (<folders>); Pitloom reads the folder in the URL only [project-or-model-not-found]
   ```
 
 ### `sbom-invalid`
@@ -347,6 +355,33 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   INFO: FILE=<file>: not an AI model file; reading its folder [target-ambiguous]
   INFO: FILE=<file>: no Python project; reading this AI model file [target-ambiguous]
   INFO: FILE=<file>: the one AI model file; reading it [target-ambiguous]
+  ```
+
+### `target-ambiguous/git-page`
+
+- **Level**: INFO.
+- **Means**: A Git URL names more than a repository, or names it in another
+  spelling: a web page of a repository (with a branch, tag or commit, a folder
+  or a file), a URL that is not itself a repository's, or a page of a file that
+  is a folder (or of a folder that is a file). Pitloom decided by its rule what
+  the URL names.
+- **SBOM effect**: none: the SBOM states what the input holds.
+- **Pitloom did**: Read what the line names: the repository, at the branch, tag
+  or commit, and the folder or file, it names.
+- **Nothing to do**: the SBOM describes what the line names; to describe another
+  version or folder, give its URL.
+- **Printed after**: `Git source: <text>` (a Git URL fetch), on its INFO lines;
+  the prefix is not part of the line.
+- **Lines**:
+
+  ```text
+  INFO: URL=<url>: read as repository <target> [target-ambiguous/git-page]
+  INFO: URL=<url>: read as repository <target>, <ref-kind> <ref> [target-ambiguous/git-page]
+  INFO: URL=<url>: read as repository <target>, folder '<path>' [target-ambiguous/git-page]
+  INFO: URL=<url>: read as repository <target>, <ref-kind> <ref>, folder '<path>' [target-ambiguous/git-page]
+  INFO: URL=<url>: not a repository; read as repository <target> [target-ambiguous/git-page]
+  INFO: URL=<url>: '<path>' is a file, not a folder; read as the file named [target-ambiguous/git-page]
+  INFO: URL=<url>: '<path>' is a folder, not a file; reading it [target-ambiguous/git-page]
   ```
 
 ### `target-wrong-format`

@@ -29,6 +29,7 @@ from pitloom.extract.remote import RemoteSourceError, fetch_git_project, git_url
 from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.messages import (
     CodedValueError,
+    Line,
     code_of,
 )
 from pitloom.messages.models import (
@@ -38,6 +39,8 @@ from pitloom.messages.models import (
 from pitloom.messages.targets import (
     MODEL_AMBIGUOUS,
     NO_SBOM_TARGET,
+    NO_TARGET_FOLDER_HINT_LINE,
+    NO_TARGET_HINT_LINE,
 )
 from tests._git_http_server import git
 from tests._model_fixtures import FORMATS, fixture_path
@@ -256,15 +259,26 @@ def test_a_folder_with_neither_is_refused(tmp_path: Path, mode: str, code: str) 
     assert "SECRET" not in str(excinfo.value)
 
 
-def test_neither_with_projects_below_names_them(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("page", "folders", "line"),
+    [
+        ("", "svc/a", NO_TARGET_HINT_LINE),
+        ("/tree/main/svc", "a", NO_TARGET_FOLDER_HINT_LINE),
+    ],
+    ids=["whole-repository", "folder"],
+)
+def test_neither_with_projects_below_names_them(
+    tmp_path: Path, page: str, folders: str, line: Line
+) -> None:
     """``git.no-project`` with the monorepo hint, keeping the catalogued
-    code of the condition."""
-    url = _repo(tmp_path / "o", {"README.md": "r\n", "svc/a/setup.py": ""})
+    code of the condition; the advice is the URL of one of them for the whole
+    repository, and that only the folder is read for a folder."""
+    url = _repo(tmp_path / "o", {"README.md": "r\n", "svc/a/setup.py": ""}) + page
     with pytest.raises(RemoteSourceError) as excinfo:
         _resolved(url)
     assert excinfo.value.code == "git.no-project"
     assert excinfo.value.pitloom_code == NO_SBOM_TARGET.code
-    assert "svc/a" in str(excinfo.value)
+    assert str(excinfo.value) == line.render({"path": url, "folders": folders})
 
 
 def test_a_project_only_of_a_model_folder_says_to_ask_for_a_model(

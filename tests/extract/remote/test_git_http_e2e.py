@@ -175,9 +175,7 @@ def test_a_repository_cannot_set_its_own_pitloom_settings(base: str) -> None:
         ("/g/p/-/tree/main/no/such/folder", "git.path-not-found"),
     ],
 )
-def test_a_refused_url_has_a_code_and_a_warning(
-    base: str, page: str, code: str
-) -> None:
+def test_a_refused_url_has_a_code(base: str, page: str, code: str) -> None:
     """Missing repository, ref or folder: each its own code."""
     with pytest.raises(RemoteSourceError) as excinfo:
         generate_git_project_sbom(base + page)
@@ -190,7 +188,7 @@ def test_a_monorepo_root_names_the_projects_below_it(base: str) -> None:
         generate_git_project_sbom(base + "/g/mono")
     assert excinfo.value.code == "git.no-project"
     assert "one" in str(excinfo.value) and "two" in str(excinfo.value)
-    assert "Give the URL of one of them" in str(excinfo.value)
+    assert "give the URL of one of them" in str(excinfo.value)
 
 
 _SRC = str(Path(__file__).resolve().parents[3] / "src")
@@ -228,8 +226,10 @@ def test_the_loom_program_reads_a_url(base: str, tmp_path: Path) -> None:
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == f"PITLOOM_SBOM_OUTPUT_PATH={out}"
     assert "svc-a" in _packages(out.read_text(encoding="utf-8"))
-    assert f"INFO: Git source: {base}/g/p redirected to {base}/g/p.git" in done.stderr
-    assert "folder svc/a" in done.stderr
+    moved = f"URL={base}/g/p: redirects to {base}/g/p.git; followed [url-moved]"
+    assert f"INFO: Git source: {moved}" in done.stderr
+    read_as = f"URL={base}/g/p/-/tree/main/svc/a: read as repository {base}/g/p.git"
+    assert f"INFO: Git source: {read_as}, branch main, folder 'svc/a' [" in done.stderr
     assert_spdx3_valid(out)
     again = tmp_path / "again.json"
     done = _loom(
@@ -303,13 +303,14 @@ def test_every_surface_writes_the_same_sbom(base: str, tmp_path: Path) -> None:
 def test_the_loom_program_refuses_what_it_does_not_fetch(
     base: str, tmp_path: Path, args: list[str], needle: str
 ) -> None:
-    """A refusal is a non-zero exit, an ``ERROR:`` line saying why and a
-    ``WARNING:`` too; nothing is written."""
+    """A refusal is a non-zero exit and one ``ERROR:`` line saying why, with
+    its code; nothing else is said and nothing is written."""
     target = "ssh://git@host/o/r.git" if not args else base + "/g/p"
     done = _loom("project", target, "-o", str(tmp_path / "x.json"), *args, cwd=tmp_path)
     assert done.returncode == 1
     assert "ERROR: loom project: " in done.stderr and needle in done.stderr
-    assert "WARNING: Git source:" in done.stderr  # logged as well as shown
+    assert done.stderr.count("\n") == 1 and "WARNING:" not in done.stderr
+    assert done.stderr.rstrip().endswith("]")
     assert not (tmp_path / "x.json").exists()
 
 

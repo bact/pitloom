@@ -100,6 +100,20 @@ _MARKERS: dict[str, tuple[str, ...]] = {
     ),
     "file-unreadable": ("could not read ", "outside the downloaded repository"),
     "file-unwritable": ("could not write ",),
+    "git-filter-unusable": ("rejected the blob filter",),
+    "git-link-unsafe": ("symbolic link(s) leading out of the repository",),
+    "git-missing": ("git is not installed or not on PATH",),
+    "git-redirect-unusable": ("could not be checked for a redirect",),
+    "git-ref-not-found": ("no branch or tag ",),
+    "git-repository-unusable": (
+        "an empty repository (no commits)",
+        "; nothing fetched",
+    ),
+    "git-url-invalid": (
+        "only http and https URLs are fetched",
+        "the port is not a number",
+        "a path part decodes to ",
+    ),
     "hf-url-invalid": ("not a valid Hugging Face URL",),
     "hyperparameter-conflict": ("replaced by the parameter count",),
     "index-path-no-effect": ("skipped directory name",),
@@ -209,8 +223,14 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "no project name",
         "has a project name",
     ),
-    "project-not-found": ("No pyproject.toml, setup.cfg, or setup.py found",),
-    "project-or-model-not-found": ("no Python project (pyproject.toml",),
+    "project-not-found": (
+        "No pyproject.toml, setup.cfg, or setup.py found",
+        "Python projects are in subfolders",
+    ),
+    "project-or-model-not-found": (
+        "no Python project (pyproject.toml",
+        "Python projects are in subfolders",
+    ),
     "pypi-response-invalid": (
         "declares no SHA-256 digest",
         "PyPI answered for project ",
@@ -231,7 +251,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "a PyPI page is not a model",
         "a PyPI page is not a Git repository",
     ),
-    "query-no-effect": ("the query and fragment have no effect",),
+    "query-no-effect": (
+        "the query and fragment have no effect",
+        "the version names no branch",
+    ),
     "reader-unsafe": ("pass --trust-model-files", "run on a downloaded file"),
     "registry-conflict": (
         "is registered for both",
@@ -321,6 +344,10 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "not an AI model file; reading its folder",
         "no Python project; reading this AI model file",
         "the one AI model file; reading it",
+        "read as repository ",
+        "not a repository; read as",
+        ", not a folder; read as the file",
+        ", not a file; reading it",
     ),
     "target-wrong-format": (
         "a Hugging Face model, not a project",
@@ -333,7 +360,7 @@ _MARKERS: dict[str, tuple[str, ...]] = {
         "lone surrogates replaced with U+FFFD",
     ),
     "url-moved": ("; followed",),
-    "url-unsafe": ("redirects to ", "; not fetched"),
+    "url-unsafe": ("redirects to ", "; not fetched", " redirects; "),
     "usage-unparseable": ("could not parse as Python ",),
     "usage-unusable": ("not scanned for usage",),
 }

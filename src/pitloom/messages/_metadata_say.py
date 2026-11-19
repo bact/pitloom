@@ -71,5 +71,15 @@ def warn_discovery(log: logging.Logger, line: Line, **values: object) -> None:
     entry = next((e for e in _DISCOVERY_ENTRIES if line in e.lines), None)
     if entry is None:
         raise InternalError(f"{line.template!r} is no file discovery line")
-    # once and extra bound by name: no value can take their place.
-    emit(log, entry, logging.WARNING, line=line, once=None, extra=None, **values)
+    # The keywords bound by name: no value can take their place.
+    emit(
+        log,
+        entry,
+        logging.WARNING,
+        line=line,
+        once=None,
+        extra=None,
+        frame=None,
+        frame_values=None,
+        **values,
+    )

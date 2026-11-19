@@ -99,8 +99,18 @@ def warn_file_unreadable(
     values: dict[str, object] = {"file": file, **named}
     if entry is not FILE_UNREADABLE_OUTSIDE:
         values["failure"] = exc
-    # line and extra bound by name: no value can take their place.
-    emit(log, entry, logging.WARNING, line=None, once=once, extra=None, **values)
+    # The keywords bound by name: no value can take their place.
+    emit(
+        log,
+        entry,
+        logging.WARNING,
+        line=None,
+        once=once,
+        extra=None,
+        frame=None,
+        frame_values=None,
+        **values,
+    )
 
 
 def warn_dir_unlistable(

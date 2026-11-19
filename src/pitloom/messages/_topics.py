@@ -42,6 +42,7 @@ TOPIC_TITLES: Final[Mapping[str, str]] = MappingProxyType(
         "dependencies": "Dependencies",
         "pypi": "PyPI",
         "network": "Network",
+        "git": "Git URLs",
         "url-credentials": "URL credentials",
         "id-registry": "ID registry",
         "id-registry-ids": "ID registry ids and keys",
@@ -156,6 +157,15 @@ _TOPIC_FAMILIES: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
             "query-no-effect",
             "url-moved",
             "url-unsafe",
+        ),
+        "git": (
+            "git-filter-unusable",
+            "git-link-unsafe",
+            "git-missing",
+            "git-redirect-unusable",
+            "git-ref-not-found",
+            "git-repository-unusable",
+            "git-url-invalid",
         ),
         "url-credentials": ("credentials-unsafe",),
         "id-registry": (

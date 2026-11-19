@@ -18,6 +18,7 @@ from pitloom.messages._pypi_info import (
     QUERY_NO_EFFECT,
     REDIRECT_LINE,
     URL_MOVED,
+    VERSION_IGNORED_LINE,
 )
 from pitloom.messages._remote_fetch import (
     DOWNLOAD_FAILED,
@@ -33,6 +34,7 @@ from pitloom.messages._remote_fetch import (
     FILE_HOST_REFUSED_LINE,
     GIT_HOST_SPELLING_LINE,
     GIT_NETWORK_FAILED_LINE,
+    GIT_REDIRECT_OUTCOME,
     GIT_TIMEOUT_LINE,
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
@@ -59,6 +61,7 @@ __all__ = [
     "FILE_HOST_REFUSED_LINE",
     "GIT_HOST_SPELLING_LINE",
     "GIT_NETWORK_FAILED_LINE",
+    "GIT_REDIRECT_OUTCOME",
     "GIT_TIMEOUT_LINE",
     "OFFLINE_LINE",
     "OFFLINE_UNUSABLE",
@@ -73,4 +76,5 @@ __all__ = [
     "URL_HOST_SPELLING",
     "URL_MOVED",
     "URL_REFUSED",
+    "VERSION_IGNORED_LINE",
 ]

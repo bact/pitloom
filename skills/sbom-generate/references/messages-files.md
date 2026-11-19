@@ -352,6 +352,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   matters, they correct the source (a proper escape, a UTF-8 file name) and
   generate again. Do not rename or edit files for them; ask first, and with
   nobody to ask, report it only.
+- **Printed after**: `FORMAT=<format> FILE=<file>: <text>` (a model scan, before
+  a model reader's own line), on its WARNING lines; the prefix is not part of
+  the line.
 - **Lines**:
 
   ```text

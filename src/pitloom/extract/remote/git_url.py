@@ -13,12 +13,11 @@ Forgejo, Codeberg), ``.../src/main/dir`` (Bitbucket Cloud) and
 (Gitiles, Gerrit's code browser). Azure DevOps
 (``.../_git/repo?path=/dir&version=GBmain``) and cgit (``.../tree/dir?h=main``;
 Launchpad, kernel.org) put the branch in the query. The page syntax is the same
-on every host that runs the same software, so no host list is kept: a URL is read by
-its path, and the repository is the part before the page marker.
+on every host that runs the same software, so no host list is kept: a URL is
+read by its path, and the repository is the part before the page marker.
 
 A branch name may hold ``/``, so the split between branch and folder cannot be
 read from the URL; :func:`split_ref` takes it from the server's own refs.
-
 Messages quote a URL without its credentials.
 """
 
@@ -30,9 +29,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
-from pitloom.core.quote_source import quote_source
-from pitloom.core.url_masking import sanitize_url
+from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.messages.git import (
+    GIT_REF_NOT_FOUND,
+    GIT_REF_NOT_FOUND_LINE,
+    GIT_URL_INVALID,
+    GIT_URL_PATH_LINE,
+)
 
 __all__ = [
     "ALLOWED_SCHEMES",
@@ -262,9 +266,7 @@ def parse_git_page(url: str) -> GitPage:
             and marker in {("tree",), ("log",)}
             and _SOURCEHUT_ITEM in rest[1:]
         )
-        repo = urlunsplit(
-            (parts.scheme, parts.netloc, "/" + "/".join(raw[:index]), "", "")
-        )
+        repo = _with_path(parts, raw[:index])
         return GitPage(repo, rest, is_file, cut, kind, plain, sourcehut)
     return GitPage(plain, cut=cut, plain_url=plain)
 
@@ -343,12 +345,7 @@ def _gitiles_page(
         rest = rest[2:]
     if not rest:
         return None
-    return GitPage(
-        _with_path(parts, raw[:index]),
-        rest,
-        kind=kind,
-        plain_url=plain,
-    )
+    return GitPage(_with_path(parts, raw[:index]), rest, kind=kind, plain_url=plain)
 
 
 def _with_path(parts: SplitResult, segments: list[str]) -> str:
@@ -408,9 +405,11 @@ def _check_segments(rest: tuple[str, ...], url: str) -> None:
             or any(part in {"", ".", ".."} for part in parts)
             or any(_names_git_dir(part) for part in parts)
         ):
-            raise RemoteSourceError(
+            raise remote_error(
                 "git.url-invalid",
-                f"Invalid path in URL: {quote_source(sanitize_url(url))}",
+                GIT_URL_INVALID,
+                GIT_URL_PATH_LINE,
+                url=shown_url(url),
             )
 
 
@@ -453,11 +452,17 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     if page.sourcehut:
         end = rest.index(_SOURCEHUT_ITEM) if _SOURCEHUT_ITEM in rest else len(rest)
         first = "/".join(rest[: max(end, 1)])
-    raise RemoteSourceError(
+    raise _ref_not_found(page, first)
+
+
+def _ref_not_found(page: GitPage, ref: str) -> RemoteSourceError:
+    """``git.ref-not-found``: *page*'s repository has no branch or tag *ref*."""
+    return remote_error(
         "git.ref-not-found",
-        f"No branch or tag {quote_source(first)} in "
-        f"{quote_source(sanitize_url(page.repo_url))} "
-        "(a commit needs its full 40 or 64 hex digits).",
+        GIT_REF_NOT_FOUND,
+        GIT_REF_NOT_FOUND_LINE,
+        url=shown_url(page.repo_url),
+        ref=ref,
     )
 
 
@@ -473,12 +478,7 @@ def _queried_target(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTar
         return GitTarget(ref=page.ref, subdir=folder, tag=tag, file=file)
     if _COMMIT.fullmatch(page.ref):
         return GitTarget(commit=page.ref, subdir=folder, file=file)
-    raise RemoteSourceError(
-        "git.ref-not-found",
-        f"No branch or tag {quote_source(page.ref)} in "
-        f"{quote_source(sanitize_url(page.repo_url))} "
-        "(a commit needs its full 40 or 64 hex digits).",
-    )
+    raise _ref_not_found(page, page.ref)
 
 
 def _after_ref(page: GitPage, rest: list[str], size: int) -> list[str] | None:

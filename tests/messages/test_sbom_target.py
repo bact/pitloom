@@ -45,18 +45,23 @@ _LOG = logging.getLogger(f"{TEST_LOGGER_PREFIX}sbom_target")
 
 
 def test_the_module_has_its_codes() -> None:
-    """Only the decision is said with no effect on the SBOM; every refusal
+    """Only the decisions are said with no effect on the SBOM; every refusal
     writes none."""
     assert [m.code for m in _sbom_target.ENTRIES] == [
         "target-ambiguous",
+        "target-ambiguous/git-page",
         "project-or-model-not-found",
         "model-ambiguous",
         "model-ambiguous/over-cap",
         "project-not-found",
         "project-not-found/model-files",
     ]
-    assert {m.since for m in _sbom_target.ENTRIES} == {"0.23.4"}
-    assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] + ["not-written"] * 5
+    assert [m.since for m in _sbom_target.ENTRIES] == ["0.23.4", "0.25.0"] + [
+        "0.23.4"
+    ] * 5
+    assert [m.effect for m in _sbom_target.ENTRIES] == ["none"] * 2 + [
+        "not-written"
+    ] * 5
 
 
 @pytest.mark.parametrize(

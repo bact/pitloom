@@ -20,13 +20,13 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 
 | Code | Level | Means | Since |
 | --- | --- | --- | --- |
-| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause carries no code. | 0.24.0 |
+| [`download-network-failed`](#download-network-failed) | ERROR, WARNING | A request to a remote source failed. PyPI or Hugging Face: an HTTP status other than 404 (a 401 or 403 for a private or gated repository read without access), a refused or reset connection, a name that did not resolve, or an answer cut short. Git: git could not reach the repository (a name that did not resolve, a refused, reset or timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure with any other cause is git-repository-unusable. | 0.24.0 |
 | [`download-timeout`](#download-timeout) | ERROR, WARNING | A request to PyPI, to the host that serves a file or to the Hugging Face Hub, or the git calls that fetch a repository, did not finish within the time Pitloom allows. | 0.24.0 |
 | [`offline-unusable`](#offline-unusable) | ERROR, WARNING | Offline mode is on and the target must be fetched: a Git URL, a PyPI URL or a Hugging Face repository. Offline mode is --offline, the offline key of --config, or offline=True; for a file of a Hugging Face repository also huggingface_hub's own HF_HUB_OFFLINE. | 0.24.0 |
-| [`query-no-effect`](#query-no-effect) | INFO | The PyPI URL given holds a query or a fragment (a tab of the page), which names no project or release. | 0.24.0 |
-| [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name). | 0.24.0 |
+| [`query-no-effect`](#query-no-effect) | INFO | The PyPI or Git URL given holds a query or a fragment (a tab of the page) that names no project, release, branch, tag or commit; or a Git page URL's version query names none of them. | 0.24.0 |
+| [`url-moved`](#url-moved) | INFO | PyPI, or the host serving a file, redirected a request to another URL on a host Pitloom reads PyPI from (a renamed project, a normalised name); or a Git URL, asked before git is run, redirects to another https URL of a repository (a renamed or moved repository). | 0.24.0 |
 | [`url-moved/hf-endpoint`](#url-movedhf-endpoint) | INFO | huggingface_hub's HF_ENDPOINT names a Hub other than https://huggingface.co (a mirror, a private Hub). | 0.24.0 |
-| [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
+| [`url-unsafe`](#url-unsafe) | ERROR, WARNING | Pitloom would have to send a request somewhere it does not: a redirect to a URL that is not https or not on a host it reads PyPI or a Hugging Face file from, a Git URL's redirect to a URL that is not https or not a repository's, more redirects than it follows, or a file whose download URL PyPI gives on another host. | 0.24.0 |
 | [`url-unsafe/hf-endpoint`](#url-unsafehf-endpoint) | WARNING | huggingface_hub's HF_ENDPOINT names a Hub that is not an https URL, or one holding user information, a query or a fragment. The Hugging Face token must not be sent over plain http. | 0.24.0 |
 | [`url-unsafe/host-spelling`](#url-unsafehost-spelling) | ERROR | A Git URL's host holds a non-ASCII character (a full-width or ideographic dot, a full-width letter, an international name not in its xn-- form) or a percent-encoding. git (through curl) maps it to another host than the URL's text names, past every check that reads that text (a PyPI host is never cloned). Or it holds a character no host name holds (=, !, ;, white space, a leading - or .), the shape of an option or a setting smuggled into git's command line, or is a name in brackets ([v1.x]), which would lose them and name a DNS host. An IPv6 zone id ([fe80::1%25eth0]) is refused too. | 0.24.0 |
 
@@ -39,7 +39,8 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   without access), a refused or reset connection, a name that did not resolve,
   or an answer cut short. Git: git could not reach the repository (a name that
   did not resolve, a refused, reset or timed-out connection, a TLS failure, an
-  HTTP 5xx answer); a git failure with any other cause carries no code.
+  HTTP 5xx answer); a git failure with any other cause is
+  git-repository-unusable.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Wrote no SBOM (the error: pypi.download-failed,
   git.clone-failed); for a Hugging Face file, left that file out and read the
@@ -107,26 +108,36 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
 ### `query-no-effect`
 
 - **Level**: INFO.
-- **Means**: The PyPI URL given holds a query or a fragment (a tab of the page),
-  which names no project or release.
+- **Means**: The PyPI or Git URL given holds a query or a fragment (a tab of the
+  page) that names no project, release, branch, tag or commit; or a Git page
+  URL's version query names none of them.
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Read the URL without them.
-- **Nothing to do**: nothing to do: the project and release are read from the
-  path.
+- **Pitloom did**: Read the URL without them; for a Git URL whose version names
+  nothing, read the default branch.
+- **Nothing to do**: nothing to do: the project and release, or the repository
+  and version, are read from the rest of the URL.
+- **Printed after**: `Git source: <text>` (a Git URL fetch), on its INFO lines;
+  the prefix is not part of the line.
 - **Lines**:
 
   ```text
   INFO: URL=<url>: the query and fragment have no effect; cut [query-no-effect]
+  INFO: URL=<url>: the version names no branch, tag or commit; the default branch is read [query-no-effect]
   ```
 
 ### `url-moved`
 
 - **Level**: INFO.
 - **Means**: PyPI, or the host serving a file, redirected a request to another
-  URL on a host Pitloom reads PyPI from (a renamed project, a normalised name).
+  URL on a host Pitloom reads PyPI from (a renamed project, a normalised name);
+  or a Git URL, asked before git is run, redirects to another https URL of a
+  repository (a renamed or moved repository).
 - **SBOM effect**: none: the SBOM states what the input holds.
-- **Pitloom did**: Checked the target and followed it.
+- **Pitloom did**: Checked the target and followed it (for a Git URL, git is run
+  on the target).
 - **Nothing to do**: nothing to do: the line names where the answer came from.
+- **Printed after**: `Git source: <text>` (a Git URL fetch), on its INFO lines;
+  the prefix is not part of the line.
 - **Lines**:
 
   ```text
@@ -154,16 +165,21 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   writes nothing for it (exit 1).
 - **Means**: Pitloom would have to send a request somewhere it does not: a
   redirect to a URL that is not https or not on a host it reads PyPI or a
-  Hugging Face file from, more redirects than it follows, or a file whose
-  download URL PyPI gives on another host.
+  Hugging Face file from, a Git URL's redirect to a URL that is not https or not
+  a repository's, more redirects than it follows, or a file whose download URL
+  PyPI gives on another host.
 - **SBOM effect**: not-written: no SBOM is written for the input.
 - **Pitloom did**: Did not follow the redirect or fetch the file, and wrote no
-  SBOM (the error); for a Hugging Face file, left that file out and read the
-  rest (the warning).
+  SBOM (the error: git.too-many-redirects for a Git URL); for a Hugging Face
+  file, left that file out and read the rest (the warning); for a Git URL's
+  redirect, ran git on the URL as given, which follows no redirect (the
+  warning).
 - **Tell the user**: which URL was not followed and why, as the line says. A
   mirror or proxy that redirects is not supported; they may download the file
   themselves and run Pitloom on it. Do not fetch the target for them; ask first,
   and with nobody to ask, report it only.
+- **Printed after**: `Git source: <text>` (a Git URL fetch), on its WARNING
+  lines; the prefix is not part of the line.
 - **Lines**:
 
   ```text

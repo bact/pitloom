@@ -54,10 +54,6 @@ pitloom.extract.dataset.croissant 3
 pitloom.extract.dataset.values 4
 pitloom.extract.env 2
 pitloom.extract.project._sdist_scan 1
-pitloom.extract.remote._git_redirect 5
-pitloom.extract.remote._git_run 4
-pitloom.extract.remote.git 10
-pitloom.extract.remote.git_url 3
 pitloom.extract.remote.huggingface 1
 pitloom.extract.remote.huggingface_dataset 2
 pitloom.extract.remote.huggingface_fetch 5

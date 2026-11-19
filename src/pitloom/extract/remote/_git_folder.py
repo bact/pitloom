@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The folder of a checkout Pitloom runs on, and the hint when it has no
-Python project but folders below it do (a monorepo)."""
+"""The folder of a checkout Pitloom runs on, and the sub-projects it names
+when it has no Python project but folders below it do (a monorepo)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from pitloom.core.path_confine import (
     spelled_as_on_disk,
 )
 from pitloom.core.project_markers import PROJECT_MARKERS
+from pitloom.core.url_masking import masked_given_path
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
 from pitloom.messages.targets import (
@@ -28,6 +29,7 @@ __all__ = [
     "PROJECT_MARKERS",
     "checkout_folder",
     "checkout_has_file",
+    "folders_text",
     "subproject_hint",
 ]
 
@@ -89,14 +91,14 @@ def checkout_has_file(work_dir: str, path: str) -> bool:
     )
 
 
-def subproject_hint(folder: str, whole_repository: bool) -> str:
-    """When *folder* has no Python project but folders below it do, say where
-    (the text to add to the failure, starting with ``". "``); ``""`` when it
-    is a project or none is found. For the whole repository the user can give
-    the URL of one of them."""
+def subproject_hint(folder: str) -> tuple[list[str], int]:
+    """The sub-projects of *folder*, when it has no Python project but folders
+    below it do (a monorepo): their folder names, the first :data:`_HINT_LIMIT`
+    in sorted order, and how many more there are. ``([], 0)`` when *folder* is
+    a project or none is found."""
     root = Path(folder)
     if any((root / marker).is_file() for marker in PROJECT_MARKERS):
-        return ""
+        return [], 0
     found: list[str] = []
     for current, dirs, files in os.walk(root):
         depth = len(Path(current).relative_to(root).parts)
@@ -105,18 +107,14 @@ def subproject_hint(folder: str, whole_repository: bool) -> str:
             dirs[:] = []
         if depth and any(marker in files for marker in PROJECT_MARKERS):
             found.append(Path(current).relative_to(root).as_posix())
-    if not found:
-        return ""
     found.sort()
-    shown = ", ".join(loggable(name) for name in found[:_HINT_LIMIT])
-    more = f" and {len(found) - _HINT_LIMIT} more" if len(found) > _HINT_LIMIT else ""
-    advice = (
-        "Give the URL of one of them (the link to its folder in the "
-        "repository's web page)."
-        if whole_repository
-        else "Pitloom reads the folder in the URL only."
-    )
-    return (
-        f". There is no Python project here; Python projects are in "
-        f"subfolders ({shown}{more}). {advice}"
-    )
+    return found[:_HINT_LIMIT], max(len(found) - _HINT_LIMIT, 0)
+
+
+def folders_text(names: list[str], more: int) -> str:
+    """The ``folders`` value of a hint line: *names* comma-separated, each
+    escaped when it holds a control character, then ``and N more`` when
+    *more* folders are left out."""
+    # Masked before the escape, as a tab would hide a bare token's boundary.
+    shown = ", ".join(loggable(masked_given_path(name, line=True)) for name in names)
+    return f"{shown} and {more} more" if more else shown

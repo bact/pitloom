@@ -17,23 +17,19 @@ import stat
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 from unittest import mock
 
 import pytest
 
+from pitloom.core.internal_error import InternalError
 from pitloom.extract.remote import RemoteSourceError, _git_run, git, git_url
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote._git_run import GitRunner, _kill, _taskkill
-from pitloom.extract.remote.git import (
-    GitCheckout,
-    _checkout,
-    _folder,
-    _log_resolution,
-    _resolve,
-    _target,
-)
+from pitloom.extract.remote._git_say import folder_to_read, say_resolution
+from pitloom.extract.remote.git import GitCheckout, _checkout, _resolve, _target
 from pitloom.extract.remote.git_url import (
     GitPage,
     GitTarget,
@@ -41,10 +37,19 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     scheme_allowed,
 )
-from pitloom.messages import CodedValueError
+from pitloom.messages import CodedFileNotFoundError, CodedValueError, code_of
 from pitloom.messages.files import OVER_CAP
-from pitloom.messages.targets import MODEL_AMBIGUOUS
+from pitloom.messages.targets import (
+    MODEL_AMBIGUOUS,
+    PROJECT_FOLDER_HINT_LINE,
+    PROJECT_HINT_LINE,
+    PROJECT_NOT_FOUND,
+    PROJECT_NOT_FOUND_LINE,
+)
 from tests._message_drift import raised_as
+
+#: The URL given, as the page decisions name it.
+_URL = "https://h/o/r"
 
 posix_only = pytest.mark.skipif(
     sys.platform == "win32", reason="a shell script stands in for git"
@@ -177,29 +182,61 @@ def test_a_page_that_is_not_a_repository_with_the_same_url_is_not_retried(
     assert excinfo.value.code == "git.timeout"
 
 
-def test_a_failure_of_the_project_is_explained_only_when_there_is_a_hint(
+def test_a_missing_project_is_explained_when_folders_below_hold_one(
     tmp_path: Path,
 ) -> None:
-    """A folder with no project but projects below it turns a failure into
-    ``git.no-project``; a failure that is already a ``RemoteSourceError`` or
-    has no hint passes untouched."""
-    plain = GitCheckout(str(tmp_path), "u", None, "c", "", True)
-    with pytest.raises(ValueError, match="plain"), plain.explaining_failures():
-        raise ValueError("plain")
-    with pytest.raises(RemoteSourceError) as excinfo, plain.explaining_failures():
-        raise RemoteSourceError("git.clone-failed", "kept")
-    assert excinfo.value.code == "git.clone-failed"
+    """``project-not-found`` of a folder with no project but projects below it
+    becomes ``git.no-project`` that names them (and keeps the code), advising
+    the URL of one for the whole repository, else that only the folder is
+    read; with six, the sixth is ``and 1 more``."""
+    missing = CodedFileNotFoundError(
+        PROJECT_NOT_FOUND, line=PROJECT_NOT_FOUND_LINE, path=str(tmp_path)
+    )
+    whole = GitCheckout(str(tmp_path), "u", None, "c", "", True)
+    with pytest.raises(CodedFileNotFoundError) as info, whole.explaining_failures():
+        raise missing
+    assert info.value is missing
+    for name in "abcdef":
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "setup.py").write_text("", encoding="utf-8")
+    values = {"path": str(tmp_path), "folders": "a, b, c, d, e and 1 more"}
+    for checkout, line in (
+        (whole, PROJECT_HINT_LINE),
+        (replace(whole, whole_repository=False), PROJECT_FOLDER_HINT_LINE),
+    ):
+        with (
+            pytest.raises(RemoteSourceError) as excinfo,
+            checkout.explaining_failures(),
+        ):
+            raise missing
+        assert excinfo.value.code == "git.no-project"
+        assert code_of(excinfo.value) == PROJECT_NOT_FOUND.code
+        assert str(excinfo.value) == line.render(values)
+        assert excinfo.value.__cause__ is missing
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ValueError("no project"),
+        RemoteSourceError("git.clone-failed", "kept"),
+        CodedValueError(MODEL_AMBIGUOUS, path="here", count=2),
+        InternalError("a bug"),
+    ],
+    ids=["uncoded", "remote-source", "other-coded", "internal-error"],
+)
+def test_any_other_failure_of_the_project_read_passes_untouched(
+    tmp_path: Path, failure: Exception
+) -> None:
+    """Only ``project-not-found`` is explained: an uncoded failure, another
+    coded one, a fetch failure or a programming error is re-raised as it is,
+    projects below or not."""
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "setup.py").write_text("", encoding="utf-8")
-    with pytest.raises(RemoteSourceError) as excinfo, plain.explaining_failures():
-        raise ValueError("no project")
-    assert excinfo.value.code == "git.no-project"
-    assert "no project" in str(excinfo.value) and "sub" in str(excinfo.value)
-    # A catalogued refusal (several model files) states its own condition.
-    coded = CodedValueError(MODEL_AMBIGUOUS, path="here", count=2)
-    with pytest.raises(CodedValueError) as info, plain.explaining_failures():
-        raise coded
-    assert info.value is coded
+    plain = GitCheckout(str(tmp_path), "u", None, "c", "", True)
+    with pytest.raises(type(failure)) as info, plain.explaining_failures():
+        raise failure
+    assert info.value is failure
 
 
 def test_the_hint_looks_a_few_folders_deep_only(tmp_path: Path) -> None:
@@ -208,9 +245,9 @@ def test_the_hint_looks_a_few_folders_deep_only(tmp_path: Path) -> None:
     deep = tmp_path / "a" / "b" / "c" / "d" / "e"
     deep.mkdir(parents=True)
     (deep / "setup.py").write_text("", encoding="utf-8")
-    assert subproject_hint(str(tmp_path), True) == ""
+    assert subproject_hint(str(tmp_path)) == ([], 0)
     (tmp_path / "a" / "b" / "c" / "setup.py").write_text("", encoding="utf-8")
-    assert "a/b/c" in subproject_hint(str(tmp_path), True)
+    assert subproject_hint(str(tmp_path)) == (["a/b/c"], 0)
 
 
 @pytest.mark.parametrize(
@@ -374,7 +411,7 @@ def test_a_folder_page_that_names_a_file_reads_the_folder_holding_it(
     (tmp_path / "dir" / "app.toml").write_bytes(b"")
     (tmp_path / "app.toml").write_bytes(b"")
     with caplog.at_level(logging.INFO):
-        result, file = _folder(str(tmp_path), target)
+        result, file = folder_to_read(str(tmp_path), target, _URL)
     assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
     assert file == "app.toml"
     assert "is a file, not a folder" in caplog.text
@@ -397,7 +434,7 @@ def test_a_file_page_names_its_file_and_a_folder_none(
     too); a file page that names a folder reads it, with no file."""
     (tmp_path / "dir").mkdir()
     (tmp_path / "dir" / "app.toml").write_bytes(b"")
-    result, named = _folder(str(tmp_path), target)
+    result, named = folder_to_read(str(tmp_path), target, _URL)
     assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
     assert named == file
 
@@ -413,7 +450,7 @@ def test_a_file_page_names_its_file_and_a_folder_none(
 def test_a_missing_folder_is_still_refused(tmp_path: Path, target: GitTarget) -> None:
     """Only a path that is a file of the checkout is read as its folder."""
     with pytest.raises(RemoteSourceError) as excinfo:
-        _folder(str(tmp_path), target)
+        folder_to_read(str(tmp_path), target, _URL)
     assert excinfo.value.code == "git.path-not-found"
 
 
@@ -431,7 +468,7 @@ def test_a_file_reached_through_a_link_out_of_the_checkout_is_refused(
     except OSError:  # pragma: no cover - Windows without symlink privilege
         pytest.skip("symbolic links are not available")
     with pytest.raises(RemoteSourceError):
-        _folder(str(work), GitTarget(ref="main", subdir="link.toml"))
+        folder_to_read(str(work), GitTarget(ref="main", subdir="link.toml"), _URL)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -519,6 +556,6 @@ def test_an_azure_version_that_names_no_kind_is_logged_as_ignored(
     url = "https://dev.azure.com/o/p/_git/r?path=/d&version=gbmain"
     page = parse_git_page(url)
     with caplog.at_level(logging.INFO):
-        _log_resolution(url, "https://dev.azure.com/o/p/_git/r", GitTarget(), page)
-    assert "default branch read" in caplog.text
-    assert "query and fragment ignored" not in caplog.text
+        say_resolution(url, "https://dev.azure.com/o/p/_git/r", GitTarget(), page)
+    assert "the default branch is read" in caplog.text
+    assert "have no effect" not in caplog.text

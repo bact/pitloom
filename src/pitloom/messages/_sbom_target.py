@@ -4,12 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """What a folder named for an SBOM is, or is not: ``target-ambiguous`` (a
-folder, or a file that is not a model, read for what it holds),
+folder, or a file that is not a model, read for what it holds; with
+``/git-page``, what a Git URL names),
 ``project-or-model-not-found`` (neither a Python project nor an AI model
 file), ``model-ambiguous`` (several AI model files, none named; with
 ``/over-cap``, too many files a model could be to look at) and
 ``project-not-found`` (a project asked for, none found; with
-``/model-files``, model files found instead).
+``/model-files``, model files found instead). After a Git URL's folder,
+the last two name the subfolders that hold a project.
 
 See also: :mod:`pitloom.extract.model_target` (the one resolver of a path,
 a folder or a folder and a file name to a project or a model).
@@ -59,6 +61,92 @@ TARGET_AMBIGUOUS: Final = Message(
     since=_SINCE,
 )
 
+#: The release that first prints the Git URL lines.
+_GIT_SINCE: Final = "0.25.0"
+
+_GIT_PAGE_HEAD: Final = "URL=%(url)s: read as repository %(target)s"
+#: A Git URL naming its repository alone, in another spelling (a page URL,
+#: a trailing slash).
+GIT_PAGE_LINE: Final = Line(level="INFO", template=_GIT_PAGE_HEAD)
+#: A Git URL naming a branch, tag or commit of its repository.
+GIT_PAGE_REF_LINE: Final = Line(
+    level="INFO", template=f"{_GIT_PAGE_HEAD}, %(ref_kind)s %(ref)s"
+)
+#: A Git URL naming a folder of its repository.
+GIT_PAGE_FOLDER_LINE: Final = Line(
+    level="INFO", template=f"{_GIT_PAGE_HEAD}, folder %(path)s"
+)
+#: A Git URL naming a branch, tag or commit and a folder.
+GIT_PAGE_REF_FOLDER_LINE: Final = Line(
+    level="INFO", template=f"{_GIT_PAGE_HEAD}, %(ref_kind)s %(ref)s, folder %(path)s"
+)
+#: A Git URL that is not a repository's clone URL, read as the repository its
+#: page names.
+GIT_PAGE_NOT_REPO_LINE: Final = Line(
+    level="INFO",
+    template="URL=%(url)s: not a repository; read as repository %(target)s",
+)
+#: A Git URL of a folder's page that names a file.
+GIT_PAGE_FILE_LINE: Final = Line(
+    level="INFO",
+    template="URL=%(url)s: %(path)s is a file, not a folder; read as the file named",
+)
+#: A Git URL of a file's page that names a folder.
+GIT_PAGE_DIR_LINE: Final = Line(
+    level="INFO",
+    template="URL=%(url)s: %(path)s is a folder, not a file; reading it",
+)
+TARGET_AMBIGUOUS_GIT_PAGE: Final = Message(
+    code="target-ambiguous/git-page",
+    condition="ambiguous",
+    lines=(
+        GIT_PAGE_LINE,
+        GIT_PAGE_REF_LINE,
+        GIT_PAGE_FOLDER_LINE,
+        GIT_PAGE_REF_FOLDER_LINE,
+        GIT_PAGE_NOT_REPO_LINE,
+        GIT_PAGE_FILE_LINE,
+        GIT_PAGE_DIR_LINE,
+    ),
+    summary="A Git URL names more than a repository, or names it in another "
+    "spelling: a web page of a repository (with a branch, tag or commit, a "
+    "folder or a file), a URL that is not itself a repository's, or a page "
+    "of a file that is a folder (or of a folder that is a file). Pitloom "
+    "decided by its rule what the URL names.",
+    did="Read what the line names: the repository, at the branch, tag or "
+    "commit, and the folder or file, it names.",
+    effect="none",
+    actor="none",
+    advice="the SBOM describes what the line names; to describe another "
+    "version or folder, give its URL.",
+    subject_key="URL",
+    since=_GIT_SINCE,
+)
+
+_NO_TARGET_HEAD: Final = (
+    "%(path)s: no Python project (pyproject.toml, setup.cfg or setup.py) and no "
+    "AI model file of a supported format"
+)
+#: The advice after a project's or a model's absence in a Git URL whose
+#: subfolders hold a project: the repository read whole.
+_SUBFOLDERS_WHOLE: Final = (
+    "; Python projects are in subfolders (%(folders)s); give the URL of one of them"
+)
+#: The same, a folder of the repository read.
+_SUBFOLDERS_FOLDER: Final = (
+    "; Python projects are in subfolders (%(folders)s); Pitloom reads the "
+    "folder in the URL only"
+)
+#: A Git URL's whole repository, neither a project nor a model, with
+#: subfolders that hold a project.
+NO_TARGET_HINT_LINE: Final = Line(
+    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_WHOLE
+)
+#: The same for a folder of the repository the URL names.
+NO_TARGET_FOLDER_HINT_LINE: Final = Line(
+    level="ERROR", template=_NO_TARGET_HEAD + _SUBFOLDERS_FOLDER
+)
+
 #: A folder with no project config and no model file of a supported format.
 NO_SBOM_TARGET: Final = Message(
     code="project-or-model-not-found",
@@ -66,15 +154,16 @@ NO_SBOM_TARGET: Final = Message(
     lines=(
         Line(
             level="ERROR",
-            template="%(path)s: no Python project (pyproject.toml, setup.cfg or "
-            "setup.py) and no AI model file of a supported format; name a "
-            "project folder or a model file",
+            template=f"{_NO_TARGET_HEAD}; name a project folder or a model file",
         ),
+        NO_TARGET_HINT_LINE,
+        NO_TARGET_FOLDER_HINT_LINE,
     ),
     summary="A folder named for an SBOM holds neither a Python project "
     "(pyproject.toml, setup.cfg or setup.py) nor, directly in it, an AI model "
     "file of a supported format.",
-    did="Wrote no SBOM. Subfolders are not searched for a model file.",
+    did="Wrote no SBOM. Subfolders are not searched for a model file; for a "
+    "Git URL whose subfolders hold a project, the line names them.",
     effect="not-written",
     actor="user",
     advice="Tell the user the folder has no project and no model file Pitloom "
@@ -142,14 +231,23 @@ PROJECT_NOT_FOUND_LINE: Final = Line(
     level="ERROR",
     template="No pyproject.toml, setup.cfg, or setup.py found in %(path)s",
 )
+#: A Git URL's whole repository with no project config, with subfolders that
+#: hold a project.
+PROJECT_HINT_LINE: Final = Line(
+    level="ERROR", template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_WHOLE
+)
+#: The same for a folder of the repository the URL names.
+PROJECT_FOLDER_HINT_LINE: Final = Line(
+    level="ERROR", template=PROJECT_NOT_FOUND_LINE.template + _SUBFOLDERS_FOLDER
+)
 PROJECT_NOT_FOUND: Final = Message(
     code="project-not-found",
     condition="not-found",
-    lines=(PROJECT_NOT_FOUND_LINE,),
+    lines=(PROJECT_NOT_FOUND_LINE, PROJECT_HINT_LINE, PROJECT_FOLDER_HINT_LINE),
     summary="A folder read as a Python project holds no project config "
     "(pyproject.toml, setup.cfg or setup.py).",
     did="Wrote no SBOM. Subfolders are not searched; for a Git URL whose "
-    "folders below hold projects, the error names them after the line.",
+    "subfolders hold a project, the line names them (git.no-project).",
     effect="not-written",
     actor="user",
     advice="Tell the user the folder holds no Python project, as the line "
@@ -186,6 +284,7 @@ PROJECT_NOT_FOUND_MODEL_FILES: Final = Message(
 
 ENTRIES: Final = (
     TARGET_AMBIGUOUS,
+    TARGET_AMBIGUOUS_GIT_PAGE,
     NO_SBOM_TARGET,
     MODEL_AMBIGUOUS,
     MODEL_AMBIGUOUS_OVER_CAP,

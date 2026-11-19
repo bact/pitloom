@@ -30,6 +30,7 @@ from pitloom.extract.model_target import (
     say_reading_folder,
 )
 from pitloom.extract.remote._git_folder import checkout_has_file, subproject_hint
+from pitloom.extract.remote._git_say import no_target_hint_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.extract.scanner import is_model_candidate_name
@@ -110,7 +111,7 @@ def _refuse_model_only_folder(checkout: GitCheckout, subject: str) -> None:
     if has_project_config(checkout.folder):
         return
     names = _model_like_names(checkout.folder)
-    if not names or subproject_hint(checkout.folder, checkout.whole_repository):
+    if not names or subproject_hint(checkout.folder)[0]:
         return
     shown = ", ".join(loggable(name) for name in names[:_NAMES_SHOWN])
     more = len(names) - _NAMES_SHOWN
@@ -182,9 +183,9 @@ def resolve_git_target(checkout: GitCheckout, mode: str, url: str) -> SbomTarget
     except CodedValueError as exc:
         if code_of(exc) != NO_SBOM_TARGET.code:
             raise
-        hint = subproject_hint(checkout.folder, checkout.whole_repository)
-        if not hint:
+        folders, more = subproject_hint(checkout.folder)
+        if not folders:
             raise
-        raise RemoteSourceError(
-            "git.no-project", f"{exc}{hint}", pitloom_code=NO_SBOM_TARGET.code
+        raise no_target_hint_error(
+            subject, folders, more, checkout.whole_repository
         ) from exc

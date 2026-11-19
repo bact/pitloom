@@ -40,7 +40,7 @@ from pitloom.extract.remote.git_target import resolve_git_target
 from pitloom.extract.remote.huggingface import refuse_hub_model_target
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
-from pitloom.messages import emit
+from pitloom.messages import GIT_FRAME, emit
 from pitloom.messages.targets import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_REMOTE_LINE,
@@ -183,7 +183,13 @@ def generate_git_sbom(
                     },
                 )
             if pitloom_config is None:
-                emit(log, CONFIG_UNSAFE, logging.INFO, line=CONFIG_UNSAFE_REMOTE_LINE)
+                emit(
+                    log,
+                    CONFIG_UNSAFE,
+                    logging.INFO,
+                    line=CONFIG_UNSAFE_REMOTE_LINE,
+                    frame=GIT_FRAME,
+                )
             return generate_project_sbom(
                 checkout.folder,
                 output_path=output_path,

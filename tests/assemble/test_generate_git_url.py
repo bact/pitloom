@@ -38,6 +38,7 @@ from pitloom.extract.remote import RemoteSourceError
 from pitloom.extract.remote.git import GitCheckout
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import CODE_ATTR
+from pitloom.messages import GIT_FRAME
 from pitloom.messages.targets import CONFIG_UNSAFE
 
 _URL = "https://gitlab.example.org/g/p"
@@ -117,7 +118,8 @@ def test_the_repositorys_own_settings_are_ignored_unless_the_caller_gives_some(
         compact = generate_git_project_sbom(_URL)
     assert "\n" not in compact.strip()
     said = [r for r in caplog.records if getattr(r, CODE_ATTR, None) == "config-unsafe"]
-    assert [r.getMessage() for r in said] == [CONFIG_UNSAFE.lines[0].template]
+    line = CONFIG_UNSAFE.lines[0].template
+    assert [r.getMessage() for r in said] == [GIT_FRAME.render({}) + line]
     caplog.clear()
     with caplog.at_level(logging.INFO):
         pretty = generate_git_project_sbom(

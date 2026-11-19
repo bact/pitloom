@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from pitloom.messages import FIELDS, FRAMES, MESSAGES, TOPIC_TITLES
+from pitloom.messages import FIELDS, FRAMES, MESSAGES, SUMMARIES, TOPIC_TITLES
 
 pytestmark = pytest.mark.platform  # paths: the pages are files beside an index
 
@@ -44,7 +44,8 @@ gen = _load()
 
 def _used() -> set[str]:
     named = {n for m in MESSAGES.values() for ln in m.lines for n in ln.fields}
-    return named | {n for f in FRAMES for n in f.fields}
+    framed = {n for f in FRAMES for n in f.fields}
+    return named | framed | {n for s in SUMMARIES for n in s.fields}
 
 
 @pytest.mark.parametrize("site", gen.SITES, ids=lambda s: s.index.parent.parent.name)

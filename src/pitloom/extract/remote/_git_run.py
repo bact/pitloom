@@ -26,6 +26,7 @@ from typing import IO, cast
 from pitloom.core.model_extract_limit import MAX_DOWNLOAD_BYTES_KEY
 from pitloom.core.url_masking import (
     mask_checkout,
+    masked_given_path,
     sanitize_url,
     sanitize_url_credentials,
 )
@@ -37,13 +38,22 @@ from pitloom.extract.remote._git_credentials import (
     split_credentials,
 )
 from pitloom.extract.remote._git_size import SizeCap, tree_bytes
+from pitloom.extract.remote._http_errors import remote_error
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
+from pitloom.messages import say_summary
 from pitloom.messages.files import (
     CLONE_LINE,
     GIT_OUTPUT_LINE,
     OVER_CAP,
     Cap,
+)
+from pitloom.messages.git import (
+    GIT_COMMAND,
+    GIT_FAILED_LINE,
+    GIT_MISSING,
+    GIT_MISSING_LINE,
+    GIT_REPOSITORY_UNUSABLE,
 )
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
@@ -130,9 +140,9 @@ _NOT_GITS_WORDS = re.compile(
 #: What git (through curl) says when the server could not be reached or the
 #: transfer broke: a ``download-network-failed``. Any other failure (a
 #: repository, ref or sign-in the server refused, an HTTP 4xx answer) is no
-#: network failure and carries no code. Each is a phrase of curl's, its TLS
-#: library's or git's own (a ref name holds no space): a single word such as
-#: ``SSL`` would match a repository or branch named for it.
+#: network failure but a ``git-repository-unusable``. Each is a phrase of
+#: curl's, its TLS library's or git's own (a ref name holds no space): a single
+#: word such as ``SSL`` would match a repository or branch named for it.
 _NETWORK_FAILURE = re.compile(
     r"Could(n't| not) resolve (host|proxy)|Failed to connect|Couldn't connect"
     r"|Connection (refused|reset|timed out)|Operation timed out"
@@ -210,20 +220,19 @@ class GitRunner:
         """
         git = _which("git")
         if git is None:
-            raise RemoteSourceError(
-                "git.not-found", "git is not installed or not on PATH."
-            )
+            raise remote_error("git.not-found", GIT_MISSING, GIT_MISSING_LINE)
         command, sent = self._command(git, args)
         if echo:
-            log.info(
-                "Git source: $ %s",
-                loggable(
-                    sanitize_url_credentials(shlex.join(map(sanitize_url, command)))
+            say_summary(
+                log,
+                GIT_COMMAND,
+                command_line=sanitize_url_credentials(
+                    shlex.join(map(sanitize_url, command))
                 ),
             )
         left = self.remaining()
         if left <= 0:
-            raise self._timeout(what)
+            raise _timed_out(self.seconds, what)
         cap = None
         if watch is not None and self.max_bytes is not None:
             cap = SizeCap(watch, self.max_bytes)
@@ -236,7 +245,7 @@ class GitRunner:
                 pitloom_code=OVER_CAP.code,
             )
         if status is None:
-            raise self._timeout(what)
+            raise _timed_out(self.seconds, what)
         if out is None:
             raise RemoteSourceError(
                 "git.output-too-large",
@@ -264,29 +273,39 @@ class GitRunner:
             command += ["-c", setting]
         return command + plain, sent
 
-    def _timeout(self, what: str) -> RemoteSourceError:
-        """``git.timeout``: the shared deadline passed before or during the
-        call *what*."""
-        values = {"command": what, "seconds": max(round(self.seconds), 1)}
-        return RemoteSourceError(
-            "git.timeout",
-            GIT_TIMEOUT_LINE.render(values),
-            pitloom_code=DOWNLOAD_TIMEOUT.code,
-        )
+
+def _timed_out(seconds: float, what: str) -> RemoteSourceError:
+    """``git.timeout``: the shared deadline of *seconds* passed before or
+    during the call *what* (``download-timeout``)."""
+    return remote_error(
+        "git.timeout",
+        DOWNLOAD_TIMEOUT,
+        GIT_TIMEOUT_LINE,
+        command=what,
+        seconds=max(round(seconds), 1),
+    )
 
 
 def _failed(what: str, err: str, status: int) -> RemoteSourceError:
-    """``git.clone-failed`` for the call *what* that exited *status*: its
-    text is git's own (:func:`_failure`); when git could not reach the
-    server (:data:`_NETWORK_FAILURE`), it is the ``download-network-failed``
-    line."""
+    """``git.clone-failed`` for the call *what* that exited *status*, git's
+    own text in the line (:func:`_failure`): ``download-network-failed``
+    when git could not reach the server (:data:`_NETWORK_FAILURE`), else
+    ``git-repository-unusable``."""
     text = _failure(err, status)
-    if not is_network_failure(err):
-        return RemoteSourceError("git.clone-failed", text)
-    return RemoteSourceError(
+    if is_network_failure(err):
+        return remote_error(
+            "git.clone-failed",
+            DOWNLOAD_FAILED,
+            GIT_NETWORK_FAILED_LINE,
+            command=what,
+            error=text,
+        )
+    return remote_error(
         "git.clone-failed",
-        GIT_NETWORK_FAILED_LINE.render({"command": what, "error": text}),
-        pitloom_code=DOWNLOAD_FAILED.code,
+        GIT_REPOSITORY_UNUSABLE,
+        GIT_FAILED_LINE,
+        command=what,
+        error=text,
     )
 
 
@@ -309,7 +328,9 @@ def _failure(err: str, status: int) -> str:
     itself), without credentials, the temporary path or control characters."""
     lines = [ln.strip() for ln in err.splitlines() if _ERROR_LINE.match(ln.strip())]
     text = "; ".join(lines) or " ".join(err.split()) or f"git exited {status}"
-    text = mask_checkout(sanitize_url_credentials(text))
+    # Masked before the control characters are escaped: an escaped tab
+    # (backslash and t) would hide the word boundary a bare token needs.
+    text = masked_given_path(mask_checkout(sanitize_url_credentials(text)), line=True)
     return loggable(text)
 
 

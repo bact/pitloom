@@ -70,6 +70,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   repeated ONNX key, as protobuf keeps it.
 - **Nothing to do**: the SBOM states what the model's own reader sees; the other
   value is still in the model.
+- **Printed after**: `FORMAT=<format> FILE=<file>: <text>` (a model scan, before
+  a model reader's own line), on its WARNING lines; the prefix is not part of
+  the line.
 - **Lines**:
 
   ```text
@@ -91,6 +94,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   reader reported, as the line says: a damaged or unusual file, or a format
   version Pitloom does not read. The rest of the model is read. Do not edit or
   replace the file for them.
+- **Printed after**: `FORMAT=<format> FILE=<file>: <text>` (a model scan, before
+  a model reader's own line), on its WARNING lines; the prefix is not part of
+  the line.
 - **Lines**:
 
   ```text
@@ -125,6 +131,9 @@ each `<name>`, after at most one prefix: the index lists the prefixes and
   the line says: a malformed tensor shape, or a malformed count its metadata or
   the Hub states. The rest of the model is read. Do not edit the file or state a
   count for them.
+- **Printed after**: `FORMAT=<format> FILE=<file>: <text>` (a model scan, before
+  a model reader's own line), on its WARNING lines; the prefix is not part of
+  the line.
 - **Lines**:
 
   ```text

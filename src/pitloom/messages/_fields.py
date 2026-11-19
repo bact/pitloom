@@ -13,7 +13,7 @@ fields), :mod:`pitloom.messages._fields_credentials` (a URL credential's),
 :mod:`pitloom.messages._fields_config` (a configuration value's),
 :mod:`pitloom.messages._fields_licence` (a licence value's),
 :mod:`pitloom.messages._fields_metadata` (project metadata's and file
-discovery's),
+discovery's), :mod:`pitloom.messages._fields_git` (the Git URL lines'),
 :mod:`pitloom.messages._field_type` (:class:`Field`),
 :mod:`pitloom.messages._field_tables` (the closed tables),
 :mod:`pitloom.messages._types` (the templates),
@@ -57,6 +57,7 @@ from pitloom.messages._field_writers import (
 )
 from pitloom.messages._fields_config import CONFIG_FIELDS
 from pitloom.messages._fields_credentials import CREDENTIAL_FIELDS
+from pitloom.messages._fields_git import GIT_FIELDS
 from pitloom.messages._fields_licence import LICENCE_FIELDS
 from pitloom.messages._fields_lock import LOCK_FIELDS
 from pitloom.messages._fields_metadata import METADATA_FIELDS
@@ -91,12 +92,6 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             plain_text,
             "<subcommand>",
             "the `loom` command that failed (`generate`, `fragment validate`)",
-        ),
-        "command": Field(
-            r"[a-z][a-z-]*",
-            plain_text,
-            "<command>",
-            "the git command that was stopped or failed (`clone`, `fetch`)",
         ),
         "count": Field(
             r"(?: \((?:[2-9]|[1-9][0-9]+) files\))?",
@@ -136,8 +131,10 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<error>",
-            "what the reader or the file system reported, on one line; in "
-            "quotes, escaped, when it holds a control character",
+            "what the reader or the file system reported, or git's own "
+            "`fatal:`, `error:` and `remote:` lines joined by semicolons "
+            "(server text), on one line; in quotes, escaped, when it holds a "
+            "control character",
             free=True,
         ),
         "failure": Field(
@@ -368,8 +365,9 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<target>",
-            "a URL a redirect or a file points to, as given; in quotes, escaped, when "
-            "it holds a control character",
+            "a URL a redirect or a file points to, or the repository a Git "
+            "page URL names, as given; in quotes, escaped, when it holds a "
+            "control character",
             free=True,
         ),
         "unit": Field(
@@ -382,8 +380,9 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<url>",
-            "a URL as given (a PyPI page URL, a request URL, or huggingface_hub's "
-            "HF_ENDPOINT); in quotes, escaped, when it holds a control character",
+            "a URL as given, or the repository URL read from it (a PyPI page "
+            "URL, a Git URL, a request URL, or huggingface_hub's HF_ENDPOINT); "
+            "in quotes, escaped, when it holds a control character",
             free=True,
         ),
         "use": Field(
@@ -423,9 +422,11 @@ _GENERAL: Final[Mapping[str, Field]] = MappingProxyType(
             r".+",
             free_text,
             "<why>",
-            "why a redirect or an HF_ENDPOINT was refused, a file skipped, or a "
-            "release yanked (`no reason given` when PyPI gives none); on one line, "
-            "in quotes, escaped, when it holds a control character",
+            "why a redirect or an HF_ENDPOINT was refused, a file skipped, a "
+            "release yanked (`no reason given` when PyPI gives none), or a Git "
+            "URL could not be checked for a redirect (`HTTP 404`, `no answer "
+            "in time`, an exception's class name); on one line, in quotes, "
+            "escaped, when it holds a control character",
             free=True,
         ),
     }
@@ -456,4 +457,5 @@ FIELDS: Final[Mapping[str, Field]] = _merged(
     CONFIG_FIELDS,
     LICENCE_FIELDS,
     METADATA_FIELDS,
+    GIT_FIELDS,
 )

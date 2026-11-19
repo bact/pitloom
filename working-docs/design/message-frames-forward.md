@@ -209,6 +209,12 @@ Only what each PR must know; the PR's own Opus plan re-lists sites by AST.
 
 ### PR 13: Git
 
+Built (2026-11-19, branch `catalogue-git`; see
+[message-catalogue-pr13-plan.md](message-catalogue-pr13-plan.md)): frames hold
+exact codes (`Frame.codes`, `allows(code, level)`), not families; `GIT_FRAME`
+and a four-code `RELAY_FRAME`; the relays are dropped. The text below is the
+pre-build design.
+
 - `GIT_FRAME` (`Git source: `), WARNING and INFO, families of the Git lines
   (and `temp-left-behind` once PR 14 catalogues it). About 14 sites (V):
   10 INFO (`_git_redirect.py:59,68`; `git.py:105,324,405,507,524,528`;
