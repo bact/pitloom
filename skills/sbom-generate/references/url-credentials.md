@@ -103,7 +103,7 @@ the whole field value. Never try to recover the masked part.
    accepting one value by its fingerprint is the narrow choice.
 
 A fingerprint that matches no value of the SBOM prints `WARNING: Options:
-FINGERPRINT=sha256:<hex>: matches no URL of the SBOM <element>
+FINGERPRINT=<fingerprint>: matches no URL of the SBOM <element>
 [option-no-effect]` (the value changed or is gone): suggest removing that
 entry.
 

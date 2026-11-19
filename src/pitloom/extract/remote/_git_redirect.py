@@ -29,18 +29,26 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from pitloom.core.url_masking import sanitize_url
-from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote.git_url import scheme_allowed
-from pitloom.logging_config import loggable
+from pitloom.messages import GIT_FRAME, emit
+from pitloom.messages.git import (
+    GIT_REDIRECT_UNUSABLE,
+    GIT_URL_INVALID,
+    GIT_URL_PORT_LINE,
+)
+from pitloom.messages.network import (
+    GIT_REDIRECT_OUTCOME,
+    REDIRECT_REFUSED_WARNING_LINE,
+    TOO_MANY_REDIRECTS_LINE,
+    URL_MOVED,
+    URL_REFUSED,
+)
 
 log = logging.getLogger(__name__)
 
 __all__ = [
     "MAX_REDIRECTS",
-    "PROBE_FAILED_INFO",
-    "REDIRECT_INFO",
-    "REDIRECT_REFUSED_WARNING",
     "resolve_git_url",
 ]
 
@@ -53,20 +61,6 @@ PROBE_TIMEOUT_SECONDS = 20.0
 #: Seconds for all the probes of one URL together: a server that answers a
 #: byte at a time cannot hold the caller for longer.
 PROBE_BUDGET_SECONDS = 60.0
-
-#: ``log.info()`` format for a followed redirect. Arguments: the URL asked,
-#: the URL it redirected to.
-REDIRECT_INFO = "Git source: %s redirected to %s"
-
-#: ``log.warning()`` format for a redirect that is not followed. Arguments: the
-#: URL asked, the redirect target, why it is not followed.
-REDIRECT_REFUSED_WARNING = "Git source: %s redirected to %s, which is not followed: %s"
-
-#: ``log.info()`` format for a probe that could not be made. Arguments: the
-#: URL asked, why.
-PROBE_FAILED_INFO = (
-    "Git source: could not check %s for a redirect (%s); asking git directly"
-)
 
 _REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
 _INFO_REFS = "/info/refs"
@@ -100,9 +94,15 @@ def _probe_url(url: str) -> str:
     try:
         port = f":{parts.port}" if parts.port else ""
     except ValueError:
-        # The text of *exc* quotes the URL's authority, a password included.
-        raise RemoteSourceError(
-            "git.url-invalid", "Invalid URL: the port is not a number."
+        # An authority whose port is no number may be user information with
+        # its ``@`` forgotten (``user:password``): no mask can tell, so the
+        # URL is shown without it, and *exc*, which quotes it, is dropped.
+        hidden = urlunsplit((parts.scheme, "***", parts.path, "", ""))
+        raise remote_error(
+            "git.url-invalid",
+            GIT_URL_INVALID,
+            GIT_URL_PORT_LINE,
+            url=shown_url(hidden),
         ) from None
     path = parts.path.rstrip("/") + _INFO_REFS
     return urlunsplit((parts.scheme, host + port, path, _PROBE_QUERY, ""))
@@ -149,8 +149,10 @@ def _probe_once(probe_url: str) -> _Probe:
         OSError,
         ValueError,
     ) as exc:
+        # A ``URLError`` may carry a ``str`` as its reason: name the error then.
         reason = getattr(exc, "reason", exc)
-        return _Probe(failure=type(reason).__name__)
+        named = reason if isinstance(reason, BaseException) else exc
+        return _Probe(failure=type(named).__name__)
 
 
 def _probe_within(probe_url: str, seconds: float) -> _Probe:
@@ -163,11 +165,6 @@ def _probe_within(probe_url: str, seconds: float) -> _Probe:
     worker.start()
     worker.join(max(seconds, 0.0))
     return answer[0] if answer else _Probe(failure="no answer in time")
-
-
-def _shown(url: str) -> str:
-    """*url* as written in a message: without credentials, escaped."""
-    return loggable(sanitize_url(url))
 
 
 def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) -> str:
@@ -183,7 +180,7 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
     A redirect that does not lead to another repository's ``/info/refs`` (a
     sign-in page) is not followed. All probes together take at most
     :data:`PROBE_BUDGET_SECONDS`. Each redirect is one ``INFO:``
-    (:data:`REDIRECT_INFO`) naming both URLs.
+    (``url-moved``) naming both URLs.
 
     Raises:
         RemoteSourceError: ``git.too-many-redirects``, more than
@@ -197,22 +194,37 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
         found = _probe_within(probe, deadline - time.monotonic())
         if found.location is None:
             if found.failure:
-                log.info(PROBE_FAILED_INFO, _shown(current), found.failure)
+                emit(
+                    log,
+                    GIT_REDIRECT_UNUSABLE,
+                    logging.INFO,
+                    frame=GIT_FRAME,
+                    url=shown_url(current),
+                    why=found.failure,
+                )
             return current
         target = urlsplit(urljoin(probe, found.location))
         refusal = _not_followed(target)
         if refusal:
-            log.warning(
-                REDIRECT_REFUSED_WARNING,
-                _shown(current),
-                _shown(target.geturl()),
-                refusal,
+            emit(
+                log,
+                URL_REFUSED,
+                logging.WARNING,
+                line=REDIRECT_REFUSED_WARNING_LINE,
+                frame=GIT_FRAME,
+                url=shown_url(current),
+                target=shown_url(target.geturl()),
+                why=refusal,
+                outcome=GIT_REDIRECT_OUTCOME,
             )
             return current
         if hop == MAX_REDIRECTS:
-            raise RemoteSourceError(
+            raise remote_error(
                 "git.too-many-redirects",
-                f"{_shown(url)} redirects more than {MAX_REDIRECTS} times.",
+                URL_REFUSED,
+                TOO_MANY_REDIRECTS_LINE,
+                url=shown_url(url),
+                number=MAX_REDIRECTS,
             )
         userinfo, _at, host_port = target.netloc.rpartition("@")
         path = target.path.removesuffix(_INFO_REFS)
@@ -226,7 +238,14 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
             following = urlunsplit(
                 (target.scheme, f"{userinfo}@{host_port}", path, "", "")
             )
-        log.info(REDIRECT_INFO, _shown(current), _shown(following))
+        emit(
+            log,
+            URL_MOVED,
+            logging.INFO,
+            frame=GIT_FRAME,
+            url=shown_url(current),
+            target=shown_url(following),
+        )
         current = following
         hop += 1
 

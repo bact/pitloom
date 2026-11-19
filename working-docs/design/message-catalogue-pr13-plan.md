@@ -13,9 +13,17 @@ See also: [message-catalogue-pr13-build.md](message-catalogue-pr13-build.md)
 [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md),
 [message-frames-forward.md](message-frames-forward.md).
 
-Status (2026-11-19): not built. The user accepted every recommendation
-of Q1 to Q15 (section 4); do not re-ask them. Written by Opus on `main` at
-8bdca1e6; re-verify line numbers before building.
+Status (2026-11-19): built on branch `catalogue-git` (PR number pending),
+reviewed in two rounds ([review rounds](../implementation/message-catalogue-review-rounds.md),
+Round 4). The user accepted every recommendation of Q1 to Q15 (section 4).
+Written by Opus on `main` at 8bdca1e6. Built shape differs in these places:
+frames name exact **codes**, not families (`Frame.codes`,
+`Frame.allows(code, level)`, `GIT_FRAME.codes`; sections 3.1 and 4 Q1/Q2 say
+"families"); `RELAY_FRAME.codes` holds four codes (the licence line is never
+relayed, C8 was wrong); the bad-port line prints the URL with its authority
+masked (`URL=https://***/x`); `query-no-effect` has a second line, so its
+PyPI caller names `line=`; the new frame tests are in
+`tests/messages/test_frames_codes.py`.
 
 Read-only plan on `main` at 8bdca1e6 (PR 12, #501, merged). Last tag
 `v0.24.0`: every new entry `since="0.25.0"`. Worktree

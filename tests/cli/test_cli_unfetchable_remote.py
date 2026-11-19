@@ -50,10 +50,8 @@ def test_the_three_commands_refuse_an_unfetchable_address_alike(
         assert code == 1, command
         assert "only http and https URLs are fetched" in err, command
         assert "not found" not in err, command
-    # The same `Cannot fetch <address>: ...` text, whatever the command.
-    texts = {
-        err.splitlines()[-1].split("Cannot fetch ", 1)[1] for _, err in results.values()
-    }
+    # The same `URL=<address>: ...` text, whatever the command.
+    texts = {err.splitlines()[-1].split("URL=", 1)[1] for _, err in results.values()}
     assert len(texts) == 1
 
 

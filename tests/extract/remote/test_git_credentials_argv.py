@@ -10,7 +10,7 @@ the arguments and handed over in the child's environment, to the calls that
 contact the server only. A secret in the query or fragment (``?token=``,
 ``?access_token=``, ``#token=``) is never given to git at all: the page
 parser and the redirect probe drop both before the clone URL is built
-(``(query and fragment ignored)``), so git can neither use it nor write it
+(the ``query-no-effect`` line), so git can neither use it nor write it
 to ``.git/config``. An scp-style address is refused before git runs.
 
 The server is on ``127.0.0.1`` (`loopback`); the secrets are fake.

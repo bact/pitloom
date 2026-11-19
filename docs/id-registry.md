@@ -164,7 +164,7 @@ traceback, and takes precedence over that error.
   shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
   path project-relative, `/`-separated) and the run continues; a partial tree
   is never indexed silently. A file whose name a registry cannot hold (not
-  UTF-8 encodable) gets `WARNING: ID registry: FILE=<path>: name cannot be
+  UTF-8 encodable) gets `WARNING: ID registry: PATH '<path>': name cannot be
   encoded as UTF-8 (lone surrogate); not indexed [text-malformed/registry]`.
   A `PATH` argument itself that cannot be read or listed is an `ERROR:` (exit
   1, nothing written) on every Python version, naming it as typed:

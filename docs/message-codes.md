@@ -28,7 +28,7 @@ the table of prefixes.
 
 - [AI models](message-codes-models.md): 12 codes
 - [Model fields](message-codes-model-fields.md): 5 codes
-- [Targets](message-codes-targets.md): 14 codes
+- [Targets](message-codes-targets.md): 15 codes
 - [Options](message-codes-options.md): 4 codes
 - [Configuration](message-codes-config.md): 6 codes
 - [Project metadata](message-codes-metadata.md): 9 codes
@@ -38,6 +38,7 @@ the table of prefixes.
 - [Dependencies](message-codes-dependencies.md): 6 codes
 - [PyPI](message-codes-pypi.md): 13 codes
 - [Network](message-codes-network.md): 9 codes
+- [Git URLs](message-codes-git.md): 8 codes
 - [URL credentials](message-codes-url-credentials.md): 8 codes
 - [ID registry](message-codes-id-registry.md): 5 codes
 - [ID registry ids and keys](message-codes-id-registry-ids.md): 15 codes
@@ -82,6 +83,14 @@ the table of prefixes.
 | [`file-unreadable/outside-project`](message-codes-files.md#file-unreadableoutside-project) | WARNING | 0.22.0 |
 | [`file-unreadable/outside-repository`](message-codes-files.md#file-unreadableoutside-repository) | WARNING | 0.23.4 |
 | [`file-unwritable`](message-codes-files.md#file-unwritable) | ERROR, WARNING | 0.25.0 |
+| [`git-filter-unusable`](message-codes-git.md#git-filter-unusable) | INFO | 0.25.0 |
+| [`git-link-unsafe`](message-codes-git.md#git-link-unsafe) | INFO | 0.25.0 |
+| [`git-missing`](message-codes-git.md#git-missing) | ERROR | 0.25.0 |
+| [`git-redirect-unusable`](message-codes-git.md#git-redirect-unusable) | INFO | 0.25.0 |
+| [`git-ref-not-found`](message-codes-git.md#git-ref-not-found) | ERROR | 0.25.0 |
+| [`git-repository-unusable`](message-codes-git.md#git-repository-unusable) | ERROR | 0.25.0 |
+| [`git-repository-unusable/empty`](message-codes-git.md#git-repository-unusableempty) | ERROR | 0.25.0 |
+| [`git-url-invalid`](message-codes-git.md#git-url-invalid) | ERROR | 0.25.0 |
 | [`hf-url-invalid`](message-codes-targets.md#hf-url-invalid) | ERROR | 0.25.0 |
 | [`hyperparameter-conflict`](message-codes-model-fields.md#hyperparameter-conflict) | WARNING | 0.22.0 |
 | [`index-path-no-effect`](message-codes-id-registry-ids.md#index-path-no-effect) | WARNING | 0.25.0 |
@@ -170,6 +179,7 @@ the table of prefixes.
 | [`sbom-wrong-format`](message-codes-targets.md#sbom-wrong-format) | ERROR | 0.25.0 |
 | [`source-date-epoch-invalid`](message-codes-config.md#source-date-epoch-invalid) | ERROR | 0.25.0 |
 | [`target-ambiguous`](message-codes-targets.md#target-ambiguous) | INFO | 0.23.4 |
+| [`target-ambiguous/git-page`](message-codes-targets.md#target-ambiguousgit-page) | INFO | 0.25.0 |
 | [`target-wrong-format`](message-codes-targets.md#target-wrong-format) | ERROR | 0.25.0 |
 | [`temp-dir-unusable`](message-codes-files.md#temp-dir-unusable) | ERROR, WARNING | 0.24.0 |
 | [`text-malformed`](message-codes-files.md#text-malformed) | WARNING | 0.23.0 |
@@ -191,4 +201,5 @@ A line may start with one prefix before its text:
 | `loom: <text>` | ERROR | the command line, before a subcommand is known |
 | `Pitloom build hook: <text>` | ERROR | the Hatchling build hook |
 | `FORMAT=<format> FILE=<file>: <text>` | ERROR, WARNING | a model scan, before a model reader's own line |
+| `Git source: <text>` | WARNING, INFO | a Git URL fetch |
 <!-- END GENERATED -->

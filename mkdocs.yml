@@ -62,6 +62,7 @@ nav:
           - Dependencies: message-codes-dependencies.md
           - PyPI: message-codes-pypi.md
           - Network: message-codes-network.md
+          - Git URLs: message-codes-git.md
           - URL credentials: message-codes-url-credentials.md
           - ID registry: message-codes-id-registry.md
           - ID registry ids and keys: message-codes-id-registry-ids.md

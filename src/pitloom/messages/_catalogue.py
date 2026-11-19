@@ -22,6 +22,8 @@ from pitloom.messages import (
     _file_discovery,
     _file_unreadable,
     _file_unwritable,
+    _git,
+    _git_decisions,
     _input_not_found,
     _json_malformed,
     _lfs_pointer,
@@ -100,6 +102,8 @@ MESSAGES: Final = _by_code(
         *_pypi.ENTRIES,
         *_remote_fetch.ENTRIES,
         *_pypi_info.ENTRIES,
+        *_git.ENTRIES,
+        *_git_decisions.ENTRIES,
         *_license_relationship_invalid.ENTRIES,
         *_license_expression.ENTRIES,
         *_license_db.ENTRIES,
@@ -123,4 +127,5 @@ MESSAGES: Final = _by_code(
 SUMMARIES: Final[tuple[Summary, ...]] = (
     *_registry_keys.SUMMARIES,
     *_registry_save.SUMMARIES,
+    *_git.SUMMARIES,
 )

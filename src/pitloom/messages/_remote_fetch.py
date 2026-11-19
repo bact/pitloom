@@ -30,12 +30,15 @@ REDIRECT_REFUSED_LINE: Final = Line(
     level="ERROR",
     template="URL=%(url)s: redirects to %(target)s; not followed (%(why)s)",
 )
-#: A redirect of a Hugging Face file that is not followed.
+#: A redirect of a Hugging Face file, or of a Git URL, that is not followed.
 REDIRECT_REFUSED_WARNING_LINE: Final = Line(
     level="WARNING",
     template="URL=%(url)s: redirects to %(target)s; not followed (%(why)s); "
     "%(outcome)s",
 )
+#: What a Git URL fetch does after a redirect it does not follow, as a
+#: ``url-unsafe`` warning's outcome says it.
+GIT_REDIRECT_OUTCOME: Final = "the URL itself asked of git"
 #: More redirects than Pitloom follows.
 TOO_MANY_REDIRECTS_LINE: Final = Line(
     level="ERROR", template="URL=%(url)s: more than %(number)s redirects; not followed"
@@ -76,11 +79,14 @@ URL_REFUSED: Final = Message(
     ),
     summary="Pitloom would have to send a request somewhere it does not: a "
     "redirect to a URL that is not https or not on a host it reads PyPI or "
-    "a Hugging Face file from, more redirects than it follows, or a file "
+    "a Hugging Face file from, a Git URL's redirect to a URL that is not "
+    "https or not a repository's, more redirects than it follows, or a file "
     "whose download URL PyPI gives on another host.",
     did="Did not follow the redirect or fetch the file, and wrote no SBOM "
-    "(the error); for a Hugging Face file, left that file out and read the "
-    "rest (the warning).",
+    "(the error: git.too-many-redirects for a Git URL); for a Hugging Face "
+    "file, left that file out and read the rest (the warning); for a Git "
+    "URL's redirect, ran git on the URL as given, which follows no redirect "
+    "(the warning).",
     effect="not-written",
     actor="user",
     advice="Tell the user which URL was not followed and why, as the line "
@@ -152,7 +158,7 @@ DOWNLOAD_FAILED: Final = Message(
     "that did not resolve, or an answer cut short. Git: git could not reach "
     "the repository (a name that did not resolve, a refused, reset or "
     "timed-out connection, a TLS failure, an HTTP 5xx answer); a git failure "
-    "with any other cause carries no code.",
+    "with any other cause is git-repository-unusable.",
     did="Wrote no SBOM (the error: pypi.download-failed, git.clone-failed); "
     "for a Hugging Face file, left that file out and read the rest (the "
     "warning).",

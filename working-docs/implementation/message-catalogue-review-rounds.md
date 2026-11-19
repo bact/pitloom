@@ -177,3 +177,60 @@ still raises `InternalError` itself. The `retry-refused` case of
   whole list, not per name.
 - `tests/messages/test_metadata_relays.py` is 508 lines and
   `tests/extract/project/test_poetry_extras.py` 517 (soft limit 400 to 500).
+
+## Round 4 (2026-11-19, PR 13: Git source)
+
+Two fresh-context Opus reviews (round 2 re-checked round 1's fixes), a
+HEAD-versus-tree sweep of about 3,600 tests' coded records (857 distinct lines:
+231 differ, every one a `Git source:` line HEAD did not trust; no PyPI or
+Hugging Face line changed) and real stderr runs against a local smart-HTTP
+server. No blocker or major. Fixed in the PR:
+
+- **Frames match exact codes, not families.** With `families`, the generated
+  reference said "Printed after `Git source: `" on four entries Git never says
+  framed (`config-unsafe/build-code`, the two `hf-endpoint` variants,
+  plain `target-ambiguous`) and `trusted_message` trusted them after the frame.
+  Now `Frame.codes` and `allows(code, level)`; a test pins the eight framed
+  codes in the reference and a mutant (a code no site says) now fails the
+  emit-site test (`said == frame codes`). The plan's C8 was wrong: only four
+  codes are relayed from `extract/ai_model/` (the licence line logs on another
+  logger; `warn_lone_surrogates` runs after the capture block).
+- **A token after an escaped control character leaked** (`remote: token:<TAB>
+  ghp_...`): `TOKEN_RE`'s lookbehind sees the `t` of `\t`. Pre-existing (HEAD
+  printed it uncoded), reachable through the new `error` field. Git's text
+  and the monorepo folder names are now masked before `loggable`.
+- The hint row's two advice variants were swapped in `docs/git-urls.md`; the
+  `docs/pypi-urls.md` WARNING-twin row had to stay (`pypi_url._refuse` still
+  relays); `docs/id-registry.md` quoted `FILE=<path>` for a line that prints
+  `PATH '<path>'`, and `url-credentials.md` quoted `sha256:<hex>`: both
+  passed only because the relay frame's free `FILE=` field absorbed them.
+- A `query-no-effect` caller (`pypi.py`) needed `line=` once the entry had a
+  second line.
+
+Mutation testing (62 hand-written mutants over the frame filter, `emit`,
+`_failed`/`_failure`, the two text-sniffing guards, `explaining_failures`, the
+probe reason, `say_resolution`, the hint lines, `drop_outside_links`, the
+redirect limit and `git-missing`): 55 killed, 3 equivalent (`loggable` and
+`sanitize_url_credentials` dropped in `_failure`: the field writer and the
+public masker repeat them; `hop >= MAX_REDIRECTS`), 4 real gaps now each
+killed by a test (an always-doubled `%` in a frame with no values; a hint
+error explained twice; a cut query after a ref line; a link under a nested
+.git folder). The round-2 review also found `GIT_FRAME.codes` could hold a
+code no site says (`said <= frame` was `said == frame`'s weaker form) and an
+unmasked `folders_text` (both fixed).
+
+### Open (found in round 4, not fixed)
+
+- Root cause of the leak: `TOKEN_RE` should allow a token after an escape
+  sequence (as after `%XX`); `shown_url` (`_http_errors.py:66`) and
+  `git_target.py:116` (`files` of `project-not-found/model-files`) escape
+  before masking too (pre-existing; a file or ref name holding `\x1b` +
+  token prints raw).
+- `pypi_url._refuse` relays its refusal as an uncoded `WARNING:` (PR 14).
+- `ref` is written unquoted: a whitespace-only ref prints invisibly, and one
+  holding `; ` reads as an extra clause (only a typed URL can cause it).
+- `_failure` masks 8 MiB of stderr in up to 13 s on adversarial PURL-dense
+  text (HEAD 0.17 s; the CLI sink masked it already): linear, not capped.
+- `tests/messages/test_git.py` is 515 lines (soft limit 400 to 500).
+- A trailing slash on a Git URL now prints a resolution line (HEAD did not):
+  intended (plan row 14, shape 1); one CHANGELOG word.

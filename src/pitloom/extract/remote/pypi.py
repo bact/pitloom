@@ -20,7 +20,7 @@ hashed as it arrives; a digest that does not match the declared one is an
 error. Nothing is built or run. Each decision is one ``INFO:``; each
 refusal is a :class:`~pitloom.extract.remote.errors.RemoteSourceError` (or,
 for the URL, a :class:`~pitloom.messages.CodedValueError`) carrying its
-catalogued code, and a ``WARNING:`` too. Messages name the file by its PyPI
+catalogued code. Messages name the file by its PyPI
 file name, never the temporary path.
 """
 
@@ -37,7 +37,7 @@ from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.core.internal_error import InternalError
 from pitloom.core.model_extract_limit import DEFAULT_MAX_DOWNLOAD_BYTES
 from pitloom.core.temp_dirs import temp_dir
-from pitloom.core.url_masking import DOWNLOAD_DIR_PREFIX, sanitize_url_credentials
+from pitloom.core.url_masking import DOWNLOAD_DIR_PREFIX
 from pitloom.extract.remote import pypi_url
 from pitloom.extract.remote._http_fetch import (
     Policy,
@@ -75,6 +75,7 @@ from pitloom.messages.network import (
     FILE_HOST_REFUSED_LINE,
     OFFLINE_LINE,
     OFFLINE_UNUSABLE,
+    QUERY_LINE,
     QUERY_NO_EFFECT,
     URL_REFUSED,
 )
@@ -445,22 +446,19 @@ def fetch_pypi_file(
         raise InternalError(f"kind must be {WHEEL!r} or {SDIST!r}, got {kind!r}")
     target = parse_pypi_url(url)
     if policy.offline:
-        error = remote_error(
+        raise remote_error(
             "pypi.offline",
             OFFLINE_UNUSABLE,
             OFFLINE_LINE,
             url=shown_url(url.strip()),
         )
-        # The refusal is said as well as raised, as its own text.
-        log.warning("%s", error)
-        raise error
     if target.cut:
-        emit(log, QUERY_NO_EFFECT, logging.INFO, url=shown_url(url.strip()))
+        emit(
+            log,
+            QUERY_NO_EFFECT,
+            logging.INFO,
+            line=QUERY_LINE,
+            url=shown_url(url.strip()),
+        )
     with temp_dir(DOWNLOAD_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work_dir:
-        try:
-            download = _download(target, kind, work_dir, policy)
-        except Exception as exc:
-            # A refusal is said here, so a caller that only logs shows it.
-            log.warning("%s", loggable(sanitize_url_credentials(str(exc))))
-            raise
-        yield download
+        yield _download(target, kind, work_dir, policy)

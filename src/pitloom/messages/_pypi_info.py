@@ -76,6 +76,12 @@ QUERY_LINE: Final = Line(
     level="INFO",
     template="URL=%(url)s: the query and fragment have no effect; cut",
 )
+#: A Git page URL's version query that names no branch, tag or commit.
+VERSION_IGNORED_LINE: Final = Line(
+    level="INFO",
+    template="URL=%(url)s: the version names no branch, tag or commit; the "
+    "default branch is read",
+)
 
 _UNPINNED_ADVICE: Final = (
     "Tell the user which release was read, as the line names it, and that "
@@ -185,8 +191,9 @@ URL_MOVED: Final = Message(
     lines=(REDIRECT_LINE,),
     summary="PyPI, or the host serving a file, redirected a request to "
     "another URL on a host Pitloom reads PyPI from (a renamed project, a "
-    "normalised name).",
-    did="Checked the target and followed it.",
+    "normalised name); or a Git URL, asked before git is run, redirects to "
+    "another https URL of a repository (a renamed or moved repository).",
+    did="Checked the target and followed it (for a Git URL, git is run on the target).",
     effect="none",
     actor="none",
     advice="nothing to do: the line names where the answer came from.",
@@ -197,13 +204,16 @@ URL_MOVED: Final = Message(
 QUERY_NO_EFFECT: Final = Message(
     code="query-no-effect",
     condition="no-effect",
-    lines=(QUERY_LINE,),
-    summary="The PyPI URL given holds a query or a fragment (a tab of the "
-    "page), which names no project or release.",
-    did="Read the URL without them.",
+    lines=(QUERY_LINE, VERSION_IGNORED_LINE),
+    summary="The PyPI or Git URL given holds a query or a fragment (a tab of "
+    "the page) that names no project, release, branch, tag or commit; or a "
+    "Git page URL's version query names none of them.",
+    did="Read the URL without them; for a Git URL whose version names "
+    "nothing, read the default branch.",
     effect="none",
     actor="none",
-    advice="nothing to do: the project and release are read from the path.",
+    advice="nothing to do: the project and release, or the repository and "
+    "version, are read from the rest of the URL.",
     subject_key="URL",
     since=_SINCE,
 )

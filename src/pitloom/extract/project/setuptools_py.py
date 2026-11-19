@@ -122,6 +122,8 @@ def _warn_undeclared(
             line=line,
             once=None,
             extra=None,
+            frame=None,
+            frame_values=None,
             file=file,
             name=name,
             **values,

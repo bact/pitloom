@@ -31,7 +31,8 @@ reference (:data:`TOPIC_TITLES`, a hyphen spelt ``_``):
 :mod:`~pitloom.messages.file_discovery`,
 :mod:`~pitloom.messages.models`, :mod:`~pitloom.messages.model_fields`,
 :mod:`~pitloom.messages.files`, :mod:`~pitloom.messages.pypi`,
-:mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.id_registry`,
+:mod:`~pitloom.messages.network`, :mod:`~pitloom.messages.git`,
+:mod:`~pitloom.messages.id_registry`,
 :mod:`~pitloom.messages.id_registry_ids` and :mod:`~pitloom.messages.licences`.
 A :class:`Summary` (:func:`say_summary`) is an ``INFO:`` line with no
 condition, so no code.
@@ -61,6 +62,7 @@ from pitloom.messages._field_tables import (
     INPUT_KINDS,
     LOOM_COMMANDS,
     READ_USES,
+    REF_KINDS,
 )
 from pitloom.messages._field_type import Field
 from pitloom.messages._field_writers import size_text
@@ -68,6 +70,8 @@ from pitloom.messages._fields import FIELDS
 from pitloom.messages._frames import (
     COMMAND_FRAME,
     FRAMES,
+    GIT_FRAME,
+    GIT_PREFIX,
     HOOK_FRAME,
     RELAY_FRAME,
     TOP_FRAME,
@@ -103,6 +107,8 @@ __all__ = [
     "FAMILY_TOPICS",
     "FIELDS",
     "FRAMES",
+    "GIT_FRAME",
+    "GIT_PREFIX",
     "HOOK_FRAME",
     "INPUT_KINDS",
     "LEVELS",
@@ -112,6 +118,7 @@ __all__ = [
     "LOOM_COMMANDS",
     "MESSAGES",
     "READ_USES",
+    "REF_KINDS",
     "RELAY_FRAME",
     "RESERVED_FAMILIES",
     "SUMMARIES",

@@ -38,8 +38,9 @@ class RemoteSourceError(Exception):
     ``git.too-large``, ``git.output-too-large`` and ``<route>.too-large``;
     ``offline-unusable`` for each ``.offline``; ``download-timeout`` for
     ``git.timeout``; ``download-network-failed`` for a ``git.clone-failed``
-    whose cause is the network (no other); every ``pypi.*`` and
-    ``huggingface.*`` code has one. It is read by
+    whose cause is the network, ``git-repository-unusable`` for any other
+    (``git-repository-unusable/empty`` for an empty repository); every
+    ``pypi.*``, ``huggingface.*`` and ``git.*`` code has one. It is read by
     :func:`pitloom.messages.code_of`.
     """
 

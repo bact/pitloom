@@ -86,13 +86,13 @@ def _fake(monkeypatch: pytest.MonkeyPatch, temp: Path) -> Iterator[FakePypi]:
 def _refused(
     url: str, caplog: pytest.LogCaptureFixture, kind: str = WHEEL, **kwargs: Any
 ) -> RemoteSourceError:
-    """The error *url* raises under the policy *kwargs* make; its text is a
-    ``WARNING:`` too."""
+    """The error *url* raises under the policy *kwargs* make; its text is not
+    logged as well: the caller's ``ERROR:`` line says it."""
     policy = RemoteFetchPolicy(**kwargs)
     with caplog.at_level(logging.WARNING), pytest.raises(RemoteSourceError) as info:
         with fetch_pypi_file(url, kind=kind, policy=policy):
             pass
-    assert str(info.value) in caplog.messages
+    assert str(info.value) not in caplog.messages
     assert "\n" not in str(info.value)
     return info.value
 

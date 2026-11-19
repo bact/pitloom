@@ -50,6 +50,7 @@ SAMPLES: dict[str, object] = {
     "classifiers": ["License :: OSI Approved :: MIT License"],
     "claimant": "src/a.txt",
     "command": "clone",
+    "command_line": "git clone --depth 1 https://example.org/r.git",
     "config_key": ConfigPlace("tool.pitloom.fragment", "files", entry=2, sub="role"),
     "count": 2,
     "declared": "b" * 64,
@@ -94,6 +95,7 @@ SAMPLES: dict[str, object] = {
     "license_reason": "not found: Acme-Terms",
     "limit": 1024,
     "fields": ("type_of_model", "properties.tags (kept as raw string)"),
+    "folders": "'svc', 'lib' and 1 more",
     "measured": "a" * 64,
     "metadata_fields": ["version", "optional-dependencies"],
     "module": "h5py",
@@ -114,6 +116,8 @@ SAMPLES: dict[str, object] = {
     "purpose": "per-wheel model-scan budget",
     "python": "3.10",
     "reason": "GGUF header declares 1000000 tensors",
+    "ref": "v1.0",
+    "ref_kind": "tag",
     "refusal": "invalid choice: 'x'",
     "registry_part": "spdxId",
     "requirement": "pitloom[gguf]",
@@ -352,7 +356,8 @@ def quote_matches(quote: str, family: str, marker: str) -> bool:
     """Whether *quote* (a backticked line or piece of one, optionally with
     its ``LEVEL: `` and its `` [code]``) is part of a line of *family*, at
     that line's level and with its entry's code, a frame of that level
-    before it or not. A value stands in the quote as a wildcard, as the
+    before it or not (one that allows the entry's code at that level). A value
+    stands in the quote as a wildcard, as the
     reference shows it, or as itself (``10000`` for ``<limit>``); a free
     value never holds the family's *marker*, so a quote cannot be all
     value."""
@@ -366,7 +371,10 @@ def quote_matches(quote: str, family: str, marker: str) -> bool:
         if entry.family == family and (coded is None or coded.group(1) == entry.code)
         for line in entry.lines
         if level is None or level.group(1) == line.level
-        for head in ["", *(f.template for f in FRAMES if line.level in f.levels)]
+        for head in [
+            "",
+            *(f.template for f in FRAMES if f.allows(entry.code, line.level)),
+        ]
     )
 
 

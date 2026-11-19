@@ -25,7 +25,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<card>` | the kind of card: `model card`, `dataset card`, `Hugging Face dataset card` |
 | `<claimant>` | the other element, key or spelling that wants the same id or holds it (a path, a name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<classifiers>` | the `License ::` classifiers, sorted, comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
-| `<command>` | the git command that was stopped or failed (`clone`, `fetch`) |
+| `<command>` | the git command that was stopped or failed (`clone`, `fetch`, `ls-remote`, `checkout`) |
 | `<config-key>` | where the value sits: its table as the file spells it (`[tool.pitloom]`, `[tool:pitloom]` in setup.cfg, `[[tool.pitloom.creator]]`), then its key, the entry of an array counted from 0 and the entry's key, each when there is one (`[tool.pitloom.fragment] files entry 2 role`) |
 | `<count>` | the number of files in brackets, `(N files)`, after a space when there are two or more; else nothing |
 | `<declared>` | the SHA-256 a source declares, in hex |
@@ -43,7 +43,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<entity>` | an element's name or ID registry key (a path, a dataset or model name, `name@version`), as given, a URL's credentials masked; in quotes, escaped, when it holds a control character |
 | `<entries>` | the unknown keys, sorted, comma-separated, each as the file names it; in quotes, escaped, when it holds a control character |
 | `<entry>` | an archive member, a metadata key, a path in a wheel or an installed-metadata directory (`demo-1.0.dist-info`), as the file names it; in quotes, escaped, when it holds a control character |
-| `<error>` | what the reader or the file system reported, on one line; in quotes, escaped, when it holds a control character |
+| `<error>` | what the reader or the file system reported, or git's own `fatal:`, `error:` and `remote:` lines joined by semicolons (server text), on one line; in quotes, escaped, when it holds a control character |
 | `<expected>` | what the value must be: `true or false`; `an integer`; `an integer of at least 1`; `0 (no cap) or an integer of at least 8`; `a string`; `a non-empty string`; `a string or an inline table`; `a table`; `an array`; `an array of tables`; `an array of strings`; `a string or an array of strings`; `one of annotation, both, comment`; `one of full, minimal`; `one of always, auto, never`; `one of auto, extension, magika`; `one of agent, organization, person, software-agent`; `a media type type/subtype (image/png)`; `a file name, not a path`; `a plain file name (not a path, not only .spdx3.json)`; `an ISO 8601 date and time`; `a path to a configuration file, or a PitloomConfig`; `a fingerprint (sha256: and 16 to 64 lowercase hex digits)`; `an array of fingerprints`; `"warn" or "refuse"` |
 | `<expression>` | the SPDX license expression recorded (`Apache-2.0 AND MIT`); escaped when it holds a control character |
 | `<extra>` | an extra, or several sorted and comma-separated, each on one line, a URL's credentials masked, cut to 120 characters (`...` after it when cut), in quotes, escaped when it holds a control character |
@@ -53,6 +53,7 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<file>` | a file as Pitloom names it (its path, or a remote document's URL or Hub dataset id); in quotes, escaped, when it holds a control character |
 | `<files>` | file names, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
 | `<fingerprint>` | `sha256:` and the first hex digits of the SHA-256 of the value as the SBOM writes it: what --accept-url-credential takes |
+| `<folders>` | the subfolders that hold a Python project, comma-separated, `and N more` after the last one shown; a name in quotes, escaped, when it holds a control character |
 | `<format>` | the model format (`gguf`) |
 | `<formats>` | model formats, comma-separated (`gguf, onnx`) |
 | `<given-namespace>` | the namespace a command line or caller gives, a URL's credentials masked; in quotes, escaped, when it holds a control character |
@@ -87,6 +88,8 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<cap>` | the cap's name; a setting's name when a setting sets it (`max-model-extract-bytes`) |
 | `<x.y>` | the Python version Pitloom runs on, as `3.10`: the grammar a file was read as |
 | `<reason>` | what the bound check found: a count the file cannot hold, a malformed ZIP central directory, or a GGUF version or ZIP archive it cannot check |
+| `<ref>` | a branch, tag or commit as the URL names it; escaped when it holds a control character |
+| `<ref-kind>` | what the URL names: `branch`, `tag`, `commit` |
 | `<refusal>` | argparse's reason for refusing the value, on one line (`invalid choice: ...`); never a missing value (`expected ...`) or a conflict (`not allowed with ...`); in quotes, escaped, when it holds a control character |
 | `<what>` | what of an element the ID registry cannot hold: `key`, `name`, `project_root`, `sha256`, `spdxId`, `type name` |
 | `<requirement>` | Pitloom with the extra that installs the library (`pitloom[gguf]`); `pitloom[ai]` installs every model reader |
@@ -101,13 +104,14 @@ holds the value there. The table lists every name a line or a prefix uses.
 | `<steps>` | LicenseID's steps (`separator, version_spelling`), or its category when it took none (`listed_name`); escaped when it holds a control character |
 | `<table>` | the configuration table: `[tool.pitloom]` or `[tool:pitloom]` |
 | `<tables>` | the configuration tables that know a key, joined by `or`, as the file spells them |
-| `<target>` | a URL a redirect or a file points to, as given; in quotes, escaped, when it holds a control character |
+| `<target>` | a URL a redirect or a file points to, or the repository a Git page URL names, as given; in quotes, escaped, when it holds a control character |
 | `<unit>` | what the cap counts, singular (`byte`, `entry`, `level`) |
-| `<url>` | a URL as given (a PyPI page URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
+| `<url>` | a URL as given, or the repository URL read from it (a PyPI page URL, a Git URL, a request URL, or huggingface_hub's HF_ENDPOINT); in quotes, escaped, when it holds a control character |
 | `<use>` | what the file was read or written for, or the directory listed for: `for dataset hashing`, `for dependency pins`, `for file discovery`, `for file scanning`, `for ID registry indexing`, `for the input check`, `for license files`, `for the configuration`, `for the project metadata`, `for the Croissant document`, `for the dataset card`, `for the Hugging Face dataset card`, `for the ID registry`, `for the model card`, `for the model hash`, `for the PyPI release metadata`, `for the SBOM`, `for the script hash`, `for usage scanning` |
 | `<value>` | the value as the file states it (a tensor dimension: its Python repr, cut to 40 characters); in quotes, escaped, when it holds a control character |
 | `<type>` | the type of the value the file holds, as Python names it: `bool`, `date`, `datetime`, `dict`, `float`, `int`, `list`, `NoneType`, `str`, `time` |
 | `<version>` | a release version as the URL, PyPI or a lock file gives it; in quotes, escaped, when it holds a control character |
 | `<when>` | the case the option has no effect in, or cannot be used in (`without --allow-build`, `for a remote repository (...)`, `when embedding multiple wheels`) |
-| `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, or a release yanked (`no reason given` when PyPI gives none); on one line, in quotes, escaped, when it holds a control character |
+| `<why>` | why a redirect or an HF_ENDPOINT was refused, a file skipped, a release yanked (`no reason given` when PyPI gives none), or a Git URL could not be checked for a redirect (`HTTP 404`, `no answer in time`, an exception's class name); on one line, in quotes, escaped, when it holds a control character |
+| `<command-line>` | a git command line as run, the credentials of a URL in it taken out; escaped when it holds a control character |
 | `<subcommand>` | the `loom` command that failed (`generate`, `fragment validate`) |

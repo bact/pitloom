@@ -185,6 +185,8 @@ def _warn_ignored(key: str, line: Line, quiet: bool, **values: object) -> None:
             line=line,
             once=None,
             extra=None,
+            frame=None,
+            frame_values=None,
             file="pyproject.toml",
             field=f"{DYNAMIC_TABLE}.{key}",
             **values,

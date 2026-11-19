@@ -21,11 +21,12 @@ from typing import Final
 
 from pitloom.messages._types import ASK_FIRST, Line, Message
 
-#: Said when no ``--config`` (``pitloom_config=``) is given.
+#: Said when no ``--config`` (``pitloom_config=``) is given, after
+#: :data:`~pitloom.messages.GIT_FRAME`.
 CONFIG_UNSAFE_REMOTE_LINE: Final = Line(
     level="INFO",
-    template="Git source: the repository's own [tool.pitloom] settings are "
-    "ignored (untrusted); --config or pitloom_config= applies",
+    template="the repository's own [tool.pitloom] settings are ignored "
+    "(untrusted); --config or pitloom_config= applies",
 )
 
 #: The same for an sdist downloaded from a PyPI URL, named by its file (so

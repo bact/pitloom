@@ -27,19 +27,30 @@ import pytest
 from pitloom.extract.remote import _git_redirect
 from pitloom.extract.remote._git_redirect import (
     MAX_REDIRECTS,
-    PROBE_FAILED_INFO,
-    REDIRECT_INFO,
-    REDIRECT_REFUSED_WARNING,
     _carried_userinfo,
+    _probe_once,
     _probe_url,
     resolve_git_url,
 )
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.messages import GIT_PREFIX
+from pitloom.messages.git import GIT_REDIRECT_UNUSABLE
+from pitloom.messages.network import (
+    GIT_REDIRECT_OUTCOME,
+    REDIRECT_REFUSED_WARNING_LINE,
+    URL_REFUSED,
+)
 from tests._loopback_server import ThreadingLoopbackHTTPServer
 
 pytestmark = pytest.mark.loopback
 
 Routes = Mapping[str, Callable[[int], str | None]]
+
+
+def _probe_failed(url: str, why: str) -> str:
+    """The ``INFO:`` text of a probe that failed for *why*."""
+    values = {"url": url, "why": why}
+    return GIT_PREFIX + GIT_REDIRECT_UNUSABLE.line_for("INFO", values).render(values)
 
 
 def _no_redirect(_port: int) -> str | None:
@@ -142,9 +153,11 @@ def test_a_followed_redirect_is_one_info_naming_both_urls(
     with _server(_PROJECT) as base, caplog.at_level(logging.INFO):
         resolve_git_url(base.replace("http://", "http://user:secret@") + "/g/p")
         resolve_git_url(base + "/g/p.git")
-    lines = [r.getMessage() for r in caplog.records if "redirected to" in r.message]
+    lines = [r.getMessage() for r in caplog.records if "redirects to" in r.message]
     masked = base.replace("http://", "http://***:***@")
-    assert lines == [REDIRECT_INFO % (masked + "/g/p", masked + "/g/p.git")]
+    assert lines == [
+        f"{GIT_PREFIX}URL={masked}/g/p: redirects to {masked}/g/p.git; followed"
+    ]
     assert "secret" not in caplog.text
 
 
@@ -276,6 +289,8 @@ def test_a_redirect_loop_is_refused() -> None:
     with _server(routes) as base, pytest.raises(RemoteSourceError) as excinfo:
         resolve_git_url(base + "/loop")
     assert excinfo.value.code == "git.too-many-redirects"
+    assert excinfo.value.pitloom_code == URL_REFUSED.code
+    assert f"more than {MAX_REDIRECTS} redirects" in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
@@ -347,11 +362,25 @@ def test_a_slow_server_cannot_hold_the_walk(
     assert "no answer in time" in caplog.text
 
 
-def test_a_bad_port_is_an_invalid_url() -> None:
-    """A port that is no number is ``git.url-invalid``."""
+@pytest.mark.parametrize(
+    "url",
+    ["http://host:notaport/g/p", "http://u:s3cret@host:notaport/g/p"],
+    ids=["plain", "userinfo"],
+)
+def test_a_bad_port_is_an_invalid_url_that_leaks_nothing(url: str) -> None:
+    """A port that is no number is ``git.url-invalid``; the line shows no
+    authority, so no password in it."""
     with pytest.raises(RemoteSourceError) as excinfo:
-        resolve_git_url("http://host:notaport/g/p")
+        resolve_git_url(url)
     assert excinfo.value.code == "git.url-invalid"
+    assert "the port is not a number" in str(excinfo.value)
+    assert "s3cret" not in str(excinfo.value) and "host" not in str(excinfo.value)
+
+
+def test_a_probe_error_with_a_text_reason_names_its_class() -> None:
+    """``URLError("unknown url type")`` holds a ``str``: the reason a message
+    names is the error's class, never ``str``."""
+    assert _probe_once("foo://h/g/p/info/refs").failure == "URLError"
 
 
 @pytest.mark.parametrize(
@@ -372,9 +401,16 @@ def test_a_redirect_that_is_not_followed_is_said_in_a_warning(
         with caplog.at_level(logging.WARNING):
             assert resolve_git_url(base + "/g/p") == base + "/g/p"
     target = location if "://" in location else base + location
+    values = {
+        "url": base + "/g/p",
+        "target": target,
+        "why": why,
+        "outcome": GIT_REDIRECT_OUTCOME,
+    }
     assert [r.getMessage() for r in caplog.records] == [
-        REDIRECT_REFUSED_WARNING % (base + "/g/p", target, why)
+        GIT_PREFIX + REDIRECT_REFUSED_WARNING_LINE.render(values)
     ]
+    assert URL_REFUSED.line_for("WARNING", values) is REDIRECT_REFUSED_WARNING_LINE
 
 
 @pytest.mark.parametrize(
@@ -403,7 +439,7 @@ def test_a_probe_that_cannot_be_made_is_said_in_an_info(
         down = "http://127.0.0.1:9/g/p"
         assert resolve_git_url(down) == down
     assert [r.getMessage() for r in caplog.records] == [
-        PROBE_FAILED_INFO % (down, "ConnectionRefusedError")
+        _probe_failed(down, "ConnectionRefusedError")
     ]
 
 
@@ -433,9 +469,7 @@ def test_an_http_error_status_is_said_in_an_info(
     finally:
         server.shutdown()
         server.server_close()
-    assert [r.getMessage() for r in caplog.records] == [
-        PROBE_FAILED_INFO % (url, "HTTP 404")
-    ]
+    assert [r.getMessage() for r in caplog.records] == [_probe_failed(url, "HTTP 404")]
 
 
 @pytest.mark.parametrize(

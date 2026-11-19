@@ -24,10 +24,15 @@ which bounds a large file too. Git is never given a URL's user information
 (:mod:`~pitloom.extract.remote._git_credentials`), so ``.git/config`` holds
 none; once checked out, a symbolic link out of the checkout, into its
 ``.git`` or to a folder is removed.
-One ``INFO:`` names the URL given and the URL cloned when they differ.
+One ``INFO:`` names the URL given and the repository, branch, tag, commit and
+folder it reads as (:mod:`pitloom.extract.remote._git_say`).
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
-errors.RemoteSourceError` with a code; a refusal is also a ``WARNING:``.
+errors.RemoteSourceError` with a code.
+
+See also: :mod:`pitloom.extract.remote._git_say` (what the fetch says about
+the URL and the checkout) and :mod:`pitloom.extract.remote._git_run` (the git
+calls).
 """
 
 from __future__ import annotations
@@ -37,13 +42,13 @@ import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Final
 from urllib.parse import urlsplit
 
 from pitloom.core.clone_mark import reading_remote_clone
 from pitloom.core.fetch_policy import RemoteFetchPolicy
-from pitloom.core.path_confine import in_git_dir, is_inside
+from pitloom.core.internal_error import InternalError
 from pitloom.core.temp_dirs import temp_dir
 from pitloom.core.url_masking import (
     CHECKOUT_DIR_PREFIX,
@@ -51,13 +56,17 @@ from pitloom.core.url_masking import (
     sanitize_url_credentials,
 )
 from pitloom.extract.remote._git_credentials import host_is_plain
-from pitloom.extract.remote._git_folder import (
-    checkout_folder,
-    checkout_has_file,
-    subproject_hint,
-)
+from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote._git_redirect import resolve_git_url
 from pitloom.extract.remote._git_run import GitRunner
+from pitloom.extract.remote._git_say import (
+    drop_outside_links,
+    folder_to_read,
+    project_hint_error,
+    say_not_a_repository,
+    say_resolution,
+)
+from pitloom.extract.remote._http_errors import remote_error, shown_url
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git_url import (
     GitPage,
@@ -68,7 +77,14 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.extract.remote.pypi_url import is_pypi_url
 from pitloom.logging_config import loggable
-from pitloom.messages import code_of
+from pitloom.messages import GIT_FRAME, GIT_PREFIX, code_of, emit
+from pitloom.messages.git import (
+    GIT_EMPTY_LINE,
+    GIT_FILTER_UNUSABLE,
+    GIT_REPOSITORY_EMPTY,
+    GIT_URL_INVALID,
+    GIT_URL_SCHEME_LINE,
+)
 from pitloom.messages.network import (
     GIT_HOST_SPELLING_LINE,
     OFFLINE_LINE,
@@ -85,7 +101,6 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "BLOB_LIMIT",
-    "RESOLVED_INFO",
     "GitCheckout",
     "fetch_git_project",
 ]
@@ -97,13 +112,9 @@ __all__ = [
 #: it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
 
-#: ``log.info()`` format for a URL that names more than the clone URL.
-#: Arguments: the URL given, the repository cloned, what else it names.
-RESOLVED_INFO = "Git source: %s names repository %s%s"
-
 #: What starts a message about the checkout's directory, as every other
 #: message of the route starts.
-_LOG_PREFIX: Final = "Git source: "
+_LOG_PREFIX: Final = GIT_PREFIX
 
 
 @dataclass(frozen=True)
@@ -127,24 +138,23 @@ class GitCheckout:
 
     @contextmanager
     def explaining_failures(self) -> Iterator[None]:
-        """Re-raise a failure to read :attr:`folder` as ``git.no-project``
-        with a hint when the folder holds no Python project but folders below
-        it do (a monorepo); any other failure is untouched."""
+        """Re-raise a ``project-not-found`` failure to read :attr:`folder` as
+        ``git.no-project`` naming the sub-projects below it when the folder
+        holds no Python project but folders below it do (a monorepo); any
+        other failure, one with no such folders included, is untouched."""
         try:
             yield
-        except RemoteSourceError:
+        except (RemoteSourceError, InternalError):
             raise
         except Exception as exc:
-            # A catalogued refusal (a model file's) says its own condition;
-            # a missing project's is the one the hint explains.
-            hint = (
-                ""
-                if code_of(exc) not in (None, PROJECT_NOT_FOUND.code)
-                else subproject_hint(self.folder, self.whole_repository)
-            )
-            if not hint:
+            if code_of(exc) != PROJECT_NOT_FOUND.code:
                 raise
-            raise RemoteSourceError("git.no-project", f"{exc}{hint}") from exc
+            names, more = subproject_hint(self.folder)
+            if not names:
+                raise
+            raise project_hint_error(
+                self.folder, names, more, self.whole_repository
+            ) from exc
 
     @property
     def root(self) -> str:
@@ -215,12 +225,7 @@ def fetch_git_project(
     runner = GitRunner(max_bytes=policy.max_bytes)
     # Each git call has ended (its process group too) before the removal.
     with temp_dir(CHECKOUT_DIR_PREFIX, log_prefix=_LOG_PREFIX) as work:
-        try:
-            checkout = _prepare(url, str(work), runner, policy)
-        except Exception as exc:
-            # A refusal is said here, so a caller that only logs shows it.
-            log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
-            raise
+        checkout = _prepare(url, str(work), runner, policy)
         checkout = replace(checkout, trust_model_files=trust_model_files)
         with reading_remote_clone(checkout.root, trust_model_files=trust_model_files):
             yield checkout
@@ -249,10 +254,10 @@ def _prepare(
             pitloom_code=OFFLINE_UNUSABLE.code,
         )
     clone_url, page, target = _resolve(runner, page, policy.check_url)
-    _log_resolution(url, clone_url, target, page)
+    say_resolution(url, clone_url, target, page)
     _checkout(runner, clone_url, work_dir, target)
-    _drop_outside_links(work_dir)
-    folder, file = _folder(work_dir, target)
+    drop_outside_links(work_dir, clone_url)
+    folder, file = folder_to_read(work_dir, target, url)
     commit = _head(runner, work_dir, shown)
     subdir = os.path.relpath(os.path.realpath(folder), os.path.realpath(work_dir))
     return GitCheckout(
@@ -275,10 +280,8 @@ def _read_url(url: str, shown: str) -> GitPage:
             ``url-unsafe/host-spelling``) or a path that leaves the checkout.
     """
     if not scheme_allowed(url.strip()):
-        raise RemoteSourceError(
-            "git.url-invalid",
-            f"Cannot fetch {shown}: only http and https URLs are fetched "
-            "(not ssh, git, file or scp-style addresses).",
+        raise remote_error(
+            "git.url-invalid", GIT_URL_INVALID, GIT_URL_SCHEME_LINE, url=shown
         )
     if not _host_as_typed(url.strip()):
         raise RemoteSourceError(
@@ -320,11 +323,7 @@ def _resolve(
     except RemoteSourceError as exc:
         if page.plain_url == page.repo_url or not _not_a_repository(exc):
             raise
-        log.info(
-            "Git source: %s is not a repository; trying %s",
-            loggable(sanitize_url(page.repo_url)),
-            loggable(sanitize_url(page.plain_url)),
-        )
+        say_not_a_repository(page)
     plain = GitPage(page.plain_url, cut=page.cut, plain_url=page.plain_url)
     return resolve_git_url(plain.repo_url, check_url), plain, GitTarget()
 
@@ -354,30 +353,6 @@ def _target(runner: GitRunner, repo_url: str, page: GitPage) -> GitTarget:
     return split_ref(page, {n: frozenset(k) for n, k in kinds.items()})
 
 
-def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) -> None:
-    """One ``INFO:`` when the URL given names more than the repository: a
-    branch, tag, commit or folder, or a query or fragment that was cut, or a
-    URL cleaned of a trailing slash. A redirect has its own ``INFO:``."""
-    named = ""
-    if target.ref or target.commit:
-        named += f", {'tag' if target.tag else 'branch' if target.ref else 'commit'} "
-        named += loggable(target.ref or target.commit or "")
-    if target.subdir:
-        named += f", folder {loggable(target.subdir)}"
-    if page.cut:
-        named += " (query and fragment ignored)"
-    if page.version_ignored:
-        named += " (version names no branch, tag or commit: default branch read)"
-    given = sanitize_url(url.strip())
-    if named or given.rstrip("/") != sanitize_url(page.repo_url):
-        log.info(
-            RESOLVED_INFO,
-            loggable(given),
-            loggable(sanitize_url(clone_url)),
-            named,
-        )
-
-
 def _checkout(
     runner: GitRunner, clone_url: str, work_dir: str, target: GitTarget
 ) -> None:
@@ -402,7 +377,13 @@ def _checkout(
     except RemoteSourceError as exc:
         if exc.code != "git.clone-failed" or "HTTP 400" not in str(exc):
             raise
-        log.info("Git source: the server rejected the blob filter; fetching without it")
+        emit(
+            log,
+            GIT_FILTER_UNUSABLE,
+            logging.INFO,
+            frame=GIT_FRAME,
+            url=shown_url(clone_url),
+        )
         # A failed filtered fetch leaves the filter in the repository's
         # config, which a plain fetch would send again.
         _fetch(runner, clone_url, work_dir, target, ["--no-filter"] if pinned else [])
@@ -456,62 +437,6 @@ def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
     except RemoteSourceError as exc:
         if exc.code != "git.clone-failed":
             raise
-        raise RemoteSourceError(
-            "git.clone-failed", f"{shown} is an empty repository (no commits)."
+        raise remote_error(
+            "git.clone-failed", GIT_REPOSITORY_EMPTY, GIT_EMPTY_LINE, url=shown
         ) from exc
-
-
-def _drop_outside_links(work_dir: str) -> None:
-    """Remove a symbolic link of the checkout that leads out of it, into its
-    ``.git`` directory or to a folder: the repository is untrusted, a link
-    to a host file would have Pitloom read, and hash, that file, one into
-    ``.git`` a file Pitloom wrote (its ``config`` names the URL), and two
-    links to folders (``a -> .``, ``b -> .``) make every walk of the files
-    endless. A link to a file of the checkout is kept. One ``INFO:`` says
-    how many."""
-    root = PurePath(os.path.realpath(work_dir))
-    dropped = 0
-    for here, folders, files in os.walk(work_dir):
-        if here == work_dir and ".git" in folders:
-            folders.remove(".git")
-        for name in files + folders:
-            path = os.path.join(here, name)
-            if not os.path.islink(path):
-                continue
-            target = PurePath(os.path.realpath(path))
-            if (
-                not is_inside(target, root)
-                or in_git_dir(target, root)
-                or os.path.isdir(target)
-            ):
-                os.unlink(path)
-                dropped += 1
-    if dropped:
-        log.info(
-            "Git source: %d symbolic link(s) leading out of the repository, "
-            "into its .git directory or to a folder were not followed",
-            dropped,
-        )
-
-
-def _folder(work_dir: str, target: GitTarget) -> tuple[str, str]:
-    """The folder of the checkout to read and the file of it the URL named
-    (``""``: none). A file page that names a folder reads that folder, and a
-    folder page that names a file (Bitbucket and SourceHut write both alike)
-    names that file of the folder holding it; each says so."""
-    try:
-        folder = checkout_folder(work_dir, target.subdir)
-    except RemoteSourceError:
-        parent, _slash, leaf = target.subdir.rpartition("/")
-        if target.file or not checkout_has_file(work_dir, target.subdir):
-            raise
-        log.info("Git source: %s is a file, not a folder", loggable(target.subdir))
-        return checkout_folder(work_dir, parent), leaf
-    if target.file and Path(folder, target.file).is_dir():
-        log.info(
-            "Git source: %s is a folder, not a file; reading it",
-            loggable(f"{target.subdir}/{target.file}".lstrip("/")),
-        )
-        named = f"{target.subdir}/{target.file}".lstrip("/")
-        return checkout_folder(work_dir, named), ""
-    return folder, target.file
