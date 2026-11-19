@@ -150,7 +150,16 @@ def _raw_pickle(tmp_path: Path) -> Path:
     return path
 
 
+def _jax(tmp_path: Path) -> Path:
+    step = tmp_path / "0"
+    step.mkdir()
+    marker = {"item_handlers": {}, "custom": {"model_name": "tiny", "layers": [4, 8]}}
+    (step / "_CHECKPOINT_METADATA").write_text(json.dumps(marker))
+    return step
+
+
 _CRAFTED = {
+    "jax-custom": _Case(AiModelFormat.JAX, _jax, frozenset({"custom.layers"})),
     "hdf5-metrics-list": _Case(
         AiModelFormat.HDF5,
         _h5(

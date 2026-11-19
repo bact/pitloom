@@ -63,7 +63,7 @@ each `<name>`, after at most one prefix from the table of prefixes.
 | [`model-ambiguous`](message-codes-targets.md#model-ambiguous) | ERROR, INFO | 0.23.4 |
 | [`model-ambiguous/over-cap`](message-codes-targets.md#model-ambiguousover-cap) | ERROR | 0.23.4 |
 | [`model-field-conflict`](message-codes-model-fields.md#model-field-conflict) | WARNING | 0.23.0 |
-| [`model-field-unreadable`](message-codes-model-fields.md#model-field-unreadable) | WARNING | 0.23.0 |
+| [`model-field-unreadable`](message-codes-model-fields.md#model-field-unreadable) | WARNING, INFO | 0.23.0 |
 | [`model-unreadable`](message-codes-models.md#model-unreadable) | WARNING | 0.22.0 |
 | [`model-wrong-format`](message-codes-models.md#model-wrong-format) | ERROR, WARNING | 0.22.0 |
 | [`offline-unusable`](message-codes-network.md#offline-unusable) | ERROR, WARNING | 0.24.0 |

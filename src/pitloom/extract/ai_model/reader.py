@@ -5,8 +5,8 @@
 
 """Format detection and reader dispatch for AI model files.
 
-Supports CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
-PyTorch PT2, and Safetensors formats.
+Supports CRFsuite, fastText, GGUF, HDF5, JAX (an Orbax checkpoint folder),
+Keras, NumPy, ONNX, PyTorch, PyTorch PT2, and Safetensors formats.
 
 Some formats require optional dependencies to read metadata:
 
@@ -14,6 +14,7 @@ Some formats require optional dependencies to read metadata:
     pip install pitloom[fasttext]    # for fastText support
     pip install pitloom[gguf]        # for GGUF support
     pip install pitloom[hdf5]        # for HDF5 support
+    pip install pitloom[jax]         # for JAX parameter counts
     pip install pitloom[numpy]       # for NumPy support
     pip install pitloom[onnx]        # for ONNX support
     pip install pitloom[pytorch]     # for PyTorch support
@@ -37,9 +38,14 @@ from pitloom.core.lfs_pointer import (
 )
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.crfsuite import read_crfsuite
+from pitloom.extract.ai_model.directory import (
+    DIRECTORY_MARKERS,
+    detect_directory_format,
+)
 from pitloom.extract.ai_model.fasttext import read_fasttext
 from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.extract.ai_model.hdf5 import read_hdf5
+from pitloom.extract.ai_model.jax import read_jax
 from pitloom.extract.ai_model.keras import read_keras
 from pitloom.extract.ai_model.numpy import read_numpy
 from pitloom.extract.ai_model.onnx import read_onnx
@@ -112,6 +118,7 @@ REGISTRY: tuple[FormatInfo, ...] = (
     FormatInfo(format=AiModelFormat.FASTTEXT, reader=read_fasttext),
     FormatInfo(format=AiModelFormat.GGUF, reader=read_gguf),
     FormatInfo(format=AiModelFormat.HDF5, reader=read_hdf5),
+    FormatInfo(format=AiModelFormat.JAX, reader=read_jax),
     FormatInfo(format=AiModelFormat.KERAS, reader=read_keras),
     FormatInfo(format=AiModelFormat.NUMPY, reader=read_numpy),
     FormatInfo(format=AiModelFormat.ONNX, reader=read_onnx),
@@ -406,14 +413,18 @@ class NotAModel(Exception):
 
 
 def detect_ai_model_format(model_path: Path) -> AiModelFormat:
-    """Detect the format of an AI model file.
+    """Detect the format of an AI model file or folder.
 
-    Magic bytes first, then the file extension; see
+    A folder is a model of the folder format whose marker file it holds
+    (:func:`~pitloom.extract.ai_model.directory.detect_directory_format`).
+    A file: magic bytes first, then the file extension; see
     :func:`detect_ai_model_format_from_header`. Never raises on an
     unreadable file: a file that is absent, not a regular file or cannot be
     read falls back to the extension alone, as ``read_ai_model`` reports
     absence itself.
     """
+    if os.path.isdir(model_path):
+        return detect_directory_format(model_path)
     try:
         header = read_ai_model_header(model_path)
     except OSError:
@@ -426,10 +437,12 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
 def read_ai_model(
     model_path: Path, *, model_format: AiModelFormat | None = None
 ) -> AiModelMetadata:
-    """Extract metadata from an AI model file, dispatching by format.
+    """Extract metadata from an AI model file, or folder, dispatching by
+    format.
 
     Args:
-        model_path: Path to the model file.
+        model_path: Path to the model file, or to a folder of a folder
+            format (an Orbax checkpoint step).
         model_format: Format decided by the caller (e.g. from a header already
             read); ``None`` detects it from *model_path*.
 
@@ -453,11 +466,14 @@ def read_ai_model(
         raise CodedFileNotFoundError(
             INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=model_path
         )
-    if not os.path.isfile(model_path):
+    is_folder = os.path.isdir(model_path)
+    if not is_folder and not os.path.isfile(model_path):
         raise refusal_error(model_path, None, None)
 
     if model_format is None:
         model_format = detect_ai_model_format(model_path)
+    if is_folder and model_format not in DIRECTORY_MARKERS:
+        raise refusal_error(model_path, None, None)
     reader = _READERS.get(model_format)
     if reader is None:
         _refuse_unsupported(model_path)

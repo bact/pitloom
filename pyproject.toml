@@ -125,6 +125,10 @@ fasttext = [
 gguf = ["gguf>=0.19.0"]
 hdf5 = ["h5py>=3.16.0"]
 huggingface_hub = ["huggingface_hub>=1.29.0"]
+# Orbax reads parameter counts of a JAX checkpoint; resolves to jax 0.4.38 on
+# Intel macOS (no newer jaxlib wheel) and to the newest jax elsewhere. Not in
+# the "ai" extra yet: see working-docs/design/jax-orbax-support.md.
+jax = ["orbax-checkpoint>=0.11.5"]
 numpy = [
     "numpy>=2.2.6,<2.3; python_version<'3.11'",
     "numpy>=2.3.5,<3; python_version>='3.11'",

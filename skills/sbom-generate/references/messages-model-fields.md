@@ -22,7 +22,7 @@ values.
 | [`field-not-recordable`](#field-not-recordable) | INFO | A model holds a value for a G7 SBOM for AI element that SPDX 3.0.1 has no property for (the model architecture). | 0.23.0 |
 | [`hyperparameter-conflict`](#hyperparameter-conflict) | WARNING | A model states a hyperparameter named parameters, the key the SBOM holds its parameter count under. | 0.22.0 |
 | [`model-field-conflict`](#model-field-conflict) | WARNING | A model states one key twice: a GGUF file states the length of an array as a key of its own, or an ONNX file repeats a metadata_props key. | 0.23.0 |
-| [`model-field-unreadable`](#model-field-unreadable) | WARNING | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
+| [`model-field-unreadable`](#model-field-unreadable) | WARNING, INFO | A model reader read the file but not one of its parts (a fastText call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or config, a part of an Orbax checkpoint, or the Orbax library): the fields the line names are not recorded, or are recorded weaker. | 0.23.0 |
 | [`parameter-count-invalid`](#parameter-count-invalid) | WARNING | A model's parameter count cannot be had: a tensor dimension in the file, or the count its metadata or the Hugging Face Hub states, is not a non-negative integer. | 0.22.0 |
 
 ### `field-not-recordable`
@@ -79,10 +79,11 @@ values.
 
 ### `model-field-unreadable`
 
-- **Level**: WARNING.
+- **Level**: WARNING, INFO.
 - **Means**: A model reader read the file but not one of its parts (a fastText
   call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute or
-  config): the fields the line names are not recorded, or are recorded weaker.
+  config, a part of an Orbax checkpoint, or the Orbax library): the fields the
+  line names are not recorded, or are recorded weaker.
 - **SBOM effect**: thinner: the SBOM says less than reading the input would.
 - **Pitloom did**: Recorded the rest of the model; the line names the fields
   skipped (not recorded) or degraded (kept in a weaker form, such as raw text),
@@ -104,6 +105,8 @@ values.
   WARNING: Failed to parse PT2 extra/tags as JSON: <error> | Field(s) affected (degraded): <fields> [model-field-unreadable]
   WARNING: Failed to parse PT2 model graph <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: Failed to read PT2 <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  WARNING: Failed to read Orbax <entry>: <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
+  INFO: FORMAT=<format> FILE=<file>: orbax-checkpoint not installed; parameter_count not read; install <requirement> [model-field-unreadable]
   WARNING: <part> attribute cannot be read; <error> | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; kept as properties.model_config_raw | Field(s) affected (skipped): <fields> [model-field-unreadable]
   WARNING: <part> <error>; kept as properties.model_config_raw, the first <limit> of <number> characters | Field(s) affected (skipped): <fields> [model-field-unreadable]

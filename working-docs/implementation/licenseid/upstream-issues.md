@@ -63,13 +63,17 @@ are fixed and are not part of the issue. Common setup:
 ```python
 import licenseid
 from licenseid import LicenseDetector, detect, resolve
+
 det = LicenseDetector()
 ```
 
 ### 1. A short word is detected as a licence (F10)
 
 ```python
-[(d["expression"], d["method"], d["score"], d["coverage"]) for d in det.detect("Foo")[:2]]
+[
+    (d["expression"], d["method"], d["score"], d["coverage"])
+    for d in det.detect("Foo")[:2]
+]
 det.is_spdx(text="Foo"), det.is_osi(text="Foo")
 ```
 
@@ -80,8 +84,13 @@ det.is_spdx(text="Foo"), det.is_osi(text="Foo")
 ```python
 for v in ["MIT\x0bOR ISC", "MIT\rOR ISC", "MIT\u2028OR ISC", "MIT\x1fOR ISC"]:
     r = resolve(v, source="packaged")
-    print(repr(v), r["expression"], r["category"], r["reason"],
-          [s["kind"] for s in r["steps"]])
+    print(
+        repr(v),
+        r["expression"],
+        r["category"],
+        r["reason"],
+        [s["kind"] for s in r["steps"]],
+    )
 ```
 
 - Actual: the first three give `ISC OR MIT`, `lexical`, `reason` `None`,
@@ -117,8 +126,9 @@ top["expression"], top["score"], top["coverage"]
 
 ```python
 import os
+
 os.environ["HOME"] = ""
-LicenseDetector()                         # empty HOME
+LicenseDetector()  # empty HOME
 LicenseDetector("/nonexistent/licenses.db")
 ```
 
@@ -141,15 +151,19 @@ With a database of an older build:
 
 ```python
 import warnings
+
+
 def rec(f):
     with warnings.catch_warnings(record=True) as got:
         warnings.simplefilter("always")
         f()
     return [str(w.message) for w in got]
-rec(lambda: resolve("MIT"))       # 1 warning
-rec(lambda: resolve("Apache2"))   # none
+
+
+rec(lambda: resolve("MIT"))  # 1 warning
+rec(lambda: resolve("Apache2"))  # none
 rec(lambda: detect("MIT License"))  # none
-rec(lambda: LicenseDetector())    # 1 warning, every construction
+rec(lambda: LicenseDetector())  # 1 warning, every construction
 ```
 
 - Actual (0.6.0-built database, on 0.8.2): `resolve("MIT")` warns once,
@@ -168,9 +182,11 @@ rec(lambda: LicenseDetector())    # 1 warning, every construction
 ### 6. Deprecated ids' List names resolve to nothing
 
 ```python
-for name in ["GNU Free Documentation License v1.3",
-             "GNU Affero General Public License v3.0",
-             "wxWindows Library License"]:
+for name in [
+    "GNU Free Documentation License v1.3",
+    "GNU Affero General Public License v3.0",
+    "wxWindows Library License",
+]:
     r = resolve(name, source="packaged")
     print(name, r["expression"], r["category"], r["reason"])
 ```
@@ -260,10 +276,17 @@ for v in ["GPL-2.0 or later", "MIT OR ISC"]:
 ### 11. Apache name variants are read inconsistently
 
 ```python
-for v in ["Apache 2", "Apache v2", "Apache License Version 2.0",
-          "Apache Version 2.0", "Apache, Version 2.0",
-          "Apache Software License, Version 2.0",
-          "Apache Software License 2.0", "Apache License (2.0)", "ASL 2.0"]:
+for v in [
+    "Apache 2",
+    "Apache v2",
+    "Apache License Version 2.0",
+    "Apache Version 2.0",
+    "Apache, Version 2.0",
+    "Apache Software License, Version 2.0",
+    "Apache Software License 2.0",
+    "Apache License (2.0)",
+    "ASL 2.0",
+]:
     r = resolve(v, source="packaged")
     print(repr(v), r["expression"], r["category"])
 ```

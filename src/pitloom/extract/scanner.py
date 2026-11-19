@@ -180,6 +180,10 @@ class ModelCandidate:
         pointer: Returns the Git LFS pointer the whole file is (reading at
             most the pointer's size), else ``None``; ``None`` here: unknown,
             so a pointer-like header is a defect. Never raises.
+        model_format: The format of a model that is a folder, which has no
+            header: its marker file decided it
+            (:mod:`pitloom.extract.ai_model.directory`). ``None`` for a file,
+            whose format its header decides.
     """
 
     distribution_path: str
@@ -189,6 +193,7 @@ class ModelCandidate:
     read_path: Path | None = None
     gate: ReaderGate | None = None
     pointer: Callable[[], LfsPointer | None] | None = None
+    model_format: AiModelFormat | None = None
 
 
 @dataclass(frozen=True)
@@ -290,6 +295,8 @@ def sniff_model_format(candidate: ModelCandidate) -> AiModelFormat:
         NotAModel: The header does not confirm a model format.
         OSError: The header cannot be read.
     """
+    if candidate.model_format is not None:
+        return candidate.model_format
     header = candidate.sniff()
     name = candidate.distribution_path
     fmt = detect_ai_model_format_from_header(header, name)

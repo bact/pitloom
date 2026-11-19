@@ -21,11 +21,12 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import IO
 
-from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.clone_mark import in_remote_clone, remote_clone_trusted
 from pitloom.core.lfs_pointer import LfsPointer, read_lfs_pointer
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.extract.ai_model import read_ai_model_header
+from pitloom.extract.ai_model.directory import detect_directory_format
 from pitloom.extract.scanner import (
     ModelCandidate,
     ReaderGate,
@@ -100,7 +101,9 @@ def local_model_candidate(
     path, its name as the distribution path, and *gate* (none: every
     format read). The scan's suffix filter
     (:func:`~pitloom.extract.scanner.is_model_candidate_name`) is not applied:
-    a file named explicitly is read by its content."""
+    a file named explicitly is read by its content. A folder that holds a
+    folder format's marker file is the model, of that format."""
+    folder_format = detect_directory_format(path)
     return ModelCandidate(
         distribution_path=path.name,
         physical_path=str(path) if shown is None else shown,
@@ -109,6 +112,7 @@ def local_model_candidate(
         read_path=path,
         gate=gate,
         pointer=_pointer_reader(path),
+        model_format=None if folder_format == AiModelFormat.UNKNOWN else folder_format,
     )
 
 

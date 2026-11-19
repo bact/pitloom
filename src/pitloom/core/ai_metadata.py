@@ -75,6 +75,10 @@ class AiModelFormat(str, Enum):
     FASTTEXT = ("fasttext", (".ftz",), b"\xba\x16\x4f\x2f")
     GGUF = ("gguf", (".gguf",), b"GGUF")
     HDF5 = ("hdf5", (".h5", ".hdf5"), b"\x89HDF\r\n\x1a\n")
+    # A folder (an Orbax checkpoint step), so no suffix and no magic: it is
+    # recognised by the marker file
+    # :mod:`pitloom.extract.ai_model.directory` looks for.
+    JAX = ("jax", (), None)
     KERAS = ("keras", (".keras",))
     NUMPY = ("numpy", (".npy", ".npz"), b"\x93NUMPY")
     ONNX = ("onnx", (".onnx",))

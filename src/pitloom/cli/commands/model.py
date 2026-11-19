@@ -172,7 +172,8 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "target",
         type=str,
         help="A local AI model file (recognised by its content), a folder "
-        "holding one model file, the http(s) URL of a model file or folder "
+        "holding one model file, an Orbax checkpoint folder (or a folder "
+        "holding one), the http(s) URL of a model file or folder "
         "in a Git repository (fetched shallowly; fastText, GGUF, HDF5, ONNX "
         "and PyTorch files, whose reader a hostile file could crash or hang, "
         "are listed without metadata), or a Hugging Face URL / model ID.",

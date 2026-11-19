@@ -26,6 +26,7 @@ from pitloom.core.lfs_pointer import refuse_named_pointer
 from pitloom.core.path_confine import regular_file_inside
 from pitloom.core.path_probe import is_missing_errno
 from pitloom.extract.ai_model import LFS_POINTER_REASON, NotAModel, refusal_error
+from pitloom.extract.ai_model.directory import is_directory_model
 from pitloom.extract.scanner import read_model_candidate, sniff_model_format
 from pitloom.extract.scanner_project import local_model_candidate, remote_reader_gate
 from pitloom.messages import (
@@ -89,7 +90,8 @@ def refuse_not_a_model(
 def require_model_file(path: Path, shown: str | os.PathLike[str]) -> None:
     """Refuse the model file *path*, named on its own, when it does not
     exist (a link is followed), or is no regular file (a FIFO, whose open
-    would wait for a writer; a device); the error names it *shown*. A path
+    would wait for a writer; a device) and no folder model; the error names
+    it *shown*. A path
     that is there but cannot be looked at is no missing file: its error
     stands.
 
@@ -107,7 +109,7 @@ def require_model_file(path: Path, shown: str | os.PathLike[str]) -> None:
         raise CodedFileNotFoundError(
             INPUT_NOT_FOUND, line=MODEL_FILE_NOT_FOUND_LINE, path=shown
         ) from None
-    if not stat.S_ISREG(found.st_mode):
+    if not stat.S_ISREG(found.st_mode) and not is_directory_model(path):
         raise CodedValueError(MODEL_WRONG_FORMAT, line=NOT_A_MODEL_LINE, path=shown)
 
 

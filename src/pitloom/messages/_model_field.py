@@ -62,6 +62,17 @@ PT2_TAGS_LINE: Final = Line(
 )
 PT2_GRAPH_LINE: Final = _skipped("Failed to parse PT2 model graph %(entry)s: %(error)s")
 PT2_VERSION_LINE: Final = _skipped("Failed to read PT2 %(entry)s: %(error)s")
+#: A part of an Orbax checkpoint folder that cannot be read (``_METADATA``,
+#: ``metrics/metrics``, an item name that is no folder name), or the parameter
+#: count its library could not give.
+JAX_PART_LINE: Final = _skipped("Failed to read Orbax %(entry)s: %(error)s")
+#: The Orbax library not installed: the folder's own files are read, and the
+#: parameter count, which only the library gives, is not.
+JAX_LIBRARY_LINE: Final = Line(
+    level="INFO",
+    template="FORMAT=%(format)s FILE=%(file)s: orbax-checkpoint not installed; "
+    "parameter_count not read; install %(requirement)s",
+)
 #: A Keras or HDF5 root attribute that h5py cannot read.
 ATTRIBUTE_LINE: Final = _skipped("%(part)s attribute cannot be read; %(error)s")
 #: A ``model_config`` part not as Keras writes it, the raw text kept.
@@ -99,6 +110,8 @@ MODEL_FIELD_UNREADABLE: Final = Message(
         PT2_TAGS_LINE,
         PT2_GRAPH_LINE,
         PT2_VERSION_LINE,
+        JAX_PART_LINE,
+        JAX_LIBRARY_LINE,
         ATTRIBUTE_LINE,
         CONFIG_RAW_LINE,
         CONFIG_RAW_CUT_LINE,
@@ -108,8 +121,8 @@ MODEL_FIELD_UNREADABLE: Final = Message(
     ),
     summary="A model reader read the file but not one of its parts (a fastText "
     "call, a PyTorch pickle, a PT2 archive member, a Keras or HDF5 attribute "
-    "or config): the fields the line names are not recorded, or are recorded "
-    "weaker.",
+    "or config, a part of an Orbax checkpoint, or the Orbax library): the "
+    "fields the line names are not recorded, or are recorded weaker.",
     did="Recorded the rest of the model; the line names the fields skipped "
     "(not recorded) or degraded (kept in a weaker form, such as raw text), and "
     "what the reader reported.",

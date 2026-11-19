@@ -53,6 +53,10 @@ from pitloom.extract.ai_model import (
     detect_ai_model_format_from_name,
     read_ai_model_header,
 )
+from pitloom.extract.ai_model.directory import (
+    detect_directory_format,
+    directory_models_in,
+)
 from pitloom.extract.scanner import (
     is_model_candidate_name,
     scan_step,
@@ -93,6 +97,7 @@ __all__ = [
     "ModelFile",
     "SbomTarget",
     "has_model_suffix",
+    "folder_models_in",
     "is_model_file_target",
     "model_files_in",
     "model_path_of",
@@ -225,6 +230,31 @@ def _refuse_unread(
         raise file_unreadable_error(exc, file=shown, model_format=model_format)
 
 
+def folder_models_in(
+    folder: Path, shown_prefix: str = "", *, subject: str | None = None
+) -> list[ModelFile]:
+    """The folders directly in *folder* that are models of a folder format (an
+    Orbax checkpoint step), in name order, each named *shown_prefix* ``/`` its
+    name. A folder with more than :data:`MAX_FOLDER_CANDIDATES` subfolders is
+    not looked into, said in one ``over-cap`` warning naming *subject*
+    (default: *folder*).
+
+    Raises:
+        OSError: *folder* cannot be listed.
+    """
+    found = directory_models_in(
+        folder, follow_links=not in_remote_clone(), limit=MAX_FOLDER_CANDIDATES
+    )
+    if found is None:
+        where = str(folder) if subject is None else subject
+        cap = Cap(MAX_FOLDER_CANDIDATES, "entry", "model-candidate", "DIR")
+        warn_over_cap(log, cap, where, "no folder read")
+        return []
+    return [
+        ModelFile(folder / name, _shown(shown_prefix, name), fmt) for name, fmt in found
+    ]
+
+
 def is_model_file_target(path: str | os.PathLike[str]) -> bool:
     """Whether :func:`pitloom.assemble.generate` reads the existing file
     *path* as a model file: not an sdist or wheel, and a model suffix or a
@@ -277,8 +307,10 @@ def resolve_sbom_target(
     2. :data:`PROJECT`, or :data:`AUTO` with a project config
        (:func:`~pitloom.core.project_markers.has_project_config`): the
        project; its reader keeps its own errors.
-    3. The folder's one model file (:func:`model_files_in`), said in one
-       ``INFO:``.
+    3. The folder itself, when it is a model of a folder format (an Orbax
+       checkpoint step: :mod:`pitloom.extract.ai_model.directory`), else its
+       one model file or model folder (:func:`model_files_in`,
+       :func:`folder_models_in`), said in one ``INFO:``.
 
     Messages name a file *shown_prefix* ``/`` its name, and the folder
     *subject* (a path, or a URL with no credentials). In a Git URL's clone a
@@ -312,7 +344,13 @@ def resolve_sbom_target(
         say_reading_folder(shown)
     if mode == PROJECT or (mode == AUTO and has_project_config(where)):
         return SbomTarget(PROJECT, where)
-    models = model_files_in(where, shown_prefix, subject=subject)
+    folder_format = detect_directory_format(where)
+    if mode != PROJECT and folder_format != AiModelFormat.UNKNOWN:
+        return SbomTarget(MODEL, where, ModelFile(where, subject, folder_format))
+    models = [
+        *model_files_in(where, shown_prefix, subject=subject),
+        *folder_models_in(where, shown_prefix, subject=subject),
+    ]
     if len(models) == 1:
         model = models[0]
         line = NO_PROJECT_ONE_MODEL_LINE if mode == AUTO else ONE_MODEL_LINE

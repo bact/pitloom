@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 import functools
 import logging
+import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -25,6 +27,7 @@ from pitloom.core.config_cascade import (
     resolve_standalone_config,
 )
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.dataset_hash import hash_dataset
 from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.given_path import TypedPath
 from pitloom.core.inert_options import (
@@ -95,12 +98,24 @@ def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
         warn_file_unreadable(log, exc, file=model_path, use="for the model hash")
 
 
+def _folder_sha256(model_path: Path) -> str | None:
+    """The hash of the model folder at *model_path*: the Merkle root over the
+    files below it, paths and contents (:func:`~pitloom.core.dataset_hash.
+    hash_dataset`), read with no ceiling as a model file is; ``None`` when it
+    could not be hashed, after the warning that said why."""
+    return hash_dataset(model_path, max_bytes=sys.maxsize).hex_digest
+
+
 def _model_file_digests(model_path: Path) -> HexDigests | None:
     """The SHA-256 and SHA-512 of the model file at *model_path* (its
     ``verifiedUsing``), from one chunked read; ``None`` and one ``WARNING:``
     when it cannot be read. Called after :func:`_read_local_model` only, so
     the file is a confirmed model, never a Git LFS pointer (the gate refuses
-    that unhashed): its raw and its stated digest are one."""
+    that unhashed): its raw and its stated digest are one. A model folder has
+    the SHA-256 of its Merkle root alone (:func:`_folder_sha256`)."""
+    if os.path.isdir(model_path):
+        root = _folder_sha256(model_path)
+        return None if root is None else HexDigests(root)
     try:
         return file_digests(model_path).hex()
     except OSError as exc:
@@ -111,6 +126,8 @@ def _model_file_digests(model_path: Path) -> HexDigests | None:
 def _model_file_sha256(model_path: Path) -> str | None:
     """The SHA-256 alone of the model file at *model_path*, to gate a
     registry lookup; ``None`` as :func:`_model_file_digests`."""
+    if os.path.isdir(model_path):
+        return _folder_sha256(model_path)
     try:
         return sha256_digest(model_path).hex()
     except OSError as exc:
