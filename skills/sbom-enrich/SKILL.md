@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-16
+# Last-Modified: 2026-11-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -173,9 +173,9 @@ Steps:
    `trainedOn` relationship, or a `comment` refining a licence guess), each
    marked with the provenance string above and file paths POSIX-style on every
    OS. A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
-   `spdxId` from the base SBOM, and restate a base element exactly (`spdxId`
-   and `name`) to add to it: a stale id silently adds a second `ai_AIPackage`
-   that still validates. A `hasDeclaredLicense`/`hasConcludedLicense` `to`
+   `spdxId` from the base SBOM (copy ids as they are, even across namespaces),
+   and restate a base element exactly (`spdxId` and `name`) to add to it: a
+   stale id silently adds a second `ai_AIPackage` that still validates. A `hasDeclaredLicense`/`hasConcludedLicense` `to`
    must be an `AnyLicenseInfo` or one of its subclasses (a `LicenseExpression`,
    never a bare `SimpleLicensingText`) and its `from` a package, file or
    snippet: read `references/examples.md` when you write one. **The

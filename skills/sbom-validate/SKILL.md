@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-11-17
+# Last-Modified: 2026-11-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -64,6 +64,8 @@ covers everything it should. A Pitloom-generated SBOM for a mixed-ecosystem
 project (Python plus a JS/Rust/Go/etc. component) will validate cleanly
 even though the non-Python dependencies are simply missing, not
 flagged -- see `sbom-generate`'s "Known limitations" section.
+Several id namespaces in one SBOM (a registry's beside
+`spdx.org/spdxdocs/...`) are valid: not a finding.
 When a user asks "is this SBOM valid?" meaning "is this SBOM complete?",
 answer both questions, not just the one this skill actually checks.
 Completeness against a named standard (NTIA 2021, FSCT 2024, CISA 2026, G7

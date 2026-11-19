@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-11-18
+# Last-Modified: 2026-11-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -185,7 +185,7 @@ run may add new ids to it (`--no-update-id-registry` stops that). None
 declared and ids must stay stable: ask (non-interactively, use none and
 report how to pin). Read
 `references/id-registry.md` before creating a registry, using the `loom.run`
-SDK, or reporting a registry line as a problem.
+SDK, or reporting a registry line or namespace mix as a problem.
 
 ## Embed an SBOM into a wheel (PEP 770)
 
