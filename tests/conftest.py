@@ -8,6 +8,7 @@
 import ipaddress
 import json
 import logging
+import os
 import socket
 import sys
 import tempfile
@@ -220,16 +221,21 @@ def _restore_environ() -> Iterator[None]:
         yield
 
 
+def _sboms_in(root: str) -> set[str]:
+    """``*.spdx3.json`` in *root* (``os.listdir``: a test may patch ``Path``)."""
+    return {name for name in os.listdir(root) if name.endswith(".spdx3.json")}
+
+
 @pytest.fixture(autouse=True)
 def _no_sbom_left_in_cwd() -> Iterator[None]:
     """Fail a test that leaves a ``*.spdx3.json`` in the working directory it
     started in (a run without ``-o`` writes the SBOM there); remove it."""
-    root = Path.cwd()
-    before = set(root.glob("*.spdx3.json"))
+    root = os.getcwd()
+    before = _sboms_in(root)
     yield
-    left = sorted(set(root.glob("*.spdx3.json")) - before)
-    for path in left:
-        path.unlink(missing_ok=True)
+    left = sorted(_sboms_in(root) - before)
+    for name in left:
+        os.remove(os.path.join(root, name))
     assert not left, f"SBOM left in the working directory, pass -o: {left}"
 
 
