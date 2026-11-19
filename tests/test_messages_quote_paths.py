@@ -64,6 +64,7 @@ _QUOTING_CALLS = frozenset(
         "dir_unlistable_error",
         "file_unreadable_error",
         "input_not_found",
+        "project_hint_error",
         "_malformed",
         "NotAWheelError",
         "_fragment_read_failure_message",

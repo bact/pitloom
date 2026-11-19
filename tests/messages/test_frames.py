@@ -10,7 +10,9 @@ line a surface prints is trusted and no other. The library prints no ``ERROR:``
 line and puts no frame on an exception's text.
 
 See also: tests/messages/test_messages_fields.py (a frame's own rules),
-tests/cli/test_cli_error_lines.py (the lines under hostile values).
+tests/messages/test_frames_codes.py (the codes a WARNING or INFO frame
+comes before), tests/cli/test_cli_error_lines.py (the lines under hostile
+values).
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from pitloom.logging_config import (
 from pitloom.messages import (
     COMMAND_FRAME,
     FRAMES,
+    GIT_FRAME,
     HOOK_FRAME,
     LOOM_COMMANDS,
     RELAY_FRAME,
@@ -120,13 +123,14 @@ def test_a_line_framed_by_any_command_is_trusted_and_a_forged_one_is_not(
     assert not says(INPUT_NOT_FOUND, "WARNING", framed)  # a frame is an ERROR's
 
 
-def test_the_table_is_the_four_frames() -> None:
-    assert FRAMES == (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME)
+def test_the_table_is_the_five_frames() -> None:
+    assert FRAMES == (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME, GIT_FRAME)
     assert {f.surface for f in FRAMES} == {
         "the command line, each subcommand",
         "the command line, before a subcommand is known",
         "the Hatchling build hook",
         "a model scan, before a model reader's own line",
+        "a Git URL fetch",
     }
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-15
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,9 +23,11 @@ or folder: a clone URL names the default branch and is never misread, a page
 URL is read by the host's conventions. Rules to state to the user:
 
 - Only `http`/`https` URLs are fetched. `ssh://`, `git://`, `file://` and
-  `git@host:path` get `WARNING: Git source: Cannot fetch <url>: only http and
-  https URLs are fetched ...`, then `ERROR: loom <command>: ...`
-  (exit 1). A Hugging Face model address is a model, not a repository: use
+  `git@host:path` get `ERROR: loom <command>: URL=<url>: only http and https
+  URLs are fetched (not ssh, git, file or scp-style addresses); nothing
+  fetched [git-url-invalid]` (exit 1). Give the https address (the one the
+  host's Clone button shows), or clone it and run on the local copy
+  (non-interactively, report only; never rewrite the URL for them). A Hugging Face model address is a model, not a repository: use
   `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a
   repository.
 - The repository is untrusted: its own `[tool.pitloom]` is ignored (an `INFO:`
@@ -52,12 +54,12 @@ URL is read by the host's conventions. Rules to state to the user:
   after the `@`, for one) is refused before git runs: `ERROR: loom
   project: URL='https://***:***@/o/r': user information cannot be taken out
   of the git command line; not fetched [credentials-unsafe/git-userinfo]`; a
-  malformed host or port is refused as `Invalid URL: ...`
-  (`git.url-invalid`). Never put a credential into a URL for the user.
+  malformed port is refused as `ERROR: ... URL=<url>: the port is not a number;
+  nothing fetched [git-url-invalid]`. Never put a credential into a URL for the user.
 - `--offline` is an error, not a fallback, for `loom project`, `loom model`
   and `loom generate` (`ERROR: loom <command>: URL=<url>: network
-  access is forbidden (offline mode); nothing fetched [offline-unusable]`,
-  after the same text as a `WARNING: Git source:` line). The PyPI and
+  access is forbidden (offline mode); nothing fetched [offline-unusable]`).
+  The PyPI and
   Hugging Face routes refuse with the same code.
 - The checkout may take at most 512 MiB of disk (`--max-download-bytes
   BYTES`, or `max-download-bytes` in a `--config` file; the setting that caps
@@ -70,7 +72,19 @@ URL is read by the host's conventions. Rules to state to the user:
   out of time `... did not finish within <seconds> seconds; stopped
   [download-timeout]`: the codes a PyPI or Hugging Face request that fails
   the same way carries. Any other git failure (a repository, branch or
-  sign-in the server refused) carries no code; relay git's reason.
+  sign-in the server refused) is `ERROR: loom <command>: git <command>:
+  <git's reason>; nothing fetched [git-repository-unusable]`: relay git's
+  reason, and for a private repository tell the user to clone it themselves
+  (do not sign in for them; non-interactively, report only). A repository with
+  no commits is `URL=<url>: an empty repository (no commits); nothing read
+  [git-repository-unusable/empty]`. Without a `git` program the run ends
+  `ERROR: loom <command>: git is not installed or not on PATH; nothing
+  fetched [git-missing]`: ask before installing anything (non-interactively,
+  report only). A branch, tag or commit the repository lacks is `URL=<url>:
+  no branch or tag <ref>; a commit needs its full 40 or 64 hex digits
+  [git-ref-not-found]`: ask which ref to use, or leave the version out for the
+  default branch (non-interactively, report only). Each code's advice is in
+  `messages-git.md`.
 - A page URL naming a file (`blob`, or `raw`: GitHub `.../raw/main/f`, GitLab
   `.../-/raw/main/f`, Codeberg/Gitea `.../raw/branch/main/f`, Bitbucket
   `.../raw/main/f`) reads the folder that holds it, unless the file is an AI
@@ -84,8 +98,15 @@ URL is read by the host's conventions. Rules to state to the user:
 - A monorepo with no Python project at the root fails with an error that names
   the projects below it (up to five): ask which one (non-interactively, report
   the list) and rerun with that folder's page URL.
-- Read the `INFO:` lines: each redirect followed (`Git source: <url>
-  redirected to <url>`), and the repository, branch and folder used.
+- Read the `INFO:` lines: each redirect followed (`Git source: URL=<url>:
+  redirects to <target>; followed [url-moved]`), and the repository, branch
+  and folder used (`Git source: URL=<url>: read as repository <target>,
+  <ref-kind> <ref>, folder '<path>' [target-ambiguous/git-page]`). The `Git
+  source: ` in front of an `INFO:` or `WARNING:` line is a frame, no part of
+  the line: take the code and its entry, not the prefix. A failure is one
+  `ERROR:` line, with no `Git source: ` frame and no `WARNING:` twin. A redirect
+  Pitloom does not follow is a `WARNING:` (`[url-unsafe]`), and git is then run
+  on the URL as given, so an `ERROR:` may follow.
 - A `WARNING: ... Git LFS pointer, content not read ... [lfs-pointer]` is
   common here (most Hugging Face model repositories keep weights in LFS).
   Explain it from its section in `messages-models.md`; relay the message's advice.
@@ -113,7 +134,8 @@ generate <url>`. Rules to state:
   repository is `git.path-not-found` (`[input-not-found]`).
 - A file name in a URL is read as the repository spells it and never leaves
   the clone: an encoded-slash name (`%2F` joined to `.`/`..`), a backslash or a
-  NUL is refused (`Invalid path in URL`, `git.url-invalid`); a wrong-case name
+  NUL is refused (`URL=<url>: a path part decodes to ., .., an empty part, a
+  backslash, a NUL or .git; nothing fetched [git-url-invalid]`); a wrong-case name
   is `git.path-not-found`. A cloned project's build file list drops entries
   outside the repository, one `WARNING: FILE=<entry>: outside the downloaded
   repository; not read` each (`[file-unreadable/outside-repository]`), and

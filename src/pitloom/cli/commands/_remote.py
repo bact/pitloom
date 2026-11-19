@@ -26,7 +26,7 @@ from pitloom.core.config_cascade import resolve_fetch_policy
 from pitloom.core.inert_options import GIT_MODEL
 from pitloom.extract.remote import fetch_git_project
 from pitloom.extract.remote.git_target import resolve_git_target
-from pitloom.messages import emit
+from pitloom.messages import GIT_FRAME, emit
 from pitloom.messages.targets import (
     CONFIG_UNSAFE,
     CONFIG_UNSAFE_REMOTE_LINE,
@@ -83,7 +83,11 @@ def run_remote(
             else:
                 if explicit is None:
                     emit(
-                        log, CONFIG_UNSAFE, logging.INFO, line=CONFIG_UNSAFE_REMOTE_LINE
+                        log,
+                        CONFIG_UNSAFE,
+                        logging.INFO,
+                        line=CONFIG_UNSAFE_REMOTE_LINE,
+                        frame=GIT_FRAME,
                     )
                 output = generate_project_from_args(
                     args, target.folder, settled, remote_url=url

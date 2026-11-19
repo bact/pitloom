@@ -138,10 +138,11 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   conflict messages; then save, file-set and summary lines (`file-unwritable`,
   `registry-file-missing`, `registry-conflict/file-set`); merged, ratchet 366
   to 328 to 316.
-- [ ] **Catalogue PRs 13 to 17** (the remaining families): Git, Hub and build,
+- [ ] **Catalogue PRs 14 to 17** (the remaining families): Hub and build,
   fragments and wheels, miscellany. Done: lock files (10, 11, #496), config
   (8, 9, #497), licence (18, #498), project metadata and file discovery (12,
-  #501; ratchet 211 to 154), the generated values page (#499). The
+  #501; ratchet 211 to 154), Git source (13, #503; ratchet 154 to 132,
+  frames by exact code, relays dropped), the generated values page (#499). The
   consistency re-check of the merged families is done (#494). Plans:
   [message-catalogue-pr8-12-plan.md](message-catalogue-pr8-12-plan.md),
   [message-catalogue-pr12-18-plan.md](message-catalogue-pr12-18-plan.md).
@@ -154,6 +155,14 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md);
   also a NUL byte in a library registry path raises `InternalError`, and
   `test_each_view_is_linear` flaked twice on CI runners (bound now 64, retried).
+- [ ] **Log masker: a token after an escaped control character** (found in
+  PR 13 round 1): `TOKEN_RE` (`core/url_masking/_tokens.py`) lookbehind sees
+  the `t` of an escaped `\t` (or `n` of `\n`), so `ghp_...` after it prints
+  raw; pre-existing. PR 13 masks Git's text before `loggable`; the root fix
+  (allow a token after an escape sequence, as after `%XX`) and `shown_url`
+  (`_http_errors.py`, same order) are open. Also `pypi_url._refuse` still
+  relays its refusal as an uncoded `WARNING:` (PR 14). See
+  [message-catalogue-review-rounds.md](../implementation/message-catalogue-review-rounds.md).
 - [ ] **Licence provenance mapping** (T14), after PR 18: per-operand
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See

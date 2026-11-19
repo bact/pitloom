@@ -27,9 +27,9 @@ from pitloom.extract.remote import (
     fetch_git_project,
     git_url,
 )
-from pitloom.extract.remote._git_folder import subproject_hint
-from pitloom.extract.remote.git import RESOLVED_INFO
+from pitloom.extract.remote._git_folder import folders_text, subproject_hint
 from pitloom.messages.files import OVER_CAP
+from pitloom.messages.git import GIT_MISSING
 from tests._message_drift import raised_as
 
 pytestmark = [
@@ -225,11 +225,11 @@ def test_a_group_called_like_a_marker_falls_back_to_the_whole_url(
     with caplog.at_level(logging.INFO):
         with fetch_git_project(f"file://{proj}") as checkout:
             assert (Path(checkout.folder) / "f.txt").is_file()
-    tried = [
-        r.getMessage() for r in caplog.records if "is not a repository" in r.message
-    ]
+    tried = [r.getMessage() for r in caplog.records if "not a repository" in r.message]
     parent = f"file://{proj.parent.parent}"
-    assert tried == [f"Git source: {parent} is not a repository; trying file://{proj}"]
+    assert tried == [
+        f"Git source: URL={parent}: not a repository; read as repository file://{proj}"
+    ]
 
 
 def test_a_resolved_url_is_one_info_naming_source_and_target(
@@ -242,15 +242,18 @@ def test_a_resolved_url_is_one_info_naming_source_and_target(
     with caplog.at_level(logging.INFO):
         with fetch_git_project(given):
             pass
-    lines = [r.getMessage() for r in caplog.records if "names repository" in r.message]
+    lines = [
+        r.getMessage() for r in caplog.records if "read as repository" in r.message
+    ]
     assert lines == [
-        RESOLVED_INFO % (given, _url(root), ", branch feature/x, folder pkg")
+        f"Git source: URL={given}: read as repository {_url(root)}, "
+        "branch feature/x, folder 'pkg'"
     ]
     caplog.clear()
     with caplog.at_level(logging.INFO):
         with fetch_git_project(_url(root)):
             pass
-    assert "names repository" not in caplog.text
+    assert "read as repository" not in caplog.text
 
 
 def test_offline_fetches_nothing(repo: tuple[Path, str]) -> None:
@@ -283,6 +286,7 @@ def test_a_missing_git_is_a_clear_error(
         with fetch_git_project(_url(repo[0])):
             pass  # pragma: no cover
     assert excinfo.value.code == "git.not-found"
+    assert excinfo.value.pitloom_code == GIT_MISSING.code
 
 
 def test_a_failed_clone_carries_gits_message_without_credentials(
@@ -317,14 +321,19 @@ def test_the_time_and_output_of_git_are_limited(
 
 def test_the_monorepo_hint_names_projects_and_escapes_names(tmp_path: Path) -> None:
     """Projects below a root with none are listed (sorted, skipped folders
-    left out, at most five); a name with a newline cannot add a line."""
+    left out, at most five, then how many more); a name with a newline cannot
+    add a line."""
     for sub in ("services/b", "services/a", "tools/t", "p/q", "r", "a\nb", "dist/x"):
         (tmp_path / sub).mkdir(parents=True)
         (tmp_path / sub / "setup.py").write_text("", encoding="utf-8")
-    hint = subproject_hint(str(tmp_path), whole_repository=True)
-    assert "\n" not in hint and "a\\nb" in hint and "dist" not in hint
-    assert hint.count(",") == 4 and "and 1 more" in hint
-    assert "Give the URL of one of them" in hint
-    assert "folder in the URL only" in subproject_hint(str(tmp_path), False)
+    names, more = subproject_hint(str(tmp_path))
+    assert names == ["a\nb", "p/q", "r", "services/a", "services/b"] and more == 1
+    text = folders_text(names, more)
+    assert "\n" not in text and "a\\nb" in text and "dist" not in text
+    assert text.count(",") == 4 and text.endswith(" and 1 more")
+    assert folders_text(["x"], 0) == "x"
+    token = "ghp_" + "a" * 36
+    hostile = folders_text([f"x\t{token}"], 0)  # masked before the escape
+    assert token not in hostile and "ghp_***" in hostile
     (tmp_path / "pyproject.toml").write_text("", encoding="utf-8")
-    assert subproject_hint(str(tmp_path), True) == ""
+    assert subproject_hint(str(tmp_path)) == ([], 0)

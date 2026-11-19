@@ -256,3 +256,7 @@ KEY_REASONS: Final = (
     KEY_PATH_OUTSIDE,
     KEY_PATH_OUTSIDE_ARCHIVE,
 )
+
+#: What a Git page URL names its version as, as a ``target-ambiguous`` line
+#: says it before the name (``tag v1``): a closed table.
+REF_KINDS: Final = ("branch", "tag", "commit")

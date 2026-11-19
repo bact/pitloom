@@ -19,7 +19,7 @@ import ast
 import pytest
 
 from pitloom.core.evidence import REASON_CODES
-from pitloom.messages import FRAMES, MESSAGES, trusted_message
+from pitloom.messages import FRAMES, GIT_FRAME, MESSAGES, trusted_message
 from tests._message_drift import (
     SAMPLES,
     SRC_ROOT,
@@ -134,18 +134,21 @@ def test_every_call_saying_a_family_text_carries_its_code() -> None:
 @pytest.mark.parametrize("entry", sorted(MESSAGES), ids=str)
 def test_each_line_reads_back_as_its_entry(entry: str) -> None:
     """Every line, with a sample value for each field, alone and after each
-    frame of its level, is trusted as its entry, and at no other level."""
+    frame that allows its code at its level, is trusted as its entry, and
+    at no other level; after the Git frame, which no line's own value can
+    take in, only when it allows the code. (Another frame's text may read
+    as a line's own ``FILE=`` value.)"""
     message = MESSAGES[entry]
     for line in message.lines:
         text = line.render({name: SAMPLES[name] for name in line.fields})
-        heads = [
-            frame.render({name: SAMPLES[name] for name in frame.fields})
-            for frame in FRAMES
-            if line.level in frame.levels
-        ]
-        for head in ["", *heads]:
+        for frame in FRAMES:
+            head = frame.render({name: SAMPLES[name] for name in frame.fields})
             printed = f"{line.level}: {head}{text} [{message.code}]"
-            assert trusted_message(printed) is message, printed
+            allowed = frame.allows(message.code, line.level)
+            if allowed or frame is GIT_FRAME:
+                assert (trusted_message(printed) is message) is allowed, printed
+        printed = f"{line.level}: {text} [{message.code}]"
+        assert trusted_message(printed) is message, printed
         for other in {"ERROR", "WARNING", "INFO"} - message.levels:
             assert trusted_message(f"{other}: {text} [{message.code}]") is None
 

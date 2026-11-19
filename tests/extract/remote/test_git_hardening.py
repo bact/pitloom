@@ -42,7 +42,10 @@ from pitloom.extract.remote.git_url import (
     parse_git_page,
     split_ref,
 )
+from pitloom.logging_config import escape_controls
+from pitloom.messages import code_of, trusted_message
 from pitloom.messages.files import OVER_CAP
+from pitloom.messages.git import GIT_REPOSITORY_UNUSABLE
 from tests._message_drift import raised_as
 from tests._pid import wait_pid_gone
 
@@ -319,21 +322,23 @@ def test_only_a_missing_repository_is_tried_as_the_whole_url(
     ],
     ids=["redirects", "url", "ref", "caller-check"],
 )
-def test_every_refusal_is_a_warning_and_raised(
+def test_every_refusal_is_raised_and_not_logged(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     refusal: Exception,
 ) -> None:
-    """A caller that only logs still shows why nothing was fetched."""
+    """The refusal is the exception alone: the caller's ``ERROR:`` line says
+    it, so no ``WARNING:`` repeats it."""
 
     def refuse(*_args: object) -> None:
         raise refusal
 
     monkeypatch.setattr(git, "resolve_git_url", refuse)
-    with caplog.at_level(logging.WARNING), pytest.raises(type(refusal)):
+    with caplog.at_level(logging.INFO), pytest.raises(type(refusal)) as excinfo:
         with fetch_git_project("https://h/o/r"):
             pytest.fail("not fetched")
-    assert [r.getMessage() for r in caplog.records] == [f"Git source: {refusal}"]
+    assert excinfo.value is refusal
+    assert not caplog.records
 
 
 def test_a_failure_of_the_caller_inside_the_block_is_not_a_fetch_warning(
@@ -353,13 +358,14 @@ def test_a_failure_of_the_caller_inside_the_block_is_not_a_fetch_warning(
     assert not caplog.records
 
 
-def test_offline_is_a_warning_as_well(caplog: pytest.LogCaptureFixture) -> None:
-    """The same as a refused scheme: logged and raised."""
-    with caplog.at_level(logging.WARNING), pytest.raises(RemoteSourceError) as excinfo:
+def test_offline_is_raised_and_not_logged(caplog: pytest.LogCaptureFixture) -> None:
+    """The same as a refused scheme: the exception alone says it."""
+    with caplog.at_level(logging.INFO), pytest.raises(RemoteSourceError) as excinfo:
         with fetch_git_project("https://h/o/r", policy=RemoteFetchPolicy(offline=True)):
             pytest.fail("not fetched")
     assert excinfo.value.code == "git.offline"
-    assert "network access is forbidden" in caplog.text
+    assert "network access is forbidden" in str(excinfo.value)
+    assert not caplog.records
 
 
 @pytest.fixture(name="local")
@@ -543,3 +549,26 @@ def test_a_repository_over_the_cap_is_not_read(tmp_path: Path, limit: int) -> No
             f"file://{root}", policy=RemoteFetchPolicy(max_bytes=limit)
         ) as checkout:
             assert (Path(checkout.folder) / "big.bin").is_file()
+
+
+def test_a_token_after_a_tab_in_gits_text_is_masked_before_the_escape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server's ``remote:`` line holding TAB and a bare token: the escaped
+    tab (backslash and t) must not hide the token from the masker. Two
+    tokens and a URL with user information, one printed line, still trusted."""
+    first, second = "ghp_" + "a" * 36, "ghp_" + "b" * 36
+    err = (
+        f"remote: token:\t{first} and \t{second}\n"
+        "fatal: unable to access 'https://u:tok@h/r/': denied\n"
+    )
+    monkeypatch.setattr(_git_run, "_capture", lambda *_a: (128, "", err))
+    with pytest.raises(RemoteSourceError) as excinfo:
+        GitRunner().run(["clone"], "clone", echo=False)
+    # What the command line prints: the text, escaped at the sink.
+    printed = f"ERROR: {escape_controls(str(excinfo.value))} [{code_of(excinfo.value)}]"
+    assert "ghp_***" in printed and "***:***@h" in printed
+    for secret in (first, second, "a" * 36, "b" * 36, ":tok@"):
+        assert secret not in printed
+    assert "\n" not in printed and code_of(excinfo.value) == "git-repository-unusable"
+    assert trusted_message(printed) is GIT_REPOSITORY_UNUSABLE

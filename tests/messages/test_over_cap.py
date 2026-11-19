@@ -207,6 +207,8 @@ def test_extra_never_replaces_the_code(caplog: pytest.LogCaptureFixture) -> None
             line=KEY_LINE,
             once=None,
             extra={CODE_ATTR: "lfs-pointer", "pitloom_probe": 1},
+            frame=None,
+            frame_values=None,
             **values,
         )
     (record,) = caplog.records

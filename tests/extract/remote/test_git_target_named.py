@@ -237,7 +237,7 @@ def test_a_url_whose_decoded_name_leaves_the_clone_is_refused_unread(
     tmp_path: Path, sniffed: list[Path], caplog: pytest.LogCaptureFixture, mode: str
 ) -> None:
     """``.git%2F..%2F..`` to a host file with model magic: ``git.url-invalid``
-    before the clone, logged as a ``WARNING:``; the host file is not read."""
+    before the clone, raised and not logged; the host file is not read."""
     host, digest = _host(tmp_path, AiModelFormat.GGUF, "blob")
     url = _repo(tmp_path / "o", {"README.md": b"r\n"})
     escape = "%2F".join([".git"] + [".."] * 40 + [str(host).lstrip("/")])
@@ -248,7 +248,9 @@ def test_a_url_whose_decoded_name_leaves_the_clone_is_refused_unread(
     ):
         _kind(f"{url}/blob/main/{escape}", mode)
     assert excinfo.value.code == "git.url-invalid"
-    assert "WARNING" in caplog.text and digest not in caplog.text
+    assert not caplog.records
+    assert "a path part decodes to" in str(excinfo.value)
+    assert digest not in str(excinfo.value)
     assert host not in sniffed
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-10
-Last-Modified: 2026-11-10
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,16 +40,26 @@ setuptools `cmdclass`, PDM hooks) is not run while its files are listed. A failu
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
-`git.not-found`, `git.output-too-large`, `git.too-large`). A condition every
-remote route shares carries its catalogued code as `pitloom_code`
-(`pitloom.messages.code_of(exc)`; see [Message codes](message-codes.md)):
-`over-cap` for the two size codes, `offline-unusable` for `git.offline`,
-`download-timeout` for `git.timeout`, and `download-network-failed` for a
-`git.clone-failed` whose cause is the network (git could not reach the
-server, told by git's own `fatal:` and `error:` lines, never by a name, URL
-or server text in them; git runs with `LC_ALL=C`); any other
-`git.clone-failed` has none. *check_url* may raise any
-exception to refuse an address, and it reaches you unchanged. To read the
+`git.not-found`, `git.output-too-large`, `git.too-large`) and whose
+`pitloom_code` is its catalogued code (`pitloom.messages.code_of(exc)`; see
+[Message codes](message-codes.md)). Every `git.*` code has one:
+
+| `code` | `pitloom_code` |
+| :----- | :------------- |
+| `git.url-invalid` | [`git-url-invalid`](message-codes-git.md#git-url-invalid); for a host not written in plain ASCII, `url-unsafe/host-spelling`; for user information git would read differently, `credentials-unsafe/git-userinfo`; for a PyPI URL, `pypi-url-unusable` |
+| `git.ref-not-found` | [`git-ref-not-found`](message-codes-git.md#git-ref-not-found) |
+| `git.not-found` (no `git` program) | [`git-missing`](message-codes-git.md#git-missing) |
+| `git.clone-failed` | [`git-repository-unusable`](message-codes-git.md#git-repository-unusable), or `git-repository-unusable/empty` for a repository with no commits; `download-network-failed` when the cause is the network (git could not reach the server, told by git's own `fatal:` and `error:` lines, never by a name, URL or server text in them; git runs with `LC_ALL=C`) |
+| `git.timeout` | `download-timeout` |
+| `git.too-many-redirects` | `url-unsafe` |
+| `git.offline` | `offline-unusable` |
+| `git.path-not-found` | `input-not-found` |
+| `git.no-project` | `project-not-found`, `project-not-found/model-files` or `project-or-model-not-found` |
+| `git.too-large`, `git.output-too-large` | `over-cap` |
+
+The text of the exception has no level, frame or code: the command line adds
+its frame (`ERROR: loom <command>: ...`) and the code. *check_url* may raise any exception to refuse
+an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`
 (its `policy=` takes a `pitloom.core.fetch_policy.RemoteFetchPolicy`, made by
 `pitloom.core.config_cascade.resolve_fetch_policy()` as every surface makes

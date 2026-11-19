@@ -10,7 +10,7 @@ for a Git URL, a PyPI URL and a Hugging Face model alike. Git and PyPI
 raise it as the ``pitloom_code`` of a
 :class:`~pitloom.extract.remote.errors.RemoteSourceError`; Hugging Face says
 it as a ``WARNING:`` and reads on (or, offline, raises it). A git failure
-that is no network failure carries no code.
+that is no network failure is ``git-repository-unusable``.
 
 See also: tests/extract/remote/test_hub_files.py,
 tests/extract/remote/test_pypi_fetch_refusals.py and
@@ -42,6 +42,7 @@ from pitloom.messages import (
     trusted_message,
 )
 from pitloom.messages.files import OVER_CAP
+from pitloom.messages.git import GIT_REPOSITORY_UNUSABLE
 from pitloom.messages.network import (
     DOWNLOAD_FAILED,
     DOWNLOAD_TIMEOUT,
@@ -148,25 +149,29 @@ def test_a_git_failure_of_another_cause_carries_no_code(err: str) -> None:
 
 @_needs_git
 @pytest.mark.parametrize(
-    ("err", "message"),
+    ("err", "message", "head"),
     [
-        ("fatal: unable to access 'https://h/r/': Could not resolve host: h",
-         DOWNLOAD_FAILED),
-        ("fatal: repository 'https://h/r/' not found", None),
+        (
+            "fatal: unable to access 'https://h/r/': Could not resolve host: h",
+            DOWNLOAD_FAILED,
+            "git clone failed: ",
+        ),
+        (
+            "fatal: repository 'https://h/r/' not found",
+            GIT_REPOSITORY_UNUSABLE,
+            "git clone: ",
+        ),
     ],
     ids=["network", "not-found"],
 )  # fmt: skip
 def test_a_failed_git_call_carries_the_shared_code_of_its_cause(
-    monkeypatch: pytest.MonkeyPatch, err: str, message: Message | None
+    monkeypatch: pytest.MonkeyPatch, err: str, message: Message, head: str
 ) -> None:
     _git_answers(monkeypatch, 128, err)
     error = _raised(lambda: GitRunner().run(["clone"], "clone", echo=False))
     assert error.code == "git.clone-failed"
-    if message is None:
-        assert error.pitloom_code is None and str(error) == err
-    else:
-        assert _said_as(error, message)
-        assert str(error) == f"git clone failed: {err}; nothing fetched"
+    assert _said_as(error, message)
+    assert str(error) == f"{head}{err}; nothing fetched"
 
 
 @_needs_git

@@ -53,6 +53,8 @@ def warn_over_cap(
         line=line,
         once=seen,
         extra={_OVER_CAP_ATTR: (cap, outcome)},
+        frame=None,
+        frame_values=None,
         **values,
     )
 

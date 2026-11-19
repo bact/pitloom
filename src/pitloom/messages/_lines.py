@@ -11,7 +11,8 @@ another program writing to the same stream can print anything. So a code is
 trusted only when it is catalogued and the text before it is one of that
 entry's lines at that line's level: the line's template, each value of its
 field's shape (a path in quotes, a 64-digit ``oid``), after at most one frame
-of :data:`~pitloom.messages._frames.FRAMES` (:func:`trusted_message`).
+of :data:`~pitloom.messages._frames.FRAMES` that allows the entry's code
+at that level (:func:`trusted_message`).
 
 See also: :mod:`pitloom.messages` (the catalogue).
 """
@@ -40,14 +41,17 @@ LONGEST_LINE: Final = 65536
 
 @functools.cache
 def _text_re(message: Message, level: str) -> re.Pattern[str] | None:
-    """The text of *message*'s lines at *level*, after at most one frame of
-    that level; ``None`` when it has no line at *level*."""
+    """The text of *message*'s lines at *level*, after at most one frame
+    that allows its code at that level; ``None`` when it has no line at
+    *level*."""
     shapes = [
         template_pattern(ln.template) for ln in message.lines if ln.level == level
     ]
     if not shapes:
         return None
-    frames = [template_pattern(f.template) for f in FRAMES if level in f.levels]
+    frames = [
+        template_pattern(f.template) for f in FRAMES if f.allows(message.code, level)
+    ]
     head = f"(?:{'|'.join(frames)})?" if frames else ""
     return re.compile(f"{head}(?:{'|'.join(shapes)})")
 

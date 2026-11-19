@@ -7,9 +7,12 @@
 ``loom <command>: `` of every ``ERROR:`` line the command line prints
 (``loom: `` where no command is known), the Hatchling build hook's, and the
 ``FORMAT=... FILE=...: `` a model scan puts before a model reader's own line
-(:mod:`pitloom.extract.scanner`). A line is trusted with at most one frame
-before one of its entry's shapes (:func:`pitloom.messages.trusted_message`),
-never with any other text.
+(:mod:`pitloom.extract.scanner`), and the ``Git source: `` of a Git URL
+fetch's warnings and notes. A line is trusted with at most one frame before
+one of its entry's shapes (:func:`pitloom.messages.trusted_message`), never
+with any other text; a frame before a ``WARNING`` or ``INFO`` line names the
+codes it may come before (exact codes: a variant is not its family), so a
+line of any other code after it is not trusted.
 
 The library prints no ``ERROR:`` line and puts no frame on an exception's
 text. A drift test holds the table and the surfaces together
@@ -35,7 +38,9 @@ class Frame:
     Raises:
         ValueError: A level is not one of :data:`LEVELS`, the template does
             not end in ``": "`` or breaks a rule of
-            :func:`~pitloom.messages._types.template_problem`.
+            :func:`~pitloom.messages._types.template_problem`, or a frame
+            of a ``WARNING`` or ``INFO`` line names no codes, or the set of
+            codes is empty.
     """
 
     #: The levels of the lines it comes before.
@@ -44,6 +49,10 @@ class Frame:
     template: str
     #: What prints it.
     surface: str
+    #: The codes whose lines it comes before, each exact (a variant's
+    #: siblings are not named by it); ``None``: every code's (an
+    #: ``ERROR``-only frame, which a surface puts before any error).
+    codes: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
         """Check the frame against the catalogue's rules."""
@@ -52,6 +61,10 @@ class Frame:
             problem = f"{self.template!r}: levels {sorted(self.levels)} not in LEVELS"
         elif problem is None and not self.template.endswith(": "):
             problem = f"{self.template!r}: does not end in ': '"
+        elif self.codes is None and self.levels != {"ERROR"}:
+            problem = f"{self.template!r}: a WARNING or INFO frame names no codes"
+        elif self.codes is not None and not self.codes:
+            problem = f"{self.template!r}: an empty set of codes"
         if problem is not None:
             raise ValueError(problem)
 
@@ -68,6 +81,10 @@ class Frame:
     def render(self, values: Mapping[str, object]) -> str:
         """The prefix printed for *values*, each written by its field."""
         return render(self.template, values)
+
+    def allows(self, code: str, level: str) -> bool:
+        """Whether a line of the message *code* at *level* may follow it."""
+        return level in self.levels and (self.codes is None or code in self.codes)
 
 
 #: What every ``ERROR:`` line of a ``loom`` command starts with, by the
@@ -93,12 +110,46 @@ HOOK_FRAME: Final = Frame(
     surface="the Hatchling build hook",
 )
 
-#: What a model scan puts before a model reader's own warning or error.
+#: What a model scan puts before a model reader's own warning or error: the
+#: codes a reader under :mod:`pitloom.extract.ai_model` says (a drift test
+#: walks those modules and holds the set equal to them).
 RELAY_FRAME: Final = Frame(
     levels=frozenset({"WARNING", "ERROR"}),
     template="FORMAT=%(format)s FILE=%(file)s: ",
     surface="a model scan, before a model reader's own line",
+    codes=frozenset(
+        {
+            "model-field-conflict",
+            "model-field-unreadable",
+            "parameter-count-invalid",
+            "text-malformed",
+        }
+    ),
+)
+
+#: What every warning and note of a Git URL fetch starts with, and the git
+#: command echo (:data:`pitloom.messages.git.GIT_COMMAND`) too.
+GIT_PREFIX: Final = "Git source: "
+
+#: What a Git URL fetch puts before its own warnings and notes; never before
+#: an ``ERROR`` line (an exception's text).
+GIT_FRAME: Final = Frame(
+    levels=frozenset({"WARNING", "INFO"}),
+    template=GIT_PREFIX,
+    surface="a Git URL fetch",
+    codes=frozenset(
+        {
+            "config-unsafe",
+            "git-filter-unusable",
+            "git-link-unsafe",
+            "git-redirect-unusable",
+            "query-no-effect",
+            "target-ambiguous/git-page",
+            "url-moved",
+            "url-unsafe",
+        }
+    ),
 )
 
 #: Every frame.
-FRAMES: Final = (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME)
+FRAMES: Final = (COMMAND_FRAME, TOP_FRAME, HOOK_FRAME, RELAY_FRAME, GIT_FRAME)

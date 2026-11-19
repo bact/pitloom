@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-11-17
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,7 +25,8 @@ SBOM. The directory is removed afterwards (one that cannot be fully removed,
 such as a file still held open on Windows, is one `WARNING:`, not an error:
 the SBOM is already written), and a message that would name it says
 `<checkout>` instead, so two runs print the same text. It needs the `git`
-program.
+program (without it: `git is not installed or not on PATH; nothing fetched
+[git-missing]`).
 
 ```bash
 loom project https://gitlab.com/group/project                  # the default branch
@@ -69,9 +70,12 @@ from the server's own branches and tags, longest match first.
   (`-`) or Gitea (`src/commit|branch|tag`) marker, which makes the query stray.
   An Azure DevOps `version` that does
   not start with `GB`, `GT` or `GC` names no ref: the default branch is read and
-  an `INFO:` says so.
+  an `INFO:` says so (`URL=<url>: the version names no branch, tag or commit;
+  the default branch is read [query-no-effect]`).
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot
-  be asked for an abbreviated id.
+  be asked for an abbreviated id. A branch, tag or commit the repository does
+  not have is an error naming it (`URL=<url>: no branch or tag <ref>; a commit
+  needs its full 40 or 64 hex digits [git-ref-not-found]`, `git.ref-not-found`).
 - A query or fragment (`?ref_type=heads`, `#readme`) is ignored.
 - A tag and a branch with one name: a `src/tag` page takes the tag, any other
   page the branch.
@@ -90,7 +94,8 @@ from the server's own branches and tags, longest match first.
   the folder holds files that may be models).
 - Not read as a file: `raw.githubusercontent.com` is a file host, not a
   repository page, but its URL is taken as a repository: the whole URL is
-  cloned and fails (`git.clone-failed`). Use the `github.com` `blob` or `raw`
+  cloned and fails (`git.clone-failed`,
+  [`git-repository-unusable`](message-codes-git.md#git-repository-unusable)). Use the `github.com` `blob` or `raw`
   page of the file instead. A Hugging Face `/resolve/` file link of a model
   (`huggingface.co/<org>/<name>/resolve/main/<file>`) is read as the Hub
   model `<org>/<name>`: the file part is dropped and no model file is read.
@@ -220,8 +225,9 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   An encoded slash between plain names (`models%2Fm.keras`) is a path inside
   the folder (here `models/m.keras`). A URL segment that decodes (`%2F`) to a
   part `.` or `..`, an empty part, a backslash, a NUL or `.git` (any case,
-  trailing dots or spaces, `git~1`, an NTFS stream such as `.git::$DATA`) is refused (`Invalid path in URL`,
-  `git.url-invalid`), and a name that does not match a file on disk letter for
+  trailing dots or spaces, `git~1`, an NTFS stream such as `.git::$DATA`) is refused
+  (`URL=<url>: a path part decodes to ., .., an empty part, a backslash, a NUL
+  or .git; nothing fetched [git-url-invalid]`, `git.url-invalid`), and a name that does not match a file on disk letter for
   letter is "not found" on every operating system, also where the file system
   ignores case. `.gitmodules`, `.gitattributes`, `.gitignore`, `.github` and
   `foo.git` stay valid names. A link named in a
@@ -305,8 +311,9 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   `GIT_CURL_VERBOSE` variables of the calling environment, which can write
   what `git` sends, are not passed on. A secret in the URL's query or
   fragment (`?token=`, `?access_token=`, `#token=`) is never given to `git`:
-  the query and fragment are dropped before the clone URL is built (`INFO:
-  ... (query and fragment ignored)`), so `git` cannot sign in with one either.
+  the query and fragment are dropped before the clone URL is built (`INFO: Git
+  source: URL=<url>: the query and fragment have no effect; cut
+  [query-no-effect]`), so `git` cannot sign in with one either.
   This is how the URL you give is
   fetched and shown (masked) in messages; it is not a rewrite of the SBOM: a
   URL field of the SBOM that holds a credential is warned of, or refused in
@@ -323,7 +330,8 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
     cannot be taken out of the git command line; not fetched
     [credentials-unsafe/git-userinfo]`. So is a user name or password
     holding a NUL (`%00`), which cannot be handed to `git`. A malformed host
-    or port is refused as an invalid URL (`git.url-invalid`). Other control
+    or port is refused as an invalid URL (`git.url-invalid`; for the port,
+    `URL=<url>: the port is not a number; nothing fetched [git-url-invalid]`). Other control
     characters (a tab, an escape) are sent as typed.
 - The clone is shallow, asks the server to leave out blobs over 10 MiB that the
   checkout does not need (a server without partial clone sends them) and never
@@ -399,11 +407,14 @@ PyTorch, PT2, Safetensors). Which command reads which URL:
   seconds; stopped`
   ([`download-timeout`](message-codes-network.md#download-timeout)): the codes a
   PyPI or Hugging Face request that fails the same way carries. Any other
-  git failure (a repository, branch or sign-in the server refused) carries no
-  code; its message is git's own. Network failures are told from other git
+  git failure (a repository, branch or sign-in the server refused) is
+  [`git-repository-unusable`](message-codes-git.md#git-repository-unusable):
+  `git <command>: <git's reason>; nothing fetched`, with git's own `fatal:`,
+  `error:` and `remote:` lines as the reason. Network failures are told from other git
   failures by git's own `fatal:` and `error:` lines (git runs with
   `LC_ALL=C`), never by a name, URL or server text inside them.
-- An empty repository is an error that says so.
+- An empty repository is an error that says so (`URL=<url>: an empty
+  repository (no commits); nothing read [git-repository-unusable/empty]`).
 - The output file is named from the project (or the model file), as for a
   local one, and written to the current directory. `-o -` writes the SBOM to
   stdout.
@@ -414,31 +425,49 @@ Every URL that is changed, refused or not followed is said, never silently:
 
 | Level | Message | When |
 | :---- | :------ | :--- |
-| `INFO:` | `Git source: <url> redirected to <url>` | the server redirected: both URLs |
-| `INFO:` | `Git source: <url> names repository <url>, branch <ref>, folder <path>` | the URL named more than a repository (or was cleaned) |
-| `INFO:` | `Git source: <url> is not a repository; trying <url>` | a group called `src`/`tree`/`blob`: the whole URL is tried |
-| `INFO:` | `Git source: <path> is a folder, not a file; reading it` | a file page whose path is a folder |
-| `INFO:` | `Git source: <path> is a file, not a folder` | a folder page whose path is a file: the file is read as the one the URL named (a model file, or else its folder) |
+| `INFO:` | `Git source: URL=<url>: redirects to <target>; followed [url-moved]` | the server redirected: both URLs |
+| `INFO:` | `Git source: URL=<url>: read as repository <target>, <ref-kind> <ref>, folder '<path>' [target-ambiguous/git-page]` | the URL named more than a repository (or was cleaned); the ref and the folder are left out of the line when the URL names none |
+| `INFO:` | `Git source: URL=<url>: not a repository; read as repository <target> [target-ambiguous/git-page]` | a group called `src`/`tree`/`blob`: the whole URL is tried |
+| `INFO:` | `Git source: URL=<url>: '<path>' is a folder, not a file; reading it [target-ambiguous/git-page]` | a file page whose path is a folder |
+| `INFO:` | `Git source: URL=<url>: '<path>' is a file, not a folder; read as the file named [target-ambiguous/git-page]` | a folder page whose path is a file: the file is read as the one the URL named (a model file, or else its folder) |
+| `INFO:` | `Git source: URL=<url>: the query and fragment have no effect; cut [query-no-effect]` | the URL held a query or fragment that names no ref |
+| `INFO:` | `Git source: URL=<url>: the version names no branch, tag or commit; the default branch is read [query-no-effect]` | a page URL's version query (Azure DevOps) names none |
 | `INFO:` | `FILE=<file>: not an AI model file; reading its folder` | the file URL named a file whose name no model has, and that is not a model or is missing (`loom generate`) |
 | `INFO:` | `FILE=<file>: no Python project; reading this AI model file` | `loom generate` on a folder with no project and one model |
 | `INFO:` | `FILE=<file>: the one AI model file; reading it` | `loom model` on a folder with one model |
 | `INFO:` | `FILE=<file>: one of several AI model files`, then `ERROR:` `<url>: several AI model files (N files); name one file` | a folder holds several models (one line per file; `model-ambiguous`) |
 | `INFO:` | `AI models from a Git URL in these formats are listed without metadata, their reader not being run on a downloaded file: <formats>; pass --trust-model-files for a repository you trust` | a model in a format whose reader is not run on a download |
-| `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file` | neither a project nor a model (`project-or-model-not-found`) |
+| `ERROR:` | `No pyproject.toml, setup.cfg, or setup.py found in '<path>'; Python projects are in subfolders (<folders>); give the URL of one of them [project-not-found]` | the folder holds no project but folders below it do (`loom project`); a folder's line ends `Pitloom reads the folder in the URL only` instead |
+| `ERROR:` | `<url>: no Python project (pyproject.toml, setup.cfg or setup.py) and no AI model file of a supported format; name a project folder or a model file` | neither a project nor a model (`project-or-model-not-found`; with subfolders that hold projects, the same hint as above) |
 | `ERROR:` | `<file>: header is a Git LFS pointer, content not fetched (oid sha256:<oid>, size <size>); clone with git lfs, then run on the file` | the named model file is an LFS pointer |
-| `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |
-| `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
-| `INFO:` | `Git source: $ git ...` | each `git` call; a URL's credentials are not among its arguments |
-| `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |
-| `INFO:` | `Git source: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder were not followed` | such links were removed |
-| `WARNING:` | `Git source: <reason>` | any refusal, as well as its `ERROR:`: an ssh, git, file or scp-style address, `--offline`, too many redirects, a redirect the caller's check refuses, an unknown ref or folder, a failed `git` call |
+| `INFO:` | `Git source: URL=<url>: the server rejected the blob filter; fetching without it [git-filter-unusable]` | the server cannot leave out large blobs (Azure DevOps) |
+| `INFO:` | `Git source: URL=<url>: could not be checked for a redirect (<why>); git asked directly [git-redirect-unusable]` | the redirect probe failed |
+| `INFO:` | `Git source: $ git ...` | each `git` call (a summary: no code); a URL's credentials are not among its arguments |
+| `WARNING:` | `Git source: URL=<url>: redirects to <target>; not followed (<why>); the URL itself asked of git [url-unsafe]` | a redirect to another scheme, or to a page that is not a repository: git is run on the URL as given and follows no redirect |
+| `INFO:` | `Git source: URL=<url>: <n> symbolic link(s) leading out of the repository, into its .git directory or to a folder; removed, not followed [git-link-unsafe]` | such links were removed |
+| `ERROR:` | `URL=<url>: only http and https URLs are fetched (not ssh, git, file or scp-style addresses); nothing fetched [git-url-invalid]` | an ssh, git, file or scp-style address |
+| `ERROR:` | `URL=<url>: the port is not a number; nothing fetched [git-url-invalid]` | a malformed port |
+| `ERROR:` | `URL=<url>: a path part decodes to ., .., an empty part, a backslash, a NUL or .git; nothing fetched [git-url-invalid]` | a branch or path part that would leave the checkout or reach git's own files |
+| `ERROR:` | `URL=<url>: network access is forbidden (offline mode); nothing fetched [offline-unusable]` | `--offline` |
+| `ERROR:` | `URL=<url>: more than 5 redirects; not followed [url-unsafe]` | too many redirects (`git.too-many-redirects`) |
+| `ERROR:` | `URL=<url>: no branch or tag <ref>; a commit needs its full 40 or 64 hex digits [git-ref-not-found]` | an unknown branch, tag or commit (`git.ref-not-found`) |
+| `ERROR:` | `git is not installed or not on PATH; nothing fetched [git-missing]` | no `git` program (`git.not-found`) |
+| `ERROR:` | `git <command>: <error>; nothing fetched [git-repository-unusable]` | a failed `git` call that was no network failure: the repository, branch or sign-in the server refused (`git.clone-failed`) |
+| `ERROR:` | `URL=<url>: an empty repository (no commits); nothing read [git-repository-unusable/empty]` | a repository with no commits |
+| `ERROR:` | `git <command> failed: <error>; nothing fetched [download-network-failed]` | the server could not be reached |
+| `ERROR:` | `git <command> did not finish within <seconds> seconds; stopped [download-timeout]` | the 10-minute limit passed |
 | `WARNING:` | `FILE=<file>: build-time code of the downloaded repository is not run; <settings> ignored [config-unsafe/build-code]` | a cloned project's build settings would run the repository's own code (once per SBOM) |
 | `WARNING:` | `FILE=<entry>: outside the downloaded repository; not read [file-unreadable/outside-repository]` | a build file list entry, as written, names a path outside the repository (one line per entry) |
 | `WARNING:` | `DIR=<dir>: larger than the 60-second file-discovery cap; file list not read [over-cap]` | file discovery in a clone ran over its time cap |
 | `WARNING:` | `listed files outside the downloaded repository<count>; not read [file-unreadable/outside-repository]` | files found outside after discovery (counted, not named) |
-| `ERROR:` | `Invalid path in URL: <url>` (`git.url-invalid`) | a branch or path part that decodes to `.`/`..`, an empty part, a backslash, a NUL or `.git` |
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository ...` | a build flag |
-| `ERROR:` | `<frame>: ...` | the run could not finish (the frame names the command) |
+| `ERROR:` | `ERROR: loom <command>: ...` | the run could not finish (the command names itself; any Git `ERROR:` above, and any other) |
+
+The `Git source: ` in front of an `INFO:` or `WARNING:` line is a frame: it
+names the fetch that said the line and is no part of it (the line is what
+follows, with its `URL=` and its code), and only the families the Git route
+says admit it. An `ERROR:` line never carries it: the command prints its own frame
+(`ERROR: loom <command>: ...`) as for every error, and no `WARNING:` repeats it.
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
 `***:***@host:path` for an scp-style address, and the value of each query or

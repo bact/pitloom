@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-29
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,8 +38,16 @@ LEVEL: [FRAME: ][SUBJECT=value: ]CONDITION[; ACTION] [code]
   after the frame, coded when its wording is catalogued
   (`ERROR: loom: unrecognized arguments: --bogus [option-invalid]`). The
   Hatchling hook's line starts `Pitloom build hook: `. A model scan's line may
-  also start with the model it read: the prefixes are listed with the
-  catalogue, in [Message codes](message-codes.md).
+  also start with the model it read (`FORMAT=<format> FILE=<file>: `), and a
+  Git URL fetch's `WARNING:` and `INFO:` lines with `Git source: `: the
+  prefixes are listed with the catalogue, in [Message codes](message-codes.md).
+- A frame on a `WARNING:` or `INFO:` line is a literal prefix and no part of
+  the line: the line is what follows it, and its `SUBJECT=value` and code are
+  the line's own. A frame admits only the families named for it, so a line
+  of another family after it is not a catalogued line, whatever its code. An
+  `ERROR:` line of a Git URL fetch carries no `Git source: ` frame (only the
+  command's frame, `ERROR: loom <command>: ...`), and an exception's text
+  carries no frame.
 
 A line after `licenseid: ` (`WARNING: licenseid: database: build v3
 outdated: current v4; run 'licenseid update'`) is a warning of LicenseID,

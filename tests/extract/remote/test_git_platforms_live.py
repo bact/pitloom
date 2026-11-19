@@ -25,8 +25,9 @@ import pytest
 
 from pitloom.core.fetch_policy import RemoteFetchPolicy
 from pitloom.extract.remote import fetch_git_project
-from pitloom.extract.remote._git_redirect import PROBE_FAILED_INFO
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import CODE_ATTR
+from pitloom.messages.git import GIT_REDIRECT_UNUSABLE
 from tests._network import network_unavailable, skip_on_network_error
 from tests._network_retry import retry_on_transient_server_error
 
@@ -220,7 +221,10 @@ def test_a_platforms_url_is_fetched(
         # A host too slow to answer the redirect probe leaves Pitloom asking
         # git directly, and git follows no redirect: it reports a bare 301 or
         # 302. That is the network, not the platform handling under test.
-        probe_failed = any(r.msg == PROBE_FAILED_INFO for r in caplog.records)
+        probe_failed = any(
+            getattr(r, CODE_ATTR, None) == GIT_REDIRECT_UNUSABLE.code
+            for r in caplog.records
+        )
         if probe_failed and _BARE_REDIRECT.search(str(exc)):
             network_unavailable("the redirect probe failed (slow or unreachable host)")
         raise

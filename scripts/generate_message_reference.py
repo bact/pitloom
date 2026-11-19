@@ -14,7 +14,8 @@ For each site (the docs, and each skill's ``references/``) this script:
   prefixes a line may start with and the pages;
 * writes each topic page whole (``message-codes-<topic>.md``,
   ``messages-<topic>.md``): a table of its codes, then one section per code,
-  sorted by code;
+  sorted by code, naming each prefix a surface may print before its
+  warnings and notes (``scripts/_message_reference_frames.py``);
 * writes the values page whole (``message-codes-values.md``,
   ``messages-values.md``): what each ``<name>`` a line shows stands for. It
   is a page of its own because the table grows faster than the code table
@@ -63,6 +64,14 @@ from pitloom.messages import (
 )
 
 ROOT: Final = Path(__file__).resolve().parents[1]
+# The helper is found from the script, from ``python -m`` and from a loader
+# that runs this file by its path.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# pylint: disable-next=wrong-import-position
+from scripts._message_reference_frames import frame_notes  # noqa: E402
+
 #: The values page's slug, in a page's file name; not a topic.
 VALUES_TOPIC: Final = "values"
 
@@ -261,7 +270,8 @@ def _frames() -> list[str]:
 
 def _values() -> list[str]:
     used = sorted({n for m in MESSAGES.values() for ln in m.lines for n in ln.fields})
-    used += sorted({n for f in FRAMES for n in f.fields} - set(used))
+    framed = {n for f in FRAMES for n in f.fields}
+    used += sorted((framed | {n for s in SUMMARIES for n in s.fields}) - set(used))
     rows = [f"| `{FIELDS[n].shown}` | {cell(FIELDS[n].meaning)} |" for n in used]
     return ["| Value | What it is |", "| --- | --- |", *rows]
 
@@ -287,6 +297,11 @@ def _section(message: Message) -> list[str]:
         *wrap(effect, "- **SBOM effect**: ", "  "),
         *wrap(message.did, "- **Pitloom did**: ", "  "),
         *_advice(message),
+        *(
+            ln
+            for note in frame_notes(message, _LEVEL_ORDER)
+            for ln in wrap(note, "- **Printed after**: ", "  ")
+        ),
         "- **Lines**:",
         "",
         "  ```text",

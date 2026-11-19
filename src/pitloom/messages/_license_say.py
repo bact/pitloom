@@ -41,8 +41,18 @@ def warn_license_refused(
     LicenseID cannot parse it (*malformed*: its category ``malformed``), else
     ``license-expression-invalid``."""
     message = LICENSE_EXPRESSION_MALFORMED if malformed else LICENSE_EXPRESSION_INVALID
-    # line and extra bound by name: no value can take their place.
-    emit(log, message, logging.WARNING, line=None, once=once, extra=None, **values)
+    # The keywords bound by name: no value can take their place.
+    emit(
+        log,
+        message,
+        logging.WARNING,
+        line=None,
+        once=once,
+        extra=None,
+        frame=None,
+        frame_values=None,
+        **values,
+    )
 
 
 def say_license_resolved(
@@ -61,6 +71,8 @@ def say_license_resolved(
             line=None,
             once=once,
             extra=None,
+            frame=None,
+            frame_values=None,
             **values,
         )
         return
