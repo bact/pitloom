@@ -161,14 +161,17 @@ class TestSkillFrontmatter:
 def _orphaned_references(skill_dir: Path) -> list[str]:
     """The ``references/*.md`` files of *skill_dir* that ``SKILL.md`` does not
     name, where a ``messages-<topic>.md`` page counts as named when ``SKILL.md``
-    names ``references/messages.md`` and that index links the page."""
+    names ``references/messages.md`` and that index links the page (a topic
+    page by its anchor, the values page by its file)."""
     body = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     index = skill_dir / "references" / "messages.md"
     index_text = index.read_text(encoding="utf-8") if index.is_file() else ""
     orphans: list[str] = []
     for ref in sorted((skill_dir / "references").glob("*.md")):
         if ref.name.startswith("messages-"):
-            named = "references/messages.md" in body and f"]({ref.name}#" in index_text
+            named = "references/messages.md" in body and any(
+                f"]({ref.name}{end}" in index_text for end in ("#", ")")
+            )
         else:
             named = f"references/{ref.name}" in body
         if not named:
@@ -205,8 +208,9 @@ class TestSkillReferences:
 
     def test_every_reference_is_named_in_skill_md(self, skill_dir: Path) -> None:
         """A reference is named in ``SKILL.md``, except a page of the message
-        reference (``messages-<topic>.md``): the body is at its size cap, so
-        ``messages.md`` (named there) links each page instead."""
+        reference (``messages-<topic>.md``, ``messages-values.md``): the body
+        is at its size cap, so ``messages.md`` (named there) links each page
+        instead."""
         orphans = _orphaned_references(skill_dir)
         assert not orphans, f"orphaned: {orphans}"
 
