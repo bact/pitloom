@@ -55,7 +55,7 @@ conflict.
   {
     "candidates": [
       {"ref": "...#License-1", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
-      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.8.4", "value": "Apache-2.0"}
+      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.9.0", "value": "Apache-2.0"}
     ],
     "field": "license",
     "kind": "conflict",
@@ -109,7 +109,7 @@ came from:
 | A whole Git LFS pointer (a licence file not pulled, read as its text) | nothing, as for an absent value: a pointer is no licence text |
 | Absent or blank | nothing: no licence relationship at all |
 
-Every expression is read by LicenseID (`licenseid>=0.8.4,<0.9`), the one
+Every expression is read by LicenseID (`licenseid>=0.9.0,<0.10`), the one
 reader of a declared value. A deprecated id ending `+` becomes its
 `-or-later` successor (`GPL-2.0+` is `GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as
 written, because whether `-only` or `-or-later` was meant is unknown; so does
@@ -143,7 +143,8 @@ would drop (`Apache 2.0?`), one of several lines, and one LicenseID refuses
 because a licence is not all it holds: a stray mark (`-MIT`, `.GPL-3.0-only`,
 `MIT -`, `MIT...`), a list number (`1. MIT`, `iv. MIT`), a comment word
 (`REM MIT`) or a plus after a space (`GPLv3 +`). A reading that changed more
-than the case, white space, brackets or a `+` is said once per value per run,
+than the case, white space, brackets, a zero-width character or a `+` is said
+once per value per run,
 and kept in the provenance:
 
 ```text

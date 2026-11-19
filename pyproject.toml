@@ -68,7 +68,9 @@ dependencies = [
     # "+" that is no operator (`MIT++`) is not matched as a licence text.
     # 0.8.3: `licenses.nuget.org` expression URLs are read as expressions.
     # 0.8.4: a slash between two licences (`MIT/Apache-2.0`) is read as OR.
-    "licenseid>=0.8.4,<0.9",
+    # 0.9.0: a bare `GPL-2.0` is read as written (`variant_stated` false),
+    # `detect(variant=...)`, and `exact` is false for a rewrite-rule reading.
+    "licenseid>=0.9.0,<0.10",
     # 25.0 floor: `packaging.markers.Marker` only accepts the PEP 751
     # `extras`/`dependency_groups` pseudo-environment variable names
     # starting at this release (24.x raises InvalidMarker for them) --
