@@ -318,7 +318,7 @@ does not name. It is not a model bound.
 
 Prepare the database before the first run of a session that reads licences:
 `licenseid update --source packaged` (without an install, `uvx --from
-"licenseid>=0.8.4,<0.9" licenseid update --source packaged`). It uses the copy
+"licenseid>=0.9.0,<0.10" licenseid update --source packaged`). It uses the copy
 in the `licenseid` wheel: no network. On a missing database it creates it
 (`Update complete.`, then a `... STATUS=updated PATH=<path>` line); on a
 current one it prints `Database is already at version <v>. Skipping update.`
@@ -361,8 +361,9 @@ current v4; run 'licenseid update'`: the database was built by an older
 LicenseID; detection still runs. Rebuild it with the preflight command and
 report the line. `INFO: licenseid: input: variant not stated: GPL-2.0; using
 GPL-2.0-only` is a guess LicenseID made while detecting a licence file's
-text (a bare deprecated id in an `SPDX-License-Identifier` tag): report it
-with the licence it concerns. LicenseID's `input: too few words for
+text (a GPL, LGPL or AGPL text that states no `-only` or `-or-later`; a bare
+deprecated id in a tag stays as written, no guess): report it with the licence
+it concerns. LicenseID's `input: too few words for
 text` (a licence file too short to match) is not shown: nothing to report.
 
 If the preflight failed, generate anyway and report the line. Do not run a

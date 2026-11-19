@@ -101,7 +101,7 @@ is an empty, invalid or unreadable one (`known-limitations.md`):
 
 ```bash
 licenseid update --source packaged   # from an install of pitloom
-uvx --from "licenseid>=0.8.4,<0.9" licenseid update --source packaged  # no install
+uvx --from "licenseid>=0.9.0,<0.10" licenseid update --source packaged  # no install
 loom project . -o sbom.spdx3.json    # then generate
 ```
 

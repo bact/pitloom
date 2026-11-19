@@ -90,6 +90,8 @@ and this project adheres to
   `--config` file error names the file once ([#497])
 - A `creation-datetime` in `[tool.pitloom]` that is not a date is refused even
   when `--creation-datetime` overrides it ([#497])
+- Requires `licenseid>=0.9.0,<0.10`: a bare `GPL-2.0` tag stays as written, not
+  `GPL-2.0-only`; a full GPL text without a variant is still `-only` ([#502])
 
 ### Fixed
 
@@ -135,6 +137,7 @@ and this project adheres to
 [#497]: https://github.com/bact/pitloom/pull/497
 [#498]: https://github.com/bact/pitloom/pull/498
 [#501]: https://github.com/bact/pitloom/pull/501
+[#502]: https://github.com/bact/pitloom/pull/502
 
 ## [0.24.0] - 2026-11-11
 

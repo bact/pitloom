@@ -64,12 +64,20 @@ def test_a_url_of_a_deprecated_id_is_decided_and_noted(
     )
 
 
-@pytest.mark.parametrize("raw", ["MIT\u200b", "\x1bMIT"], ids=["zwsp", "esc"])
+@pytest.mark.parametrize(
+    ("raw", "said"),
+    [("MIT\u200b", False), ("\x1bMIT", True)],
+    ids=["zwsp", "esc"],
+)
 def test_a_control_or_format_character_at_an_end_is_dropped(
-    raw: str, caplog: pytest.LogCaptureFixture
+    raw: str, said: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """LicenseID 0.9 files a dropped zero-width character under ``lexical``
+    (form only: not said at INFO); a control character stays ``separator``."""
     with caplog.at_level(logging.INFO, logger=_LOGGER):
         got = classify_license(raw)
     assert got is not None and (got.kind, got.value) == ("expression", "MIT")
-    assert _info(caplog) == [f"LICENSE={raw!r}: read as MIT (trim)"]
-    assert " -> MIT (trim)" in tag_license_normalization("P", raw, "MIT")
+    assert _info(caplog) == ([f"LICENSE={raw!r}: read as MIT (trim)"] if said else [])
+    note = tag_license_normalization("P", raw, "MIT")
+    assert (" -> MIT (trim)" in note) is said
+    assert "Normalized-From: " in note  # the value as written, escaped

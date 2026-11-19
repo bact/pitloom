@@ -32,6 +32,7 @@ from tests._licenseid_warn import as_licenseid, warn_from_pitloom
 _LOGGER = relay.__name__
 _OUTDATED = "database: build v2 outdated: current v3; run 'licenseid update'"
 _GUESS = "licenseid: input: variant not stated"
+_FIXTURES = Path(__file__).parent.parent / "fixtures" / "license-texts"
 
 
 def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
@@ -208,14 +209,29 @@ def test_resolving_on_the_packaged_list_warns_nothing(
     assert not _said(caplog)
 
 
-def test_a_real_guess_of_the_detector_is_said_at_info(
+def test_a_bare_deprecated_tag_is_read_as_written_and_not_guessed(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A bare ``GPL-2.0`` tag: LicenseID reads ``GPL-2.0-only`` and says so."""
+    """LicenseID 0.9 keeps a bare ``GPL-2.0`` tag as written: no guess to say."""
     db = Path(get_default_db_path())
     if not db.exists():
         pytest.skip("licenseid database not built -- run 'licenseid update'")
     text = "SPDX-License-Identifier: GPL-2.0\n" + "Some licence words. " * 10
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        found = detect_license_from_text(text)
+    assert found == "GPL-2.0"
+    assert not [line for line in _said(caplog) if line[1].startswith(_GUESS)]
+
+
+def test_a_real_guess_of_the_detector_is_said_at_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The full GPL 2 text states no variant: LicenseID reads
+    ``GPL-2.0-only`` and says so."""
+    db = Path(get_default_db_path())
+    if not db.exists():
+        pytest.skip("licenseid database not built -- run 'licenseid update'")
+    text = (_FIXTURES / "pylint-4.1.1-LICENSE").read_text(encoding="utf-8")
     with caplog.at_level(logging.INFO, logger=_LOGGER):
         found = detect_license_from_text(text)
     assert found == "GPL-2.0-only"

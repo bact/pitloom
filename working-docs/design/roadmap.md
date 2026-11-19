@@ -158,6 +158,11 @@ counts are in [message-catalogue-migration-plan.md](message-catalogue-migration-
   `Resolution-<n>`, `License-List` and `Reason`, behind `--provenance`; waits
   for the flags item below and the provenance taxonomy. See
   [licence-resolution-provenance.md](licence-resolution-provenance.md).
+- [ ] **Licence variants** (`-only` / `-or-later`; option G ruled 2026-11-19):
+  declared as read, a variant concluded only on evidence, after the LicenseID
+  0.9 bump (0.9.0 released 2026-11-19); later, an opt-in scan of grant text in
+  repository files for more evidence. See
+  [licence-variant-evidence.md](licence-variant-evidence.md).
 - [ ] **Provenance and source-metadata flags** (decided 2026-11-05):
   provenance annotations are off by default (they make the SBOM huge, and the
   taxonomy is not settled); `--provenance`/`--no-provenance` turns them on
