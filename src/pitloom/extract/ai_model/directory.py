@@ -92,7 +92,7 @@ def directory_models_in(
         )
     if limit is not None and len(names) > limit:
         return None
-    found = []
+    found: list[tuple[str, AiModelFormat]] = []
     for name in names:
         fmt = detect_directory_format(folder / name)
         if fmt != AiModelFormat.UNKNOWN:
